@@ -1,0 +1,16 @@
+{
+  "name": "semester-library-auth",
+  "version": "1.0.0",
+  "description": "Login system for Semester Library portal",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "seed": "node seed.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "express-session": "^1.18.0",
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^11.3.0"
+  }
+}

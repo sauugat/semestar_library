@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign In - Semester Library</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="login">
+  <div class="login-box">
+    <h2>Sign In</h2>
+    <form id="loginForm">
+      <label for="studentId">Student ID</label>
+      <input type="text" id="studentId" name="studentId" placeholder="e.g. GU2026001" required>
+
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" placeholder="Enter password" required>
+
+      <button type="submit" class="btn-primary">Sign In</button>
+      <p id="errorMsg" class="error-msg"></p>
+    </form>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

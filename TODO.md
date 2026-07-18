@@ -1,0 +1,3 @@
+- [x] Update `public/style.css` to add `photo-output.heic` as landing page background with no effects
+- [x] Verify no blur/gradient/effects are applied
+- [x] Mark tasks complete after edit

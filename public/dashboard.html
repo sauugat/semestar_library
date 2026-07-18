@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — Semester Library</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="dash">
+
+  <header class="dash-header">
+    <span class="lib-wordmark">Semester Library</span>
+    <button id="logoutBtn" class="dash-logout">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+        <path d="M16 17l5-5-5-5"/>
+        <path d="M21 12H9"/>
+      </svg>
+      Logout
+    </button>
+  </header>
+
+  <section class="dash-hero">
+    <div class="dash-avatar" id="avatarInitial">·</div>
+    <div>
+      <p class="dash-greeting-line" id="greetingLine">Loading…</p>
+      <p class="dash-id" id="idLine"></p>
+    </div>
+  </section>
+
+  <div class="feed-heading">
+    <h2>Your Feed</h2>
+    <span>Updated just now</span>
+  </div>
+
+  <main class="feed">
+    <article class="feed-card">
+      <div class="feed-card-top">
+        <span class="feed-icon icon-note">
+          <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 3v4a1 1 0 0 0 1 1h4"/>
+            <path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/>
+            <path d="M9 13h6M9 17h4"/>
+          </svg>
+        </span>
+        <div class="feed-card-heading">
+          <span class="feed-tag">Note</span>
+        </div>
+        <span class="feed-meta">Basics of IT &middot; 2h ago</span>
+      </div>
+      <h3>Chapter 4 slides uploaded</h3>
+      <p>Slides for "Basics of IT — Networking Fundamentals" are now available in Resources. Review before Thursday's class.</p>
+    </article>
+
+    <article class="feed-card">
+      <div class="feed-card-top">
+        <span class="feed-icon icon-notice">
+          <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+        </span>
+        <div class="feed-card-heading">
+          <span class="feed-tag">Notice</span>
+        </div>
+        <span class="feed-meta">Exam Section &middot; 5h ago</span>
+      </div>
+      <h3>Mid-term routine published</h3>
+      <p>The mid-term examination routine for Year I has been finalized. Check the Routine tab for your schedule.</p>
+    </article>
+
+    <article class="feed-card">
+      <div class="feed-card-top">
+        <span class="feed-icon icon-note">
+          <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 3v4a1 1 0 0 0 1 1h4"/>
+            <path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/>
+            <path d="M9 13h6M9 17h4"/>
+          </svg>
+        </span>
+        <div class="feed-card-heading">
+          <span class="feed-tag">Note</span>
+        </div>
+        <span class="feed-meta">Computer Programming I &middot; 1d ago</span>
+      </div>
+      <h3>Practical submission reminder</h3>
+      <p>Submit your Lab 6 (functions & recursion) solutions before Friday midnight. Late submissions won't be accepted.</p>
+    </article>
+  </main>
+
+  <nav class="bottom-nav">
+    <button class="nav-item active" data-tab="notes">
+      <svg viewBox="0 0 24 24"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/><path d="M9 13h6M9 17h4"/></svg>
+      <span class="nav-label">Notes</span>
+    </button>
+    <button class="nav-item" data-tab="notice">
+      <svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <span class="nav-label">Notice</span>
+    </button>
+    <button class="nav-item" data-tab="chat">
+      <svg viewBox="0 0 24 24"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 8.4 8.4 0 0 1-3.5-.75L3 21l1.8-5.4A8.4 8.4 0 0 1 4 12.5 8.5 8.5 0 1 1 21 11.5z"/></svg>
+      <span class="nav-label">Chat</span>
+    </button>
+    <button class="nav-item" data-tab="routine">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      <span class="nav-label">Routine</span>
+    </button>
+  </nav>
+
+  <script>
+    function getGreeting() {
+      const hour = new Date().getHours();
+      if (hour < 12) return "Good morning";
+      if (hour < 17) return "Good afternoon";
+      return "Good evening";
+    }
+
+    fetch('/api/me')
+      .then(res => {
+        if (!res.ok) throw new Error('Not logged in');
+        return res.json();
+      })
+      .then(data => {
+        document.getElementById('greetingLine').textContent = `${getGreeting()}, ${data.name}`;
+        document.getElementById('idLine').textContent = `Student ID: ${data.studentId}`;
+        document.getElementById('avatarInitial').textContent = data.name.charAt(0).toUpperCase();
+      })
+      .catch(() => {
+        window.location.href = 'login.html';
+      });
+
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      fetch('/api/logout', { method: 'POST' })
+        .then(() => window.location.href = 'index.html');
+    });
+
+    document.querySelectorAll('.nav-item').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      });
+    });
+  </script>
+</body>
+</html>

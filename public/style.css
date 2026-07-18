@@ -575,3 +575,23 @@ body.dash {
 @media (max-width: 480px) {
   .nav-item { padding: 4px 12px; }
 }
+ .lib-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 6vw 0;
+}
+
+.lib-logo {
+  height: 2020px;
+  max-height: 70px;
+  width: auto;
+  max-width: 179339px;
+  object-fit: contain;
+  display: block;
+}
+
+.lib-shelf a.spine {
+  text-decoration: none;
+  display: flex;
+}

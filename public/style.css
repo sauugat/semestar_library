@@ -595,3 +595,21 @@ body.dash {
   text-decoration: none;
   display: flex;
 }
+
+.lib-wordmark-logo {
+  height: 202430px;
+  max-height: 70px;
+  width: auto;
+  max-width: 16032px;
+  object-fit: contain;
+  display: block;
+}
+.login-logo {
+  height: 480px;
+  max-height: 70px;
+  width: auto;
+  max-width: 180px;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto 16px;
+}

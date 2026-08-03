@@ -13,14 +13,22 @@
 
   <header class="dash-header">
     <span class="lib-wordmark">Semester Library</span>
-    <button id="logoutBtn" class="dash-logout">
-      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-        <path d="M16 17l5-5-5-5"/>
-        <path d="M21 12H9"/>
-      </svg>
-      Logout
-    </button>
+    <div class="dash-header-actions">
+      <button class="dash-logout" onclick="location.href='files.html'">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3v12"/><path d="M7 8l5-5 5 5"/><path d="M5 21h14a2 2 0 0 0 2-2v-4"/><path d="M3 15v4a2 2 0 0 0 2 2"/>
+        </svg>
+        Files
+      </button>
+      <button id="logoutBtn" class="dash-logout">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <path d="M16 17l5-5-5-5"/>
+          <path d="M21 12H9"/>
+        </svg>
+        Logout
+      </button>
+    </div>
   </header>
 
   <section class="dash-hero">
@@ -37,58 +45,8 @@
   </div>
 
   <main class="feed">
-    <article class="feed-card">
-      <div class="feed-card-top">
-        <span class="feed-icon icon-note">
-          <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M14 3v4a1 1 0 0 0 1 1h4"/>
-            <path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/>
-            <path d="M9 13h6M9 17h4"/>
-          </svg>
-        </span>
-        <div class="feed-card-heading">
-          <span class="feed-tag">Note</span>
-        </div>
-        <span class="feed-meta">Basics of IT &middot; 2h ago</span>
-      </div>
-      <h3>Chapter 4 slides uploaded</h3>
-      <p>Slides for "Basics of IT — Networking Fundamentals" are now available in Resources. Review before Thursday's class.</p>
-    </article>
-
-    <article class="feed-card">
-      <div class="feed-card-top">
-        <span class="feed-icon icon-notice">
-          <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/>
-            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-          </svg>
-        </span>
-        <div class="feed-card-heading">
-          <span class="feed-tag">Notice</span>
-        </div>
-        <span class="feed-meta">Exam Section &middot; 5h ago</span>
-      </div>
-      <h3>Mid-term routine published</h3>
-      <p>The mid-term examination routine for Year I has been finalized. Check the Routine tab for your schedule.</p>
-    </article>
-
-    <article class="feed-card">
-      <div class="feed-card-top">
-        <span class="feed-icon icon-note">
-          <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M14 3v4a1 1 0 0 0 1 1h4"/>
-            <path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/>
-            <path d="M9 13h6M9 17h4"/>
-          </svg>
-        </span>
-        <div class="feed-card-heading">
-          <span class="feed-tag">Note</span>
-        </div>
-        <span class="feed-meta">Computer Programming I &middot; 1d ago</span>
-      </div>
-      <h3>Practical submission reminder</h3>
-      <p>Submit your Lab 6 (functions & recursion) solutions before Friday midnight. Late submissions won't be accepted.</p>
-    </article>
+    <div id="realFiles"></div>
+    <div id="demoNotes"></div>
   </main>
 
   <nav class="bottom-nav">
@@ -143,6 +101,144 @@
         btn.classList.add('active');
       });
     });
+
+    // --- Demo notes (placeholder content — safe to delete once real notices exist) ---
+    document.getElementById('demoNotes').innerHTML = `
+      <article class="feed-card">
+        <div class="feed-card-top">
+          <span class="feed-icon icon-note">
+            <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 3v4a1 1 0 0 0 1 1h4"/>
+              <path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/>
+              <path d="M9 13h6M9 17h4"/>
+            </svg>
+          </span>
+          <div class="feed-card-heading"><span class="feed-tag">Note</span></div>
+          <span class="feed-meta">Basics of IT &middot; 2h ago</span>
+        </div>
+        <h3>Chapter 4 slides uploaded</h3>
+        <p>Slides for "Basics of IT — Networking Fundamentals" are now available in Resources. Review before Thursday's class.</p>
+      </article>
+      <article class="feed-card">
+        <div class="feed-card-top">
+          <span class="feed-icon icon-notice">
+            <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
+          </span>
+          <div class="feed-card-heading"><span class="feed-tag">Notice</span></div>
+          <span class="feed-meta">Exam Section &middot; 5h ago</span>
+        </div>
+        <h3>Mid-term routine published</h3>
+        <p>The mid-term examination routine for Year I has been finalized. Check the Routine tab for your schedule.</p>
+      </article>
+    `;
+
+    // --- Real uploaded files, pulled into the feed ---
+    function formatSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    function timeAgo(iso) {
+      const diffMs = Date.now() - new Date(iso).getTime();
+      const mins = Math.floor(diffMs / 60000);
+      if (mins < 1) return 'just now';
+      if (mins < 60) return mins + 'm ago';
+      const hrs = Math.floor(mins / 60);
+      if (hrs < 24) return hrs + 'h ago';
+      return Math.floor(hrs / 24) + 'd ago';
+    }
+function isImageFile(name) {
+      return /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(name);
+    }
+
+    function getFileExt(name) {
+      const match = name.match(/\.([a-zA-Z0-9]+)$/);
+      return match ? match[1].toUpperCase() : 'FILE';
+    }
+    fetch('/api/files')
+      .then(res => res.ok ? res.json() : [])
+      .then(files => {
+        if (!files.length) return;
+        document.getElementById('realFiles').innerHTML = files.map(f => `
+          <article class="fb-card" data-file-id="${f.id}">
+            <div class="fb-card-header">
+              <div class="fb-avatar">${f.uploaderName.charAt(0).toUpperCase()}</div>
+              <div class="fb-header-text">
+                <p class="fb-uploader-name">${f.uploaderName}</p>
+                <p class="fb-meta">uploaded a file &middot; ${timeAgo(f.uploadedAt)}</p>
+              </div>
+            </div>
+            <p class="fb-caption">${f.title || f.originalName}</p>
+            <a href="/api/files/${f.id}/view" target="_blank" class="fb-preview">
+              ${isImageFile(f.originalName) ? `
+                <img src="/api/files/${f.id}/view" alt="${f.originalName}" class="fb-preview-img">
+              ` : `
+                <div class="fb-doc-thumb">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 3v4a1 1 0 0 0 1 1h4"/>
+                    <path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/>
+                  </svg>
+                  <span class="fb-ext-badge">${getFileExt(f.originalName)}</span>
+                  <div class="fb-play-badge">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                  </div>
+                </div>
+                <div class="fb-doc-titlebar">${f.originalName} &middot; ${formatSize(f.sizeBytes)}</div>
+              `}
+            </a>
+            <div class="fb-actions">
+              <a href="/api/files/${f.id}/view" target="_blank" class="file-view">View</a>
+              <a href="/api/files/${f.id}/download" class="file-download">Download</a>
+            </div>
+          </article>
+        `).join('');
+     });
+
+    // --- Hover preview popup ---
+    const previewPopup = document.createElement('div');
+    previewPopup.className = 'file-preview-popup';
+    previewPopup.innerHTML = '<iframe></iframe>';
+    document.body.appendChild(previewPopup);
+    const previewFrame = previewPopup.querySelector('iframe');
+    let previewTimer = null;
+
+    document.getElementById('realFiles').addEventListener('mouseover', (e) => {
+      const card = e.target.closest('[data-file-id]');
+      if (!card || card.dataset.hovering) return;
+      document.querySelectorAll('[data-file-id]').forEach(c => c.dataset.hovering = '');
+      card.dataset.hovering = 'true';
+
+      clearTimeout(previewTimer);
+      previewTimer = setTimeout(() => {
+        previewFrame.src = `/api/files/${card.dataset.fileId}/view`;
+        previewPopup.classList.add('visible');
+      }, 200);
+    });
+
+    document.getElementById('realFiles').addEventListener('mousemove', (e) => {
+      const card = e.target.closest('[data-file-id]');
+      if (!card) return;
+      let top = e.clientY + 16;
+      let left = e.clientX + 16;
+      if (left + 280 > window.innerWidth) left = e.clientX - 296;
+      if (top + 200 > window.innerHeight) top = e.clientY - 216;
+      previewPopup.style.top = top + 'px';
+      previewPopup.style.left = left + 'px';
+    });
+
+    document.getElementById('realFiles').addEventListener('mouseout', (e) => {
+      const card = e.target.closest('[data-file-id]');
+      if (!card || card.contains(e.relatedTarget)) return;
+      clearTimeout(previewTimer);
+      previewPopup.classList.remove('visible');
+      previewFrame.src = '';
+      card.dataset.hovering = '';
+    });
+  </script>
   </script>
 </body>
 </html>

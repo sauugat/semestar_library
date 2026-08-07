@@ -43,6 +43,11 @@
         <span id="dropText">Click to choose a file, or drag one here</span>
         <input type="file" id="fileInput" name="file" hidden required>
       </label>
+      <label for="subjectInput" class="upload-label">Subject (optional)</label>
+<input type="text" id="subjectInput" class="upload-title-input" placeholder="e.g. Basics of IT" maxlength="60">
+
+<label for="chapterInput" class="upload-label">Chapter (optional)</label>
+<input type="text" id="chapterInput" class="upload-title-input" placeholder="e.g. Chapter 4" maxlength="60">
       <button type="submit" class="btn-primary upload-btn" id="uploadBtn">Upload</button>
       <p id="uploadMsg" class="error-msg"></p>
     </form>
@@ -104,7 +109,8 @@
       const formData = new FormData();
       formData.append('file', fileInput.files[0]);
       formData.append('title', document.getElementById('titleInput').value.trim());
-
+formData.append('subject', document.getElementById('subjectInput').value.trim());
+formData.append('chapter', document.getElementById('chapterInput').value.trim());
       uploadBtn.disabled = true;
       uploadBtn.textContent = 'Uploading…';
       uploadMsg.textContent = '';
@@ -116,6 +122,8 @@
         dropText.textContent = 'Click to choose a file, or drag one here';
         fileInput.value = '';
         document.getElementById('titleInput').value = '';
+        document.getElementById('subjectInput').value = '';
+document.getElementById('chapterInput').value = '';
         loadFiles();
       } catch (err) {
         uploadMsg.textContent = err.message;
@@ -191,13 +199,33 @@ function isImageFile(name) {
               <div class="fb-doc-titlebar">${f.originalName} &middot; ${formatSize(f.sizeBytes)}</div>
             `}
           </a>
-          <div class="fb-actions">
-            <a href="/api/files/${f.id}/view" target="_blank" class="file-view">View</a>
-            <a href="/api/files/${f.id}/download" class="file-download">Download</a>
+
+          <div class="fb-engage-bar">
+            <button class="like-btn ${f.liked ? 'liked' : ''}" data-liked="${f.liked ? 'true' : 'false'}" onclick="toggleLike(${f.id}, this)">
+              <svg viewBox="0 0 24 24" fill="${f.liked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/>
+              </svg>
+              <span class="like-count">${f.likeCount}</span>
+            </button>
+            <button class="comment-btn" onclick="toggleCommentPanel(${f.id}, this.closest('.fb-card'))">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 8.4 8.4 0 0 1-3.5-.75L3 21l1.8-5.4A8.4 8.4 0 0 1 4 12.5 8.5 8.5 0 1 1 21 11.5z"/>
+              </svg>
+              <span>${f.commentCount}</span>
+            </button>
+            <a href="/api/files/${f.id}/view" target="_blank" class="fb-view-link">View</a>
+            <a href="/api/files/${f.id}/download" class="fb-download-link">Download</a>
+          </div>
+
+          <div class="comment-panel">
+            <div class="comment-list"></div>
+            <div class="comment-form">
+              <input type="text" class="comment-input" placeholder="Write a comment…" maxlength="500">
+              <button class="comment-submit" onclick="submitComment(${f.id}, this.closest('.fb-card'))">Post</button>
+            </div>
           </div>
         </article>
-      `).join('');
-    }
+      `).join('');    }
 
    loadFiles();
 
@@ -240,7 +268,57 @@ function isImageFile(name) {
       previewPopup.classList.remove('visible');
       previewFrame.src = '';
       card.dataset.hovering = '';
-    });
+    }); 
+
+    async function toggleLike(fileId, btn) {
+      const res = await fetch(`/api/files/${fileId}/like`, { method: 'POST' });
+      const data = await res.json();
+      btn.dataset.liked = data.liked;
+      btn.querySelector('.like-count').textContent = data.likeCount;
+      btn.classList.toggle('liked', data.liked);
+    }
+
+    async function toggleCommentPanel(fileId, card) {
+      const panel = card.querySelector('.comment-panel');
+      const isOpen = panel.classList.contains('open');
+      if (isOpen) {
+        panel.classList.remove('open');
+        return;
+      }
+      panel.classList.add('open');
+      if (!panel.dataset.loaded) {
+        const res = await fetch(`/api/files/${fileId}/comments`);
+        const comments = await res.json();
+        panel.querySelector('.comment-list').innerHTML = comments.map(c => `
+          <div class="comment-item">
+            <div class="comment-avatar">${c.commenterName.charAt(0).toUpperCase()}</div>
+            <div>
+              <p class="comment-author">${c.commenterName}</p>
+              <p class="comment-text">${c.commentText}</p>
+            </div>
+          </div>
+        `).join('') || '<p class="comment-empty">No comments yet.</p>';
+        panel.dataset.loaded = 'true';
+      }
+    }
+
+    async function submitComment(fileId, card) {
+      const input = card.querySelector('.comment-input');
+      const text = input.value.trim();
+      if (!text) return;
+      const res = await fetch(`/api/files/${fileId}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+      });
+      if (!res.ok) return;
+      input.value = '';
+      const panel = card.querySelector('.comment-panel');
+      panel.dataset.loaded = '';
+      await toggleCommentPanel(fileId, card);
+      toggleCommentPanel(fileId, card); // reopen since the above toggles it closed
+    }
+    
   </script>
 
 </body>

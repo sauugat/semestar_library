@@ -1,3 +1,5 @@
-- [x] Update `public/style.css` to add `photo-output.heic` as landing page background with no effects
-- [x] Verify no blur/gradient/effects are applied
+- [x] Update `public/style.css` to set dashboard (`body.dash`) background to `photo-output.png`
+- [x] Verify dashboard background uses image settings (center/cover/no-repeat/fixed)
 - [x] Mark tasks complete after edit
+- [x] Increase spacing between feed posts in `public/style.css`
+- [x] Mark feed spacing task complete

@@ -1,27 +1,191 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sign In - Semester Library</title>
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign In — Apple Account · Semester Library</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="brian.css">
 </head>
-<body class="login">
-  <div class="login-box">
-    <img src="631824E0-DFD0-462B-95E4-FEBD92499478-removebg-preview.png" alt="Semester Library" class="login-logo">
-    <h2>Sign In</h2>
-    <form id="loginForm">
-      <label for="studentId">Student ID</label>
-      <input type="text" id="studentId" name="studentId" placeholder="e.g. GU2026001" required>
 
-      <label for="password">Password</label>
-      <input type="password" id="password" name="password" placeholder="Enter password" required>
+<body class="apple-signin-page">
 
-      <button type="submit" class="btn-primary">Sign In</button>
-      <p id="errorMsg" class="error-msg"></p>
-    </form>
+  <!-- Apple Global Header Bar -->
+
+  <!-- Apple Account Sign In Main Container -->
+  <main class="apple-signin-container">
+    <div class="apple-signin-card">
+
+      <!-- Apple Luminous Emblem Halo -->
+      <div class="apple-emblem-halo">
+        <div class="apple-emblem-ring"></div>
+        <img src="631824E0-DFD0-462B-95E4-FEBD92499478-removebg-preview.png" alt="Semester Library"
+          class="apple-emblem-img">
+      </div>
+
+      <h1 class="apple-signin-headline">Sign in with your Student ID</h1>
+      <p class="apple-signin-subtext">Access your notices, exam routines, study notes, and syllabus materials.</p>
+
+      <form id="loginForm" class="apple-signin-form">
+
+        <div class="apple-input-group">
+          <div class="apple-input-row">
+            <label for="studentId" class="apple-input-label">Student ID</label>
+            <input type="text" id="studentId" name="studentId" class="apple-text-field" placeholder="e.g. GU2026001"
+              autocomplete="username" required>
+          </div>
+
+          <div class="apple-input-row">
+            <label for="password" class="apple-input-label">Password</label>
+            <input type="password" id="password" name="password" class="apple-text-field"
+              placeholder="Enter your password" autocomplete="current-password" required>
+          </div>
+        </div>
+
+        <div class="apple-signin-controls">
+          <label class="apple-remember-wrap" for="rememberMe">
+            <input type="checkbox" id="rememberMe" class="apple-real-checkbox">
+            <span class="apple-custom-check"></span>
+            <span class="apple-remember-text">Remember Student ID</span>
+          </label>
+        </div>
+
+        <button type="submit" class="apple-primary-btn" id="loginBtn">
+          <span>Sign In</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+            stroke-linejoin="round" class="apple-btn-arrow">
+            <path d="M5 12h14M12 5l7 7-7 7" />
+          </svg>
+        </button>
+
+        <p id="errorMsg" class="error-msg"></p>
+
+        <div class="apple-support-links">
+          <a href="index.html" class="apple-text-link">← Back to Overview</a>
+          <span class="apple-link-dot">·</span>
+          <a href="routine.html" class="apple-text-link">View Exam Routine</a>
+        </div>
+
+      </form>
+
+      <!-- Apple Privacy & Security Badge -->
+      <div class="apple-security-callout">
+        <div class="security-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+        </div>
+        <p>Your Student ID and library session are encrypted and authenticated directly with Gandaki University.</p>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Interactive Brian in Bottom Right -->
+  <div class="brian-wrapper" id="rickContainer"
+    style="position: fixed; bottom: 10px; right: 200px; transform: scale(0.8); transform-origin: bottom right; z-index: 100;">
+    <div class="container">
+      <div class="brian-container">
+        <div class="brian">
+          <div class="head">
+            <div class="ear left"></div>
+            <div class="ear-hide"></div>
+            <div class="ear right"></div>
+            <div class="eye left">
+              <div class="lid"></div>
+            </div>
+            <div class="eye-hide"></div>
+            <div class="eye right">
+              <div class="lid"></div>
+            </div>
+            <div class="nose">
+              <div class="nostril"></div>
+            </div>
+            <div class="mouth"></div>
+          </div>
+          <div class="collar"></div>
+          <div class="collar-pendant"></div>
+          <div class="body"></div>
+          <div class="belly"></div>
+          <div class="crotch"></div>
+          <div class="bum"></div>
+          <div class="tail"></div>
+          <div class="armpit left"></div>
+          <div class="shoulder left">
+            <div class="arm">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+          </div>
+          <div class="armpit right"></div>
+          <div class="shoulder right">
+            <div class="arm">
+              <div class="thumb"></div>
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+          </div>
+          <div class="hand left">
+          </div>
+          <div class="hand right">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <div class="crotch"></div>
+          <div class="leg left"></div>
+          <div class="leg right"></div>
+          <div class="foot left">
+            <span></span>
+            <span></span>
+          </div>
+          <div class="foot right">
+            <span></span>
+            <span></span>
+          </div>
+          <div class="shadow"></div>
+        </div>
+      </div>
+    </div>
   </div>
 
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const rickContainer = document.getElementById('rickContainer');
+      const studentIdInput = document.getElementById('studentId');
+      const passwordInput = document.getElementById('password');
+
+      // Wave when page loads
+      setTimeout(() => {
+        rickContainer.classList.add('wave-arm');
+        setTimeout(() => rickContainer.classList.remove('wave-arm'), 1200);
+      }, 500);
+
+      // Look down when typing Student ID
+      studentIdInput.addEventListener('focus', () => {
+        rickContainer.classList.add('look-down');
+      });
+      studentIdInput.addEventListener('blur', () => {
+        rickContainer.classList.remove('look-down');
+      });
+
+      // Hide eyes when typing Password
+      passwordInput.addEventListener('focus', () => {
+        rickContainer.classList.add('hide-eyes');
+      });
+      passwordInput.addEventListener('blur', () => {
+        rickContainer.classList.remove('hide-eyes');
+      });
+    });
+  </script>
   <script src="script.js"></script>
 </body>
+
 </html>

@@ -1,0 +1,40 @@
+  display: block;
+  color: inherit;
+}
+
+.course-detail {
+  padding: 4px 2px;
+}
+
+.course-detail h4 {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--lib-navy-deep);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin: 20px 0 8px;
+}
+
+.course-detail h4:first-child {
+  margin-top: 0;
+}
+
+.course-detail-text {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--lib-ink);
+}
+
+.course-detail-pre {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--lib-ink);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  background: rgba(16,26,48,0.03);
+  border-radius: 8px;
+  padding: 14px 16px;
+  border-left: 3px solid var(--lib-brass);
+}

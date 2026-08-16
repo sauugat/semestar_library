@@ -1,43 +1,740 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Semester Library — Gandaki University</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Semester Library — Gandaki University</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Outfit:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
 </head>
-<body class="landing">
 
- <header class="lib-nav">
-  <a href="index.html">
-    <img src="631824E0-DFD0-462B-95E4-FEBD92499478-removebg-preview.png" alt="Semester Library" class="lib-wordmark-logo">
-  </a>
-  <a href="https://gandakiuniversity.edu.np" target="_blank" rel="noopener noreferrer">
-    <img src="IMG_1629-removebg-preview.png" alt="Gandaki University" class="lib-logo">
-  </a>
-</header>
+<body class="landing apple-poster-landing">
 
-  <main class="lib-hero">
-    <div class="lib-hero-copy">
-      <p class="lib-eyebrow">Batch 2025 &middot; Year I</p>
-      <h1>Everything<br>your semester<br>needs, on&nbsp;one<br>shelf.</h1>
-      <p class="lib-sub">Notices, routines, and study resources — organized the way a good library should be. Sign in with the Student&nbsp;ID and password issued to you.</p>
-      <a href="login.html" class="btn-primary">Enter the Library →</a>
+  <!-- Subtle Monochromatic Ambient Spotlight Canvas -->
+  <div class="poster-ambient-canvas" aria-hidden="true">
+    <div class="ambient-spotlight spotlight-1"></div>
+    <div class="ambient-spotlight spotlight-2"></div>
+    <div class="ambient-grid-lines"></div>
+    <div class="cursor-ambient-follow" id="ambientFollower"></div>
+  </div>
+
+  <!-- Apple Minimal Navigation -->
+  <header class="lib-nav apple-nav">
+    <div class="nav-left">
+      <a href="index.html" class="lib-wordmark apple-wordmark">Semester Library</a>
     </div>
+    <div class="nav-right">
+      <a href="https://gandakiuniversity.edu.np" target="_blank" rel="noopener noreferrer"
+        class="univ-tag apple-univ-tag">Gandaki University</a>
+      <a href="login.html" class="nav-cta-btn apple-nav-btn">Sign In</a>
+    </div>
+  </header>
 
-  <div class="lib-shelf">
-  <a href="login.html" class="spine spine-1"><span>Notices</span></a>
-  <a href="login.html" class="spine spine-2"><span>Routine</span></a>
-  <a href="login.html" class="spine spine-3"><span>Resources</span></a>
-  <a href="login.html" class="spine spine-4"><span>Exams</span></a>
-</div>
+  <!-- Main Hero Poster Container -->
+  <main class="lib-hero-section poster-hero-section apple-hero-section">
+
+    <!-- Top Badge & Typography Showcase -->
+    <div class="lib-hero-header poster-hero-header">
+
+      <!-- Apple Keynote Floating Pill -->
+      <div class="hero-badge apple-keynote-badge">
+        <span class="badge-dot-live"></span>
+        <span class="badge-text">BATCH 2025 &middot; YEAR I &middot; GANDAKI UNIVERSITY</span>
+        <span class="apple-kicker-tag">BIT ACADEMIC CLOUD</span>
+      </div>
+
+      <!-- High-Contrast Apple Titanium Shimmer Gradient Typography (Original Slogan Preserved) -->
+      <h1 class="apple-main-title">
+        <span class="apple-text-grad-primary">Everything your semester needs.</span><br />
+        <span class="apple-text-grad-secondary">On one shelf.</span>
+      </h1>
+
+      <p class="apple-hero-desc">
+        Notices, routines, and study resources &mdash; organized the way a modern library should be. Sign in with the
+        Student ID issued to you.
+      </p>
+
+      <!-- 1. Hero Primary CTA Button -->
+      <div class="poster-cta-wrap apple-cta-group">
+        <a href="login.html" class="apple-primary-cta magnetic-btn">
+          <span>Enter the Library</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+            stroke-linejoin="round" style="width: 16px; height: 16px;">
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+            <polyline points="12 5 19 12 12 19"></polyline>
+          </svg>
+        </a>
+      </div>
+
+      <!-- 2. Jitter AI Prompt Interactive Chat Pill (Positioned Below Enter Library) -->
+      <div class="jitter-prompt-container">
+        <div class="jitter-prompt-pill tilt-card">
+          <div class="jitter-prompt-icon-left" title="Powered by Google Gemini Flash">
+            <svg class="gemini-spark-icon" viewBox="0 0 24 24" width="19" height="19">
+              <defs>
+                <linearGradient id="geminiSparkGradHero" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#4285f4" />
+                  <stop offset="35%" stop-color="#9b72cb" />
+                  <stop offset="70%" stop-color="#f06292" />
+                  <stop offset="100%" stop-color="#8ab4f8" />
+                </linearGradient>
+              </defs>
+              <path fill="url(#geminiSparkGradHero)"
+                d="M12 0C12 6.627 6.627 12 0 12C6.627 12 12 17.373 12 24C12 17.373 17.373 12 24 12C17.373 12 12 6.627 12 0Z" />
+            </svg>
+          </div>
+          <div class="jitter-prompt-input-area">
+            <span class="jitter-prompt-text">Explore features of&nbsp;</span><span class="jitter-prompt-text" id="jitterPromptText"></span>
+            <span class="jitter-cursor"></span>
+          </div>
+          <div class="jitter-prompt-tools">
+            <button type="button" class="jitter-tool-btn" title="Add Filter">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+                stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
+            <button type="button" class="jitter-tool-btn" title="Attach Subject">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+                stroke-linejoin="round">
+                <path
+                  d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48">
+                </path>
+              </svg>
+            </button>
+            <button type="button" class="jitter-ask-btn" id="jitterAskBtn"
+              title="Ask AI to retrieve semester resources">
+              <svg class="gemini-spark-icon gemini-spark-btn-icon" id="jitterSparkleIcon" viewBox="0 0 24 24">
+                <defs>
+                  <linearGradient id="geminiSparkGradBtn" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#8ab4f8" />
+                    <stop offset="35%" stop-color="#4285f4" />
+                    <stop offset="70%" stop-color="#f06292" />
+                    <stop offset="100%" stop-color="#9b72cb" />
+                  </linearGradient>
+                </defs>
+                <path fill="url(#geminiSparkGradBtn)"
+                  d="M12 0C12 6.627 6.627 12 0 12C6.627 12 12 17.373 12 24C12 17.373 17.373 12 24 12C17.373 12 12 6.627 12 0Z" />
+              </svg>
+              <span id="jitterAskBtnText">Ask AI</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Gemini Flash Radiant Gradient Wave (Emanating below Chat Bar upon clicking Ask AI) -->
+        <div class="gemini-chat-emitter-wave" id="geminiAuroraBg"></div>
+      </div>
+
+      <!-- Google Gemini Interim AI Loading Animation (Situated between Chat Box and Bento Cards) -->
+      <div class="gemini-loading-container" id="geminiLoaderContainer">
+        <div class="gemini-loading-pill">
+          <div class="gemini-loader-spark-box">
+            <svg class="gemini-loader-spark" viewBox="0 0 24 24" fill="none">
+              <path fill="url(#geminiSparkGradBtn)"
+                d="M12 0C12 6.627 6.627 12 0 12C6.627 12 12 17.373 12 24C12 17.373 17.373 12 24 12C17.373 12 12 6.627 12 0Z" />
+            </svg>
+          </div>
+          <span class="gemini-loader-text">Analyzing syllabus &amp; generating knowledge space...</span>
+          <div class="gemini-loader-dots">
+            <span></span><span></span><span></span>
+          </div>
+        </div>
+        <!-- Gemini Shimmering Radiant Beam Bar -->
+        <div class="gemini-loading-beam-track">
+          <div class="gemini-loading-beam-glow"></div>
+        </div>
+      </div>
+
+      <!-- Apple Bento Feature Showcase Grid (Hidden until Ask AI is clicked) -->
+      <div class="poster-bento-grid dynamic-shapes-grid apple-bento-grid poster-grid-hidden" id="posterGrid">
+
+        <!-- Card 1: Wide Panorama Hero Card (2 Columns Wide) -->
+        <div class="poster-card bento-shape-wide tilt-card apple-card bento-glow-card" data-card-idx="0">
+          <div class="poster-card-specular"></div>
+          <div class="wide-card-layout">
+            <div class="wide-card-content">
+              <div class="poster-card-top">
+                <div class="poster-icon-box apple-icon-box">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                  </svg>
+                </div>
+                <span class="apple-pill-tag kinetic-tag">Stream Sync &bull; 01</span>
+              </div>
+              <h3 class="poster-card-title apple-card-title">Subject Notes &amp; Community Feed</h3>
+              <p class="poster-card-desc apple-card-text">
+                Share handwritten notes, typed PDFs, and presentation decks directly with your classmates. Organized
+                strictly by semester.
+              </p>
+              <div class="poster-card-footer">
+                <a href="login.html" class="poster-card-link apple-card-link">
+                  <span>Explore Notes</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+                    stroke-linejoin="round" style="width: 14px; height: 14px;">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                  </svg>
+                </a>
+              </div>
+            </div>
+            <div class="wide-card-preview">
+              <!-- Apple Floating Interactive Mock Post inside Card -->
+              <div class="apple-mock-post">
+                <div class="apple-payload-pill">
+                  <span class="payload-dot pulse-dot"></span>
+                  <span>CLOUD STREAM</span>
+                  <span class="payload-sync-indicator">LIVE SYNC</span>
+                </div>
+                <div class="mock-post-header-row">
+                  <div class="apple-avatar">A</div>
+                  <div class="mock-user-meta">
+                    <strong>Aayush Shrestha</strong>
+                    <span class="mock-badge-pill">Sem 3</span>
+                    <span class="mock-time-tag">&bull; 10m ago</span>
+                  </div>
+                </div>
+                <div class="mock-caption">
+                  Uploaded Chapter 4 - Database Normalization handwritten cheat sheet ⚡
+                </div>
+                <!-- Streaming animated progress beam -->
+                <div class="mock-sync-bar">
+                  <div class="sync-bar-progress"></div>
+                </div>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 4px;">
+                  <span class="apple-file-pill">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                      style="width: 12px; height: 12px;">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                      <polyline points="14 2 14 8 20 8"></polyline>
+                    </svg>
+                    DBMS_Ch4_Notes.pdf
+                  </span>
+                  <button type="button" class="apple-like-btn" id="mockLikeBtn" title="React with Heart">
+                    <span class="heart-icon">&hearts;</span>
+                    <span id="mockLikeCount">42</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 2: Tall Vertical Bento Shape (Chrono Watch Widget) -->
+        <div class="poster-card bento-shape-tall tilt-card apple-card bento-glow-card" data-card-idx="1">
+          <div class="poster-card-specular"></div>
+          <div class="poster-card-top">
+            <div class="poster-icon-box apple-icon-box">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+            </div>
+            <span class="apple-pill-tag">Timeline &bull; 02</span>
+          </div>
+          <h3 class="poster-card-title apple-card-title">Exam Routines &amp; Timetable</h3>
+          <p class="poster-card-desc apple-card-text">
+            Never miss a class or exam. View your weekly schedule and get countdown alerts for upcoming examinations.
+          </p>
+
+          <!-- Monochromatic Chrono Countdown Widget with Radar Scan Line -->
+          <div class="card-portion-wrap">
+            <div class="apple-countdown-box">
+              <div class="chrono-radar-sweep"></div>
+              <div class="countdown-heading">
+                <span class="countdown-pulse-dot sonar-pulse"></span>
+                <span>Next Exam: Operating Systems</span>
+              </div>
+              <div class="countdown-digits-strip">
+                <div class="digit-box"><span id="cdDays">18</span><small>Days</small></div>
+                <span class="digit-colon">:</span>
+                <div class="digit-box"><span id="cdHours">09</span><small>Hrs</small></div>
+                <span class="digit-colon">:</span>
+                <div class="digit-box"><span id="cdMins">42</span><small>Min</small></div>
+                <span class="digit-colon">:</span>
+                <div class="digit-box"><span id="cdSecs">15</span><small>Sec</small></div>
+              </div>
+              <div class="apple-routine-submeta">
+                <span>Hall 3B &bull; Gandaki University</span>
+                <span class="meta-bullet">&bull;</span>
+                <span>08:00 AM</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="poster-card-footer">
+            <a href="login.html" class="apple-card-link">
+              <span>View Full Schedule</span>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </a>
+          </div>
+        </div>
+
+        <!-- Card 3: Compact Square Notice Card (1 Column) -->
+        <div class="poster-card bento-shape-compact tilt-card apple-card bento-glow-card" data-card-idx="2">
+          <div class="poster-card-specular"></div>
+          <div class="poster-card-top">
+            <div class="poster-icon-box apple-icon-box">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round">
+                <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+              </svg>
+            </div>
+            <div class="apple-pill-tag kinetic-tag">OFFICIAL DISPATCH</div>
+          </div>
+
+          <h3 class="poster-card-title apple-card-title">University Notices</h3>
+          <p class="poster-card-text apple-card-text">Stay updated with official Gandaki University circulars,
+            registration deadlines, and circulars.</p>
+
+          <!-- Mini Notice Preview Portion -->
+          <div class="card-portion-wrap">
+            <div class="mini-notice-box apple-notice-box">
+              <div class="mini-notice-top">
+                <span class="notice-badge-urgent shimmer-badge">CIRCULAR #2025-08</span>
+                <span class="notice-date">TODAY</span>
+              </div>
+              <p class="mini-notice-headline">Semester Exam Registration & Form Submission Deadline</p>
+              <div class="mini-notice-meta">
+                <span>EXAM CONTROLLER OFFICE</span>
+                <span class="notice-dot-sep">&bull;</span>
+                <span class="notice-status-open live-pulse-text">ACTIVE</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="poster-card-footer">
+            <a href="login.html" class="apple-card-link">
+              <span>Explore Notices</span>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </a>
+          </div>
+        </div>
+
+        <!-- Card 4: Wide Panoramic Roadmap Card (2 Columns Wide) -->
+        <div class="poster-card bento-shape-wide tilt-card apple-card bento-glow-card" data-card-idx="3">
+          <div class="poster-card-specular"></div>
+          <div class="poster-card-top">
+            <div class="poster-icon-box apple-icon-box">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+              </svg>
+            </div>
+            <div class="apple-pill-tag kinetic-tag">CURRICULUM ARCHITECTURE</div>
+          </div>
+
+          <div class="wide-roadmap-header">
+            <div>
+              <h3 class="poster-card-title apple-card-title">Structured 8-Semester Syllabus</h3>
+              <p class="poster-card-text apple-card-text">Organized breakdown of all 8 semesters, theory and practical
+                units, teaching hours, and textbooks.</p>
+            </div>
+            <div class="credits-badge-pill apple-credits-pill shimmer-credits">126.0 TOTAL CREDITS</div>
+          </div>
+
+          <!-- Interactive Clickable Semester Progress Nodes -->
+          <div class="card-portion-wrap">
+            <div class="poster-roadmap-nodes apple-roadmap-nodes" id="semesterRoadmap">
+              <button class="roadmap-pill active"
+                onclick="switchSemNode(this, 'Year 1 &middot; 5 Core Courses (Math, Physics, C, Digital Logic, English)')">Sem
+                I</button>
+              <span class="roadmap-sep">&rarr;</span>
+              <button class="roadmap-pill"
+                onclick="switchSemNode(this, 'Year 1 &middot; 5 Core Courses (OOP in C++, DSA, Stats, Microprocessor, Discrete Math)')">Sem
+                II</button>
+              <span class="roadmap-sep">&rarr;</span>
+              <button class="roadmap-pill"
+                onclick="switchSemNode(this, 'Year 2 &middot; 5 Core Courses (Database Systems, OS, Computer Networks, Software Eng, Web Tech)')">Sem
+                III</button>
+              <span class="roadmap-sep">&rarr;</span>
+              <button class="roadmap-pill"
+                onclick="switchSemNode(this, 'Year 2 &middot; 5 Core Courses (Java, AI, Computer Architecture, Minor Project, Numerical Methods)')">Sem
+                IV</button>
+              <span class="roadmap-sep">&rarr;</span>
+              <button class="roadmap-pill"
+                onclick="switchSemNode(this, 'Year 3 &middot; 5 Core Courses (Web Tech II, Network Security, Mobile App, Cloud Computing)')">Sem
+                V</button>
+              <span class="roadmap-sep">&rarr;</span>
+              <button class="roadmap-pill"
+                onclick="switchSemNode(this, 'Year 3 &middot; 5 Core Courses (Data Mining, Distributed Systems, Compiler Design, Elective I)')">Sem
+                VI</button>
+            </div>
+
+            <div class="semester-live-desc apple-sem-desc" id="semesterLiveDesc">
+              Year 1 &middot; 5 Core Courses (Math, Physics, C, Digital Logic, English)
+            </div>
+          </div>
+
+          <div class="poster-card-footer">
+            <a href="login.html" class="apple-card-link">
+              <span>Explore Complete 8 Semesters</span>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </a>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Apple Stats Showcase Strip -->
+      <div class="poster-stats-strip apple-stats-strip stats-hidden" id="posterStatsStrip">
+        <div class="poster-stat-item">
+          <div class="stat-indicator-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+              stroke-linejoin="round">
+              <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
+              <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
+            </svg>
+          </div>
+          <div class="stat-meta">
+            <strong>BATCH 2025</strong>
+            <span>Four-Year BIT Program</span>
+          </div>
+        </div>
+
+        <div class="poster-stat-item">
+          <div class="stat-indicator-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+              stroke-linejoin="round">
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+            </svg>
+          </div>
+          <div class="stat-meta">
+            <strong>100% DIGITAL</strong>
+            <span>Zero Paperwork Notes</span>
+          </div>
+        </div>
+
+        <div class="poster-stat-item">
+          <div class="stat-indicator-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+              stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+          </div>
+          <div class="stat-meta">
+            <strong>126 CREDITS</strong>
+            <span>Full Curriculum Structure</span>
+          </div>
+        </div>
+
+        <div class="poster-stat-item">
+          <div class="stat-indicator-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+              stroke-linejoin="round">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+              <polyline points="9 22 9 12 15 12 15 22"></polyline>
+            </svg>
+          </div>
+          <div class="stat-meta">
+            <strong>GANDAKI UNIV</strong>
+            <span>Central Academic Portal</span>
+          </div>
+        </div>
+      </div>
 
   </main>
 
-  <footer class="lib-footer">A student-run portal for BIT, Batch 2025</footer>
+  <!-- Interactive Scripts (Apple 3D Tilt, Real-Time Countdown, Magnetic Physics & Heart Burst Particles) -->
+  <script>
+    // 1. Ambient Follower (Magnetic Easing)
+    const ambientFollower = document.getElementById('ambientFollower');
+    let mouseX = window.innerWidth / 2, mouseY = window.innerHeight / 2;
+    let followerX = mouseX, followerY = mouseY;
+
+    window.addEventListener('pointermove', (e) => {
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+    });
+
+    function renderAmbientFollower() {
+      followerX += (mouseX - followerX) * 0.12;
+      followerY += (mouseY - followerY) * 0.12;
+      if (ambientFollower) {
+        ambientFollower.style.transform = `translate3d(${followerX - 160}px, ${followerY - 160}px, 0)`;
+      }
+      requestAnimationFrame(renderAmbientFollower);
+    }
+    renderAmbientFollower();
+
+    // 2. Magnetic Primary CTA Physics with Spring Interpolation
+    const magneticBtns = document.querySelectorAll('.magnetic-btn');
+    magneticBtns.forEach(btn => {
+      btn.addEventListener('mousemove', (e) => {
+        const rect = btn.getBoundingClientRect();
+        const x = e.clientX - (rect.left + rect.width / 2);
+        const y = e.clientY - (rect.top + rect.height / 2);
+        btn.style.transform = `translate3d(${x * 0.22}px, ${y * 0.22}px, 0) scale(1.035)`;
+      });
+      btn.addEventListener('mouseleave', () => {
+        btn.style.transform = 'translate3d(0, 0, 0) scale(1)';
+        btn.style.transition = 'transform 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+      });
+      btn.addEventListener('mouseenter', () => {
+        btn.style.transition = 'transform 0.08s ease-out';
+      });
+    });
+
+    // 3. 3D Perspective Gyro Tilt with Specular Spotlight Tracking
+    const tiltCards = document.querySelectorAll('.tilt-card');
+    tiltCards.forEach(card => {
+      card.addEventListener('mousemove', (e) => {
+        const rect = card.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const centerX = rect.width / 2;
+        const centerY = rect.height / 2;
+        const rotateX = ((y - centerY) / centerY) * -4.5;
+        const rotateY = ((x - centerX) / centerX) * 4.5;
+
+        card.style.transform = `perspective(1100px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateY(-5px)`;
+
+        const specular = card.querySelector('.poster-card-specular');
+        if (specular) {
+          specular.style.background = `radial-gradient(circle 280px at ${x}px ${y}px, rgba(255, 255, 255, 0.65) 0%, rgba(240, 240, 245, 0.25) 45%, transparent 75%)`;
+        }
+      });
+
+      card.addEventListener('mouseleave', () => {
+        card.style.transform = 'perspective(1100px) rotateX(0deg) rotateY(0deg) translateY(0)';
+        const specular = card.querySelector('.poster-card-specular');
+        if (specular) specular.style.background = 'transparent';
+      });
+    });
+
+    // 4. Real-Time Countdown Timer with Second Tick Pulse
+    let totalSecs = 18 * 86400 + 9 * 3600 + 42 * 60 + 15;
+    const elSecs = document.getElementById('cdSecs');
+    setInterval(() => {
+      if (totalSecs > 0) totalSecs--;
+      const d = Math.floor(totalSecs / 86400);
+      const h = Math.floor((totalSecs % 86400) / 3600);
+      const m = Math.floor((totalSecs % 3600) / 60);
+      const s = totalSecs % 60;
+
+      const elD = document.getElementById('cdDays');
+      const elH = document.getElementById('cdHours');
+      const elM = document.getElementById('cdMins');
+
+      if (elD) elD.textContent = String(d).padStart(2, '0');
+      if (elH) elH.textContent = String(h).padStart(2, '0');
+      if (elM) elM.textContent = String(m).padStart(2, '0');
+      if (elSecs) {
+        elSecs.textContent = String(s).padStart(2, '0');
+        elSecs.style.transform = 'scale(1.1)';
+        setTimeout(() => { elSecs.style.transform = 'scale(1)'; }, 150);
+      }
+    }, 1000);
+
+    // 5. Interactive Like Button with Apple Heart Particle Cannon
+    const mockLikeBtn = document.getElementById('mockLikeBtn');
+    const mockLikeCount = document.getElementById('mockLikeCount');
+    let liked = false;
+
+    if (mockLikeBtn && mockLikeCount) {
+      mockLikeBtn.addEventListener('click', (e) => {
+        let count = parseInt(mockLikeCount.textContent, 10) || 42;
+        if (!liked) {
+          count++;
+          mockLikeBtn.classList.add('liked');
+          liked = true;
+          spawnHeartParticles(mockLikeBtn);
+        } else {
+          count--;
+          mockLikeBtn.classList.remove('liked');
+          liked = false;
+        }
+        mockLikeCount.textContent = count;
+      });
+    }
+
+    function spawnHeartParticles(targetBtn) {
+      const rect = targetBtn.getBoundingClientRect();
+      const emojis = ['❤️', '✨', '🔥', '💖', '★', '⚡', '💫'];
+      for (let i = 0; i < 8; i++) {
+        const particle = document.createElement('span');
+        particle.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+        particle.style.position = 'fixed';
+        particle.style.left = `${rect.left + rect.width / 2}px`;
+        particle.style.top = `${rect.top + rect.height / 2}px`;
+        particle.style.fontSize = `${Math.random() * 8 + 14}px`;
+        particle.style.pointerEvents = 'none';
+        particle.style.zIndex = '9999';
+        particle.style.transition = 'all 0.65s cubic-bezier(0.16, 1, 0.3, 1)';
+        document.body.appendChild(particle);
+
+        const angle = Math.random() * Math.PI * 2;
+        const velocity = Math.random() * 50 + 30;
+        const destX = Math.cos(angle) * velocity;
+        const destY = Math.sin(angle) * velocity - 35;
+
+        requestAnimationFrame(() => {
+          particle.style.transform = `translate3d(${destX}px, ${destY}px, 0) scale(0)`;
+          particle.style.opacity = '0';
+        });
+
+        setTimeout(() => {
+          particle.remove();
+        }, 700);
+      }
+    }
+
+    // 6. Interactive Semester Node Switcher with Dynamic Fade-Flip
+    function switchSemNode(btn, descText) {
+      document.querySelectorAll('#semesterRoadmap .roadmap-pill').forEach(el => el.classList.remove('active'));
+      btn.classList.add('active');
+      const descEl = document.getElementById('semesterLiveDesc');
+      if (descEl) {
+        descEl.textContent = descText;
+        descEl.style.animation = 'none';
+        descEl.offsetHeight; // trigger reflow
+        descEl.style.animation = 'appleHeroReveal 0.35s cubic-bezier(0.16, 1, 0.3, 1) both';
+      }
+    }
+
+    // 7. Jitter AI Prompt Typewriter Engine
+    const jitterPromptText = document.getElementById('jitterPromptText');
+    const jitterAskBtn = document.getElementById('jitterAskBtn');
+
+    const sampleQueries = [
+      "Semester Library..."
+    ];
+
+    let queryIdx = 0;
+    let charIdx = 0;
+    let isDeleting = false;
+    let typingSpeed = 50;
+    let loopTimeout = null;
+
+    function typeJitterLoop() {
+      if (!jitterPromptText) return;
+      const current = sampleQueries[queryIdx];
+
+      if (isDeleting) {
+        jitterPromptText.textContent = current.substring(0, charIdx - 1);
+        charIdx--;
+        typingSpeed = 25;
+      } else {
+        jitterPromptText.textContent = current.substring(0, charIdx + 1);
+        charIdx++;
+        typingSpeed = 50 + Math.random() * 30;
+      }
+
+      if (!isDeleting && charIdx === current.length) {
+        if (jitterAskBtn) {
+          jitterAskBtn.classList.add('jitter-pulse-glow');
+          setTimeout(() => jitterAskBtn.classList.remove('jitter-pulse-glow'), 650);
+        }
+
+        typingSpeed = 3400;
+        isDeleting = true;
+      } else if (isDeleting && charIdx === 0) {
+        isDeleting = false;
+        queryIdx = 0; // Only one query, stay on 0
+        typingSpeed = 400;
+      }
+
+      loopTimeout = setTimeout(typeJitterLoop, typingSpeed);
+    }
+
+    setTimeout(typeJitterLoop, 1200);
+
+    // 8. Gemini Flash AI Query Trigger & Bento Response Emergence
+    const auroraBg = document.getElementById('geminiAuroraBg');
+    const posterGrid = document.getElementById('posterGrid');
+    const posterStatsStrip = document.getElementById('posterStatsStrip');
+    const jitterAskBtnText = document.getElementById('jitterAskBtnText');
+    const jitterSparkleIcon = document.getElementById('jitterSparkleIcon');
+    const promptPill = document.querySelector('.jitter-prompt-pill');
+    const geminiLoaderContainer = document.getElementById('geminiLoaderContainer');
+
+    let isAiGenerating = false;
+
+    function handleAskAiClick(e) {
+      if (e) e.preventDefault();
+      if (isAiGenerating) return;
+      isAiGenerating = true;
+
+      // 1. Button active feedback
+      if (jitterAskBtn) jitterAskBtn.classList.add('jitter-pulse-glow');
+      if (jitterAskBtnText) jitterAskBtnText.textContent = "Analyzing ✦";
+
+      // 2. Gemini Flash Gradient wave blooms below chat bar
+      if (auroraBg) {
+        auroraBg.classList.remove('aurora-dissolved');
+        auroraBg.classList.add('aurora-expanded');
+      }
+
+      // 3. Activate Google Gemini Interim AI Loader between chat and cards
+      if (geminiLoaderContainer) {
+        geminiLoaderContainer.classList.remove('gemini-loader-finished');
+        geminiLoaderContainer.classList.add('gemini-loader-active');
+      }
+
+      // 4. Delay showing the Bento boxes so user experiences the Gemini wave & interim loader
+      setTimeout(() => {
+        if (posterGrid) {
+          posterGrid.classList.remove('poster-grid-hidden');
+          posterGrid.classList.add('poster-grid-active');
+        }
+        if (posterStatsStrip) {
+          posterStatsStrip.classList.remove('stats-hidden');
+          posterStatsStrip.classList.add('stats-active');
+        }
+        // Smoothly dismiss interim loader as cards materialize
+        if (geminiLoaderContainer) {
+          geminiLoaderContainer.classList.add('gemini-loader-finished');
+          geminiLoaderContainer.classList.remove('gemini-loader-active');
+        }
+      }, 650);
+
+      // 5. Smooth auto-scroll down to the top of the AI Bento output
+      setTimeout(() => {
+        if (posterGrid) {
+          const gridTop = posterGrid.getBoundingClientRect().top + window.scrollY - 80;
+          window.scrollTo({ top: gridTop, behavior: 'smooth' });
+        }
+      }, 700);
+
+      // 6. Update button status
+      setTimeout(() => {
+        if (jitterAskBtnText) jitterAskBtnText.textContent = "AI Output ✦";
+      }, 950);
+
+      // 7. Dissolve first central gradient wave as bento cards emerge
+      setTimeout(() => {
+        if (auroraBg) auroraBg.classList.add('aurora-dissolved');
+        isAiGenerating = false;
+      }, 750);
+    }
+
+    if (jitterAskBtn) {
+      jitterAskBtn.addEventListener('click', handleAskAiClick);
+    }
+    if (promptPill) {
+      promptPill.addEventListener('click', (e) => {
+        if (e.target.closest('.jitter-tool-btn')) return;
+        handleAskAiClick(e);
+      });
+    }
+  </script>
 
 </body>
+
 </html>

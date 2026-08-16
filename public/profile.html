@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Profile — Semester Library</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script>
+    fetch('/api/profile').then(r => { if (!r.ok) window.location.replace('/login.html'); }).catch(() => window.location.replace('/login.html'));
+  </script>
+</head>
+<body class="dash profile-body">
+
+  <!-- Top Apple Pro Header -->
+  <header class="dash-header">
+    <a href="dashboard.html" class="lib-wordmark">Semester Library</a>
+    <div class="dash-header-actions">
+      <a href="profile.html" class="dash-profile-chip active" title="My Profile">
+        <div class="dash-profile-avatar" id="headerAvatar">·</div>
+        <span class="dash-profile-label" id="headerProfileName">Profile</span>
+      </a>
+      <button class="dash-logout" onclick="location.href='dashboard.html'">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+        Feed
+      </button>
+      <button class="dash-logout" onclick="location.href='files.html'">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3v12"/><path d="M7 8l5-5 5 5"/><path d="M5 21h14a2 2 0 0 0 2-2v-4"/><path d="M3 15v4a2 2 0 0 0 2 2"/>
+        </svg>
+        Files
+      </button>
+      <button id="logoutBtn" class="dash-logout">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <path d="M16 17l5-5-5-5"/><path d="M21 12H9"/>
+        </svg>
+        Sign Out
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Profile Container -->
+  <main class="profile-container">
+
+    <!-- Profile Hero Card with Ambient Aurora -->
+    <section class="profile-hero-card">
+      
+      <!-- Top Banner Strip -->
+      <div class="profile-banner">
+        <div class="banner-aurora"></div>
+      </div>
+
+      <!-- Profile Identity Box -->
+      <div class="profile-identity-content">
+        
+        <!-- Avatar Column -->
+        <div class="profile-avatar-wrapper">
+          <div class="profile-avatar-large" id="profileAvatar">
+            <span id="profileInitials">S</span>
+            <img id="profileAvatarImg" alt="Profile Photo" style="display:none;">
+          </div>
+          <label class="avatar-edit-badge" id="avatarUploadLabel" title="Change Profile Picture" style="display:none;">
+            <input type="file" id="avatarFileInput" accept="image/*" style="display:none;">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+              <circle cx="12" cy="13" r="4"/>
+            </svg>
+          </label>
+        </div>
+
+        <!-- Main Info Row & Action Buttons -->
+        <div class="profile-main-meta">
+          <div class="profile-name-row">
+            <h1 class="profile-name" id="profileName">Loading Student…</h1>
+            <span class="post-verified-badge" title="Verified Gandaki University Student">
+              <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+              GU Student
+            </span>
+          </div>
+
+          <p class="profile-handle" id="profileHandle">@student</p>
+
+          <!-- Chips Row: Department, Semester, Campus -->
+          <div class="profile-badges-row">
+            <span class="profile-tag-pill" id="profileDept">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+              B.Sc. CSIT
+            </span>
+            <span class="profile-tag-pill" id="profileSem">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              Semester 1
+            </span>
+            <span class="profile-tag-pill">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+              Gandaki University
+            </span>
+          </div>
+
+          <!-- Bio / Status Description -->
+          <p class="profile-bio" id="profileBio">No bio added yet. Click 'Edit Profile' to introduce yourself to your class.</p>
+
+          <!-- Social Links Row -->
+          <div class="profile-social-links" id="profileSocialLinks">
+            <a href="#" id="githubLink" class="social-chip" target="_blank" rel="noopener" style="display:none;">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+              GitHub
+            </a>
+            <a href="#" id="linkedinLink" class="social-chip" target="_blank" rel="noopener" style="display:none;">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
+              LinkedIn
+            </a>
+          </div>
+        </div>
+
+        <!-- Profile CTAs: Edit (Self) or Follow (Others) -->
+        <div class="profile-actions-col">
+          <button id="editProfileBtn" class="profile-primary-btn" style="display:none;" onclick="openEditModal()">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+            Edit Profile
+          </button>
+
+          <button id="followBtn" class="profile-follow-btn" style="display:none;" onclick="toggleFollowUser()">
+            <span class="follow-text">Follow</span>
+          </button>
+
+          <button class="profile-secondary-btn" onclick="copyProfileLink()" title="Share Profile">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13"/>
+            </svg>
+            Share
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Stats Bar (Uploads, Likes, Followers, Following) -->
+      <div class="profile-stats-strip">
+        <div class="profile-stat-box" onclick="switchTab('uploads')">
+          <strong id="statUploads">0</strong>
+          <span>Shared Files</span>
+        </div>
+        <div class="profile-stat-box">
+          <strong id="statLikes">0</strong>
+          <span>Likes Received</span>
+        </div>
+        <div class="profile-stat-box stat-interactive" onclick="openFollowersModal('followers')">
+          <strong id="statFollowers">0</strong>
+          <span>Followers</span>
+        </div>
+        <div class="profile-stat-box stat-interactive" onclick="openFollowersModal('following')">
+          <strong id="statFollowing">0</strong>
+          <span>Following</span>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Profile Tabs Section -->
+    <nav class="profile-tabs-nav">
+      <button class="profile-tab active" data-tab="uploads" onclick="switchTab('uploads')">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Shared Resources (<span id="tabUploadsCount">0</span>)
+      </button>
+      <button class="profile-tab" data-tab="classmates" onclick="switchTab('classmates')">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Classmates to Follow
+      </button>
+    </nav>
+
+    <!-- Tab 1: Uploaded Resources Feed -->
+    <section id="tabContentUploads" class="profile-tab-content">
+      <div id="userFilesList" class="profile-files-feed">
+        <p class="empty-state">Loading shared resources…</p>
+      </div>
+    </section>
+
+    <!-- Tab 2: Classmates to Follow -->
+    <section id="tabContentClassmates" class="profile-tab-content" style="display:none;">
+      <div id="classmatesGrid" class="classmates-grid">
+        <p class="empty-state">Loading classmates…</p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Edit Profile Modal -->
+  <div id="editModal" class="modal-overlay" style="display:none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>Edit Profile</h2>
+        <button class="modal-close" onclick="closeEditModal()">&times;</button>
+      </div>
+      <form id="editProfileForm" onsubmit="saveProfileChanges(event)">
+        
+        <div class="form-group">
+          <label for="editName">Full Name</label>
+          <input type="text" id="editName" required maxlength="60" class="form-input">
+        </div>
+
+        <div class="form-group">
+          <label for="editBio">Bio / Headline</label>
+          <textarea id="editBio" rows="3" maxlength="300" placeholder="e.g. CSIT student, passionate about Cloud & AI…" class="form-input form-textarea"></textarea>
+          <span class="form-hint">Brief intro for your classmates (max 300 chars)</span>
+        </div>
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label for="editDept">Department / Degree</label>
+            <input type="text" id="editDept" placeholder="B.Sc. CSIT" maxlength="50" class="form-input">
+          </div>
+          <div class="form-group">
+            <label for="editSem">Semester</label>
+            <input type="text" id="editSem" placeholder="Semester 1" maxlength="30" class="form-input">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="editGithub">GitHub Profile URL</label>
+          <input type="url" id="editGithub" placeholder="https://github.com/username" class="form-input">
+        </div>
+
+        <div class="form-group">
+          <label for="editLinkedin">LinkedIn Profile URL</label>
+          <input type="url" id="editLinkedin" placeholder="https://linkedin.com/in/username" class="form-input">
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" onclick="closeEditModal()">Cancel</button>
+          <button type="submit" id="saveProfileBtn" class="btn-save">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Followers / Following List Modal -->
+  <div id="followModal" class="modal-overlay" style="display:none;">
+    <div class="modal-card modal-card-sm">
+      <div class="modal-header">
+        <h2 id="followModalTitle">Followers</h2>
+        <button class="modal-close" onclick="closeFollowModal()">&times;</button>
+      </div>
+      <div id="followModalList" class="follow-users-list">
+        <p class="empty-state">Loading…</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- macOS Floating Dock Navigation -->
+  <nav class="floating-dock">
+    <a href="dashboard.html" class="nav-item">
+      <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span class="nav-label">Feed</span>
+    </a>
+    <a href="files.html" class="nav-item">
+      <svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="M7 8l5-5 5 5"/><path d="M5 21h14a2 2 0 0 0 2-2v-4"/><path d="M3 15v4a2 2 0 0 0 2 2"/></svg>
+      <span class="nav-label">Upload</span>
+    </a>
+    <a href="library.html" class="nav-item">
+      <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+      <span class="nav-label">Library</span>
+    </a>
+    <a href="syllabus.html" class="nav-item">
+      <svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+      <span class="nav-label">Syllabus</span>
+    </a>
+    <a href="routine.html" class="nav-item">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      <span class="nav-label">Routine</span>
+    </a>
+  </nav>
+
+  <script>
+    let currentProfile = null;
+    const urlParams = new URLSearchParams(window.location.search);
+    const targetStudentId = urlParams.get('id') || urlParams.get('studentId') || '';
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function formatSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    function timeAgo(iso) {
+      if (!iso) return 'just now';
+      const diffMs = Date.now() - new Date(iso).getTime();
+      const mins = Math.floor(diffMs / 60000);
+      if (mins < 1) return 'just now';
+      if (mins < 60) return mins + 'm ago';
+      const hrs = Math.floor(mins / 60);
+      if (hrs < 24) return hrs + 'h ago';
+      return Math.floor(hrs / 24) + 'd ago';
+    }
+
+    function getFileBadge(name) {
+      const ext = (name.match(/\.([a-zA-Z0-9]+)$/) || ['', 'FILE'])[1].toUpperCase();
+      let iconClass = 'badge-doc';
+      if (['PDF'].includes(ext)) iconClass = 'badge-pdf';
+      else if (['ZIP', 'RAR', '7Z', 'TAR', 'GZ'].includes(ext)) iconClass = 'badge-zip';
+      else if (['JPG', 'JPEG', 'PNG', 'WEBP', 'GIF', 'SVG'].includes(ext)) iconClass = 'badge-img';
+      else if (['JS', 'PY', 'CPP', 'C', 'JAVA', 'HTML', 'CSS', 'JSON', 'SQL'].includes(ext)) iconClass = 'badge-code';
+      else if (['PPT', 'PPTX', 'KEY'].includes(ext)) iconClass = 'badge-slide';
+      return { ext, iconClass };
+    }
+
+    function showToast(message) {
+      let toast = document.getElementById('socialToast');
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'socialToast';
+        toast.className = 'social-toast';
+        document.body.appendChild(toast);
+      }
+      toast.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6L9 17l-5-5"/></svg><span>${message}</span>`;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2400);
+    }
+
+    function copyProfileLink() {
+      const url = window.location.href;
+      navigator.clipboard.writeText(url).then(() => {
+        showToast('Profile link copied to clipboard');
+      }).catch(() => {
+        showToast('Link ready to share');
+      });
+    }
+
+    function copyPostLink(fileId) {
+      const url = `${window.location.origin}/api/files/${fileId}/view`;
+      navigator.clipboard.writeText(url).then(() => {
+        showToast('Direct file link copied to clipboard');
+      }).catch(() => {
+        showToast('Link ready to share');
+      });
+    }
+
+    // Load Profile Data
+    async function loadProfile() {
+      try {
+        const endpoint = targetStudentId ? `/api/profile/${targetStudentId}` : '/api/profile';
+        const res = await fetch(endpoint);
+        if (!res.ok) {
+          document.querySelector('.profile-container').innerHTML = '<p class="empty-state">Student profile not found.</p>';
+          return;
+        }
+
+        currentProfile = await res.json();
+        renderProfileHeader(currentProfile);
+        loadUserFiles(currentProfile.studentId);
+        loadClassmates();
+      } catch (err) {
+        console.error('Error loading profile:', err);
+      }
+    }
+
+    function renderProfileHeader(p) {
+      document.title = `${p.name} — Student Profile`;
+      document.getElementById('profileName').textContent = p.name;
+      document.getElementById('profileHandle').textContent = `@${p.studentId}`;
+      document.getElementById('profileDept').innerHTML = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>${escapeHtml(p.department || 'B.Sc. CSIT')}`;
+      document.getElementById('profileSem').innerHTML = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>${escapeHtml(p.semester || 'Semester 1')}`;
+      
+      const bioEl = document.getElementById('profileBio');
+      if (p.bio) {
+        bioEl.textContent = p.bio;
+        bioEl.style.fontStyle = 'normal';
+      } else {
+        bioEl.textContent = p.isSelf ? 'No bio added yet. Click \'Edit Profile\' to introduce yourself to your class.' : 'No bio provided.';
+        bioEl.style.fontStyle = 'italic';
+      }
+
+      // Avatar
+      const initials = p.name ? p.name.charAt(0).toUpperCase() : 'S';
+      const initialsEl = document.getElementById('profileInitials');
+      const imgEl = document.getElementById('profileAvatarImg');
+      
+      // Update top header profile avatar & name
+      const headerAvatar = document.getElementById('headerAvatar');
+      const headerName = document.getElementById('headerProfileName');
+      if (headerName) headerName.textContent = p.name ? p.name.split(' ')[0] : 'Profile';
+      if (headerAvatar) {
+        if (p.avatarUrl) {
+          headerAvatar.innerHTML = `<img src="${p.avatarUrl}" alt="${p.name}">`;
+        } else {
+          headerAvatar.textContent = initials;
+        }
+      }
+
+      if (p.avatarUrl) {
+        imgEl.src = p.avatarUrl;
+        imgEl.style.display = 'block';
+        initialsEl.style.display = 'none';
+      } else {
+        imgEl.style.display = 'none';
+        initialsEl.textContent = initials;
+        initialsEl.style.display = 'block';
+      }
+
+      // Avatar Upload Button (only if self)
+      document.getElementById('avatarUploadLabel').style.display = p.isSelf ? 'flex' : 'none';
+
+      // Social Links
+      const gh = document.getElementById('githubLink');
+      if (p.githubUrl) {
+        gh.href = p.githubUrl;
+        gh.style.display = 'inline-flex';
+      } else {
+        gh.style.display = 'none';
+      }
+
+      const li = document.getElementById('linkedinLink');
+      if (p.linkedinUrl) {
+        li.href = p.linkedinUrl;
+        li.style.display = 'inline-flex';
+      } else {
+        li.style.display = 'none';
+      }
+
+      // Action Buttons
+      const editBtn = document.getElementById('editProfileBtn');
+      const followBtn = document.getElementById('followBtn');
+      if (p.isSelf) {
+        editBtn.style.display = 'inline-flex';
+        followBtn.style.display = 'none';
+      } else {
+        editBtn.style.display = 'none';
+        followBtn.style.display = 'inline-flex';
+        updateFollowButton(p.isFollowing);
+      }
+
+      // Stats
+      document.getElementById('statUploads').textContent = p.stats.filesCount || 0;
+      document.getElementById('statLikes').textContent = p.stats.likesReceived || 0;
+      document.getElementById('statFollowers').textContent = p.stats.followersCount || 0;
+      document.getElementById('statFollowing').textContent = p.stats.followingCount || 0;
+      document.getElementById('tabUploadsCount').textContent = p.stats.filesCount || 0;
+    }
+
+    function updateFollowButton(isFollowing) {
+      const btn = document.getElementById('followBtn');
+      if (isFollowing) {
+        btn.classList.add('following');
+        btn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Following`;
+      } else {
+        btn.classList.remove('following');
+        btn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Follow`;
+      }
+    }
+
+    async function toggleFollowUser() {
+      if (!currentProfile) return;
+      try {
+        const res = await fetch(`/api/profile/${currentProfile.studentId}/follow`, { method: 'POST' });
+        const data = await res.json();
+        currentProfile.isFollowing = data.isFollowing;
+        currentProfile.stats.followersCount = data.followersCount;
+        updateFollowButton(data.isFollowing);
+        document.getElementById('statFollowers').textContent = data.followersCount;
+        showToast(data.isFollowing ? `Now following ${currentProfile.name}` : `Unfollowed ${currentProfile.name}`);
+      } catch (err) {
+        console.error('Follow toggle error:', err);
+      }
+    }
+
+    // Handle Live Avatar Upload
+    document.getElementById('avatarFileInput').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const formData = new FormData();
+      formData.append('avatar', file);
+
+      try {
+        showToast('Uploading new profile photo…');
+        const res = await fetch('/api/profile/avatar', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!res.ok) {
+          showToast('Failed to upload profile picture');
+          return;
+        }
+
+        const data = await res.json();
+        const imgEl = document.getElementById('profileAvatarImg');
+        const initialsEl = document.getElementById('profileInitials');
+        imgEl.src = data.avatarUrl + '?t=' + Date.now();
+        imgEl.style.display = 'block';
+        initialsEl.style.display = 'none';
+        showToast('Profile photo updated successfully!');
+      } catch (err) {
+        console.error('Avatar upload error:', err);
+      }
+    });
+
+    // Switch Tabs
+    function switchTab(tab) {
+      document.querySelectorAll('.profile-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+      document.getElementById('tabContentUploads').style.display = tab === 'uploads' ? 'block' : 'none';
+      document.getElementById('tabContentClassmates').style.display = tab === 'classmates' ? 'block' : 'none';
+    }
+
+    // Render Posts Uploaded by User
+    function renderPost(f) {
+      const badge = getFileBadge(f.originalName);
+      const initial = (f.uploaderName || 'S').charAt(0).toUpperCase();
+      const subjectTag = f.subject ? `<span class="post-pill-tag"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>${escapeHtml(f.subject)}</span>` : '';
+      const chapterTag = f.chapter ? `<span class="post-pill-tag"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>${escapeHtml(f.chapter)}</span>` : '';
+
+      return `
+        <article class="feed-card social-post-card" data-file-id="${f.id}">
+          
+          <header class="post-header">
+            <div class="post-avatar" aria-hidden="true">${initial}</div>
+            <div class="post-user-info">
+              <div class="post-author-row">
+                <span class="post-author-name">${escapeHtml(f.uploaderName || 'Student')}</span>
+                <span class="post-verified-badge" title="Verified Gandaki University Student">
+                  <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                  GU Student
+                </span>
+              </div>
+              <div class="post-meta-row">
+                <span class="post-student-handle">@${escapeHtml(f.uploadedBy || 'student')}</span>
+                <span class="post-meta-sep">&middot;</span>
+                <time class="post-timestamp" datetime="${f.uploadedAt}">${timeAgo(f.uploadedAt)}</time>
+                <span class="post-meta-sep">&middot;</span>
+                <span class="post-visibility" title="Public to Semester">
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                </span>
+              </div>
+            </div>
+
+            <button class="post-more-btn" onclick="copyPostLink(${f.id})" title="Copy link to file">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+            </button>
+          </header>
+
+          <div class="post-content">
+            <h3 class="post-title">${escapeHtml(f.title || f.originalName)}</h3>
+            ${(subjectTag || chapterTag) ? `<div class="post-tags-row">${subjectTag}${chapterTag}</div>` : ''}
+          </div>
+
+          <div class="post-attachment-card">
+            <div class="attachment-file-badge ${badge.iconClass}">
+              <span>${badge.ext}</span>
+            </div>
+            <div class="attachment-details">
+              <p class="attachment-name" title="${escapeHtml(f.originalName)}">${escapeHtml(f.originalName)}</p>
+              <span class="attachment-meta">${formatSize(f.sizeBytes)} &middot; ${badge.ext} Resource</span>
+            </div>
+            <div class="attachment-actions">
+              <a href="/api/files/${f.id}/view" target="_blank" rel="noopener" class="attach-action-btn attach-btn-view" title="Preview file in browser">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                <span>View</span>
+              </a>
+              <a href="/api/files/${f.id}/download" class="attach-action-btn attach-btn-download" title="Download file">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                <span>Get</span>
+              </a>
+            </div>
+          </div>
+
+          <footer class="post-engage-bar">
+            <button class="post-action-btn like-btn ${f.liked ? 'liked' : ''}" data-liked="${f.liked ? 'true' : 'false'}" onclick="toggleLike(${f.id}, this)">
+              <svg viewBox="0 0 24 24" fill="${f.liked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/>
+              </svg>
+              <span class="like-count">${f.likeCount || 0}</span>
+            </button>
+
+            <button class="post-action-btn comment-btn" onclick="toggleCommentPanel(${f.id}, this.closest('.feed-card'))">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 8.4 8.4 0 0 1-3.5-.75L3 21l1.8-5.4A8.4 8.4 0 0 1 4 12.5 8.5 8.5 0 1 1 21 11.5z"/>
+              </svg>
+              <span class="comment-count">${f.commentCount || 0}</span>
+            </button>
+
+            <button class="post-action-btn share-btn" onclick="copyPostLink(${f.id})" title="Copy link">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13"/>
+              </svg>
+              <span>Share</span>
+            </button>
+          </footer>
+
+          <div class="comment-panel post-comment-drawer">
+            <div class="comment-list"></div>
+            <div class="comment-composer">
+              <input type="text" class="comment-input post-comment-input" placeholder="Write a comment for the class…" maxlength="500">
+              <button class="comment-submit post-comment-submit" onclick="submitComment(${f.id}, this.closest('.feed-card'))" title="Post comment">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+              </button>
+            </div>
+          </div>
+
+        </article>
+      `;
+    }
+
+    async function loadUserFiles(studentId) {
+      try {
+        const res = await fetch(`/api/profile/${studentId}/files`);
+        const files = await res.json();
+        const container = document.getElementById('userFilesList');
+        if (!files.length) {
+          container.innerHTML = '<p class="empty-state">No files uploaded yet.</p>';
+          return;
+        }
+        container.innerHTML = files.map(renderPost).join('');
+      } catch (err) {
+        console.error('Error loading files:', err);
+      }
+    }
+
+    async function loadClassmates() {
+      try {
+        const res = await fetch('/api/students/suggested');
+        const classmates = await res.json();
+        const container = document.getElementById('classmatesGrid');
+        if (!classmates.length) {
+          container.innerHTML = '<p class="empty-state">No other students registered yet.</p>';
+          return;
+        }
+
+        container.innerHTML = classmates.map(c => {
+          const initial = c.name ? c.name.charAt(0).toUpperCase() : 'S';
+          return `
+            <div class="classmate-card">
+              <div class="classmate-avatar">
+                ${c.avatarUrl ? `<img src="${c.avatarUrl}" alt="${escapeHtml(c.name)}">` : initial}
+              </div>
+              <div class="classmate-info">
+                <a href="profile.html?id=${c.studentId}" class="classmate-name">${escapeHtml(c.name)}</a>
+                <span class="classmate-sub">@${escapeHtml(c.studentId)} &middot; ${escapeHtml(c.department || 'CSIT')}</span>
+                <span class="classmate-files-count">${c.filesCount || 0} shared ${c.filesCount === 1 ? 'file' : 'files'}</span>
+              </div>
+              <button class="classmate-follow-btn ${c.isFollowing ? 'following' : ''}" onclick="toggleFollowClassmate('${c.studentId}', this)">
+                ${c.isFollowing ? 'Following' : 'Follow'}
+              </button>
+            </div>
+          `;
+        }).join('');
+      } catch (err) {
+        console.error('Error loading classmates:', err);
+      }
+    }
+
+    async function toggleFollowClassmate(studentId, btn) {
+      try {
+        const res = await fetch(`/api/profile/${studentId}/follow`, { method: 'POST' });
+        const data = await res.json();
+        btn.classList.toggle('following', data.isFollowing);
+        btn.textContent = data.isFollowing ? 'Following' : 'Follow';
+        showToast(data.isFollowing ? 'Followed classmate' : 'Unfollowed classmate');
+        // Refresh profile stats if current user is viewing their own profile
+        if (currentProfile && currentProfile.isSelf) {
+          const pRes = await fetch('/api/profile');
+          const pData = await pRes.json();
+          document.getElementById('statFollowing').textContent = pData.stats.followingCount || 0;
+        }
+      } catch (err) {
+        console.error('Follow toggle error:', err);
+      }
+    }
+
+    // Edit Profile Modal Handling
+    function openEditModal() {
+      if (!currentProfile) return;
+      document.getElementById('editName').value = currentProfile.name || '';
+      document.getElementById('editBio').value = currentProfile.bio || '';
+      document.getElementById('editDept').value = currentProfile.department || 'B.Sc. CSIT';
+      document.getElementById('editSem').value = currentProfile.semester || 'Semester 1';
+      document.getElementById('editGithub').value = currentProfile.githubUrl || '';
+      document.getElementById('editLinkedin').value = currentProfile.linkedinUrl || '';
+      document.getElementById('editModal').style.display = 'flex';
+    }
+
+    function closeEditModal() {
+      document.getElementById('editModal').style.display = 'none';
+    }
+
+    async function saveProfileChanges(e) {
+      e.preventDefault();
+      const saveBtn = document.getElementById('saveProfileBtn');
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving…';
+
+      const payload = {
+        name: document.getElementById('editName').value,
+        bio: document.getElementById('editBio').value,
+        department: document.getElementById('editDept').value,
+        semester: document.getElementById('editSem').value,
+        githubUrl: document.getElementById('editGithub').value,
+        linkedinUrl: document.getElementById('editLinkedin').value
+      };
+
+      try {
+        const res = await fetch('/api/profile/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+          showToast('Failed to update profile');
+          return;
+        }
+
+        const data = await res.json();
+        currentProfile = data.profile;
+        renderProfileHeader(currentProfile);
+        closeEditModal();
+        showToast('Profile updated successfully!');
+      } catch (err) {
+        console.error('Save profile error:', err);
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save Changes';
+      }
+    }
+
+    // Followers / Following Modal
+    async function openFollowersModal(type) {
+      if (!currentProfile) return;
+      const modal = document.getElementById('followModal');
+      const title = document.getElementById('followModalTitle');
+      const list = document.getElementById('followModalList');
+      title.textContent = type === 'followers' ? 'Followers' : 'Following';
+      list.innerHTML = '<p class="empty-state">Loading…</p>';
+      modal.style.display = 'flex';
+
+      try {
+        const res = await fetch(`/api/profile/${currentProfile.studentId}/${type}`);
+        const users = await res.json();
+        if (!users.length) {
+          list.innerHTML = `<p class="empty-state">No ${type} yet.</p>`;
+          return;
+        }
+
+        list.innerHTML = users.map(u => {
+          const initial = u.name ? u.name.charAt(0).toUpperCase() : 'S';
+          return `
+            <div class="follow-user-row">
+              <div class="follow-user-avatar">
+                ${u.avatarUrl ? `<img src="${u.avatarUrl}" alt="${escapeHtml(u.name)}">` : initial}
+              </div>
+              <div class="follow-user-meta">
+                <a href="profile.html?id=${u.studentId}" class="follow-user-name">${escapeHtml(u.name)}</a>
+                <span class="follow-user-sub">@${escapeHtml(u.studentId)} &middot; ${escapeHtml(u.department || 'CSIT')}</span>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (err) {
+        console.error('Error fetching follow list:', err);
+      }
+    }
+
+    function closeFollowModal() {
+      document.getElementById('followModal').style.display = 'none';
+    }
+
+    // Like & Comment Handlers
+    async function toggleLike(fileId, btn) {
+      try {
+        const res = await fetch(`/api/files/${fileId}/like`, { method: 'POST' });
+        const data = await res.json();
+        btn.dataset.liked = data.liked;
+        btn.querySelector('.like-count').textContent = data.likeCount;
+        btn.classList.toggle('liked', data.liked);
+      } catch (err) {
+        console.error('Like error:', err);
+      }
+    }
+
+    async function toggleCommentPanel(fileId, card) {
+      const panel = card.querySelector('.post-comment-drawer, .comment-panel');
+      const isOpen = panel.classList.contains('open');
+      if (isOpen) {
+        panel.classList.remove('open');
+        return;
+      }
+      panel.classList.add('open');
+      if (!panel.dataset.loaded) {
+        const res = await fetch(`/api/files/${fileId}/comments`);
+        const comments = await res.json();
+        panel.querySelector('.comment-list').innerHTML = comments.map(c => `
+          <div class="comment-item">
+            <div class="comment-avatar">${escapeHtml(c.commenterName.charAt(0).toUpperCase())}</div>
+            <div style="flex: 1; min-width: 0;">
+              <p class="comment-author">${escapeHtml(c.commenterName)}</p>
+              <p class="comment-text">${escapeHtml(c.commentText)}</p>
+            </div>
+          </div>
+        `).join('') || '<p class="comment-empty">No comments yet.</p>';
+        panel.dataset.loaded = 'true';
+      }
+    }
+
+    async function submitComment(fileId, card) {
+      const input = card.querySelector('.comment-input');
+      const text = input.value.trim();
+      if (!text) return;
+      const res = await fetch(`/api/files/${fileId}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+      });
+      if (!res.ok) return;
+      input.value = '';
+      const panel = card.querySelector('.post-comment-drawer, .comment-panel');
+      panel.dataset.loaded = '';
+      await toggleCommentPanel(fileId, card);
+      toggleCommentPanel(fileId, card);
+
+      const countEl = card.querySelector('.comment-count');
+      if (countEl) {
+        countEl.textContent = parseInt(countEl.textContent || '0') + 1;
+      }
+    }
+
+    // Sign Out
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      await fetch('/api/logout', { method: 'POST' });
+      window.location.href = '/login.html';
+    });
+
+    // Close modals on outside click or ESC
+    window.addEventListener('click', (e) => {
+      if (e.target.classList.contains('modal-overlay')) {
+        e.target.style.display = 'none';
+      }
+    });
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeEditModal();
+        closeFollowModal();
+      }
+    });
+
+    loadProfile();
+  </script>
+</body>
+</html>

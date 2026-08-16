@@ -1,0 +1,680 @@
+.brian-wrapper {
+  .container {
+    max-width: 600px;
+    padding: 0;
+    margin: 0 auto;
+    min-height: 500px;
+  }
+
+  .brian :before, .brian :after, .brian *:before, .brian *:after {
+    position: absolute;
+    content: "";
+    width: 0;
+    height: 0;
+  }
+
+  $head-height: 105px;
+  $brian-width: 100px;
+  $brian-height: 100px;
+  $brian-border: 1.5px solid #333333;
+  $shadow-color: rgba(170,170,170,0.4);
+  $shadow-size: 12px;
+
+  .brian-container {
+    position: absolute;
+    height: 265px;
+    width: $brian-width;
+    top: calc(48% - (265px / 2));
+    left: calc(50% - (#{$brian-width} / 2));
+  }
+
+  .brian {
+    position: relative;
+    height: $brian-height;
+    width: $brian-width;
+    margin: $head-height auto 0 auto;
+    perspective: 800px;
+    perspective-origin: 50% 50%;
+    
+    * {
+      position: absolute;
+    }
+    
+    $head-width: $brian-width - 24px;
+    
+    .head {
+      top: -$head-height;
+      left: 50%;
+      margin-left: -(($head-width + 2px) / 2);
+      height: $head-height;
+      width: $head-width;
+      background: #FFFFFF;
+      border: $brian-border;
+      border-radius: 45px 45px 60% 60% / 45% 45% 14% 14%;
+      z-index: 13;
+      
+      $head-shadow-size: $shadow-size - 2px;
+      
+      &:after {
+        height: 90%;
+        bottom: 4%;
+        width: 100%;
+        right: $head-shadow-size - 2px;
+        box-shadow: $head-shadow-size 0px 3px -2px $shadow-color;
+      }
+      
+      .ear-hide {
+        height: 34px;
+        width: 9px;
+        background: #FFFFFF;
+        top: 9px;
+        right: 11px;
+        z-index: 7;
+      }
+      
+      .ear {
+        height: 40px;
+        width: 22px;
+        background: #FFFFFF;
+        border: $brian-border;
+        border-radius: 70% 50% 30% 30% / 90% 90% 30% 30%;
+        
+        $ear-left-position: -8px;
+        $ear-top-position: 3px;
+        $ear-rotate: 10deg;
+        
+        &.left {
+          left: $ear-left-position + 2px;
+          top: $ear-top-position + 2px;
+          transform: rotate($ear-rotate);
+          border-radius: 50% 70% 30% 30% / 90% 90% 30% 30%;
+        }
+        
+        &.right {
+          right: $ear-left-position;
+          top: $ear-top-position;
+          $ear-right-rotate: $ear-rotate + 10;
+          transform: rotate(-$ear-right-rotate);
+          border-radius: 70% 50% 30% 30% / 90% 90% 30% 30%;
+          z-index: 6;
+        
+          &:before {
+            height: 18px;
+            width: 20px;
+            transform: rotate(20deg);
+            top: 18px;
+            left: 1px;
+            border: 1px solid transparent;
+            border-left: $brian-border;
+            border-radius: 20% 20% / 80% 80%;
+          }
+        }
+      
+        $ear-shadow-size: $shadow-size - 5px;
+        $ear-bottom-shadow-size: $ear-shadow-size / 2;
+
+        &:after {
+          height: calc(100% - #{$ear-bottom-shadow-size});
+          width: 100%;
+          right: $ear-shadow-size - 2px;
+          top: 0;
+          box-shadow: $ear-shadow-size $ear-bottom-shadow-size 3px 0px $shadow-color;
+          border-radius: 70% 50% 30% 30% / 90% 90% 30% 30%;
+        }
+      }
+
+      .eye-hide {
+        height: 20px;
+        width: 20px;
+        background: #FFFFFF;
+        transform: rotate(45deg);
+        left: 27px;
+        top: 13px;
+        z-index: 4;
+      }
+      
+      $eye-size: 21px;
+      $eye-top-position: 3px;
+      
+      .eye {
+        top: $eye-top-position;
+        height: $eye-size;
+        width: $eye-size;
+        background: #FFFFFF;
+        border-radius: 50%;
+        border: $brian-border;
+        overflow: hidden;
+        
+        $eye-left-position: 10px;
+        
+        &.left {
+          top: $eye-top-position - 1px;
+          left: $eye-left-position;
+          z-index: 3;
+        }
+        
+        &.right {
+          z-index: 5;
+          left: $eye-left-position + $eye-size;
+          
+          .lid {
+            transform: rotate(5deg);
+          }
+        }
+        
+        .lid {
+          width: $eye-size;
+          height: $eye-size;
+          top: -18px;
+          border-bottom: $brian-border;
+          left: 0;
+        }
+        
+        $pupil-size: 3px;
+        
+        &:after {
+          top: calc(50% - (#{$pupil-size} / 2));
+          left: calc(50% - (#{$pupil-size} / 2));
+          height: $pupil-size;
+          width: $pupil-size;
+          background: #333333;
+          border-radius: 50%;
+        }
+        
+        $eyes-shadow-size: 3px;
+
+        &:before {
+          height: 100%;
+          width: 100%;
+          right: $eyes-shadow-size;
+          top: -$eyes-shadow-size;
+          box-shadow: $eyes-shadow-size $eyes-shadow-size 3px -1px $shadow-color;
+          border-radius: 50%;
+        }
+      }
+      
+      $nose-height: 68px;
+      
+      .nose {
+        top: 22px;
+        left: -30px;
+        width: 82px;
+        height: $nose-height;
+        background: #FFFFFF;
+        border: $brian-border;
+        border-right-color: transparent;
+        border-radius: 28px 0 50% 30px / 28px 0 20% 30px;
+        z-index: 4;
+        
+        &:before {
+          top: -32px;
+          right: 20px;
+          height: 30px;
+          width: 30px;
+          border-radius: 50%;
+          border: 1px solid transparent;
+          border-right: $brian-border;
+          transform: rotate(45deg);
+          z-index: 3;
+        }
+        
+        &:after {
+          height: 40px;
+          width: 34px;
+          background: #FFFFFF;
+          right: -1px;
+          top: -1px;
+          z-index: 2;
+        }
+        
+        $nostril-height: $nose-height - 22px;
+        
+        .nostril {
+          height: $nostril-height;
+          width: 30px;
+          background: #070707;
+          border-radius: 50%;
+          top: 50%;
+          margin-top: -($nostril-height / 2);
+          left: 6px;
+          box-shadow: 3px 1px 3px 0px $shadow-color;
+          
+          &:before {
+            top: 7px;
+            left: 7px;
+            height: 75%;
+            width: 75%;
+            box-shadow: -4px -3px 3px 0px rgba(255,255,255,0.15);
+            border-radius: 50%;
+          }
+        }
+      }
+      
+      .mouth {
+        height: 20px;
+        width: 20px;
+        border: $brian-border;
+        border-right-color: transparent;
+        border-radius: 40% 0 10% 40%;
+        bottom: 6px;
+        left: 5px;
+        z-index: 1;
+
+        $mouth-shadow-size: 2px;
+
+        &:after {
+          height: 100%;
+          width: 100%;
+          left: $mouth-shadow-size;
+          top: -$mouth-shadow-size;
+          box-shadow: 0 $mouth-shadow-size 2px -1px $shadow-color;
+          border-radius: 45px 45px 0 0 / 45% 45% 0 0;
+        }
+      }
+    }
+    
+    $collar-width: $head-width + 4px;
+    
+    .collar {
+      top: -11px;
+      left: 50%;
+      margin-left: -(($collar-width + 2px) / 2);
+      height: 22px;
+      width: $collar-width;
+      background: #B71E36;
+      border: $brian-border;
+      border-radius: 50% 50% 70% 70% / 40% 40% 60% 60%;
+      z-index: 12;
+      box-shadow: inset -8px -4px 3px 0px rgba(0,0,0,0.3);
+
+      $collar-shadow-size: $shadow-size - 4px;
+
+      &:after {
+        height: 100%;
+        width: 100%;
+        top: 0;
+        box-shadow: 4px $collar-shadow-size 3px -4px $shadow-color;
+        border-radius: 50% 50% 70% 70% / 40% 40% 60% 60%;
+      }
+    }
+    
+    $pendant-size: 14px;
+    
+    .collar-pendant {
+      top: 18px;
+      left: 25px;
+      height: $pendant-size;
+      width: $pendant-size;
+      border-radius: 50%;
+      background: #FAA028;
+      border: $brian-border;
+      z-index: 10;
+      box-shadow: inset -2px -2px 3px 0px rgba(102,102,102,0.6);
+      
+      &:before {
+        height: 15px;
+        top: -15px;
+        left: 65%;
+        width: 1px;
+        border-left: $brian-border;
+        transform: rotate(15deg);
+      }
+      
+      &:after {
+        top: 3px;
+        left: 3px;
+        height: 75%;
+        width: 75%;
+        box-shadow: -4px -3px 3px 0px rgba(255,255,255,0.3);
+        border-radius: 50%;
+      }
+    }
+    
+    .body {
+      height: $brian-height - 5px;
+      width: $brian-width - 2px;
+      background: #FFFFFF;
+      border-radius: 30% 30% / 80% 80%;
+      border: $brian-border;
+      border-bottom-color: transparent; 
+      overflow: hidden;
+      z-index: 3;
+    }
+    
+    .belly {
+      top: 7px;
+      left: -4px;
+      height: 100px;
+      width: 60px;
+      border: 1px solid transparent;
+      border-left: $brian-border;
+      background: #FFFFFF;
+      border-radius: 80% 0 0 50%;
+      z-index: 9;
+      transform: rotate(-8deg);
+    }
+    
+    .shoulder {
+      height: 40px;
+      border: $brian-border;
+      background: #FFFFFF;
+
+      $shoulder-shadow-size: $shadow-size - 2px;
+
+      &:after {
+        height: 110%;
+        width: 100%;
+        right: $shoulder-shadow-size - 2px;
+        box-shadow: $shoulder-shadow-size 0px 3px -2px $shadow-color;
+        border-radius: 30% 30% / 80% 80%;
+        transform: rotate(-8deg);
+      }
+      
+      $shoulder-position: -2px;
+      $shoudler-width: 18px;
+      $shoulder-top: -1px;
+      $shoulder-rotate: 20deg;
+      $arm-position: 2px;
+
+      &.left {
+        top: $shoulder-top - 3px;
+        width: $shoudler-width * 2;
+        left: $shoulder-position + 3px;
+        border-right-color: transparent;
+        border-radius: 80% 0 0 0;
+        transform: rotate($shoulder-rotate);
+        
+        .arm {
+          left: $arm-position;
+          border-radius: 20% 0 0 0 / 80% 0 0 0;
+          transform: rotate(-$shoulder-rotate);
+        }
+      }
+
+      &.right {
+        top: $shoulder-top;
+        width: $shoudler-width;
+        right: $shoulder-position;
+        border-left-color: transparent;
+        border-radius: 0 80% 0 0;
+        transform: rotate(-$shoulder-rotate);
+        z-index: 11;
+        
+        .arm {
+          right: $arm-position;
+          border-radius: 0 20% 0 0 / 0 80% 0 0;
+          transform: rotate($shoulder-rotate);
+          
+          $arm-shadow-size: $shadow-size - 2px;
+
+          &:after {
+            height: 125%;
+            width: 100%;
+            right: $arm-shadow-size - 2px;
+            box-shadow: $arm-shadow-size 0px 3px -2px $shadow-color;
+            border-radius: 0 10% 0 0 / 0 80% 0 0;
+          }
+          
+          .thumb {
+            bottom: 2px;
+            right: -2px;
+            height: 10px;
+            width: 8px;
+            background: #FFFFFF;
+            border-right: $brian-border;
+            border-radius: 50%;
+          }
+        }
+      }
+      
+      .arm {
+        top: 34px;
+        height: 42px;
+        width: 30px;
+        background: #FFFFFF;
+        border-right: $brian-border;
+        border-left: $brian-border;
+        
+        $fingers: 3;
+        $finger-height: 15px;
+        $finger-width: 10px;
+        $finger-startdistance: 0px;
+        
+        span {
+          width: $finger-width;
+          background: #FFFFFF;
+          border: $brian-border;
+          border-top-color: transparent;
+          border-radius: 0 0 50% 70%;
+          transform: rotate(-10deg);
+          
+          @for $i from 1 through $fingers {
+            &:nth-of-type(#{$i}n) {
+              left: $finger-startdistance + ($finger-width * ($i - 1));
+              height: $finger-height - ($i * 1.5);
+              bottom: -($finger-height - ($i * 1.5)) + 2px;
+            }
+          }
+
+          $finger-shadow-size: 5px;
+
+          &:after {
+            height: 110%;
+            width: 100%;
+            top: -$finger-shadow-size + 2px;
+            right: $finger-shadow-size - 2px;
+            box-shadow: $finger-shadow-size $finger-shadow-size 3px 0 $shadow-color;
+            border-radius: 0 0 50% 70%;
+          }
+        }
+      }
+    }
+    
+    .armpit.right {
+      top: 32px;
+      right: 13px;
+      height: 40px;
+      width: 15px;
+      background: #FFFFFF;
+      z-index: 12;
+      
+      &:before {
+        height: 40px;
+        width: 8px;
+        background: #FFFFFF;
+        border-radius: 50%;
+        border: 1px solid transparent;
+        border-right: $brian-border;
+        transform: rotate(-5deg);
+      }
+    }
+    
+    .armpit.left {
+      height: 15px;
+      width: 10px;
+      top: 6px;
+      left: 5px;
+      background: #FFFFFF;
+      z-index: 8;
+      border-radius: 80% 0 0 20%;
+      
+      &:before {
+        bottom: -36px;
+        left: -5px;
+        height: 44px;
+        width: 15px;
+        background: #FFFFFF;
+        border-radius: 50% 0 0 20%;
+      }
+    }
+    
+    $crotch-height: 3px;
+    
+    .crotch {
+      height: 5px;
+      width: 7px;
+      background: #FFFFFF;
+      border: 1px solid transparent;
+      border-bottom: $brian-border;
+      border-radius: 50%;
+      bottom: -12px;
+      left: 40px;
+      z-index: 10;
+      transform: rotate(10deg);
+      
+      $crotch-shadow-size: $crotch-height + 2px;
+      $shadow-height: 5px;
+      
+      &:before {
+        width: 150%;
+        height: $crotch-shadow-size;
+        left: -50%;
+        top: 0;
+        box-shadow: -1px $crotch-shadow-size 3px 0px $shadow-color;
+        border-radius: 0 0 0 80%;
+      }
+    }
+    
+    .bum {
+      bottom: -10px;
+      right: -5px;
+      height: 50px;
+      width: 30px;
+      background: #FFFFFF;
+      border: 1px solid transparent;
+      border-right: $brian-border;
+      border-radius: 50%;
+      z-index: 10;
+      transform: rotate(15deg);
+      overflow: hidden;
+
+      $bum-shadow-size: $shadow-size + 5px;
+
+      &:after {
+        height: 110%;
+        width: 60%;
+        top: 20px;
+        right: $bum-shadow-size - 2px;
+        box-shadow: $bum-shadow-size 0 3px 0 $shadow-color;
+        border-radius: 0 0 20% 0;
+      }
+    }
+    
+    $leg-height: 42px;
+    $leg-width: 45px;
+    $leg-side-position: 5px;
+    $leg-side-offset: 1px;
+    $leg-top-offset: 5px;
+    
+    .leg {
+      height: $leg-height;
+      width: $leg-width;
+      background: #FFFFFF;
+      border-left: $brian-border;
+      border-right: $brian-border;
+      z-index: 8;
+      
+      $leg-side-position: 5px;
+      $leg-side-offset: 1px;
+      $leg-top-position: -$leg-height + 5px;
+      $leg-shadow-size: $shadow-size;
+      
+      &.left {
+        left: $leg-side-position - $leg-side-offset;
+        bottom: $leg-top-position + $leg-top-offset;
+        border-radius: 15% 0 0 5% / 60% 0 0 20%;
+        z-index: 2;
+        
+        &:after {
+          top: 58%;
+          height: 50%;
+          right: $leg-shadow-size;
+        }
+      }
+      
+      &.right {
+        right: $leg-side-position + $leg-side-offset;
+        bottom: $leg-top-position;
+        border-radius: 0 0 0 5% / 0 0 0 20%;
+        z-index: 4;
+      }
+
+      &:after {
+        height: 108%;
+        width: 100%;
+        top: 0%;
+        right: $leg-shadow-size - 2px;
+        box-shadow: $leg-shadow-size 0px 3px -2px $shadow-color;
+      }
+    }
+      
+    $foot-height: 22px;
+    $foot-top-offset: 7px;
+    $foot-rotate: 6deg;
+
+    .foot {
+      right: 0;
+      height: $foot-height;
+      width: $leg-width + 8;
+      background: #FFFFFF;
+      border: $brian-border;
+      border-radius: 30% 10% 40% 70% / 70% 40% 30% 50%;
+      transform: rotate(-$foot-rotate);
+      overflow: hidden;
+      
+      &.left {
+        bottom: -($foot-height + $leg-height) + $foot-top-offset + $leg-top-offset;
+        right: $leg-side-position + $leg-width + $leg-side-offset - 1px;
+        z-index: 1;
+      }
+      
+      &.right {
+        bottom: -($foot-height + $leg-height) + $foot-top-offset;
+        right: $leg-side-position + $leg-side-offset - 1px;
+        z-index: 3;
+      }
+      
+      $foot-shadow-size: $shadow-size - 1px;
+
+      &:after {
+        height: 100%;
+        width: 100%;
+        top: -3px;
+        left: -$foot-shadow-size;
+        box-shadow: $foot-shadow-size 3px 3px 0 $shadow-color;
+        border-radius: 0 0 50% 0;
+        transform: rotate(10deg);
+      }
+      
+      $toe-position: 8px;
+      $toe-height: 17px;
+      
+      span {
+        width: 10px;
+        height: $toe-height;
+        left: $toe-position;
+        bottom: -3px;
+        border: 1px solid transparent;
+        border-left: $brian-border;
+        $toe-rotate: $foot-rotate + 5;
+        transform: rotate($toe-rotate);
+        border-radius: 60% 0 0 60%;
+        
+        &:nth-of-type(2) {
+          left: $toe-position * 2 + 3px;
+          height: $toe-height - 3px;
+        }
+      }
+    }
+    
+    .shadow {
+      bottom: -75px;
+      left: 10px;
+      width: 220%;
+      height: 120%;
+      background: radial-gradient(circle at 40% 50%, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.1) 40%, rgba(0, 0, 0, 0) 50%);
+      transform: rotateX(70deg) rotateY(-20deg);
+      z-index: -5;
+    }
+  }
+}

@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard — Semester Library</title>
+<script>
+  fetch('/api/me').then(r => { if (!r.ok) window.location.replace('login.html'); }).catch(() => window.location.replace('login.html'));
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -12,8 +15,12 @@
 <body class="dash">
 
   <header class="dash-header">
-    <span class="lib-wordmark">Semester Library</span>
+    <a href="dashboard.html" class="lib-wordmark">Semester Library</a>
     <div class="dash-header-actions">
+      <a href="profile.html" class="dash-profile-chip" title="View Profile">
+        <div class="dash-profile-avatar" id="headerAvatar">·</div>
+        <span class="dash-profile-label" id="headerProfileName">Profile</span>
+      </a>
       <button class="dash-logout" onclick="location.href='files.html'">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <path d="M12 3v12"/><path d="M7 8l5-5 5 5"/><path d="M5 21h14a2 2 0 0 0 2-2v-4"/><path d="M3 15v4a2 2 0 0 0 2 2"/>
@@ -50,29 +57,27 @@
   </main>
 
   <nav class="bottom-nav">
-    <button class="nav-item active" data-tab="notes">
+    <a href="dashboard.html" class="nav-item active">
       <svg viewBox="0 0 24 24"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/><path d="M9 13h6M9 17h4"/></svg>
       <span class="nav-label">Notes</span>
-    </button>
-    <button class="nav-item" data-tab="notice">
-      <svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-      <span class="nav-label">Notice</span>
-    </button>
-   <a href="library.html" class="nav-item" data-tab="Library">
-  <svg viewBox="0 0 24 24">
-    <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 8.4 8.4 0 0 1-3.5-.75L3 21l1.8-5.4A8.4 8.4 0 0 1 4 12.5 8.5 8.5 0 1 1 21 11.5z"/>
-  </svg>
-  <span class="nav-label">Library</span>
-</a> 
-
-    <a href="routine.html" class="nav-item" data-tab="routine">
-  <svg viewBox="0 0 24 24">
-    <rect x="3" y="4" width="18" height="18" rx="2"/>
-    <path d="M16 2v4M8 2v4M3 10h18"/>
-  </svg>
-
-  <span class="nav-label">Routine</span>
-</a> 
+    </a>
+    <a href="files.html" class="nav-item">
+      <svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="M7 8l5-5 5 5"/><path d="M5 21h14a2 2 0 0 0 2-2v-4"/><path d="M3 15v4a2 2 0 0 0 2 2"/></svg>
+      <span class="nav-label">Files</span>
+    </a>
+    <a href="library.html" class="nav-item">
+      <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+      <span class="nav-label">Library</span>
+    </a>
+    <a href="syllabus.html" class="nav-item">
+      <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+      <span class="nav-label">Syllabus</span>
+    </a>
+    <a href="routine.html" class="nav-item">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      <span class="nav-label">Routine</span>
+    </a>
+  </nav>
 
   <script>
     function getGreeting() {
@@ -91,6 +96,19 @@
         document.getElementById('greetingLine').textContent = `${getGreeting()}, ${data.name}`;
         document.getElementById('idLine').textContent = `Student ID: ${data.studentId}`;
         document.getElementById('avatarInitial').textContent = data.name.charAt(0).toUpperCase();
+
+        // Populate top right header profile chip
+        const headerAvatar = document.getElementById('headerAvatar');
+        const headerName = document.getElementById('headerProfileName');
+        if (headerName) headerName.textContent = data.name.split(' ')[0];
+        if (headerAvatar) headerAvatar.textContent = data.name.charAt(0).toUpperCase();
+
+        // Fetch avatar if uploaded
+        fetch('/api/profile').then(r => r.json()).then(p => {
+          if (p && p.avatarUrl && headerAvatar) {
+            headerAvatar.innerHTML = `<img src="${p.avatarUrl}" alt="${p.name}">`;
+          }
+        }).catch(() => {});
       })
       .catch(() => {
         window.location.href = 'login.html';
@@ -108,40 +126,11 @@
       });
     });
 
-    // --- Demo notes (placeholder content — safe to delete once real notices exist) ---
-    document.getElementById('demoNotes').innerHTML = `
-      <article class="feed-card">
-        <div class="feed-card-top">
-          <span class="feed-icon icon-note">
-            <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M14 3v4a1 1 0 0 0 1 1h4"/>
-              <path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/>
-              <path d="M9 13h6M9 17h4"/>
-            </svg>
-          </span>
-          <div class="feed-card-heading"><span class="feed-tag">Note</span></div>
-          <span class="feed-meta">Basics of IT &middot; 2h ago</span>
-        </div>
-        <h3>Chapter 4 slides uploaded</h3>
-        <p>Slides for "Basics of IT — Networking Fundamentals" are now available in Resources. Review before Thursday's class.</p>
-      </article>
-      <article class="feed-card">
-        <div class="feed-card-top">
-          <span class="feed-icon icon-notice">
-            <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/>
-              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-            </svg>
-          </span>
-          <div class="feed-card-heading"><span class="feed-tag">Notice</span></div>
-          <span class="feed-meta">Exam Section &middot; 5h ago</span>
-        </div>
-        <h3>Mid-term routine published</h3>
-        <p>The mid-term examination routine for Year I has been finalized. Check the Routine tab for your schedule.</p>
-      </article>
-    `;
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
 
-    // --- Real uploaded files, pulled into the feed ---
     function formatSize(bytes) {
       if (bytes < 1024) return bytes + ' B';
       if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
@@ -149,6 +138,7 @@
     }
 
     function timeAgo(iso) {
+      if (!iso) return 'just now';
       const diffMs = Date.now() - new Date(iso).getTime();
       const mins = Math.floor(diffMs / 60000);
       if (mins < 1) return 'just now';
@@ -156,27 +146,55 @@
       const hrs = Math.floor(mins / 60);
       if (hrs < 24) return hrs + 'h ago';
       return Math.floor(hrs / 24) + 'd ago';
-    }  
-
-    function isImageFile(name) {
-      return /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(name);
     }
 
-    function getFileExt(name) {
-      const match = name.match(/\.([a-zA-Z0-9]+)$/);
-      return match ? match[1].toUpperCase() : 'FILE';
+    function getFileBadge(name) {
+      const ext = (name.match(/\.([a-zA-Z0-9]+)$/) || ['', 'FILE'])[1].toUpperCase();
+      let iconClass = 'badge-doc';
+      if (['PDF'].includes(ext)) iconClass = 'badge-pdf';
+      else if (['ZIP', 'RAR', '7Z', 'TAR', 'GZ'].includes(ext)) iconClass = 'badge-zip';
+      else if (['JPG', 'JPEG', 'PNG', 'WEBP', 'GIF', 'SVG'].includes(ext)) iconClass = 'badge-img';
+      else if (['JS', 'PY', 'CPP', 'C', 'JAVA', 'HTML', 'CSS', 'JSON', 'SQL'].includes(ext)) iconClass = 'badge-code';
+      else if (['PPT', 'PPTX', 'KEY'].includes(ext)) iconClass = 'badge-slide';
+      return { ext, iconClass };
+    }
+
+    function showToast(message) {
+      let toast = document.getElementById('socialToast');
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'socialToast';
+        toast.className = 'social-toast';
+        document.body.appendChild(toast);
+      }
+      toast.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6L9 17l-5-5"/></svg><span>${message}</span>`;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2400);
+    }
+
+    function copyPostLink(fileId) {
+      const url = `${window.location.origin}/api/files/${fileId}/view`;
+      navigator.clipboard.writeText(url).then(() => {
+        showToast('Direct file link copied to clipboard');
+      }).catch(() => {
+        showToast('Link ready to share');
+      });
     }
 
     async function toggleLike(fileId, btn) {
-      const res = await fetch(`/api/files/${fileId}/like`, { method: 'POST' });
-      const data = await res.json();
-      btn.dataset.liked = data.liked;
-      btn.querySelector('.like-count').textContent = data.likeCount;
-      btn.classList.toggle('liked', data.liked);
+      try {
+        const res = await fetch(`/api/files/${fileId}/like`, { method: 'POST' });
+        const data = await res.json();
+        btn.dataset.liked = data.liked;
+        btn.querySelector('.like-count').textContent = data.likeCount;
+        btn.classList.toggle('liked', data.liked);
+      } catch (err) {
+        console.error('Like error:', err);
+      }
     }
 
     async function toggleCommentPanel(fileId, card) {
-      const panel = card.querySelector('.comment-panel');
+      const panel = card.querySelector('.post-comment-drawer, .comment-panel');
       const isOpen = panel.classList.contains('open');
       if (isOpen) {
         panel.classList.remove('open');
@@ -188,13 +206,13 @@
         const comments = await res.json();
         panel.querySelector('.comment-list').innerHTML = comments.map(c => `
           <div class="comment-item">
-            <div class="comment-avatar">${c.commenterName.charAt(0).toUpperCase()}</div>
-            <div>
-              <p class="comment-author">${c.commenterName}</p>
-              <p class="comment-text">${c.commentText}</p>
+            <div class="comment-avatar">${escapeHtml(c.commenterName.charAt(0).toUpperCase())}</div>
+            <div style="flex: 1; min-width: 0;">
+              <p class="comment-author">${escapeHtml(c.commenterName)}</p>
+              <p class="comment-text">${escapeHtml(c.commentText)}</p>
             </div>
           </div>
-        `).join('') || '<p class="comment-empty">No comments yet.</p>';
+        `).join('') || '<p class="comment-empty">No comments yet. Start the discussion!</p>';
         panel.dataset.loaded = 'true';
       }
     }
@@ -210,140 +228,124 @@
       });
       if (!res.ok) return;
       input.value = '';
-      const panel = card.querySelector('.comment-panel');
+      const panel = card.querySelector('.post-comment-drawer, .comment-panel');
       panel.dataset.loaded = '';
       await toggleCommentPanel(fileId, card);
       toggleCommentPanel(fileId, card);
-    }  
-    function isImageFile(name) {
-      return /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(name);
-    }
 
-    function getFileExt(name) {
-      const match = name.match(/\.([a-zA-Z0-9]+)$/);
-      return match ? match[1].toUpperCase() : 'FILE';
-    }
-
-    async function toggleLike(fileId, btn) {
-      const res = await fetch(`/api/files/${fileId}/like`, { method: 'POST' });
-      const data = await res.json();
-      btn.dataset.liked = data.liked;
-      btn.querySelector('.like-count').textContent = data.likeCount;
-      btn.classList.toggle('liked', data.liked);
-    }
-
-    async function toggleCommentPanel(fileId, card) {
-      const panel = card.querySelector('.comment-panel');
-      const isOpen = panel.classList.contains('open');
-      if (isOpen) {
-        panel.classList.remove('open');
-        return;
+      // Increment comment badge count
+      const countEl = card.querySelector('.comment-count');
+      if (countEl) {
+        countEl.textContent = parseInt(countEl.textContent || '0') + 1;
       }
-      panel.classList.add('open');
-      if (!panel.dataset.loaded) {
-        const res = await fetch(`/api/files/${fileId}/comments`);
-        const comments = await res.json();
-        panel.querySelector('.comment-list').innerHTML = comments.map(c => `
-          <div class="comment-item">
-            <div class="comment-avatar">${c.commenterName.charAt(0).toUpperCase()}</div>
-            <div>
-              <p class="comment-author">${c.commenterName}</p>
-              <p class="comment-text">${c.commentText}</p>
+    }
+
+    function renderPost(f) {
+      const badge = getFileBadge(f.originalName);
+      const initial = (f.uploaderName || 'S').charAt(0).toUpperCase();
+      const avatarHtml = f.uploaderAvatar 
+        ? `<img src="${f.uploaderAvatar}" alt="${escapeHtml(f.uploaderName)}" class="post-avatar-img">`
+        : initial;
+      const subjectTag = f.subject ? `<span class="post-pill-tag"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>${escapeHtml(f.subject)}</span>` : '';
+      const chapterTag = f.chapter ? `<span class="post-pill-tag"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>${escapeHtml(f.chapter)}</span>` : '';
+
+      return `
+        <article class="feed-card social-post-card" data-file-id="${f.id}">
+          
+          <header class="post-header">
+            <a href="profile.html?id=${f.uploadedBy}" class="post-avatar" title="View ${escapeHtml(f.uploaderName)}'s Profile">${avatarHtml}</a>
+            <div class="post-user-info">
+              <div class="post-author-row">
+                <a href="profile.html?id=${f.uploadedBy}" class="post-author-name post-author-link">${escapeHtml(f.uploaderName || 'Student')}</a>
+                <span class="post-verified-badge" title="Verified Gandaki University Student">
+                  <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                  GU Student
+                </span>
+              </div>
+              <div class="post-meta-row">
+                <span class="post-student-handle">@${escapeHtml(f.uploadedBy || 'student')}</span>
+                <span class="post-meta-sep">&middot;</span>
+                <time class="post-timestamp" datetime="${f.uploadedAt}">${timeAgo(f.uploadedAt)}</time>
+                <span class="post-meta-sep">&middot;</span>
+                <span class="post-visibility" title="Public to Semester">
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                </span>
+              </div>
+            </div>
+
+            <button class="post-more-btn" onclick="copyPostLink(${f.id})" title="Copy link to file">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+            </button>
+          </header>
+
+          <div class="post-content">
+            <h3 class="post-title">${escapeHtml(f.title || f.originalName)}</h3>
+            ${(subjectTag || chapterTag) ? `<div class="post-tags-row">${subjectTag}${chapterTag}</div>` : ''}
+          </div>
+
+          <div class="post-attachment-card">
+            <div class="attachment-file-badge ${badge.iconClass}">
+              <span>${badge.ext}</span>
+            </div>
+            <div class="attachment-details">
+              <p class="attachment-name" title="${escapeHtml(f.originalName)}">${escapeHtml(f.originalName)}</p>
+              <span class="attachment-meta">${formatSize(f.sizeBytes)} &middot; ${badge.ext} Resource</span>
+            </div>
+            <div class="attachment-actions">
+              <a href="/api/files/${f.id}/view" target="_blank" rel="noopener" class="attach-action-btn attach-btn-view" title="Preview file in browser">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                <span>View</span>
+              </a>
+              <a href="/api/files/${f.id}/download" class="attach-action-btn attach-btn-download" title="Download file">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                <span>Get</span>
+              </a>
             </div>
           </div>
-        `).join('') || '<p class="comment-empty">No comments yet.</p>';
-        panel.dataset.loaded = 'true';
-      }
+
+          <footer class="post-engage-bar">
+            <button class="post-action-btn like-btn ${f.liked ? 'liked' : ''}" data-liked="${f.liked ? 'true' : 'false'}" onclick="toggleLike(${f.id}, this)">
+              <svg viewBox="0 0 24 24" fill="${f.liked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/>
+              </svg>
+              <span class="like-count">${f.likeCount || 0}</span>
+            </button>
+
+            <button class="post-action-btn comment-btn" onclick="toggleCommentPanel(${f.id}, this.closest('.feed-card'))">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 8.4 8.4 0 0 1-3.5-.75L3 21l1.8-5.4A8.4 8.4 0 0 1 4 12.5 8.5 8.5 0 1 1 21 11.5z"/>
+              </svg>
+              <span class="comment-count">${f.commentCount || 0}</span>
+            </button>
+
+            <button class="post-action-btn share-btn" onclick="copyPostLink(${f.id})" title="Copy link">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13"/>
+              </svg>
+              <span>Share</span>
+            </button>
+          </footer>
+
+          <div class="comment-panel post-comment-drawer">
+            <div class="comment-list"></div>
+            <div class="comment-composer">
+              <input type="text" class="comment-input post-comment-input" placeholder="Write a comment for the class…" maxlength="500">
+              <button class="comment-submit post-comment-submit" onclick="submitComment(${f.id}, this.closest('.feed-card'))" title="Post comment">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+              </button>
+            </div>
+          </div>
+
+        </article>
+      `;
     }
 
-    async function submitComment(fileId, card) {
-      const input = card.querySelector('.comment-input');
-      const text = input.value.trim();
-      if (!text) return;
-      const res = await fetch(`/api/files/${fileId}/comments`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text })
-      });
-      if (!res.ok) return;
-      input.value = '';
-      const panel = card.querySelector('.comment-panel');
-      panel.dataset.loaded = '';
-      await toggleCommentPanel(fileId, card);
-      toggleCommentPanel(fileId, card);
-    }
-
-function isImageFile(name) {
-      return /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(name);
-    }
-
-    function getFileExt(name) {
-      const match = name.match(/\.([a-zA-Z0-9]+)$/);
-      return match ? match[1].toUpperCase() : 'FILE';
-    }
     fetch('/api/files')
       .then(res => res.ok ? res.json() : [])
       .then(files => {
         if (!files.length) return;
-        document.getElementById('realFiles').innerHTML = files.map(f => `
-          <article class="fb-card" data-file-id="${f.id}">
-            <div class="fb-card-header">
-              <div class="fb-avatar">${f.uploaderName.charAt(0).toUpperCase()}</div>
-              <div class="fb-header-text">
-                <p class="fb-uploader-name">${f.uploaderName}</p>
-                <p class="fb-meta">uploaded a file &middot; ${timeAgo(f.uploadedAt)}</p>
-              </div>
-            </div>
-            <p class="fb-caption">${f.title || f.originalName}</p>
-            <a href="/api/files/${f.id}/view" target="_blank" class="fb-preview">
-              ${isImageFile(f.originalName) ? `
-                <img src="/api/files/${f.id}/view" alt="${f.originalName}" class="fb-preview-img">
-              ` : `
-                <div class="fb-doc-thumb">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M14 3v4a1 1 0 0 0 1 1h4"/>
-                    <path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/>
-                  </svg>
-                  <span class="fb-ext-badge">${getFileExt(f.originalName)}</span>
-                  <div class="fb-play-badge">
-                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-                  </div>
-                </div>
-                <div class="fb-doc-titlebar">${f.originalName} &middot; ${formatSize(f.sizeBytes)}</div>
-              `}
-            </a>
-
-            <div class="fb-engage-bar">
-              <button class="like-btn ${f.liked ? 'liked' : ''}" data-liked="${f.liked ? 'true' : 'false'}" onclick="toggleLike(${f.id}, this)">
-                <svg viewBox="0 0 24 24" fill="${f.liked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/>
-                </svg>
-                <span class="like-count">${f.likeCount}</span>
-              </button>
-              <button class="comment-btn" onclick="toggleCommentPanel(${f.id}, this.closest('.fb-card'))">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 8.4 8.4 0 0 1-3.5-.75L3 21l1.8-5.4A8.4 8.4 0 0 1 4 12.5 8.5 8.5 0 1 1 21 11.5z"/>
-                </svg>
-                <span>${f.commentCount}</span>
-              </button>
-              <a href="/api/files/${f.id}/view" target="_blank" class="fb-view-link">View</a>
-              <a href="/api/files/${f.id}/download" class="fb-download-link">Download</a>
-            </div>
-
-            <div class="comment-panel">
-              <div class="comment-list"></div>
-              <div class="comment-form">
-                <input type="text" class="comment-input" placeholder="Write a comment…" maxlength="500">
-                <button class="comment-submit" onclick="submitComment(${f.id}, this.closest('.fb-card'))">Post</button>
-              </div>
-            </div>
-          </article>
-        `).join('');
+        document.getElementById('realFiles').innerHTML = files.map(renderPost).join('');
       });
-
-    // --- Hover preview popup ---
-   
-  </script>
   </script>
 </body>
 </html>

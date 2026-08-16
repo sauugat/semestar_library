@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Syllabus — Semester Library</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="dash">
+
+  <header class="dash-header">
+    <span class="lib-wordmark">Semester Library</span>
+    <div class="dash-header-actions">
+      <button class="dash-logout" onclick="location.href='library.html'">Library</button>
+      <button class="dash-logout" onclick="location.href='dashboard.html'">Feed</button>
+      <button id="logoutBtn" class="dash-logout">Logout</button>
+    </div>
+  </header>
+
+  <div class="feed-heading">
+    <h2 id="syllabusTitle">Syllabus</h2>
+    <span id="syllabusSub"></span>
+  </div>
+
+  <nav class="lib-breadcrumb" id="breadcrumb"></nav>
+
+  <main class="library-grid" id="syllabusGrid">
+    <p class="empty-state">Loading…</p>
+  </main>
+
+  <nav class="bottom-nav">
+    <button class="nav-item" onclick="location.href='dashboard.html'">
+      <svg viewBox="0 0 24 24"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/><path d="M9 13h6M9 17h4"/></svg>
+      <span class="nav-label">Notes</span>
+    </button>
+    <button class="nav-item" onclick="location.href='files.html'">
+      <svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="M7 8l5-5 5 5"/><path d="M5 21h14a2 2 0 0 0 2-2v-4"/><path d="M3 15v4a2 2 0 0 0 2 2"/></svg>
+      <span class="nav-label">Files</span>
+    </button>
+    <button class="nav-item" onclick="location.href='library.html'">
+      <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+      <span class="nav-label">Library</span>
+    </button>
+    <button class="nav-item active">
+      <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+      <span class="nav-label">Syllabus</span>
+    </button>
+  </nav>
+
+  <script>
+    fetch('/api/me').then(r => { if (!r.ok) window.location.href = 'login.html'; });
+
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      fetch('/api/logout', { method: 'POST' }).then(() => window.location.href = 'index.html');
+    });
+
+    let SYLLABUS = null;
+
+    async function loadData() {
+      if (SYLLABUS) return SYLLABUS;
+      const res = await fetch('syllabus-data.json');
+      SYLLABUS = await res.json();
+      return SYLLABUS;
+    }
+
+    function currentPath() {
+      return decodeURIComponent(location.hash.replace(/^#/, '')).split('/').filter(Boolean);
+    }
+
+    function renderBreadcrumb(path) {
+      const crumbs = ['<a href="#">Syllabus</a>'];
+      let acc = '';
+      path.forEach((part, i) => {
+        acc += (i === 0 ? '' : '/') + part;
+        crumbs.push(`<span class="crumb-sep">/</span><a href="#${encodeURIComponent(acc)}">${part}</a>`);
+      });
+      document.getElementById('breadcrumb').innerHTML = crumbs.join(' ');
+    }
+
+    function textToHtml(text) {
+      if (!text) return '';
+      return text.split('\n').map(l => l.trim()).join('<br>');
+    }
+
+    // --- Level 1: Years ---
+    async function loadYears() {
+      const data = await loadData();
+      document.getElementById('syllabusTitle').textContent = 'Syllabus';
+      document.getElementById('syllabusSub').textContent = 'BIT · Gandaki University';
+
+      const years = [...new Set(data.semesters.map(s => s.year))];
+      const grid = document.getElementById('syllabusGrid');
+
+      let html = years.map(year => {
+        const semCount = data.semesters.filter(s => s.year === year).length;
+        const courseCount = data.semesters.filter(s => s.year === year).reduce((sum, s) => sum + s.courses.length, 0);
+        return `
+          <a href="#${encodeURIComponent(year)}" class="folder-card">
+            <div class="folder-icon subject-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+              </svg>
+            </div>
+            <div class="folder-info">
+              <p class="folder-name">${year}</p>
+              <p class="folder-meta">${semCount} semesters &middot; ${courseCount} courses</p>
+            </div>
+          </a>
+        `;
+      }).join('');
+
+      html += `
+        <a href="#Electives" class="folder-card">
+          <div class="folder-icon chapter-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>
+            </svg>
+          </div>
+          <div class="folder-info">
+            <p class="folder-name">Electives</p>
+            <p class="folder-meta">${data.electives.length} courses</p>
+          </div>
+        </a>
+      `;
+
+      grid.innerHTML = html;
+    }
+
+    // --- Level 2: Semesters within a year ---
+    async function loadSemesters(year) {
+      const data = await loadData();
+      document.getElementById('syllabusTitle').textContent = year;
+      document.getElementById('syllabusSub').textContent = '';
+
+      const sems = data.semesters.filter(s => s.year === year);
+      const grid = document.getElementById('syllabusGrid');
+
+      grid.innerHTML = sems.map(s => `
+        <a href="#${encodeURIComponent(year)}/${encodeURIComponent(s.semester)}" class="folder-card">
+          <div class="folder-icon chapter-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 3v4a1 1 0 0 0 1 1h4"/>
+              <path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/>
+            </svg>
+          </div>
+          <div class="folder-info">
+            <p class="folder-name">Semester ${s.semester}</p>
+            <p class="folder-meta">${s.courses.length} courses</p>
+          </div>
+        </a>
+      `).join('');
+    }
+
+    // --- Level 3: Courses within a semester (or the Electives list) ---
+    async function loadCourses(year, semester) {
+      const data = await loadData();
+      const isElectives = year === 'Electives';
+      document.getElementById('syllabusTitle').textContent = isElectives ? 'Electives' : `${year} · Semester ${semester}`;
+      document.getElementById('syllabusSub').textContent = '';
+
+      const courses = isElectives ? data.electives : (data.semesters.find(s => s.year === year && s.semester === semester)?.courses || []);
+      const grid = document.getElementById('syllabusGrid');
+
+      grid.innerHTML = `<div class="library-file-list">` + courses.map(c => `
+        <a href="#${encodeURIComponent(year)}/${encodeURIComponent(semester || '')}/${encodeURIComponent(c.code + '-' + c.title)}" class="feed-card course-card-link">
+          <div class="feed-card-top">
+            <span class="feed-icon icon-note">
+              <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+              </svg>
+            </span>
+            <div class="feed-card-heading"><span class="feed-tag">${c.code}</span></div>
+            <span class="feed-meta">${c.credit} credit${c.credit == '1' ? '' : 's'} &middot; ${c.nature}</span>
+          </div>
+          <h3>${c.title}</h3>
+        </a>
+      `).join('') + `</div>`;
+    }
+
+    // --- Level 4: Full course detail ---
+    async function loadCourseDetail(year, semester, courseKey) {
+      const data = await loadData();
+      const isElectives = year === 'Electives';
+      const courses = isElectives ? data.electives : (data.semesters.find(s => s.year === year && s.semester === semester)?.courses || []);
+      const course = courses.find(c => (c.code + '-' + c.title) === courseKey);
+
+      const grid = document.getElementById('syllabusGrid');
+
+      if (!course) {
+        grid.innerHTML = '<p class="empty-state">Course not found.</p>';
+        return;
+      }
+
+      document.getElementById('syllabusTitle').textContent = course.title;
+      document.getElementById('syllabusSub').textContent = `${course.code} · ${course.credit} credits · ${course.nature}`;
+
+      let html = '<div class="course-detail">';
+
+      if (course.objectives) {
+        html += `<h4>Course Objectives</h4><p class="course-detail-text">${textToHtml(course.objectives)}</p>`;
+      }
+      if (course.description) {
+        html += `<h4>Course Description</h4><p class="course-detail-text">${textToHtml(course.description)}</p>`;
+      }
+      if (course.contents) {
+        html += `<h4>Course Contents</h4><pre class="course-detail-pre">${course.contents}</pre>`;
+      }
+      if (course.lab) {
+        html += `<h4>Laboratory Work</h4><p class="course-detail-text">${textToHtml(course.lab)}</p>`;
+      }
+
+      html += '</div>';
+      grid.innerHTML = `<div class="library-file-list">${html}</div>`;
+    }
+
+    function route() {
+      const path = currentPath();
+      renderBreadcrumb(path);
+      if (path.length === 0) {
+        loadYears();
+      } else if (path.length === 1) {
+        if (path[0] === 'Electives') {
+          loadCourses('Electives', '');
+        } else {
+          loadSemesters(path[0]);
+        }
+      } else if (path.length === 2) {
+        loadCourses(path[0], path[1]);
+      } else {
+        loadCourseDetail(path[0], path[1], path[2]);
+      }
+    }
+
+    window.addEventListener('hashchange', route);
+    route();
+  </script>
+</body>
+</html>

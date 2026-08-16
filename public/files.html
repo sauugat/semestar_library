@@ -1,81 +1,169 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Files — Semester Library</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Upload Resource — Semester Library</title>
+  <script>
+    fetch('/api/me').then(r => { if (!r.ok) window.location.replace('login.html'); }).catch(() => window.location.replace('login.html'));
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
 </head>
-<body class="dash">
+<body class="dash upload-page-body">
 
+  <!-- Top Apple Pro Header -->
   <header class="dash-header">
-    <span class="lib-wordmark">Semester Library</span>
-    <button id="logoutBtn" class="dash-logout">
-      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-        <path d="M16 17l5-5-5-5"/>
-        <path d="M21 12H9"/>
-      </svg>
-      Logout
-    </button>
+    <a href="dashboard.html" class="lib-wordmark">Semester Library</a>
+    <div class="dash-header-actions">
+      <a href="profile.html" class="dash-profile-chip" title="View Profile">
+        <div class="dash-profile-avatar" id="headerAvatar">·</div>
+        <span class="dash-profile-label" id="headerProfileName">Profile</span>
+      </a>
+      <button class="dash-logout" onclick="location.href='dashboard.html'">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+        Feed
+      </button>
+      <button id="logoutBtn" class="dash-logout">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <path d="M16 17l5-5-5-5"/><path d="M21 12H9"/>
+        </svg>
+        Sign Out
+      </button>
+    </div>
   </header>
 
-  <div class="feed-heading">
-    <h2>Shared Files</h2>
-    <span id="fileCount"></span>
-  </div>
+  <!-- Upload Studio Container -->
+  <main class="upload-studio-container">
 
-  <section class="upload-box">
-    <form id="uploadForm">
-      <label for="titleInput" class="upload-label">File name</label>
-      <input type="text" id="titleInput" class="upload-title-input" placeholder="e.g. Chapter 4 Slides, Lab 6 Solution" maxlength="80">
+    <div class="upload-studio-card">
+      
+      <!-- Card Header -->
+      <div class="upload-studio-header">
+        <div class="upload-badge-icon">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3v12"/><path d="M7 8l5-5 5 5"/><path d="M5 21h14a2 2 0 0 0 2-2v-4"/><path d="M3 15v4a2 2 0 0 0 2 2"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="upload-studio-title">Share Study Resource</h1>
+          <p class="upload-studio-sub">Upload notes, slide decks, assignment solutions, or code to share with your classmates.</p>
+        </div>
+      </div>
 
-      <label for="fileInput" class="upload-drop" id="dropZone">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 3v12"/>
-          <path d="M7 8l5-5 5 5"/>
-          <path d="M5 21h14a2 2 0 0 0 2-2v-4"/>
-          <path d="M3 15v4a2 2 0 0 0 2 2"/>
-        </svg>
-        <span id="dropText">Click to choose a file, or drag one here</span>
-        <input type="file" id="fileInput" name="file" hidden required>
-      </label>
-      <label for="subjectInput" class="upload-label">Subject (optional)</label>
-<input type="text" id="subjectInput" class="upload-title-input" placeholder="e.g. Basics of IT" maxlength="60">
+      <!-- Upload Form -->
+      <form id="uploadForm" class="upload-studio-form">
+        
+        <!-- Drag & Drop Zone -->
+        <label for="fileInput" class="upload-drop-card" id="dropZone">
+          <div class="drop-icon-circle">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+            </svg>
+          </div>
+          <div class="drop-text-wrapper">
+            <strong id="dropMainText">Choose a file or drag & drop here</strong>
+            <span id="dropSubText">Supports PDF, DOCX, ZIP, PPT, Images, and Code (Up to 25MB)</span>
+          </div>
+          <span class="drop-browse-btn">Browse File</span>
+          <input type="file" id="fileInput" name="file" hidden required>
+        </label>
 
-<label for="chapterInput" class="upload-label">Chapter (optional)</label>
-<input type="text" id="chapterInput" class="upload-title-input" placeholder="e.g. Chapter 4" maxlength="60">
-      <button type="submit" class="btn-primary upload-btn" id="uploadBtn">Upload</button>
-      <p id="uploadMsg" class="error-msg"></p>
-    </form>
-  </section>
+        <!-- Selected File Indicator -->
+        <div id="fileSelectedBar" class="file-selected-pill" style="display: none;">
+          <div class="file-sel-info">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <span id="selectedFileName" class="sel-name">filename.pdf</span>
+            <span id="selectedFileSize" class="sel-size">0 KB</span>
+          </div>
+          <button type="button" id="removeFileBtn" class="sel-remove-btn" title="Remove file">&times;</button>
+        </div>
 
-  <main class="feed" id="fileList"></main>
+        <!-- Resource Title -->
+        <div class="form-group">
+          <label for="titleInput" class="studio-label">Resource Title / Caption</label>
+          <input type="text" id="titleInput" class="studio-input" placeholder="e.g. Chapter 4 Logic Gates & Boolean Algebra Notes" maxlength="100">
+          <span class="studio-hint">Give your resource a clear, descriptive title for classmates</span>
+        </div>
 
+        <!-- Subject & Chapter 2-Column Row -->
+        <div class="form-row-2">
+          <div class="form-group">
+            <label for="subjectInput" class="studio-label">Subject</label>
+            <input type="text" id="subjectInput" class="studio-input" placeholder="e.g. Digital Logic" maxlength="60">
+          </div>
+          <div class="form-group">
+            <label for="chapterInput" class="studio-label">Chapter / Unit</label>
+            <input type="text" id="chapterInput" class="studio-input" placeholder="e.g. Chapter 4" maxlength="60">
+          </div>
+        </div>
+
+        <!-- Submission Actions -->
+        <div class="upload-action-row">
+          <button type="button" class="btn-studio-secondary" onclick="location.href='dashboard.html'">Cancel</button>
+          <button type="submit" class="btn-studio-primary" id="uploadBtn">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3v12"/><path d="M7 8l5-5 5 5"/><path d="M5 21h14a2 2 0 0 0 2-2v-4"/><path d="M3 15v4a2 2 0 0 0 2 2"/>
+            </svg>
+            <span>Publish Resource</span>
+          </button>
+        </div>
+
+        <p id="uploadMsg" class="studio-status-msg"></p>
+
+      </form>
+
+    </div>
+
+  </main>
+
+  <!-- macOS Floating Dock Navigation -->
   <nav class="bottom-nav">
-    <button class="nav-item" onclick="location.href='dashboard.html'">
+    <a href="dashboard.html" class="nav-item">
       <svg viewBox="0 0 24 24"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/><path d="M9 13h6M9 17h4"/></svg>
-      <span class="nav-label">Notes</span>
-    </button>
-    <button class="nav-item active">
+      <span class="nav-label">Feed</span>
+    </a>
+    <a href="files.html" class="nav-item active">
       <svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="M7 8l5-5 5 5"/><path d="M5 21h14a2 2 0 0 0 2-2v-4"/><path d="M3 15v4a2 2 0 0 0 2 2"/></svg>
-      <span class="nav-label">Files</span>
-    </button>
-    <button class="nav-item">
-      <svg viewBox="0 0 24 24"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 8.4 8.4 0 0 1-3.5-.75L3 21l1.8-5.4A8.4 8.4 0 0 1 4 12.5 8.5 8.5 0 1 1 21 11.5z"/></svg>
-      <span class="nav-label">Chat</span>
-    </button>
-    <button class="nav-item">
+      <span class="nav-label">Upload</span>
+    </a>
+    <a href="library.html" class="nav-item">
+      <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+      <span class="nav-label">Library</span>
+    </a>
+    <a href="syllabus.html" class="nav-item">
+      <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+      <span class="nav-label">Syllabus</span>
+    </a>
+    <a href="routine.html" class="nav-item">
       <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
       <span class="nav-label">Routine</span>
-    </button>
+    </a>
   </nav>
 
   <script>
     fetch('/api/me').then(r => { if (!r.ok) window.location.href = 'login.html'; });
+
+    fetch('/api/profile').then(r => r.json()).then(p => {
+      if (p) {
+        const headerAvatar = document.getElementById('headerAvatar');
+        const headerName = document.getElementById('headerProfileName');
+        if (headerName) headerName.textContent = p.name ? p.name.split(' ')[0] : 'Profile';
+        if (headerAvatar) {
+          if (p.avatarUrl) {
+            headerAvatar.innerHTML = `<img src="${p.avatarUrl}" alt="${p.name}">`;
+          } else {
+            headerAvatar.textContent = p.name ? p.name.charAt(0).toUpperCase() : 'S';
+          }
+        }
+      }
+    }).catch(() => {});
 
     document.getElementById('logoutBtn').addEventListener('click', () => {
       fetch('/api/logout', { method: 'POST' }).then(() => window.location.href = 'index.html');
@@ -83,242 +171,135 @@
 
     const fileInput = document.getElementById('fileInput');
     const dropZone = document.getElementById('dropZone');
-    const dropText = document.getElementById('dropText');
+    const dropMainText = document.getElementById('dropMainText');
     const uploadForm = document.getElementById('uploadForm');
     const uploadMsg = document.getElementById('uploadMsg');
     const uploadBtn = document.getElementById('uploadBtn');
+    const fileSelectedBar = document.getElementById('fileSelectedBar');
+    const selectedFileName = document.getElementById('selectedFileName');
+    const selectedFileSize = document.getElementById('selectedFileSize');
+    const removeFileBtn = document.getElementById('removeFileBtn');
 
-    fileInput.addEventListener('change', () => {
-      if (fileInput.files.length) dropText.textContent = fileInput.files[0].name;
-    });
-
-    ['dragover', 'dragleave', 'drop'].forEach(evt => {
-      dropZone.addEventListener(evt, e => e.preventDefault());
-    });
-    dropZone.addEventListener('drop', e => {
-      if (e.dataTransfer.files.length) {
-        fileInput.files = e.dataTransfer.files;
-        dropText.textContent = e.dataTransfer.files[0].name;
-      }
-    });
-
-    uploadForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      if (!fileInput.files.length) return;
-
-      const formData = new FormData();
-      formData.append('file', fileInput.files[0]);
-      formData.append('title', document.getElementById('titleInput').value.trim());
-formData.append('subject', document.getElementById('subjectInput').value.trim());
-formData.append('chapter', document.getElementById('chapterInput').value.trim());
-      uploadBtn.disabled = true;
-      uploadBtn.textContent = 'Uploading…';
-      uploadMsg.textContent = '';
-
-      try {
-        const res = await fetch('/api/files/upload', { method: 'POST', body: formData });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || 'Upload failed');
-        dropText.textContent = 'Click to choose a file, or drag one here';
-        fileInput.value = '';
-        document.getElementById('titleInput').value = '';
-        document.getElementById('subjectInput').value = '';
-document.getElementById('chapterInput').value = '';
-        loadFiles();
-      } catch (err) {
-        uploadMsg.textContent = err.message;
-      } finally {
-        uploadBtn.disabled = false;
-        uploadBtn.textContent = 'Upload';
-      }
-    });
-
-    function formatSize(bytes) {
+    function formatBytes(bytes) {
       if (bytes < 1024) return bytes + ' B';
       if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
       return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
     }
 
-    function timeAgo(iso) {
-      const diffMs = Date.now() - new Date(iso).getTime();
-      const mins = Math.floor(diffMs / 60000);
-      if (mins < 1) return 'just now';
-      if (mins < 60) return mins + 'm ago';
-      const hrs = Math.floor(mins / 60);
-      if (hrs < 24) return hrs + 'h ago';
-      return Math.floor(hrs / 24) + 'd ago';
+    function handleFilePicked(file) {
+      if (!file) return;
+      selectedFileName.textContent = file.name;
+      selectedFileSize.textContent = formatBytes(file.size);
+      fileSelectedBar.style.display = 'flex';
+      dropZone.style.borderColor = '#1d1d1f';
+      
+      // Auto-suggest title if empty
+      const titleInput = document.getElementById('titleInput');
+      if (!titleInput.value.trim()) {
+        const cleanName = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
+        titleInput.value = cleanName;
+      }
     }
-function isImageFile(name) {
-      return /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(name);
+
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files.length) {
+        handleFilePicked(fileInput.files[0]);
+      }
+    });
+
+    removeFileBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      fileInput.value = '';
+      fileSelectedBar.style.display = 'none';
+      dropZone.style.borderColor = 'var(--ap-border)';
+    });
+
+    ['dragover', 'dragleave', 'drop'].forEach(evt => {
+      dropZone.addEventListener(evt, e => e.preventDefault());
+    });
+
+    dropZone.addEventListener('dragover', () => {
+      dropZone.classList.add('dragover');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('dragover');
+    });
+
+    dropZone.addEventListener('drop', e => {
+      dropZone.classList.remove('dragover');
+      if (e.dataTransfer.files.length) {
+        fileInput.files = e.dataTransfer.files;
+        handleFilePicked(e.dataTransfer.files[0]);
+      }
+    });
+
+    function showToast(message) {
+      let toast = document.getElementById('socialToast');
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'socialToast';
+        toast.className = 'social-toast';
+        document.body.appendChild(toast);
+      }
+      toast.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6L9 17l-5-5"/></svg><span>${message}</span>`;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2600);
     }
 
-    function getFileExt(name) {
-      const match = name.match(/\.([a-zA-Z0-9]+)$/);
-      return match ? match[1].toUpperCase() : 'FILE';
-    }
-    
-    async function loadFiles() {
-      const res = await fetch('/api/files');
-      if (!res.ok) return;
-      const files = await res.json();
-
-      document.getElementById('fileCount').textContent =
-        files.length + (files.length === 1 ? ' file' : ' files');
-
-      const list = document.getElementById('fileList');
-
-      if (!files.length) {
-        list.innerHTML = '<p class="empty-state">No files shared yet — be the first to upload one.</p>';
+    uploadForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!fileInput.files.length) {
+        uploadMsg.textContent = 'Please choose a file to upload.';
+        uploadMsg.className = 'studio-status-msg error';
         return;
       }
 
-      list.innerHTML = files.map(f => `
-        <article class="fb-card" data-file-id="${f.id}">
-          <div class="fb-card-header">
-            <div class="fb-avatar">${f.uploaderName.charAt(0).toUpperCase()}</div>
-            <div class="fb-header-text">
-              <p class="fb-uploader-name">${f.uploaderName}</p>
-              <p class="fb-meta">uploaded a file &middot; ${timeAgo(f.uploadedAt)}</p>
-            </div>
-          </div>
-          <p class="fb-caption">${f.title || f.originalName}</p>
-          <a href="/api/files/${f.id}/view" target="_blank" class="fb-preview">
-            ${isImageFile(f.originalName) ? `
-              <img src="/api/files/${f.id}/view" alt="${f.originalName}" class="fb-preview-img">
-            ` : `
-              <div class="fb-doc-thumb">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M14 3v4a1 1 0 0 0 1 1h4"/>
-                  <path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/>
-                </svg>
-                <span class="fb-ext-badge">${getFileExt(f.originalName)}</span>
-                <div class="fb-play-badge">
-                  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-                </div>
-              </div>
-              <div class="fb-doc-titlebar">${f.originalName} &middot; ${formatSize(f.sizeBytes)}</div>
-            `}
-          </a>
+      const formData = new FormData();
+      formData.append('file', fileInput.files[0]);
+      formData.append('title', document.getElementById('titleInput').value.trim());
+      formData.append('subject', document.getElementById('subjectInput').value.trim());
+      formData.append('chapter', document.getElementById('chapterInput').value.trim());
 
-          <div class="fb-engage-bar">
-            <button class="like-btn ${f.liked ? 'liked' : ''}" data-liked="${f.liked ? 'true' : 'false'}" onclick="toggleLike(${f.id}, this)">
-              <svg viewBox="0 0 24 24" fill="${f.liked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/>
-              </svg>
-              <span class="like-count">${f.likeCount}</span>
-            </button>
-            <button class="comment-btn" onclick="toggleCommentPanel(${f.id}, this.closest('.fb-card'))">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 8.4 8.4 0 0 1-3.5-.75L3 21l1.8-5.4A8.4 8.4 0 0 1 4 12.5 8.5 8.5 0 1 1 21 11.5z"/>
-              </svg>
-              <span>${f.commentCount}</span>
-            </button>
-            <a href="/api/files/${f.id}/view" target="_blank" class="fb-view-link">View</a>
-            <a href="/api/files/${f.id}/download" class="fb-download-link">Download</a>
-          </div>
+      uploadBtn.disabled = true;
+      uploadBtn.innerHTML = `<span>Uploading…</span>`;
+      uploadMsg.textContent = '';
+      uploadMsg.className = 'studio-status-msg';
 
-          <div class="comment-panel">
-            <div class="comment-list"></div>
-            <div class="comment-form">
-              <input type="text" class="comment-input" placeholder="Write a comment…" maxlength="500">
-              <button class="comment-submit" onclick="submitComment(${f.id}, this.closest('.fb-card'))">Post</button>
-            </div>
-          </div>
-        </article>
-      `).join('');    }
+      try {
+        const res = await fetch('/api/files/upload', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Upload failed');
+        
+        showToast('Resource published to feed successfully!');
+        
+        fileInput.value = '';
+        fileSelectedBar.style.display = 'none';
+        document.getElementById('titleInput').value = '';
+        document.getElementById('subjectInput').value = '';
+        document.getElementById('chapterInput').value = '';
+        
+        uploadMsg.className = 'studio-status-msg success';
+        uploadMsg.innerHTML = `File uploaded successfully! <a href="dashboard.html" class="view-feed-link">View in Feed &rarr;</a>`;
+        
+        // Redirect to dashboard after 1.2 seconds so they can see their new post
+        setTimeout(() => {
+          window.location.href = 'dashboard.html';
+        }, 1200);
 
-   loadFiles();
-
-    // --- Hover preview popup ---
-    const previewPopup = document.createElement('div');
-    previewPopup.className = 'file-preview-popup';
-    previewPopup.innerHTML = '<iframe></iframe>';
-    document.body.appendChild(previewPopup);
-    const previewFrame = previewPopup.querySelector('iframe');
-    let previewTimer = null;
-
-    document.getElementById('fileList').addEventListener('mouseover', (e) => {
-      const card = e.target.closest('[data-file-id]');
-      if (!card || card.dataset.hovering) return;
-      document.querySelectorAll('[data-file-id]').forEach(c => c.dataset.hovering = '');
-      card.dataset.hovering = 'true';
-
-      clearTimeout(previewTimer);
-      previewTimer = setTimeout(() => {
-        previewFrame.src = `/api/files/${card.dataset.fileId}/view`;
-        previewPopup.classList.add('visible');
-      }, 200);
-    });
-
-    document.getElementById('fileList').addEventListener('mousemove', (e) => {
-      const card = e.target.closest('[data-file-id]');
-      if (!card) return;
-      let top = e.clientY + 16;
-      let left = e.clientX + 16;
-      if (left + 280 > window.innerWidth) left = e.clientX - 296;
-      if (top + 200 > window.innerHeight) top = e.clientY - 216;
-      previewPopup.style.top = top + 'px';
-      previewPopup.style.left = left + 'px';
-    });
-
-    document.getElementById('fileList').addEventListener('mouseout', (e) => {
-      const card = e.target.closest('[data-file-id]');
-      if (!card || card.contains(e.relatedTarget)) return;
-      clearTimeout(previewTimer);
-      previewPopup.classList.remove('visible');
-      previewFrame.src = '';
-      card.dataset.hovering = '';
-    }); 
-
-    async function toggleLike(fileId, btn) {
-      const res = await fetch(`/api/files/${fileId}/like`, { method: 'POST' });
-      const data = await res.json();
-      btn.dataset.liked = data.liked;
-      btn.querySelector('.like-count').textContent = data.likeCount;
-      btn.classList.toggle('liked', data.liked);
-    }
-
-    async function toggleCommentPanel(fileId, card) {
-      const panel = card.querySelector('.comment-panel');
-      const isOpen = panel.classList.contains('open');
-      if (isOpen) {
-        panel.classList.remove('open');
-        return;
+      } catch (err) {
+        uploadMsg.textContent = err.message || 'Error uploading file.';
+        uploadMsg.className = 'studio-status-msg error';
+      } finally {
+        uploadBtn.disabled = false;
+        uploadBtn.innerHTML = `
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3v12"/><path d="M7 8l5-5 5 5"/><path d="M5 21h14a2 2 0 0 0 2-2v-4"/><path d="M3 15v4a2 2 0 0 0 2 2"/>
+          </svg>
+          <span>Publish Resource</span>
+        `;
       }
-      panel.classList.add('open');
-      if (!panel.dataset.loaded) {
-        const res = await fetch(`/api/files/${fileId}/comments`);
-        const comments = await res.json();
-        panel.querySelector('.comment-list').innerHTML = comments.map(c => `
-          <div class="comment-item">
-            <div class="comment-avatar">${c.commenterName.charAt(0).toUpperCase()}</div>
-            <div>
-              <p class="comment-author">${c.commenterName}</p>
-              <p class="comment-text">${c.commentText}</p>
-            </div>
-          </div>
-        `).join('') || '<p class="comment-empty">No comments yet.</p>';
-        panel.dataset.loaded = 'true';
-      }
-    }
-
-    async function submitComment(fileId, card) {
-      const input = card.querySelector('.comment-input');
-      const text = input.value.trim();
-      if (!text) return;
-      const res = await fetch(`/api/files/${fileId}/comments`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text })
-      });
-      if (!res.ok) return;
-      input.value = '';
-      const panel = card.querySelector('.comment-panel');
-      panel.dataset.loaded = '';
-      await toggleCommentPanel(fileId, card);
-      toggleCommentPanel(fileId, card); // reopen since the above toggles it closed
-    }
-    
+    });
   </script>
 
 </body>

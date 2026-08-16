@@ -27,19 +27,123 @@ const upload = multer({
   limits: { fileSize: 25 * 1024 * 1024 } // 25MB per file
 });
 
-// --- Middleware ---
+// --- Middleware & Session Hardening ---
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+
 app.use(session({
-  secret: 'semester-library-secret-key',
+  name: '__gu_session',
+  secret: process.env.SESSION_SECRET || 'gu_semester_lib_sec_9938b849204018247df4382',
   resave: false,
   saveUninitialized: false,
-  cookie: { maxAge: 1000 * 60 * 60 * 6 }
+  cookie: {
+    httpOnly: true,
+    sameSite: 'lax',
+    maxAge: 1000 * 60 * 60 * 6 // 6 hours
+  }
 }));
 
+// --- Login Rate Limiter (Brute-Force Defense) ---
+const loginAttempts = new Map(); // ip -> { count, lockedUntil }
+
+function loginRateLimiter(req, res, next) {
+  const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+  const record = loginAttempts.get(ip);
+  const now = Date.now();
+
+  if (record && record.lockedUntil && record.lockedUntil > now) {
+    const remainingSec = Math.ceil((record.lockedUntil - now) / 1000);
+    return res.status(429).json({
+      message: `Too many failed attempts. Security cooldown: ${remainingSec}s remaining.`
+    });
+  }
+  next();
+}
+
+// --- Strict Server-Side Page Route Guards ---
+const PROTECTED_PAGES = new Set([
+  '/dashboard.html', '/dashboard',
+  '/files.html', '/files',
+  '/library.html', '/library',
+  '/syllabus.html', '/syllabus',
+  '/routine.html', '/routine',
+  '/profile.html', '/profile'
+]);
+
+app.use((req, res, next) => {
+  // Canonical path normalization
+  let raw = req.path || '/';
+  try {
+    raw = decodeURIComponent(raw.split('?')[0]);
+  } catch (e) {
+    raw = raw.split('?')[0];
+  }
+  let norm = path.posix.normalize(raw).toLowerCase();
+  while (norm.length > 1 && norm.endsWith('/')) {
+    norm = norm.slice(0, -1);
+  }
+
+  const isProtected = PROTECTED_PAGES.has(norm) ||
+    norm.startsWith('/dashboard') ||
+    norm.startsWith('/files') ||
+    norm.startsWith('/library') ||
+    norm.startsWith('/routine') ||
+    norm.startsWith('/syllabus') ||
+    norm.startsWith('/profile');
+
+  // If attempting to access any protected student page without an active session
+  if (isProtected) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    if (!req.session || !req.session.studentId) {
+      return res.redirect('/login.html');
+    }
+  }
+
+  next();
+});
+
+// Clean URL Aliases for Protected and Public Pages
+app.get('/dashboard', (req, res) => {
+  if (!req.session || !req.session.studentId) return res.redirect('/login.html');
+  res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+});
+
+app.get('/files', (req, res) => {
+  if (!req.session || !req.session.studentId) return res.redirect('/login.html');
+  res.sendFile(path.join(__dirname, 'public', 'files.html'));
+});
+
+app.get('/library', (req, res) => {
+  if (!req.session || !req.session.studentId) return res.redirect('/login.html');
+  res.sendFile(path.join(__dirname, 'public', 'library.html'));
+});
+
+app.get('/syllabus', (req, res) => {
+  if (!req.session || !req.session.studentId) return res.redirect('/login.html');
+  res.sendFile(path.join(__dirname, 'public', 'syllabus.html'));
+});
+
+app.get('/routine', (req, res) => {
+  if (!req.session || !req.session.studentId) return res.redirect('/login.html');
+  res.sendFile(path.join(__dirname, 'public', 'routine.html'));
+});
+
+app.get('/profile', (req, res) => {
+  if (!req.session || !req.session.studentId) return res.redirect('/login.html');
+  res.sendFile(path.join(__dirname, 'public', 'profile.html'));
+});
+
+app.get('/login', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+// Serve static assets securely
+app.use(express.static(path.join(__dirname, 'public')));
+
 function requireLogin(req, res, next) {
-  if (!req.session.studentId) {
-    return res.status(401).json({ message: 'Not logged in' });
+  if (!req.session || !req.session.studentId) {
+    return res.status(401).json({ message: 'Authentication required. Please sign in.' });
   }
   next();
 }
@@ -50,6 +154,24 @@ db.exec(`
     studentId TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     passwordHash TEXT NOT NULL
+  )
+`);
+
+try { db.exec(`ALTER TABLE students ADD COLUMN avatarUrl TEXT`); } catch (e) {}
+try { db.exec(`ALTER TABLE students ADD COLUMN bio TEXT`); } catch (e) {}
+try { db.exec(`ALTER TABLE students ADD COLUMN department TEXT DEFAULT 'B.Sc. CSIT'`); } catch (e) {}
+try { db.exec(`ALTER TABLE students ADD COLUMN semester TEXT DEFAULT 'Semester 1'`); } catch (e) {}
+try { db.exec(`ALTER TABLE students ADD COLUMN githubUrl TEXT`); } catch (e) {}
+try { db.exec(`ALTER TABLE students ADD COLUMN linkedinUrl TEXT`); } catch (e) {}
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS follows (
+    followerId TEXT NOT NULL,
+    followingId TEXT NOT NULL,
+    createdAt TEXT NOT NULL,
+    PRIMARY KEY (followerId, followingId),
+    FOREIGN KEY (followerId) REFERENCES students(studentId),
+    FOREIGN KEY (followingId) REFERENCES students(studentId)
   )
 `);
 
@@ -102,8 +224,10 @@ db.exec(`
 
 // --- Routes ---
 
-app.post('/api/login', (req, res) => {
-  const { studentId, password } = req.body;
+app.post('/api/login', loginRateLimiter, (req, res) => {
+  const studentId = (req.body.studentId || '').trim();
+  const password = req.body.password || '';
+  const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
 
   if (!studentId || !password) {
     return res.status(400).json({ message: 'Student ID and password are required.' });
@@ -112,28 +236,49 @@ app.post('/api/login', (req, res) => {
   const student = db.prepare('SELECT * FROM students WHERE studentId = ?').get(studentId);
 
   if (!student) {
+    // Record failed attempt
+    const record = loginAttempts.get(ip) || { count: 0, lockedUntil: null };
+    record.count += 1;
+    if (record.count >= 5) {
+      record.lockedUntil = Date.now() + 5 * 60 * 1000;
+    }
+    loginAttempts.set(ip, record);
     return res.status(401).json({ message: 'Invalid Student ID or Password' });
   }
 
   const match = bcrypt.compareSync(password, student.passwordHash);
 
   if (!match) {
+    // Record failed attempt
+    const record = loginAttempts.get(ip) || { count: 0, lockedUntil: null };
+    record.count += 1;
+    if (record.count >= 5) {
+      record.lockedUntil = Date.now() + 5 * 60 * 1000;
+    }
+    loginAttempts.set(ip, record);
     return res.status(401).json({ message: 'Invalid Student ID or Password' });
   }
 
-  req.session.studentId = student.studentId;
-  return res.json({ message: 'Login successful' });
+  // Clear failed attempt record upon successful authentication
+  loginAttempts.delete(ip);
+
+  // Regenerate session to eliminate session fixation vulnerabilities
+  req.session.regenerate((err) => {
+    if (err) {
+      return res.status(500).json({ message: 'Authentication session creation error.' });
+    }
+    req.session.studentId = student.studentId;
+    req.session.studentName = student.name;
+    return res.json({ message: 'Login successful', redirect: '/dashboard.html' });
+  });
 });
 
-app.get('/api/me', (req, res) => {
-  if (!req.session.studentId) {
-    return res.status(401).json({ message: 'Not logged in' });
-  }
-
+app.get('/api/me', requireLogin, (req, res) => {
   const student = db.prepare('SELECT studentId, name FROM students WHERE studentId = ?').get(req.session.studentId);
 
   if (!student) {
-    return res.status(401).json({ message: 'Not logged in' });
+    req.session.destroy(() => {});
+    return res.status(401).json({ message: 'Authentication required' });
   }
 
   res.json({ studentId: student.studentId, name: student.name });
@@ -141,6 +286,7 @@ app.get('/api/me', (req, res) => {
 
 app.post('/api/logout', (req, res) => {
   req.session.destroy(() => {
+    res.clearCookie('__gu_session');
     res.json({ message: 'Logged out' });
   });
 });
@@ -176,7 +322,8 @@ app.post('/api/files/upload', requireLogin, upload.single('file'), (req, res) =>
 
 app.get('/api/files', requireLogin, (req, res) => {
   const files = db.prepare(`
-    SELECT files.id, files.originalName, files.title, files.sizeBytes, files.uploadedAt, students.name AS uploaderName,
+    SELECT files.id, files.originalName, files.title, files.subject, files.chapter, files.sizeBytes, files.uploadedAt, files.uploadedBy,
+      students.name AS uploaderName, students.avatarUrl AS uploaderAvatar,
       (SELECT COUNT(*) FROM file_likes WHERE file_likes.fileId = files.id) AS likeCount,
       EXISTS(SELECT 1 FROM file_likes WHERE fileId = files.id AND studentId = ?) AS liked,
       (SELECT COUNT(*) FROM file_comments WHERE file_comments.fileId = files.id) AS commentCount
@@ -302,7 +449,8 @@ app.get('/api/library/files', requireLogin, (req, res) => {
   }
 
   let query = `
-    SELECT files.id, files.originalName, files.title, files.subject, files.chapter, files.sizeBytes, files.uploadedAt, students.name AS uploaderName,
+    SELECT files.id, files.originalName, files.title, files.subject, files.chapter, files.sizeBytes, files.uploadedAt, files.uploadedBy,
+      students.name AS uploaderName, students.avatarUrl AS uploaderAvatar,
       (SELECT COUNT(*) FROM file_likes WHERE file_likes.fileId = files.id) AS likeCount,
       EXISTS(SELECT 1 FROM file_likes WHERE fileId = files.id AND studentId = ?) AS liked,
       (SELECT COUNT(*) FROM file_comments WHERE file_comments.fileId = files.id) AS commentCount
@@ -323,6 +471,240 @@ app.get('/api/library/files', requireLogin, (req, res) => {
 
   const files = db.prepare(query).all(...params);
   res.json(files);
+});
+
+// ============================================================
+// PROFILE & SOCIAL GRAPH SYSTEM
+// ============================================================
+
+// Multer storage for student profile avatars
+const avatarStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
+    cb(null, `avatar_${req.session.studentId}_${Date.now()}${ext}`);
+  }
+});
+
+const uploadAvatar = multer({
+  storage: avatarStorage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed as profile photos.'));
+    }
+  }
+});
+
+// Helper function to fetch profile with stats
+function getStudentProfile(targetStudentId, viewerStudentId) {
+  const student = db.prepare(`
+    SELECT studentId, name, avatarUrl, bio, department, semester, githubUrl, linkedinUrl
+    FROM students
+    WHERE studentId = ?
+  `).get(targetStudentId);
+
+  if (!student) return null;
+
+  const filesCount = db.prepare('SELECT COUNT(*) AS c FROM files WHERE uploadedBy = ?').get(targetStudentId).c;
+  
+  const likesReceived = db.prepare(`
+    SELECT COUNT(*) AS c
+    FROM file_likes
+    JOIN files ON files.id = file_likes.fileId
+    WHERE files.uploadedBy = ?
+  `).get(targetStudentId).c;
+
+  const followersCount = db.prepare('SELECT COUNT(*) AS c FROM follows WHERE followingId = ?').get(targetStudentId).c;
+  const followingCount = db.prepare('SELECT COUNT(*) AS c FROM follows WHERE followerId = ?').get(targetStudentId).c;
+
+  const isSelf = targetStudentId === viewerStudentId;
+  const isFollowing = !isSelf && !!db.prepare('SELECT 1 FROM follows WHERE followerId = ? AND followingId = ?').get(viewerStudentId, targetStudentId);
+
+  return {
+    studentId: student.studentId,
+    name: student.name,
+    avatarUrl: student.avatarUrl || null,
+    bio: student.bio || '',
+    department: student.department || 'B.Sc. CSIT',
+    semester: student.semester || 'Semester 1',
+    githubUrl: student.githubUrl || '',
+    linkedinUrl: student.linkedinUrl || '',
+    stats: {
+      filesCount,
+      likesReceived,
+      followersCount,
+      followingCount
+    },
+    isSelf,
+    isFollowing
+  };
+}
+
+// Get logged-in student's profile
+app.get('/api/profile', requireLogin, (req, res) => {
+  const profile = getStudentProfile(req.session.studentId, req.session.studentId);
+  if (!profile) return res.status(404).json({ message: 'Profile not found' });
+  res.json(profile);
+});
+
+// Get any student's profile by ID
+app.get('/api/profile/:studentId', requireLogin, (req, res) => {
+  const profile = getStudentProfile(req.params.studentId, req.session.studentId);
+  if (!profile) return res.status(404).json({ message: 'Student profile not found' });
+  res.json(profile);
+});
+
+// Update profile details
+app.post('/api/profile/update', requireLogin, (req, res) => {
+  const { name, bio, department, semester, githubUrl, linkedinUrl } = req.body;
+  const studentId = req.session.studentId;
+
+  const current = db.prepare('SELECT * FROM students WHERE studentId = ?').get(studentId);
+  if (!current) return res.status(404).json({ message: 'Student not found' });
+
+  const updatedName = (name && name.trim()) ? name.trim() : current.name;
+  const updatedBio = typeof bio === 'string' ? bio.trim().slice(0, 300) : (current.bio || '');
+  const updatedDept = (department && department.trim()) ? department.trim().slice(0, 50) : (current.department || 'B.Sc. CSIT');
+  const updatedSem = (semester && semester.trim()) ? semester.trim().slice(0, 30) : (current.semester || 'Semester 1');
+  const updatedGithub = typeof githubUrl === 'string' ? githubUrl.trim().slice(0, 100) : (current.githubUrl || '');
+  const updatedLinkedin = typeof linkedinUrl === 'string' ? linkedinUrl.trim().slice(0, 100) : (current.linkedinUrl || '');
+
+  db.prepare(`
+    UPDATE students
+    SET name = ?, bio = ?, department = ?, semester = ?, githubUrl = ?, linkedinUrl = ?
+    WHERE studentId = ?
+  `).run(updatedName, updatedBio, updatedDept, updatedSem, updatedGithub, updatedLinkedin, studentId);
+
+  // Update session name if changed
+  req.session.name = updatedName;
+
+  const profile = getStudentProfile(studentId, studentId);
+  res.json({ message: 'Profile updated successfully', profile });
+});
+
+// Upload profile avatar picture
+app.post('/api/profile/avatar', requireLogin, uploadAvatar.single('avatar'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ message: 'No image file uploaded.' });
+  }
+
+  const studentId = req.session.studentId;
+  const avatarUrl = `/api/avatar/${req.file.filename}`;
+
+  db.prepare('UPDATE students SET avatarUrl = ? WHERE studentId = ?').run(avatarUrl, studentId);
+
+  res.json({ message: 'Profile picture updated successfully', avatarUrl });
+});
+
+// Serve avatar image safely
+app.get('/api/avatar/:filename', (req, res) => {
+  const filename = path.basename(req.params.filename);
+  const filePath = path.join(UPLOAD_DIR, filename);
+
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ message: 'Avatar image not found' });
+  }
+
+  res.setHeader('Cache-Control', 'public, max-age=86400'); // 1 day cache
+  res.sendFile(filePath);
+});
+
+// Toggle follow/unfollow a student
+app.post('/api/profile/:studentId/follow', requireLogin, (req, res) => {
+  const followerId = req.session.studentId;
+  const followingId = req.params.studentId;
+
+  if (followerId === followingId) {
+    return res.status(400).json({ message: 'You cannot follow yourself.' });
+  }
+
+  const target = db.prepare('SELECT studentId FROM students WHERE studentId = ?').get(followingId);
+  if (!target) return res.status(404).json({ message: 'Student not found.' });
+
+  const existing = db.prepare('SELECT 1 FROM follows WHERE followerId = ? AND followingId = ?').get(followerId, followingId);
+
+  if (existing) {
+    db.prepare('DELETE FROM follows WHERE followerId = ? AND followingId = ?').run(followerId, followingId);
+  } else {
+    db.prepare('INSERT INTO follows (followerId, followingId, createdAt) VALUES (?, ?, ?)').run(followerId, followingId, new Date().toISOString());
+  }
+
+  const followersCount = db.prepare('SELECT COUNT(*) AS c FROM follows WHERE followingId = ?').get(followingId).c;
+  res.json({ isFollowing: !existing, followersCount });
+});
+
+// List followers of a student
+app.get('/api/profile/:studentId/followers', requireLogin, (req, res) => {
+  const targetStudentId = req.params.studentId;
+  const viewerStudentId = req.session.studentId;
+
+  const followers = db.prepare(`
+    SELECT students.studentId, students.name, students.avatarUrl, students.department, students.semester,
+      EXISTS(SELECT 1 FROM follows WHERE followerId = ? AND followingId = students.studentId) AS isFollowing
+    FROM follows
+    JOIN students ON students.studentId = follows.followerId
+    WHERE follows.followingId = ?
+    ORDER BY follows.createdAt DESC
+  `).all(viewerStudentId, targetStudentId);
+
+  res.json(followers);
+});
+
+// List students that this student is following
+app.get('/api/profile/:studentId/following', requireLogin, (req, res) => {
+  const targetStudentId = req.params.studentId;
+  const viewerStudentId = req.session.studentId;
+
+  const following = db.prepare(`
+    SELECT students.studentId, students.name, students.avatarUrl, students.department, students.semester,
+      EXISTS(SELECT 1 FROM follows WHERE followerId = ? AND followingId = students.studentId) AS isFollowing
+    FROM follows
+    JOIN students ON students.studentId = follows.followingId
+    WHERE follows.followerId = ?
+    ORDER BY follows.createdAt DESC
+  `).all(viewerStudentId, targetStudentId);
+
+  res.json(following);
+});
+
+// Get all files uploaded by a student
+app.get('/api/profile/:studentId/files', requireLogin, (req, res) => {
+  const targetStudentId = req.params.studentId;
+  const viewerStudentId = req.session.studentId;
+
+  const files = db.prepare(`
+    SELECT files.id, files.originalName, files.title, files.subject, files.chapter, files.sizeBytes, files.uploadedAt, files.uploadedBy,
+      students.name AS uploaderName, students.avatarUrl AS uploaderAvatar,
+      (SELECT COUNT(*) FROM file_likes WHERE file_likes.fileId = files.id) AS likeCount,
+      EXISTS(SELECT 1 FROM file_likes WHERE fileId = files.id AND studentId = ?) AS liked,
+      (SELECT COUNT(*) FROM file_comments WHERE file_comments.fileId = files.id) AS commentCount
+    FROM files
+    JOIN students ON students.studentId = files.uploadedBy
+    WHERE files.uploadedBy = ?
+    ORDER BY files.uploadedAt DESC
+  `).all(viewerStudentId, targetStudentId);
+
+  res.json(files);
+});
+
+// Suggested classmates to follow
+app.get('/api/students/suggested', requireLogin, (req, res) => {
+  const viewerStudentId = req.session.studentId;
+
+  const classmates = db.prepare(`
+    SELECT students.studentId, students.name, students.avatarUrl, students.department, students.semester,
+      (SELECT COUNT(*) FROM files WHERE files.uploadedBy = students.studentId) AS filesCount,
+      EXISTS(SELECT 1 FROM follows WHERE followerId = ? AND followingId = students.studentId) AS isFollowing
+    FROM students
+    WHERE students.studentId != ?
+    ORDER BY filesCount DESC, students.name ASC
+    LIMIT 12
+  `).all(viewerStudentId, viewerStudentId);
+
+  res.json(classmates);
 }); 
 
 const PORT = process.env.PORT || 3000;

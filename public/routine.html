@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <title>Routine — Semester Library</title>
+  <script>
+    fetch('/api/me').then(r => { if (!r.ok) window.location.replace('login.html'); }).catch(() => window.location.replace('login.html'));
+  </script>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -30,17 +33,24 @@
       >
     </a>
 
-    <a
-      href="https://gandakiuniversity.edu.np"
-      target="_blank"
-      rel="noopener noreferrer"
-    >
-      <img
-        src="IMG_1629-removebg-preview.png"
-        alt="Gandaki University"
-        class="lib-logo"
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <a href="profile.html" class="dash-profile-chip" title="View Profile" id="routineProfileChip" style="display:none;">
+        <div class="dash-profile-avatar" id="headerAvatar">·</div>
+        <span class="dash-profile-label" id="headerProfileName">Profile</span>
+      </a>
+      <a href="library.html" class="dash-logout">Library</a>
+      <a
+        href="https://gandakiuniversity.edu.np"
+        target="_blank"
+        rel="noopener noreferrer"
       >
-    </a>
+        <img
+          src="IMG_1629-removebg-preview.png"
+          alt="Gandaki University"
+          class="lib-logo"
+        >
+      </a>
+    </div>
 
   </header>
 
@@ -544,6 +554,27 @@
 
 
   <script src="routine.js"></script>
+  <script>
+    fetch('/api/profile').then(r => {
+      if (r.ok) return r.json();
+      throw new Error('Not logged in');
+    }).then(p => {
+      if (p) {
+        const chip = document.getElementById('routineProfileChip');
+        const headerAvatar = document.getElementById('headerAvatar');
+        const headerName = document.getElementById('headerProfileName');
+        if (chip) chip.style.display = 'inline-flex';
+        if (headerName) headerName.textContent = p.name ? p.name.split(' ')[0] : 'Profile';
+        if (headerAvatar) {
+          if (p.avatarUrl) {
+            headerAvatar.innerHTML = `<img src="${p.avatarUrl}" alt="${p.name}">`;
+          } else {
+            headerAvatar.textContent = p.name ? p.name.charAt(0).toUpperCase() : 'S';
+          }
+        }
+      }
+    }).catch(() => {});
+  </script>
 
 </body>
 </html>

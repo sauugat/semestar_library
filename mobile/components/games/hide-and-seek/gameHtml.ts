@@ -4396,6 +4396,259 @@ export function getHideAndSeekHtml(): string {
           bCtx.fillStyle = i % 2 === 0 ? '#707070' : '#303030';
           bCtx.fillRect(Math.random() * 512, Math.random() * 512, 2, 6);
         }
+      } else if (type === 'scuffed-classroom-floor') {
+        // Requirement 4: Scuffed institutional concrete/linoleum tiles with heel marks, chair drag scratches & grime stains
+        ctx.fillStyle = '#1e2630';
+        ctx.fillRect(0, 0, 512, 512);
+        bCtx.fillStyle = '#787878';
+        bCtx.fillRect(0, 0, 512, 512);
+        rCtx.fillStyle = '#5c5c5c';
+        rCtx.fillRect(0, 0, 512, 512);
+
+        const ts = 64;
+        for (let y = 0; y < 512; y += ts) {
+          for (let x = 0; x < 512; x += ts) {
+            const seed = Math.abs(x * 13 + y * 29);
+            const tone = 30 + (seed % 14);
+            ctx.fillStyle = 'rgb(' + tone + ',' + (tone + 6) + ',' + (tone + 12) + ')';
+            ctx.fillRect(x + 2, y + 2, ts - 3, ts - 3);
+            ctx.fillStyle = '#0d1218';
+            ctx.fillRect(x, y, ts, 2);
+            ctx.fillRect(x, y, 2, ts);
+            bCtx.fillStyle = '#222222';
+            bCtx.fillRect(x, y, ts, 2);
+            bCtx.fillRect(x, y, 2, ts);
+            if (seed % 3 === 0) {
+              ctx.strokeStyle = 'rgba(8, 11, 15, 0.65)';
+              ctx.lineWidth = 2.5;
+              ctx.beginPath();
+              ctx.moveTo(x + 12, y + 18);
+              ctx.quadraticCurveTo(x + 34, y + 28, x + 48, y + 46);
+              ctx.stroke();
+              bCtx.strokeStyle = '#383838';
+              bCtx.lineWidth = 2;
+              bCtx.beginPath();
+              ctx.moveTo(x + 12, y + 18);
+              bCtx.lineTo(x + 48, y + 46);
+              bCtx.stroke();
+            }
+            if (seed % 5 === 0) {
+              const sg = ctx.createRadialGradient(x + 32, y + 32, 3, x + 32, y + 32, 26);
+              sg.addColorStop(0.0, 'rgba(10, 14, 18, 0.58)');
+              sg.addColorStop(0.7, 'rgba(18, 26, 22, 0.25)');
+              sg.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
+              ctx.fillStyle = sg;
+              ctx.fillRect(x + 4, y + 4, ts - 8, ts - 8);
+              rCtx.fillStyle = '#282828';
+              rCtx.fillRect(x + 10, y + 10, 36, 36);
+            }
+          }
+        }
+      } else if (type === 'stained-ceiling-tiles') {
+        // Requirement 4: Stained acoustic drop-ceiling tiles with brown roof-leak water rings, mold speckles & sagging seams
+        ctx.fillStyle = '#6c7378';
+        ctx.fillRect(0, 0, 512, 512);
+        bCtx.fillStyle = '#888888';
+        bCtx.fillRect(0, 0, 512, 512);
+        rCtx.fillStyle = '#989898';
+        rCtx.fillRect(0, 0, 512, 512);
+
+        const cw = 64, ch = 128;
+        for (let y = 0; y < 512; y += ch) {
+          for (let x = 0; x < 512; x += cw) {
+            const seed = Math.abs(x * 17 + y * 23);
+            const base = 104 + (seed % 18);
+            ctx.fillStyle = 'rgb(' + base + ',' + (base + 3) + ',' + (base + 5) + ')';
+            ctx.fillRect(x + 3, y + 3, cw - 6, ch - 6);
+            ctx.fillStyle = '#22282e';
+            ctx.fillRect(x, y, cw, 3);
+            ctx.fillRect(x, y, 3, ch);
+            bCtx.fillStyle = '#181818';
+            bCtx.fillRect(x, y, cw, 3);
+            bCtx.fillRect(x, y, 3, ch);
+
+            ctx.fillStyle = 'rgba(20, 26, 30, 0.36)';
+            for (let py = y + 8; py < y + ch - 6; py += 10) {
+              for (let px = x + 8; px < x + cw - 6; px += 10) {
+                ctx.fillRect(px, py, 1.5, 1.5);
+                bCtx.fillStyle = '#404040';
+                bCtx.fillRect(px, py, 2, 2);
+              }
+            }
+
+            if (seed % 3 !== 0) {
+              const cx = x + 20 + (seed % 24);
+              const cy = y + 32 + ((seed * 3) % 64);
+              const rad = 18 + (seed % 22);
+              const wg = ctx.createRadialGradient(cx, cy, rad * 0.2, cx, cy, rad);
+              wg.addColorStop(0.0, 'rgba(54, 42, 26, 0.52)');
+              wg.addColorStop(0.68, 'rgba(68, 52, 30, 0.65)');
+              wg.addColorStop(0.88, 'rgba(42, 32, 18, 0.38)');
+              wg.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
+              ctx.fillStyle = wg;
+              ctx.fillRect(x + 3, y + 3, cw - 6, ch - 6);
+            }
+          }
+        }
+      } else if (type === 'peeling-paint-wall') {
+        // Requirement 4: Peeling paint & damp plaster with flaking patches exposing raw dark concrete, cracks & stains
+        ctx.fillStyle = '#6e7874';
+        ctx.fillRect(0, 0, 512, 512);
+        bCtx.fillStyle = '#909090';
+        bCtx.fillRect(0, 0, 512, 512);
+        rCtx.fillStyle = '#848484';
+        rCtx.fillRect(0, 0, 512, 512);
+
+        for (let i = 0; i < 900; i++) {
+          const px = (i * 73) % 512;
+          const py = (i * 137) % 512;
+          const w = 10 + (i % 26);
+          const h = 8 + ((i * 7) % 24);
+          ctx.fillStyle = (i % 2 === 0) ? 'rgba(42, 52, 48, 0.16)' : 'rgba(148, 158, 152, 0.12)';
+          ctx.fillRect(px, py, w, h);
+        }
+
+        for (let p = 0; p < 28; p++) {
+          const px = 24 + ((p * 97) % 460);
+          const py = 28 + ((p * 163) % 450);
+          const rx = 14 + (p % 22);
+          const ry = 10 + ((p * 5) % 18);
+
+          ctx.fillStyle = '#9aa6a0';
+          ctx.beginPath();
+          ctx.ellipse(px, py, rx + 2.5, ry + 2.5, (p * 0.4), 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = '#323a3c';
+          ctx.beginPath();
+          ctx.ellipse(px, py, rx, ry, (p * 0.4), 0, Math.PI * 2);
+          ctx.fill();
+
+          bCtx.fillStyle = '#ffffff';
+          bCtx.beginPath();
+          bCtx.ellipse(px, py, rx + 2.5, ry + 2.5, (p * 0.4), 0, Math.PI * 2);
+          bCtx.fill();
+          bCtx.fillStyle = '#242424';
+          bCtx.beginPath();
+          bCtx.ellipse(px, py, rx, ry, (p * 0.4), 0, Math.PI * 2);
+          bCtx.fill();
+        }
+
+        ctx.strokeStyle = 'rgba(18, 24, 26, 0.65)';
+        ctx.lineWidth = 1.5;
+        bCtx.strokeStyle = '#101010';
+        bCtx.lineWidth = 2.0;
+        for (let cIdx = 0; cIdx < 8; cIdx++) {
+          let cx = 40 + cIdx * 60;
+          let cy = (cIdx % 2 === 0) ? 10 : 320;
+          ctx.beginPath();
+          ctx.moveTo(cx, cy);
+          bCtx.beginPath();
+          bCtx.moveTo(cx, cy);
+          for (let seg = 0; seg < 6; seg++) {
+            cx += ((seg * 13 + cIdx * 7) % 22) - 10;
+            cy += 24 + (seg % 3) * 8;
+            ctx.lineTo(cx, cy);
+            bCtx.lineTo(cx, cy);
+          }
+          ctx.stroke();
+          bCtx.stroke();
+        }
+      } else if (type === 'worn-wood-grain') {
+        // Requirement 4: Worn wood grain with knots, scratched varnish, ink stains & bump relief
+        ctx.fillStyle = '#4e2710';
+        ctx.fillRect(0, 0, 512, 512);
+        bCtx.fillStyle = '#606060';
+        bCtx.fillRect(0, 0, 512, 512);
+        rCtx.fillStyle = '#585858';
+        rCtx.fillRect(0, 0, 512, 512);
+
+        for (let y = 0; y < 512; y += 3) {
+          const wave = Math.floor(Math.sin(y * 0.08) * 10 + Math.cos(y * 0.03) * 8);
+          const r = Math.max(38, Math.min(115, 78 + wave));
+          const g = Math.max(18, Math.min(62, 39 + Math.floor(wave * 0.55)));
+          const b = Math.max(8, Math.min(34, 16 + Math.floor(wave * 0.3)));
+          ctx.fillStyle = 'rgb(' + r + ',' + g + ',' + b + ')';
+          ctx.fillRect(0, y, 512, 3);
+          bCtx.fillStyle = wave > 0 ? '#989898' : '#424242';
+          bCtx.fillRect(0, y, 512, 2);
+        }
+        for (let py = 0; py < 512; py += 128) {
+          ctx.fillStyle = '#1e0d05';
+          ctx.fillRect(0, py, 512, 3);
+          bCtx.fillStyle = '#121212';
+          bCtx.fillRect(0, py, 512, 3);
+        }
+        for (let k = 0; k < 7; k++) {
+          const kx = 48 + ((k * 113) % 420);
+          const ky = 36 + ((k * 79) % 440);
+          ctx.fillStyle = '#291206';
+          ctx.beginPath();
+          ctx.ellipse(kx, ky, 16, 7, 0.15, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#633318';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+        ctx.strokeStyle = 'rgba(168, 122, 82, 0.42)';
+        ctx.lineWidth = 1.5;
+        bCtx.strokeStyle = '#1e1e1e';
+        bCtx.lineWidth = 1.5;
+        for (let sc = 0; sc < 24; sc++) {
+          const sx = (sc * 67) % 480;
+          const sy = (sc * 43) % 480;
+          const ex = sx + 18 + (sc % 28);
+          const ey = sy + ((sc % 3) - 1) * 14;
+          ctx.beginPath();
+          ctx.moveTo(sx, sy);
+          ctx.lineTo(ex, ey);
+          ctx.stroke();
+          bCtx.beginPath();
+          bCtx.moveTo(sx, sy);
+          bCtx.lineTo(ex, ey);
+          bCtx.stroke();
+        }
+      } else if (type === 'dirty-window-glass') {
+        // Requirement 4: Dirty glass texture with rain streaks, dried water spots, corner dust buildup & smudges
+        ctx.fillStyle = '#0c1824';
+        ctx.fillRect(0, 0, 512, 512);
+        bCtx.fillStyle = '#505050';
+        bCtx.fillRect(0, 0, 512, 512);
+        rCtx.fillStyle = '#282828';
+        rCtx.fillRect(0, 0, 512, 512);
+
+        const edgeGrime = ctx.createRadialGradient(256, 256, 90, 256, 256, 340);
+        edgeGrime.addColorStop(0.0, 'rgba(12, 24, 36, 0.0)');
+        edgeGrime.addColorStop(0.65, 'rgba(28, 42, 48, 0.38)');
+        edgeGrime.addColorStop(1.0, 'rgba(42, 54, 52, 0.78)');
+        ctx.fillStyle = edgeGrime;
+        ctx.fillRect(0, 0, 512, 512);
+
+        for (let rx = 8; rx < 512; rx += 18) {
+          const rw = 3 + (rx % 5);
+          ctx.fillStyle = (rx % 36 === 0) ? 'rgba(94, 118, 128, 0.28)' : 'rgba(5, 10, 16, 0.35)';
+          ctx.fillRect(rx, 0, rw, 512);
+          rCtx.fillStyle = (rx % 36 === 0) ? '#909090' : '#181818';
+          rCtx.fillRect(rx, 0, rw, 512);
+        }
+        for (let sp = 0; sp < 45; sp++) {
+          const sx = (sp * 83) % 500;
+          const sy = (sp * 59) % 500;
+          ctx.fillStyle = 'rgba(110, 130, 138, 0.18)';
+          ctx.beginPath();
+          ctx.arc(sx, sy, 4 + (sp % 9), 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else if (type === 'scuffed-board') {
+        ctx.fillStyle = '#8b99a6';
+        ctx.fillRect(0, 0, 512, 512);
+        bCtx.fillStyle = '#707070';
+        bCtx.fillRect(0, 0, 512, 512);
+        for (let i = 0; i < 18; i++) {
+          const sy = 40 + (i * 24);
+          ctx.fillStyle = (i % 2 === 0) ? 'rgba(45, 58, 72, 0.18)' : 'rgba(220, 230, 238, 0.15)';
+          ctx.fillRect(28, sy, 456, 10);
+        }
       }
 
       // Step 3: Darken wall/roof/brick textures by ~35% and add vertical grime & damp stain gradients (Zero new draw calls!)
@@ -4405,7 +4658,6 @@ export function getHideAndSeekHtml(): string {
         ctx.fillStyle = 'rgba(6, 10, 12, ' + darkAlpha.toFixed(2) + ')';
         ctx.fillRect(0, 0, 512, 512);
 
-        // Top eave-drip soot & water-stain vertical gradient
         const topGrime = ctx.createLinearGradient(0, 0, 0, 128);
         topGrime.addColorStop(0.0, 'rgba(4, 7, 9, 0.58)');
         topGrime.addColorStop(0.45, 'rgba(10, 16, 14, 0.24)');
@@ -4413,7 +4665,6 @@ export function getHideAndSeekHtml(): string {
         ctx.fillStyle = topGrime;
         ctx.fillRect(0, 0, 512, 128);
 
-        // Bottom rising-damp moss & mud stain vertical gradient
         const botGrime = ctx.createLinearGradient(0, 350, 0, 512);
         botGrime.addColorStop(0.0, 'rgba(0, 0, 0, 0.0)');
         botGrime.addColorStop(0.55, 'rgba(12, 20, 15, 0.32)');
@@ -4421,7 +4672,6 @@ export function getHideAndSeekHtml(): string {
         ctx.fillStyle = botGrime;
         ctx.fillRect(0, 350, 512, 162);
 
-        // Subtle vertical rain/grime streaks down walls & roofs
         for (let sx = 12; sx < 512; sx += 28) {
           const streakW = 6 + ((sx * 7) % 10);
           const streakH = 140 + ((sx * 19) % 260);
@@ -4437,12 +4687,28 @@ export function getHideAndSeekHtml(): string {
       const map = new THREE.CanvasTexture(c);
       map.wrapS = THREE.RepeatWrapping;
       map.wrapT = THREE.RepeatWrapping;
-      if (!window.__sharedArchBumpTex) {
-        const bTex = new THREE.CanvasTexture(bumpC);
-        bTex.wrapS = THREE.RepeatWrapping;
-        bTex.wrapT = THREE.RepeatWrapping;
-        window.__sharedArchBumpTex = bTex;
+
+      const dedicatedBumpTypes = {
+        'scuffed-classroom-floor': true,
+        'stained-ceiling-tiles': true,
+        'peeling-paint-wall': true,
+        'worn-wood-grain': true,
+      };
+      let outBump = null;
+      if (dedicatedBumpTypes[type]) {
+        outBump = new THREE.CanvasTexture(bumpC);
+        outBump.wrapS = THREE.RepeatWrapping;
+        outBump.wrapT = THREE.RepeatWrapping;
+      } else {
+        if (!window.__sharedArchBumpTex) {
+          const bTex = new THREE.CanvasTexture(bumpC);
+          bTex.wrapS = THREE.RepeatWrapping;
+          bTex.wrapT = THREE.RepeatWrapping;
+          window.__sharedArchBumpTex = bTex;
+        }
+        outBump = window.__sharedArchBumpTex;
       }
+
       if (!window.__sharedArchRoughTex) {
         const rTex = new THREE.CanvasTexture(roughC);
         rTex.wrapS = THREE.RepeatWrapping;
@@ -4451,13 +4717,12 @@ export function getHideAndSeekHtml(): string {
       }
       return {
         map,
-        bumpMap: window.__sharedArchBumpTex,
+        bumpMap: outBump,
         roughnessMap: window.__sharedArchRoughTex,
       };
     }
 
     // Phase A Texture Atlas & Shared Surface Maps:
-    // Reuse shared procedural maps for visually similar roof/tile/wood families + shared bump/roughness
     const riverStoneTex = createProceduralTextureWithBump('nepali-river-stone');
     riverStoneTex.map.repeat.set(14, 2);
 
@@ -4487,6 +4752,28 @@ export function getHideAndSeekHtml(): string {
 
     const carvedSalTex = createProceduralTextureWithBump('carved-sal-wood');
     carvedSalTex.map.repeat.set(3, 2);
+
+    // Requirement 4: New Worn Canvas Textures + Cheap Bump Maps (scuffed floors, stained ceiling tiles, peeling paint, wood grain, dirty glass)
+    const scuffedFloorTex = createProceduralTextureWithBump('scuffed-classroom-floor');
+    scuffedFloorTex.map.repeat.set(6, 6);
+    scuffedFloorTex.bumpMap.repeat.set(6, 6);
+
+    const stainedCeilingTex = createProceduralTextureWithBump('stained-ceiling-tiles');
+    stainedCeilingTex.map.repeat.set(5, 5);
+    stainedCeilingTex.bumpMap.repeat.set(5, 5);
+
+    const peelingPaintTex = createProceduralTextureWithBump('peeling-paint-wall');
+    peelingPaintTex.map.repeat.set(4, 2);
+    peelingPaintTex.bumpMap.repeat.set(4, 2);
+
+    const wornWoodTex = createProceduralTextureWithBump('worn-wood-grain');
+    wornWoodTex.map.repeat.set(2, 2);
+    wornWoodTex.bumpMap.repeat.set(2, 2);
+
+    const dirtyGlassTex = createProceduralTextureWithBump('dirty-window-glass');
+    dirtyGlassTex.map.repeat.set(2, 2);
+
+    const scuffedBoardTex = createProceduralTextureWithBump('scuffed-board');
 
     // Share compatible tile/roof/wood maps to keep GPU texture footprint lean
     const tikijhyalTex = carvedSalTex;
@@ -4528,18 +4815,27 @@ export function getHideAndSeekHtml(): string {
         bumpScale: 0.09,
         roughness: 0.78,
       }),
-      riverStoneCoping: new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.62 }),
+      riverStoneCoping: new THREE.MeshStandardMaterial({
+        map: peelingPaintTex.map,
+        bumpMap: peelingPaintTex.bumpMap,
+        bumpScale: 0.04,
+        color: 0x64748b,
+        roughness: 0.68,
+      }),
       brightBlueRoof: new THREE.MeshStandardMaterial({
         map: blueRoofTex.map,
         bumpMap: blueRoofTex.bumpMap,
         bumpScale: 0.06,
-        color: 0x24313d, // Step 3: 35% darker desaturated slate roof
+        color: 0x24313d,
         metalness: 0.28,
         roughness: 0.54,
       }),
       weatheredGreyRoof: new THREE.MeshStandardMaterial({
+        map: peelingPaintTex.map,
+        bumpMap: peelingPaintTex.bumpMap,
+        bumpScale: 0.05,
         color: 0x1e2630,
-        roughness: 0.64,
+        roughness: 0.68,
         metalness: 0.28,
       }),
       terracottaRoof: new THREE.MeshStandardMaterial({
@@ -4559,61 +4855,87 @@ export function getHideAndSeekHtml(): string {
         side: THREE.DoubleSide,
       }),
       rotundaWhiteArch: new THREE.MeshStandardMaterial({
-        color: 0x8b959e, // Step 3: Darkened weathered stone trim (38% darker than pure white)
-        roughness: 0.56,
+        map: peelingPaintTex.map,
+        bumpMap: peelingPaintTex.bumpMap,
+        bumpScale: 0.045,
+        color: 0x8b959e,
+        roughness: 0.64,
         metalness: 0.08,
       }),
       rotundaPlinthConcrete: new THREE.MeshStandardMaterial({
+        map: scuffedFloorTex.map,
+        bumpMap: scuffedFloorTex.bumpMap,
+        bumpScale: 0.05,
         color: 0x6c757d,
-        roughness: 0.68,
+        roughness: 0.74,
         metalness: 0.10,
       }),
       rotundaColumnFlutedBase: new THREE.MeshStandardMaterial({
+        map: peelingPaintTex.map,
+        bumpMap: peelingPaintTex.bumpMap,
+        bumpScale: 0.05,
         color: 0x495057,
-        roughness: 0.56,
+        roughness: 0.62,
         metalness: 0.18,
       }),
       rotundaRedSteel: new THREE.MeshStandardMaterial({
-        color: 0xc0392b,
-        roughness: 0.36,
+        map: peelingPaintTex.map,
+        bumpMap: peelingPaintTex.bumpMap,
+        bumpScale: 0.03,
+        color: 0xb83728,
+        roughness: 0.42,
         metalness: 0.52,
       }),
       rotundaCurvedGlass: new THREE.MeshStandardMaterial({
+        map: dirtyGlassTex.map,
+        bumpMap: dirtyGlassTex.bumpMap,
+        bumpScale: 0.015,
         color: 0x1e3a5f,
         emissive: 0xffb366,
-        emissiveIntensity: 0.22,
-        roughness: 0.08,
-        metalness: 0.85,
+        emissiveIntensity: 0.18,
+        roughness: 0.16,
+        metalness: 0.82,
         transparent: true,
-        opacity: 0.48,
+        opacity: 0.54,
         side: THREE.DoubleSide,
       }),
       rotundaTerrazzoFloor: new THREE.MeshStandardMaterial({
         map: terrazzoFloorTex.map,
         bumpMap: terrazzoFloorTex.bumpMap,
-        bumpScale: 0.02,
-        roughness: 0.26,
+        bumpScale: 0.025,
+        roughness: 0.30,
         metalness: 0.18,
       }),
       rotundaInteriorWall: new THREE.MeshStandardMaterial({
-        color: 0xd8dee6,
-        roughness: 0.58,
+        map: peelingPaintTex.map,
+        bumpMap: peelingPaintTex.bumpMap,
+        bumpScale: 0.055,
+        color: 0xb8c2cc,
+        roughness: 0.72,
         side: THREE.DoubleSide,
+      }),
+      stainedCeilingTiles: new THREE.MeshStandardMaterial({
+        map: stainedCeilingTex.map,
+        bumpMap: stainedCeilingTex.bumpMap,
+        bumpScale: 0.05,
+        color: 0x9aa4ad,
+        roughness: 0.82,
       }),
       ceilingLightEmissive: new THREE.MeshStandardMaterial({
         color: 0xfff8eb,
         emissive: 0xffd485,
-        emissiveIntensity: 1.45,
+        emissiveIntensity: 1.35,
         roughness: 0.15,
       }),
       fountainPinkTrim: new THREE.MeshStandardMaterial({
-        // Step 3: Removed pink — now dark weathered stone!
+        map: peelingPaintTex.map,
+        bumpMap: peelingPaintTex.bumpMap,
+        bumpScale: 0.05,
         color: 0x283038,
         roughness: 0.68,
         metalness: 0.12,
       }),
       fountainWater: new THREE.MeshStandardMaterial({
-        // Step 3: Removed cyan — now dark water tone with a faint cold reflection!
         color: 0x09131c,
         emissive: 0x061018,
         emissiveIntensity: 0.14,
@@ -4623,24 +4945,27 @@ export function getHideAndSeekHtml(): string {
         opacity: 0.88,
       }),
       campusStucco: new THREE.MeshStandardMaterial({
-        map: stuccoTex.map,
-        bumpMap: stuccoTex.bumpMap,
-        bumpScale: 0.05,
-        color: 0x58625c, // Step 3: 35% darker & grimy desaturated green-gray stucco
+        map: peelingPaintTex.map,
+        bumpMap: peelingPaintTex.bumpMap,
+        bumpScale: 0.06,
+        color: 0x626e66,
         roughness: 0.78,
         side: THREE.DoubleSide,
       }),
       classroomFloor: new THREE.MeshStandardMaterial({
-        color: 0x1c242e,
-        roughness: 0.45,
-        metalness: 0.12,
+        map: scuffedFloorTex.map,
+        bumpMap: scuffedFloorTex.bumpMap,
+        bumpScale: 0.055,
+        color: 0x7a8896,
+        roughness: 0.48,
+        metalness: 0.14,
       }),
       interlockingPavers: new THREE.MeshStandardMaterial({
         map: paverTex.map,
         bumpMap: paverTex.bumpMap,
         bumpScale: 0.055,
         roughnessMap: paverTex.roughnessMap,
-        roughness: 0.35, // Step 3: Road roughness ~0.35 so warm #ff8a2a lamp light streaks on paving!
+        roughness: 0.35,
         metalness: 0.24,
       }),
       nepalDachiBrick: new THREE.MeshStandardMaterial({
@@ -4690,13 +5015,19 @@ export function getHideAndSeekHtml(): string {
         metalness: 0.16,
       }),
       nepalOchreDado: new THREE.MeshStandardMaterial({
+        map: peelingPaintTex.map,
+        bumpMap: peelingPaintTex.bumpMap,
+        bumpScale: 0.05,
         color: 0x8c3b26,
-        roughness: 0.64,
+        roughness: 0.68,
         side: THREE.DoubleSide,
       }),
       nepalCreamPlaster: new THREE.MeshStandardMaterial({
-        color: 0xdfd3c3,
-        roughness: 0.62,
+        map: peelingPaintTex.map,
+        bumpMap: peelingPaintTex.bumpMap,
+        bumpScale: 0.05,
+        color: 0xc2b6a6,
+        roughness: 0.68,
         side: THREE.DoubleSide,
       }),
       diyoFlameGlow: new THREE.MeshStandardMaterial({
@@ -4711,9 +5042,12 @@ export function getHideAndSeekHtml(): string {
         color: 0x38bdf8,
       }),
       brassGajur: new THREE.MeshStandardMaterial({
+        map: wornWoodTex.map,
+        bumpMap: wornWoodTex.bumpMap,
+        bumpScale: 0.02,
         color: 0xd99b26,
-        roughness: 0.24,
-        metalness: 0.86,
+        roughness: 0.28,
+        metalness: 0.84,
       }),
       wetPuddleMirror: new THREE.MeshStandardMaterial({
         color: 0x0b1320,
@@ -4728,48 +5062,166 @@ export function getHideAndSeekHtml(): string {
         bumpScale: 0.05,
         roughness: 0.85,
       }),
-      lawnStripGreen: new THREE.MeshStandardMaterial({ color: 0x121915, roughness: 0.90 }),
-      castIronDark: new THREE.MeshStandardMaterial({ color: 0x11161f, metalness: 0.84, roughness: 0.28 }),
-      gandakiBluePole: new THREE.MeshStandardMaterial({ color: 0x1d4ed8, metalness: 0.65, roughness: 0.36 }),
-      royalBlueDark: new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.8, roughness: 0.34 }),
-      whiteTrim: new THREE.MeshStandardMaterial({ color: 0x8d97a0, roughness: 0.56 }),
-      concretePillar: new THREE.MeshStandardMaterial({ color: 0x9aa6b2, roughness: 0.58 }),
-      plinthDarkConcrete: new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.72 }),
+      lawnStripGreen: new THREE.MeshStandardMaterial({
+        map: grassTex.map,
+        bumpMap: grassTex.bumpMap,
+        bumpScale: 0.04,
+        color: 0x16201a,
+        roughness: 0.90,
+      }),
+      castIronDark: new THREE.MeshStandardMaterial({
+        map: peelingPaintTex.map,
+        bumpMap: peelingPaintTex.bumpMap,
+        bumpScale: 0.025,
+        color: 0x161c26,
+        metalness: 0.82,
+        roughness: 0.34,
+      }),
+      gandakiBluePole: new THREE.MeshStandardMaterial({
+        map: peelingPaintTex.map,
+        bumpMap: peelingPaintTex.bumpMap,
+        bumpScale: 0.03,
+        color: 0x1d4ed8,
+        metalness: 0.58,
+        roughness: 0.42,
+      }),
+      royalBlueDark: new THREE.MeshStandardMaterial({
+        map: peelingPaintTex.map,
+        color: 0x0f172a,
+        metalness: 0.75,
+        roughness: 0.38,
+      }),
+      whiteTrim: new THREE.MeshStandardMaterial({
+        map: peelingPaintTex.map,
+        bumpMap: peelingPaintTex.bumpMap,
+        bumpScale: 0.045,
+        color: 0x8d97a0,
+        roughness: 0.64,
+      }),
+      concretePillar: new THREE.MeshStandardMaterial({
+        map: peelingPaintTex.map,
+        bumpMap: peelingPaintTex.bumpMap,
+        bumpScale: 0.05,
+        color: 0x9aa6b2,
+        roughness: 0.66,
+      }),
+      plinthDarkConcrete: new THREE.MeshStandardMaterial({
+        map: scuffedFloorTex.map,
+        bumpMap: scuffedFloorTex.bumpMap,
+        bumpScale: 0.05,
+        color: 0x475569,
+        roughness: 0.76,
+      }),
       windowGlass: new THREE.MeshStandardMaterial({
-        color: 0x0d1b2a,
-        roughness: 0.08,
-        metalness: 0.92,
+        map: dirtyGlassTex.map,
+        bumpMap: dirtyGlassTex.bumpMap,
+        bumpScale: 0.015,
+        color: 0x182b3c,
+        roughness: 0.18,
+        metalness: 0.86,
         transparent: true,
-        opacity: 0.68,
+        opacity: 0.72,
       }),
       windowWarmLit: new THREE.MeshStandardMaterial({
+        map: dirtyGlassTex.map,
         color: 0xffb35c,
         emissive: HORROR_CONFIG.lighting.windowEmissive || 0xffa84c,
-        emissiveIntensity: HORROR_CONFIG.lighting.windowEmissiveIntensity || 0.72,
-        roughness: 0.32,
+        emissiveIntensity: HORROR_CONFIG.lighting.windowEmissiveIntensity || 0.62,
+        roughness: 0.36,
       }),
-      deskWoodTop: new THREE.MeshStandardMaterial({ color: 0x6b3410, roughness: 0.58 }),
-      chairWood: new THREE.MeshStandardMaterial({ color: 0x4f240a, roughness: 0.65 }),
-      deskSteelFrame: new THREE.MeshStandardMaterial({ color: 0x1e242b, metalness: 0.75, roughness: 0.36 }),
-      whiteboardSurface: new THREE.MeshStandardMaterial({ color: 0xb8c4d0, roughness: 0.24, metalness: 0.1 }),
-      blackboardGreen: new THREE.MeshStandardMaterial({ color: 0x0c331c, roughness: 0.55 }),
+      deskWoodTop: new THREE.MeshStandardMaterial({
+        map: wornWoodTex.map,
+        bumpMap: wornWoodTex.bumpMap,
+        bumpScale: 0.055,
+        color: 0x8c4a1c,
+        roughness: 0.56,
+      }),
+      chairWood: new THREE.MeshStandardMaterial({
+        map: wornWoodTex.map,
+        bumpMap: wornWoodTex.bumpMap,
+        bumpScale: 0.06,
+        color: 0x6b3412,
+        roughness: 0.64,
+      }),
+      deskSteelFrame: new THREE.MeshStandardMaterial({
+        map: peelingPaintTex.map,
+        bumpMap: peelingPaintTex.bumpMap,
+        bumpScale: 0.025,
+        color: 0x222932,
+        metalness: 0.72,
+        roughness: 0.42,
+      }),
+      whiteboardSurface: new THREE.MeshStandardMaterial({
+        map: scuffedBoardTex.map,
+        bumpMap: scuffedBoardTex.bumpMap,
+        bumpScale: 0.015,
+        color: 0xb8c4d0,
+        roughness: 0.28,
+        metalness: 0.1,
+      }),
+      blackboardGreen: new THREE.MeshStandardMaterial({
+        map: scuffedBoardTex.map,
+        bumpMap: scuffedBoardTex.bumpMap,
+        bumpScale: 0.02,
+        color: 0x113d23,
+        roughness: 0.62,
+      }),
       busAmberPaint: new THREE.MeshStandardMaterial({
+        map: peelingPaintTex.map,
+        bumpMap: peelingPaintTex.bumpMap,
+        bumpScale: 0.025,
         color: 0xf59e0b,
         metalness: 0.22,
-        roughness: 0.35,
+        roughness: 0.40,
       }),
-      busWindow: new THREE.MeshStandardMaterial({ color: 0x090e17, roughness: 0.08, metalness: 0.85 }),
-      busBumper: new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.55, metalness: 0.4 }),
+      busWindow: new THREE.MeshStandardMaterial({
+        map: dirtyGlassTex.map,
+        color: 0x0d1622,
+        roughness: 0.14,
+        metalness: 0.85,
+      }),
+      busBumper: new THREE.MeshStandardMaterial({
+        map: peelingPaintTex.map,
+        color: 0x334155,
+        roughness: 0.58,
+        metalness: 0.4,
+      }),
       headlightLit: new THREE.MeshBasicMaterial({ color: 0xfef08a }),
       taillightRed: new THREE.MeshBasicMaterial({ color: 0xdc2626 }),
       wheelRim: new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.8, roughness: 0.3 }),
-      carSilver: new THREE.MeshStandardMaterial({ color: 0xd1d5db, metalness: 0.82, roughness: 0.22 }),
-      carDarkNavy: new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.82, roughness: 0.20 }),
+      carSilver: new THREE.MeshStandardMaterial({
+        map: peelingPaintTex.map,
+        color: 0xcbd5e1,
+        metalness: 0.78,
+        roughness: 0.26,
+      }),
+      carDarkNavy: new THREE.MeshStandardMaterial({
+        map: peelingPaintTex.map,
+        color: 0x0f172a,
+        metalness: 0.78,
+        roughness: 0.24,
+      }),
       rubberTire: new THREE.MeshStandardMaterial({ color: 0x111318, roughness: 0.92 }),
-      treeBark: new THREE.MeshStandardMaterial({ color: 0x1e1814, roughness: 0.94 }),
-      foliageGreen: new THREE.MeshStandardMaterial({ color: 0x131c16, roughness: 0.86 }),
-      palmFrondMat: new THREE.MeshStandardMaterial({ color: 0x151f19, roughness: 0.86, side: THREE.DoubleSide }),
+      treeBark: new THREE.MeshStandardMaterial({
+        map: carvedSalTex.map,
+        bumpMap: carvedSalTex.bumpMap,
+        bumpScale: 0.08,
+        color: 0x261e18,
+        roughness: 0.94,
+      }),
+      foliageGreen: new THREE.MeshStandardMaterial({
+        map: grassTex.map,
+        color: 0x16221a,
+        roughness: 0.86,
+      }),
+      palmFrondMat: new THREE.MeshStandardMaterial({
+        map: grassTex.map,
+        color: 0x18241c,
+        roughness: 0.86,
+        side: THREE.DoubleSide,
+      }),
       roofSoffitDark: new THREE.MeshStandardMaterial({
+        map: stainedCeilingTex.map,
         color: 0x181e28,
         roughness: 0.88,
         metalness: 0.10,
@@ -4809,6 +5261,53 @@ export function getHideAndSeekHtml(): string {
         polygonOffset: true,
         polygonOffsetFactor: -1,
         polygonOffsetUnits: -1,
+      }),
+      aoUnderDeskDecal: new THREE.MeshBasicMaterial({
+        map: rectContactShadowTex,
+        transparent: true,
+        opacity: 0.76,
+        depthWrite: false,
+        polygonOffset: true,
+        polygonOffsetFactor: -1,
+        polygonOffsetUnits: -1,
+      }),
+      aoCornerStripDecal: new THREE.MeshBasicMaterial({
+        map: aoCornerStripTex,
+        transparent: true,
+        opacity: 0.68,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+        polygonOffset: true,
+        polygonOffsetFactor: -1,
+        polygonOffsetUnits: -1,
+      }),
+      windowMoonShaftMat: new THREE.MeshBasicMaterial({
+        map: windowLightShaftTex,
+        color: 0x8ec5fc,
+        transparent: true,
+        opacity: 0.20,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      }),
+      moonFloorGoboMat: new THREE.MeshBasicMaterial({
+        map: moonWindowGoboTex,
+        color: 0x8ec5fc,
+        transparent: true,
+        opacity: 0.28,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        polygonOffset: true,
+        polygonOffsetFactor: -2,
+        polygonOffsetUnits: -2,
+      }),
+      corridorFogPlaneMat: new THREE.MeshBasicMaterial({
+        map: corridorFogTex,
+        color: 0x3b5266,
+        transparent: true,
+        opacity: 0.16,
+        depthWrite: false,
+        side: THREE.DoubleSide,
       }),
       rareSilhouetteMat: new THREE.MeshBasicMaterial({
         color: 0x050912,

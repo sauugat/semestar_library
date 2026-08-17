@@ -78,13 +78,27 @@
         <div class="profile-main-meta">
           <div class="profile-name-row">
             <h1 class="profile-name" id="profileName">Loading Student…</h1>
-            <span class="post-verified-badge" title="Verified Gandaki University Student">
+            <span id="profileVerifiedBadge" class="post-verified-badge" title="Verified Gandaki University Student">
               <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
               GU Student
             </span>
           </div>
 
           <p class="profile-handle" id="profileHandle">@student</p>
+
+          <!-- Distinguished Admin Accolade Ribbon -->
+          <div class="admin-accolade-ribbon" id="adminAccoladeRibbon" style="display:none;">
+            <div class="accolade-icon-wrap">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/>
+              </svg>
+            </div>
+            <div class="accolade-details">
+              <div class="accolade-title">Class Representative &amp; Council Moderator</div>
+              <div class="accolade-desc">Gandaki University BIT Student Representative &amp; Academic Coordinator</div>
+            </div>
+            <span class="accolade-pill">OFFICIAL COUNCIL</span>
+          </div>
 
           <!-- Chips Row: Department, Semester, Campus -->
           <div class="profile-badges-row">
@@ -191,18 +205,26 @@
     </section>
 
     <!-- Account Settings & Logout Section -->
-    <section class="profile-account-section" id="profileAccountSection" style="margin-top: 28px; margin-bottom: 20px; padding: 20px 24px; background: var(--surface-primary, #fff); border-radius: 16px; border: 1px solid #e5e5ea; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
+    <section class="profile-account-section" id="profileAccountSection">
       <div>
-        <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 4px; color: #1c1c1e;">Account Session</h3>
-        <p style="font-size: 13px; color: #8e8e93; margin: 0;">Sign out from Semester Library on this device.</p>
+        <h3>Account Session</h3>
+        <p>Manage your account settings and session on this device.</p>
       </div>
-      <button id="accountLogoutBtn" class="dash-logout" style="background: rgba(255, 59, 48, 0.1); color: #ff3b30; border: 1px solid rgba(255, 59, 48, 0.2); padding: 9px 18px; border-radius: 12px; font-size: 14px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.15s ease;">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-          <path d="M16 17l5-5-5-5"/><path d="M21 12H9"/>
-        </svg>
-        Log Out
-      </button>
+      <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <button id="accountLogoutBtn" class="account-logout-btn">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <path d="M16 17l5-5-5-5"/><path d="M21 12H9"/>
+          </svg>
+          Log Out
+        </button>
+        <button class="account-logout-btn" onclick="location.href='settings.html'" style="background: transparent; border-color: var(--ap-border); color: var(--ap-text-primary);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+          Change Password
+        </button>
+      </div>
     </section>
 
   </main>
@@ -291,30 +313,6 @@
       </div>
     </div>
   </div>
-
-  <!-- macOS Floating Dock Navigation -->
-  <nav class="floating-dock">
-    <a href="dashboard.html" class="nav-item">
-      <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-      <span class="nav-label">Feed</span>
-    </a>
-    <a href="files.html" class="nav-item">
-      <svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="M7 8l5-5 5 5"/><path d="M5 21h14a2 2 0 0 0 2-2v-4"/><path d="M3 15v4a2 2 0 0 0 2 2"/></svg>
-      <span class="nav-label">Upload</span>
-    </a>
-    <a href="library.html" class="nav-item">
-      <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-      <span class="nav-label">Library</span>
-    </a>
-    <a href="syllabus.html" class="nav-item">
-      <svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-      <span class="nav-label">Syllabus</span>
-    </a>
-    <a href="routine.html" class="nav-item">
-      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-      <span class="nav-label">Routine</span>
-    </a>
-  </nav>
 
   <script>
     let currentProfile = null;
@@ -405,18 +403,43 @@
     }
 
     function renderProfileHeader(p) {
-      document.title = `${p.name} — Student Profile`;
+      const isAdmin = p.isAdmin || p.role === 'admin';
+      document.title = `${p.name} — ${isAdmin ? 'Class Rep Profile' : 'Student Profile'}`;
       document.getElementById('profileName').textContent = p.name;
       document.getElementById('profileHandle').textContent = `@${p.studentId}`;
       document.getElementById('profileDept').innerHTML = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>${escapeHtml(p.department || 'B.Sc. CSIT')}`;
       document.getElementById('profileSem').innerHTML = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>${escapeHtml(p.semester || 'Semester 1')}`;
       
+      const heroCard = document.querySelector('.profile-hero-card');
+      const badgeEl = document.getElementById('profileVerifiedBadge');
+      const accoladeEl = document.getElementById('adminAccoladeRibbon');
+
+      if (isAdmin) {
+        if (heroCard) heroCard.classList.add('admin-profile-hero');
+        if (badgeEl) {
+          badgeEl.className = 'post-verified-badge post-admin-badge';
+          badgeEl.title = 'Distinguished Class Representative & System Administrator';
+          badgeEl.innerHTML = `<svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>Class Rep &middot; Admin`;
+        }
+        if (accoladeEl) accoladeEl.style.display = 'flex';
+      } else {
+        if (heroCard) heroCard.classList.remove('admin-profile-hero');
+        if (badgeEl) {
+          badgeEl.className = 'post-verified-badge';
+          badgeEl.title = 'Verified Gandaki University Student';
+          badgeEl.innerHTML = `<svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>GU Student`;
+        }
+        if (accoladeEl) accoladeEl.style.display = 'none';
+      }
+
       const bioEl = document.getElementById('profileBio');
       if (p.bio) {
         bioEl.textContent = p.bio;
         bioEl.style.fontStyle = 'normal';
       } else {
-        bioEl.textContent = p.isSelf ? 'No bio added yet. Click \'Edit Profile\' to introduce yourself to your class.' : 'No bio provided.';
+        bioEl.textContent = p.isSelf 
+          ? (isAdmin ? 'Class Representative for Semester 1 (Gandaki University). Reach out for official curriculum notices, notes, or moderation.' : 'No bio added yet. Click \'Edit Profile\' to introduce yourself to your class.')
+          : (isAdmin ? 'Gandaki University Class Representative.' : 'No bio provided.');
         bioEl.style.fontStyle = 'italic';
       }
 
@@ -552,12 +575,53 @@
       document.getElementById('tabContentClassmates').style.display = tab === 'classmates' ? 'block' : 'none';
     }
 
+    async function deletePost(fileId, btn) {
+      if (!confirm('Are you sure you want to delete this resource? This action cannot be undone.')) return;
+      try {
+        const res = await fetch(`/api/files/${fileId}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (res.ok) {
+          showToast('Post deleted successfully');
+          const card = btn.closest('.feed-card');
+          if (card) {
+            card.style.transition = 'all 0.3s ease';
+            card.style.opacity = '0';
+            card.style.transform = 'scale(0.96)';
+            setTimeout(() => card.remove(), 300);
+          }
+        } else {
+          alert(data.message || 'Failed to delete post');
+        }
+      } catch (err) {
+        alert('Network error while deleting post');
+      }
+    }
+
     // Render Posts Uploaded by User
     function renderPost(f) {
       const badge = getFileBadge(f.originalName);
       const initial = (f.uploaderName || 'S').charAt(0).toUpperCase();
+      const isAdminUploader = f.isOfficial || f.uploaderRole === 'admin';
       const subjectTag = f.subject ? `<span class="post-pill-tag"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>${escapeHtml(f.subject)}</span>` : '';
       const chapterTag = f.chapter ? `<span class="post-pill-tag"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>${escapeHtml(f.chapter)}</span>` : '';
+
+      const verifiedBadgeHtml = isAdminUploader
+        ? `<span class="post-verified-badge post-admin-badge" title="Verified Class Rep / Admin">
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
+            Admin
+          </span>`
+        : `<span class="post-verified-badge" title="Verified Gandaki University Student">
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+            GU Student
+          </span>`;
+
+      const deleteBtnHtml = f.canDelete
+        ? `<button class="post-delete-btn" onclick="deletePost(${f.id}, this)" title="Delete post">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            </svg>
+          </button>`
+        : '';
 
       return `
         <article class="feed-card social-post-card" data-file-id="${f.id}">
@@ -567,10 +631,7 @@
             <div class="post-user-info">
               <div class="post-author-row">
                 <span class="post-author-name">${escapeHtml(f.uploaderName || 'Student')}</span>
-                <span class="post-verified-badge" title="Verified Gandaki University Student">
-                  <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
-                  GU Student
-                </span>
+                ${verifiedBadgeHtml}
               </div>
               <div class="post-meta-row">
                 <span class="post-student-handle">@${escapeHtml(f.uploadedBy || 'student')}</span>
@@ -583,9 +644,12 @@
               </div>
             </div>
 
-            <button class="post-more-btn" onclick="copyPostLink(${f.id})" title="Copy link to file">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
-            </button>
+            <div class="post-header-actions">
+              ${deleteBtnHtml}
+              <button class="post-more-btn" onclick="copyPostLink(${f.id})" title="Copy link to file">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+              </button>
+            </div>
           </header>
 
           <div class="post-content">
@@ -899,5 +963,6 @@
 
     loadProfile();
   </script>
+  <script src="notifications.js"></script>
 </body>
 </html>

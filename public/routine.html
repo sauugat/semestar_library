@@ -20,38 +20,17 @@
   <link rel="stylesheet" href="style.css">
 </head>
 
-<body class="routine-page">
+<body class="routine-page dash">
 
   <!-- NAVIGATION -->
-  <header class="routine-nav">
-
-    <a href="index.html">
-      <img
-        src="631824E0-DFD0-462B-95E4-FEBD92499478-removebg-preview.png"
-        alt="Semester Library"
-        class="lib-wordmark-logo"
-      >
-    </a>
-
-    <div style="display: flex; align-items: center; gap: 10px;">
-      <a href="profile.html" class="dash-profile-chip" title="View Profile" id="routineProfileChip" style="display:none;">
+  <header class="dash-header">
+    <a href="dashboard.html" class="lib-wordmark">Semester Library</a>
+    <div class="dash-header-actions">
+      <a href="profile.html" class="dash-profile-chip" title="View Profile" id="routineProfileChip">
         <div class="dash-profile-avatar" id="headerAvatar">·</div>
         <span class="dash-profile-label" id="headerProfileName">Profile</span>
       </a>
-      <a href="library.html" class="dash-logout">Library</a>
-      <a
-        href="https://gandakiuniversity.edu.np"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        <img
-          src="IMG_1629-removebg-preview.png"
-          alt="Gandaki University"
-          class="lib-logo"
-        >
-      </a>
     </div>
-
   </header>
 
 
@@ -547,6 +526,29 @@
 
   </main>
 
+
+  <nav class="bottom-nav">
+    <a href="dashboard.html" class="nav-item">
+      <svg viewBox="0 0 24 24"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/><path d="M9 13h6M9 17h4"/></svg>
+      <span class="nav-label">Notes</span>
+    </a>
+    <a href="chat.html" class="nav-item">
+      <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+      <span class="nav-label">Chat</span>
+    </a>
+    <a href="library.html" class="nav-item">
+      <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+      <span class="nav-label">Library</span>
+    </a>
+    <a href="syllabus.html" class="nav-item">
+      <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+      <span class="nav-label">Syllabus</span>
+    </a>
+    <a href="routine.html" class="nav-item active">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      <span class="nav-label">Routine</span>
+    </a>
+  </nav>
 
   <footer class="routine-footer">
     Semester Library · Gandaki University

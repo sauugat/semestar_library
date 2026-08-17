@@ -39,8 +39,22 @@ const chatUpload = multer({
   }
 });
 
-// --- Middleware & Session Hardening ---
+// --- Security Headers & Body Parsing ---
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
+
 app.use(express.json());
+
+// Path Traversal Security Validator
+function isSafeUploadPath(targetPath) {
+  const resolved = path.resolve(targetPath);
+  return resolved.startsWith(path.resolve(UPLOAD_DIR));
+}
 
 app.use(session({
   name: '__gu_session',
@@ -50,6 +64,7 @@ app.use(session({
   cookie: {
     httpOnly: true,
     sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
     maxAge: 1000 * 60 * 60 * 6 // 6 hours
   }
 }));
@@ -204,6 +219,11 @@ try { db.exec(`ALTER TABLE students ADD COLUMN department TEXT DEFAULT 'B.Sc. CS
 try { db.exec(`ALTER TABLE students ADD COLUMN semester TEXT DEFAULT 'Semester 1'`); } catch (e) {}
 try { db.exec(`ALTER TABLE students ADD COLUMN githubUrl TEXT`); } catch (e) {}
 try { db.exec(`ALTER TABLE students ADD COLUMN linkedinUrl TEXT`); } catch (e) {}
+try {
+  db.exec(`ALTER TABLE students ADD COLUMN role TEXT DEFAULT 'student'`);
+} catch (e) {
+  // Column already exists — safe to ignore
+}
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS follows (
@@ -276,6 +296,19 @@ db.exec(`
   )
 `);
 
+db.exec(`
+  CREATE TABLE IF NOT EXISTS notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    recipientStudentId TEXT NOT NULL,
+    type TEXT NOT NULL,
+    relatedFileId INTEGER,
+    message TEXT NOT NULL,
+    isRead INTEGER DEFAULT 0,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (recipientStudentId) REFERENCES students(studentId)
+  )
+`);
+
 // --- Routes ---
 
 app.post('/api/login', loginRateLimiter, (req, res) => {
@@ -323,19 +356,48 @@ app.post('/api/login', loginRateLimiter, (req, res) => {
     }
     req.session.studentId = student.studentId;
     req.session.studentName = student.name;
+    req.session.role = student.role || 'student';
     return res.json({ message: 'Login successful', redirect: '/dashboard.html' });
   });
 });
 
 app.get('/api/me', requireLogin, (req, res) => {
-  const student = db.prepare('SELECT studentId, name FROM students WHERE studentId = ?').get(req.session.studentId);
+  const student = db.prepare('SELECT studentId, name, role FROM students WHERE studentId = ?').get(req.session.studentId);
 
   if (!student) {
     req.session.destroy(() => {});
     return res.status(401).json({ message: 'Authentication required' });
   }
 
-  res.json({ studentId: student.studentId, name: student.name });
+  const role = student.role || 'student';
+  const isAdmin = role === 'admin';
+  res.json({ studentId: student.studentId, name: student.name, role, isAdmin });
+});
+app.post('/api/change-password', requireLogin, (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ message: 'Current and new password are required' });
+  }
+
+  if (newPassword.length < 6) {
+    return res.status(400).json({ message: 'New password must be at least 6 characters long' });
+  }
+
+  const student = db.prepare('SELECT * FROM students WHERE studentId = ?').get(req.session.studentId);
+  if (!student) {
+    return res.status(404).json({ message: 'User not found' });
+  }
+
+  const match = bcrypt.compareSync(currentPassword, student.passwordHash);
+  if (!match) {
+    return res.status(401).json({ message: 'Incorrect current password' });
+  }
+
+  const newHash = bcrypt.hashSync(newPassword, 10);
+  db.prepare('UPDATE students SET passwordHash = ? WHERE studentId = ?').run(newHash, req.session.studentId);
+
+  res.json({ message: 'Password successfully updated' });
 });
 
 app.post('/api/logout', (req, res) => {
@@ -344,6 +406,13 @@ app.post('/api/logout', (req, res) => {
     res.json({ message: 'Logged out' });
   });
 });
+
+// Helper to check if a studentId is admin in database
+function isStudentAdmin(studentId) {
+  if (!studentId) return false;
+  const s = db.prepare('SELECT role FROM students WHERE studentId = ?').get(studentId);
+  return s && s.role === 'admin';
+}
 
 // --- File upload system ---
 
@@ -371,13 +440,27 @@ app.post('/api/files/upload', requireLogin, upload.single('file'), (req, res) =>
     new Date().toISOString()
   );
 
-  res.json({ message: 'File uploaded successfully', fileId: result.lastInsertRowid });
+  const isAdmin = isStudentAdmin(req.session.studentId);
+  if (isAdmin) {
+    db.prepare(`
+      INSERT INTO notifications (recipientStudentId, type, relatedFileId, message)
+      SELECT studentId, 'notice', ?, ? FROM students WHERE studentId != ?
+    `).run(result.lastInsertRowid, `New Official Notice: ${title || req.file.originalname}`, req.session.studentId);
+  }
+
+  res.json({
+    message: 'File uploaded successfully',
+    fileId: result.lastInsertRowid,
+    isOfficial: isAdmin
+  });
 });
 
 app.get('/api/files', requireLogin, (req, res) => {
+  const viewerIsAdmin = isStudentAdmin(req.session.studentId);
+
   const files = db.prepare(`
     SELECT files.id, files.originalName, files.title, files.subject, files.chapter, files.sizeBytes, files.uploadedAt, files.uploadedBy,
-      students.name AS uploaderName, students.avatarUrl AS uploaderAvatar,
+      students.name AS uploaderName, students.avatarUrl AS uploaderAvatar, students.role AS uploaderRole,
       (SELECT COUNT(*) FROM file_likes WHERE file_likes.fileId = files.id) AS likeCount,
       EXISTS(SELECT 1 FROM file_likes WHERE fileId = files.id AND studentId = ?) AS liked,
       (SELECT COUNT(*) FROM file_comments WHERE file_comments.fileId = files.id) AS commentCount
@@ -386,7 +469,83 @@ app.get('/api/files', requireLogin, (req, res) => {
     ORDER BY files.uploadedAt DESC
   `).all(req.session.studentId);
 
-  res.json(files);
+  const processed = files.map(f => ({
+    ...f,
+    uploaderRole: f.uploaderRole || 'student',
+    isOfficial: f.uploaderRole === 'admin',
+    canDelete: viewerIsAdmin || f.uploadedBy === req.session.studentId
+  }));
+
+  res.json(processed);
+});
+
+// Delete a post/file (Admins can delete any post; students can only delete their own)
+app.delete('/api/files/:id', requireLogin, (req, res) => {
+  const fileId = req.params.id;
+  const studentId = req.session.studentId;
+
+  // Verify role directly from database
+  const viewer = db.prepare('SELECT role FROM students WHERE studentId = ?').get(studentId);
+  if (!viewer) {
+    return res.status(401).json({ message: 'Authentication required' });
+  }
+
+  const isAdmin = viewer.role === 'admin';
+  const file = db.prepare('SELECT * FROM files WHERE id = ?').get(fileId);
+
+  if (!file) {
+    return res.status(404).json({ message: 'File/post not found' });
+  }
+
+  // Permission Check: only admin or original uploader
+  if (!isAdmin && file.uploadedBy !== studentId) {
+    return res.status(403).json({ message: 'Forbidden: You can only delete your own posts.' });
+  }
+
+  // Remove physical file from uploads/
+  const filePath = path.join(UPLOAD_DIR, path.basename(file.storedName));
+  if (isSafeUploadPath(filePath) && fs.existsSync(filePath)) {
+    try {
+      fs.unlinkSync(filePath);
+    } catch (err) {
+      console.error('Error removing file from disk:', err);
+    }
+  }
+
+  // Remove related likes, comments, and database row
+  db.prepare('DELETE FROM file_likes WHERE fileId = ?').run(fileId);
+  db.prepare('DELETE FROM file_comments WHERE fileId = ?').run(fileId);
+  db.prepare('DELETE FROM files WHERE id = ?').run(fileId);
+
+  res.json({ success: true, message: 'Post deleted successfully', fileId: parseInt(fileId) });
+});
+
+// Support POST /api/files/:id/delete alias
+app.post('/api/files/:id/delete', requireLogin, (req, res) => {
+  const fileId = req.params.id;
+  const studentId = req.session.studentId;
+
+  const viewer = db.prepare('SELECT role FROM students WHERE studentId = ?').get(studentId);
+  if (!viewer) return res.status(401).json({ message: 'Authentication required' });
+
+  const isAdmin = viewer.role === 'admin';
+  const file = db.prepare('SELECT * FROM files WHERE id = ?').get(fileId);
+  if (!file) return res.status(404).json({ message: 'File/post not found' });
+
+  if (!isAdmin && file.uploadedBy !== studentId) {
+    return res.status(403).json({ message: 'Forbidden: You can only delete your own posts.' });
+  }
+
+  const filePath = path.join(UPLOAD_DIR, path.basename(file.storedName));
+  if (isSafeUploadPath(filePath) && fs.existsSync(filePath)) {
+    try { fs.unlinkSync(filePath); } catch (err) {}
+  }
+
+  db.prepare('DELETE FROM file_likes WHERE fileId = ?').run(fileId);
+  db.prepare('DELETE FROM file_comments WHERE fileId = ?').run(fileId);
+  db.prepare('DELETE FROM files WHERE id = ?').run(fileId);
+
+  res.json({ success: true, message: 'Post deleted successfully', fileId: parseInt(fileId) });
 });
 
 app.get('/api/files/:id/download', requireLogin, (req, res) => {
@@ -396,9 +555,9 @@ app.get('/api/files/:id/download', requireLogin, (req, res) => {
     return res.status(404).json({ message: 'File not found' });
   }
 
-  const filePath = path.join(UPLOAD_DIR, file.storedName);
+  const filePath = path.join(UPLOAD_DIR, path.basename(file.storedName));
 
-  if (!fs.existsSync(filePath)) {
+  if (!isSafeUploadPath(filePath) || !fs.existsSync(filePath)) {
     return res.status(404).json({ message: 'File missing from server' });
   }
 
@@ -413,9 +572,9 @@ app.get('/api/files/:id/view', requireLogin, (req, res) => {
     return res.status(404).json({ message: 'File not found' });
   }
 
-  const filePath = path.join(UPLOAD_DIR, file.storedName);
+  const filePath = path.join(UPLOAD_DIR, path.basename(file.storedName));
 
-  if (!fs.existsSync(filePath)) {
+  if (!isSafeUploadPath(filePath) || !fs.existsSync(filePath)) {
     return res.status(404).json({ message: 'File missing from server' });
   }
 
@@ -433,6 +592,14 @@ app.post('/api/files/:id/like', requireLogin, (req, res) => {
     db.prepare('DELETE FROM file_likes WHERE fileId = ? AND studentId = ?').run(fileId, studentId);
   } else {
     db.prepare('INSERT INTO file_likes (fileId, studentId) VALUES (?, ?)').run(fileId, studentId);
+    
+    // Create notification
+    const file = db.prepare('SELECT uploadedBy, originalName FROM files WHERE id = ?').get(fileId);
+    if (file && file.uploadedBy !== studentId) {
+      db.prepare('INSERT INTO notifications (recipientStudentId, type, relatedFileId, message) VALUES (?, ?, ?, ?)').run(
+        file.uploadedBy, 'like', fileId, `${req.session.name || 'Someone'} liked your file: ${file.originalName}`
+      );
+    }
   }
 
   const count = db.prepare('SELECT COUNT(*) AS c FROM file_likes WHERE fileId = ?').get(fileId).c;
@@ -461,6 +628,16 @@ app.post('/api/files/:id/comments', requireLogin, (req, res) => {
   const result = db.prepare(`
     INSERT INTO file_comments (fileId, studentId, commentText, createdAt) VALUES (?, ?, ?, ?)
   `).run(req.params.id, req.session.studentId, text, new Date().toISOString());
+
+  // Create notification
+  const fileId = req.params.id;
+  const studentId = req.session.studentId;
+  const file = db.prepare('SELECT uploadedBy, originalName FROM files WHERE id = ?').get(fileId);
+  if (file && file.uploadedBy !== studentId) {
+    db.prepare('INSERT INTO notifications (recipientStudentId, type, relatedFileId, message) VALUES (?, ?, ?, ?)').run(
+      file.uploadedBy, 'comment', fileId, `${req.session.name || 'Someone'} commented on your file: ${file.originalName}`
+    );
+  }
 
   res.json({ commentId: result.lastInsertRowid });
 });
@@ -497,6 +674,7 @@ app.get('/api/library/subjects/:subject/chapters', requireLogin, (req, res) => {
 // List files within a subject + chapter
 app.get('/api/library/files', requireLogin, (req, res) => {
   const { subject, chapter } = req.query;
+  const viewerIsAdmin = isStudentAdmin(req.session.studentId);
 
   if (!subject) {
     return res.status(400).json({ message: 'subject is required' });
@@ -504,7 +682,7 @@ app.get('/api/library/files', requireLogin, (req, res) => {
 
   let query = `
     SELECT files.id, files.originalName, files.title, files.subject, files.chapter, files.sizeBytes, files.uploadedAt, files.uploadedBy,
-      students.name AS uploaderName, students.avatarUrl AS uploaderAvatar,
+      students.name AS uploaderName, students.avatarUrl AS uploaderAvatar, students.role AS uploaderRole,
       (SELECT COUNT(*) FROM file_likes WHERE file_likes.fileId = files.id) AS likeCount,
       EXISTS(SELECT 1 FROM file_likes WHERE fileId = files.id AND studentId = ?) AS liked,
       (SELECT COUNT(*) FROM file_comments WHERE file_comments.fileId = files.id) AS commentCount
@@ -524,7 +702,60 @@ app.get('/api/library/files', requireLogin, (req, res) => {
   query += ' ORDER BY files.uploadedAt DESC';
 
   const files = db.prepare(query).all(...params);
-  res.json(files);
+  const processed = files.map(f => ({
+    ...f,
+    uploaderRole: f.uploaderRole || 'student',
+    isOfficial: f.uploaderRole === 'admin',
+    canDelete: viewerIsAdmin || f.uploadedBy === req.session.studentId
+  }));
+
+  res.json(processed);
+});
+
+// Search across files and subjects
+app.get('/api/search', requireLogin, (req, res) => {
+  const q = (req.query.q || '').trim();
+  if (!q) {
+    return res.json({ files: [], subjects: [] });
+  }
+
+  const likeQuery = `%${q}%`;
+  const viewerIsAdmin = isStudentAdmin(req.session.studentId);
+
+  // Search files (title, originalName, subject, chapter)
+  const filesQuery = `
+    SELECT files.id, files.originalName, files.title, files.subject, files.chapter, files.sizeBytes, files.uploadedAt, files.uploadedBy,
+      students.name AS uploaderName, students.avatarUrl AS uploaderAvatar, students.role AS uploaderRole,
+      (SELECT COUNT(*) FROM file_likes WHERE file_likes.fileId = files.id) AS likeCount,
+      EXISTS(SELECT 1 FROM file_likes WHERE fileId = files.id AND studentId = ?) AS liked,
+      (SELECT COUNT(*) FROM file_comments WHERE file_comments.fileId = files.id) AS commentCount
+    FROM files
+    JOIN students ON students.studentId = files.uploadedBy
+    WHERE files.title LIKE ? OR files.originalName LIKE ? OR files.subject LIKE ? OR files.chapter LIKE ?
+    ORDER BY files.uploadedAt DESC
+    LIMIT 50
+  `;
+  const files = db.prepare(filesQuery).all(req.session.studentId, likeQuery, likeQuery, likeQuery, likeQuery);
+
+  const processedFiles = files.map(f => ({
+    ...f,
+    uploaderRole: f.uploaderRole || 'student',
+    isOfficial: f.uploaderRole === 'admin',
+    canDelete: viewerIsAdmin || f.uploadedBy === req.session.studentId
+  }));
+
+  // Search subjects
+  const subjectsQuery = `
+    SELECT subject, COUNT(*) AS fileCount, COUNT(DISTINCT chapter) AS chapterCount
+    FROM files
+    WHERE subject IS NOT NULL AND subject != '' AND subject LIKE ?
+    GROUP BY subject
+    ORDER BY subject COLLATE NOCASE ASC
+    LIMIT 20
+  `;
+  const subjects = db.prepare(subjectsQuery).all(likeQuery);
+
+  res.json({ files: processedFiles, subjects });
 });
 
 // ============================================================
@@ -599,6 +830,10 @@ app.get('/api/chat/attachment/:filename', requireLogin, (req, res) => {
   const filename = path.basename(req.params.filename);
   const filePath = path.join(UPLOAD_DIR, filename);
 
+  if (!isSafeUploadPath(filePath)) {
+    return res.status(403).json({ message: 'Invalid file path' });
+  }
+
   const msg = db.prepare('SELECT 1 FROM chat_messages WHERE attachmentName = ?').get(filename);
   if (!msg) {
     return res.status(403).json({ message: 'Unauthorized or missing attachment' });
@@ -610,6 +845,29 @@ app.get('/api/chat/attachment/:filename', requireLogin, (req, res) => {
 
   res.setHeader('Cache-Control', 'private, max-age=86400');
   res.sendFile(filePath);
+});
+// ============================================================
+// NOTIFICATION SYSTEM
+// ============================================================
+
+app.get('/api/notifications/unread-count', requireLogin, (req, res) => {
+  const row = db.prepare('SELECT COUNT(*) as count FROM notifications WHERE recipientStudentId = ? AND isRead = 0').get(req.session.studentId);
+  res.json({ count: row.count });
+});
+
+app.get('/api/notifications', requireLogin, (req, res) => {
+  const notifications = db.prepare('SELECT * FROM notifications WHERE recipientStudentId = ? ORDER BY createdAt DESC LIMIT 20').all(req.session.studentId);
+  res.json(notifications);
+});
+
+app.post('/api/notifications/:id/read', requireLogin, (req, res) => {
+  const id = parseInt(req.params.id);
+  const result = db.prepare('UPDATE notifications SET isRead = 1 WHERE id = ? AND recipientStudentId = ?').run(id, req.session.studentId);
+  if (result.changes > 0) {
+    res.json({ success: true });
+  } else {
+    res.status(404).json({ message: 'Notification not found' });
+  }
 });
 
 // ============================================================
@@ -640,7 +898,7 @@ const uploadAvatar = multer({
 // Helper function to fetch profile with stats
 function getStudentProfile(targetStudentId, viewerStudentId) {
   const student = db.prepare(`
-    SELECT studentId, name, avatarUrl, bio, department, semester, githubUrl, linkedinUrl
+    SELECT studentId, name, avatarUrl, bio, department, semester, githubUrl, linkedinUrl, role
     FROM students
     WHERE studentId = ?
   `).get(targetStudentId);
@@ -661,6 +919,7 @@ function getStudentProfile(targetStudentId, viewerStudentId) {
 
   const isSelf = targetStudentId === viewerStudentId;
   const isFollowing = !isSelf && !!db.prepare('SELECT 1 FROM follows WHERE followerId = ? AND followingId = ?').get(viewerStudentId, targetStudentId);
+  const role = student.role || 'student';
 
   return {
     studentId: student.studentId,
@@ -671,6 +930,8 @@ function getStudentProfile(targetStudentId, viewerStudentId) {
     semester: student.semester || 'Semester 1',
     githubUrl: student.githubUrl || '',
     linkedinUrl: student.linkedinUrl || '',
+    role,
+    isAdmin: role === 'admin',
     stats: {
       filesCount,
       likesReceived,
@@ -743,7 +1004,7 @@ app.get('/api/avatar/:filename', (req, res) => {
   const filename = path.basename(req.params.filename);
   const filePath = path.join(UPLOAD_DIR, filename);
 
-  if (!fs.existsSync(filePath)) {
+  if (!isSafeUploadPath(filePath) || !fs.existsSync(filePath)) {
     return res.status(404).json({ message: 'Avatar image not found' });
   }
 
@@ -813,10 +1074,11 @@ app.get('/api/profile/:studentId/following', requireLogin, (req, res) => {
 app.get('/api/profile/:studentId/files', requireLogin, (req, res) => {
   const targetStudentId = req.params.studentId;
   const viewerStudentId = req.session.studentId;
+  const viewerIsAdmin = isStudentAdmin(viewerStudentId);
 
   const files = db.prepare(`
     SELECT files.id, files.originalName, files.title, files.subject, files.chapter, files.sizeBytes, files.uploadedAt, files.uploadedBy,
-      students.name AS uploaderName, students.avatarUrl AS uploaderAvatar,
+      students.name AS uploaderName, students.avatarUrl AS uploaderAvatar, students.role AS uploaderRole,
       (SELECT COUNT(*) FROM file_likes WHERE file_likes.fileId = files.id) AS likeCount,
       EXISTS(SELECT 1 FROM file_likes WHERE fileId = files.id AND studentId = ?) AS liked,
       (SELECT COUNT(*) FROM file_comments WHERE file_comments.fileId = files.id) AS commentCount
@@ -826,7 +1088,14 @@ app.get('/api/profile/:studentId/files', requireLogin, (req, res) => {
     ORDER BY files.uploadedAt DESC
   `).all(viewerStudentId, targetStudentId);
 
-  res.json(files);
+  const processed = files.map(f => ({
+    ...f,
+    uploaderRole: f.uploaderRole || 'student',
+    isOfficial: f.uploaderRole === 'admin',
+    canDelete: viewerIsAdmin || f.uploadedBy === viewerStudentId
+  }));
+
+  res.json(processed);
 });
 
 // Suggested classmates to follow

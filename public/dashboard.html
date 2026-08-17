@@ -477,12 +477,48 @@
             }
 
             searchResults.innerHTML = html;
+            setTimeout(initDashboardCardPhysics, 50);
           } catch (err) {
             console.error("Search error:", err);
           }
         }, 300);
       });
     }
+
+    // --- 3D Gyro Perspective Tilt Physics (Same as Photo Gallery) ---
+    function initDashboardCardPhysics() {
+      const cards = document.querySelectorAll('.feed-card, .fb-card, .social-post-card, .search-subject-card');
+      cards.forEach(card => {
+        if (card.dataset.physicsBound) return;
+        card.dataset.physicsBound = 'true';
+
+        let rect;
+        card.addEventListener('mouseenter', () => {
+          rect = card.getBoundingClientRect();
+        });
+
+        card.addEventListener('mousemove', (e) => {
+          if (!rect) rect = card.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const y = e.clientY - rect.top;
+          const cx = rect.width / 2;
+          const cy = rect.height / 2;
+          const rotateX = ((y - cy) / cy) * -3.2;
+          const rotateY = ((x - cx) / cx) * 3.2;
+
+          card.style.transform = `perspective(900px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) translateZ(4px)`;
+        });
+
+        card.addEventListener('mouseleave', () => {
+          card.style.transform = '';
+        });
+      });
+    }
+
+    setTimeout(initDashboardCardPhysics, 400);
+    const dashObs = new MutationObserver(() => initDashboardCardPhysics());
+    if (realFiles) dashObs.observe(realFiles, { childList: true });
+    if (searchResults) dashObs.observe(searchResults, { childList: true });
   </script>
   <script src="notifications.js"></script>
 </body>

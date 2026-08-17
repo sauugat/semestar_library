@@ -1,0 +1,1679 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Media Archive &middot; Gandaki University &mdash; Antigravity Visuals</title>
+  <meta name="description" content="Next-Generation Photographic Archive of Gandaki University. Powered by Apple Keynote & Antigravity futuristic visual architecture.">
+  
+  <!-- Modern Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+
+  <style>
+    /* ==========================================================================
+       APPLE CERAMIC WHITE & GOOGLE ANTIGRAVITY — ADVANCED PHOTO GALLERY
+       ========================================================================== */
+    :root {
+      --ceramic-bg: #fafafc;
+      --ceramic-surface: #ffffff;
+      --ceramic-card-hover: #fcfcfe;
+      --ceramic-border: rgba(0, 0, 0, 0.07);
+      --ceramic-border-hover: rgba(0, 0, 0, 0.16);
+      --ceramic-border-focus: rgba(0, 113, 227, 0.4);
+      --text-main: #1d1d1f;
+      --text-sub: #6e6e73;
+      --text-muted: #86868b;
+      --text-caption: #aeaeb2;
+      --chip-bg: #f2f2f5;
+      --chip-text: #48484a;
+      --laser-sweep: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.95), rgba(0, 0, 0, 0.04), transparent);
+      --specular-inner: inset 0 1px 0 rgba(255, 255, 255, 1), inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+      --apple-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.03), 0 1px 2px rgba(0, 0, 0, 0.02);
+      --apple-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.05), 0 2px 6px rgba(0, 0, 0, 0.02);
+      --apple-shadow-hover: 0 20px 48px rgba(0, 0, 0, 0.08), 0 6px 16px rgba(0, 0, 0, 0.03);
+    }
+
+    body.gallery-page-body {
+      background-color: var(--ceramic-bg);
+      color: var(--text-main);
+      min-height: 100vh;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Ambient Antigravity Perspective Wireframe (White Edition) */
+    .ag-ambient-canvas {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+      background: radial-gradient(circle at 50% -10%, rgba(240, 240, 248, 0.9) 0%, rgba(250, 250, 252, 0.5) 60%, var(--ceramic-bg) 100%);
+    }
+
+    .ag-grid-mesh {
+      position: absolute;
+      inset: -50%;
+      background-image: 
+        linear-gradient(to right, rgba(0, 0, 0, 0.032) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(0, 0, 0, 0.032) 1px, transparent 1px);
+      background-size: 52px 52px;
+      transform: perspective(1100px) rotateX(54deg);
+      mask-image: radial-gradient(ellipse 75% 65% at 50% 25%, black 20%, transparent 80%);
+      -webkit-mask-image: radial-gradient(ellipse 75% 65% at 50% 25%, black 20%, transparent 80%);
+    }
+
+    .ag-ambient-aurora {
+      position: absolute;
+      top: -12vw;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 85vw;
+      max-width: 1100px;
+      height: 520px;
+      border-radius: 50%;
+      background: radial-gradient(ellipse 65% 55% at 50% 30%, rgba(255, 255, 255, 0.95) 0%, rgba(235, 238, 245, 0.6) 45%, transparent 80%);
+      filter: blur(50px);
+    }
+
+    /* Universal Glass Nav (Frosted Ceramic) */
+    .ag-nav-blur {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 1000;
+      backdrop-filter: blur(32px) saturate(190%);
+      -webkit-backdrop-filter: blur(32px) saturate(190%);
+      background: rgba(255, 255, 255, 0.85);
+      border-bottom: 1px solid var(--ceramic-border);
+      padding: 12px 24px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02);
+      transition: all 0.3s ease;
+    }
+
+    .ag-nav-container {
+      max-width: 1280px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .ag-brand-group {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+    }
+
+    .ag-wordmark {
+      font-size: 14.5px;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      color: var(--text-main);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    .ag-wordmark-badge {
+      font-size: 9.5px;
+      font-weight: 700;
+      background: #1d1d1f;
+      color: #ffffff;
+      padding: 2.5px 7.5px;
+      border-radius: 980px;
+      letter-spacing: 0.08em;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .ag-nav-menu {
+      display: flex;
+      align-items: center;
+      gap: 22px;
+    }
+
+    .ag-nav-link {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-sub);
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+
+    .ag-nav-link:hover {
+      color: var(--text-main);
+    }
+
+    .ag-nav-link.active {
+      color: var(--text-main);
+      font-weight: 700;
+    }
+
+    /* Hero Stage */
+    .ag-gallery-hero {
+      padding: 120px 24px 28px;
+      max-width: 1100px;
+      margin: 0 auto;
+      text-align: center;
+      position: relative;
+      z-index: 2;
+    }
+
+    .ag-telemetry-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid var(--ceramic-border);
+      border-radius: 980px;
+      padding: 5.5px 16px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      color: var(--text-sub);
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.03);
+      margin-bottom: 22px;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+
+    .ag-pulse-radar {
+      width: 6.5px;
+      height: 6.5px;
+      border-radius: 50%;
+      background: #1d1d1f;
+      box-shadow: 0 0 8px rgba(0, 0, 0, 0.4);
+      animation: radarBeaconPulse 1.8s infinite ease-in-out;
+    }
+
+    @keyframes radarBeaconPulse {
+      0%, 100% { opacity: 0.35; transform: scale(0.9); }
+      50% { opacity: 1; transform: scale(1.15); }
+    }
+
+    .ag-hero-headline {
+      font-size: clamp(34px, 5.2vw, 58px);
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      line-height: 1.07;
+      margin: 0 0 16px;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    .ag-title-gradient {
+      background: linear-gradient(180deg, #1d1d1f 30%, #48484a 80%, #6e6e73 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .ag-hero-subtext {
+      font-size: clamp(14.5px, 1.8vw, 16.5px);
+      color: var(--text-sub);
+      max-width: 680px;
+      margin: 0 auto 32px;
+      line-height: 1.55;
+      font-weight: 400;
+    }
+
+    /* Live Horizontal Highlights Marquee Strip (White Edition) */
+    .ag-marquee-wrap {
+      position: relative;
+      width: 100vw;
+      left: 50%;
+      transform: translateX(-50%);
+      overflow: hidden;
+      padding: 10px 0 22px;
+      mask-image: linear-gradient(to right, transparent, black 15%, black 85%, transparent);
+      -webkit-mask-image: linear-gradient(to right, transparent, black 15%, black 85%, transparent);
+      margin-bottom: 24px;
+    }
+
+    .ag-marquee-track {
+      display: flex;
+      gap: 16px;
+      width: max-content;
+      animation: agMarqueeScroll 40s linear infinite;
+    }
+
+    .ag-marquee-track:hover {
+      animation-play-state: paused;
+    }
+
+    @keyframes agMarqueeScroll {
+      0% { transform: translate3d(0, 0, 0); }
+      100% { transform: translate3d(-50%, 0, 0); }
+    }
+
+    .ag-marquee-card {
+      width: 240px;
+      height: 140px;
+      border-radius: 18px;
+      overflow: hidden;
+      position: relative;
+      cursor: pointer;
+      border: 1px solid var(--ceramic-border);
+      background: #f4f4f7;
+      flex-shrink: 0;
+      box-shadow: var(--apple-shadow-sm);
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease, border-color 0.3s ease;
+    }
+
+    .ag-marquee-card:hover {
+      transform: scale(1.03) translateY(-3px);
+      box-shadow: var(--apple-shadow-md);
+      border-color: var(--ceramic-border-hover);
+    }
+
+    .ag-marquee-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0.92;
+      transition: opacity 0.3s ease, transform 0.4s ease;
+    }
+
+    .ag-marquee-card:hover .ag-marquee-img {
+      opacity: 1;
+      transform: scale(1.07);
+    }
+
+    .ag-marquee-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to top, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.1) 60%, transparent 100%);
+      padding: 10px 14px;
+      display: flex;
+      align-items: flex-end;
+    }
+
+    .ag-marquee-title {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #ffffff;
+      line-height: 1.25;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Controls Deck (White Ceramic Capsule) */
+    .ag-deck-wrap {
+      max-width: 1240px;
+      margin: 0 auto 34px;
+      padding: 0 24px;
+      width: 100%;
+      position: relative;
+      z-index: 10;
+    }
+
+    .ag-deck-capsule {
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid var(--ceramic-border);
+      border-radius: 20px;
+      padding: 9px 14px;
+      box-shadow: var(--apple-shadow-md);
+      backdrop-filter: blur(32px) saturate(180%);
+      -webkit-backdrop-filter: blur(32px) saturate(180%);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .ag-chips-deck {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-wrap: wrap;
+    }
+
+    .ag-chip-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--chip-text);
+      padding: 6.5px 13px;
+      border-radius: 980px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      user-select: none;
+    }
+
+    .ag-chip-btn:hover:not(.active) {
+      background: rgba(0, 0, 0, 0.04);
+      color: var(--text-main);
+    }
+
+    .ag-chip-btn.active {
+      background: #1d1d1f;
+      color: #ffffff;
+      border-color: #1d1d1f;
+      font-weight: 700;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+    }
+
+    .ag-search-deck {
+      position: relative;
+      min-width: 250px;
+      flex: 1;
+      max-width: 340px;
+    }
+
+    .ag-search-input {
+      width: 100%;
+      height: 36px;
+      background: #f4f4f7;
+      border: 1px solid rgba(0, 0, 0, 0.05);
+      border-radius: 980px;
+      padding: 0 38px 0 34px;
+      font-size: 12.5px;
+      font-family: inherit;
+      color: var(--text-main);
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    .ag-search-input:focus {
+      background: #ffffff;
+      border-color: var(--ceramic-border-focus);
+      box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.12);
+    }
+
+    .ag-search-icon-left {
+      position: absolute;
+      left: 11px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      pointer-events: none;
+    }
+
+    .ag-search-kbd {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--text-muted);
+      background: #eaeaea;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      padding: 1.5px 5.5px;
+      border-radius: 4px;
+      pointer-events: none;
+    }
+
+    /* Main Bento Photo Wall Grid */
+    .ag-grid-wall {
+      max-width: 1280px;
+      margin: 0 auto 90px;
+      padding: 0 24px;
+      width: 100%;
+      position: relative;
+      z-index: 2;
+    }
+
+    .ag-bento-layout {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 20px;
+    }
+
+    /* Card Sizing Matrix */
+    .ag-card-col-4 { grid-column: span 4; }
+    .ag-card-col-6 { grid-column: span 6; }
+    .ag-card-col-8 { grid-column: span 8; }
+    .ag-card-col-12 { grid-column: span 12; }
+
+    @media (max-width: 1024px) {
+      .ag-card-col-4, .ag-card-col-6, .ag-card-col-8 {
+        grid-column: span 6;
+      }
+    }
+
+    @media (max-width: 680px) {
+      .ag-card-col-4, .ag-card-col-6, .ag-card-col-8, .ag-card-col-12 {
+        grid-column: span 12;
+      }
+    }
+
+    /* Individual Ceramic White Antigravity Card */
+    .ag-photo-card {
+      position: relative;
+      background: var(--ceramic-surface);
+      border-radius: 20px;
+      border: 1px solid var(--ceramic-border);
+      overflow: hidden;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--apple-shadow-sm), var(--specular-inner);
+      transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.22s ease, background 0.22s ease;
+      transform-style: preserve-3d;
+      perspective: 900px;
+      contain: layout paint;
+    }
+
+    .ag-photo-card:hover {
+      background: var(--ceramic-card-hover);
+      transform: translateY(-5px);
+      box-shadow: var(--apple-shadow-hover), var(--specular-inner);
+      border-color: var(--ceramic-border-hover);
+    }
+
+    /* Holographic Corner Crosshair Reticles (White Edition) */
+    .ag-photo-card .reticle-tl,
+    .ag-photo-card .reticle-tr,
+    .ag-photo-card .reticle-bl,
+    .ag-photo-card .reticle-br {
+      position: absolute;
+      width: 7px;
+      height: 7px;
+      border-color: rgba(0, 0, 0, 0.12);
+      border-style: solid;
+      pointer-events: none;
+      transition: border-color 0.22s ease;
+      z-index: 12;
+    }
+
+    .ag-photo-card .reticle-tl { top: 7px; left: 7px; border-width: 1px 0 0 1px; }
+    .ag-photo-card .reticle-tr { top: 7px; right: 7px; border-width: 1px 1px 0 0; }
+    .ag-photo-card .reticle-bl { bottom: 7px; left: 7px; border-width: 0 0 1px 1px; }
+    .ag-photo-card .reticle-br { bottom: 7px; right: 7px; border-width: 0 1px 1px 0; }
+
+    .ag-photo-card:hover .reticle-tl,
+    .ag-photo-card:hover .reticle-tr,
+    .ag-photo-card:hover .reticle-bl,
+    .ag-photo-card:hover .reticle-br {
+      border-color: rgba(0, 0, 0, 0.35);
+    }
+
+    /* Card Image Viewport */
+    .ag-card-viewport {
+      position: relative;
+      width: 100%;
+      height: 250px;
+      background: #f0f0f4;
+      overflow: hidden;
+    }
+
+    .ag-card-col-8 .ag-card-viewport,
+    .ag-card-col-12 .ag-card-viewport {
+      height: 320px;
+    }
+
+    .ag-card-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+      transition: transform 0.65s cubic-bezier(0.16, 1, 0.3, 1), filter 0.3s ease;
+    }
+
+    .ag-photo-card:hover .ag-card-image {
+      transform: scale(1.06);
+    }
+
+    /* Dynamic Laser Scanning Beam on Hover (White Sweep) */
+    .ag-card-viewport::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: -120%;
+      width: 55%;
+      height: 100%;
+      background: var(--laser-sweep);
+      transform: skewX(-20deg);
+      pointer-events: none;
+      transition: left 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 10;
+    }
+
+    .ag-photo-card:hover .ag-card-viewport::after {
+      left: 180%;
+    }
+
+    /* Card Top HUD Badges */
+    .ag-card-hud-top {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      right: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 5;
+      pointer-events: none;
+    }
+
+    .ag-card-category-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      color: #1d1d1f;
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      padding: 3.5px 9.5px;
+      border-radius: 980px;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .ag-inspect-btn {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      color: #1d1d1f;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      pointer-events: auto;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .ag-photo-card:hover .ag-inspect-btn {
+      background: #1d1d1f;
+      color: #ffffff;
+      border-color: #1d1d1f;
+      transform: scale(1.08);
+    }
+
+    /* Card Text Body */
+    .ag-card-body {
+      padding: 18px 20px 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      flex: 1;
+    }
+
+    .ag-card-meta-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10.5px;
+      color: var(--text-muted);
+      margin-bottom: 7px;
+      letter-spacing: 0.02em;
+    }
+
+    .ag-card-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-main);
+      margin: 0 0 6px;
+      line-height: 1.35;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      letter-spacing: -0.015em;
+    }
+
+    .ag-card-desc {
+      font-size: 13px;
+      color: var(--text-sub);
+      line-height: 1.48;
+      margin: 0 0 14px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .ag-card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-top: 1px solid rgba(0, 0, 0, 0.06);
+      padding-top: 12px;
+      margin-top: auto;
+    }
+
+    .ag-explore-link {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-main);
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: gap 0.2s ease;
+    }
+
+    .ag-photo-card:hover .ag-explore-link {
+      gap: 8px;
+    }
+
+    /* Antigravity Holographic Lightbox HUD (Frosted White) */
+    .ag-hud-lightbox {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(40px) saturate(180%);
+      -webkit-backdrop-filter: blur(40px) saturate(180%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.35s ease;
+      padding: 32px 24px;
+    }
+
+    .ag-hud-lightbox.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .ag-hud-panel {
+      max-width: 1140px;
+      width: 100%;
+      max-height: 94vh;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      transform: scale(0.96) translate3d(0, 16px, 0);
+      transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .ag-hud-lightbox.active .ag-hud-panel {
+      transform: scale(1) translate3d(0, 0, 0);
+    }
+
+    /* Holographic Corner Reticles */
+    .ag-hud-frame {
+      position: relative;
+      max-height: 68vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f7f7fa;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 28px 70px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.08);
+    }
+
+    .ag-corner-reticle {
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      border: 1.8px solid #1d1d1f;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    .ag-corner-reticle.tl { top: 12px; left: 12px; border-right: none; border-bottom: none; }
+    .ag-corner-reticle.tr { top: 12px; right: 12px; border-left: none; border-bottom: none; }
+    .ag-corner-reticle.bl { bottom: 12px; left: 12px; border-right: none; border-top: none; }
+    .ag-corner-reticle.br { bottom: 12px; right: 12px; border-left: none; border-top: none; }
+
+    .ag-hud-img {
+      max-width: 100%;
+      max-height: 68vh;
+      object-fit: contain;
+    }
+
+    /* HUD Metadata Console */
+    .ag-hud-console {
+      margin-top: 16px;
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid var(--ceramic-border);
+      border-radius: 20px;
+      padding: 18px 24px;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 18px;
+      box-shadow: var(--apple-shadow-md);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+    }
+
+    .ag-hud-meta-left {
+      max-width: 720px;
+    }
+
+    .ag-hud-tag-strip {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 5px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--text-sub);
+    }
+
+    .ag-hud-title {
+      font-size: 19px;
+      font-weight: 800;
+      margin: 0 0 5px;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      color: var(--text-main);
+    }
+
+    .ag-hud-desc {
+      font-size: 13.2px;
+      color: var(--text-sub);
+      margin: 0;
+      line-height: 1.48;
+    }
+
+    .ag-hud-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .ag-hud-btn-primary {
+      background: #1d1d1f;
+      color: #ffffff;
+      font-weight: 700;
+      padding: 8px 18px;
+      border-radius: 980px;
+      font-size: 12.5px;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.16);
+      transition: all 0.22s ease;
+    }
+
+    .ag-hud-btn-primary:hover {
+      background: #000000;
+      transform: translateY(-1.5px);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    }
+
+    .ag-hud-nav-btn {
+      position: absolute;
+      top: 45%;
+      transform: translateY(-50%);
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid var(--ceramic-border);
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: var(--apple-shadow-md);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 10;
+    }
+
+    .ag-hud-nav-btn:hover {
+      background: #1d1d1f;
+      color: #ffffff;
+      border-color: #1d1d1f;
+      transform: translateY(-50%) scale(1.08);
+    }
+
+    .ag-hud-prev { left: -64px; }
+    .ag-hud-next { right: -64px; }
+
+    @media (max-width: 1280px) {
+      .ag-hud-prev { left: 14px; }
+      .ag-hud-next { right: 14px; }
+    }
+
+    .ag-hud-close-btn {
+      position: absolute;
+      top: -44px;
+      right: 0;
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid var(--ceramic-border);
+      padding: 4px 12px;
+      border-radius: 980px;
+      color: var(--text-main);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: var(--apple-shadow-sm);
+      transition: all 0.2s ease;
+    }
+
+    .ag-hud-close-btn:hover {
+      background: #1d1d1f;
+      color: #ffffff;
+      border-color: #1d1d1f;
+    }
+  </style>
+</head>
+
+<body class="gallery-page-body">
+
+  <!-- Ambient Light Mesh Canvas -->
+  <div class="ag-ambient-canvas" aria-hidden="true">
+    <div class="ag-grid-mesh"></div>
+    <div class="ag-ambient-aurora"></div>
+  </div>
+
+  <!-- Top Universal Navigation -->
+  <header class="ag-nav-blur">
+    <div class="ag-nav-container">
+      <div class="ag-brand-group">
+        <a href="index.html" class="ag-wordmark">
+          <span>Semester Library</span>
+          <span class="ag-wordmark-badge">VISION</span>
+        </a>
+        <nav class="ag-nav-menu">
+          <a href="index.html" class="ag-nav-link">Overview</a>
+          <a href="routine.html" class="ag-nav-link">Routine</a>
+          <a href="dashboard.html" class="ag-nav-link">Feed</a>
+          <a href="chat.html" class="ag-nav-link">Chat</a>
+        </nav>
+      </div>
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <a href="https://gandakiuniversity.edu.np" target="_blank" rel="noopener noreferrer"
+          class="univ-tag apple-univ-tag" style="padding: 6px 14px; font-size: 12px;">Gandaki University</a>
+        <a href="login.html" class="nav-cta-btn apple-nav-btn" style="padding: 6px 16px; font-size: 12px;">Sign In</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Stage -->
+  <section class="ag-gallery-hero">
+    <!-- Telemetry Capsule -->
+    <div class="ag-telemetry-badge">
+      <span class="ag-pulse-radar"></span>
+      <span>GANDAKI UNIVERSITY &middot; LAT: 28.2096&deg; N &middot; LON: 83.9856&deg; E</span>
+      <span style="opacity: 0.5;">&bull;</span>
+      <span style="color: #007aff;">ARCHIVE v3.0 &bull; 34 ASSETS</span>
+    </div>
+
+    <!-- Apple Titanium Main Headline -->
+    <h1 class="ag-hero-headline">
+      <span class="ag-title-gradient">Moments, Milestones</span><br />
+      <span class="ag-title-gradient">&amp; Scientific Horizons.</span>
+    </h1>
+
+    <p class="ag-hero-subtext">
+      The definitive photographic chronicle of Gandaki University. Preserving historic convocation assemblies, pioneering IT cohorts, leadership symposiums, and vibrant student life in high resolution.
+    </p>
+
+    <!-- Marquee Highlights Carousel (Antigravity Perspective Strip) -->
+    <div class="ag-marquee-wrap" id="marqueeStrip">
+      <div class="ag-marquee-track" id="marqueeTrack">
+        <!-- Dynamically populated marquee cards -->
+      </div>
+    </div>
+  </section>
+
+  <!-- Floating Island Controls Deck -->
+  <div class="ag-deck-wrap">
+    <div class="ag-deck-capsule">
+      <!-- Category Filter Chips -->
+      <div class="ag-chips-deck" id="categoryChips">
+        <button class="ag-chip-btn active" data-cat="all">All Archives (34)</button>
+        <button class="ag-chip-btn" data-cat="infrastructure">Infrastructure &amp; Masterplan</button>
+        <button class="ag-chip-btn" data-cat="academic">Convocation &amp; Academic</button>
+        <button class="ag-chip-btn" data-cat="leadership">Dignitaries &amp; Keynotes</button>
+        <button class="ag-chip-btn" data-cat="faculty">Faculty Research</button>
+        <button class="ag-chip-btn" data-cat="student">Student Life &amp; Culture</button>
+        <button class="ag-chip-btn" data-cat="campus">Campus &amp; Labs</button>
+      </div>
+
+      <!-- Live Search Box with Key Shortcut -->
+      <div class="ag-search-deck">
+        <svg class="ag-search-icon-left" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input type="search" id="agSearchInput" class="ag-search-input" placeholder="Search archive database...">
+        <span class="ag-search-kbd">&cmd;K</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Bento Photo Wall Grid -->
+  <main class="ag-grid-wall">
+    <div class="ag-bento-layout" id="agBentoGrid">
+      <!-- Dynamic Bento Cards Populated via JavaScript -->
+    </div>
+
+    <!-- Empty Search State -->
+    <div id="agEmptyState" style="display: none; text-align: center; padding: 80px 20px; grid-column: 1 / -1;">
+      <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="color: #86868b; margin-bottom: 12px;">
+        <circle cx="11" cy="11" r="8"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+      </svg>
+      <h3 style="font-size: 19px; font-weight: 700; margin: 0 0 6px;">No Photographic Records Found</h3>
+      <p style="font-size: 14px; color: #86868b; margin: 0;">Try adjusting your query or resetting category filters.</p>
+    </div>
+  </main>
+
+  <!-- Antigravity Holographic Lightbox HUD Modal -->
+  <div class="ag-hud-lightbox" id="agHudLightbox" role="dialog" aria-modal="true">
+    <div class="ag-hud-panel">
+      <!-- Close Button -->
+      <button class="ag-hud-close-btn" id="agHudClose">
+        <span>DISMISS &bull; ESC</span>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+
+      <!-- Navigation Arrows -->
+      <button class="ag-hud-nav-btn ag-hud-prev" id="agHudPrev" title="Previous Archive (Left Arrow)">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+      </button>
+      <button class="ag-hud-nav-btn ag-hud-next" id="agHudNext" title="Next Archive (Right Arrow)">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+      </button>
+
+      <!-- Holographic Image Viewport with Corner Reticles -->
+      <div class="ag-hud-frame">
+        <div class="ag-corner-reticle tl"></div>
+        <div class="ag-corner-reticle tr"></div>
+        <div class="ag-corner-reticle bl"></div>
+        <div class="ag-corner-reticle br"></div>
+        <img src="" alt="" class="ag-hud-img" id="agHudImg">
+      </div>
+
+      <!-- Metadata Telemetry Console -->
+      <div class="ag-hud-console">
+        <div class="ag-hud-meta-left">
+          <div class="ag-hud-tag-strip">
+            <span id="agHudCategory">ACADEMIC &bull; CONVOCATION</span>
+            <span style="opacity: 0.4;">|</span>
+            <span id="agHudDate" style="color: #ffffff;">MARCH 2025</span>
+            <span style="opacity: 0.4;">|</span>
+            <span id="agHudIndex" style="color: #86868b;">ARCHIVE 01 OF 22</span>
+          </div>
+          <h2 class="ag-hud-title" id="agHudTitle">Grand Convocation Assembly</h2>
+          <p class="ag-hud-desc" id="agHudDesc">Description context and historical significance.</p>
+        </div>
+        <div class="ag-hud-actions">
+          <a href="#" target="_blank" download id="agHudDownload" class="ag-hud-btn-primary">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <span>Download Master Asset</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Global Footer -->
+  <footer style="margin-top: auto; padding: 48px 24px; border-top: 1px solid rgba(0, 0, 0, 0.08); text-align: center; position: relative; z-index: 2;">
+    <div style="max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+      <div style="font-size: 13px; color: #86868b; text-align: left;">
+        <strong style="color: #1d1d1f;">Gandaki University Visual Cloud</strong> &middot; Academic Archive<br>
+        Pokhara, Gandaki Province, Nepal
+      </div>
+      <div style="display: flex; gap: 20px; font-size: 13px;">
+        <a href="index.html" style="color: #6e6e73; text-decoration: none;">Overview</a>
+        <a href="routine.html" style="color: #6e6e73; text-decoration: none;">Routines</a>
+        <a href="dashboard.html" style="color: #6e6e73; text-decoration: none;">Feed</a>
+        <a href="gallery.html" style="color: #0071e3; font-weight: 700; text-decoration: none;">Gallery</a>
+        <a href="https://gandakiuniversity.edu.np" target="_blank" rel="noopener" style="color: #6e6e73; text-decoration: none;">Official Portal &rarr;</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Script Architecture -->
+  <script>
+    // Authentic Gandaki University Visual Database
+    const database = [
+  {
+    "id": "GU-INF-01",
+    "title": "Administrative Complex 3D Architectural Masterplan",
+    "caption": "The approved 3D architectural masterplan blueprint for the state-of-the-art Gandaki University Central Administrative Complex.",
+    "category": "infrastructure",
+    "categoryLabel": "INFRASTRUCTURE &bull; MASTERPLAN",
+    "date": "APRIL 2026",
+    "colSpan": "ag-card-col-8",
+    "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/Building.png",
+    "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/Building.png"
+  },
+  {
+    "id": "GU-INF-02",
+    "title": "Chief Minister & Chancellor Founding Stone Ceremony",
+    "caption": "Chief Minister of Gandaki Province and Chancellor Prof. Dr. Ganeshman Gurung unveiling the historic founding cornerstone of the university.",
+    "category": "infrastructure",
+    "categoryLabel": "FOUNDING STONE &bull; CEREMONY",
+    "date": "APRIL 2026",
+    "colSpan": "ag-card-col-4",
+    "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/chancellor-chief-minister.png",
+    "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/chancellor-chief-minister.png"
+  },
+  {
+    "id": "GU-INF-03",
+    "title": "Chief Minister Keynote at Campus Groundbreaking",
+    "caption": "Chief Minister addressing provincial ministers, academic faculty, and town planners during the university groundbreaking ceremony.",
+    "category": "infrastructure",
+    "categoryLabel": "FOUNDING STONE &bull; CEREMONY",
+    "date": "APRIL 2026",
+    "colSpan": "ag-card-col-4",
+    "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/Cheif-image.png",
+    "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/Cheif-image.png"
+  },
+  {
+    "id": "GU-INF-04",
+    "title": "Examination & Academic Complex Future Blueprint",
+    "caption": "3D perspective visualization of the upcoming Examination Controller division and lecture amphitheater facilities.",
+    "category": "infrastructure",
+    "categoryLabel": "INFRASTRUCTURE &bull; MASTERPLAN",
+    "date": "APRIL 2026",
+    "colSpan": "ag-card-col-4",
+    "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/building-next.png",
+    "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/building-next.png"
+  },
+  {
+    "id": "GU-INF-05",
+    "title": "Executive Leadership: Chancellor & Vice-Chancellor",
+    "caption": "Chancellor and Vice-Chancellor inspecting construction blueprints and civil progress reports at the university headquarters.",
+    "category": "leadership",
+    "categoryLabel": "LEADERSHIP &bull; DIGNITARIES",
+    "date": "APRIL 2026",
+    "colSpan": "ag-card-col-4",
+    "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/Chancellor-ViceChancellor.png",
+    "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/Chancellor-ViceChancellor.png"
+  },
+  {
+    "id": "GU-INF-06",
+    "title": "Provincial Dignitaries & Ministers Assembly",
+    "caption": "Provincial ministers and government delegates commemorating the strategic infrastructure funding and campus expansion.",
+    "category": "leadership",
+    "categoryLabel": "LEADERSHIP &bull; DIGNITARIES",
+    "date": "APRIL 2026",
+    "colSpan": "ag-card-col-4",
+    "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/bindu-kumra-thapa-Khagaraj-Adhikari.png",
+    "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/bindu-kumra-thapa-Khagaraj-Adhikari.png"
+  },
+  {
+    "id": "GU-INF-07",
+    "title": "Administrative Building Multi-Story Construction",
+    "caption": "Active on-site civil construction and reinforced concrete framework for the new 5-story administrative tower.",
+    "category": "infrastructure",
+    "categoryLabel": "BUILDING PROGRESS &bull; SITE",
+    "date": "APRIL 2026",
+    "colSpan": "ag-card-col-8",
+    "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/WhatsApp-Image-2026-04-24-at-1.01.54-PM-2.jpeg",
+    "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/WhatsApp-Image-2026-04-24-at-1.01.54-PM-2-1024x682.jpeg"
+  },
+  {
+    "id": "GU-INF-08",
+    "title": "Examination Controller Building Construction Site",
+    "caption": "Foundation laying and structural pillars for the specialized Examination Controller and Records Facility.",
+    "category": "infrastructure",
+    "categoryLabel": "BUILDING PROGRESS &bull; SITE",
+    "date": "APRIL 2026",
+    "colSpan": "ag-card-col-6",
+    "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/WhatsApp-Image-2026-04-24-at-11.24.43-AM.jpeg",
+    "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/WhatsApp-Image-2026-04-24-at-11.24.43-AM-1024x768.jpeg"
+  },
+  {
+    "id": "GU-INF-09",
+    "title": "Pokhara Valley Campus Landscape & Mountain Vista",
+    "caption": "Panoramic vista of the expansive 300+ ropani Gandaki University campus grounds set against the Annapurna mountain range in Pokhara.",
+    "category": "campus",
+    "categoryLabel": "CAMPUS &bull; PANORAMA",
+    "date": "APRIL 2026",
+    "colSpan": "ag-card-col-6",
+    "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/IMG_7180-scaled.jpg",
+    "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/IMG_7180-1024x683.jpg"
+  },
+  {
+    "id": "GU-INF-10",
+    "title": "Campus Boundary & Eco-Friendly Forestry Landscape",
+    "caption": "Preserved natural green canopy and boundary infrastructure surrounding the academic quadrangle.",
+    "category": "campus",
+    "categoryLabel": "CAMPUS &bull; ENVIRONMENT",
+    "date": "APRIL 2026",
+    "colSpan": "ag-card-col-4",
+    "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/IMG_2279-scaled.jpg",
+    "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/IMG_2279-1024x683.jpg"
+  },
+  {
+    "id": "GU-INF-11",
+    "title": "Campus Road Network & Terrestrial Survey",
+    "caption": "Internal arterial road grid and civil grading providing accessibility across university faculties.",
+    "category": "campus",
+    "categoryLabel": "CAMPUS &bull; INFRASTRUCTURE",
+    "date": "APRIL 2026",
+    "colSpan": "ag-card-col-4",
+    "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/IMG_2296-scaled.jpg",
+    "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/IMG_2296-1024x683.jpg"
+  },
+  {
+    "id": "GU-INF-12",
+    "title": "Campus Peripheral Walkways & Survey Coordinates",
+    "caption": "Civil engineers and surveyor team establishing geospatial benchmark coordinates across campus acreage.",
+    "category": "campus",
+    "categoryLabel": "CAMPUS &bull; INFRASTRUCTURE",
+    "date": "APRIL 2026",
+    "colSpan": "ag-card-col-4",
+    "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/IMG_2301-scaled.jpg",
+    "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/IMG_2301-1024x683.jpg"
+  },
+  {
+    "id": "gu-convocation-2025-1",
+    "title": "University Convocation & Academic Assembly",
+    "caption": "Chancellor, Vice Chancellor, and faculty members presiding over the grand university convocation ceremony at Gandaki University.",
+    "category": "academic",
+    "categoryLabel": "Academic & Convocation",
+    "date": "March 2025",
+    "colSpan": "ag-card-col-8",
+    "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2025/03/472735041_1004930198346332_3572611379996081590_n.jpg",
+    "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2025/03/472735041_1004930198346332_3572611379996081590_n.jpg"
+  },
+  {
+    "id": "gu-mahabir-pun",
+    "title": "Dr. Mahabir Pun at National Innovation Center Meet",
+    "caption": "Distinguished researcher and Magsaysay awardee Dr. Mahabir Pun addressing Gandaki University students and researchers on innovation and indigenous technology.",
+    "category": "leadership",
+    "categoryLabel": "Leadership & Dignitaries",
+    "date": "January 2023",
+    "colSpan": "ag-card-col-8",
+    "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2023/01/MAHABIR.png",
+    "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2023/01/MAHABIR.png"
+  },
+  {
+    "id": "gu-chancellor-address",
+    "title": "Chancellor Prof. Dr. Ganeshman Gurung & Academic Council",
+    "caption": "Chancellor Dr. Ganeshman Gurung and executive leadership outlining the Gandaki University 10-Year Strategic Academic Masterplan.",
+    "category": "leadership",
+    "categoryLabel": "Leadership & Dignitaries",
+    "date": "January 2023",
+    "colSpan": "ag-card-col-4",
+    "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2023/01/MEKH.png",
+    "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2023/01/MEKH.png"
+  },
+  {
+    "id": "gu-bit-batch-2021",
+    "title": "Bachelor of Information Technology (BIT) Pioneer Cohort",
+    "caption": "The inaugural batch of Bachelor of Information Technology (BIT) students and department faculty members at Gandaki University.",
+    "category": "student",
+    "categoryLabel": "Student Life & Culture",
+    "date": "April 2022",
+    "colSpan": "ag-card-col-8",
+    "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/bit2021.png",
+    "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/bit2021.png"
+  },
+  {
+    "id": "gu-faculty-dev-training",
+    "title": "Faculty Development & Pedagogical Research Workshop",
+    "caption": "University professors, assistant lecturers, and guest researchers collaborating during an interactive faculty research symposium.",
+    "category": "faculty",
+    "categoryLabel": "Faculty & Training",
+    "date": "May 2023",
+    "colSpan": "ag-card-col-8",
+    "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2023/05/training-scaled.jpg",
+    "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2023/05/training-scaled.jpg"
+  },
+  {
+    "id": "gu-it-lab-workshop",
+    "title": "Hands-on Computing & Applied Tech Workshop",
+    "caption": "Department faculty and researchers conducting specialized curriculum and practical lab methodology training.",
+    "category": "faculty",
+    "categoryLabel": "Faculty & Training",
+    "date": "May 2023",
+    "colSpan": "ag-card-col-4",
+    "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2023/05/training-1-scaled.jpg",
+    "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2023/05/training-1-scaled.jpg"
+  },
+  {
+    "id": "gu-health-science-training",
+    "title": "Applied Health & Biomedical Sciences Seminar",
+    "caption": "Faculty members and healthcare educators in a collaborative medical curriculum development session.",
+    "category": "faculty",
+    "categoryLabel": "Faculty & Training",
+    "date": "May 2023",
+    "colSpan": "ag-card-col-4",
+    "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2023/05/training-2-scaled.jpg",
+    "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2023/05/training-2-scaled.jpg"
+  },
+  {
+    "id": "gu-cultural-dance-celebration",
+    "title": "Annual University Cultural Music & Dance Gala",
+    "caption": "Gandaki University students performing traditional Nepalese folk dances during the Annual Cultural and Arts Festival.",
+    "category": "student",
+    "categoryLabel": "Student Life & Culture",
+    "date": "April 2022",
+    "colSpan": "ag-card-col-8",
+    "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/dancing-at-program.png",
+    "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/dancing-at-program.png"
+  },
+  {
+    "id": "gu-traditional-welcome-dance",
+    "title": "Traditional Welcome Dance Performance",
+    "caption": "A classical Gurung and Magar cultural performance welcoming national delegates and incoming students to the campus.",
+    "category": "student",
+    "categoryLabel": "Student Life & Culture",
+    "date": "April 2022",
+    "colSpan": "ag-card-col-4",
+    "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/dancer.png",
+    "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/dancer.png"
+  },
+  {
+    "id": "gu-student-dance-stage",
+    "title": "Student Performing Arts & Stage Production",
+    "caption": "Students showcasing choreography, theatrical talent, and live musical instrumentation at the campus auditorium.",
+    "category": "student",
+    "categoryLabel": "Student Life & Culture",
+    "date": "April 2022",
+    "colSpan": "ag-card-col-4",
+    "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/student-dance.png",
+    "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/student-dance.png"
+  },
+  {
+    "id": "gu-sports-meet-awards",
+    "title": "Dean & Sports Coordinator Athletic Accolades",
+    "caption": "Dean and University Sports Council awarding medals and trophies at the Gandaki Inter-University Championship.",
+    "category": "student",
+    "categoryLabel": "Student Life & Culture",
+    "date": "April 2022",
+    "colSpan": "ag-card-col-4",
+    "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/dean-coordinator-sport.png",
+    "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/dean-coordinator-sport.png"
+  },
+  {
+    "id": "gu-keynote-address",
+    "title": "Special Guest Keynote & Scholarly Address",
+    "caption": "Eminent guest speaker presenting the keynote on Higher Education Transformation in Gandaki Province.",
+    "category": "leadership",
+    "categoryLabel": "Leadership & Dignitaries",
+    "date": "April 2022",
+    "colSpan": "ag-card-col-4",
+    "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/special-guest-speak.png",
+    "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/special-guest-speak.png"
+  },
+  {
+    "id": "gu-token-of-love",
+    "title": "Institutional Token of Love & Honor Presentation",
+    "caption": "University Chancellor and Registrar presenting an official commemorative plaque to visiting academic dignitaries.",
+    "category": "academic",
+    "categoryLabel": "Academic & Convocation",
+    "date": "March 2022",
+    "colSpan": "ag-card-col-4",
+    "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/03/token-of-love.jpg",
+    "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/03/token-of-love.jpg"
+  },
+  {
+    "id": "gu-central-head-office",
+    "title": "Gandaki University Central Administrative Building",
+    "caption": "Exterior view of the university main administrative block and registrar office in Pokhara, Gandaki Province.",
+    "category": "campus",
+    "categoryLabel": "Campus & Infrastructure",
+    "date": "March 2022",
+    "colSpan": "ag-card-col-8",
+    "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/03/headoffice.jpg",
+    "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/03/headoffice.jpg"
+  },
+  {
+    "id": "gu-faculty-assembly",
+    "title": "University Faculty & Academic Department Team",
+    "caption": "Professors, teaching faculty, and laboratory heads across Computer Science, Pharmacy, and Sports Management.",
+    "category": "faculty",
+    "categoryLabel": "Faculty & Training",
+    "date": "April 2022",
+    "colSpan": "ag-card-col-4",
+    "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/facultystaff.png",
+    "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/facultystaff.png"
+  },
+  {
+    "id": "gu-women-in-academia",
+    "title": "Women in Higher Education & Faculty Forum",
+    "caption": "Female scholars, researchers, and administrative officers advancing excellence at Gandaki University.",
+    "category": "faculty",
+    "categoryLabel": "Faculty & Training",
+    "date": "April 2022",
+    "colSpan": "ag-card-col-4",
+    "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/female-staff.png",
+    "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/female-staff.png"
+  },
+  {
+    "id": "gu-conference-hall-meet",
+    "title": "Gandaki University Senate & General Conference Hall",
+    "caption": "Full assembly of faculty, department chairs, and student representatives discussing university policies.",
+    "category": "campus",
+    "categoryLabel": "Campus & Infrastructure",
+    "date": "January 2023",
+    "colSpan": "ag-card-col-8",
+    "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2023/01/IMG_2993-scaled.jpg",
+    "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2023/01/IMG_2993-scaled.jpg"
+  },
+  {
+    "id": "gu-lecture-hall-session",
+    "title": "Interactive University Lecture & Case Study Hall",
+    "caption": "Students and professors engaged in active class discourse and multimedia case presentations.",
+    "category": "academic",
+    "categoryLabel": "Academic & Convocation",
+    "date": "May 2023",
+    "colSpan": "ag-card-col-4",
+    "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2023/05/IMG_1637-scaled.jpg",
+    "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2023/05/IMG_1637-scaled.jpg"
+  },
+  {
+    "id": "gu-convocation-delegates",
+    "title": "University Senate & Provincial Delegations",
+    "caption": "Official ceremony reception with Gandaki Province government officials and academic leaders.",
+    "category": "academic",
+    "categoryLabel": "Academic & Convocation",
+    "date": "March 2025",
+    "colSpan": "ag-card-col-4",
+    "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2025/03/472790748_1004929365013082_3118557344797987940_n.jpg",
+    "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2025/03/472790748_1004929365013082_3118557344797987940_n.jpg"
+  },
+  {
+    "id": "gu-campus-field-day",
+    "title": "Campus Grounds & Practical Field Demonstration",
+    "caption": "Students participating in applied field demonstrations and university campus activities.",
+    "category": "campus",
+    "categoryLabel": "Campus & Infrastructure",
+    "date": "September 2021",
+    "colSpan": "ag-card-col-4",
+    "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2021/09/image4-scaled.jpeg",
+    "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2021/09/image4-scaled.jpeg"
+  },
+  {
+    "id": "gu-laboratory-research",
+    "title": "Science & Technology Experimental Laboratory",
+    "caption": "State-of-the-art laboratory facilities supporting undergraduate research and practical coursework.",
+    "category": "campus",
+    "categoryLabel": "Campus & Infrastructure",
+    "date": "September 2021",
+    "colSpan": "ag-card-col-4",
+    "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2021/09/img_0521-scaled.jpg",
+    "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2021/09/img_0521-scaled.jpg"
+  },
+  {
+    "id": "gu-student-union-assembly",
+    "title": "Student Forum & Interactive Assembly",
+    "caption": "Student union representatives and classmates convening for academic enrichment and community outreach.",
+    "category": "student",
+    "categoryLabel": "Student Life & Culture",
+    "date": "September 2021",
+    "colSpan": "ag-card-col-4",
+    "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2021/09/image1-scaled.jpeg",
+    "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2021/09/image1-scaled.jpeg"
+  }
+];
+
+    let activeFilter = 'all';
+    let searchQuery = '';
+    let visibleList = [...database];
+    let currentHudIndex = 0;
+
+    const bentoGrid = document.getElementById('agBentoGrid');
+    const emptyState = document.getElementById('agEmptyState');
+    const searchInput = document.getElementById('agSearchInput');
+    const chipButtons = document.querySelectorAll('.ag-chip-btn');
+    const marqueeTrack = document.getElementById('marqueeTrack');
+
+    // Lightbox elements
+    const hudModal = document.getElementById('agHudLightbox');
+    const hudImg = document.getElementById('agHudImg');
+    const hudTitle = document.getElementById('agHudTitle');
+    const hudDesc = document.getElementById('agHudDesc');
+    const hudCategory = document.getElementById('agHudCategory');
+    const hudDate = document.getElementById('agHudDate');
+    const hudIndex = document.getElementById('agHudIndex');
+    const hudDownload = document.getElementById('agHudDownload');
+    const hudClose = document.getElementById('agHudClose');
+    const hudPrev = document.getElementById('agHudPrev');
+    const hudNext = document.getElementById('agHudNext');
+
+    // Populate Top Marquee Carousel Strip (Doubled for infinite seamless loop)
+    function buildMarquee() {
+      const highlights = database.slice(0, 10);
+      const loopArray = [...highlights, ...highlights];
+      
+      marqueeTrack.innerHTML = loopArray.map((item, i) => `
+        <div class="ag-marquee-card" onclick="openHudById('${item.id}')">
+          <img src="${item.thumbSrc}" alt="${item.title}" class="ag-marquee-img" loading="lazy">
+          <div class="ag-marquee-overlay">
+            <div class="ag-marquee-title">${item.title}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Render Bento Photo Grid Wall
+    function renderBentoWall() {
+      visibleList = database.filter(item => {
+        const matchesCategory = activeFilter === 'all' || item.category === activeFilter;
+        const matchesSearch = !searchQuery ||
+          item.title.toLowerCase().includes(searchQuery) ||
+          item.caption.toLowerCase().includes(searchQuery) ||
+          item.id.toLowerCase().includes(searchQuery) ||
+          item.categoryLabel.toLowerCase().includes(searchQuery);
+        return matchesCategory && matchesSearch;
+      });
+
+      bentoGrid.innerHTML = '';
+
+      if (visibleList.length === 0) {
+        emptyState.style.display = 'block';
+        return;
+      }
+      emptyState.style.display = 'none';
+
+      visibleList.forEach((item, idx) => {
+        const card = document.createElement('article');
+        card.className = `ag-photo-card ${item.colSpan}`;
+        card.dataset.idx = idx;
+
+        card.innerHTML = `
+          <div class="reticle-tl"></div><div class="reticle-tr"></div><div class="reticle-bl"></div><div class="reticle-br"></div>
+          <div class="ag-card-viewport">
+            <div class="ag-card-hud-top">
+              <span class="ag-card-category-tag">${item.categoryLabel}</span>
+              <button type="button" class="ag-inspect-btn" title="Expand View">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="15 3 21 3 21 9"></polyline>
+                  <polyline points="9 21 3 21 3 15"></polyline>
+                  <line x1="21" y1="3" x2="14" y2="10"></line>
+                  <line x1="3" y1="21" x2="10" y2="14"></line>
+                </svg>
+              </button>
+            </div>
+            <img src="${item.thumbSrc}" alt="${item.title}" class="ag-card-image" loading="lazy" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=800&auto=format&fit=crop&q=80';">
+          </div>
+          <div class="ag-card-body">
+            <div>
+              <div class="ag-card-meta-row">
+                <span>#${item.id}</span>
+                <span>${item.date}</span>
+              </div>
+              <h3 class="ag-card-title">${item.title}</h3>
+              <p class="ag-card-desc">${item.caption}</p>
+            </div>
+            <div class="ag-card-footer">
+              <span class="ag-explore-link">
+                <span>View Full Chronicle</span>
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+              </span>
+              <span style="font-size: 11px; font-family: 'JetBrains Mono', monospace; color: #86868b;">MASTER 4K</span>
+            </div>
+          </div>
+        `;
+
+        // Card Gyro Tilt & Click Interaction
+        initCardPhysics(card, idx);
+        bentoGrid.appendChild(card);
+      });
+    }
+
+    // Card 3D Perspective Physics
+    function initCardPhysics(card, idx) {
+      let rect;
+      card.addEventListener('mouseenter', () => {
+        rect = card.getBoundingClientRect();
+      });
+
+      card.addEventListener('mousemove', (e) => {
+        if (!rect) rect = card.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const cx = rect.width / 2;
+        const cy = rect.height / 2;
+        const rotateX = ((y - cy) / cy) * -4.5;
+        const rotateY = ((x - cx) / cx) * 4.5;
+
+        card.style.transform = `perspective(900px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) translateZ(6px)`;
+      });
+
+      card.addEventListener('mouseleave', () => {
+        card.style.transform = '';
+      });
+
+      card.addEventListener('click', () => openHud(idx));
+    }
+
+    // Filter Chips Event Binding
+    chipButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        chipButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        activeFilter = btn.dataset.cat;
+        renderBentoWall();
+      });
+    });
+
+    // Real-time Search Input
+    searchInput.addEventListener('input', (e) => {
+      searchQuery = e.target.value.toLowerCase().trim();
+      renderBentoWall();
+    });
+
+    // Global Key Shortcut ⌘K / Ctrl+K
+    window.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        searchInput.focus();
+      }
+    });
+
+    // Holographic HUD Lightbox Functions
+    function openHud(idx) {
+      if (idx < 0 || idx >= visibleList.length) return;
+      currentHudIndex = idx;
+      const item = visibleList[idx];
+
+      hudImg.src = item.origSrc;
+      hudImg.alt = item.title;
+      hudTitle.textContent = item.title;
+      hudDesc.textContent = item.caption;
+      hudCategory.innerHTML = item.categoryLabel;
+      hudDate.textContent = item.date;
+      hudIndex.textContent = `ARCHIVE ${String(idx + 1).padStart(2, '0')} OF ${String(visibleList.length).padStart(2, '0')}`;
+      hudDownload.href = item.origSrc;
+
+      hudModal.classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function openHudById(id) {
+      const idx = visibleList.findIndex(item => item.id === id);
+      if (idx !== -1) {
+        openHud(idx);
+      } else {
+        const fullIdx = database.findIndex(item => item.id === id);
+        if (fullIdx !== -1) {
+          visibleList = [...database];
+          activeFilter = 'all';
+          chipButtons.forEach(b => b.classList.toggle('active', b.dataset.cat === 'all'));
+          renderBentoWall();
+          openHud(fullIdx);
+        }
+      }
+    }
+
+    function closeHud() {
+      hudModal.classList.remove('active');
+      document.body.style.overflow = '';
+    }
+
+    function prevHud() {
+      if (currentHudIndex > 0) {
+        openHud(currentHudIndex - 1);
+      } else {
+        openHud(visibleList.length - 1);
+      }
+    }
+
+    function nextHud() {
+      if (currentHudIndex < visibleList.length - 1) {
+        openHud(currentHudIndex + 1);
+      } else {
+        openHud(0);
+      }
+    }
+
+    hudClose.addEventListener('click', closeHud);
+    hudPrev.addEventListener('click', (e) => { e.stopPropagation(); prevHud(); });
+    hudNext.addEventListener('click', (e) => { e.stopPropagation(); nextHud(); });
+
+    hudModal.addEventListener('click', (e) => {
+      if (e.target === hudModal) closeHud();
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (!hudModal.classList.contains('active')) return;
+      if (e.key === 'Escape') closeHud();
+      if (e.key === 'ArrowLeft') prevHud();
+      if (e.key === 'ArrowRight') nextHud();
+    });
+
+    // Theme state synchronization
+    if (localStorage.getItem('theme') === 'dark') {
+      document.body.classList.add('dark-mode');
+    }
+
+    // Initialize View
+    buildMarquee();
+    renderBentoWall();
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,1311 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>University Academic Portal &middot; Gandaki University</title>
+  <meta name="description" content="Official academic master repository, degree curricula, download vault, examination systems, and administration directory for Gandaki University.">
+  
+  <!-- Modern Apple Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+
+  <style>
+    /* ==========================================================================
+       APPLE CERAMIC WHITE & GOOGLE ANTIGRAVITY — ADVANCED MASTER PORTAL
+       ========================================================================== */
+    :root {
+      --ceramic-bg: #fafafc;
+      --ceramic-surface: #ffffff;
+      --ceramic-card-hover: #fcfcfe;
+      --ceramic-border: rgba(0, 0, 0, 0.07);
+      --ceramic-border-hover: rgba(0, 0, 0, 0.16);
+      --ceramic-border-focus: rgba(0, 113, 227, 0.4);
+      --text-main: #1d1d1f;
+      --text-sub: #6e6e73;
+      --text-muted: #86868b;
+      --text-caption: #aeaeb2;
+      --chip-bg: #f2f2f5;
+      --chip-text: #48484a;
+      --laser-sweep: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.95), rgba(0, 0, 0, 0.04), transparent);
+      --specular-inner: inset 0 1px 0 rgba(255, 255, 255, 1), inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+      --apple-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.03), 0 1px 2px rgba(0, 0, 0, 0.02);
+      --apple-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.05), 0 2px 6px rgba(0, 0, 0, 0.02);
+      --apple-shadow-hover: 0 20px 48px rgba(0, 0, 0, 0.08), 0 6px 16px rgba(0, 0, 0, 0.03);
+    }
+
+    body.portal-page-body {
+      background-color: var(--ceramic-bg);
+      color: var(--text-main);
+      min-height: 100vh;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Ambient Antigravity Perspective Wireframe (White Edition) */
+    .portal-ambient-canvas {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+      background: radial-gradient(circle at 50% -10%, rgba(240, 240, 248, 0.9) 0%, rgba(250, 250, 252, 0.5) 60%, var(--ceramic-bg) 100%);
+    }
+
+    .portal-grid-mesh {
+      position: absolute;
+      inset: -50%;
+      background-image: 
+        linear-gradient(to right, rgba(0, 0, 0, 0.032) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(0, 0, 0, 0.032) 1px, transparent 1px);
+      background-size: 52px 52px;
+      transform: perspective(1100px) rotateX(54deg);
+      mask-image: radial-gradient(ellipse 75% 65% at 50% 25%, black 20%, transparent 80%);
+      -webkit-mask-image: radial-gradient(ellipse 75% 65% at 50% 25%, black 20%, transparent 80%);
+    }
+
+    .portal-light-aura {
+      position: absolute;
+      top: -12vw;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 85vw;
+      max-width: 1100px;
+      height: 520px;
+      border-radius: 50%;
+      background: radial-gradient(ellipse 65% 55% at 50% 30%, rgba(255, 255, 255, 0.95) 0%, rgba(235, 238, 245, 0.6) 45%, transparent 80%);
+      filter: blur(50px);
+    }
+
+    /* Universal Glass Nav (Frosted Ceramic) */
+    .portal-nav-blur {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 1000;
+      backdrop-filter: blur(32px) saturate(190%);
+      -webkit-backdrop-filter: blur(32px) saturate(190%);
+      background: rgba(255, 255, 255, 0.85);
+      border-bottom: 1px solid var(--ceramic-border);
+      padding: 12px 24px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02);
+      transition: all 0.3s ease;
+    }
+
+    .portal-nav-container {
+      max-width: 1280px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .portal-brand-group {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+    }
+
+    .portal-wordmark {
+      font-size: 14.5px;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      color: var(--text-main);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    .portal-wordmark-badge {
+      font-size: 9.5px;
+      font-weight: 700;
+      background: #1d1d1f;
+      color: #ffffff;
+      padding: 2.5px 7.5px;
+      border-radius: 980px;
+      letter-spacing: 0.08em;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .portal-nav-menu {
+      display: flex;
+      align-items: center;
+      gap: 22px;
+    }
+
+    .portal-nav-link {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-sub);
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+
+    .portal-nav-link:hover {
+      color: var(--text-main);
+    }
+
+    .portal-nav-link.active {
+      color: var(--text-main);
+      font-weight: 700;
+    }
+
+    /* Hero Section */
+    .portal-hero {
+      padding: 120px 24px 28px;
+      max-width: 1100px;
+      margin: 0 auto;
+      text-align: center;
+      position: relative;
+      z-index: 2;
+    }
+
+    .portal-telemetry-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid var(--ceramic-border);
+      border-radius: 980px;
+      padding: 5.5px 16px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      color: var(--text-sub);
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.03);
+      margin-bottom: 22px;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+
+    .portal-pulse-radar {
+      width: 6.5px;
+      height: 6.5px;
+      border-radius: 50%;
+      background: #1d1d1f;
+      box-shadow: 0 0 8px rgba(0, 0, 0, 0.4);
+      animation: radarBeaconPulse 1.8s infinite ease-in-out;
+    }
+
+    .portal-hero-headline {
+      font-size: clamp(34px, 5.2vw, 58px);
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      line-height: 1.07;
+      margin: 0 0 16px;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    .portal-title-gradient {
+      background: linear-gradient(180deg, #1d1d1f 30%, #48484a 80%, #6e6e73 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .portal-hero-subtext {
+      font-size: clamp(14.5px, 1.8vw, 16.5px);
+      color: var(--text-sub);
+      max-width: 680px;
+      margin: 0 auto 34px;
+      line-height: 1.55;
+      font-weight: 400;
+    }
+
+    /* Fast Action Metrics Strip (Ceramic Edition) */
+    .portal-metrics-row {
+      display: flex;
+      justify-content: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 34px;
+    }
+
+    .portal-metric-card {
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid var(--ceramic-border);
+      border-radius: 16px;
+      padding: 13px 20px;
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      box-shadow: var(--apple-shadow-sm);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .portal-metric-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--apple-shadow-md);
+    }
+
+    .portal-metric-num {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--text-main);
+      font-family: 'JetBrains Mono', monospace;
+      line-height: 1;
+    }
+
+    .portal-metric-label {
+      font-size: 11.5px;
+      color: var(--text-sub);
+      font-weight: 600;
+      text-align: left;
+      line-height: 1.35;
+    }
+
+    /* Search & Category Filter Deck */
+    .portal-deck-wrap {
+      max-width: 1240px;
+      margin: 0 auto 34px;
+      padding: 0 24px;
+      width: 100%;
+      position: relative;
+      z-index: 10;
+    }
+
+    .portal-deck-capsule {
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid var(--ceramic-border);
+      border-radius: 20px;
+      padding: 9px 14px;
+      box-shadow: var(--apple-shadow-md);
+      backdrop-filter: blur(32px) saturate(180%);
+      -webkit-backdrop-filter: blur(32px) saturate(180%);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .portal-chips-deck {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-wrap: wrap;
+    }
+
+    .portal-chip-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--chip-text);
+      padding: 6.5px 13px;
+      border-radius: 980px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      user-select: none;
+    }
+
+    .portal-chip-btn:hover:not(.active) {
+      background: rgba(0, 0, 0, 0.04);
+      color: var(--text-main);
+    }
+
+    .portal-chip-btn.active {
+      background: #1d1d1f;
+      color: #ffffff;
+      border-color: #1d1d1f;
+      font-weight: 700;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+    }
+
+    .portal-search-deck {
+      position: relative;
+      min-width: 250px;
+      flex: 1;
+      max-width: 340px;
+    }
+
+    .portal-search-input {
+      width: 100%;
+      height: 36px;
+      background: #f4f4f7;
+      border: 1px solid rgba(0, 0, 0, 0.05);
+      border-radius: 980px;
+      padding: 0 36px 0 34px;
+      font-size: 12.5px;
+      font-family: inherit;
+      color: var(--text-main);
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    .portal-search-input:focus {
+      background: #ffffff;
+      border-color: var(--ceramic-border-focus);
+      box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.12);
+    }
+
+    .portal-search-icon-left {
+      position: absolute;
+      left: 11px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      pointer-events: none;
+    }
+
+    /* Main Grid Layout */
+    .portal-container {
+      max-width: 1280px;
+      margin: 0 auto 90px;
+      padding: 0 24px;
+      width: 100%;
+      position: relative;
+      z-index: 2;
+    }
+
+    .portal-section-title {
+      font-size: 17px;
+      font-weight: 800;
+      color: var(--text-main);
+      margin: 0 0 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      letter-spacing: -0.02em;
+    }
+
+    .portal-grid-bento {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 20px;
+      margin-bottom: 44px;
+    }
+
+    /* Card Spans */
+    .p-col-4 { grid-column: span 4; }
+    .p-col-6 { grid-column: span 6; }
+    .p-col-8 { grid-column: span 8; }
+    .p-col-12 { grid-column: span 12; }
+
+    @media (max-width: 1024px) {
+      .p-col-4, .p-col-6, .p-col-8 { grid-column: span 6; }
+    }
+
+    @media (max-width: 680px) {
+      .p-col-4, .p-col-6, .p-col-8, .p-col-12 { grid-column: span 12; }
+    }
+
+    /* State-of-the-Art Ceramic White Card */
+    .portal-card {
+      position: relative;
+      background: var(--ceramic-surface);
+      border-radius: 20px;
+      border: 1px solid var(--ceramic-border);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+      box-shadow: var(--apple-shadow-sm), var(--specular-inner);
+      transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.22s ease, background 0.22s ease;
+      transform-style: preserve-3d;
+      perspective: 900px;
+    }
+
+    .portal-card:hover {
+      background: var(--ceramic-card-hover);
+      transform: translateY(-5px);
+      box-shadow: var(--apple-shadow-hover), var(--specular-inner);
+      border-color: var(--ceramic-border-hover);
+    }
+
+    /* Holographic Corner Crosshair Reticles (White Edition) */
+    .portal-card .reticle-tl,
+    .portal-card .reticle-tr,
+    .portal-card .reticle-bl,
+    .portal-card .reticle-br {
+      position: absolute;
+      width: 7px;
+      height: 7px;
+      border-color: rgba(0, 0, 0, 0.12);
+      border-style: solid;
+      pointer-events: none;
+      transition: border-color 0.22s ease;
+    }
+
+    .portal-card .reticle-tl { top: 7px; left: 7px; border-width: 1px 0 0 1px; }
+    .portal-card .reticle-tr { top: 7px; right: 7px; border-width: 1px 1px 0 0; }
+    .portal-card .reticle-bl { bottom: 7px; left: 7px; border-width: 0 0 1px 1px; }
+    .portal-card .reticle-br { bottom: 7px; right: 7px; border-width: 0 1px 1px 0; }
+
+    .portal-card:hover .reticle-tl,
+    .portal-card:hover .reticle-tr,
+    .portal-card:hover .reticle-bl,
+    .portal-card:hover .reticle-br {
+      border-color: rgba(0, 0, 0, 0.35);
+    }
+
+    /* Laser Scanner Specular Sweep (White Beam) */
+    .portal-card::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: -120%;
+      width: 55%;
+      height: 100%;
+      background: var(--laser-sweep);
+      transform: skewX(-20deg);
+      pointer-events: none;
+      transition: left 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 10;
+    }
+
+    .portal-card:hover::after {
+      left: 180%;
+    }
+
+    .p-card-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .p-badge {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      padding: 3.5px 9px;
+      border-radius: 980px;
+      background: #f2f2f6;
+      color: #1d1d1f;
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .p-icon-box {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      background: #f5f5f8;
+      border: 1px solid rgba(0, 0, 0, 0.05);
+      color: #1d1d1f;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 14px;
+    }
+
+    .p-card-title {
+      font-size: 16.5px;
+      font-weight: 700;
+      color: var(--text-main);
+      margin: 0 0 7px;
+      line-height: 1.35;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      letter-spacing: -0.015em;
+    }
+
+    .p-card-desc {
+      font-size: 13.2px;
+      color: var(--text-sub);
+      line-height: 1.5;
+      margin: 0 0 16px;
+    }
+
+    .p-card-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+      margin-bottom: 16px;
+    }
+
+    /* Apple Precision Action Buttons */
+    .p-btn-action {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 980px;
+      font-size: 12px;
+      font-weight: 700;
+      background: #1d1d1f;
+      color: #ffffff;
+      text-decoration: none;
+      transition: all 0.22s ease;
+      width: fit-content;
+      border: 1px solid #1d1d1f;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    }
+
+    .p-btn-action:hover {
+      background: #000000;
+      transform: translateY(-1.5px);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+    }
+
+    .p-btn-secondary {
+      background: #f4f4f7;
+      color: #1d1d1f;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      box-shadow: none;
+    }
+
+    .p-btn-secondary:hover {
+      background: #eaebee;
+      border-color: rgba(0, 0, 0, 0.16);
+      color: #000000;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+  </style>
+</head>
+
+<body class="portal-page-body">
+
+  <!-- Ambient Antigravity Light Mesh Canvas -->
+  <div class="portal-ambient-canvas" aria-hidden="true">
+    <div class="portal-grid-mesh"></div>
+    <div class="portal-light-aura"></div>
+  </div>
+
+  <!-- Top Universal Navigation (Ceramic Frosted Glass) -->
+  <header class="portal-nav-blur">
+    <div class="portal-nav-container">
+      <div class="portal-brand-group">
+        <a href="index.html" class="portal-wordmark">
+          <span>Semester Library</span>
+          <span class="portal-wordmark-badge">HUB v2.0</span>
+        </a>
+        <nav class="portal-nav-menu">
+          <a href="index.html" class="portal-nav-link">Overview</a>
+          <a href="routine.html" class="portal-nav-link">Routine</a>
+          <a href="dashboard.html" class="portal-nav-link">Feed</a>
+          <a href="chat.html" class="portal-nav-link">Chat</a>
+        </nav>
+      </div>
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <a href="https://gandakiuniversity.edu.np" target="_blank" rel="noopener noreferrer"
+          class="univ-tag apple-univ-tag" style="padding: 5px 13px; font-size: 11.5px;">Gandaki University</a>
+        <a href="login.html" class="nav-cta-btn apple-nav-btn" style="padding: 5px 15px; font-size: 11.5px; background: #1d1d1f; color: #ffffff;">Sign In</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Stage -->
+  <section class="portal-hero">
+    <!-- Telemetry Capsule -->
+    <div class="portal-telemetry-badge">
+      <span class="portal-pulse-radar"></span>
+      <span>OFFICIAL MASTER REPOSITORY</span>
+      <span style="opacity: 0.35;">/</span>
+      <span>GANDAKI UNIVERSITY</span>
+    </div>
+
+    <!-- Apple Main Headline -->
+    <h1 class="portal-hero-headline">
+      <span class="portal-title-gradient">Essential Tools, Curricula</span><br />
+      <span class="portal-title-gradient">&amp; Master Documents.</span>
+    </h1>
+
+    <p class="portal-hero-subtext">
+      The state-of-the-art repository for academic program syllabi, official downloadable documents, research proposal guidelines, examination portals, and administration directories.
+    </p>
+
+    <!-- Fast Action Metrics Strip (Ceramic White) -->
+    <div class="portal-metrics-row">
+      <div class="portal-metric-card">
+        <div class="portal-metric-num">06</div>
+        <div class="portal-metric-label">Degree Programs<br>&amp; Syllabi</div>
+      </div>
+      <div class="portal-metric-card">
+        <div class="portal-metric-num">100%</div>
+        <div class="portal-metric-label">Official Acts &amp;<br>Calendar Files</div>
+      </div>
+      <div class="portal-metric-card">
+        <div class="portal-metric-num">24/7</div>
+        <div class="portal-metric-label">Exam Portal &amp;<br>LMS Access</div>
+      </div>
+      <div class="portal-metric-card">
+        <div class="portal-metric-num">DIR</div>
+        <div class="portal-metric-label">Dean &amp; Registrar<br>Contact Directory</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Search & Category Filter Deck -->
+  <div class="portal-deck-wrap">
+    <div class="portal-deck-capsule">
+      <div class="portal-chips-deck" id="portalCategoryChips">
+        <button class="portal-chip-btn active" data-filter="all">All Resources</button>
+        <button class="portal-chip-btn" data-filter="spotlights">Feats &amp; Innovation</button>
+        <button class="portal-chip-btn" data-filter="programs">Academic Degrees</button>
+        <button class="portal-chip-btn" data-filter="downloads">Download Vault</button>
+        <button class="portal-chip-btn" data-filter="portals">Portals &amp; Systems</button>
+        <button class="portal-chip-btn" data-filter="directory">Administration</button>
+      </div>
+
+      <div class="portal-search-deck">
+        <svg class="portal-search-icon-left" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input type="search" id="portalSearchInput" class="portal-search-input" placeholder="Search forms, degrees, contacts, feats...">
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Resource Bento Grid Container -->
+  <main class="portal-container">
+
+    <!-- 0. FEATS & INNOVATIONS SPOTLIGHT -->
+    <div class="portal-resource-section" data-section="spotlights">
+      <h2 class="portal-section-title">
+        <span>✦</span>
+        <span>Key Highlights &amp; Groundbreaking Initiatives</span>
+      </h2>
+
+      <div class="portal-grid-bento">
+        <!-- MMA Champion Card -->
+        <article class="portal-card p-col-8" data-keywords="mma susmita thapa magar champion ronin fc combat muay thai gold fight punch knockout">
+          <div class="reticle-tl"></div><div class="reticle-tr"></div><div class="reticle-bl"></div><div class="reticle-br"></div>
+          <div>
+            <div class="p-card-top">
+              <span class="p-badge">NATIONAL FIRST</span>
+              <span style="font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--text-muted);">AUG 15, 2026</span>
+            </div>
+            <h3 class="p-card-title" style="font-size: 18px;">1st Nepali Woman to Win a Pro MMA Fight is a GU Student</h3>
+            <p class="p-card-desc">
+              <strong>Susmita Thapa Magar</strong> (8th-semester BSM student at Gandaki University) made international sports history at <em>Ronin Fighting Championship-3</em> in Bengaluru, India, winning by unanimous decision and backing her undefeated 7-0 Muay Thai record.
+            </p>
+          </div>
+          <div class="p-card-meta">
+            <span>Muay Thai 7-0</span> &bull; <span>Ronin FC-3 Winner</span> &bull; <span>BSM 8th Sem</span>
+          </div>
+          <a href="https://www.gandakiuniversity.edu.np/news-posts/gandaki-university-celebrates-historic-mma-victory-by-bsm-student-susmita-thapa-magar/" target="_blank" class="p-btn-action">
+            <span>Read Official Report &rarr;</span>
+          </a>
+        </article>
+
+        <!-- Drone & Mahabir Pun Innovation -->
+        <article class="portal-card p-col-4" data-keywords="mahabir pun gurcii drone medical drone robot startup esp patent invention">
+          <div class="reticle-tl"></div><div class="reticle-tr"></div><div class="reticle-bl"></div><div class="reticle-br"></div>
+          <div>
+            <div class="p-card-top">
+              <span class="p-badge">INNOVATION HUB</span>
+              <span style="font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--text-muted);">GURCII</span>
+            </div>
+            <h3 class="p-card-title">Autonomous Medical Drones &amp; Inventions</h3>
+            <p class="p-card-desc">
+              In partnership with Magsaysay awardee <strong>Dr. Mahabir Pun</strong>, GU operates the <em>Research Center, Invention &amp; Innovation Center</em> (RC-II), developing life-saving medical drones and indigenous tech patents.
+            </p>
+          </div>
+          <div class="p-card-meta">
+            <span>Direct Seed Grants</span> &bull; <span>Patent Incubation</span>
+          </div>
+          <a href="https://www.gurcii.edu.np" target="_blank" class="p-btn-action p-btn-secondary">
+            <span>Explore GURCII &rarr;</span>
+          </a>
+        </article>
+
+        <!-- High-Altitude Alpine Pharmacology -->
+        <article class="portal-card p-col-6" data-keywords="yarsagumba cordyceps alpine pharmacology himalaya herb medicine research">
+          <div class="reticle-tl"></div><div class="reticle-tr"></div><div class="reticle-bl"></div><div class="reticle-br"></div>
+          <div>
+            <div class="p-card-top">
+              <span class="p-badge">ALPINE RESEARCH</span>
+              <span style="font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--text-muted);">ANNAPURNA BASIN</span>
+            </div>
+            <h3 class="p-card-title">Annapurna Himalayan Medicinal Flora Research</h3>
+            <p class="p-card-desc">
+              Situated beneath Mt. Machhapuchhre, GU's Faculty of Pharmacy conducts direct clinical isolation on rare Himalayan herbs like <em>Yarsagumba</em> (Cordyceps) and endemic alpine medicinal flora.
+            </p>
+          </div>
+          <div class="p-card-meta">
+            <span>Phytochemical Labs</span> &bull; <span>Herbal Extracts</span>
+          </div>
+          <a href="https://www.jagriti.gurcii.edu.np" target="_blank" class="p-btn-action p-btn-secondary">
+            <span>Explore Studies &rarr;</span>
+          </a>
+        </article>
+
+        <!-- 1st Provincial University -->
+        <article class="portal-card p-col-6" data-keywords="provincial autonomous university constitution federal pokhara senate">
+          <div class="reticle-tl"></div><div class="reticle-tr"></div><div class="reticle-bl"></div><div class="reticle-br"></div>
+          <div>
+            <div class="p-card-top">
+              <span class="p-badge">GOVERNANCE</span>
+              <span style="font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--text-muted);">ESTD. 2019</span>
+            </div>
+            <h3 class="p-card-title">Nepal's 1st Autonomous Provincial University</h3>
+            <p class="p-card-desc">
+              Founded under Gandaki Provincial Assembly Act 2076, Gandaki University is Nepal's first university governed by an independent Board of Trustees (BOT) rather than centralized ministries.
+            </p>
+          </div>
+          <div class="p-card-meta">
+            <span>300+ Ropani Campus</span> &bull; <span>Board of Trustees</span>
+          </div>
+          <a href="https://www.gandakiuniversity.edu.np/about-us/" target="_blank" class="p-btn-action p-btn-secondary">
+            <span>Read Founding History &rarr;</span>
+          </a>
+        </article>
+      </div>
+    </div>
+
+    <!-- 1. ACADEMIC PROGRAMS SECTION -->
+    <div class="portal-resource-section" data-section="programs">
+      <h2 class="portal-section-title">
+        <span>✦</span>
+        <span>Academic Degrees &amp; Curricula</span>
+      </h2>
+
+      <div class="portal-grid-bento">
+        <!-- BIT -->
+        <article class="portal-card p-col-4" data-keywords="bit bachelor information technology coding software python ai">
+          <div class="reticle-tl"></div><div class="reticle-tr"></div><div class="reticle-bl"></div><div class="reticle-br"></div>
+          <div>
+            <div class="p-card-top">
+              <span class="p-badge">SCIENCE &amp; TECH</span>
+              <span style="font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--text-muted);">4 YRS &bull; 8 SEM</span>
+            </div>
+            <div class="p-icon-box">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="16 18 22 12 16 6"></polyline>
+                <polyline points="8 6 2 12 8 18"></polyline>
+              </svg>
+            </div>
+            <h3 class="p-card-title">Bachelor of Information Technology (BIT)</h3>
+            <p class="p-card-desc">Curriculum covering Software Engineering, AI Systems, Cloud Computing, Database Architectures, and Cybersecurity.</p>
+          </div>
+          <div class="p-card-meta">
+            <span>126 Credit Hours</span> &bull; <span>Pokhara Campus</span>
+          </div>
+          <a href="https://www.gandakiuniversity.edu.np/degrees-and-programs/bachelor-in-information-technology/" target="_blank" class="p-btn-action">
+            <span>View Syllabus &rarr;</span>
+          </a>
+        </article>
+
+        <!-- BBA -->
+        <article class="portal-card p-col-4" data-keywords="bba business administration management finance marketing">
+          <div class="reticle-tl"></div><div class="reticle-tr"></div><div class="reticle-bl"></div><div class="reticle-br"></div>
+          <div>
+            <div class="p-card-top">
+              <span class="p-badge">MANAGEMENT</span>
+              <span style="font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--text-muted);">4 YRS &bull; 8 SEM</span>
+            </div>
+            <div class="p-icon-box">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+              </svg>
+            </div>
+            <h3 class="p-card-title">Bachelor of Business Administration (BBA)</h3>
+            <p class="p-card-desc">Leadership curriculum with venture finance, marketing analytics, business case studies, and corporate internships.</p>
+          </div>
+          <div class="p-card-meta">
+            <span>120 Credit Hours</span> &bull; <span>Executive Internships</span>
+          </div>
+          <a href="https://www.gandakiuniversity.edu.np/degrees-and-programs/bachelor-in-sports-management/" target="_blank" class="p-btn-action">
+            <span>View Syllabus &rarr;</span>
+          </a>
+        </article>
+
+        <!-- B.Pharm -->
+        <article class="portal-card p-col-4" data-keywords="pharmacy bpharm health drug medicine hospital clinical">
+          <div class="reticle-tl"></div><div class="reticle-tr"></div><div class="reticle-bl"></div><div class="reticle-br"></div>
+          <div>
+            <div class="p-card-top">
+              <span class="p-badge">HEALTH SCIENCES</span>
+              <span style="font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--text-muted);">4 YRS &bull; 8 SEM</span>
+            </div>
+            <div class="p-icon-box">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"></path>
+                <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"></path>
+              </svg>
+            </div>
+            <h3 class="p-card-title">Bachelor of Pharmacy (B.Pharm)</h3>
+            <p class="p-card-desc">Pharmacological formulation, medicinal chemistry, clinical trial analytics, and pharmaceutical industrial training.</p>
+          </div>
+          <div class="p-card-meta">
+            <span>Lab Intensive</span> &bull; <span>NPC Certified</span>
+          </div>
+          <a href="https://www.gandakiuniversity.edu.np/degrees-and-programs/bachelor-in-sports-management/" target="_blank" class="p-btn-action">
+            <span>View Syllabus &rarr;</span>
+          </a>
+        </article>
+
+        <!-- BSM -->
+        <article class="portal-card p-col-4" data-keywords="sports bsm management athletic fitness training">
+          <div class="reticle-tl"></div><div class="reticle-tr"></div><div class="reticle-bl"></div><div class="reticle-br"></div>
+          <div>
+            <div class="p-card-top">
+              <span class="p-badge">PIONEER COURSE</span>
+              <span style="font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--text-muted);">4 YRS &bull; 8 SEM</span>
+            </div>
+            <div class="p-icon-box">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path>
+                <path d="M2 12h20"></path>
+              </svg>
+            </div>
+            <h3 class="p-card-title">Bachelor in Sports Management (BSM)</h3>
+            <p class="p-card-desc">First program in Nepal combining athletic governance, sports physiology, event marketing, and coaching administration.</p>
+          </div>
+          <div class="p-card-meta">
+            <span>Olympic Partner</span> &bull; <span>Athletic Labs</span>
+          </div>
+          <a href="https://www.gandakiuniversity.edu.np/degrees-and-programs/bachelor-in-sports-management/" target="_blank" class="p-btn-action">
+            <span>View Syllabus &rarr;</span>
+          </a>
+        </article>
+
+        <!-- B.A. LL.B -->
+        <article class="portal-card p-col-4" data-keywords="law ballb legal advocate justice court">
+          <div class="reticle-tl"></div><div class="reticle-tr"></div><div class="reticle-bl"></div><div class="reticle-br"></div>
+          <div>
+            <div class="p-card-top">
+              <span class="p-badge">LAW FACULTY</span>
+              <span style="font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--text-muted);">5 YRS &bull; 10 SEM</span>
+            </div>
+            <div class="p-icon-box">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"></path>
+                <path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"></path>
+                <path d="M7 21h10"></path>
+                <path d="M12 3v18"></path>
+                <path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"></path>
+              </svg>
+            </div>
+            <h3 class="p-card-title">Bachelor of Arts Bachelor of Law (B.A. LL.B)</h3>
+            <p class="p-card-desc">5-year integrated legal curriculum with moot court practicals, constitutional law, and corporate jurisprudence.</p>
+          </div>
+          <div class="p-card-meta">
+            <span>Moot Court Lab</span> &bull; <span>Nepal Bar Council</span>
+          </div>
+          <a href="https://www.gandakiuniversity.edu.np/degrees-and-programs/bachelor-in-sports-management/" target="_blank" class="p-btn-action">
+            <span>View Syllabus &rarr;</span>
+          </a>
+        </article>
+
+        <!-- MIT-AI -->
+        <article class="portal-card p-col-4" data-keywords="masters ai artificial intelligence mit data science machine learning">
+          <div class="reticle-tl"></div><div class="reticle-tr"></div><div class="reticle-bl"></div><div class="reticle-br"></div>
+          <div>
+            <div class="p-card-top">
+              <span class="p-badge">POSTGRADUATE</span>
+              <span style="font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--text-muted);">2 YRS &bull; 4 SEM</span>
+            </div>
+            <div class="p-icon-box">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2a8 8 0 0 0-8 8c0 5 8 12 8 12s8-7 8-12a8 8 0 0 0-8-8z"></path>
+                <circle cx="12" cy="10" r="3"></circle>
+              </svg>
+            </div>
+            <h3 class="p-card-title">Master in IT - AI (MIT-AI)</h3>
+            <p class="p-card-desc">Advanced postgraduate degree focusing on Deep Learning, NLP, Computer Vision, and Autonomous Robotics.</p>
+          </div>
+          <div class="p-card-meta">
+            <span>Thesis Defense</span> &bull; <span>GURCII Affiliated</span>
+          </div>
+          <a href="https://www.gandakiuniversity.edu.np/degrees-and-programs/bachelor-in-sports-management/" target="_blank" class="p-btn-action">
+            <span>View Syllabus &rarr;</span>
+          </a>
+        </article>
+      </div>
+    </div>
+
+    <!-- 2. OFFICIAL DOWNLOAD VAULT -->
+    <div class="portal-resource-section" data-section="downloads">
+      <h2 class="portal-section-title">
+        <span>✦</span>
+        <span>Official Download Vault (Forms, Acts &amp; Calendars)</span>
+      </h2>
+
+      <div class="portal-grid-bento">
+        <!-- Academic Calendar -->
+        <article class="portal-card p-col-6" data-keywords="academic calendar 2082 2083 exam vacation admission holidays">
+          <div class="reticle-tl"></div><div class="reticle-tr"></div><div class="reticle-bl"></div><div class="reticle-br"></div>
+          <div>
+            <div class="p-card-top">
+              <span class="p-badge">MASTER CALENDAR</span>
+              <span style="font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--text-muted);">PDF &bull; 2.4 MB</span>
+            </div>
+            <h3 class="p-card-title">Official Academic Calendar (2082 / 2083)</h3>
+            <p class="p-card-desc">Full semester schedule outlining class commencement dates, internal assessments, pre-board exams, board examinations, and university holidays.</p>
+          </div>
+          <a href="https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/06/Academic-Calendar-2082-83.pdf" target="_blank" download class="p-btn-action">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <span>Download Master PDF</span>
+          </a>
+        </article>
+
+        <!-- Research Proposal Guidelines -->
+        <article class="portal-card p-col-6" data-keywords="research proposal writing guidelines grant thesis paper">
+          <div class="reticle-tl"></div><div class="reticle-tr"></div><div class="reticle-bl"></div><div class="reticle-br"></div>
+          <div>
+            <div class="p-card-top">
+              <span class="p-badge">GUIDELINES</span>
+              <span style="font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--text-muted);">PDF &bull; OFFICIAL</span>
+            </div>
+            <h3 class="p-card-title">Guidelines for Research Proposal Writing</h3>
+            <p class="p-card-desc">Standard methodology format required for student capstone thesis, faculty grant applications, and Gandaki Research Program submissions.</p>
+          </div>
+          <a href="https://www.gandakiuniversity.edu.np/guidelines-for-purposal-writing/" target="_blank" class="p-btn-action p-btn-secondary">
+            <span>View Guidelines &rarr;</span>
+          </a>
+        </article>
+
+        <!-- University Act & Regulations -->
+        <article class="portal-card p-col-4" data-keywords="act regulation legislation legal law statute constitution">
+          <div class="reticle-tl"></div><div class="reticle-tr"></div><div class="reticle-bl"></div><div class="reticle-br"></div>
+          <div>
+            <div class="p-card-top">
+              <span class="p-badge">LEGAL ARCHIVE</span>
+              <span style="font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--text-muted);">PROVINCIAL ACT</span>
+            </div>
+            <h3 class="p-card-title">Gandaki University Act &amp; Regulation</h3>
+            <p class="p-card-desc">Gandaki Province Legislative Assembly Act establishing autonomous governance, senate ordinances, and employee bylaws.</p>
+          </div>
+          <a href="https://www.gandakiuniversity.edu.np/about-us/act-and-regulation/" target="_blank" class="p-btn-action p-btn-secondary">
+            <span>Read Regulations &rarr;</span>
+          </a>
+        </article>
+
+        <!-- University Prospectus -->
+        <article class="portal-card p-col-4" data-keywords="prospectus admission brochure fee structure eligibility">
+          <div class="reticle-tl"></div><div class="reticle-tr"></div><div class="reticle-bl"></div><div class="reticle-br"></div>
+          <div>
+            <div class="p-card-top">
+              <span class="p-badge">PROSPECTUS</span>
+              <span style="font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--text-muted);">ANNUAL</span>
+            </div>
+            <h3 class="p-card-title">University Prospectus &amp; Fee Handbook</h3>
+            <p class="p-card-desc">Complete handbook detailing entrance criteria, scholarship quotas (Gandaki Province domicile 20% quota), and fee schedules.</p>
+          </div>
+          <a href="https://www.gandakiuniversity.edu.np/prospectus/" target="_blank" class="p-btn-action p-btn-secondary">
+            <span>Download Prospectus &rarr;</span>
+          </a>
+        </article>
+
+        <!-- Annual Report & Audits -->
+        <article class="portal-card p-col-4" data-keywords="annual report audit financial progress report development">
+          <div class="reticle-tl"></div><div class="reticle-tr"></div><div class="reticle-bl"></div><div class="reticle-br"></div>
+          <div>
+            <div class="p-card-top">
+              <span class="p-badge">ANNUAL REPORT</span>
+              <span style="font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--text-muted);">EXECUTIVE AUDIT</span>
+            </div>
+            <h3 class="p-card-title">Gandaki University Annual Reports</h3>
+            <p class="p-card-desc">Annual academic achievements, faculty research publications, capital infrastructure investments, and audited statements.</p>
+          </div>
+          <a href="https://www.gandakiuniversity.edu.np/annual-report/" target="_blank" class="p-btn-action p-btn-secondary">
+            <span>Explore Reports &rarr;</span>
+          </a>
+        </article>
+      </div>
+    </div>
+
+    <!-- 3. UNIVERSITY PORTALS & SYSTEMS -->
+    <div class="portal-resource-section" data-section="portals">
+      <h2 class="portal-section-title">
+        <span>✦</span>
+        <span>Examination Portals &amp; Live Systems</span>
+      </h2>
+
+      <div class="portal-grid-bento">
+        <!-- Exam System -->
+        <article class="portal-card p-col-6" data-keywords="exam examination controller result admit card grade sheet roll number">
+          <div class="reticle-tl"></div><div class="reticle-tr"></div><div class="reticle-bl"></div><div class="reticle-br"></div>
+          <div>
+            <div class="p-card-top">
+              <span class="p-badge">EXAM ERP</span>
+              <span style="font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--text-muted);">GUEAM.EDU.NP</span>
+            </div>
+            <h3 class="p-card-title">Official Examination Management Portal</h3>
+            <p class="p-card-desc">Access semester grade ledgers, download entrance and board exam admit cards, verify transcript certificates, and register for supplementary exams.</p>
+          </div>
+          <a href="https://guexam.edu.np/" target="_blank" class="p-btn-action">
+            <span>Launch Exam Portal &rarr;</span>
+          </a>
+        </article>
+
+        <!-- Innovation & Research Centre -->
+        <article class="portal-card p-col-6" data-keywords="research innovation gurcii lab patents grants incubator">
+          <div class="reticle-tl"></div><div class="reticle-tr"></div><div class="reticle-bl"></div><div class="reticle-br"></div>
+          <div>
+            <div class="p-card-top">
+              <span class="p-badge">RESEARCH WING</span>
+              <span style="font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--text-muted);">GURCII.EDU.NP</span>
+            </div>
+            <h3 class="p-card-title">Gandaki University Research &amp; Innovation Centre</h3>
+            <p class="p-card-desc">Centre dedicated to scientific research, hardware prototypes, biotechnology labs, startup incubation, and international research grants.</p>
+          </div>
+          <a href="https://www.gurcii.edu.np" target="_blank" class="p-btn-action">
+            <span>Launch GURCII &rarr;</span>
+          </a>
+        </article>
+
+        <!-- Research Journal (Jagriti) -->
+        <article class="portal-card p-col-6" data-keywords="journal jagriti peer reviewed publication paper scholar doi">
+          <div class="reticle-tl"></div><div class="reticle-tr"></div><div class="reticle-bl"></div><div class="reticle-br"></div>
+          <div>
+            <div class="p-card-top">
+              <span class="p-badge">JOURNAL</span>
+              <span style="font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--text-muted);">OPEN ACCESS</span>
+            </div>
+            <h3 class="p-card-title">Jagriti: Multidisciplinary Research Journal</h3>
+            <p class="p-card-desc">Gandaki University's scholarly open-access journal publishing peer-reviewed manuscripts across Applied Computing, Management, and Health Sciences.</p>
+          </div>
+          <a href="https://www.jagriti.gurcii.edu.np" target="_blank" class="p-btn-action p-btn-secondary">
+            <span>Read Articles &rarr;</span>
+          </a>
+        </article>
+
+        <!-- Roster of Experts -->
+        <article class="portal-card p-col-6" data-keywords="experts roster faculty review committee consultant evaluator">
+          <div class="reticle-tl"></div><div class="reticle-tr"></div><div class="reticle-bl"></div><div class="reticle-br"></div>
+          <div>
+            <div class="p-card-top">
+              <span class="p-badge">ADVISORY</span>
+              <span style="font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--text-muted);">ROSTER</span>
+            </div>
+            <h3 class="p-card-title">National Roster of Academic Experts</h3>
+            <p class="p-card-desc">Platform inviting university professors, scientists, and senior industry experts to serve as thesis evaluators, grant reviewers, and advisors.</p>
+          </div>
+          <a href="https://www.gandakiuniversity.edu.np/roster-of-experts/" target="_blank" class="p-btn-action p-btn-secondary">
+            <span>Join Roster &rarr;</span>
+          </a>
+        </article>
+      </div>
+    </div>
+
+    <!-- 4. KEY CONTACTS & ADMINISTRATION DIRECTORY -->
+    <div class="portal-resource-section" data-section="directory">
+      <h2 class="portal-section-title">
+        <span>✦</span>
+        <span>Administration &amp; Faculty Contact Directory</span>
+      </h2>
+
+      <div class="portal-grid-bento">
+        <!-- Chancellor -->
+        <article class="portal-card p-col-4" data-keywords="chancellor ganeshman gurung leadership executive president">
+          <div class="reticle-tl"></div><div class="reticle-tr"></div><div class="reticle-bl"></div><div class="reticle-br"></div>
+          <div>
+            <div class="p-card-top">
+              <span class="p-badge">LEADERSHIP</span>
+              <span style="font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--text-muted);">CHANCELLOR</span>
+            </div>
+            <h3 class="p-card-title">Prof. Dr. Ganeshman Gurung</h3>
+            <p class="p-card-desc">Chancellor &bull; Head of University Senate and Strategic Academic Masterplan Direction.</p>
+          </div>
+          <div class="p-card-meta">
+            <span>Central Office</span> &bull; <span>Mustang Chowk</span>
+          </div>
+          <a href="https://www.gandakiuniversity.edu.np/about-us/message-from-the-chancellor/" target="_blank" class="p-btn-action p-btn-secondary">
+            <span>Message &rarr;</span>
+          </a>
+        </article>
+
+        <!-- Vice Chancellor -->
+        <article class="portal-card p-col-4" data-keywords="vice chancellor krishna raj adhikari leadership academic administration">
+          <div class="reticle-tl"></div><div class="reticle-tr"></div><div class="reticle-bl"></div><div class="reticle-br"></div>
+          <div>
+            <div class="p-card-top">
+              <span class="p-badge">ACADEMIC HEAD</span>
+              <span style="font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--text-muted);">VICE CHANCELLOR</span>
+            </div>
+            <h3 class="p-card-title">Dr. Krishna Raj Adhikari</h3>
+            <p class="p-card-desc">Vice Chancellor &bull; Executive academic operations, curriculum approval, and partnerships.</p>
+          </div>
+          <div class="p-card-meta">
+            <span>Council</span> &bull; <span>061-450249</span>
+          </div>
+          <a href="https://www.gandakiuniversity.edu.np/about-us/executive-council-members/" target="_blank" class="p-btn-action p-btn-secondary">
+            <span>Council Details &rarr;</span>
+          </a>
+        </article>
+
+        <!-- Registrar -->
+        <article class="portal-card p-col-4" data-keywords="registrar dhakaram bhandari administration records admission verification">
+          <div class="reticle-tl"></div><div class="reticle-tr"></div><div class="reticle-bl"></div><div class="reticle-br"></div>
+          <div>
+            <div class="p-card-top">
+              <span class="p-badge">ADMINISTRATION</span>
+              <span style="font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--text-muted);">REGISTRAR</span>
+            </div>
+            <h3 class="p-card-title">Dr. Dhakaram Bhandari</h3>
+            <p class="p-card-desc">Registrar &bull; Academic records, faculty appointments, student certifications, and governance.</p>
+          </div>
+          <div class="p-card-meta">
+            <span>Registrar Desk</span> &bull; <span>061-450249</span>
+          </div>
+          <a href="https://www.gandakiuniversity.edu.np/administrative-staffs/" target="_blank" class="p-btn-action p-btn-secondary">
+            <span>Admin Staff &rarr;</span>
+          </a>
+        </article>
+
+        <!-- Information & Communication Officer -->
+        <article class="portal-card p-col-6" data-keywords="information officer dolraj subedi media phone contact press">
+          <div class="reticle-tl"></div><div class="reticle-tr"></div><div class="reticle-bl"></div><div class="reticle-br"></div>
+          <div>
+            <div class="p-card-top">
+              <span class="p-badge">COMMUNICATIONS</span>
+              <span style="font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--text-muted);">DIRECT HOTLINE</span>
+            </div>
+            <h3 class="p-card-title">Mr. Dolraj Subedi &middot; Information Officer</h3>
+            <p class="p-card-desc">Direct contact point for student queries, admission clarifications, RTI applications, and press releases.</p>
+          </div>
+          <div class="p-card-meta">
+            <span>+977-9856062248</span> &bull; <span>Mustang Chowk, Pokhara</span>
+          </div>
+          <a href="tel:9856062248" class="p-btn-action">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+            </svg>
+            <span>Call: 9856062248</span>
+          </a>
+        </article>
+
+        <!-- University Central Reception -->
+        <article class="portal-card p-col-6" data-keywords="reception office landline email pokhara mustang chowk helpdesk">
+          <div class="reticle-tl"></div><div class="reticle-tr"></div><div class="reticle-bl"></div><div class="reticle-br"></div>
+          <div>
+            <div class="p-card-top">
+              <span class="p-badge">CENTRAL DESK</span>
+              <span style="font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--text-muted);">LANDLINE</span>
+            </div>
+            <h3 class="p-card-title">Gandaki University Central Helpdesk</h3>
+            <p class="p-card-desc">General inquiries, document verification dispatch, visitor appointments, and postal communications.</p>
+          </div>
+          <div class="p-card-meta">
+            <span>Landline: 061-450249</span> &bull; <span>Mustangchowk, Pokhara</span>
+          </div>
+          <a href="https://www.gandakiuniversity.edu.np/contact/" target="_blank" class="p-btn-action p-btn-secondary">
+            <span>Location Map &rarr;</span>
+          </a>
+        </article>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Global Minimalist Ceramic Footer -->
+  <footer style="margin-top: auto; padding: 44px 24px; border-top: 1px solid var(--ceramic-border); text-align: center; position: relative; z-index: 2; background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(20px);">
+    <div style="max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+      <div style="font-size: 12.5px; color: var(--text-muted); text-align: left;">
+        <strong style="color: var(--text-main);">Gandaki University Academic Portal</strong> &middot; Academic Cloud Repository<br>
+        Mustang Chowk, Pokhara, Gandaki Province, Nepal
+      </div>
+      <div style="display: flex; gap: 20px; font-size: 12.5px;">
+        <a href="index.html" style="color: var(--text-sub); text-decoration: none;">Overview</a>
+        <a href="routine.html" style="color: var(--text-sub); text-decoration: none;">Routines</a>
+        <a href="dashboard.html" style="color: var(--text-sub); text-decoration: none;">Feed</a>
+        <a href="gallery.html" style="color: var(--text-sub); text-decoration: none;">Gallery</a>
+        <a href="portal.html" style="color: var(--text-main); font-weight: 700; text-decoration: none;">Academic Hub</a>
+        <a href="https://gandakiuniversity.edu.np" target="_blank" rel="noopener" style="color: var(--text-sub); text-decoration: none;">Official Site &rarr;</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Interactive Search & 3D Perspective Gyro Tilt -->
+  <script>
+    // Live Search & Category Filter
+    const searchInput = document.getElementById('portalSearchInput');
+    const chipBtns = document.querySelectorAll('.portal-chip-btn');
+    const cards = document.querySelectorAll('.portal-card');
+    const sections = document.querySelectorAll('.portal-resource-section');
+
+    let currentFilter = 'all';
+    let searchQuery = '';
+
+    function applyFilterAndSearch() {
+      cards.forEach(card => {
+        const keywords = (card.dataset.keywords || '').toLowerCase();
+        const text = card.textContent.toLowerCase();
+        const matchesQuery = !searchQuery || keywords.includes(searchQuery) || text.includes(searchQuery);
+
+        const parentSection = card.closest('.portal-resource-section');
+        const sectionType = parentSection ? parentSection.dataset.section : '';
+        const matchesCat = currentFilter === 'all' || sectionType === currentFilter;
+
+        if (matchesQuery && matchesCat) {
+          card.style.display = 'flex';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+
+      // Hide section headings if all cards inside are hidden
+      sections.forEach(sec => {
+        const visibleCards = sec.querySelectorAll('.portal-card[style="display: flex;"]');
+        const hasVisible = currentFilter === 'all' || sec.dataset.section === currentFilter;
+        if (visibleCards.length === 0 && searchQuery) {
+          sec.style.display = 'none';
+        } else if (!hasVisible) {
+          sec.style.display = 'none';
+        } else {
+          sec.style.display = 'block';
+        }
+      });
+    }
+
+    chipBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        chipBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentFilter = btn.dataset.filter;
+        applyFilterAndSearch();
+      });
+    });
+
+    searchInput.addEventListener('input', (e) => {
+      searchQuery = e.target.value.toLowerCase().trim();
+      applyFilterAndSearch();
+    });
+
+    // 3D Perspective Gyro Tilt Physics
+    cards.forEach(card => {
+      let rect;
+      card.addEventListener('mouseenter', () => {
+        rect = card.getBoundingClientRect();
+      });
+
+      card.addEventListener('mousemove', (e) => {
+        if (!rect) rect = card.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const cx = rect.width / 2;
+        const cy = rect.height / 2;
+        const rotateX = ((y - cy) / cy) * -3.5;
+        const rotateY = ((x - cx) / cx) * 3.5;
+
+        card.style.transform = `perspective(900px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) translateZ(3px)`;
+      });
+
+      card.addEventListener('mouseleave', () => {
+        card.style.transform = '';
+      });
+    });
+  </script>
+</body>
+
+</html>

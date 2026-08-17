@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
-    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Outfit:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
     rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
@@ -84,7 +84,7 @@
       </div>
 
       <!-- 2. Jitter AI Prompt Interactive Chat Pill (Positioned Below Enter Library) -->
-      <div class="jitter-prompt-container">
+      <div class="jitter-prompt-container" id="firstAiChatContainer">
         <div class="jitter-prompt-pill tilt-card">
           <div class="jitter-prompt-icon-left" title="Powered by Google Gemini Flash">
             <svg class="gemini-spark-icon" viewBox="0 0 24 24" width="19" height="19">
@@ -162,9 +162,10 @@
           <div class="gemini-loading-beam-glow"></div>
         </div>
       </div>
+    </div> <!-- Close lib-hero-header poster-hero-header -->
 
-      <!-- Apple Bento Feature Showcase Grid (Hidden until Ask AI is clicked) -->
-      <div class="poster-bento-grid dynamic-shapes-grid apple-bento-grid poster-grid-hidden" id="posterGrid">
+    <!-- Apple Bento Feature Showcase Grid (Hidden until Ask AI is clicked) -->
+    <div class="poster-bento-grid dynamic-shapes-grid apple-bento-grid poster-grid-hidden" id="posterGrid">
 
         <!-- Card 1: Wide Panorama Hero Card (2 Columns Wide) -->
         <div class="poster-card bento-shape-wide tilt-card apple-card bento-glow-card" data-card-idx="0">
@@ -722,8 +723,216 @@
           </div>
         </div>
       </div>
+      <!-- END OF TEMPLATE SHOWCASE BENTO BOXES -->
 
-  </main>
+      <!-- Second AI Chat Conduit: AI Study Companion & Deep Academic Query -->
+      <div class="jitter-prompt-container second-ai-conduit second-conduit-hidden" id="secondAiChatContainer" style="margin: 60px auto 40px;">
+        <div class="jitter-prompt-pill second-jitter-pill">
+          <div class="jitter-prompt-icon-left">
+            <svg class="gemini-spark-icon" viewBox="0 0 24 24" fill="none">
+              <defs>
+                <linearGradient id="geminiSparkGradSecond" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#4285F4" />
+                  <stop offset="35%" stop-color="#9B72CB" />
+                  <stop offset="70%" stop-color="#D96570" />
+                  <stop offset="100%" stop-color="#F49D37" />
+                </linearGradient>
+              </defs>
+              <path fill="url(#geminiSparkGradSecond)"
+                d="M12 0C12 6.627 6.627 12 0 12C6.627 12 12 17.373 12 24C12 17.373 17.373 12 24 12C17.373 12 12 6.627 12 0Z" />
+            </svg>
+          </div>
+          <div class="jitter-prompt-input-area">
+            <span class="jitter-prompt-text">Ask AI to&nbsp;</span><span class="jitter-prompt-text" id="secondJitterPromptText"></span>
+            <span class="jitter-cursor"></span>
+          </div>
+          <div class="jitter-prompt-tools">
+            <button type="button" class="jitter-tool-btn" title="Add Filter">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+                stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
+            <button type="button" class="jitter-tool-btn" title="Attach Notes">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+                stroke-linejoin="round">
+                <path
+                  d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48">
+                </path>
+              </svg>
+            </button>
+            <button type="button" class="jitter-ask-btn" id="secondJitterAskBtn"
+              title="Launch AI Study Assistant">
+              <svg class="gemini-spark-icon gemini-spark-btn-icon" id="secondJitterSparkleIcon" viewBox="0 0 24 24">
+                <path fill="url(#geminiSparkGradSecond)"
+                  d="M12 0C12 6.627 6.627 12 0 12C6.627 12 12 17.373 12 24C12 17.373 17.373 12 24 12C17.373 12 12 6.627 12 0Z" />
+              </svg>
+              <span id="secondJitterAskBtnText">Ask AI ✦</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Gemini Radiant Gradient Wave -->
+        <div class="gemini-chat-emitter-wave" id="secondGeminiAuroraBg"></div>
+      </div>
+
+      <!-- Google Gemini Interim AI Loading Animation for Second Chat Conduit -->
+      <div class="gemini-loading-container" id="secondGeminiLoaderContainer" style="margin-bottom: 50px;">
+        <div class="gemini-loading-pill">
+          <div class="gemini-loader-spark-box">
+            <svg class="gemini-loader-spark" viewBox="0 0 24 24" fill="none">
+              <path fill="url(#geminiSparkGradSecond)"
+                d="M12 0C12 6.627 6.627 12 0 12C6.627 12 12 17.373 12 24C12 17.373 17.373 12 24 12C17.373 12 12 6.627 12 0Z" />
+            </svg>
+          </div>
+          <span class="gemini-loader-text" id="secondGeminiLoaderText">Opening Gemini AI Study Companion &amp; Semester Assistant...</span>
+          <div class="gemini-loader-dots">
+            <span></span><span></span><span></span>
+          </div>
+        </div>
+        <div class="gemini-loading-beam-track">
+          <div class="gemini-loading-beam-glow"></div>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- ==========================================================================
+         PHOTOGRAPHIC VISUAL CLOUD GALLERY (WHITE EDITION)
+         ========================================================================== -->
+    <section class="gallery-home-section gallery-section-hidden" id="visualGallerySection" style="padding-top: 20px;">
+      <!-- Explore Gandaki University Header Stage -->
+      <div class="gallery-explore-header">
+        <div class="gallery-explore-badge">
+          <span class="gallery-radar-dot"></span>
+          <span>DISCOVER &bull; GANDAKI UNIVERSITY</span>
+          <span style="opacity: 0.4;">&bull;</span>
+          <span style="color: #007aff; font-weight: 700;">VISUAL CLOUD</span>
+        </div>
+        <h2 class="gallery-explore-title">
+          <span class="apple-text-grad-primary">Explore Gandaki University</span><br>
+          <span class="apple-text-grad-secondary">Moments, Milestones &amp; Campus Life.</span>
+        </h2>
+        <p class="gallery-explore-desc">
+          Step into authentic photographic records of historic convocation assemblies, innovative research labs, sports triumphs, and vibrant student life across our Pokhara grounds.
+        </p>
+      </div>
+
+      <div class="portal-section-header" style="margin-bottom: 24px;">
+        <!-- Marquee Highlights Carousel -->
+        <div class="ag-marquee-wrap" id="homeMarqueeStrip">
+          <div class="ag-marquee-track" id="homeMarqueeTrack">
+            <!-- Dynamically populated marquee cards -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Controls Deck -->
+      <div class="ag-deck-wrap">
+        <div class="ag-deck-capsule">
+          <!-- Category Filter Chips -->
+          <div class="ag-chips-deck" id="homeGalleryChips">
+            <button class="ag-chip-btn active" data-cat="all">All Archives (34)</button>
+            <button class="ag-chip-btn" data-cat="infrastructure">Infrastructure</button>
+            <button class="ag-chip-btn" data-cat="academic">Convocation</button>
+            <button class="ag-chip-btn" data-cat="leadership">Dignitaries</button>
+            <button class="ag-chip-btn" data-cat="faculty">Faculty Research</button>
+            <button class="ag-chip-btn" data-cat="student">Student Life</button>
+            <button class="ag-chip-btn" data-cat="campus">Campus &amp; Labs</button>
+          </div>
+
+          <!-- Live Search Box with Key Shortcut -->
+          <div class="ag-search-deck">
+            <svg class="ag-search-icon-left" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="search" id="homeAgSearchInput" class="ag-search-input" placeholder="Search archive database...">
+            <span class="ag-search-kbd">&cmd;K</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Bento Photo Wall Grid -->
+      <div class="ag-grid-wall" style="max-width: 1240px; margin: 0 auto;">
+        <div class="ag-bento-layout" id="homeAgBentoGrid">
+          <!-- Dynamic Bento Cards Populated via JavaScript -->
+        </div>
+
+        <!-- Empty Search State -->
+        <div id="homeAgEmptyState" style="display: none; text-align: center; padding: 80px 20px; grid-column: 1 / -1;">
+          <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="color: #86868b; margin-bottom: 12px;">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <h4 style="font-size: 19px; font-weight: 700; margin: 0 0 6px;">No Photographic Records Found</h4>
+          <p style="font-size: 14px; color: #86868b; margin: 0;">Try adjusting your query or resetting category filters.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Antigravity Holographic Lightbox HUD Modal (Frosted White) -->
+    <div class="ag-hud-lightbox" id="homeAgHudLightbox" role="dialog" aria-modal="true">
+      <div class="ag-hud-panel">
+        <!-- Close Button -->
+        <button class="ag-hud-close-btn" id="homeAgHudClose">
+          <span>DISMISS &bull; ESC</span>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+
+        <!-- Navigation Arrows -->
+        <button class="ag-hud-nav-btn ag-hud-prev" id="homeAgHudPrev" title="Previous Archive (Left Arrow)">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+        </button>
+        <button class="ag-hud-nav-btn ag-hud-next" id="homeAgHudNext" title="Next Archive (Right Arrow)">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </button>
+
+        <!-- Holographic Image Viewport with Corner Reticles -->
+        <div class="ag-hud-frame">
+          <div class="ag-corner-reticle tl"></div>
+          <div class="ag-corner-reticle tr"></div>
+          <div class="ag-corner-reticle bl"></div>
+          <div class="ag-corner-reticle br"></div>
+          <img src="" alt="" class="ag-hud-img" id="homeAgHudImg">
+        </div>
+
+        <!-- Metadata Telemetry Console -->
+        <div class="ag-hud-console">
+          <div class="ag-hud-meta-left">
+            <div class="ag-hud-tag-strip">
+              <span id="homeAgHudCategory">ACADEMIC &bull; CONVOCATION</span>
+              <span style="opacity: 0.4;">|</span>
+              <span id="homeAgHudDate" style="color: #1d1d1f; font-weight: 600;">MARCH 2025</span>
+              <span style="opacity: 0.4;">|</span>
+              <span id="homeAgHudIndex" style="color: #86868b;">ARCHIVE 01 OF 34</span>
+            </div>
+            <h3 class="ag-hud-title" id="homeAgHudTitle">Grand Convocation Assembly</h3>
+            <p class="ag-hud-desc" id="homeAgHudDesc">Description context and historical significance.</p>
+          </div>
+          <div class="ag-hud-actions">
+            <a href="#" target="_blank" download id="homeAgHudDownload" class="ag-hud-btn-primary">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+              <span>Download Master Asset</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
 
   <!-- Interactive Scripts (Apple 3D Tilt, Real-Time Countdown, Magnetic Physics & Heart Burst Particles) -->
   <script>
@@ -979,8 +1188,12 @@
         geminiLoaderContainer.classList.add('gemini-loader-active');
       }
 
-      // 4. Delay showing the Bento boxes so user experiences the Gemini wave & interim loader
+      // 4. Show the Template Bento boxes and stats strip, and transition top AI chat box to one-use completed state
       setTimeout(() => {
+        if (loopTimeout) clearTimeout(loopTimeout);
+        if (jitterPromptText) jitterPromptText.textContent = "DBMS, OOP, Networking & Syllabi";
+        if (promptPill) promptPill.classList.add('ai-conduit-used');
+
         if (posterGrid) {
           posterGrid.classList.remove('poster-grid-hidden');
           posterGrid.classList.add('poster-grid-active');
@@ -999,6 +1212,19 @@
         if (siriBorder) siriBorder.classList.add('siri-border-active');
       }, 650);
 
+      // 4B. Show the Second AI Chat Conduit ONLY AFTER the template bento cards and stats have fully displayed and emerged!
+      setTimeout(() => {
+        const secondAiChatContainer = document.getElementById('secondAiChatContainer');
+        if (secondAiChatContainer) {
+          secondAiChatContainer.classList.remove('second-conduit-hidden');
+          secondAiChatContainer.classList.add('second-conduit-active');
+          if (!secondLoopStarted) {
+            secondLoopStarted = true;
+            setTimeout(typeSecondJitterLoop, 400);
+          }
+        }
+      }, 1600);
+
       // 5. Smooth auto-scroll down to the top of the AI Bento output
       setTimeout(() => {
         if (posterGrid) {
@@ -1009,7 +1235,7 @@
 
       // 6. Update button status
       setTimeout(() => {
-        if (jitterAskBtnText) jitterAskBtnText.textContent = "AI Output ✦";
+        if (jitterAskBtnText) jitterAskBtnText.textContent = "Generated ✓";
       }, 950);
 
       // 7. Dissolve first central gradient wave as bento cards emerge
@@ -1017,6 +1243,132 @@
         if (auroraBg) auroraBg.classList.add('aurora-dissolved');
         isAiGenerating = false;
       }, 750);
+    }
+
+    // 8B. Second AI Chat Conduit Typewriter & Trigger Engine
+    const secondJitterPromptText = document.getElementById('secondJitterPromptText');
+    const secondJitterAskBtn = document.getElementById('secondJitterAskBtn');
+    const secondJitterAskBtnText = document.getElementById('secondJitterAskBtnText');
+    const secondGeminiAuroraBg = document.getElementById('secondGeminiAuroraBg');
+    const secondGeminiLoaderContainer = document.getElementById('secondGeminiLoaderContainer');
+    const secondPromptPill = document.querySelector('.second-jitter-pill');
+
+    const secondQueries = [
+      "34-Asset Photographic Visual Cloud...",
+      "Campus Infrastructure, Convocation & Dignitaries...",
+      "Dr. Mahabir Pun Innovation Centre & Labs...",
+      "Student Life, Sports Complex & Botanical Grounds..."
+    ];
+
+    let secondQueryIdx = 0;
+    let secondCharIdx = 0;
+    let secondIsDeleting = false;
+    let secondTypingSpeed = 50;
+    let secondLoopTimeout = null;
+    let secondLoopStarted = false;
+    let isSecondAiGenerating = false;
+
+    function typeSecondJitterLoop() {
+      if (!secondJitterPromptText) return;
+      const current = secondQueries[secondQueryIdx];
+
+      if (secondIsDeleting) {
+        secondJitterPromptText.textContent = current.substring(0, secondCharIdx - 1);
+        secondCharIdx--;
+        secondTypingSpeed = 20;
+      } else {
+        secondJitterPromptText.textContent = current.substring(0, secondCharIdx + 1);
+        secondCharIdx++;
+        secondTypingSpeed = 40 + Math.random() * 25;
+      }
+
+      if (!secondIsDeleting && secondCharIdx === current.length) {
+        if (secondJitterAskBtn) {
+          secondJitterAskBtn.classList.add('jitter-pulse-glow');
+          setTimeout(() => secondJitterAskBtn.classList.remove('jitter-pulse-glow'), 650);
+        }
+        secondTypingSpeed = 2600;
+        secondIsDeleting = true;
+      } else if (secondIsDeleting && secondCharIdx === 0) {
+        secondIsDeleting = false;
+        secondQueryIdx = (secondQueryIdx + 1) % secondQueries.length;
+        secondTypingSpeed = 350;
+      }
+
+      secondLoopTimeout = setTimeout(typeSecondJitterLoop, secondTypingSpeed);
+    }
+
+    function handleSecondAskAiClick(e) {
+      if (e) e.preventDefault();
+      if (isSecondAiGenerating) return;
+      isSecondAiGenerating = true;
+
+      // 1. Button active feedback
+      if (secondJitterAskBtn) secondJitterAskBtn.classList.add('jitter-pulse-glow');
+      if (secondJitterAskBtnText) secondJitterAskBtnText.textContent = "Analyzing ✦";
+
+      // 2. Second Gemini Flash Gradient wave blooms below second chat bar
+      if (secondGeminiAuroraBg) {
+        secondGeminiAuroraBg.classList.remove('aurora-dissolved');
+        secondGeminiAuroraBg.classList.add('aurora-expanded');
+      }
+
+      // 3. Activate Google Gemini Interim AI Loader for second conduit
+      if (secondGeminiLoaderContainer) {
+        const loaderText = document.getElementById('secondGeminiLoaderText');
+        if (loaderText) loaderText.textContent = "Connecting to Gandaki University Photographic Visual Cloud...";
+        secondGeminiLoaderContainer.classList.remove('gemini-loader-finished');
+        secondGeminiLoaderContainer.classList.add('gemini-loader-active');
+      }
+
+      // 4. Delay revealing Photographic Visual Gallery, and transition second AI chat box to one-use completed state
+      setTimeout(() => {
+        if (secondLoopTimeout) clearTimeout(secondLoopTimeout);
+        if (secondJitterPromptText) secondJitterPromptText.textContent = "Gandaki University Photographic Visual Cloud";
+        if (secondPromptPill) secondPromptPill.classList.add('ai-conduit-used');
+
+        const visualGallerySection = document.getElementById('visualGallerySection');
+        if (visualGallerySection) {
+          visualGallerySection.classList.remove('gallery-section-hidden');
+          visualGallerySection.classList.add('gallery-section-active');
+        }
+
+        // Smoothly dismiss interim loader as gallery materializes
+        if (secondGeminiLoaderContainer) {
+          secondGeminiLoaderContainer.classList.add('gemini-loader-finished');
+          secondGeminiLoaderContainer.classList.remove('gemini-loader-active');
+        }
+      }, 650);
+
+      // 5. Smooth auto-scroll down to the top of Visual Gallery
+      setTimeout(() => {
+        const visualGallerySection = document.getElementById('visualGallerySection');
+        if (visualGallerySection) {
+          const galleryTop = visualGallerySection.getBoundingClientRect().top + window.scrollY - 70;
+          window.scrollTo({ top: galleryTop, behavior: 'smooth' });
+        }
+      }, 700);
+
+      // 6. Update button status
+      setTimeout(() => {
+        if (secondJitterAskBtnText) secondJitterAskBtnText.textContent = "Visuals Live ✓";
+      }, 950);
+
+      // 7. Dissolve second gradient wave
+      setTimeout(() => {
+        if (secondGeminiAuroraBg) secondGeminiAuroraBg.classList.add('aurora-dissolved');
+        isSecondAiGenerating = false;
+      }, 750);
+    }
+
+    if (secondJitterAskBtn) {
+      secondJitterAskBtn.addEventListener('click', handleSecondAskAiClick);
+    }
+    if (secondPromptPill) {
+      secondPromptPill.addEventListener('click', (e) => {
+        if (e.target.closest('.jitter-tool-btn')) return;
+        handleSecondAskAiClick(e);
+      });
     }
 
     // 9. Intersection Observer: Keep Siri Border Active while Templates are in view
@@ -1094,6 +1446,623 @@
         chip.classList.add('active');
       });
     });
+
+    /* ==========================================================================
+       12. VISUAL CLOUD PHOTO GALLERY CONTROLLER (EMBEDDED 34 ASSETS)
+       ========================================================================== */
+    (function initHomeGallery() {
+      const guGalleryDatabase = [
+        {
+          "id": "GU-INF-01",
+          "title": "Administrative Complex 3D Architectural Masterplan",
+          "caption": "The approved 3D architectural masterplan blueprint for the state-of-the-art Gandaki University Central Administrative Complex.",
+          "category": "infrastructure",
+          "categoryLabel": "INFRASTRUCTURE &bull; MASTERPLAN",
+          "date": "APRIL 2026",
+          "colSpan": "ag-card-col-8",
+          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/Building.png",
+          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/Building.png"
+        },
+        {
+          "id": "GU-INF-02",
+          "title": "Chief Minister & Chancellor Founding Stone Ceremony",
+          "caption": "Chief Minister of Gandaki Province and Chancellor Prof. Dr. Ganeshman Gurung unveiling the historic founding cornerstone of the university.",
+          "category": "infrastructure",
+          "categoryLabel": "FOUNDING STONE &bull; CEREMONY",
+          "date": "APRIL 2026",
+          "colSpan": "ag-card-col-4",
+          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/chancellor-chief-minister.png",
+          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/chancellor-chief-minister.png"
+        },
+        {
+          "id": "GU-INF-03",
+          "title": "Chief Minister Keynote at Campus Groundbreaking",
+          "caption": "Chief Minister addressing provincial ministers, academic faculty, and town planners during the university groundbreaking ceremony.",
+          "category": "infrastructure",
+          "categoryLabel": "FOUNDING STONE &bull; CEREMONY",
+          "date": "APRIL 2026",
+          "colSpan": "ag-card-col-4",
+          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/Cheif-image.png",
+          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/Cheif-image.png"
+        },
+        {
+          "id": "GU-INF-04",
+          "title": "Examination & Academic Complex Future Blueprint",
+          "caption": "3D perspective visualization of the upcoming Examination Controller division and lecture amphitheater facilities.",
+          "category": "infrastructure",
+          "categoryLabel": "INFRASTRUCTURE &bull; MASTERPLAN",
+          "date": "APRIL 2026",
+          "colSpan": "ag-card-col-4",
+          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/building-next.png",
+          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/building-next.png"
+        },
+        {
+          "id": "GU-INF-05",
+          "title": "Executive Leadership: Chancellor & Vice-Chancellor",
+          "caption": "Chancellor and Vice-Chancellor inspecting construction blueprints and civil progress reports at the university headquarters.",
+          "category": "leadership",
+          "categoryLabel": "LEADERSHIP &bull; DIGNITARIES",
+          "date": "APRIL 2026",
+          "colSpan": "ag-card-col-4",
+          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/Chancellor-ViceChancellor.png",
+          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/Chancellor-ViceChancellor.png"
+        },
+        {
+          "id": "GU-INF-06",
+          "title": "Provincial Dignitaries & Ministers Assembly",
+          "caption": "Provincial ministers and government delegates commemorating the strategic infrastructure funding and campus expansion.",
+          "category": "leadership",
+          "categoryLabel": "LEADERSHIP &bull; DIGNITARIES",
+          "date": "APRIL 2026",
+          "colSpan": "ag-card-col-4",
+          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/bindu-kumra-thapa-Khagaraj-Adhikari.png",
+          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/bindu-kumra-thapa-Khagaraj-Adhikari.png"
+        },
+        {
+          "id": "GU-INF-07",
+          "title": "Administrative Building Multi-Story Construction",
+          "caption": "Active on-site civil construction and reinforced concrete framework for the new 5-story administrative tower.",
+          "category": "infrastructure",
+          "categoryLabel": "BUILDING PROGRESS &bull; SITE",
+          "date": "APRIL 2026",
+          "colSpan": "ag-card-col-8",
+          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/WhatsApp-Image-2026-04-24-at-1.01.54-PM-2.jpeg",
+          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/WhatsApp-Image-2026-04-24-at-1.01.54-PM-2-1024x682.jpeg"
+        },
+        {
+          "id": "GU-INF-08",
+          "title": "Examination Controller Building Construction Site",
+          "caption": "Foundation laying and structural pillars for the specialized Examination Controller and Records Facility.",
+          "category": "infrastructure",
+          "categoryLabel": "BUILDING PROGRESS &bull; SITE",
+          "date": "APRIL 2026",
+          "colSpan": "ag-card-col-6",
+          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/WhatsApp-Image-2026-04-24-at-11.24.43-AM.jpeg",
+          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/WhatsApp-Image-2026-04-24-at-11.24.43-AM-1024x768.jpeg"
+        },
+        {
+          "id": "GU-INF-09",
+          "title": "Pokhara Valley Campus Landscape & Mountain Vista",
+          "caption": "Panoramic vista of the expansive 300+ ropani Gandaki University campus grounds set against the Annapurna mountain range in Pokhara.",
+          "category": "campus",
+          "categoryLabel": "CAMPUS &bull; PANORAMA",
+          "date": "APRIL 2026",
+          "colSpan": "ag-card-col-6",
+          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/IMG_7180-scaled.jpg",
+          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/IMG_7180-1024x683.jpg"
+        },
+        {
+          "id": "GU-INF-10",
+          "title": "Campus Boundary & Eco-Friendly Forestry Landscape",
+          "caption": "Preserved natural green canopy and boundary infrastructure surrounding the academic quadrangle.",
+          "category": "campus",
+          "categoryLabel": "CAMPUS &bull; ENVIRONMENT",
+          "date": "APRIL 2026",
+          "colSpan": "ag-card-col-4",
+          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/IMG_2279-scaled.jpg",
+          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/IMG_2279-1024x683.jpg"
+        },
+        {
+          "id": "GU-INF-11",
+          "title": "Campus Road Network & Terrestrial Survey",
+          "caption": "Internal arterial road grid and civil grading providing accessibility across university faculties.",
+          "category": "campus",
+          "categoryLabel": "CAMPUS &bull; INFRASTRUCTURE",
+          "date": "APRIL 2026",
+          "colSpan": "ag-card-col-4",
+          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/IMG_2296-scaled.jpg",
+          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/IMG_2296-1024x683.jpg"
+        },
+        {
+          "id": "GU-INF-12",
+          "title": "Campus Peripheral Walkways & Survey Coordinates",
+          "caption": "Civil engineers and surveyor team establishing geospatial benchmark coordinates across campus acreage.",
+          "category": "campus",
+          "categoryLabel": "CAMPUS &bull; INFRASTRUCTURE",
+          "date": "APRIL 2026",
+          "colSpan": "ag-card-col-4",
+          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/IMG_2301-scaled.jpg",
+          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/IMG_2301-1024x683.jpg"
+        },
+        {
+          "id": "gu-convocation-2025-1",
+          "title": "University Convocation & Academic Assembly",
+          "caption": "Chancellor, Vice Chancellor, and faculty members presiding over the grand university convocation ceremony at Gandaki University.",
+          "category": "academic",
+          "categoryLabel": "Academic & Convocation",
+          "date": "March 2025",
+          "colSpan": "ag-card-col-8",
+          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2025/03/472735041_1004930198346332_3572611379996081590_n.jpg",
+          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2025/03/472735041_1004930198346332_3572611379996081590_n.jpg"
+        },
+        {
+          "id": "gu-mahabir-pun",
+          "title": "Dr. Mahabir Pun at National Innovation Center Meet",
+          "caption": "Distinguished researcher and Magsaysay awardee Dr. Mahabir Pun addressing Gandaki University students and researchers on innovation and indigenous technology.",
+          "category": "leadership",
+          "categoryLabel": "Leadership & Dignitaries",
+          "date": "January 2023",
+          "colSpan": "ag-card-col-8",
+          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2023/01/MAHABIR.png",
+          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2023/01/MAHABIR.png"
+        },
+        {
+          "id": "gu-chancellor-address",
+          "title": "Chancellor Prof. Dr. Ganeshman Gurung & Academic Council",
+          "caption": "Chancellor Dr. Ganeshman Gurung and executive leadership outlining the Gandaki University 10-Year Strategic Academic Masterplan.",
+          "category": "leadership",
+          "categoryLabel": "Leadership & Dignitaries",
+          "date": "January 2023",
+          "colSpan": "ag-card-col-4",
+          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2023/01/MEKH.png",
+          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2023/01/MEKH.png"
+        },
+        {
+          "id": "gu-bit-batch-2021",
+          "title": "Bachelor of Information Technology (BIT) Pioneer Cohort",
+          "caption": "The inaugural batch of Bachelor of Information Technology (BIT) students and department faculty members at Gandaki University.",
+          "category": "student",
+          "categoryLabel": "Student Life & Culture",
+          "date": "April 2022",
+          "colSpan": "ag-card-col-8",
+          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/bit2021.png",
+          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/bit2021.png"
+        },
+        {
+          "id": "gu-faculty-dev-training",
+          "title": "Faculty Development & Pedagogical Research Workshop",
+          "caption": "University professors, assistant lecturers, and guest researchers collaborating during an interactive faculty research symposium.",
+          "category": "faculty",
+          "categoryLabel": "Faculty & Training",
+          "date": "May 2023",
+          "colSpan": "ag-card-col-8",
+          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2023/05/training-scaled.jpg",
+          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2023/05/training-scaled.jpg"
+        },
+        {
+          "id": "gu-it-lab-workshop",
+          "title": "Hands-on Computing & Applied Tech Workshop",
+          "caption": "Department faculty and researchers conducting specialized curriculum and practical lab methodology training.",
+          "category": "faculty",
+          "categoryLabel": "Faculty & Training",
+          "date": "May 2023",
+          "colSpan": "ag-card-col-4",
+          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2023/05/training-1-scaled.jpg",
+          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2023/05/training-1-scaled.jpg"
+        },
+        {
+          "id": "gu-health-science-training",
+          "title": "Applied Health & Biomedical Sciences Seminar",
+          "caption": "Faculty members and healthcare educators in a collaborative medical curriculum development session.",
+          "category": "faculty",
+          "categoryLabel": "Faculty & Training",
+          "date": "May 2023",
+          "colSpan": "ag-card-col-4",
+          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2023/05/training-2-scaled.jpg",
+          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2023/05/training-2-scaled.jpg"
+        },
+        {
+          "id": "gu-cultural-dance-celebration",
+          "title": "Annual University Cultural Music & Dance Gala",
+          "caption": "Gandaki University students performing traditional Nepalese folk dances during the Annual Cultural and Arts Festival.",
+          "category": "student",
+          "categoryLabel": "Student Life & Culture",
+          "date": "April 2022",
+          "colSpan": "ag-card-col-8",
+          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/dancing-at-program.png",
+          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/dancing-at-program.png"
+        },
+        {
+          "id": "gu-traditional-welcome-dance",
+          "title": "Traditional Welcome Dance Performance",
+          "caption": "A classical Gurung and Magar cultural performance welcoming national delegates and incoming students to the campus.",
+          "category": "student",
+          "categoryLabel": "Student Life & Culture",
+          "date": "April 2022",
+          "colSpan": "ag-card-col-4",
+          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/dancer.png",
+          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/dancer.png"
+        },
+        {
+          "id": "gu-student-dance-stage",
+          "title": "Student Performing Arts & Stage Production",
+          "caption": "Students showcasing choreography, theatrical talent, and live musical instrumentation at the campus auditorium.",
+          "category": "student",
+          "categoryLabel": "Student Life & Culture",
+          "date": "April 2022",
+          "colSpan": "ag-card-col-4",
+          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/student-dance.png",
+          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/student-dance.png"
+        },
+        {
+          "id": "gu-sports-meet-awards",
+          "title": "Dean & Sports Coordinator Athletic Accolades",
+          "caption": "Dean and University Sports Council awarding medals and trophies at the Gandaki Inter-University Championship.",
+          "category": "student",
+          "categoryLabel": "Student Life & Culture",
+          "date": "April 2022",
+          "colSpan": "ag-card-col-4",
+          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/dean-coordinator-sport.png",
+          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/dean-coordinator-sport.png"
+        },
+        {
+          "id": "gu-keynote-address",
+          "title": "Special Guest Keynote & Scholarly Address",
+          "caption": "Eminent guest speaker presenting the keynote on Higher Education Transformation in Gandaki Province.",
+          "category": "leadership",
+          "categoryLabel": "Leadership & Dignitaries",
+          "date": "April 2022",
+          "colSpan": "ag-card-col-4",
+          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/special-guest-speak.png",
+          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/special-guest-speak.png"
+        },
+        {
+          "id": "gu-token-of-love",
+          "title": "Institutional Token of Love & Honor Presentation",
+          "caption": "University Chancellor and Registrar presenting an official commemorative plaque to visiting academic dignitaries.",
+          "category": "academic",
+          "categoryLabel": "Academic & Convocation",
+          "date": "March 2022",
+          "colSpan": "ag-card-col-4",
+          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/03/token-of-love.jpg",
+          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/03/token-of-love.jpg"
+        },
+        {
+          "id": "gu-central-head-office",
+          "title": "Gandaki University Central Administrative Building",
+          "caption": "Exterior view of the university main administrative block and registrar office in Pokhara, Gandaki Province.",
+          "category": "campus",
+          "categoryLabel": "Campus & Infrastructure",
+          "date": "March 2022",
+          "colSpan": "ag-card-col-8",
+          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/03/headoffice.jpg",
+          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/03/headoffice.jpg"
+        },
+        {
+          "id": "gu-faculty-assembly",
+          "title": "University Faculty & Academic Department Team",
+          "caption": "Professors, teaching faculty, and laboratory heads across Computer Science, Pharmacy, and Sports Management.",
+          "category": "faculty",
+          "categoryLabel": "Faculty & Training",
+          "date": "April 2022",
+          "colSpan": "ag-card-col-4",
+          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/facultystaff.png",
+          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/facultystaff.png"
+        },
+        {
+          "id": "gu-women-in-academia",
+          "title": "Women in Higher Education & Faculty Forum",
+          "caption": "Female scholars, researchers, and administrative officers advancing excellence at Gandaki University.",
+          "category": "faculty",
+          "categoryLabel": "Faculty & Training",
+          "date": "April 2022",
+          "colSpan": "ag-card-col-4",
+          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/female-staff.png",
+          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/female-staff.png"
+        },
+        {
+          "id": "gu-conference-hall-meet",
+          "title": "Gandaki University Senate & General Conference Hall",
+          "caption": "Full assembly of faculty, department chairs, and student representatives discussing university policies.",
+          "category": "campus",
+          "categoryLabel": "Campus & Infrastructure",
+          "date": "January 2023",
+          "colSpan": "ag-card-col-8",
+          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2023/01/IMG_2993-scaled.jpg",
+          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2023/01/IMG_2993-scaled.jpg"
+        },
+        {
+          "id": "gu-lecture-hall-session",
+          "title": "Interactive University Lecture & Case Study Hall",
+          "caption": "Students and professors engaged in active class discourse and multimedia case presentations.",
+          "category": "academic",
+          "categoryLabel": "Academic & Convocation",
+          "date": "May 2023",
+          "colSpan": "ag-card-col-4",
+          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2023/05/IMG_1637-scaled.jpg",
+          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2023/05/IMG_1637-scaled.jpg"
+        },
+        {
+          "id": "gu-convocation-delegates",
+          "title": "University Senate & Provincial Delegations",
+          "caption": "Official ceremony reception with Gandaki Province government officials and academic leaders.",
+          "category": "academic",
+          "categoryLabel": "Academic & Convocation",
+          "date": "March 2025",
+          "colSpan": "ag-card-col-4",
+          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2025/03/472790748_1004929365013082_3118557344797987940_n.jpg",
+          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2025/03/472790748_1004929365013082_3118557344797987940_n.jpg"
+        },
+        {
+          "id": "gu-campus-field-day",
+          "title": "Campus Grounds & Practical Field Demonstration",
+          "caption": "Students participating in applied field demonstrations and university campus activities.",
+          "category": "campus",
+          "categoryLabel": "Campus & Infrastructure",
+          "date": "September 2021",
+          "colSpan": "ag-card-col-4",
+          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2021/09/image4-scaled.jpeg",
+          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2021/09/image4-scaled.jpeg"
+        },
+        {
+          "id": "gu-laboratory-research",
+          "title": "Science & Technology Experimental Laboratory",
+          "caption": "State-of-the-art laboratory facilities supporting undergraduate research and practical coursework.",
+          "category": "campus",
+          "categoryLabel": "Campus & Infrastructure",
+          "date": "September 2021",
+          "colSpan": "ag-card-col-4",
+          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2021/09/img_0521-scaled.jpg",
+          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2021/09/img_0521-scaled.jpg"
+        },
+        {
+          "id": "gu-student-union-assembly",
+          "title": "Student Forum & Interactive Assembly",
+          "caption": "Student union representatives and classmates convening for academic enrichment and community outreach.",
+          "category": "student",
+          "categoryLabel": "Student Life & Culture",
+          "date": "September 2021",
+          "colSpan": "ag-card-col-4",
+          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2021/09/image1-scaled.jpeg",
+          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2021/09/image1-scaled.jpeg"
+        }
+      ];
+
+      const marqueeTrack = document.getElementById('homeMarqueeTrack');
+      const bentoGrid = document.getElementById('homeAgBentoGrid');
+      const emptyState = document.getElementById('homeAgEmptyState');
+      const filterChips = document.querySelectorAll('#homeGalleryChips .ag-chip-btn');
+      const searchInput = document.getElementById('homeAgSearchInput');
+
+      const hudModal = document.getElementById('homeAgHudLightbox');
+      const hudImg = document.getElementById('homeAgHudImg');
+      const hudTitle = document.getElementById('homeAgHudTitle');
+      const hudDesc = document.getElementById('homeAgHudDesc');
+      const hudCategory = document.getElementById('homeAgHudCategory');
+      const hudDate = document.getElementById('homeAgHudDate');
+      const hudIndexEl = document.getElementById('homeAgHudIndex');
+      const hudDownload = document.getElementById('homeAgHudDownload');
+      const hudClose = document.getElementById('homeAgHudClose');
+      const hudPrev = document.getElementById('homeAgHudPrev');
+      const hudNext = document.getElementById('homeAgHudNext');
+
+      let currentCategory = 'all';
+      let searchQuery = '';
+      let filteredGallery = [...guGalleryDatabase];
+      let hudIndex = 0;
+
+      function buildHomeMarquee() {
+        if (!marqueeTrack) return;
+        const topItems = guGalleryDatabase.slice(0, 10);
+        const doubleList = [...topItems, ...topItems];
+
+        marqueeTrack.innerHTML = doubleList.map((item, idx) => `
+          <div class="ag-marquee-card" data-marquee-idx="${idx % topItems.length}">
+            <img src="${item.thumbSrc}" alt="${item.title}" loading="lazy" class="ag-marquee-img" onerror="this.src='https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=600&auto=format&fit=crop&q=80'">
+            <div class="ag-marquee-overlay">
+              <div class="ag-marquee-title">${item.title}</div>
+            </div>
+          </div>
+        `).join('');
+
+        marqueeTrack.querySelectorAll('.ag-marquee-card').forEach(card => {
+          card.addEventListener('click', () => {
+            const indexInTop = parseInt(card.getAttribute('data-marquee-idx'), 10);
+            const foundIdx = filteredGallery.findIndex(g => g.id === topItems[indexInTop].id);
+            if (foundIdx !== -1) openHomeHud(foundIdx);
+            else openHomeHud(0);
+          });
+        });
+      }
+
+      function renderHomeBentoWall() {
+        if (!bentoGrid) return;
+
+        filteredGallery = guGalleryDatabase.filter(item => {
+          const matchCat = currentCategory === 'all' || item.category === currentCategory;
+          const matchQuery = !searchQuery ||
+            item.title.toLowerCase().includes(searchQuery) ||
+            item.caption.toLowerCase().includes(searchQuery) ||
+            item.category.toLowerCase().includes(searchQuery);
+          return matchCat && matchQuery;
+        });
+
+        if (filteredGallery.length === 0) {
+          bentoGrid.innerHTML = '';
+          if (emptyState) emptyState.style.display = 'block';
+          return;
+        }
+
+        if (emptyState) emptyState.style.display = 'none';
+
+        bentoGrid.innerHTML = filteredGallery.map((item, idx) => `
+          <article class="ag-photo-card ${item.colSpan}" data-gallery-idx="${idx}">
+            <div class="reticle-tl"></div><div class="reticle-tr"></div><div class="reticle-bl"></div><div class="reticle-br"></div>
+            <div class="ag-card-viewport">
+              <div class="ag-card-hud-top">
+                <span class="ag-card-category-tag">${item.categoryLabel}</span>
+                <button type="button" class="ag-inspect-btn" title="Expand View">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 3 21 3 21 9"></polyline>
+                    <polyline points="9 21 3 21 3 15"></polyline>
+                    <line x1="21" y1="3" x2="14" y2="10"></line>
+                    <line x1="3" y1="21" x2="10" y2="14"></line>
+                  </svg>
+                </button>
+              </div>
+              <img src="${item.thumbSrc}" alt="${item.title}" class="ag-card-image" loading="lazy" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=800&auto=format&fit=crop&q=80';">
+            </div>
+            <div class="ag-card-body">
+              <div>
+                <div class="ag-card-meta-row">
+                  <span>#${item.id}</span>
+                  <span>${item.date}</span>
+                </div>
+                <h3 class="ag-card-title">${item.title}</h3>
+                <p class="ag-card-desc">${item.caption}</p>
+              </div>
+              <div class="ag-card-footer">
+                <span class="ag-explore-link">
+                  <span>View Full Chronicle</span>
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                  </svg>
+                </span>
+                <span style="font-size: 11px; font-family: 'JetBrains Mono', monospace; color: #86868b;">MASTER 4K</span>
+              </div>
+            </div>
+          </article>
+        `).join('');
+
+        attachHomeCardEvents();
+      }
+
+      function attachHomeCardEvents() {
+        const cards = bentoGrid.querySelectorAll('.ag-photo-card');
+        cards.forEach(card => {
+          let rect;
+          let isHovered = false;
+
+          card.addEventListener('mouseenter', () => {
+            rect = card.getBoundingClientRect();
+            isHovered = true;
+            card.style.transition = 'transform 0.12s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.25s ease-out, border-color 0.2s ease';
+          });
+
+          card.addEventListener('mousemove', (e) => {
+            if (!isHovered) return;
+            if (!rect) rect = card.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const cx = rect.width / 2;
+            const cy = rect.height / 2;
+            const rotateX = ((y - cy) / cy) * -6.5;
+            const rotateY = ((x - cx) / cx) * 6.5;
+            card.style.transform = `perspective(850px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) translateZ(12px) scale3d(1.015, 1.015, 1.015)`;
+            card.style.boxShadow = `${(-rotateY * 2).toFixed(1)}px ${(rotateX * 2 + 18).toFixed(1)}px 42px rgba(0, 0, 0, 0.09), 0 3px 10px rgba(0, 0, 0, 0.03)`;
+          });
+
+          card.addEventListener('mouseleave', () => {
+            isHovered = false;
+            card.style.transition = 'transform 0.55s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.55s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease';
+            card.style.transform = 'perspective(850px) rotateX(0deg) rotateY(0deg) translateZ(0px) scale3d(1, 1, 1)';
+            card.style.boxShadow = '';
+          });
+
+          card.addEventListener('click', () => {
+            const idx = parseInt(card.getAttribute('data-gallery-idx'), 10);
+            openHomeHud(idx);
+          });
+        });
+      }
+
+      filterChips.forEach(btn => {
+        btn.addEventListener('click', () => {
+          filterChips.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          currentCategory = btn.dataset.cat;
+          renderHomeBentoWall();
+        });
+      });
+
+      if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+          searchQuery = e.target.value.toLowerCase().trim();
+          renderHomeBentoWall();
+        });
+      }
+
+      window.addEventListener('keydown', (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+          if (searchInput && document.activeElement !== searchInput) {
+            e.preventDefault();
+            searchInput.focus();
+          }
+        }
+      });
+
+      function openHomeHud(idx) {
+        if (!filteredGallery[idx]) return;
+        hudIndex = idx;
+        const item = filteredGallery[idx];
+
+        if (hudImg) {
+          hudImg.src = item.origSrc;
+          hudImg.alt = item.title;
+        }
+        if (hudTitle) hudTitle.textContent = item.title;
+        if (hudDesc) hudDesc.textContent = item.caption;
+        if (hudCategory) hudCategory.innerHTML = item.categoryLabel;
+        if (hudDate) hudDate.textContent = item.date;
+        if (hudIndexEl) hudIndexEl.textContent = `ARCHIVE ${String(idx + 1).padStart(2, '0')} OF ${String(filteredGallery.length).padStart(2, '0')}`;
+        if (hudDownload) hudDownload.href = item.origSrc;
+
+        if (hudModal) {
+          hudModal.classList.add('active');
+          document.body.style.overflow = 'hidden';
+        }
+      }
+
+      function closeHomeHud() {
+        if (hudModal) {
+          hudModal.classList.remove('active');
+          document.body.style.overflow = '';
+        }
+      }
+
+      function prevHomeHud() {
+        if (filteredGallery.length === 0) return;
+        const newIdx = (hudIndex - 1 + filteredGallery.length) % filteredGallery.length;
+        openHomeHud(newIdx);
+      }
+
+      function nextHomeHud() {
+        if (filteredGallery.length === 0) return;
+        const newIdx = (hudIndex + 1) % filteredGallery.length;
+        openHomeHud(newIdx);
+      }
+
+      if (hudClose) hudClose.addEventListener('click', closeHomeHud);
+      if (hudPrev) hudPrev.addEventListener('click', prevHomeHud);
+      if (hudNext) hudNext.addEventListener('click', nextHomeHud);
+
+      if (hudModal) {
+        hudModal.addEventListener('click', (e) => {
+          if (e.target === hudModal) closeHomeHud();
+        });
+      }
+
+      window.addEventListener('keydown', (e) => {
+        if (!hudModal || !hudModal.classList.contains('active')) return;
+        if (e.key === 'Escape') closeHomeHud();
+        else if (e.key === 'ArrowLeft') prevHomeHud();
+        else if (e.key === 'ArrowRight') nextHomeHud();
+      });
+
+      // Initial execution
+      buildHomeMarquee();
+      renderHomeBentoWall();
+    })();
   </script>
 </body>
 </html>

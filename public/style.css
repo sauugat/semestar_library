@@ -1576,16 +1576,17 @@ body.landing .apple-nav-btn:active {
   border: 1px solid rgba(0, 0, 0, 0.08);
   padding: 32px 30px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.03), 0 8px 24px rgba(0, 0, 0, 0.04);
-  transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.32s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   will-change: transform, opacity;
-  transform: translate3d(0, 0, 0);
+  transform-style: preserve-3d;
+  perspective: 850px;
   backface-visibility: hidden;
 }
 
-/* Card Intro Gemini Gradient Aura (Appears just at starting and removes smoothly) */
+/* Card Intro & Hover Gemini Gradient Aura */
 .apple-card::before {
   content: "";
   position: absolute;
@@ -1597,6 +1598,12 @@ body.landing .apple-nav-btn:active {
   pointer-events: none;
   filter: blur(10px);
   will-change: opacity, transform;
+  transition: opacity 0.3s ease;
+}
+
+.apple-card:hover::before {
+  opacity: 0.45;
+  filter: blur(14px);
 }
 
 .poster-grid-active .apple-card::before {
@@ -1607,6 +1614,7 @@ body.landing .apple-nav-btn:active {
 .poster-grid-active .apple-card:nth-child(2)::before { animation-delay: 0.28s; }
 .poster-grid-active .apple-card:nth-child(3)::before { animation-delay: 0.44s; }
 .poster-grid-active .apple-card:nth-child(4)::before { animation-delay: 0.60s; }
+.poster-grid-active .apple-card:nth-child(5)::before { animation-delay: 0.76s; }
 
 @keyframes cardGeminiGradientIntro {
   0% {
@@ -1650,6 +1658,55 @@ body.landing .apple-nav-btn:active {
   transition: left 0.95s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.apple-card:hover {
+  border-color: rgba(0, 0, 0, 0.25);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.12), 0 4px 14px rgba(0, 0, 0, 0.05);
+}
+
+/* 3D Depth Layering on Internal Elements */
+.tilt-card .wide-card-preview,
+.tilt-card .apple-mock-chat,
+.tilt-card .apple-mock-post,
+.tilt-card .card-portion-wrap,
+.tilt-card .poster-icon-box,
+.tilt-card .apple-pill-tag {
+  transform-style: preserve-3d;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.tilt-card:hover .wide-card-preview {
+  transform: translateZ(28px);
+}
+
+.tilt-card:hover .apple-mock-chat {
+  transform: translateZ(35px);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.22);
+}
+
+.tilt-card:hover .mock-chat-bubble.outgoing {
+  transform: translateZ(22px);
+}
+
+.tilt-card:hover .mock-tapback-pill {
+  transform: translateZ(30px);
+}
+
+.tilt-card:hover .apple-mock-post {
+  transform: translateZ(28px);
+}
+
+.tilt-card:hover .apple-countdown-box {
+  transform: translateZ(28px);
+}
+
+.tilt-card:hover .poster-icon-box {
+  transform: translateZ(25px) scale(1.1);
+}
+
+.tilt-card:hover .apple-pill-tag {
+  transform: translateZ(18px);
+}
+
 .apple-card.bento-shape-wide {
   grid-column: 1 / -1;
   min-height: 290px;
@@ -1663,11 +1720,6 @@ body.landing .apple-nav-btn:active {
 .apple-card.bento-shape-compact {
   grid-column: 2 / 3;
   min-height: 400px;
-}
-
-.apple-card:hover {
-  border-color: rgba(0, 0, 0, 0.22);
-  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.08), 0 3px 8px rgba(0, 0, 0, 0.03);
 }
 
 /* Card Radial Specular Spotlight with Gemini Intro Flash */
@@ -1688,6 +1740,7 @@ body.landing .apple-nav-btn:active {
 .poster-grid-active .apple-card:nth-child(2) .poster-card-specular { animation-delay: 0.28s; }
 .poster-grid-active .apple-card:nth-child(3) .poster-card-specular { animation-delay: 0.44s; }
 .poster-grid-active .apple-card:nth-child(4) .poster-card-specular { animation-delay: 0.60s; }
+.poster-grid-active .apple-card:nth-child(5) .poster-card-specular { animation-delay: 0.76s; }
 
 @keyframes cardSpecularGeminiIntro {
   0% {
@@ -2523,6 +2576,320 @@ body.landing .apple-nav-btn:active {
 .poster-footer span {
   font-size: 11px;
   color: #8e8e93;
+}
+
+/* ==========================================================================
+   Monochromatic Apple Mock Chat Preview Card in Bento Grid
+   ========================================================================== */
+.apple-mock-chat {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: #0f0f12 !important;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 18px;
+  padding: 14px 16px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  gap: 8px;
+  overflow: hidden;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease;
+}
+
+.apple-card:hover .apple-mock-chat {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 40px rgba(255, 255, 255, 0.08), 0 4px 12px rgba(0, 0, 0, 0.4);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.mock-chat-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 8px;
+  border-bottom: 0.5px solid rgba(255, 255, 255, 0.1);
+}
+
+.mock-chat-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #636366 0%, #3a3a3c 100%);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.mock-chat-title {
+  display: flex;
+  flex-direction: column;
+}
+
+.mock-chat-title span {
+  font-size: 12px;
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: -0.2px;
+}
+
+.mock-chat-title small {
+  font-size: 10px;
+  color: #8e8e93;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mock-online-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ffffff;
+  display: inline-block;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.9);
+}
+
+.mock-chat-bubble {
+  position: relative;
+  max-width: 86%;
+  padding: 7px 11px;
+  font-size: 12px;
+  line-height: 1.35;
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mock-chat-bubble.incoming {
+  align-self: flex-start;
+  background: #2c2c2e;
+  color: #ffffff;
+  border: 0.5px solid rgba(255, 255, 255, 0.08);
+  border-bottom-left-radius: 4px;
+}
+
+.mock-chat-bubble.outgoing {
+  align-self: flex-end;
+  background: linear-gradient(180deg, #ffffff 0%, #e5e5ea 100%);
+  color: #000000;
+  border-bottom-right-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.mock-tapback-pill {
+  position: absolute;
+  top: -9px;
+  right: -6px;
+  background: #1c1c1e;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 10px;
+  padding: 1px 5px;
+  font-size: 10px;
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+  animation: tapbackPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.25);
+}
+
+.mock-chat-bubble.outgoing .mock-time {
+  font-size: 9px;
+  color: rgba(0, 0, 0, 0.55);
+}
+
+.mock-chat-bubble.incoming .mock-time {
+  font-size: 9px;
+  color: #8e8e93;
+}
+
+.mock-typing-indicator {
+  align-self: flex-start;
+  background: #2c2c2e;
+  padding: 6px 10px;
+  border-radius: 12px;
+  border-bottom-left-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: fit-content;
+}
+
+.typing-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #8e8e93;
+  animation: typingBounce 1.4s infinite ease-in-out both;
+}
+
+.typing-dot:nth-child(1) { animation-delay: -0.32s; }
+.typing-dot:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes typingBounce {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40% { transform: scale(1.1); opacity: 1; }
+}
+
+.animate-pop-1 {
+  animation: bubblePopIn 0.5s ease-out both;
+}
+
+.animate-pop-2 {
+  animation: bubblePopIn 0.5s ease-out 0.3s both;
+}
+
+.animate-pop-3 {
+  animation: bubblePopIn 0.5s ease-out 0.6s both;
+}
+
+@keyframes bubblePopIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ==========================================================================
+   Apple Intelligence / Siri Sleek Vertical Edge Glow (Bloom & Decay)
+   ========================================================================== */
+.siri-screen-border {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.8s ease;
+}
+
+.siri-screen-border.siri-border-active {
+  visibility: visible;
+  animation: siriActivationDecay 3.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes siriActivationDecay {
+  0% {
+    opacity: 0.92;
+    filter: brightness(1.35) drop-shadow(0 0 16px rgba(0, 240, 255, 0.6));
+  }
+  20% {
+    opacity: 0.86;
+    filter: brightness(1.22) drop-shadow(0 0 10px rgba(0, 240, 255, 0.4));
+  }
+  55% {
+    opacity: 0.48;
+    filter: brightness(1.08);
+  }
+  100% {
+    opacity: 0.28;
+    filter: brightness(1);
+  }
+}
+
+/* Vertical Stream Containers with 2D Dual-Axis Mask Feathering */
+.siri-vertical-stream {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 44px;
+  max-width: 4.8vw;
+  pointer-events: none;
+}
+
+.siri-vertical-stream.left {
+  left: 0;
+  -webkit-mask-image: 
+    linear-gradient(to right, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0.35) 45%, transparent 100%),
+    linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 1) 12%, rgba(0, 0, 0, 1) 88%, transparent 100%);
+  mask-image: 
+    linear-gradient(to right, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0.35) 45%, transparent 100%),
+    linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 1) 12%, rgba(0, 0, 0, 1) 88%, transparent 100%);
+  -webkit-mask-composite: destination-in;
+  mask-composite: intersect;
+}
+
+.siri-vertical-stream.right {
+  right: 0;
+  -webkit-mask-image: 
+    linear-gradient(to left, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0.35) 45%, transparent 100%),
+    linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 1) 12%, rgba(0, 0, 0, 1) 88%, transparent 100%);
+  mask-image: 
+    linear-gradient(to left, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0.35) 45%, transparent 100%),
+    linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 1) 12%, rgba(0, 0, 0, 1) 88%, transparent 100%);
+  -webkit-mask-composite: destination-in;
+  mask-composite: intersect;
+}
+
+/* Core sleek concentrated light filament */
+.siri-glow-core {
+  position: absolute;
+  inset: -10% 0;
+  width: 100%;
+  background: linear-gradient(
+    180deg,
+    #00f0ff 0%,
+    #007aff 18%,
+    #7b2cbf 38%,
+    #ff2a85 58%,
+    #ff9e00 78%,
+    #00f59b 92%,
+    #00f0ff 100%
+  );
+  background-size: 100% 300%;
+  filter: blur(16px);
+  animation: siriCoreWave 6s linear infinite;
+  opacity: 0.85;
+  will-change: background-position, opacity, transform;
+}
+
+/* Ambient soft diffuse aura */
+.siri-glow-aura {
+  position: absolute;
+  inset: -10% 0;
+  width: 140%;
+  background: linear-gradient(
+    180deg,
+    #00f0ff 0%,
+    #7b2cbf 35%,
+    #ff2a85 65%,
+    #007aff 100%
+  );
+  background-size: 100% 250%;
+  filter: blur(28px);
+  animation: siriAuraPulse 4.5s ease-in-out infinite alternate;
+  opacity: 0.65;
+  will-change: transform, opacity;
+}
+
+.siri-vertical-stream.right .siri-glow-core,
+.siri-vertical-stream.right .siri-glow-aura {
+  animation-delay: -2.5s;
+}
+
+@keyframes siriCoreWave {
+  0% {
+    background-position: 0% 0%;
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(1.03) scaleX(1.08);
+  }
+  100% {
+    background-position: 0% 300%;
+    transform: scaleY(1);
+  }
+}
+
+@keyframes siriAuraPulse {
+  0% {
+    transform: scaleX(0.9);
+  }
+  50% {
+    transform: scaleX(1.15);
+  }
+  100% {
+    transform: scaleX(1);
+  }
 }
 
 @media (max-width: 768px) {

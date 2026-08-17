@@ -1,0 +1,1461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<title>Messages — Semester Library</title>
+<meta name="description" content="Apple Messages with moving pearl-white luxury gradient for Semester Library">
+<script>
+  fetch('/api/me').then(r=>{if(!r.ok)window.location.replace('login.html')}).catch(()=>window.location.replace('login.html'));
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  /* ==========================================================================
+     APPLE MESSAGES — MOVING CLASSY PEARL-WHITE GRADIENT THEME
+     ========================================================================== */
+
+  *, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  :root {
+    --sf: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Inter', 'Helvetica Neue', system-ui, sans-serif;
+    --bg-base: #000000;
+    --bar-bg: rgba(18, 18, 20, 0.88);
+    --bar-border: rgba(255, 255, 255, 0.12);
+    --bubble-gray: #2c2c2e;
+    --bubble-gray-border: rgba(255, 255, 255, 0.08);
+    --bubble-outgoing: #ffffff;
+    --apple-primary: #ffffff;
+    --text-primary: #ffffff;
+    --text-secondary: #8e8e93;
+    --text-tertiary: #636366;
+    --input-bg: #1c1c1e;
+    --input-border: rgba(255, 255, 255, 0.16);
+  }
+
+  html, body {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    background: var(--bg-base);
+    font-family: var(--sf);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  .im-app {
+    position: relative;
+    height: 100vh;
+    height: 100dvh;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg-base);
+  }
+
+  /* ═══ MOVING ANIMATED PEARL-WHITE LUXURY GRADIENT BACKDROP ═══ */
+  .white-ambient-mesh {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+    opacity: 0.85;
+    background: radial-gradient(circle at 50% 30%, #0d0d12 0%, #060608 100%);
+  }
+
+  /* Floating animated pearl-white orbs */
+  .white-glow-orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(85px);
+    mix-blend-mode: screen;
+    will-change: transform, opacity;
+  }
+
+  .orb-1 {
+    top: -15%;
+    left: 15%;
+    width: 540px;
+    height: 540px;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.22) 0%, rgba(225, 230, 245, 0.1) 45%, transparent 75%);
+    animation: floatWhiteOrb1 18s ease-in-out infinite alternate;
+  }
+
+  .orb-2 {
+    bottom: -10%;
+    right: -10%;
+    width: 620px;
+    height: 620px;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.18) 0%, rgba(210, 220, 240, 0.08) 50%, transparent 75%);
+    animation: floatWhiteOrb2 22s ease-in-out infinite alternate;
+    animation-delay: -5s;
+  }
+
+  .orb-3 {
+    top: 40%;
+    left: -20%;
+    width: 480px;
+    height: 480px;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.14) 0%, rgba(240, 245, 255, 0.06) 55%, transparent 75%);
+    animation: floatWhiteOrb3 20s ease-in-out infinite alternate;
+    animation-delay: -10s;
+  }
+
+  .orb-4 {
+    top: 25%;
+    right: 20%;
+    width: 450px;
+    height: 450px;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.16) 0%, rgba(230, 235, 250, 0.07) 50%, transparent 75%);
+    animation: floatWhiteOrb4 24s ease-in-out infinite alternate;
+    animation-delay: -14s;
+  }
+
+  /* Shimmering fluid white wave sweep */
+  .white-wave-sweep {
+    position: absolute;
+    inset: -60%;
+    background: linear-gradient(
+      120deg,
+      transparent 25%,
+      rgba(255, 255, 255, 0.03) 40%,
+      rgba(255, 255, 255, 0.09) 50%,
+      rgba(255, 255, 255, 0.03) 60%,
+      transparent 75%
+    );
+    animation: waveMotion 15s linear infinite;
+    mix-blend-mode: overlay;
+    filter: blur(50px);
+  }
+
+  @keyframes floatWhiteOrb1 {
+    0% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(65px, 80px) scale(1.15); }
+    100% { transform: translate(-45px, -35px) scale(0.9); }
+  }
+
+  @keyframes floatWhiteOrb2 {
+    0% { transform: translate(0, 0) scale(0.92); }
+    50% { transform: translate(-80px, -55px) scale(1.14); }
+    100% { transform: translate(35px, 65px) scale(1); }
+  }
+
+  @keyframes floatWhiteOrb3 {
+    0% { transform: translate(0, 0) scale(1.06); }
+    50% { transform: translate(55px, -65px) scale(0.9); }
+    100% { transform: translate(-35px, 45px) scale(1.12); }
+  }
+
+  @keyframes floatWhiteOrb4 {
+    0% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(-55px, 75px) scale(1.18); }
+    100% { transform: translate(45px, -45px) scale(0.94); }
+  }
+
+  @keyframes waveMotion {
+    0% { transform: translateY(-40%) rotate(20deg); }
+    100% { transform: translateY(40%) rotate(20deg); }
+  }
+
+  /* ═══ NAVIGATION HEADER ═══ */
+  .im-header {
+    position: relative;
+    z-index: 50;
+    height: 72px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    background: var(--bar-bg);
+    -webkit-backdrop-filter: saturate(180%) blur(25px);
+    backdrop-filter: saturate(180%) blur(25px);
+    border-bottom: 0.5px solid var(--bar-border);
+    flex-shrink: 0;
+  }
+
+  .im-header-side {
+    min-width: 60px;
+    display: flex;
+    align-items: center;
+  }
+
+  .im-header-side.right {
+    justify-content: flex-end;
+  }
+
+  .im-back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: #ffffff;
+    text-decoration: none;
+    font-size: 17px;
+    font-weight: 400;
+    letter-spacing: -0.4px;
+    transition: opacity 0.15s ease;
+    cursor: pointer;
+  }
+
+  .im-back-btn:hover {
+    opacity: 0.7;
+  }
+
+  .im-back-btn svg {
+    width: 22px;
+    height: 22px;
+    stroke-width: 2.6;
+    margin-left: -4px;
+  }
+
+  /* Centered Avatar + Contact Title */
+  .im-header-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 2px 14px;
+    border-radius: 14px;
+    transition: background 0.15s ease;
+  }
+
+  .im-header-center:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .im-contact-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: linear-gradient(180deg, #636366 0%, #48484a 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    margin-bottom: 2px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    overflow: hidden;
+    border: 0.5px solid rgba(255, 255, 255, 0.18);
+  }
+
+  .im-contact-avatar svg {
+    width: 22px;
+    height: 22px;
+    fill: #ffffff;
+  }
+
+  .im-contact-title-row {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .im-contact-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.2px;
+  }
+
+  .im-contact-chevron {
+    width: 9px;
+    height: 9px;
+    color: var(--text-secondary);
+    stroke-width: 2.5;
+  }
+
+  /* Profile Avatar in Header */
+  .im-profile-link {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: #fff;
+    text-decoration: none;
+    overflow: hidden;
+    border: 0.5px solid rgba(255, 255, 255, 0.18);
+  }
+
+  .im-profile-link img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  /* ═══ MESSAGE FEED ═══ */
+  .im-feed {
+    position: relative;
+    z-index: 10;
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 12px 14px 20px;
+    display: flex;
+    flex-direction: column;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .im-feed::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .im-feed::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+  }
+
+  .im-feed-inner {
+    max-width: 760px;
+    width: 100%;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  /* Centered Date Stamps */
+  .im-date-stamp {
+    text-align: center;
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin: 18px 0 8px;
+    letter-spacing: -0.1px;
+  }
+
+  /* Empty state */
+  .im-empty-box {
+    margin: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 50px 20px;
+    gap: 12px;
+  }
+
+  .im-empty-box svg {
+    width: 48px;
+    height: 48px;
+    color: var(--text-tertiary);
+  }
+
+  .im-empty-box h3 {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .im-empty-box p {
+    font-size: 13.5px;
+    color: var(--text-secondary);
+    max-width: 260px;
+    line-height: 1.45;
+  }
+
+  /* ═══ MESSAGE BUBBLE ROW ═══ */
+  .im-row {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    max-width: 82%;
+    margin-top: 2px;
+    animation: msgPopIn 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.15) both;
+  }
+
+  @keyframes msgPopIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .im-row.cluster-start {
+    margin-top: 10px;
+  }
+
+  /* Outgoing (Self) */
+  .im-row.self {
+    align-self: flex-end;
+    flex-direction: row-reverse;
+  }
+
+  /* Incoming (Other) */
+  .im-row.other {
+    align-self: flex-start;
+  }
+
+  /* Sender Avatar */
+  .im-msg-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #3a3a3c;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: #fff;
+    flex-shrink: 0;
+    overflow: hidden;
+    margin-bottom: 2px;
+    border: 0.5px solid rgba(255, 255, 255, 0.12);
+  }
+
+  .im-msg-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .im-row.grouped .im-msg-avatar {
+    visibility: hidden;
+  }
+
+  .im-row.self .im-msg-avatar {
+    display: none;
+  }
+
+  .im-msg-content-wrap {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    position: relative;
+  }
+
+  .im-row.self .im-msg-content-wrap {
+    align-items: flex-end;
+  }
+
+  /* Sender Name Header */
+  .im-msg-sender-name {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin: 0 0 2px 10px;
+    letter-spacing: -0.1px;
+  }
+
+  .im-row.grouped .im-msg-sender-name,
+  .im-row.self .im-msg-sender-name {
+    display: none;
+  }
+
+  /* ═══ BUBBLE SHAPE WITH MONOCHROMATIC CONTRAST ═══ */
+  .im-bubble {
+    position: relative;
+    padding: 9px 14px;
+    font-size: 15.5px;
+    line-height: 1.38;
+    letter-spacing: -0.3px;
+    word-break: break-word;
+    user-select: text;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Link & Number Highlights */
+  .im-row.other .im-bubble a,
+  .im-row.other .im-bubble .link-highlight {
+    color: #ffffff;
+    text-decoration: underline;
+    font-weight: 600;
+    text-underline-offset: 2px;
+    cursor: pointer;
+  }
+
+  .im-row.self .im-bubble a,
+  .im-row.self .im-bubble .link-highlight {
+    color: #000000;
+    text-decoration: underline;
+    font-weight: 700;
+    text-underline-offset: 2px;
+    cursor: pointer;
+  }
+
+  /* Incoming Gray Bubble (#2C2C2E) with White Text */
+  .im-row.other .im-bubble {
+    background: var(--bubble-gray);
+    color: #ffffff;
+    border: 0.5px solid var(--bubble-gray-border);
+  }
+
+  /* Outgoing Crisp White Bubble with Black Text */
+  .im-row.self .im-bubble {
+    background: linear-gradient(180deg, #ffffff 0%, #ececed 100%);
+    color: #000000;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Apple Corner Radii */
+  /* Outgoing (Self) */
+  .im-row.self.solo .im-bubble {
+    border-radius: 18px 18px 4px 18px;
+  }
+  .im-row.self.group-top .im-bubble {
+    border-radius: 18px 18px 6px 18px;
+  }
+  .im-row.self.group-mid .im-bubble {
+    border-radius: 18px 6px 6px 18px;
+  }
+  .im-row.self.group-bottom .im-bubble {
+    border-radius: 18px 6px 18px 18px;
+  }
+
+  /* Incoming (Other) */
+  .im-row.other.solo .im-bubble {
+    border-radius: 18px 18px 18px 4px;
+  }
+  .im-row.other.group-top .im-bubble {
+    border-radius: 18px 18px 18px 6px;
+  }
+  .im-row.other.group-mid .im-bubble {
+    border-radius: 6px 18px 18px 6px;
+  }
+  .im-row.other.group-bottom .im-bubble {
+    border-radius: 6px 18px 18px 18px;
+  }
+
+  /* Attachment Only */
+  .im-bubble.media-only {
+    padding: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  .im-media-box {
+    position: relative;
+    border-radius: 16px;
+    overflow: hidden;
+    max-width: 270px;
+    background: #1c1c1e;
+    border: 0.5px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  }
+
+  .im-bubble:not(.media-only) .im-media-box {
+    margin-top: 6px;
+    border-radius: 12px;
+  }
+
+  .im-media-box img {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: 300px;
+    object-fit: cover;
+    cursor: pointer;
+  }
+
+  .im-media-box video {
+    display: block;
+    width: 100%;
+    max-height: 300px;
+    background: #000;
+    object-fit: contain;
+  }
+
+  /* Timestamp below bubble */
+  .im-time-meta {
+    font-size: 10px;
+    color: var(--text-tertiary);
+    margin-top: 2px;
+    padding: 0 4px;
+  }
+
+  .im-row.self .im-time-meta {
+    text-align: right;
+  }
+
+  .im-row.other .im-time-meta {
+    text-align: left;
+  }
+
+  /* ═══ COMPOSER DOCK ═══ */
+  .im-composer {
+    position: relative;
+    z-index: 50;
+    background: var(--bar-bg);
+    -webkit-backdrop-filter: saturate(180%) blur(25px);
+    backdrop-filter: saturate(180%) blur(25px);
+    border-top: 0.5px solid var(--bar-border);
+    padding: 8px 12px calc(env(safe-area-inset-bottom, 8px) + 8px);
+    flex-shrink: 0;
+  }
+
+  .im-composer-inner {
+    max-width: 760px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  /* Attachment Chip */
+  .im-attachment-chip {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 12px;
+    background: #2c2c2e;
+    border: 0.5px solid rgba(255, 255, 255, 0.16);
+    border-radius: 14px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  }
+
+  .im-attachment-chip.active {
+    display: flex;
+  }
+
+  .im-chip-thumb {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.14);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    flex-shrink: 0;
+  }
+
+  .im-chip-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .im-chip-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+  }
+
+  .im-chip-size {
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+
+  .im-chip-close-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .im-chip-close-btn:hover {
+    color: #ff453a;
+  }
+
+  /* Controls Row: [+] [Text Message · SMS (wave)] [😊] */
+  .im-controls {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+  }
+
+  /* (+) Plus Button to Directly Upload Files */
+  .im-plus-upload-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.12);
+    border: 0.5px solid rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    margin-bottom: 2px;
+    transition: transform 0.15s ease, background 0.15s ease;
+  }
+
+  .im-plus-upload-btn:hover {
+    background: rgba(255, 255, 255, 0.22);
+    transform: scale(1.06);
+  }
+
+  .im-plus-upload-btn:active {
+    transform: scale(0.92);
+  }
+
+  .im-plus-upload-btn svg {
+    width: 18px;
+    height: 18px;
+    stroke-width: 2.5;
+  }
+
+  /* Input Capsule */
+  .im-input-capsule {
+    flex: 1;
+    min-height: 38px;
+    display: flex;
+    align-items: flex-end;
+    background: var(--input-bg);
+    border: 0.5px solid var(--input-border);
+    border-radius: 20px;
+    padding: 2px 4px 2px 14px;
+    transition: border-color 0.15s ease;
+  }
+
+  .im-input-capsule:focus-within {
+    border-color: rgba(255, 255, 255, 0.35);
+  }
+
+  .im-textarea {
+    flex: 1;
+    border: none;
+    background: transparent;
+    color: #ffffff;
+    font-family: var(--sf);
+    font-size: 15.5px;
+    line-height: 20px;
+    letter-spacing: -0.3px;
+    padding: 8px 0;
+    resize: none;
+    max-height: 120px;
+    outline: none;
+  }
+
+  .im-textarea::placeholder {
+    color: rgba(235, 235, 245, 0.35);
+  }
+
+  /* High-Contrast White Upward Send Arrow Button */
+  .im-send-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: #ffffff;
+    border: none;
+    color: #000000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    margin-left: 6px;
+    margin-bottom: 3px;
+    transition: all 0.18s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    opacity: 1;
+    transform: scale(1);
+    box-shadow: 0 2px 8px rgba(255, 255, 255, 0.25);
+  }
+
+  .im-send-btn:hover {
+    background: #e5e5ea;
+    transform: scale(1.08);
+  }
+
+  .im-send-btn:active {
+    transform: scale(0.92);
+  }
+
+  .im-send-btn.hidden {
+    opacity: 0;
+    transform: scale(0.3);
+    pointer-events: none;
+    width: 0;
+    margin-left: 0;
+  }
+
+  .im-send-btn svg {
+    width: 15px;
+    height: 15px;
+    stroke-width: 2.8;
+  }
+
+  /* Voice / Waveform Button */
+  .im-voice-record-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 4px;
+    margin-right: 4px;
+    transition: color 0.15s ease;
+  }
+
+  .im-voice-record-btn:hover {
+    color: #ffffff;
+  }
+
+  .im-send-btn:not(.hidden) ~ .im-voice-record-btn {
+    display: none;
+  }
+
+  /* Smiley Emoji Button */
+  .im-emoji-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-bottom: 2px;
+    transition: color 0.15s ease, transform 0.15s ease;
+  }
+
+  .im-emoji-btn:hover {
+    color: #ffffff;
+    transform: scale(1.1);
+  }
+
+  .im-emoji-btn svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  /* ═══ APPLE TOAST ALERT (Coming soon) ═══ */
+  .im-apple-toast {
+    position: fixed;
+    top: 85px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-20px);
+    background: rgba(30, 30, 32, 0.95);
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+    border: 0.5px solid rgba(255, 255, 255, 0.18);
+    border-radius: 20px;
+    padding: 8px 18px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.25);
+    z-index: 9999;
+  }
+
+  .im-apple-toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  .im-apple-toast svg {
+    width: 15px;
+    height: 15px;
+    color: #ffffff;
+  }
+
+  /* ═══ ERROR BANNER ═══ */
+  #chatError {
+    display: none;
+    position: relative;
+    z-index: 40;
+    padding: 8px 16px;
+    font-size: 13px;
+    text-align: center;
+    font-weight: 500;
+    color: #ff453a;
+    background: rgba(255, 69, 58, 0.12);
+    border-bottom: 0.5px solid rgba(255, 69, 58, 0.2);
+  }
+
+  /* ═══ FULLSCREEN IMAGE LIGHTBOX ═══ */
+  .im-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(0, 0, 0, 0.92);
+    -webkit-backdrop-filter: blur(25px);
+    backdrop-filter: blur(25px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .im-lightbox.active {
+    display: flex;
+  }
+
+  .im-lightbox img {
+    max-width: 92vw;
+    max-height: 86vh;
+    border-radius: 12px;
+    object-fit: contain;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+  }
+
+  .im-lightbox-close {
+    position: absolute;
+    top: 24px;
+    right: 24px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.18);
+    border: none;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  @media (max-width: 600px) {
+    .im-row { max-width: 86%; }
+    .im-back-btn span { display: none; }
+  }
+
+  @media (min-width: 768px) {
+    .im-feed { padding-left: 14%; padding-right: 14%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="im-app">
+
+  <!-- MOVING CLASSY PEARL-WHITE ANIMATED GRADIENT BACKDROP -->
+  <div class="white-ambient-mesh">
+    <div class="white-wave-sweep"></div>
+    <div class="white-glow-orb orb-1"></div>
+    <div class="white-glow-orb orb-2"></div>
+    <div class="white-glow-orb orb-3"></div>
+    <div class="white-glow-orb orb-4"></div>
+  </div>
+
+  <!-- NAVIGATION BAR (Exact from User Screenshot) -->
+  <header class="im-header">
+    <div class="im-header-side">
+      <a href="dashboard.html" class="im-back-btn" title="Back to Notes">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+        <span>Notes</span>
+      </a>
+    </div>
+
+    <!-- Centered Avatar + Contact Title (Exact Replica) -->
+    <div class="im-header-center" onclick="location.href='dashboard.html'" title="Conversation Details">
+      <div class="im-contact-avatar">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+        </svg>
+      </div>
+      <div class="im-contact-title-row">
+        <span class="im-contact-name">Class Group Chat</span>
+        <svg class="im-contact-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="9 18 15 12 9 6"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Right Profile Avatar -->
+    <div class="im-header-side right">
+      <a href="profile.html" class="im-profile-link" id="headerProfileAvatar" title="My Profile">
+        <span id="headerAvatarChar">·</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- ERROR BANNER -->
+  <div id="chatError"></div>
+
+  <!-- APPLE TOAST NOTIFICATION -->
+  <div class="im-apple-toast" id="appleToast">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/>
+      <line x1="12" y1="16" x2="12" y2="12"/>
+      <line x1="12" y1="8" x2="12.01" y2="8"/>
+    </svg>
+    <span id="toastMessage">Coming soon</span>
+  </div>
+
+  <!-- MAIN MESSAGE FEED -->
+  <main class="im-feed" id="chatFeed">
+    <div class="im-feed-inner" id="feedInner">
+      <div class="im-empty-box" id="emptyNotice">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+        <h3>No Messages Yet</h3>
+        <p>Send a message or attachment to start chatting with your class.</p>
+      </div>
+    </div>
+  </main>
+
+  <!-- COMPOSER BAR (Exact Screenshot: [+] [Text Message · SMS (wave)] [😊]) -->
+  <footer class="im-composer">
+    <div class="im-composer-inner">
+
+      <!-- Attached File Chip -->
+      <div class="im-attachment-chip" id="attachmentChip">
+        <div class="im-chip-thumb">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <polyline points="21 15 16 10 5 21"/>
+          </svg>
+        </div>
+        <div class="im-chip-info">
+          <span class="im-chip-name" id="chipFileName">image.jpg</span>
+          <span class="im-chip-size" id="chipFileSize">1.2 MB</span>
+        </div>
+        <button class="im-chip-close-btn" onclick="removeAttachedFile()" title="Remove Attachment">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Controls Row -->
+      <div class="im-controls">
+
+        <!-- (+) Plus Button to Directly Upload Files -->
+        <button class="im-plus-upload-btn" onclick="document.getElementById('hiddenFileInput').click()" title="Attach Photo or Video">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"/>
+            <line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+        </button>
+        <input type="file" id="hiddenFileInput" accept="image/*,video/*" style="display:none" onchange="handleFileSelected(event)">
+
+        <!-- Text Message Capsule Input -->
+        <div class="im-input-capsule">
+          <textarea
+            class="im-textarea"
+            id="chatTextarea"
+            placeholder="Text Message · SMS"
+            rows="1"
+            maxlength="2000"
+            oninput="handleInputState()"
+            onkeydown="handleKeyAction(event)"
+          ></textarea>
+
+          <!-- Blue Upward Send Arrow Button -->
+          <button class="im-send-btn hidden" id="sendBtn" onclick="sendMessage()" title="Send">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="19" x2="12" y2="5"/>
+              <polyline points="5 12 12 5 19 12"/>
+            </svg>
+          </button>
+
+          <!-- Voice / Waveform Icon (Shows 'Coming Soon' on click) -->
+          <button class="im-voice-record-btn" onclick="showToast('Voice messages coming soon')" title="Record Audio">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" y1="19" x2="12" y2="23"/>
+              <line x1="8" y1="23" x2="16" y2="23"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Smiley Emoji Button on Right (Shows 'Coming Soon' on click) -->
+        <button class="im-emoji-btn" onclick="showToast('Stickers coming soon')" title="Emoji & Stickers">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
+            <line x1="9" y1="9" x2="9.01" y2="9"/>
+            <line x1="15" y1="9" x2="15.01" y2="9"/>
+          </svg>
+        </button>
+
+      </div>
+
+    </div>
+  </footer>
+
+</div>
+
+<!-- LIGHTBOX MODAL -->
+<div class="im-lightbox" id="lightboxModal" onclick="closeLightbox()">
+  <button class="im-lightbox-close" onclick="closeLightbox()">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18"/>
+      <line x1="6" y1="6" x2="18" y2="18"/>
+    </svg>
+  </button>
+  <img id="lightboxTargetImg" src="" alt="Fullscreen Media" onclick="event.stopPropagation()">
+</div>
+
+<script>
+  let currentStudent = null;
+  let lastMessageId = 0;
+  let isFetching = false;
+  let pollTimer = null;
+  let lastDateString = null;
+  let toastTimer = null;
+
+  const textarea = document.getElementById('chatTextarea');
+  const sendBtn = document.getElementById('sendBtn');
+
+  // Input Auto-Grow & Send Button Display
+  function handleInputState() {
+    textarea.style.height = 'auto';
+    textarea.style.height = Math.min(textarea.scrollHeight, 110) + 'px';
+
+    const hasText = textarea.value.trim().length > 0;
+    const hasFile = document.getElementById('hiddenFileInput').files.length > 0;
+
+    if (hasText || hasFile) {
+      sendBtn.classList.remove('hidden');
+    } else {
+      sendBtn.classList.add('hidden');
+    }
+  }
+
+  function handleKeyAction(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  }
+
+  // Toast Notification for 'Coming Soon'
+  function showToast(msg) {
+    const toast = document.getElementById('appleToast');
+    document.getElementById('toastMessage').textContent = msg;
+    toast.classList.add('show');
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      toast.classList.remove('show');
+    }, 2400);
+  }
+
+  // Session Init
+  fetch('/api/me')
+    .then(r => r.json())
+    .then(data => {
+      currentStudent = data;
+      const charEl = document.getElementById('headerAvatarChar');
+      if (charEl) charEl.textContent = data.name.charAt(0).toUpperCase();
+
+      fetch('/api/profile')
+        .then(r => r.json())
+        .then(p => {
+          if (p && p.avatarUrl) {
+            document.getElementById('headerProfileAvatar').innerHTML = `<img src="${p.avatarUrl}" alt="${data.name}">`;
+          }
+        })
+        .catch(() => {});
+
+      startPolling();
+    })
+    .catch(() => {
+      window.location.replace('login.html');
+    });
+
+  // File Upload via Plus (+) Icon
+  function handleFileSelected(e) {
+    const file = e.target.files[0];
+    if (!file) return removeAttachedFile();
+
+    if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
+      showError('Only images and videos are supported.');
+      return removeAttachedFile();
+    }
+
+    if (file.size > 25 * 1024 * 1024) {
+      showError('Maximum file size is 25 MB.');
+      return removeAttachedFile();
+    }
+
+    document.getElementById('chipFileName').textContent = file.name;
+    document.getElementById('chipFileSize').textContent = formatBytes(file.size);
+    document.getElementById('attachmentChip').classList.add('active');
+    handleInputState();
+  }
+
+  function removeAttachedFile() {
+    document.getElementById('hiddenFileInput').value = '';
+    document.getElementById('attachmentChip').classList.remove('active');
+    handleInputState();
+  }
+
+  function formatBytes(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1048576).toFixed(1) + ' MB';
+  }
+
+  function showError(msg) {
+    const banner = document.getElementById('chatError');
+    banner.textContent = msg;
+    banner.style.display = 'block';
+    setTimeout(() => { banner.style.display = 'none'; }, 3800);
+  }
+
+  // Send Message
+  async function sendMessage() {
+    const text = textarea.value.trim();
+    const fileInput = document.getElementById('hiddenFileInput');
+    const file = fileInput.files[0];
+
+    if (!text && !file) return;
+    if (text.length > 2000) return showError('Message exceeds 2,000 character limit.');
+
+    sendBtn.disabled = true;
+
+    const payload = new FormData();
+    if (text) payload.append('text', text);
+    if (file) payload.append('attachment', file);
+
+    try {
+      const res = await fetch('/api/chat/messages', {
+        method: 'POST',
+        body: payload
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        showError(data.message || 'Unable to send.');
+      } else {
+        textarea.value = '';
+        textarea.style.height = 'auto';
+        removeAttachedFile();
+        if (pollTimer) clearTimeout(pollTimer);
+        isFetching = false;
+        pollMessages();
+      }
+    } catch (err) {
+      showError('Network error. Check connection.');
+    } finally {
+      sendBtn.disabled = false;
+      textarea.focus();
+    }
+  }
+
+  // Polling Loop
+  async function pollMessages() {
+    if (isFetching) return;
+    isFetching = true;
+
+    try {
+      const res = await fetch(`/api/chat/messages?since=${lastMessageId}`);
+      if (res.ok) {
+        const messages = await res.json();
+        if (messages && messages.length > 0) {
+          const emptyElem = document.getElementById('emptyNotice');
+          if (emptyElem) emptyElem.remove();
+
+          renderMessages(messages);
+          lastMessageId = messages[messages.length - 1].id;
+          scrollToBottom();
+        }
+      } else if (res.status === 401) {
+        window.location.replace('login.html');
+      }
+    } catch (e) {
+      console.error('Polling error:', e);
+    } finally {
+      isFetching = false;
+      pollTimer = setTimeout(pollMessages, 3000);
+    }
+  }
+
+  function startPolling() {
+    if (pollTimer) clearTimeout(pollTimer);
+    pollMessages();
+  }
+
+  function formatTime(iso) {
+    const d = new Date(iso);
+    return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  }
+
+  function formatStamp(iso) {
+    const d = new Date(iso);
+    const today = new Date();
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    const dayName = days[d.getDay()];
+    const dateNum = d.getDate();
+    const monthName = months[d.getMonth()];
+    const timeStr = formatTime(iso);
+
+    const isToday = d.toDateString() === today.toDateString();
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    const isYesterday = d.toDateString() === yesterday.toDateString();
+
+    if (isToday) return `Today ${timeStr}`;
+    if (isYesterday) return `Yesterday ${timeStr}`;
+    return `${dayName}, ${dateNum} ${monthName} at ${timeStr}`;
+  }
+
+  // Auto-highlight phone numbers and links (like in screenshot)
+  function formatMessageBody(rawText) {
+    const div = document.createElement('div');
+    div.textContent = rawText;
+    let safe = div.innerHTML;
+
+    safe = safe.replace(/(\b\d{10}\b|\*\d+#|\b\d{4,6}\b)/g, '<span class="link-highlight">$1</span>');
+    safe = safe.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+
+    return safe;
+  }
+
+  // Render Messages
+  function renderMessages(messages) {
+    const container = document.getElementById('feedInner');
+
+    messages.forEach((msg, idx) => {
+      const isSelf = currentStudent && msg.studentId === currentStudent.studentId;
+
+      const prev = idx > 0 ? messages[idx - 1] : null;
+      const next = idx < messages.length - 1 ? messages[idx + 1] : null;
+
+      const samePrev = prev && prev.studentId === msg.studentId;
+      const sameNext = next && next.studentId === msg.studentId;
+
+      // Group Date Stamp (Gap > 20 mins)
+      const msgTimestamp = new Date(msg.createdAt).getTime();
+      if (!lastDateString || msgTimestamp - lastDateString > 20 * 60 * 1000) {
+        const dateElem = document.createElement('div');
+        dateElem.className = 'im-date-stamp';
+        dateElem.textContent = formatStamp(msg.createdAt);
+        container.appendChild(dateElem);
+      }
+      lastDateString = msgTimestamp;
+
+      // Apple Corner Radii Position Class
+      let posClass = 'solo';
+      if (!samePrev && sameNext) posClass = 'group-top';
+      else if (samePrev && sameNext) posClass = 'group-mid';
+      else if (samePrev && !sameNext) posClass = 'group-bottom';
+
+      const row = document.createElement('div');
+      row.className = `im-row ${isSelf ? 'self' : 'other'} ${posClass}${!samePrev ? ' cluster-start' : ''}${sameNext ? ' grouped' : ''}`;
+
+      // Left Avatar (Incoming Only)
+      if (!isSelf) {
+        const avatarElem = document.createElement('div');
+        avatarElem.className = 'im-msg-avatar';
+        if (msg.avatarUrl) {
+          const img = document.createElement('img');
+          img.src = msg.avatarUrl;
+          img.alt = msg.name;
+          avatarElem.appendChild(img);
+        } else {
+          avatarElem.textContent = (msg.name || 'S').charAt(0).toUpperCase();
+        }
+        row.appendChild(avatarElem);
+      }
+
+      // Column
+      const col = document.createElement('div');
+      col.className = 'im-msg-content-wrap';
+
+      // Sender Name (Incoming, First in Group)
+      if (!isSelf && !samePrev) {
+        const nameElem = document.createElement('div');
+        nameElem.className = 'im-msg-sender-name';
+        nameElem.textContent = msg.name;
+        col.appendChild(nameElem);
+      }
+
+      // Bubble
+      const hasText = !!msg.text;
+      const hasMedia = !!msg.attachmentName;
+
+      const bubbleElem = document.createElement('div');
+      bubbleElem.className = `im-bubble${!hasText && hasMedia ? ' media-only' : ''}`;
+
+      if (hasText) {
+        const textSpan = document.createElement('span');
+        textSpan.innerHTML = formatMessageBody(msg.text);
+        textSpan.style.whiteSpace = 'pre-wrap';
+        bubbleElem.appendChild(textSpan);
+      }
+
+      // Media Attachment
+      if (hasMedia) {
+        const mediaElem = document.createElement('div');
+        mediaElem.className = 'im-media-box';
+        const fileUrl = `/api/chat/attachment/${msg.attachmentName}`;
+
+        if (msg.attachmentMimeType && msg.attachmentMimeType.startsWith('video/')) {
+          const videoElem = document.createElement('video');
+          videoElem.src = fileUrl;
+          videoElem.controls = true;
+          videoElem.setAttribute('playsinline', '');
+          videoElem.setAttribute('preload', 'metadata');
+          mediaElem.appendChild(videoElem);
+        } else {
+          const imgElem = document.createElement('img');
+          imgElem.src = fileUrl;
+          imgElem.alt = msg.attachmentOriginalName || 'Photo';
+          imgElem.loading = 'lazy';
+          imgElem.onclick = () => openLightbox(fileUrl);
+          mediaElem.appendChild(imgElem);
+        }
+        bubbleElem.appendChild(mediaElem);
+      }
+
+      col.appendChild(bubbleElem);
+
+      // Timestamp under message
+      const timeMeta = document.createElement('div');
+      timeMeta.className = 'im-time-meta';
+      timeMeta.textContent = formatTime(msg.createdAt);
+      col.appendChild(timeMeta);
+
+      row.appendChild(col);
+      container.appendChild(row);
+    });
+  }
+
+  function scrollToBottom() {
+    const feed = document.getElementById('chatFeed');
+    requestAnimationFrame(() => {
+      feed.scrollTop = feed.scrollHeight;
+    });
+  }
+
+  function openLightbox(url) {
+    const modal = document.getElementById('lightboxModal');
+    document.getElementById('lightboxTargetImg').src = url;
+    modal.classList.add('active');
+  }
+
+  function closeLightbox() {
+    document.getElementById('lightboxModal').classList.remove('active');
+  }
+</script>
+</body>
+</html>

@@ -27,6 +27,18 @@ const upload = multer({
   limits: { fileSize: 25 * 1024 * 1024 } // 25MB per file
 });
 
+const chatUpload = multer({
+  storage,
+  limits: { fileSize: 25 * 1024 * 1024 }, // 25MB per file
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image and video files are allowed as chat attachments.'));
+    }
+  }
+});
+
 // --- Middleware & Session Hardening ---
 app.use(express.json());
 
@@ -59,6 +71,28 @@ function loginRateLimiter(req, res, next) {
   next();
 }
 
+const chatRateLimits = new Map(); // studentId -> { count, lastReset }
+
+function chatRateLimiter(req, res, next) {
+  if (!req.session || !req.session.studentId) return next();
+  const studentId = req.session.studentId;
+  const now = Date.now();
+  const record = chatRateLimits.get(studentId) || { count: 0, lastReset: now };
+  
+  if (now - record.lastReset > 10000) { // 10 seconds window
+    record.count = 1;
+    record.lastReset = now;
+  } else {
+    record.count += 1;
+  }
+  chatRateLimits.set(studentId, record);
+  
+  if (record.count > 5) {
+    return res.status(429).json({ message: 'Sending messages too fast. Please wait a moment.' });
+  }
+  next();
+}
+
 // --- Strict Server-Side Page Route Guards ---
 const PROTECTED_PAGES = new Set([
   '/dashboard.html', '/dashboard',
@@ -66,7 +100,8 @@ const PROTECTED_PAGES = new Set([
   '/library.html', '/library',
   '/syllabus.html', '/syllabus',
   '/routine.html', '/routine',
-  '/profile.html', '/profile'
+  '/profile.html', '/profile',
+  '/chat.html', '/chat'
 ]);
 
 app.use((req, res, next) => {
@@ -88,7 +123,8 @@ app.use((req, res, next) => {
     norm.startsWith('/library') ||
     norm.startsWith('/routine') ||
     norm.startsWith('/syllabus') ||
-    norm.startsWith('/profile');
+    norm.startsWith('/profile') ||
+    norm.startsWith('/chat');
 
   // If attempting to access any protected student page without an active session
   if (isProtected) {
@@ -132,6 +168,11 @@ app.get('/routine', (req, res) => {
 app.get('/profile', (req, res) => {
   if (!req.session || !req.session.studentId) return res.redirect('/login.html');
   res.sendFile(path.join(__dirname, 'public', 'profile.html'));
+});
+
+app.get('/chat', (req, res) => {
+  if (!req.session || !req.session.studentId) return res.redirect('/login.html');
+  res.sendFile(path.join(__dirname, 'public', 'chat.html'));
 });
 
 app.get('/login', (req, res) => {
@@ -219,6 +260,19 @@ db.exec(`
     studentId TEXT NOT NULL,
     commentText TEXT NOT NULL,
     createdAt TEXT NOT NULL
+  )
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS chat_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    studentId TEXT NOT NULL,
+    text TEXT,
+    attachmentName TEXT,
+    attachmentOriginalName TEXT,
+    attachmentMimeType TEXT,
+    createdAt TEXT NOT NULL,
+    FOREIGN KEY (studentId) REFERENCES students(studentId)
   )
 `);
 
@@ -471,6 +525,91 @@ app.get('/api/library/files', requireLogin, (req, res) => {
 
   const files = db.prepare(query).all(...params);
   res.json(files);
+});
+
+// ============================================================
+// GROUP CHAT SYSTEM
+// ============================================================
+
+app.get('/api/chat/messages', requireLogin, (req, res) => {
+  const since = parseInt(req.query.since) || 0;
+  
+  const messages = db.prepare(`
+    SELECT chat_messages.id, chat_messages.text, chat_messages.attachmentName, chat_messages.attachmentOriginalName, chat_messages.attachmentMimeType, chat_messages.createdAt,
+      students.studentId, students.name, students.avatarUrl
+    FROM chat_messages
+    JOIN students ON students.studentId = chat_messages.studentId
+    WHERE chat_messages.id > ?
+    ORDER BY chat_messages.id ASC
+    LIMIT 200
+  `).all(since);
+  
+  res.json(messages);
+});
+
+const handleChatUpload = (req, res, next) => {
+  chatUpload.single('attachment')(req, res, (err) => {
+    if (err) {
+      if (err instanceof multer.MulterError) {
+        return res.status(400).json({ message: `Upload error: ${err.message}` });
+      }
+      return res.status(400).json({ message: err.message || String(err) });
+    }
+    next();
+  });
+};
+
+app.post('/api/chat/messages', requireLogin, chatRateLimiter, handleChatUpload, (req, res) => {
+  const text = (req.body && req.body.text ? String(req.body.text) : '').trim();
+  const file = req.file;
+
+  if (!text && !file) {
+    return res.status(400).json({ message: 'Cannot send an empty message.' });
+  }
+
+  if (text.length > 2000) {
+    if (file) fs.unlink(file.path, () => {});
+    return res.status(400).json({ message: 'Message text is too long (max 2000 chars).' });
+  }
+
+  let attachmentName = null;
+  let attachmentOriginalName = null;
+  let attachmentMimeType = null;
+
+  if (file) {
+    attachmentName = file.filename;
+    attachmentOriginalName = file.originalname;
+    attachmentMimeType = file.mimetype;
+  }
+
+  try {
+    const result = db.prepare(`
+      INSERT INTO chat_messages (studentId, text, attachmentName, attachmentOriginalName, attachmentMimeType, createdAt)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(req.session.studentId, text, attachmentName, attachmentOriginalName, attachmentMimeType, new Date().toISOString());
+
+    res.json({ message: 'Sent', messageId: result.lastInsertRowid });
+  } catch (error) {
+    console.error('Chat message insert error:', error.message);
+    res.status(500).json({ message: 'Failed to send message.' });
+  }
+});
+
+app.get('/api/chat/attachment/:filename', requireLogin, (req, res) => {
+  const filename = path.basename(req.params.filename);
+  const filePath = path.join(UPLOAD_DIR, filename);
+
+  const msg = db.prepare('SELECT 1 FROM chat_messages WHERE attachmentName = ?').get(filename);
+  if (!msg) {
+    return res.status(403).json({ message: 'Unauthorized or missing attachment' });
+  }
+
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ message: 'File not found on server' });
+  }
+
+  res.setHeader('Cache-Control', 'private, max-age=86400');
+  res.sendFile(filePath);
 });
 
 // ============================================================

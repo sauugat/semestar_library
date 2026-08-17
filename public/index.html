@@ -15,6 +15,18 @@
 
 <body class="landing apple-poster-landing">
 
+  <!-- Apple Intelligence / Siri Sleek Vertical Ambient Edge Glow -->
+  <div class="siri-screen-border" id="siriScreenBorder" aria-hidden="true">
+    <div class="siri-vertical-stream left">
+      <div class="siri-glow-core"></div>
+      <div class="siri-glow-aura"></div>
+    </div>
+    <div class="siri-vertical-stream right">
+      <div class="siri-glow-core"></div>
+      <div class="siri-glow-aura"></div>
+    </div>
+  </div>
+
   <!-- Subtle Monochromatic Ambient Spotlight Canvas -->
   <div class="poster-ambient-canvas" aria-hidden="true">
     <div class="ambient-spotlight spotlight-1"></div>
@@ -389,6 +401,65 @@
           </div>
         </div>
 
+        <!-- Card 5: Wide Panoramic Monochromatic Animated iMessage Chat Card -->
+        <div class="poster-card bento-shape-wide tilt-card apple-card bento-glow-card" data-card-idx="4">
+          <div class="poster-card-specular"></div>
+          <div class="wide-card-layout">
+            <div class="wide-card-content">
+              <div class="poster-card-top">
+                <div class="poster-icon-box apple-icon-box">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                  </svg>
+                </div>
+                <span class="apple-pill-tag kinetic-tag">REALTIME CHAT &bull; 05</span>
+              </div>
+              <h3 class="poster-card-title apple-card-title">Class-Wide Group Chat</h3>
+              <p class="poster-card-desc apple-card-text">
+                Connect instantly with all logged-in classmates. Send messages, attach notes, lecture clips, and collaborate in real time.
+              </p>
+              <div class="poster-card-footer">
+                <a href="login.html" class="poster-card-link apple-card-link">
+                  <span>Open Class Chat</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+                    stroke-linejoin="round" style="width: 14px; height: 14px;">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                  </svg>
+                </a>
+              </div>
+            </div>
+            <div class="wide-card-preview">
+              <!-- Monochromatic Animated iMessage Mockup -->
+              <div class="apple-mock-chat">
+                <div class="mock-chat-header">
+                  <div class="mock-chat-avatar">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="#fff"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                  </div>
+                  <div class="mock-chat-title">
+                    <span>Class Group Chat</span>
+                    <small><span class="mock-online-dot"></span> 60 Active</small>
+                  </div>
+                </div>
+                <div class="mock-chat-bubble incoming animate-pop-1">
+                  <span>Anyone have the Math assignment formulas? 📐</span>
+                  <span class="mock-time">10:42 AM</span>
+                </div>
+                <div class="mock-chat-bubble outgoing animate-pop-2">
+                  <span>Sent it in the Library! Check Chapter 3 pdf ✨</span>
+                  <div class="mock-tapback-pill">&#10084;&#65039; 1</div>
+                  <span class="mock-time">10:43 AM &bull; Delivered</span>
+                </div>
+                <div class="mock-typing-indicator animate-pop-3">
+                  <div class="typing-dot"></div>
+                  <div class="typing-dot"></div>
+                  <div class="typing-dot"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
 
       <!-- Apple Stats Showcase Strip -->
@@ -491,28 +562,46 @@
       });
     });
 
-    // 3. 3D Perspective Gyro Tilt with Specular Spotlight Tracking
+    // 3. Apple 3D Perspective Flip & Gyro Tilt Engine
     const tiltCards = document.querySelectorAll('.tilt-card');
     tiltCards.forEach(card => {
+      let isHovered = false;
+
+      card.addEventListener('mouseenter', () => {
+        isHovered = true;
+        card.style.transition = 'transform 0.1s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.2s ease-out, border-color 0.2s ease';
+      });
+
       card.addEventListener('mousemove', (e) => {
+        if (!isHovered) return;
         const rect = card.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
         const centerX = rect.width / 2;
         const centerY = rect.height / 2;
-        const rotateX = ((y - centerY) / centerY) * -4.5;
-        const rotateY = ((x - centerX) / centerX) * 4.5;
 
-        card.style.transform = `perspective(1100px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateY(-5px)`;
+        // Dynamic 3D perspective flip calculation (up to 12.5 deg of 3D spatial rotation)
+        const percentX = (x - centerX) / centerX;
+        const percentY = (y - centerY) / centerY;
+
+        const rotateX = percentY * -12.5;
+        const rotateY = percentX * 12.5;
+        const liftZ = 22;
+
+        card.style.transform = `perspective(850px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) translateZ(${liftZ}px) scale3d(1.025, 1.025, 1.025)`;
+        card.style.boxShadow = `${(-rotateY * 2.5).toFixed(1)}px ${(rotateX * 2.5 + 24).toFixed(1)}px 50px rgba(0, 0, 0, 0.16), 0 4px 12px rgba(0, 0, 0, 0.06)`;
 
         const specular = card.querySelector('.poster-card-specular');
         if (specular) {
-          specular.style.background = `radial-gradient(circle 280px at ${x}px ${y}px, rgba(255, 255, 255, 0.65) 0%, rgba(240, 240, 245, 0.25) 45%, transparent 75%)`;
+          specular.style.background = `radial-gradient(circle 350px at ${x}px ${y}px, rgba(66, 133, 244, 0.25) 0%, rgba(155, 114, 203, 0.18) 35%, rgba(240, 98, 146, 0.12) 65%, transparent 80%)`;
         }
       });
 
       card.addEventListener('mouseleave', () => {
-        card.style.transform = 'perspective(1100px) rotateX(0deg) rotateY(0deg) translateY(0)';
+        isHovered = false;
+        card.style.transition = 'transform 0.65s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.65s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.35s ease';
+        card.style.transform = 'perspective(850px) rotateX(0deg) rotateY(0deg) translateZ(0px) scale3d(1, 1, 1)';
+        card.style.boxShadow = '';
         const specular = card.querySelector('.poster-card-specular');
         if (specular) specular.style.background = 'transparent';
       });
@@ -702,6 +791,9 @@
           geminiLoaderContainer.classList.add('gemini-loader-finished');
           geminiLoaderContainer.classList.remove('gemini-loader-active');
         }
+        // Activate Siri Screen Perimeter Gradient Border
+        const siriBorder = document.getElementById('siriScreenBorder');
+        if (siriBorder) siriBorder.classList.add('siri-border-active');
       }, 650);
 
       // 5. Smooth auto-scroll down to the top of the AI Bento output
@@ -722,6 +814,22 @@
         if (auroraBg) auroraBg.classList.add('aurora-dissolved');
         isAiGenerating = false;
       }, 750);
+    }
+
+    // 9. Intersection Observer: Keep Siri Border Active while Templates are in view
+    const siriBorderEl = document.getElementById('siriScreenBorder');
+    if ('IntersectionObserver' in window && posterGrid && siriBorderEl) {
+      const siriObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting && !posterGrid.classList.contains('poster-grid-hidden')) {
+            siriBorderEl.classList.add('siri-border-active');
+          } else if (!entry.isIntersecting) {
+            siriBorderEl.classList.remove('siri-border-active');
+          }
+        });
+      }, { threshold: 0.15 });
+
+      siriObserver.observe(posterGrid);
     }
 
     if (jitterAskBtn) {

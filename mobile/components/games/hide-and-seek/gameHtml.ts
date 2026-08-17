@@ -5977,44 +5977,309 @@ export function getHideAndSeekHtml(): string {
        - Computer Labs (Rows of Monitors & Chairs, Cable Trays, Server Racks)
        - Toilets, Canteen (Counter, Dining, Kitchen) & Store Rooms
        ========================================================================= */
+    /* =========================================================================
+       MAIN BUILDING INTERIOR UPGRADE:
+       1. Power-of-Two Shared Atlased Interior Canvas Textures + Bump Map (1024x512)
+          (wood grain, scuffed painted wall, cracked floor tile, rusted metal,
+           dusty glass, chalkboard with faded writing — muted & desaturated)
+       2. Believably Constructed Beveled Furniture Geometries (legs with thickness,
+          cross-braces, drawers with handles, hinges, bolts — low triangle count,
+          tagged for InstancedMesh / static room merging)
+       ========================================================================= */
+    const interiorAtlasCanvas = document.createElement('canvas');
+    interiorAtlasCanvas.width = 1024;
+    interiorAtlasCanvas.height = 512;
+    const iCtx = interiorAtlasCanvas.getContext('2d');
+
+    const interiorBumpCanvas = document.createElement('canvas');
+    interiorBumpCanvas.width = 1024;
+    interiorBumpCanvas.height = 512;
+    const ibCtx = interiorBumpCanvas.getContext('2d');
+
+    if (iCtx && ibCtx) {
+      // 1. Tile (0,0,256,256): Weathered Muted Wood Grain
+      iCtx.fillStyle = '#362317';
+      iCtx.fillRect(0, 0, 256, 256);
+      ibCtx.fillStyle = '#787878';
+      ibCtx.fillRect(0, 0, 256, 256);
+      for (let y = 0; y < 256; y += 3) {
+        const tone = ((y * 17) % 18) - 9;
+        iCtx.fillStyle = 'rgb(' + (56 + tone) + ',' + (37 + Math.floor(tone * 0.6)) + ',' + (25 + Math.floor(tone * 0.4)) + ')';
+        iCtx.fillRect(0, y, 256, 2);
+        ibCtx.fillStyle = tone > 0 ? '#989898' : '#585858';
+        ibCtx.fillRect(0, y, 256, 2);
+      }
+      // Plank seams & dark wood knots
+      for (let px = 64; px < 256; px += 64) {
+        iCtx.fillStyle = 'rgba(14, 8, 4, 0.55)';
+        iCtx.fillRect(px, 0, 2, 256);
+        ibCtx.fillStyle = '#202020';
+        ibCtx.fillRect(px, 0, 2, 256);
+      }
+
+      // 2. Tile (256,0,256,256): Scuffed Painted Institutional Wall
+      iCtx.fillStyle = '#5c6460';
+      iCtx.fillRect(256, 0, 256, 256);
+      ibCtx.fillStyle = '#808080';
+      ibCtx.fillRect(256, 0, 256, 256);
+      for (let s = 0; s < 48; s++) {
+        const sx = 264 + ((s * 37) % 236);
+        const sy = 12 + ((s * 53) % 230);
+        iCtx.fillStyle = (s % 3 === 0) ? 'rgba(28, 34, 32, 0.36)' : 'rgba(118, 126, 122, 0.22)';
+        iCtx.fillRect(sx, sy, 14 + (s % 18), 4 + (s % 9));
+        ibCtx.fillStyle = (s % 2 === 0) ? '#505050' : '#a8a8a8';
+        ibCtx.fillRect(sx, sy, 12, 4);
+      }
+      const dampGrad = iCtx.createLinearGradient(256, 170, 256, 256);
+      dampGrad.addColorStop(0, 'rgba(18, 24, 20, 0.0)');
+      dampGrad.addColorStop(1, 'rgba(14, 20, 16, 0.68)');
+      iCtx.fillStyle = dampGrad;
+      iCtx.fillRect(256, 170, 256, 86);
+
+      // 3. Tile (512,0,256,256): Cracked Institutional Terrazzo Floor Tile
+      iCtx.fillStyle = '#434b52';
+      iCtx.fillRect(512, 0, 256, 256);
+      ibCtx.fillStyle = '#909090';
+      ibCtx.fillRect(512, 0, 256, 256);
+      for (let ty = 0; ty < 256; ty += 64) {
+        for (let tx = 512; tx < 768; tx += 64) {
+          const alt = ((tx / 64) + (ty / 64)) % 2 === 0;
+          iCtx.fillStyle = alt ? '#525b63' : '#475057';
+          iCtx.fillRect(tx + 2, ty + 2, 60, 60);
+          ibCtx.fillStyle = '#b8b8b8';
+          ibCtx.fillRect(tx + 2, ty + 2, 60, 60);
+        }
+      }
+      // Hairline cracks across floor tiles
+      iCtx.strokeStyle = 'rgba(15, 19, 23, 0.78)';
+      iCtx.lineWidth = 2;
+      ibCtx.strokeStyle = '#181818';
+      ibCtx.lineWidth = 2.5;
+      [[530, 18, 595, 88, 642, 165], [660, 40, 710, 118, 690, 210]].forEach(pts => {
+        iCtx.beginPath(); iCtx.moveTo(pts[0], pts[1]); iCtx.lineTo(pts[2], pts[3]); iCtx.lineTo(pts[4], pts[5]); iCtx.stroke();
+        ibCtx.beginPath(); ibCtx.moveTo(pts[0], pts[1]); ibCtx.lineTo(pts[2], pts[3]); ibCtx.lineTo(pts[4], pts[5]); ibCtx.stroke();
+      });
+
+      // 4. Tile (768,0,256,256): Rusted Dark Gunmetal / Locker Steel
+      iCtx.fillStyle = '#252d34';
+      iCtx.fillRect(768, 0, 256, 256);
+      ibCtx.fillStyle = '#707070';
+      ibCtx.fillRect(768, 0, 256, 256);
+      for (let r = 0; r < 36; r++) {
+        const rx = 776 + ((r * 43) % 232);
+        const ry = 10 + ((r * 61) % 232);
+        iCtx.fillStyle = (r % 2 === 0) ? 'rgba(92, 44, 24, 0.42)' : 'rgba(18, 22, 26, 0.48)';
+        iCtx.fillRect(rx, ry, 10 + (r % 16), 8 + (r % 14));
+        ibCtx.fillStyle = '#404040';
+        ibCtx.fillRect(rx, ry, 10, 8);
+      }
+
+      // 5. Tile (0,256,256,256): Dusty Streaked Glass with Corner Grime & Cracks
+      iCtx.fillStyle = '#1b2a36';
+      iCtx.fillRect(0, 256, 256, 256);
+      const glassGrad = iCtx.createRadialGradient(128, 384, 18, 128, 384, 136);
+      glassGrad.addColorStop(0, 'rgba(42, 62, 76, 0.25)');
+      glassGrad.addColorStop(1, 'rgba(12, 18, 24, 0.85)');
+      iCtx.fillStyle = glassGrad;
+      iCtx.fillRect(0, 256, 256, 256);
+      iCtx.strokeStyle = 'rgba(168, 184, 196, 0.45)';
+      iCtx.lineWidth = 1.5;
+      iCtx.beginPath();
+      iCtx.moveTo(42, 290); iCtx.lineTo(96, 348); iCtx.lineTo(148, 332);
+      iCtx.moveTo(96, 348); iCtx.lineTo(74, 420);
+      iCtx.stroke();
+
+      // 6. Tile (256,256,768,256): Faded Slate Chalkboard with Equations & Safe Mystery Scribbles
+      iCtx.fillStyle = '#162921';
+      iCtx.fillRect(256, 256, 768, 256);
+      ibCtx.fillStyle = '#686868';
+      ibCtx.fillRect(256, 256, 768, 256);
+      // Smudged chalk erasure clouds
+      for (let c = 0; c < 18; c++) {
+        iCtx.fillStyle = 'rgba(210, 222, 216, 0.06)';
+        iCtx.fillRect(280 + ((c * 79) % 680), 275 + ((c * 43) % 190), 68, 34);
+      }
+      iCtx.fillStyle = 'rgba(216, 226, 220, 0.62)';
+      iCtx.font = 'bold 18px Georgia, serif';
+      iCtx.fillText('GANDAKI UNIVERSITY — NIGHT ARCHIVE & MECHANICS', 284, 298);
+      iCtx.font = '15px monospace';
+      iCtx.fillStyle = 'rgba(194, 208, 200, 0.48)';
+      iCtx.fillText('1. Damped Wave:  x(t) = A·e^(-γt)·cos(ωt + φ)', 286, 334);
+      iCtx.fillText('2. Dome Stress:  σ_θ = (p·R)/(2·t)   [CURFEW 22:00]', 286, 364);
+      iCtx.fillStyle = 'rgba(226, 188, 142, 0.72)';
+      iCtx.font = 'bold 16px monospace';
+      iCtx.fillText('>> RESTORE 4 FUSE BOXES TO UNLOCK SOUTH GATE <<', 286, 408);
+      iCtx.fillText('>> DO NOT SPRINT NEAR THE HALLWAY — HOLD YOUR BREATH <<', 286, 442);
+    }
+
+    const interiorSurfaceAtlasTex = new THREE.CanvasTexture(interiorAtlasCanvas);
+    const interiorSurfaceBumpTex = new THREE.CanvasTexture(interiorBumpCanvas);
+
+    // Apply darkened, desaturated canvas textures + bump maps to shared interior materials
+    materials.deskWoodTop.map = createProceduralTexture(128, 128, (ctx) => {
+      ctx.drawImage(interiorAtlasCanvas, 0, 0, 256, 256, 0, 0, 128, 128);
+    });
+    materials.deskWoodTop.bumpMap = interiorSurfaceBumpTex;
+    materials.deskWoodTop.bumpScale = 0.025;
+    materials.deskWoodTop.color.setHex(0x8c6e58);
+    materials.deskWoodTop.roughness = 0.56;
+
+    materials.chairWood.map = materials.deskWoodTop.map;
+    materials.chairWood.bumpMap = interiorSurfaceBumpTex;
+    materials.chairWood.bumpScale = 0.025;
+    materials.chairWood.color.setHex(0x6e523e);
+    materials.chairWood.roughness = 0.62;
+
+    materials.deskSteelFrame.map = createProceduralTexture(128, 128, (ctx) => {
+      ctx.drawImage(interiorAtlasCanvas, 768, 0, 256, 256, 0, 0, 128, 128);
+    });
+    materials.deskSteelFrame.bumpMap = interiorSurfaceBumpTex;
+    materials.deskSteelFrame.bumpScale = 0.03;
+    materials.deskSteelFrame.color.setHex(0x4a545e);
+    materials.deskSteelFrame.roughness = 0.44;
+    materials.deskSteelFrame.metalness = 0.68;
+
+    materials.rotundaInteriorWall.map = createProceduralTexture(256, 256, (ctx) => {
+      ctx.drawImage(interiorAtlasCanvas, 256, 0, 256, 256, 0, 0, 256, 256);
+    });
+    materials.rotundaInteriorWall.bumpMap = interiorSurfaceBumpTex;
+    materials.rotundaInteriorWall.bumpScale = 0.03;
+    materials.rotundaInteriorWall.color.setHex(0x7c8582);
+    materials.rotundaInteriorWall.roughness = 0.72;
+
+    materials.rotundaTerrazzoFloor.roughness = 0.22; // Faked floor reflection sheen with baked environment tint
+    materials.rotundaTerrazzoFloor.metalness = 0.28;
+    materials.rotundaTerrazzoFloor.color.setHex(0x78828a);
+
+    materials.blackboardGreen.map = createProceduralTexture(512, 256, (ctx) => {
+      ctx.drawImage(interiorAtlasCanvas, 256, 256, 768, 256, 0, 0, 512, 256);
+    });
+    materials.blackboardGreen.bumpMap = interiorSurfaceBumpTex;
+    materials.blackboardGreen.bumpScale = 0.018;
+    materials.blackboardGreen.color.setHex(0x8fa398);
+    materials.blackboardGreen.roughness = 0.62;
+
+    const dustyGlassTex = createProceduralTexture(128, 128, (ctx) => {
+      ctx.drawImage(interiorAtlasCanvas, 0, 256, 256, 256, 0, 0, 128, 128);
+    });
+    materials.windowGlass.map = dustyGlassTex;
+    materials.windowGlass.color.setHex(0x334858);
+    materials.windowGlass.roughness = 0.24;
+
     const step2Mats = {
-      curtainFabric: new THREE.MeshStandardMaterial({ color: 0x3b4d63, roughness: 0.82, side: THREE.DoubleSide }),
-      curtainGold: new THREE.MeshStandardMaterial({ color: 0x6e472b, roughness: 0.78, side: THREE.DoubleSide }),
-      lockerSteel: new THREE.MeshStandardMaterial({ color: 0x2c3a47, roughness: 0.42, metalness: 0.68 }),
-      lockerDoorBlue: new THREE.MeshStandardMaterial({ color: 0x1e3a5f, roughness: 0.38, metalness: 0.62 }),
-      fireRed: new THREE.MeshStandardMaterial({ color: 0xb91c1c, roughness: 0.32, metalness: 0.45 }),
-      waterJugBlue: new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.15, metalness: 0.25, transparent: true, opacity: 0.82 }),
-      matRubber: new THREE.MeshStandardMaterial({ color: 0x1e252b, roughness: 0.92 }),
-      corkBoard: new THREE.MeshStandardMaterial({ color: 0x8c5a32, roughness: 0.85 }),
-      paperSheet: new THREE.MeshStandardMaterial({ color: 0xd8dee6, roughness: 0.75 }),
-      bagNavy: new THREE.MeshStandardMaterial({ color: 0x172554, roughness: 0.84 }),
-      bagOlive: new THREE.MeshStandardMaterial({ color: 0x27382a, roughness: 0.86 }),
-      bagMaroon: new THREE.MeshStandardMaterial({ color: 0x4c1d24, roughness: 0.84 }),
-      sofaLeather: new THREE.MeshStandardMaterial({ color: 0x3b2314, roughness: 0.52, metalness: 0.08 }),
-      monitorScreenOn: new THREE.MeshStandardMaterial({ color: 0x0c192c, emissive: 0x1d4ed8, emissiveIntensity: 0.55, roughness: 0.18 }),
-      monitorScreenOff: new THREE.MeshStandardMaterial({ color: 0x090d14, roughness: 0.16, metalness: 0.45 }),
-      serverLedGreen: new THREE.MeshBasicMaterial({ color: 0x22c55e }),
-      serverLedAmber: new THREE.MeshBasicMaterial({ color: 0xf59e0b }),
-      lampShadeGreen: new THREE.MeshStandardMaterial({ color: 0x14532d, emissive: 0xffb35c, emissiveIntensity: 0.65, roughness: 0.28 }),
-      ceramicWhite: new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.18, metalness: 0.15 }),
-      mirrorGlass: new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.06, metalness: 0.92 }),
-      stainlessSteel: new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.26, metalness: 0.82 }),
-      cardboardCrate: new THREE.MeshStandardMaterial({ color: 0x785532, roughness: 0.86 }),
-      vineGreen: new THREE.MeshStandardMaterial({ color: 0x1a3322, roughness: 0.78, side: THREE.DoubleSide }),
-      terrazzoInlayGold: new THREE.MeshStandardMaterial({ color: 0x9a7b3e, roughness: 0.30, metalness: 0.42 }),
-      terrazzoInlayDark: new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.28, metalness: 0.22 }),
+      curtainFabric: new THREE.MeshStandardMaterial({ color: 0x35424f, roughness: 0.86, side: THREE.DoubleSide }),
+      curtainGold: new THREE.MeshStandardMaterial({ color: 0x5c432e, roughness: 0.82, side: THREE.DoubleSide }),
+      lockerSteel: new THREE.MeshStandardMaterial({ map: materials.deskSteelFrame.map, bumpMap: interiorSurfaceBumpTex, bumpScale: 0.03, color: 0x3d4852, roughness: 0.46, metalness: 0.64 }),
+      lockerDoorBlue: new THREE.MeshStandardMaterial({ map: materials.deskSteelFrame.map, bumpMap: interiorSurfaceBumpTex, bumpScale: 0.03, color: 0x2c3e50, roughness: 0.44, metalness: 0.58 }),
+      fireRed: new THREE.MeshStandardMaterial({ color: 0x7f2929, roughness: 0.42, metalness: 0.40 }),
+      waterJugBlue: new THREE.MeshStandardMaterial({ color: 0x2b546e, roughness: 0.22, metalness: 0.20, transparent: true, opacity: 0.78 }),
+      matRubber: new THREE.MeshStandardMaterial({ color: 0x1a1f24, roughness: 0.94 }),
+      corkBoard: new THREE.MeshStandardMaterial({ map: materials.deskWoodTop.map, color: 0x6e4e34, roughness: 0.88 }),
+      paperSheet: new THREE.MeshStandardMaterial({ color: 0xaeb6bf, roughness: 0.82 }),
+      bagNavy: new THREE.MeshStandardMaterial({ color: 0x222c3c, roughness: 0.88 }),
+      bagOlive: new THREE.MeshStandardMaterial({ color: 0x283329, roughness: 0.88 }),
+      bagMaroon: new THREE.MeshStandardMaterial({ color: 0x3d2226, roughness: 0.86 }),
+      sofaLeather: new THREE.MeshStandardMaterial({ map: materials.deskWoodTop.map, color: 0x332218, roughness: 0.58, metalness: 0.08 }),
+      monitorScreenOn: new THREE.MeshStandardMaterial({ color: 0x0c1824, emissive: 0x2b5b84, emissiveIntensity: 0.42, roughness: 0.22 }),
+      monitorScreenOff: new THREE.MeshStandardMaterial({ map: dustyGlassTex, color: 0x121820, roughness: 0.22, metalness: 0.42 }),
+      serverLedGreen: new THREE.MeshBasicMaterial({ color: 0x4d8c57 }),
+      serverLedAmber: new THREE.MeshBasicMaterial({ color: 0xc27d2c }),
+      lampShadeGreen: new THREE.MeshStandardMaterial({ color: 0x1f3d2b, emissive: 0xd99242, emissiveIntensity: 0.55, roughness: 0.34 }),
+      ceramicWhite: new THREE.MeshStandardMaterial({ map: materials.rotundaInteriorWall.map, color: 0x9aa4ad, roughness: 0.28, metalness: 0.12 }),
+      mirrorGlass: new THREE.MeshStandardMaterial({ map: dustyGlassTex, color: 0x4e5d6c, roughness: 0.14, metalness: 0.86 }),
+      stainlessSteel: new THREE.MeshStandardMaterial({ map: materials.deskSteelFrame.map, color: 0x6c7882, roughness: 0.34, metalness: 0.76 }),
+      cardboardCrate: new THREE.MeshStandardMaterial({ map: materials.deskWoodTop.map, color: 0x5e4630, roughness: 0.88 }),
+      vineGreen: new THREE.MeshStandardMaterial({ color: 0x1c2b20, roughness: 0.84, side: THREE.DoubleSide }),
+      terrazzoInlayGold: new THREE.MeshStandardMaterial({ color: 0x786238, roughness: 0.36, metalness: 0.38 }),
+      terrazzoInlayDark: new THREE.MeshStandardMaterial({ color: 0x1b222b, roughness: 0.32, metalness: 0.22 }),
+      wallStainDecal: new THREE.MeshBasicMaterial({ map: softContactShadowTex, color: 0x090d0b, transparent: true, opacity: 0.58, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }),
+      cobwebMat: new THREE.MeshBasicMaterial({ color: 0x7c868f, transparent: true, opacity: 0.26, side: THREE.DoubleSide, depthWrite: false }),
+      moonlightShaftMat: new THREE.MeshBasicMaterial({ map: volumetricConeTex, color: 0x7ca2bf, transparent: true, opacity: 0.085, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false }),
+      corridorMistMat: new THREE.MeshBasicMaterial({ map: groundMistTex, color: 0x4c5d6b, transparent: true, opacity: 0.11, depthWrite: false }),
     };
 
+    // Helper: Build Low-Triangle Beveled/Constructed Composite BufferGeometry
+    // Combines main beveled slab/body with thick legs, cross-braces, drawers, handles, hinges & bolts in 1 BufferGeometry!
+    function buildConstructedFurnitureGeo(parts) {
+      const dummy = new THREE.Object3D();
+      const geos = [];
+      for (let i = 0; i < parts.length; i++) {
+        const p = parts[i];
+        const g = (p.geo || new THREE.BoxGeometry(p.w, p.h, p.d)).clone();
+        dummy.position.set(p.x || 0, p.y || 0, p.z || 0);
+        dummy.rotation.set(p.rx || 0, p.ry || 0, p.rz || 0);
+        dummy.scale.set(p.sx || 1, p.sy || 1, p.sz || 1);
+        dummy.updateMatrix();
+        g.applyMatrix4(dummy.matrix);
+        geos.push(g);
+      }
+      return THREE.BufferGeometryUtils.mergeBufferGeometries(geos);
+    }
+
+    // Upgrade sharedGeos.deskTop, deskLeg, chairSeat, chairBack to beveled/constructed shapes!
+    sharedGeos.deskTop = buildConstructedFurnitureGeo([
+      { w: 1.32, h: 0.042, d: 0.58, y: 0.0 },               // Main desktop plank
+      { w: 1.28, h: 0.056, d: 0.54, y: 0.0 },               // Beveled top/bottom chamfer core
+      { w: 0.48, h: 0.12,  d: 0.46, x: -0.34, y: -0.08 },   // Left under-desk drawer box
+      { w: 0.48, h: 0.12,  d: 0.46, x:  0.34, y: -0.08 },   // Right under-desk drawer box
+      { w: 0.10, h: 0.022, d: 0.03, x: -0.34, y: -0.08, z: -0.24 }, // Left drawer pull handle
+      { w: 0.10, h: 0.022, d: 0.03, x:  0.34, y: -0.08, z: -0.24 }, // Right drawer pull handle
+    ]);
+    sharedGeos.deskTop.userData.instancedCategory = 'desk';
+
+    sharedGeos.deskLeg = buildConstructedFurnitureGeo([
+      { w: 0.048, h: 0.72, d: 0.048, x: 0, y: 0.0, z: -0.22 },   // Front tubular leg
+      { w: 0.048, h: 0.72, d: 0.048, x: 0, y: 0.0, z:  0.22 },   // Rear tubular leg
+      { w: 0.042, h: 0.042, d: 0.48, x: 0, y: -0.24, z: 0.0 },   // Lower side stretcher bar
+      { w: 0.042, h: 0.042, d: 0.48, x: 0, y:  0.32, z: 0.0 },   // Upper mounting bracket
+      { w: 0.068, h: 0.068, d: 0.02, x: 0, y:  0.28, z: -0.22 }, // Corner gusset bolt plate
+    ]);
+    sharedGeos.deskLeg.userData.instancedCategory = 'desk';
+
+    sharedGeos.chairSeat = buildConstructedFurnitureGeo([
+      { w: 0.44, h: 0.038, d: 0.42, y: 0.0 },                    // Beveled seat outer
+      { w: 0.40, h: 0.050, d: 0.38, y: 0.0 },                    // Beveled seat core
+      { w: 0.042, h: 0.44, d: 0.042, x: -0.18, y: -0.22, z: -0.17, rx:  0.04 }, // Front-left leg
+      { w: 0.042, h: 0.44, d: 0.042, x:  0.18, y: -0.22, z: -0.17, rx:  0.04 }, // Front-right leg
+      { w: 0.042, h: 0.44, d: 0.042, x: -0.18, y: -0.22, z:  0.17, rx: -0.05 }, // Rear-left leg
+      { w: 0.042, h: 0.44, d: 0.042, x:  0.18, y: -0.22, z:  0.17, rx: -0.05 }, // Rear-right leg
+      { w: 0.36, h: 0.028, d: 0.028, x: 0, y: -0.28, z: -0.17 }, // Front cross-brace
+      { w: 0.36, h: 0.028, d: 0.028, x: 0, y: -0.28, z:  0.17 }, // Rear cross-brace
+      { w: 0.028, h: 0.028, d: 0.34, x: -0.18, y: -0.26, z: 0 }, // Left cross-brace
+      { w: 0.028, h: 0.028, d: 0.34, x:  0.18, y: -0.26, z: 0 }, // Right cross-brace
+    ]);
+    sharedGeos.chairSeat.userData.instancedCategory = 'chair';
+
     const step2Geos = {
-      doorLeaf: new THREE.BoxGeometry(0.92, 2.26, 0.065),
-      doorHandle: new THREE.BoxGeometry(0.14, 0.04, 0.14),
+      doorLeaf: buildConstructedFurnitureGeo([
+        { w: 0.92, h: 2.26, d: 0.052, y: 0 },
+        { w: 0.72, h: 0.82, d: 0.068, y: 0.55 }, // Upper recessed molding panel
+        { w: 0.72, h: 0.82, d: 0.068, y: -0.55 }, // Lower recessed molding panel
+        { w: 0.025, h: 0.14, d: 0.08, x: -0.45, y:  0.75 }, // Top hinge barrel
+        { w: 0.025, h: 0.14, d: 0.08, x: -0.45, y: -0.75 }, // Bottom hinge barrel
+      ]),
+      doorHandle: buildConstructedFurnitureGeo([
+        { w: 0.04, h: 0.14, d: 0.09, y: 0 },      // Escutcheon lock plate
+        { w: 0.14, h: 0.028, d: 0.13, x: -0.04, y: 0.02 }, // Lever handle both sides
+      ]),
       roomPlaque: new THREE.BoxGeometry(0.46, 0.22, 0.03),
       curtainRod: new THREE.CylinderGeometry(0.016, 0.016, 2.05, 6),
       curtainPanel: new THREE.BoxGeometry(0.52, 1.52, 0.045),
       wallFanMount: new THREE.BoxGeometry(0.12, 0.16, 0.18),
       wallFanCage: new THREE.CylinderGeometry(0.24, 0.24, 0.10, 10),
-      lockerBank: new THREE.BoxGeometry(0.48, 1.92, 1.80),
-      lockerDoor: new THREE.BoxGeometry(0.03, 0.84, 0.52),
+      lockerBank: buildConstructedFurnitureGeo([
+        { w: 0.48, h: 1.90, d: 1.78, y: 0 },
+        { w: 0.51, h: 0.05, d: 1.82, y: 0.94 },   // Beveled top cap
+        { w: 0.46, h: 0.08, d: 0.08, x: 0, y: -0.92, z: -0.82 }, // Left foot leg
+        { w: 0.46, h: 0.08, d: 0.08, x: 0, y: -0.92, z:  0.82 }, // Right foot leg
+      ]),
+      lockerDoor: buildConstructedFurnitureGeo([
+        { w: 0.03, h: 0.84, d: 0.52, y: 0 },
+        { w: 0.045, h: 0.14, d: 0.32, y: 0.26 },  // Louver vent slot block
+        { w: 0.055, h: 0.09, d: 0.035, y: 0.0, z: 0.20 }, // Recessed handle & padlock latch
+        { w: 0.045, h: 0.06, d: 0.025, y:  0.34, z: -0.24 }, // Upper hinge
+        { w: 0.045, h: 0.06, d: 0.025, y: -0.34, z: -0.24 }, // Lower hinge
+      ]),
       noticeBoard: new THREE.BoxGeometry(0.06, 0.96, 1.65),
       noticeCork: new THREE.BoxGeometry(0.07, 0.84, 1.52),
       noticeNote: new THREE.BoxGeometry(0.08, 0.24, 0.18),
@@ -6029,15 +6294,50 @@ export function getHideAndSeekHtml(): string {
       plantBush: new THREE.DodecahedronGeometry(0.28, 1),
       wallLampBack: new THREE.BoxGeometry(0.06, 0.28, 0.18),
       wallLampBulb: new THREE.BoxGeometry(0.12, 0.18, 0.12),
-      wallShelf: new THREE.BoxGeometry(0.32, 0.04, 1.85),
+      wallShelf: buildConstructedFurnitureGeo([
+        { w: 0.32, h: 0.04, d: 1.85, y: 0 },
+        { w: 0.28, h: 0.18, d: 0.04, x: 0.02, y: -0.10, z: -0.72 }, // Left iron support bracket
+        { w: 0.28, h: 0.18, d: 0.04, x: 0.02, y: -0.10, z:  0.72 }, // Right iron support bracket
+      ]),
       backpack: new THREE.BoxGeometry(0.32, 0.38, 0.22),
       bookStack: new THREE.BoxGeometry(0.26, 0.12, 0.20),
       openBook: new THREE.BoxGeometry(0.32, 0.025, 0.22),
-      benchLongSeat: new THREE.BoxGeometry(1.26, 0.05, 0.34),
-      benchLongBack: new THREE.BoxGeometry(1.26, 0.30, 0.04),
+      benchLongSeat: buildConstructedFurnitureGeo([
+        { w: 1.38, h: 0.045, d: 0.36, y: 0 },
+        { w: 1.34, h: 0.058, d: 0.32, y: 0 },     // Beveled plank core
+        { w: 0.05, h: 0.42, d: 0.05, x: -0.58, y: -0.22, z: -0.13 }, // 4 thick bench legs
+        { w: 0.05, h: 0.42, d: 0.05, x:  0.58, y: -0.22, z: -0.13 },
+        { w: 0.05, h: 0.42, d: 0.05, x: -0.58, y: -0.22, z:  0.13 },
+        { w: 0.05, h: 0.42, d: 0.05, x:  0.58, y: -0.22, z:  0.13 },
+        { w: 1.18, h: 0.035, d: 0.035, x: 0, y: -0.26, z: 0 },       // Long cross-brace tie bar
+      ]),
+      benchLongBack: buildConstructedFurnitureGeo([
+        { w: 1.38, h: 0.28, d: 0.038, y: 0 },
+        { w: 0.045, h: 0.38, d: 0.045, x: -0.56, y: -0.06, z: -0.01 }, // Left backrest post + bolts
+        { w: 0.045, h: 0.38, d: 0.045, x:  0.56, y: -0.06, z: -0.01 }, // Right backrest post + bolts
+      ]),
       benchLeg: new THREE.BoxGeometry(0.05, 0.44, 0.32),
-      officeDesk: new THREE.BoxGeometry(1.50, 0.76, 0.78),
-      filingCabinet: new THREE.BoxGeometry(0.52, 1.38, 0.62),
+      officeDesk: buildConstructedFurnitureGeo([
+        { w: 1.52, h: 0.055, d: 0.80, y: 0.35 },  // Beveled top overhang
+        { w: 1.46, h: 0.07,  d: 0.74, y: 0.35 },  // Chamfered core
+        { w: 0.44, h: 0.68,  d: 0.72, x: -0.48, y: 0.0 }, // Left 3-drawer pedestal
+        { w: 0.44, h: 0.68,  d: 0.72, x:  0.48, y: 0.0 }, // Right cupboard pedestal
+        { w: 0.56, h: 0.46,  d: 0.04, x:  0.0,  y: 0.08, z: -0.32 }, // Modesty panel
+        { w: 0.12, h: 0.025, d: 0.03, x: -0.48, y: 0.20, z: 0.37 },  // Drawer handle 1
+        { w: 0.12, h: 0.025, d: 0.03, x: -0.48, y: 0.02, z: 0.37 },  // Drawer handle 2
+        { w: 0.12, h: 0.025, d: 0.03, x:  0.34, y: 0.05, z: 0.37 },  // Cupboard handle
+      ]),
+      filingCabinet: buildConstructedFurnitureGeo([
+        { w: 0.52, h: 1.36, d: 0.62, y: 0 },
+        { w: 0.46, h: 0.28, d: 0.64, y:  0.48 },  // Top drawer face
+        { w: 0.46, h: 0.28, d: 0.64, y:  0.16 },  // Mid-upper drawer face
+        { w: 0.46, h: 0.28, d: 0.64, y: -0.16 },  // Mid-lower drawer face
+        { w: 0.46, h: 0.28, d: 0.64, y: -0.48 },  // Bottom drawer face
+        { w: 0.14, h: 0.03, d: 0.04, y:  0.48, z: 0.33 }, // Drawer handles
+        { w: 0.14, h: 0.03, d: 0.04, y:  0.16, z: 0.33 },
+        { w: 0.14, h: 0.03, d: 0.04, y: -0.16, z: 0.33 },
+        { w: 0.14, h: 0.03, d: 0.04, y: -0.48, z: 0.33 },
+      ]),
       monitorPanel: new THREE.BoxGeometry(0.52, 0.34, 0.035),
       monitorStand: new THREE.BoxGeometry(0.16, 0.14, 0.16),
       keyboard: new THREE.BoxGeometry(0.38, 0.02, 0.14),
@@ -6045,12 +6345,33 @@ export function getHideAndSeekHtml(): string {
       sofaBase: new THREE.BoxGeometry(1.95, 0.42, 0.82),
       sofaBack: new THREE.BoxGeometry(1.95, 0.48, 0.22),
       sofaArm: new THREE.BoxGeometry(0.22, 0.56, 0.82),
-      tallBookshelf: new THREE.BoxGeometry(0.54, 2.28, 2.60),
+      tallBookshelf: buildConstructedFurnitureGeo([
+        { w: 0.54, h: 2.26, d: 0.06, z: -1.26 },  // Left upright side wall
+        { w: 0.54, h: 2.26, d: 0.06, z:  1.26 },  // Right upright side wall
+        { w: 0.04, h: 2.26, d: 2.58, x: -0.24 },  // Back spine board
+        { w: 0.58, h: 0.07, d: 2.64, y:  1.12 },  // Beveled crown cornice
+        { w: 0.52, h: 0.045, d: 2.52, y:  0.65 }, // Shelf 4
+        { w: 0.52, h: 0.045, d: 2.52, y:  0.18 }, // Shelf 3
+        { w: 0.52, h: 0.045, d: 2.52, y: -0.32 }, // Shelf 2
+        { w: 0.52, h: 0.045, d: 2.52, y: -0.82 }, // Shelf 1
+      ]),
       bookRowSpan: new THREE.BoxGeometry(0.42, 0.26, 2.38),
-      readingTable: new THREE.BoxGeometry(1.65, 0.76, 1.05),
+      readingTable: buildConstructedFurnitureGeo([
+        { w: 1.66, h: 0.06, d: 1.06, y: 0.35 },   // Beveled tabletop
+        { w: 0.07, h: 0.72, d: 0.07, x: -0.74, y: -0.02, z: -0.44 }, // 4 heavy timber legs
+        { w: 0.07, h: 0.72, d: 0.07, x:  0.74, y: -0.02, z: -0.44 },
+        { w: 0.07, h: 0.72, d: 0.07, x: -0.74, y: -0.02, z:  0.44 },
+        { w: 0.07, h: 0.72, d: 0.07, x:  0.74, y: -0.02, z:  0.44 },
+        { w: 1.48, h: 0.05, d: 0.05, x: 0, y: -0.22, z: 0 },         // Central H-stretcher cross-brace
+      ]),
       readingLampStand: new THREE.CylinderGeometry(0.08, 0.12, 0.34, 8),
       readingLampShade: new THREE.BoxGeometry(0.26, 0.10, 0.16),
-      serverRack: new THREE.BoxGeometry(0.78, 2.15, 0.86),
+      serverRack: buildConstructedFurnitureGeo([
+        { w: 0.78, h: 2.15, d: 0.86, y: 0 },
+        { w: 0.82, h: 0.06, d: 0.90, y: 1.06 },   // Top ventilation bezel
+        { w: 0.04, h: 1.95, d: 0.04, x: -0.38, y: 0, z:  0.42 }, // Corner rack rails with bolts
+        { w: 0.04, h: 1.95, d: 0.04, x:  0.38, y: 0, z:  0.42 },
+      ]),
       cableTray: new THREE.BoxGeometry(1.30, 0.06, 0.08),
       stallWall: new THREE.BoxGeometry(1.45, 1.95, 0.06),
       stallDoor: new THREE.BoxGeometry(0.05, 1.82, 0.78),
@@ -6061,7 +6382,16 @@ export function getHideAndSeekHtml(): string {
       wallMirror: new THREE.BoxGeometry(0.04, 1.05, 2.20),
       canteenCounter: new THREE.BoxGeometry(0.85, 0.98, 4.20),
       snackCase: new THREE.BoxGeometry(0.52, 0.48, 1.45),
-      storageShelf: new THREE.BoxGeometry(0.58, 2.10, 2.20),
+      storageShelf: buildConstructedFurnitureGeo([
+        { w: 0.58, h: 2.10, d: 0.05, z: -1.06 },  // Left upright frame
+        { w: 0.58, h: 2.10, d: 0.05, z:  1.06 },  // Right upright frame
+        { w: 0.56, h: 0.04, d: 2.18, y:  0.92 },  // 4 steel shelves
+        { w: 0.56, h: 0.04, d: 2.18, y:  0.32 },
+        { w: 0.56, h: 0.04, d: 2.18, y: -0.28 },
+        { w: 0.56, h: 0.04, d: 2.18, y: -0.88 },
+        { w: 0.03, h: 2.15, d: 0.05, x: -0.27, y: 0, z: 0, rx: 0.78 }, // Diagonal X cross-brace
+        { w: 0.03, h: 2.15, d: 0.05, x: -0.27, y: 0, z: 0, rx: -0.78 },
+      ]),
       crateBox: new THREE.BoxGeometry(0.46, 0.38, 0.46),
       vineCluster: new THREE.BoxGeometry(0.14, 1.65, 0.38),
     };

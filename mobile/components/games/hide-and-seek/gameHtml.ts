@@ -1180,21 +1180,36 @@ export function getHideAndSeekHtml(): string {
     let horrorCameraShake = 0.0;
     let horrorGlitchTimer = 0.0;
 
+    const accessibilitySettings = {
+      fearIntensity: (HORROR_CONFIG.accessibility && HORROR_CONFIG.accessibility.fearIntensity) || 'high',
+      flickerReduction: !!(HORROR_CONFIG.accessibility && HORROR_CONFIG.accessibility.flickerReduction),
+      screenShakeOff: !!(HORROR_CONFIG.accessibility && HORROR_CONFIG.accessibility.screenShakeOff),
+    };
+
+    function getFearMultiplier() {
+      if (accessibilitySettings.fearIntensity === 'low') return 0.28;
+      if (accessibilitySettings.fearIntensity === 'medium') return 0.62;
+      return 1.0;
+    }
+
     function triggerHorrorVisualShock(intensity = 0.75, showMaskFlash = false) {
-      horrorCameraShake = Math.max(horrorCameraShake, intensity * 0.42);
-      horrorGlitchTimer = Math.max(horrorGlitchTimer, 0.22 + intensity * 0.35);
+      const scaled = intensity * getFearMultiplier();
+      if (!accessibilitySettings.screenShakeOff) {
+        horrorCameraShake = Math.max(horrorCameraShake, scaled * 0.42);
+      }
+      horrorGlitchTimer = Math.max(horrorGlitchTimer, 0.22 + scaled * 0.35);
       const glitchEl = document.getElementById('horror-glitch-overlay');
       if (glitchEl) {
-        glitchEl.style.opacity = Math.min(0.95, intensity * 0.88).toFixed(2);
+        glitchEl.style.opacity = Math.min(0.95, scaled * 0.88).toFixed(2);
       }
-      if (showMaskFlash) {
+      if (showMaskFlash && !accessibilitySettings.flickerReduction) {
         const flashEl = document.getElementById('horror-jumpscare-flash');
         if (flashEl) {
-          flashEl.style.opacity = Math.min(0.92, 0.45 + intensity * 0.5).toFixed(2);
+          flashEl.style.opacity = Math.min(0.92, 0.35 + scaled * 0.5).toFixed(2);
           clearTimeout(flashEl._hideTimer);
           flashEl._hideTimer = setTimeout(() => {
             flashEl.style.opacity = '0';
-          }, 190 + Math.floor(intensity * 180));
+          }, 190 + Math.floor(scaled * 180));
         }
       }
     }
@@ -2117,10 +2132,11 @@ export function getHideAndSeekHtml(): string {
         if (!this.ctx || this.isMuted) return;
         try {
           const now = this.ctx.currentTime;
-          const vol = Math.min(0.88, 0.32 + intensity * 0.56);
+          const scaledInt = intensity * getFearMultiplier();
+          const vol = Math.min(0.88, 0.22 + scaledInt * 0.58);
           const pulseEl = document.getElementById('horror-pulse-overlay');
-          if (pulseEl) {
-            pulseEl.style.transform = 'scale(' + (1.0 + intensity * 0.035).toFixed(3) + ')';
+          if (pulseEl && !accessibilitySettings.screenShakeOff) {
+            pulseEl.style.transform = 'scale(' + (1.0 + scaledInt * 0.035).toFixed(3) + ')';
             setTimeout(() => {
               if (pulseEl) pulseEl.style.transform = 'scale(1.0)';
             }, 140);
@@ -2139,6 +2155,155 @@ export function getHideAndSeekHtml(): string {
             osc.start(now + tOffset);
             osc.stop(now + tOffset + 0.13);
           });
+        } catch (e) {}
+      }
+
+      // 13. Room-Specific Procedural Soundscape: Toilet Water Drip, Computer Lab & Server Hum, Chair Scrape, PA Crackle, Distraction Clatter, Fuse Sparks & Sonar Ping
+      playWaterDripSfx() {
+        if (!this.ctx || this.isMuted) return;
+        try {
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          const baseF = 1180 + Math.random() * 280;
+          osc.frequency.setValueAtTime(baseF, now);
+          osc.frequency.exponentialRampToValueAtTime(baseF * 1.65, now + 0.065);
+          gain.gain.setValueAtTime(0.001, now);
+          gain.gain.linearRampToValueAtTime(0.08, now + 0.008);
+          gain.gain.exponentialRampToValueAtTime(0.0005, now + 0.09);
+          osc.connect(gain);
+          gain.connect(this.masterGain);
+          if (this.reverbSend) gain.connect(this.reverbSend);
+          osc.start(now);
+          osc.stop(now + 0.10);
+        } catch (e) {}
+      }
+
+      playServerRackHumPulse() {
+        if (!this.ctx || this.isMuted) return;
+        try {
+          const now = this.ctx.currentTime;
+          [60, 120, 240].forEach((freq, idx) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = idx === 1 ? 'sawtooth' : 'sine';
+            osc.frequency.setValueAtTime(freq, now);
+            const pk = idx === 0 ? 0.045 : (idx === 1 ? 0.022 : 0.012);
+            gain.gain.setValueAtTime(0.001, now);
+            gain.gain.linearRampToValueAtTime(pk, now + 0.25);
+            gain.gain.exponentialRampToValueAtTime(0.0008, now + 1.45);
+            osc.connect(gain);
+            gain.connect(this.masterGain);
+            osc.start(now);
+            osc.stop(now + 1.50);
+          });
+        } catch (e) {}
+      }
+
+      playChairScrapeSfx() {
+        if (!this.ctx || this.isMuted) return;
+        try {
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const filter = this.ctx.createBiquadFilter();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(145, now);
+          osc.frequency.linearRampToValueAtTime(210, now + 0.18);
+          osc.frequency.exponentialRampToValueAtTime(98, now + 0.48);
+          filter.type = 'bandpass';
+          filter.frequency.setValueAtTime(520, now);
+          filter.Q.setValueAtTime(5.5, now);
+          gain.gain.setValueAtTime(0.001, now);
+          gain.gain.linearRampToValueAtTime(0.095, now + 0.05);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.50);
+          osc.connect(filter);
+          filter.connect(gain);
+          gain.connect(this.masterGain);
+          if (this.reverbSend) gain.connect(this.reverbSend);
+          osc.start(now);
+          osc.stop(now + 0.52);
+        } catch (e) {}
+      }
+
+      playPaCrackleSfx() {
+        if (!this.ctx || this.isMuted) return;
+        try {
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(580, now);
+          osc.frequency.setValueAtTime(435, now + 0.18);
+          gain.gain.setValueAtTime(0.001, now);
+          gain.gain.linearRampToValueAtTime(0.055, now + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.42);
+          osc.connect(gain);
+          gain.connect(this.masterGain);
+          if (this.reverbSend) gain.connect(this.reverbSend);
+          osc.start(now);
+          osc.stop(now + 0.45);
+        } catch (e) {}
+      }
+
+      playDistractionClatterSfx() {
+        if (!this.ctx || this.isMuted) return;
+        try {
+          const now = this.ctx.currentTime;
+          [0, 0.09, 0.21].forEach((tOff, idx) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(820 - idx * 140, now + tOff);
+            osc.frequency.exponentialRampToValueAtTime(240, now + tOff + 0.08);
+            gain.gain.setValueAtTime(0.16 / (idx + 1), now + tOff);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + tOff + 0.09);
+            osc.connect(gain);
+            gain.connect(this.masterGain);
+            if (this.reverbSend) gain.connect(this.reverbSend);
+            osc.start(now + tOff);
+            osc.stop(now + tOff + 0.10);
+          });
+        } catch (e) {}
+      }
+
+      playFuseRepairSfx() {
+        if (!this.ctx || this.isMuted) return;
+        try {
+          const now = this.ctx.currentTime;
+          [220, 330, 440, 660].forEach((f, idx) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(f, now + idx * 0.055);
+            gain.gain.setValueAtTime(0.12, now + idx * 0.055);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.055 + 0.22);
+            osc.connect(gain);
+            gain.connect(this.masterGain);
+            osc.start(now + idx * 0.055);
+            osc.stop(now + idx * 0.055 + 0.24);
+          });
+        } catch (e) {}
+      }
+
+      playSonarPingSfx() {
+        if (!this.ctx || this.isMuted) return;
+        try {
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(520, now);
+          osc.frequency.exponentialRampToValueAtTime(195, now + 0.55);
+          gain.gain.setValueAtTime(0.001, now);
+          gain.gain.linearRampToValueAtTime(0.14, now + 0.03);
+          gain.gain.exponentialRampToValueAtTime(0.0008, now + 0.58);
+          osc.connect(gain);
+          gain.connect(this.masterGain);
+          if (this.reverbSend) gain.connect(this.reverbSend);
+          osc.start(now);
+          osc.stop(now + 0.60);
         } catch (e) {}
       }
 

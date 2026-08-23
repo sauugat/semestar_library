@@ -3,20 +3,242 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Upload Resource — Semester Library</title>
+  <title>Upload Note — Semester Library</title>
   <script>
     fetch('/api/me').then(r => { if (!r.ok) window.location.replace('login.html'); }).catch(() => window.location.replace('login.html'));
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
-</head>
-<body class="dash upload-page-body">
+  <script src="syllabus-helper.js"></script>
+  <style>
+    :root {
+      --bg: #f8f9fa;
+      --surface: #ffffff;
+      --border: rgba(0, 0, 0, 0.13);
+      --border-focus: #111827;
+      --text: #111827;
+      --text-muted: #4b5563;
+      --accent: #0071e3;
+      --radius: 18px;
+    }
 
-  <!-- Top Apple Pro Header -->
+    body.dash {
+      background: var(--bg);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Top Navigation Header Upload CTA Button */
+    .upload-cta-btn {
+      display: inline-flex !important;
+      align-items: center !important;
+      gap: 7px !important;
+      padding: 8px 16px !important;
+      border-radius: 980px !important;
+      background: #111827 !important;
+      color: #ffffff !important;
+      font-size: 13px !important;
+      font-weight: 700 !important;
+      text-decoration: none !important;
+      border: 1.5px solid #111827 !important;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15) !important;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    }
+
+    .upload-cta-btn svg {
+      transition: transform 0.2s ease;
+      stroke-width: 2.4px;
+    }
+
+    .upload-cta-btn:hover {
+      background: #000000 !important;
+      transform: translateY(-2px) !important;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25) !important;
+    }
+
+    .upload-cta-btn:hover svg {
+      transform: translateY(-2px);
+    }
+
+    .upload-container {
+      max-width: 580px;
+      margin: 32px auto 100px;
+      padding: 0 16px;
+    }
+
+    .upload-card-clean {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 34px 32px;
+      box-shadow: 0 4px 24px -2px rgba(0,0,0,0.06);
+    }
+
+    .upload-head-title {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.025em;
+      margin: 0 0 4px;
+      color: var(--text);
+    }
+
+    .upload-head-sub {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin: 0 0 24px;
+    }
+
+    /* Minimal Dropzone with stylized Icon */
+    .clean-dropzone {
+      border: 2px dashed rgba(0, 0, 0, 0.16);
+      border-radius: 14px;
+      padding: 28px 16px;
+      text-align: center;
+      cursor: pointer;
+      background: #fafafa;
+      transition: all 0.2s;
+      margin-bottom: 22px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .clean-dropzone:hover, .clean-dropzone.dragover {
+      border-color: #111827;
+      background: #f4f4f5;
+    }
+
+    .dropzone-icon-circle {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: #111827;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 4px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      transition: transform 0.2s ease;
+    }
+
+    .clean-dropzone:hover .dropzone-icon-circle {
+      transform: translateY(-3px) scale(1.05);
+      background: #000000;
+    }
+
+    .dropzone-label {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .dropzone-hint {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .file-pill {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: #f3f4f6;
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+
+    .clean-field {
+      margin-bottom: 18px;
+    }
+
+    .clean-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      color: #374151;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      margin-bottom: 6px;
+    }
+
+    .clean-input, .clean-select {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      font-size: 13.5px;
+      font-family: inherit;
+      color: var(--text);
+      background: #ffffff;
+      outline: none;
+      transition: all 0.2s;
+    }
+
+    .clean-input:focus, .clean-select:focus {
+      border-color: #111827;
+      box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.06);
+    }
+
+    .clean-select:disabled {
+      background: #f9fafb;
+      color: #9ca3af;
+      cursor: not-allowed;
+    }
+
+    .btn-submit-clean {
+      width: 100%;
+      padding: 13px;
+      border-radius: 10px;
+      background: #111827;
+      color: #ffffff;
+      font-size: 14px;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+      margin-top: 10px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-submit-clean:hover {
+      background: #000000;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+    }
+
+    .btn-submit-clean:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+      transform: none;
+    }
+  </style>
+</head>
+<body class="dash">
+
+  <!-- Slim Header -->
   <header class="dash-header">
     <a href="dashboard.html" class="lib-wordmark">Semester Library</a>
+
+    <nav class="dash-header-nav">
+      <a href="dashboard.html" class="header-nav-item">Feed</a>
+      <a href="chat.html" class="header-nav-item">Chat</a>
+      <a href="library.html" class="header-nav-item">Library</a>
+      <a href="syllabus.html" class="header-nav-item">Syllabus</a>
+      <a href="routine.html" class="header-nav-item">Routine</a>
+    </nav>
+
     <div class="dash-header-actions">
       <a href="profile.html" class="dash-profile-chip" title="View Profile">
         <div class="dash-profile-avatar" id="headerAvatar">·</div>
@@ -25,113 +247,86 @@
     </div>
   </header>
 
-  <!-- Upload Studio Container -->
-  <main class="upload-studio-container">
+  <main class="upload-container">
+    <div class="upload-card-clean">
+      <h1 class="upload-head-title">Share Study Material</h1>
+      <p class="upload-head-sub">Publish notes, slide decks, or assignments directly to your semester library.</p>
 
-    <div class="upload-studio-card">
-      
-      <!-- Card Header -->
-      <div class="upload-studio-header">
-        <div class="upload-badge-icon">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 3v12"/><path d="M7 8l5-5 5 5"/><path d="M5 21h14a2 2 0 0 0 2-2v-4"/><path d="M3 15v4a2 2 0 0 0 2 2"/>
-          </svg>
-        </div>
-        <div>
-          <h1 class="upload-studio-title">Share Study Resource</h1>
-          <p class="upload-studio-sub">Upload notes, slide decks, assignment solutions, or code to share with your classmates.</p>
-        </div>
-      </div>
-
-      <!-- Upload Form -->
-      <form id="uploadForm" class="upload-studio-form">
+      <form id="uploadForm">
         
-        <!-- Drag & Drop Zone -->
-        <label for="fileInput" class="upload-drop-card" id="dropZone">
-          <div class="drop-icon-circle">
-            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <!-- Dropzone with stylized Icon -->
+        <label for="fileInput" class="clean-dropzone" id="dropZone">
+          <div class="dropzone-icon-circle">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
             </svg>
           </div>
-          <div class="drop-text-wrapper">
-            <strong id="dropMainText">Choose a file or drag & drop here</strong>
-            <span id="dropSubText">Supports PDF, DOCX, ZIP, PPT, Images, and Code (Up to 25MB)</span>
-          </div>
-          <span class="drop-browse-btn">Browse File</span>
+          <span class="dropzone-label" id="dropLabel">Choose a file or drag & drop</span>
+          <span class="dropzone-hint">PDF, DOCX, ZIP, Images, PPTX up to 25MB</span>
           <input type="file" id="fileInput" name="file" hidden required>
         </label>
 
-        <!-- Selected File Indicator -->
-        <div id="fileSelectedBar" class="file-selected-pill" style="display: none;">
-          <div class="file-sel-info">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            <span id="selectedFileName" class="sel-name">filename.pdf</span>
-            <span id="selectedFileSize" class="sel-size">0 KB</span>
-          </div>
-          <button type="button" id="removeFileBtn" class="sel-remove-btn" title="Remove file">&times;</button>
+        <div id="filePickedBar" class="file-pill" style="display:none;">
+          <span id="fileNameDisplay" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">file.pdf</span>
+          <button type="button" id="clearFileBtn" style="background:none; border:none; font-size:16px; cursor:pointer; color:#6b7280;">&times;</button>
         </div>
 
-        <!-- Resource Title -->
-        <div class="form-group">
-          <label for="titleInput" class="studio-label">Resource Title / Caption</label>
-          <input type="text" id="titleInput" class="studio-input" placeholder="e.g. Chapter 4 Logic Gates & Boolean Algebra Notes" maxlength="100">
-          <span class="studio-hint">Give your resource a clear, descriptive title for classmates</span>
+        <!-- Title -->
+        <div class="clean-field">
+          <label class="clean-label" for="titleInput">Resource Title</label>
+          <input type="text" id="titleInput" class="clean-input" placeholder="e.g. Chapter 2 Digital Logic Notes" maxlength="100">
         </div>
 
-        <!-- Subject & Chapter 2-Column Row -->
-        <div class="form-row-2">
-          <div class="form-group">
-            <label for="subjectInput" class="studio-label">Subject</label>
-            <input type="text" id="subjectInput" class="studio-input" placeholder="e.g. Digital Logic" maxlength="60">
-          </div>
-          <div class="form-group">
-            <label for="chapterInput" class="studio-label">Chapter / Unit</label>
-            <input type="text" id="chapterInput" class="studio-input" placeholder="e.g. Chapter 4" maxlength="60">
-          </div>
+        <!-- Semester -->
+        <div class="clean-field">
+          <label class="clean-label" for="semesterSelect">Semester</label>
+          <select id="semesterSelect" class="clean-select" required>
+            <option value="">Select Semester…</option>
+          </select>
         </div>
 
-        <!-- Submission Actions -->
-        <div class="upload-action-row">
-          <button type="button" class="btn-studio-secondary" onclick="location.href='dashboard.html'">Cancel</button>
-          <button type="submit" class="btn-studio-primary" id="uploadBtn">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 3v12"/><path d="M7 8l5-5 5 5"/><path d="M5 21h14a2 2 0 0 0 2-2v-4"/><path d="M3 15v4a2 2 0 0 0 2 2"/>
-            </svg>
-            <span>Publish Resource</span>
-          </button>
+        <!-- Subject -->
+        <div class="clean-field">
+          <label class="clean-label" for="subjectSelect">Subject / Course</label>
+          <select id="subjectSelect" class="clean-select" disabled required>
+            <option value="">Choose semester first</option>
+          </select>
+          <input type="text" id="customSubInput" class="clean-input" placeholder="Enter custom subject" style="display:none; margin-top:8px;">
         </div>
 
-        <p id="uploadMsg" class="studio-status-msg"></p>
+        <!-- Chapter / Unit -->
+        <div class="clean-field">
+          <label class="clean-label" for="chapterSelect">Chapter / Unit</label>
+          <select id="chapterSelect" class="clean-select" disabled>
+            <option value="">Choose subject first</option>
+          </select>
+          <input type="text" id="customChapterInput" class="clean-input" placeholder="Enter custom unit name" style="display:none; margin-top:8px;">
+        </div>
 
+        <button type="submit" class="btn-submit-clean" id="submitBtn">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+          </svg>
+          <span>Publish to Library</span>
+        </button>
+        <p id="statusMsg" style="font-size:13px; text-align:center; margin-top:12px; font-weight:600;"></p>
       </form>
-
     </div>
-
   </main>
 
-  <!-- macOS Floating Dock Navigation -->
-  <nav class="bottom-nav">
-    <a href="dashboard.html" class="nav-item">
-      <svg viewBox="0 0 24 24"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/><path d="M9 13h6M9 17h4"/></svg>
-      <span class="nav-label">Feed</span>
-    </a>
-    <a href="chat.html" class="nav-item">
-      <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-      <span class="nav-label">Chat</span>
-    </a>
-    <a href="library.html" class="nav-item">
-      <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-      <span class="nav-label">Library</span>
-    </a>
-    <a href="syllabus.html" class="nav-item">
-      <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-      <span class="nav-label">Syllabus</span>
-    </a>
-    <a href="routine.html" class="nav-item">
-      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-      <span class="nav-label">Routine</span>
-    </a>
-  </nav>
+  <footer class="app-global-footer">
+    <div class="app-footer-inner">
+      <div class="app-footer-brand">
+        <strong>Semester Library</strong>
+        <span>· Bachelor of Information Technology</span>
+      </div>
+      <div class="app-footer-meta">
+        <span>Gandaki University</span>
+      </div>
+    </div>
+  </footer>
+
+
 
   <script>
     fetch('/api/me').then(r => { if (!r.ok) window.location.href = 'login.html'; });
@@ -151,144 +346,220 @@
       }
     }).catch(() => {});
 
-    const logoutBtnEl = document.getElementById('logoutBtn');
-    if (logoutBtnEl) {
-      logoutBtnEl.addEventListener('click', () => {
-        fetch('/api/logout', { method: 'POST' }).then(() => window.location.href = 'index.html');
-      });
-    }
-
     const fileInput = document.getElementById('fileInput');
     const dropZone = document.getElementById('dropZone');
-    const dropMainText = document.getElementById('dropMainText');
-    const uploadForm = document.getElementById('uploadForm');
-    const uploadMsg = document.getElementById('uploadMsg');
-    const uploadBtn = document.getElementById('uploadBtn');
-    const fileSelectedBar = document.getElementById('fileSelectedBar');
-    const selectedFileName = document.getElementById('selectedFileName');
-    const selectedFileSize = document.getElementById('selectedFileSize');
-    const removeFileBtn = document.getElementById('removeFileBtn');
+    const filePickedBar = document.getElementById('filePickedBar');
+    const fileNameDisplay = document.getElementById('fileNameDisplay');
+    const clearFileBtn = document.getElementById('clearFileBtn');
+    const titleInput = document.getElementById('titleInput');
 
-    function formatBytes(bytes) {
-      if (bytes < 1024) return bytes + ' B';
-      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-      return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    const semesterSelect = document.getElementById('semesterSelect');
+    const subjectSelect = document.getElementById('subjectSelect');
+    const chapterSelect = document.getElementById('chapterSelect');
+    const customSubInput = document.getElementById('customSubInput');
+    const customChapterInput = document.getElementById('customChapterInput');
+    const submitBtn = document.getElementById('submitBtn');
+    const statusMsg = document.getElementById('statusMsg');
+
+    let syllabusData = null;
+    let semesterList = [];
+
+    async function init() {
+      try {
+        syllabusData = await window.SyllabusHelper.loadSyllabusData();
+        semesterList = window.SyllabusHelper.getFormattedSemesters(syllabusData);
+
+        semesterSelect.innerHTML = '<option value="">Select Semester…</option>' + 
+          semesterList.map(s => `<option value="${s.shortName}">${s.fullLabel}</option>`).join('') +
+          '<option value="General">General / All Semesters</option>';
+
+        // Query params auto-fill
+        const params = new URLSearchParams(location.search);
+        const sem = params.get('sem');
+        const sub = params.get('subject') || params.get('sub');
+        const chap = params.get('chapter');
+
+        if (sem) {
+          const match = semesterList.find(s => s.rawSemester.toLowerCase() === sem.toLowerCase() || s.shortName.toLowerCase() === sem.toLowerCase());
+          if (match) {
+            semesterSelect.value = match.shortName;
+            semesterSelect.dispatchEvent(new Event('change'));
+          }
+        }
+
+        if (sub) {
+          setTimeout(() => {
+            for (let opt of subjectSelect.options) {
+              if (opt.value.toLowerCase() === sub.toLowerCase() || opt.value.toLowerCase().includes(sub.toLowerCase())) {
+                subjectSelect.value = opt.value;
+                subjectSelect.dispatchEvent(new Event('change'));
+                break;
+              }
+            }
+            if (chap) {
+              setTimeout(() => {
+                for (let opt of chapterSelect.options) {
+                  if (opt.value.toLowerCase().includes(chap.toLowerCase())) {
+                    chapterSelect.value = opt.value;
+                    chapterSelect.dispatchEvent(new Event('change'));
+                    break;
+                  }
+                }
+              }, 40);
+            }
+          }, 40);
+        }
+      } catch (e) {
+        console.error(e);
+      }
     }
 
-    function handleFilePicked(file) {
-      if (!file) return;
-      selectedFileName.textContent = file.name;
-      selectedFileSize.textContent = formatBytes(file.size);
-      fileSelectedBar.style.display = 'flex';
-      dropZone.style.borderColor = '#1d1d1f';
-      
-      // Auto-suggest title if empty
-      const titleInput = document.getElementById('titleInput');
-      if (!titleInput.value.trim()) {
-        const cleanName = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
-        titleInput.value = cleanName;
+    semesterSelect.addEventListener('change', () => {
+      const val = semesterSelect.value;
+      customSubInput.style.display = 'none';
+      customChapterInput.style.display = 'none';
+
+      if (!val) {
+        subjectSelect.innerHTML = '<option value="">Choose semester first</option>';
+        subjectSelect.disabled = true;
+        chapterSelect.innerHTML = '<option value="">Choose subject first</option>';
+        chapterSelect.disabled = true;
+        return;
+      }
+
+      const sem = semesterList.find(s => s.shortName === val);
+      const courses = sem ? sem.courses : [];
+
+      if (!courses.length || val === 'General') {
+        subjectSelect.innerHTML = '<option value="">Select Subject…</option><option value="__custom__">+ Custom Subject</option>';
+        subjectSelect.disabled = false;
+        chapterSelect.innerHTML = '<option value="General">General / All Chapters</option><option value="__custom__">+ Custom Unit</option>';
+        chapterSelect.disabled = false;
+        return;
+      }
+
+      subjectSelect.innerHTML = '<option value="">Select Course…</option>' +
+        courses.map(c => `<option value="${c.title}">${c.code ? c.code + ' — ' : ''}${c.title}</option>`).join('') +
+        '<option value="__custom__">+ Custom Subject</option>';
+      subjectSelect.disabled = false;
+
+      chapterSelect.innerHTML = '<option value="">Choose subject first</option>';
+      chapterSelect.disabled = true;
+    });
+
+    subjectSelect.addEventListener('change', () => {
+      const val = subjectSelect.value;
+      customChapterInput.style.display = 'none';
+
+      if (val === '__custom__') {
+        customSubInput.style.display = 'block';
+        customSubInput.focus();
+        chapterSelect.innerHTML = '<option value="General">General Notes</option><option value="__custom__">+ Custom Unit</option>';
+        chapterSelect.disabled = false;
+        return;
+      }
+      customSubInput.style.display = 'none';
+
+      if (!val) {
+        chapterSelect.innerHTML = '<option value="">Choose subject first</option>';
+        chapterSelect.disabled = true;
+        return;
+      }
+
+      const course = window.SyllabusHelper.findCourse(syllabusData, val);
+      const units = course && course.contents ? window.SyllabusHelper.parseCourseUnits(course.contents) : [];
+
+      let opts = '<option value="General">Complete Notes / General</option>';
+      units.forEach(u => {
+        opts += `<option value="Unit ${u.num}: ${u.title}">Unit ${u.num}: ${u.title}</option>`;
+      });
+      opts += '<option value="Lab / Practical">Lab / Practical Work</option><option value="__custom__">+ Custom Unit</option>';
+
+      chapterSelect.innerHTML = opts;
+      chapterSelect.disabled = false;
+    });
+
+    chapterSelect.addEventListener('change', () => {
+      if (chapterSelect.value === '__custom__') {
+        customChapterInput.style.display = 'block';
+        customChapterInput.focus();
+      } else {
+        customChapterInput.style.display = 'none';
+      }
+    });
+
+    function setFile(f) {
+      if (!f) return;
+      fileNameDisplay.textContent = f.name;
+      filePickedBar.style.display = 'flex';
+      if (!titleInput.value) {
+        titleInput.value = f.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
       }
     }
 
     fileInput.addEventListener('change', () => {
-      if (fileInput.files.length) {
-        handleFilePicked(fileInput.files[0]);
-      }
+      if (fileInput.files.length) setFile(fileInput.files[0]);
     });
 
-    removeFileBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
+    clearFileBtn.addEventListener('click', () => {
       fileInput.value = '';
-      fileSelectedBar.style.display = 'none';
-      dropZone.style.borderColor = 'var(--ap-border)';
+      filePickedBar.style.display = 'none';
     });
 
-    ['dragover', 'dragleave', 'drop'].forEach(evt => {
-      dropZone.addEventListener(evt, e => e.preventDefault());
-    });
-
-    dropZone.addEventListener('dragover', () => {
-      dropZone.classList.add('dragover');
-    });
-
-    dropZone.addEventListener('dragleave', () => {
-      dropZone.classList.remove('dragover');
-    });
-
+    ['dragover', 'dragleave', 'drop'].forEach(e => dropZone.addEventListener(e, evt => evt.preventDefault()));
+    dropZone.addEventListener('dragover', () => dropZone.classList.add('dragover'));
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
     dropZone.addEventListener('drop', e => {
       dropZone.classList.remove('dragover');
       if (e.dataTransfer.files.length) {
         fileInput.files = e.dataTransfer.files;
-        handleFilePicked(e.dataTransfer.files[0]);
+        setFile(e.dataTransfer.files[0]);
       }
     });
 
-    function showToast(message) {
-      let toast = document.getElementById('socialToast');
-      if (!toast) {
-        toast = document.createElement('div');
-        toast.id = 'socialToast';
-        toast.className = 'social-toast';
-        document.body.appendChild(toast);
-      }
-      toast.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6L9 17l-5-5"/></svg><span>${message}</span>`;
-      toast.classList.add('show');
-      setTimeout(() => toast.classList.remove('show'), 2600);
-    }
-
-    uploadForm.addEventListener('submit', async (e) => {
+    document.getElementById('uploadForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       if (!fileInput.files.length) {
-        uploadMsg.textContent = 'Please choose a file to upload.';
-        uploadMsg.className = 'studio-status-msg error';
+        statusMsg.textContent = 'Please choose a file.';
+        statusMsg.style.color = '#ef4444';
         return;
       }
 
-      const formData = new FormData();
-      formData.append('file', fileInput.files[0]);
-      formData.append('title', document.getElementById('titleInput').value.trim());
-      formData.append('subject', document.getElementById('subjectInput').value.trim());
-      formData.append('chapter', document.getElementById('chapterInput').value.trim());
+      let sub = subjectSelect.value === '__custom__' ? customSubInput.value.trim() : subjectSelect.value;
+      let chap = chapterSelect.value === '__custom__' ? customChapterInput.value.trim() : chapterSelect.value;
 
-      uploadBtn.disabled = true;
-      uploadBtn.innerHTML = `<span>Uploading…</span>`;
-      uploadMsg.textContent = '';
-      uploadMsg.className = 'studio-status-msg';
+      if (!semesterSelect.value || !sub) {
+        statusMsg.textContent = 'Please select semester and course.';
+        statusMsg.style.color = '#ef4444';
+        return;
+      }
+
+      const fd = new FormData();
+      fd.append('file', fileInput.files[0]);
+      fd.append('title', titleInput.value.trim());
+      fd.append('semester', semesterSelect.value);
+      fd.append('subject', sub);
+      fd.append('chapter', chap || '');
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Publishing…';
+      statusMsg.textContent = '';
 
       try {
-        const res = await fetch('/api/files/upload', { method: 'POST', body: formData });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || 'Upload failed');
-        
-        showToast('Resource published to feed successfully!');
-        
-        fileInput.value = '';
-        fileSelectedBar.style.display = 'none';
-        document.getElementById('titleInput').value = '';
-        document.getElementById('subjectInput').value = '';
-        document.getElementById('chapterInput').value = '';
-        
-        uploadMsg.className = 'studio-status-msg success';
-        uploadMsg.innerHTML = `File uploaded successfully! <a href="dashboard.html" class="view-feed-link">View in Feed &rarr;</a>`;
-        
-        // Redirect to dashboard after 1.2 seconds so they can see their new post
-        setTimeout(() => {
-          window.location.href = 'dashboard.html';
-        }, 1200);
-
+        const res = await fetch('/api/files/upload', { method: 'POST', body: fd });
+        if (!res.ok) throw new Error('Upload failed');
+        statusMsg.textContent = 'Uploaded successfully! Redirecting to library…';
+        statusMsg.style.color = '#10b981';
+        setTimeout(() => location.href = 'library.html', 1000);
       } catch (err) {
-        uploadMsg.textContent = err.message || 'Error uploading file.';
-        uploadMsg.className = 'studio-status-msg error';
-      } finally {
-        uploadBtn.disabled = false;
-        uploadBtn.innerHTML = `
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 3v12"/><path d="M7 8l5-5 5 5"/><path d="M5 21h14a2 2 0 0 0 2-2v-4"/><path d="M3 15v4a2 2 0 0 0 2 2"/>
-          </svg>
-          <span>Publish Resource</span>
-        `;
+        statusMsg.textContent = err.message || 'Upload error.';
+        statusMsg.style.color = '#ef4444';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Publish to Library';
       }
     });
+
+    init();
   </script>
 
   <script src="notifications.js"></script>

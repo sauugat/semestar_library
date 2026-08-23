@@ -1,21 +1,492 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Library — Semester Library</title>
-<script>
-  fetch('/api/me').then(r => { if (!r.ok) window.location.replace('login.html'); }).catch(() => window.location.replace('login.html'));
-</script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Curriculum Library — Semester Library</title>
+  <script>
+    fetch('/api/me').then(r => { if (!r.ok) window.location.replace('login.html'); }).catch(() => window.location.replace('login.html'));
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="syllabus-helper.js"></script>
+  <style>
+    /* ==========================================================================
+       MINIMALIST LUXURY APPLE / LINEAR AESTHETIC — CURRICULUM LIBRARY
+       ========================================================================== */
+    
+    :root {
+      --bg: #f8f9fa;
+      --surface: #ffffff;
+      --surface-glass: rgba(255, 255, 255, 0.9);
+      --border: rgba(0, 0, 0, 0.13);
+      --border-hover: #111827;
+      --text: #111827;
+      --text-muted: #4b5563;
+      --text-subtle: #6b7280;
+      --accent: #0071e3;
+      --radius-sm: 10px;
+      --radius-md: 16px;
+      --radius-lg: 22px;
+      --shadow-sm: 0 2px 6px rgba(0,0,0,0.03);
+      --shadow-md: 0 8px 24px -4px rgba(0,0,0,0.08);
+      --shadow-lg: 0 24px 48px -10px rgba(0,0,0,0.12);
+      --ease-apple: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    body.dash {
+      background: var(--bg);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+      padding-bottom: 0 !important;
+      margin-bottom: 0 !important;
+    }
+
+    .lib-page-wrap {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 24px 20px 0;
+    }
+
+    /* Minimal Top Bar */
+    .lib-top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 22px;
+      flex-wrap: wrap;
+    }
+
+    .lib-page-title {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin: 0;
+      color: var(--text);
+    }
+
+    .lib-search-pill {
+      position: relative;
+      flex: 1;
+      max-width: 440px;
+      min-width: 260px;
+    }
+
+    .lib-search-pill input {
+      width: 100%;
+      padding: 11px 16px 11px 40px;
+      border-radius: 980px;
+      border: 1.5px solid var(--border);
+      background: var(--surface);
+      font-size: 13.5px;
+      font-family: inherit;
+      color: var(--text);
+      outline: none;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.2s ease;
+    }
+
+    .lib-search-pill input:focus {
+      border-color: #111827;
+      box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.08);
+    }
+
+    .lib-search-pill svg {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-subtle);
+      pointer-events: none;
+    }
+
+    /* Segmented Semester Filter with Full "Semester X" Text */
+    .sem-switcher {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(0, 0, 0, 0.05);
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      padding: 5px;
+      border-radius: 980px;
+      overflow-x: auto;
+      margin-bottom: 28px;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .sem-switcher::-webkit-scrollbar {
+      display: none;
+    }
+
+    .sem-btn {
+      padding: 7px 18px;
+      border-radius: 980px;
+      border: none;
+      background: transparent;
+      color: #4b5563;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s var(--ease-apple);
+    }
+
+    .sem-btn:hover {
+      color: #111827;
+      background: rgba(255, 255, 255, 0.5);
+    }
+
+    .sem-btn.active {
+      background: var(--surface);
+      color: #111827;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Course Cards Minimal Grid with Clear Visible Borders */
+    .course-grid-clean {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 18px;
+    }
+
+    .course-card-minimal {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 22px 24px;
+      box-shadow: var(--shadow-sm);
+      cursor: pointer;
+      text-decoration: none;
+      color: inherit;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: all 0.25s var(--ease-apple);
+      position: relative;
+    }
+
+    .course-card-minimal:hover {
+      border-color: #111827;
+      transform: translateY(-3px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .course-card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .course-code-badge {
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 9px;
+      border-radius: 7px;
+      background: #f3f4f6;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      color: #1f2937;
+      letter-spacing: 0.02em;
+    }
+
+    .course-files-pill {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .course-files-pill.has-files {
+      color: #059669;
+      font-weight: 700;
+    }
+
+    .course-name-clean {
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin: 0 0 16px;
+      color: var(--text);
+      line-height: 1.35;
+    }
+
+    .course-card-foot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12.5px;
+      color: var(--text-muted);
+      font-weight: 600;
+      padding-top: 14px;
+      border-top: 1.5px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .course-card-foot .open-label {
+      color: var(--accent);
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* Multi-Dimensional Search Results View */
+    .search-results-section {
+      margin-bottom: 32px;
+    }
+
+    .search-section-title {
+      font-size: 14px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+      margin: 0 0 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .search-chapter-item {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 14px 18px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .search-chapter-item:hover {
+      border-color: #111827;
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* Slide-Over Unit Explorer Drawer */
+    .drawer-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      z-index: 1000;
+      display: flex;
+      justify-content: flex-end;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s var(--ease-apple);
+    }
+
+    .drawer-overlay.open {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .drawer-sheet {
+      background: #ffffff;
+      width: 100%;
+      max-width: 640px;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      box-shadow: -10px 0 40px rgba(0, 0, 0, 0.2);
+      transform: translateX(100%);
+      transition: transform 0.3s var(--ease-apple);
+      border-left: 1.5px solid var(--border);
+    }
+
+    .drawer-overlay.open .drawer-sheet {
+      transform: translateX(0);
+    }
+
+    .drawer-header {
+      padding: 24px 28px 18px;
+      border-bottom: 1.5px solid var(--border);
+      position: relative;
+    }
+
+    .drawer-close {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: #f3f4f6;
+      border: 1px solid var(--border);
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text);
+      font-size: 18px;
+      transition: all 0.2s;
+    }
+
+    .drawer-close:hover {
+      background: #e5e7eb;
+      transform: scale(1.06);
+    }
+
+    .drawer-body {
+      padding: 20px 28px;
+      overflow-y: auto;
+      flex: 1;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* Minimal Clean Unit Accordion */
+    .clean-unit-row {
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      margin-bottom: 12px;
+      overflow: hidden;
+      background: #ffffff;
+      transition: border-color 0.2s ease;
+    }
+
+    .clean-unit-row.open {
+      border-color: #111827;
+    }
+
+    .clean-unit-head {
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      user-select: none;
+      font-size: 14px;
+      font-weight: 700;
+      background: #ffffff;
+    }
+
+    .clean-unit-row.open .clean-unit-head {
+      background: #f9fafb;
+    }
+
+    .clean-unit-body {
+      padding: 14px 18px;
+      background: #f9fafb;
+      display: none;
+      border-top: 1.5px solid var(--border);
+    }
+
+    .clean-unit-row.open .clean-unit-body {
+      display: block;
+    }
+
+    .clean-file-item {
+      background: #ffffff;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    }
+
+    .clean-file-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .clean-file-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      background: #111827;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10.5px;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+
+    .clean-file-title {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--text);
+      margin: 0 0 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .clean-file-meta {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      margin: 0;
+    }
+
+    .clean-file-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .btn-file-action {
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s;
+    }
+
+    .btn-file-view {
+      background: #f3f4f6;
+      color: #111827;
+      border: 1px solid var(--border);
+    }
+    .btn-file-view:hover { background: #e5e7eb; }
+
+    .btn-file-get {
+      background: #111827;
+      color: #ffffff;
+    }
+    .btn-file-get:hover { background: #000000; }
+  </style>
 </head>
 <body class="dash">
 
+  <!-- Slim Apple Pro Header -->
   <header class="dash-header">
     <a href="dashboard.html" class="lib-wordmark">Semester Library</a>
+
+    <nav class="dash-header-nav">
+      <a href="dashboard.html" class="header-nav-item">Feed</a>
+      <a href="chat.html" class="header-nav-item">Chat</a>
+      <a href="library.html" class="header-nav-item active">Library</a>
+      <a href="syllabus.html" class="header-nav-item">Syllabus</a>
+      <a href="routine.html" class="header-nav-item">Routine</a>
+    </nav>
+
     <div class="dash-header-actions">
       <a href="profile.html" class="dash-profile-chip" title="View Profile">
         <div class="dash-profile-avatar" id="headerAvatar">·</div>
@@ -24,39 +495,67 @@
     </div>
   </header>
 
-  <div class="feed-heading">
-    <h2 id="libraryTitle">Library</h2>
-    <span></span>
-  </div>
+  <!-- Clean Minimal Container -->
+  <main class="lib-page-wrap">
+    
+    <!-- Top Action Bar -->
+    <div class="lib-top-bar">
+      <div>
+        <h1 class="lib-page-title" id="libSectionHeader">Semester 1 Courses</h1>
+      </div>
+      <div class="lib-search-pill">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" id="libSearch" placeholder="Search subjects, chapters, notes, or topics…">
+      </div>
+    </div>
 
-  <nav class="lib-breadcrumb" id="breadcrumb"></nav>
+    <!-- Segmented Semester Tabs (Full "Semester X" labels) -->
+    <div class="sem-switcher" id="semSwitcher">
+      <button class="sem-btn active" data-sem="I">Semester 1</button>
+      <button class="sem-btn" data-sem="II">Semester 2</button>
+      <button class="sem-btn" data-sem="III">Semester 3</button>
+      <button class="sem-btn" data-sem="IV">Semester 4</button>
+      <button class="sem-btn" data-sem="V">Semester 5</button>
+      <button class="sem-btn" data-sem="VI">Semester 6</button>
+      <button class="sem-btn" data-sem="VII">Semester 7</button>
+      <button class="sem-btn" data-sem="VIII">Semester 8</button>
+      <button class="sem-btn" data-sem="Electives">Electives</button>
+    </div>
 
-  <main class="library-grid" id="libraryGrid">
-    <p class="empty-state">Loading…</p>
+    <!-- Minimal Course & Search Grid -->
+    <div id="mainContentContainer">
+      <div class="course-grid-clean" id="courseGrid">
+        <p style="color:var(--text-muted); font-size:14px;">Loading curriculum…</p>
+      </div>
+    </div>
+
   </main>
 
-  <nav class="bottom-nav">
-    <a href="dashboard.html" class="nav-item">
-      <svg viewBox="0 0 24 24"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/><path d="M9 13h6M9 17h4"/></svg>
-      <span class="nav-label">Notes</span>
-    </a>
-    <a href="chat.html" class="nav-item">
-      <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-      <span class="nav-label">Chat</span>
-    </a>
-    <a href="library.html" class="nav-item active">
-      <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-      <span class="nav-label">Library</span>
-    </a>
-    <a href="syllabus.html" class="nav-item">
-      <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-      <span class="nav-label">Syllabus</span>
-    </a>
-    <a href="routine.html" class="nav-item">
-      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-      <span class="nav-label">Routine</span>
-    </a>
-  </nav>
+  <!-- Slide-Over Course Units Drawer -->
+  <div class="drawer-overlay" id="drawerOverlay">
+    <div class="drawer-sheet">
+      <div class="drawer-header">
+        <button class="drawer-close" id="drawerClose" title="Close">&times;</button>
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+          <span class="course-code-badge" id="dCourseCode">BIT101</span>
+          <span style="font-size:12px; font-weight:600; color:var(--text-muted);" id="dCourseMeta">Semester 1 &middot; 3 Credits</span>
+        </div>
+        <h2 style="font-size:18px; font-weight:800; margin:0 0 12px; color:var(--text);" id="dCourseTitle">Course Title</h2>
+        <div style="display:flex; gap:8px;">
+          <a href="#" id="dUploadBtn" class="upload-cta-btn" style="padding:6px 14px; font-size:12px;">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+            <span>+ Upload Note</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="drawer-body" id="drawerBody">
+        <p style="color:var(--text-muted); font-size:13px;">Loading chapters…</p>
+      </div>
+    </div>
+  </div>
+
+
 
   <script>
     fetch('/api/me').then(r => { if (!r.ok) window.location.href = 'login.html'; });
@@ -76,343 +575,391 @@
       }
     }).catch(() => {});
 
-    const logoutBtnEl = document.getElementById('logoutBtn');
-    if (logoutBtnEl) {
-      logoutBtnEl.addEventListener('click', () => {
-        fetch('/api/logout', { method: 'POST' }).then(() => window.location.href = 'index.html');
+    const SEM_MAP = {
+      'I': 'Semester 1',
+      'II': 'Semester 2',
+      'III': 'Semester 3',
+      'IV': 'Semester 4',
+      'V': 'Semester 5',
+      'VI': 'Semester 6',
+      'VII': 'Semester 7',
+      'VIII': 'Semester 8',
+      'Electives': 'Electives'
+    };
+
+    let SYLLABUS_DATA = null;
+    let ALL_COURSES = [];
+    let FILE_STATS = [];
+    let ALL_FILES = [];
+    let ACTIVE_SEM = 'I'; // Default to Semester 1
+
+    async function init() {
+      try {
+        const [sData, statsRes, filesRes] = await Promise.all([
+          window.SyllabusHelper.loadSyllabusData(),
+          fetch('/api/library/stats').then(r => r.ok ? r.json() : []),
+          fetch('/api/files').then(r => r.ok ? r.json() : [])
+        ]);
+        SYLLABUS_DATA = sData;
+        ALL_COURSES = window.SyllabusHelper.getAllCourses(sData);
+        FILE_STATS = statsRes || [];
+        ALL_FILES = filesRes || [];
+
+        setupSemSwitcher();
+        renderView();
+        checkUrl();
+      } catch (e) {
+        console.error('Init error:', e);
+      }
+    }
+
+    function getFileCount(title) {
+      let c = 0;
+      FILE_STATS.forEach(f => {
+        if (f.subject && f.subject.toLowerCase() === title.toLowerCase()) {
+          c += f.fileCount || 1;
+        }
+      });
+      return c;
+    }
+
+    function setupSemSwitcher() {
+      const switcher = document.getElementById('semSwitcher');
+      switcher.querySelectorAll('.sem-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          switcher.querySelectorAll('.sem-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          ACTIVE_SEM = btn.dataset.sem;
+          updateHeaderTitle();
+          
+          // Clear search when switching tabs for a clean experience
+          document.getElementById('libSearch').value = '';
+          renderView();
+        });
       });
     }
 
-    function formatSize(bytes) {
-      if (bytes < 1024) return bytes + ' B';
-      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-      return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    function updateHeaderTitle() {
+      const h = document.getElementById('libSectionHeader');
+      h.textContent = `${SEM_MAP[ACTIVE_SEM] || 'Semester'} Courses`;
     }
 
-    function timeAgo(iso) {
-      const diffMs = Date.now() - new Date(iso).getTime();
-      const mins = Math.floor(diffMs / 60000);
-      if (mins < 1) return 'just now';
-      if (mins < 60) return mins + 'm ago';
-      const hrs = Math.floor(mins / 60);
-      if (hrs < 24) return hrs + 'h ago';
-      return Math.floor(hrs / 24) + 'd ago';
-    }
+    function renderView() {
+      const container = document.getElementById('mainContentContainer');
+      const q = document.getElementById('libSearch').value.toLowerCase().trim();
 
-    function currentPath() {
-      return decodeURIComponent(location.hash.replace(/^#/, '')).split('/').filter(Boolean);
-    }
+      // IF NOT SEARCHING: Show clean course grid for the active semester
+      if (!q) {
+        document.getElementById('semSwitcher').style.display = 'flex';
+        updateHeaderTitle();
 
-    function renderBreadcrumb(path) {
-      const crumbs = ['<a href="#" data-path="">Library</a>'];
-      let acc = '';
-      path.forEach((part, i) => {
-        acc += (i === 0 ? '' : '/') + part;
-        crumbs.push(`<span class="crumb-sep">/</span><a href="#${encodeURIComponent(acc)}" data-path="${acc}">${part}</a>`);
-      });
-      document.getElementById('breadcrumb').innerHTML = crumbs.join(' ');
-    }
+        const list = ALL_COURSES.filter(c => c.rawSemester === ACTIVE_SEM);
+        if (!list.length) {
+          container.innerHTML = '<p style="color:var(--text-muted); font-size:14px; text-align:center; padding:40px; border:1.5px dashed var(--border); border-radius:16px;">No courses found in this semester.</p>';
+          return;
+        }
 
-    async function loadSubjects() {
-      document.getElementById('libraryTitle').textContent = 'Library';
-      const res = await fetch('/api/library/subjects');
-      const subjects = await res.json();
-      const grid = document.getElementById('libraryGrid');
-
-      if (!subjects.length) {
-        grid.innerHTML = '<p class="empty-state">No subjects yet — upload a file with a subject to get started.</p>';
+        container.innerHTML = `
+          <div class="course-grid-clean" id="courseGrid">
+            ${list.map(c => renderCourseCard(c)).join('')}
+          </div>
+        `;
         return;
       }
 
-      grid.innerHTML = subjects.map(s => `
-        <a href="#${encodeURIComponent(s.subject)}" class="folder-card">
-          <div class="folder-icon subject-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
-              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-            </svg>
-          </div>
-          <div class="folder-info">
-            <p class="folder-name">${s.subject}</p>
-            <p class="folder-meta">${s.chapterCount} chapter${s.chapterCount === 1 ? '' : 's'} &middot; ${s.fileCount} file${s.fileCount === 1 ? '' : 's'}</p>
-          </div>
-        </a>
-      `).join('');
-    }
+      // IF SEARCHING: Multi-dimensional search across Courses, Chapters, and Notes!
+      document.getElementById('semSwitcher').style.display = 'none';
+      document.getElementById('libSectionHeader').textContent = `Search Results for "${escapeHtml(q)}"`;
 
-    async function loadChapters(subject) {
-      document.getElementById('libraryTitle').textContent = subject;
-      const res = await fetch(`/api/library/subjects/${encodeURIComponent(subject)}/chapters`);
-      const data = await res.json();
-      const grid = document.getElementById('libraryGrid');
+      // 1. Matching Notes / Uploaded Files
+      const matchFiles = ALL_FILES.filter(f => {
+        const titleMatch = f.title && f.title.toLowerCase().includes(q);
+        const nameMatch = f.originalName && f.originalName.toLowerCase().includes(q);
+        const subMatch = f.subject && f.subject.toLowerCase().includes(q);
+        const chapMatch = f.chapter && f.chapter.toLowerCase().includes(q);
+        return titleMatch || nameMatch || subMatch || chapMatch;
+      });
 
-      let html = data.chapters.map(c => `
-        <a href="#${encodeURIComponent(subject)}/${encodeURIComponent(c.chapter)}" class="folder-card">
-          <div class="folder-icon chapter-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M14 3v4a1 1 0 0 0 1 1h4"/>
-              <path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/>
-            </svg>
-          </div>
-          <div class="folder-info">
-            <p class="folder-name">${c.chapter}</p>
-            <p class="folder-meta">${c.fileCount} file${c.fileCount === 1 ? '' : 's'}</p>
-          </div>
-        </a>
-      `).join('');
+      // 2. Matching Chapters / Units
+      const matchChapters = [];
+      ALL_COURSES.forEach(c => {
+        if (c.contents) {
+          const units = window.SyllabusHelper.parseCourseUnits(c.contents);
+          units.forEach(u => {
+            const uTitleMatch = u.title.toLowerCase().includes(q);
+            const uTopicsMatch = u.topics && u.topics.some(t => t.toLowerCase().includes(q));
+            if (uTitleMatch || uTopicsMatch) {
+              matchChapters.push({
+                courseTitle: c.title,
+                courseCode: c.code,
+                semLabel: SEM_MAP[c.rawSemester] || c.rawSemester,
+                unitNum: u.num,
+                unitTitle: u.title,
+                hrs: u.hrs
+              });
+            }
+          });
+        }
+      });
 
-      if (data.uncategorizedCount > 0) {
+      // 3. Matching Courses
+      const matchCourses = ALL_COURSES.filter(c => {
+        const cTitle = c.title.toLowerCase().includes(q);
+        const cCode = c.code && c.code.toLowerCase().includes(q);
+        return cTitle || cCode;
+      });
+
+      const totalMatches = matchFiles.length + matchChapters.length + matchCourses.length;
+
+      if (totalMatches === 0) {
+        container.innerHTML = `
+          <div style="text-align:center; padding:48px 20px; border:1.5px dashed var(--border); border-radius:18px; background:var(--surface);">
+            <p style="font-size:16px; font-weight:700; color:var(--text); margin:0 0 6px;">No matching notes, chapters, or subjects found</p>
+            <p style="font-size:13px; color:var(--text-muted); margin:0 0 16px;">Try searching for another topic or course name.</p>
+            <button class="btn-file-action btn-file-view" onclick="document.getElementById('libSearch').value=''; renderView();" style="cursor:pointer;">Clear Search</button>
+          </div>
+        `;
+        return;
+      }
+
+      let html = '';
+
+      // Render Notes Section
+      if (matchFiles.length > 0) {
         html += `
-          <a href="#${encodeURIComponent(subject)}/__none__" class="folder-card">
-            <div class="folder-icon chapter-icon" style="opacity:0.6">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M14 3v4a1 1 0 0 0 1 1h4"/>
-                <path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/>
-              </svg>
+          <div class="search-results-section">
+            <h3 class="search-section-title">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              <span>Matching Study Notes (${matchFiles.length})</span>
+            </h3>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              ${matchFiles.slice(0, 15).map(f => `
+                <div class="clean-file-item">
+                  <div class="clean-file-left">
+                    <div class="clean-file-icon">DOC</div>
+                    <div style="min-width:0;">
+                      <p class="clean-file-title" title="${escapeHtml(f.title || f.originalName)}">${escapeHtml(f.title || f.originalName)}</p>
+                      <p class="clean-file-meta">
+                        ${f.subject ? `<strong>${escapeHtml(f.subject)}</strong>` : ''} 
+                        ${f.chapter ? `&middot; ${escapeHtml(f.chapter)}` : ''} 
+                        &middot; By ${escapeHtml(f.uploaderName || 'Student')}
+                      </p>
+                    </div>
+                  </div>
+                  <div class="clean-file-actions">
+                    <a href="/api/files/${f.id}/view" target="_blank" class="btn-file-action btn-file-view">View</a>
+                    <a href="/api/files/${f.id}/download" class="btn-file-action btn-file-get">Get</a>
+                  </div>
+                </div>
+              `).join('')}
             </div>
-            <div class="folder-info">
-              <p class="folder-name">Uncategorized</p>
-              <p class="folder-meta">${data.uncategorizedCount} file${data.uncategorizedCount === 1 ? '' : 's'}</p>
-            </div>
-          </a>
+          </div>
         `;
       }
 
-      if (!data.chapters.length && !data.uncategorizedCount) {
-        html = '<p class="empty-state">No chapters yet under this subject.</p>';
+      // Render Chapters Section
+      if (matchChapters.length > 0) {
+        html += `
+          <div class="search-results-section">
+            <h3 class="search-section-title">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+              <span>Matching Chapters & Units (${matchChapters.length})</span>
+            </h3>
+            <div>
+              ${matchChapters.slice(0, 12).map(ch => `
+                <div class="search-chapter-item" onclick="openDrawer('${escapeHtml(ch.courseTitle).replace(/'/g, "\\'")}', '${ch.unitNum}')">
+                  <div style="min-width:0;">
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:3px;">
+                      <span class="course-code-badge">${escapeHtml(ch.courseCode || 'COURSE')}</span>
+                      <span style="font-size:12px; font-weight:600; color:var(--text-muted);">${escapeHtml(ch.courseTitle)} &middot; ${ch.semLabel}</span>
+                    </div>
+                    <p style="font-size:14.5px; font-weight:700; color:var(--text); margin:0;">
+                      Unit ${ch.unitNum}: ${escapeHtml(ch.unitTitle)} ${ch.hrs ? `<span style="font-size:12px; font-weight:500; color:var(--text-muted);">(${escapeHtml(ch.hrs)})</span>` : ''}
+                    </p>
+                  </div>
+                  <span class="open-label" style="font-size:12.5px; font-weight:700; color:var(--accent); white-space:nowrap;">Open Unit &rarr;</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
       }
 
-      grid.innerHTML = html;
+      // Render Courses Section
+      if (matchCourses.length > 0) {
+        html += `
+          <div class="search-results-section">
+            <h3 class="search-section-title">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              <span>Matching Courses & Subjects (${matchCourses.length})</span>
+            </h3>
+            <div class="course-grid-clean">
+              ${matchCourses.map(c => renderCourseCard(c)).join('')}
+            </div>
+          </div>
+        `;
+      }
+
+      container.innerHTML = html;
     }
+
+    function renderCourseCard(c) {
+      const fileCount = getFileCount(c.title);
+      const units = c.contents ? window.SyllabusHelper.parseCourseUnits(c.contents) : [];
+      const semLabel = SEM_MAP[c.rawSemester] || c.rawSemester;
+
+      return `
+        <div class="course-card-minimal" onclick="openDrawer('${escapeHtml(c.title).replace(/'/g, "\\'")}')">
+          <div>
+            <div class="course-card-head">
+              <span class="course-code-badge">${escapeHtml(c.code || 'COURSE')}</span>
+              <span class="course-files-pill ${fileCount ? 'has-files' : ''}">${fileCount ? `${fileCount} notes` : '0 notes'}</span>
+            </div>
+            <h3 class="course-name-clean">${escapeHtml(c.title)}</h3>
+          </div>
+          <div class="course-card-foot">
+            <span>${units.length} Units &middot; ${semLabel}</span>
+            <span class="open-label">Explore &rarr;</span>
+          </div>
+        </div>
+      `;
+    }
+
+    document.getElementById('libSearch').addEventListener('input', renderView);
+
+    // Slide-over Drawer
+    const overlay = document.getElementById('drawerOverlay');
+    const drawerClose = document.getElementById('drawerClose');
+
+    drawerClose.addEventListener('click', () => {
+      overlay.classList.remove('open');
+      history.replaceState(null, null, ' ');
+    });
+
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        overlay.classList.remove('open');
+        history.replaceState(null, null, ' ');
+      }
+    });
+
+    async function openDrawer(title, autoOpenUnitNum = null) {
+      const course = window.SyllabusHelper.findCourse(SYLLABUS_DATA, title);
+      if (!course) return;
+
+      location.hash = encodeURIComponent(course.title);
+
+      const semLabel = SEM_MAP[course.rawSemester] || course.semester;
+
+      document.getElementById('dCourseCode').textContent = course.code || 'COURSE';
+      document.getElementById('dCourseMeta').textContent = `${semLabel} · ${course.credit} Credits`;
+      document.getElementById('dCourseTitle').textContent = course.title;
+      document.getElementById('dUploadBtn').href = `files.html?sem=${encodeURIComponent(course.rawSemester)}&subject=${encodeURIComponent(course.title)}`;
+
+      const body = document.getElementById('drawerBody');
+      body.innerHTML = '<p style="color:var(--text-muted); font-size:13px;">Loading notes…</p>';
+      overlay.classList.add('open');
+
+      const units = course.contents ? window.SyllabusHelper.parseCourseUnits(course.contents) : [];
+      let files = [];
+      try {
+        const res = await fetch(`/api/library/files?subject=${encodeURIComponent(course.title)}`);
+        if (res.ok) files = await res.json();
+      } catch (err) {}
+
+      if (!units.length && !files.length) {
+        body.innerHTML = `
+          <div style="text-align:center; padding:40px 20px; color:var(--text-muted); font-size:13px; border:1.5px dashed var(--border); border-radius:14px;">
+            No study notes uploaded for this course yet.<br>
+            <a href="files.html?sem=${encodeURIComponent(course.rawSemester)}&subject=${encodeURIComponent(course.title)}" style="color:var(--accent); font-weight:700; text-decoration:none; display:inline-block; margin-top:8px;">+ Upload First Note</a>
+          </div>
+        `;
+        return;
+      }
+
+      let html = '';
+      units.forEach((u, i) => {
+        const uFiles = files.filter(f => f.chapter && (f.chapter.includes(`Unit ${u.num}`) || f.chapter.toLowerCase().includes(u.title.toLowerCase())));
+        const isOpen = (autoOpenUnitNum && String(autoOpenUnitNum) === String(u.num)) || (!autoOpenUnitNum && (i === 0 || uFiles.length > 0));
+
+        html += `
+          <div class="clean-unit-row ${isOpen ? 'open' : ''}">
+            <div class="clean-unit-head" onclick="this.parentElement.classList.toggle('open')">
+              <span>Unit ${u.num}: ${escapeHtml(u.title)}</span>
+              <span style="font-size:12px; color:var(--text-muted); font-weight:600;">${uFiles.length} file${uFiles.length === 1 ? '' : 's'}</span>
+            </div>
+            <div class="clean-unit-body">
+              ${uFiles.length ? uFiles.map(f => `
+                <div class="clean-file-item">
+                  <div class="clean-file-left">
+                    <div class="clean-file-icon">DOC</div>
+                    <div style="min-width:0;">
+                      <p class="clean-file-title" title="${escapeHtml(f.title || f.originalName)}">${escapeHtml(f.title || f.originalName)}</p>
+                      <p class="clean-file-meta">By ${escapeHtml(f.uploaderName || 'Student')}</p>
+                    </div>
+                  </div>
+                  <div class="clean-file-actions">
+                    <a href="/api/files/${f.id}/view" target="_blank" class="btn-file-action btn-file-view">View</a>
+                    <a href="/api/files/${f.id}/download" class="btn-file-action btn-file-get">Get</a>
+                  </div>
+                </div>
+              `).join('') : `
+                <p style="font-size:12px; color:var(--text-subtle); margin:0;">
+                  No notes for this unit. 
+                  <a href="files.html?sem=${encodeURIComponent(course.rawSemester)}&subject=${encodeURIComponent(course.title)}&chapter=Unit%20${u.num}" style="color:var(--accent); font-weight:700; text-decoration:none;">+ Upload</a>
+                </p>
+              `}
+            </div>
+          </div>
+        `;
+      });
+
+      // General files
+      const general = files.filter(f => !f.chapter || f.chapter === 'General' || !units.some(u => f.chapter.includes(`Unit ${u.num}`)));
+      if (general.length) {
+        html += `
+          <div class="clean-unit-row open">
+            <div class="clean-unit-head" onclick="this.parentElement.classList.toggle('open')">
+              <span>General & Labs</span>
+              <span style="font-size:12px; color:var(--text-muted); font-weight:600;">${general.length} files</span>
+            </div>
+            <div class="clean-unit-body">
+              ${general.map(f => `
+                <div class="clean-file-item">
+                  <div class="clean-file-left">
+                    <div class="clean-file-icon">DOC</div>
+                    <div style="min-width:0;">
+                      <p class="clean-file-title" title="${escapeHtml(f.title || f.originalName)}">${escapeHtml(f.title || f.originalName)}</p>
+                      <p class="clean-file-meta">By ${escapeHtml(f.uploaderName || 'Student')}</p>
+                    </div>
+                  </div>
+                  <div class="clean-file-actions">
+                    <a href="/api/files/${f.id}/view" target="_blank" class="btn-file-action btn-file-view">View</a>
+                    <a href="/api/files/${f.id}/download" class="btn-file-action btn-file-get">Get</a>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }
+
+      body.innerHTML = html;
+    }
+
+    function checkUrl() {
+      const h = decodeURIComponent(location.hash.replace(/^#/, '')).trim();
+      if (h && SYLLABUS_DATA) openDrawer(h);
+    }
+    window.addEventListener('hashchange', checkUrl);
 
     function escapeHtml(str) {
       if (!str) return '';
       return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    function getFileBadge(name) {
-      const ext = (name.match(/\.([a-zA-Z0-9]+)$/) || ['', 'FILE'])[1].toUpperCase();
-      let iconClass = 'badge-doc';
-      if (['PDF'].includes(ext)) iconClass = 'badge-pdf';
-      else if (['ZIP', 'RAR', '7Z', 'TAR', 'GZ'].includes(ext)) iconClass = 'badge-zip';
-      else if (['JPG', 'JPEG', 'PNG', 'WEBP', 'GIF', 'SVG'].includes(ext)) iconClass = 'badge-img';
-      else if (['JS', 'PY', 'CPP', 'C', 'JAVA', 'HTML', 'CSS', 'JSON', 'SQL'].includes(ext)) iconClass = 'badge-code';
-      else if (['PPT', 'PPTX', 'KEY'].includes(ext)) iconClass = 'badge-slide';
-      return { ext, iconClass };
-    }
-
-    function showToast(message) {
-      let toast = document.getElementById('socialToast');
-      if (!toast) {
-        toast = document.createElement('div');
-        toast.id = 'socialToast';
-        toast.className = 'social-toast';
-        document.body.appendChild(toast);
-      }
-      toast.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6L9 17l-5-5"/></svg><span>${message}</span>`;
-      toast.classList.add('show');
-      setTimeout(() => toast.classList.remove('show'), 2400);
-    }
-
-    function copyPostLink(fileId) {
-      const url = `${window.location.origin}/api/files/${fileId}/view`;
-      navigator.clipboard.writeText(url).then(() => {
-        showToast('Direct file link copied to clipboard');
-      }).catch(() => {
-        showToast('Link ready to share');
-      });
-    }
-
-    async function toggleLike(fileId, btn) {
-      try {
-        const res = await fetch(`/api/files/${fileId}/like`, { method: 'POST' });
-        const data = await res.json();
-        btn.dataset.liked = data.liked;
-        btn.querySelector('.like-count').textContent = data.likeCount;
-        btn.classList.toggle('liked', data.liked);
-      } catch (err) {
-        console.error('Like error:', err);
-      }
-    }
-
-    async function toggleCommentPanel(fileId, card) {
-      const panel = card.querySelector('.post-comment-drawer, .comment-panel');
-      const isOpen = panel.classList.contains('open');
-      if (isOpen) {
-        panel.classList.remove('open');
-        return;
-      }
-      panel.classList.add('open');
-      if (!panel.dataset.loaded) {
-        const res = await fetch(`/api/files/${fileId}/comments`);
-        const comments = await res.json();
-        panel.querySelector('.comment-list').innerHTML = comments.map(c => `
-          <div class="comment-item">
-            <div class="comment-avatar">${escapeHtml(c.commenterName.charAt(0).toUpperCase())}</div>
-            <div style="flex: 1; min-width: 0;">
-              <p class="comment-author">${escapeHtml(c.commenterName)}</p>
-              <p class="comment-text">${escapeHtml(c.commentText)}</p>
-            </div>
-          </div>
-        `).join('') || '<p class="comment-empty">No comments yet. Start the discussion!</p>';
-        panel.dataset.loaded = 'true';
-      }
-    }
-
-    async function submitComment(fileId, card) {
-      const input = card.querySelector('.comment-input');
-      const text = input.value.trim();
-      if (!text) return;
-      const res = await fetch(`/api/files/${fileId}/comments`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text })
-      });
-      if (!res.ok) return;
-      input.value = '';
-      const panel = card.querySelector('.post-comment-drawer, .comment-panel');
-      panel.dataset.loaded = '';
-      await toggleCommentPanel(fileId, card);
-      toggleCommentPanel(fileId, card);
-
-      const countEl = card.querySelector('.comment-count');
-      if (countEl) {
-        countEl.textContent = parseInt(countEl.textContent || '0') + 1;
-      }
-    }
-
-    function renderPost(f) {
-      const badge = getFileBadge(f.originalName);
-      const initial = (f.uploaderName || 'S').charAt(0).toUpperCase();
-      const avatarHtml = f.uploaderAvatar 
-        ? `<img src="${f.uploaderAvatar}" alt="${escapeHtml(f.uploaderName)}" class="post-avatar-img">`
-        : initial;
-      const subjectTag = f.subject ? `<span class="post-pill-tag"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>${escapeHtml(f.subject)}</span>` : '';
-      const chapterTag = f.chapter ? `<span class="post-pill-tag"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>${escapeHtml(f.chapter)}</span>` : '';
-
-      return `
-        <article class="feed-card social-post-card" data-file-id="${f.id}">
-          
-          <header class="post-header">
-            <a href="profile.html?id=${f.uploadedBy}" class="post-avatar" title="View ${escapeHtml(f.uploaderName)}'s Profile">${avatarHtml}</a>
-            <div class="post-user-info">
-              <div class="post-author-row">
-                <a href="profile.html?id=${f.uploadedBy}" class="post-author-name post-author-link">${escapeHtml(f.uploaderName || 'Student')}</a>
-                <span class="post-verified-badge" title="Verified Gandaki University Student">
-                  <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
-                  GU Student
-                </span>
-              </div>
-              <div class="post-meta-row">
-                <span class="post-student-handle">@${escapeHtml(f.uploadedBy || 'student')}</span>
-                <span class="post-meta-sep">&middot;</span>
-                <time class="post-timestamp" datetime="${f.uploadedAt}">${timeAgo(f.uploadedAt)}</time>
-                <span class="post-meta-sep">&middot;</span>
-                <span class="post-visibility" title="Public to Semester">
-                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1 4-10z"/></svg>
-                </span>
-              </div>
-            </div>
-
-            <button class="post-more-btn" onclick="copyPostLink(${f.id})" title="Copy link to file">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
-            </button>
-          </header>
-
-          <div class="post-content">
-            <h3 class="post-title">${escapeHtml(f.title || f.originalName)}</h3>
-            ${(subjectTag || chapterTag) ? `<div class="post-tags-row">${subjectTag}${chapterTag}</div>` : ''}
-          </div>
-
-          <div class="post-attachment-card">
-            <div class="attachment-file-badge ${badge.iconClass}">
-              <span>${badge.ext}</span>
-            </div>
-            <div class="attachment-details">
-              <p class="attachment-name" title="${escapeHtml(f.originalName)}">${escapeHtml(f.originalName)}</p>
-              <span class="attachment-meta">${formatSize(f.sizeBytes)} &middot; ${badge.ext} Resource</span>
-            </div>
-            <div class="attachment-actions">
-              <a href="/api/files/${f.id}/view" target="_blank" rel="noopener" class="attach-action-btn attach-btn-view" title="Preview file in browser">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                <span>View</span>
-              </a>
-              <a href="/api/files/${f.id}/download" class="attach-action-btn attach-btn-download" title="Download file">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-                <span>Get</span>
-              </a>
-            </div>
-          </div>
-
-          <footer class="post-engage-bar">
-            <button class="post-action-btn like-btn ${f.liked ? 'liked' : ''}" data-liked="${f.liked ? 'true' : 'false'}" onclick="toggleLike(${f.id}, this)">
-              <svg viewBox="0 0 24 24" fill="${f.liked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/>
-              </svg>
-              <span class="like-count">${f.likeCount || 0}</span>
-            </button>
-
-            <button class="post-action-btn comment-btn" onclick="toggleCommentPanel(${f.id}, this.closest('.feed-card'))">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 8.4 8.4 0 0 1-3.5-.75L3 21l1.8-5.4A8.4 8.4 0 0 1 4 12.5 8.5 8.5 0 1 1 21 11.5z"/>
-              </svg>
-              <span class="comment-count">${f.commentCount || 0}</span>
-            </button>
-
-            <button class="post-action-btn share-btn" onclick="copyPostLink(${f.id})" title="Copy link">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13"/>
-              </svg>
-              <span>Share</span>
-            </button>
-          </footer>
-
-          <div class="comment-panel post-comment-drawer">
-            <div class="comment-list"></div>
-            <div class="comment-composer">
-              <input type="text" class="comment-input post-comment-input" placeholder="Write a comment for the class…" maxlength="500">
-              <button class="comment-submit post-comment-submit" onclick="submitComment(${f.id}, this.closest('.feed-card'))" title="Post comment">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
-              </button>
-            </div>
-          </div>
-
-        </article>
-      `;
-    }
-
-    async function loadFiles(subject, chapter) {
-      document.getElementById('libraryTitle').textContent = chapter === '__none__' ? 'Uncategorized' : chapter;
-      const params = new URLSearchParams({ subject });
-      if (chapter !== '__none__') params.set('chapter', chapter);
-
-      const res = await fetch(`/api/library/files?${params.toString()}`);
-      const files = await res.json();
-      const grid = document.getElementById('libraryGrid');
-
-      if (!files.length) {
-        grid.innerHTML = '<p class="empty-state">No files here yet.</p>';
-        return;
-      }
-
-      grid.innerHTML = `<div class="library-file-list">` + files.map(renderPost).join('') + `</div>`;
-    }
-
-    function route() {
-      const path = currentPath();
-      renderBreadcrumb(path);
-      if (path.length === 0) {
-        loadSubjects();
-      } else if (path.length === 1) {
-        loadChapters(path[0]);
-      } else {
-        loadFiles(path[0], path[1]);
-      }
-    }
-
-    window.addEventListener('hashchange', route);
-    route();
+    init();
   </script>
-  <script src="notifications.js"></script>
+
 </body>
 </html>

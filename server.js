@@ -264,6 +264,11 @@ try {
 } catch (e) {
   // Column already exists — safe to ignore
 }
+try {
+  db.exec(`ALTER TABLE files ADD COLUMN semester TEXT`);
+} catch (e) {
+  // Column already exists — safe to ignore
+}
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS file_likes (
@@ -422,17 +427,19 @@ app.post('/api/files/upload', requireLogin, upload.single('file'), (req, res) =>
   }
 
   const title = (req.body.title || '').trim() || null;
+  const semester = (req.body.semester || '').trim() || null;
   const subject = (req.body.subject || '').trim() || null;
   const chapter = (req.body.chapter || '').trim() || null;
 
   const stmt = db.prepare(`
-    INSERT INTO files (storedName, originalName, title, subject, chapter, uploadedBy, sizeBytes, uploadedAt)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO files (storedName, originalName, title, semester, subject, chapter, uploadedBy, sizeBytes, uploadedAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const result = stmt.run(
     req.file.filename,
     req.file.originalname,
     title,
+    semester,
     subject,
     chapter,
     req.session.studentId,
@@ -459,7 +466,7 @@ app.get('/api/files', requireLogin, (req, res) => {
   const viewerIsAdmin = isStudentAdmin(req.session.studentId);
 
   const files = db.prepare(`
-    SELECT files.id, files.originalName, files.title, files.subject, files.chapter, files.sizeBytes, files.uploadedAt, files.uploadedBy,
+    SELECT files.id, files.originalName, files.title, files.semester, files.subject, files.chapter, files.sizeBytes, files.uploadedAt, files.uploadedBy,
       students.name AS uploaderName, students.avatarUrl AS uploaderAvatar, students.role AS uploaderRole,
       (SELECT COUNT(*) FROM file_likes WHERE file_likes.fileId = files.id) AS likeCount,
       EXISTS(SELECT 1 FROM file_likes WHERE fileId = files.id AND studentId = ?) AS liked,
@@ -671,32 +678,44 @@ app.get('/api/library/subjects/:subject/chapters', requireLogin, (req, res) => {
   res.json({ chapters, uncategorizedCount: uncategorized.c });
 });
 
-// List files within a subject + chapter
+// Library stats: returns file count grouped by semester, subject, and chapter
+app.get('/api/library/stats', requireLogin, (req, res) => {
+  const stats = db.prepare(`
+    SELECT semester, subject, chapter, COUNT(*) AS fileCount
+    FROM files
+    GROUP BY semester, subject, chapter
+  `).all();
+  res.json(stats);
+});
+
+// List files with flexible filters (semester, subject, chapter)
 app.get('/api/library/files', requireLogin, (req, res) => {
-  const { subject, chapter } = req.query;
+  const { semester, subject, chapter } = req.query;
   const viewerIsAdmin = isStudentAdmin(req.session.studentId);
 
-  if (!subject) {
-    return res.status(400).json({ message: 'subject is required' });
-  }
-
   let query = `
-    SELECT files.id, files.originalName, files.title, files.subject, files.chapter, files.sizeBytes, files.uploadedAt, files.uploadedBy,
+    SELECT files.id, files.originalName, files.title, files.semester, files.subject, files.chapter, files.sizeBytes, files.uploadedAt, files.uploadedBy,
       students.name AS uploaderName, students.avatarUrl AS uploaderAvatar, students.role AS uploaderRole,
       (SELECT COUNT(*) FROM file_likes WHERE file_likes.fileId = files.id) AS likeCount,
       EXISTS(SELECT 1 FROM file_likes WHERE fileId = files.id AND studentId = ?) AS liked,
       (SELECT COUNT(*) FROM file_comments WHERE file_comments.fileId = files.id) AS commentCount
     FROM files
     JOIN students ON students.studentId = files.uploadedBy
-    WHERE files.subject = ?
+    WHERE 1=1
   `;
-  const params = [req.session.studentId, subject];
+  const params = [req.session.studentId];
 
+  if (semester) {
+    query += ' AND files.semester = ?';
+    params.push(semester);
+  }
+  if (subject) {
+    query += ' AND files.subject = ?';
+    params.push(subject);
+  }
   if (chapter) {
     query += ' AND files.chapter = ?';
     params.push(chapter);
-  } else {
-    query += ` AND (files.chapter IS NULL OR files.chapter = '')`;
   }
 
   query += ' ORDER BY files.uploadedAt DESC';
@@ -724,18 +743,18 @@ app.get('/api/search', requireLogin, (req, res) => {
 
   // Search files (title, originalName, subject, chapter)
   const filesQuery = `
-    SELECT files.id, files.originalName, files.title, files.subject, files.chapter, files.sizeBytes, files.uploadedAt, files.uploadedBy,
+    SELECT files.id, files.originalName, files.title, files.semester, files.subject, files.chapter, files.sizeBytes, files.uploadedAt, files.uploadedBy,
       students.name AS uploaderName, students.avatarUrl AS uploaderAvatar, students.role AS uploaderRole,
       (SELECT COUNT(*) FROM file_likes WHERE file_likes.fileId = files.id) AS likeCount,
       EXISTS(SELECT 1 FROM file_likes WHERE fileId = files.id AND studentId = ?) AS liked,
       (SELECT COUNT(*) FROM file_comments WHERE file_comments.fileId = files.id) AS commentCount
     FROM files
     JOIN students ON students.studentId = files.uploadedBy
-    WHERE files.title LIKE ? OR files.originalName LIKE ? OR files.subject LIKE ? OR files.chapter LIKE ?
+    WHERE files.title LIKE ? OR files.originalName LIKE ? OR files.subject LIKE ? OR files.chapter LIKE ? OR files.semester LIKE ?
     ORDER BY files.uploadedAt DESC
     LIMIT 50
   `;
-  const files = db.prepare(filesQuery).all(req.session.studentId, likeQuery, likeQuery, likeQuery, likeQuery);
+  const files = db.prepare(filesQuery).all(req.session.studentId, likeQuery, likeQuery, likeQuery, likeQuery, likeQuery);
 
   const processedFiles = files.map(f => ({
     ...f,
@@ -1077,7 +1096,7 @@ app.get('/api/profile/:studentId/files', requireLogin, (req, res) => {
   const viewerIsAdmin = isStudentAdmin(viewerStudentId);
 
   const files = db.prepare(`
-    SELECT files.id, files.originalName, files.title, files.subject, files.chapter, files.sizeBytes, files.uploadedAt, files.uploadedBy,
+    SELECT files.id, files.originalName, files.title, files.semester, files.subject, files.chapter, files.sizeBytes, files.uploadedAt, files.uploadedBy,
       students.name AS uploaderName, students.avatarUrl AS uploaderAvatar, students.role AS uploaderRole,
       (SELECT COUNT(*) FROM file_likes WHERE file_likes.fileId = files.id) AS likeCount,
       EXISTS(SELECT 1 FROM file_likes WHERE fileId = files.id AND studentId = ?) AS liked,

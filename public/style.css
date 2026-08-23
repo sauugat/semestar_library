@@ -3219,8 +3219,12 @@ body.dash {
   background-attachment: fixed;
   min-height: 100vh;
   color: var(--ap-text-primary);
-  padding-bottom: 130px;
+  padding-bottom: 0;
   position: relative;
+}
+
+body.dash:has(.bottom-nav) {
+  padding-bottom: 110px;
 }
 
 /* Apple Pro Header with Translucent Blur */
@@ -3244,7 +3248,7 @@ body.dash .dash-header .lib-wordmark {
   font-size: 16.5px;
   font-weight: 800;
   letter-spacing: -0.03em;
-  line-height: 1.15;
+  line-height: 1;
   color: #1d1d1f;
   text-decoration: none;
   display: inline-flex;
@@ -3253,6 +3257,7 @@ body.dash .dash-header .lib-wordmark {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   transition: opacity 0.2s ease, transform 0.2s var(--ap-spring);
+  flex-shrink: 0;
 }
 
 body.dash .dash-header .lib-wordmark:hover {
@@ -3263,6 +3268,66 @@ body.dash .dash-header-actions {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-shrink: 0;
+}
+
+/* Apple.com Style Global Header Navigation */
+.dash-header-nav {
+  display: flex;
+  align-items: center;
+  gap: 26px;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  border-radius: 0;
+  border: none;
+}
+
+.header-nav-item {
+  display: inline-flex;
+  align-items: center;
+  color: rgba(0, 0, 0, 0.65);
+  font-family: -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  padding: 6px 2px;
+  position: relative;
+  line-height: 1.2;
+  transition: color 0.2s cubic-bezier(0.25, 0.1, 0.25, 1), opacity 0.2s ease;
+}
+
+.header-nav-item:hover {
+  color: #000000;
+  background: transparent;
+}
+
+.header-nav-item.active {
+  color: #000000;
+  font-weight: 700;
+  background: transparent;
+  box-shadow: none;
+}
+
+.header-nav-item.active::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #111827;
+  border-radius: 2px;
+}
+
+@media (max-width: 768px) {
+  .dash-header-nav {
+    gap: 14px;
+  }
+  .header-nav-item {
+    font-size: 12px;
+  }
 }
 
 /* --- Header Search (AI Chat Theme) --- */
@@ -3427,19 +3492,22 @@ body.dash .dash-profile-chip {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  height: 32px;
+  box-sizing: border-box;
   background: #ffffff;
   border: 1.5px solid var(--ap-border);
   color: var(--ap-text-primary);
-  font-family: inherit;
+  font-family: -apple-system, BlinkMacSystemFont, "Inter", "Plus Jakarta Sans", sans-serif;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  padding: 4px 14px 4px 4px;
-  border-radius: var(--ap-radius-pill);
+  padding: 0 12px 0 3px;
+  border-radius: 980px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   transition: all 0.2s var(--ap-spring);
   line-height: 1;
   text-decoration: none;
+  flex-shrink: 0;
 }
 
 body.dash .dash-profile-chip:hover {
@@ -3453,6 +3521,10 @@ body.dash .dash-profile-chip:hover {
 body.dash .dash-profile-chip .dash-profile-avatar {
   width: 24px;
   height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  max-width: 24px;
+  max-height: 24px;
   border-radius: 50%;
   background: #1d1d1f;
   color: #ffffff;
@@ -3463,6 +3535,7 @@ body.dash .dash-profile-chip .dash-profile-avatar {
   justify-content: center;
   overflow: hidden;
   flex-shrink: 0;
+  box-sizing: border-box;
   transition: all 0.2s ease;
 }
 
@@ -3470,6 +3543,7 @@ body.dash .dash-profile-chip .dash-profile-avatar img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  display: block;
 }
 
 body.dash .dash-profile-chip:hover .dash-profile-avatar {
@@ -5081,12 +5155,57 @@ body.routine-page {
   color: var(--ap-text-secondary);
 }
 
-.routine-footer {
-  padding: 30px;
+.routine-footer,
+.app-global-footer {
+  width: 100%;
+  margin-top: auto;
+  padding: 32px 24px 44px;
   text-align: center;
-  font-size: 12px;
+  font-size: 12.5px;
   color: var(--ap-text-tertiary);
-  border-top: 1.5px solid var(--ap-border);
+  border-top: 1.5px solid rgba(0, 0, 0, 0.08);
+  background: transparent;
+  box-sizing: border-box;
+}
+
+body:has(.bottom-nav) .app-global-footer {
+  padding-bottom: 100px;
+}
+
+.app-footer-inner {
+  max-width: 1180px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.app-footer-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--ap-text-secondary);
+}
+
+.app-footer-brand strong {
+  color: var(--ap-text-primary);
+  font-weight: 700;
+}
+
+.app-footer-meta {
+  color: var(--ap-text-subtle);
+  font-size: 12px;
+}
+
+@media (max-width: 640px) {
+  .app-footer-inner {
+    flex-direction: column;
+    text-align: center;
+    gap: 6px;
+  }
 }
 
 /* ============================================================

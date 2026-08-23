@@ -12,10 +12,17 @@
 <body class="dash">
 
   <header class="dash-header">
-    <span class="lib-wordmark">Semester Library</span>
+    <a href="dashboard.html" class="lib-wordmark">Semester Library</a>
+
+    <nav class="dash-header-nav">
+      <a href="dashboard.html" class="header-nav-item">Notes</a>
+      <a href="chat.html" class="header-nav-item">Chat</a>
+      <a href="library.html" class="header-nav-item">Library</a>
+      <a href="syllabus.html" class="header-nav-item active">Syllabus</a>
+      <a href="routine.html" class="header-nav-item">Routine</a>
+    </nav>
+
     <div class="dash-header-actions">
-      <button class="dash-logout" onclick="location.href='library.html'">Library</button>
-      <button class="dash-logout" onclick="location.href='dashboard.html'">Feed</button>
       <button id="logoutBtn" class="dash-logout">Logout</button>
     </div>
   </header>
@@ -31,24 +38,7 @@
     <p class="empty-state">Loading…</p>
   </main>
 
-  <nav class="bottom-nav">
-    <button class="nav-item" onclick="location.href='dashboard.html'">
-      <svg viewBox="0 0 24 24"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/><path d="M9 13h6M9 17h4"/></svg>
-      <span class="nav-label">Notes</span>
-    </button>
-    <button class="nav-item" onclick="location.href='chat.html'">
-      <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-      <span class="nav-label">Chat</span>
-    </button>
-    <button class="nav-item" onclick="location.href='library.html'">
-      <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-      <span class="nav-label">Library</span>
-    </button>
-    <button class="nav-item active">
-      <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-      <span class="nav-label">Syllabus</span>
-    </button>
-  </nav>
+
 
   <script>
     fetch('/api/me').then(r => { if (!r.ok) window.location.href = 'login.html'; });

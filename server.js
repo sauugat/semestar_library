@@ -1,18 +1,21 @@
 const express = require('express');
 const session = require('express-session');
 const bcrypt = require('bcryptjs');
-const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
 const crypto = require('crypto');
+const db = require('./db');
 
 const app = express();
-const db = new Database(path.join(__dirname, 'database.db'));
 
-// --- Uploads folder setup ---
-const UPLOAD_DIR = path.join(__dirname, 'uploads');
-if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR);
+// --- Uploads folder setup (use /tmp on Vercel read-only serverless runtime) ---
+const UPLOAD_DIR = process.env.VERCEL ? path.join('/tmp', 'uploads') : path.join(__dirname, 'uploads');
+if (!fs.existsSync(UPLOAD_DIR)) {
+  try {
+    fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+  } catch (e) {}
+}
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOAD_DIR),
@@ -56,7 +59,46 @@ function isSafeUploadPath(targetPath) {
   return resolved.startsWith(path.resolve(UPLOAD_DIR));
 }
 
+// Restore file from Database Blob to local disk cache if missing on serverless instance
+async function ensureLocalFile(filename) {
+  if (!filename) return null;
+  const safeFilename = path.basename(filename);
+  const localPath = path.join(UPLOAD_DIR, safeFilename);
+
+  if (isSafeUploadPath(localPath) && fs.existsSync(localPath)) {
+    return localPath;
+  }
+
+  // File not found on local disk (e.g. fresh lambda container) — restore from DB Blob
+  const blob = await db.getFileBlob(safeFilename);
+  if (blob && blob.fileData) {
+    try {
+      fs.writeFileSync(localPath, blob.fileData);
+      return localPath;
+    } catch (err) {
+      console.error(`[Blob Cache Write Error for ${safeFilename}]:`, err.message);
+    }
+  }
+  return null;
+}
+
+let sessionStore = undefined;
+if (db.isPostgres && db.pgPool) {
+  try {
+    const PgSession = require('connect-pg-simple')(session);
+    sessionStore = new PgSession({
+      pool: db.pgPool,
+      tableName: 'session',
+      createTableIfMissing: true
+    });
+    console.log('[Session]: Persistent PostgreSQL Session Store enabled (connect-pg-simple)');
+  } catch (err) {
+    console.warn('[Session]: Fallback to default session store:', err.message);
+  }
+}
+
 app.use(session({
+  store: sessionStore,
   name: '__gu_session',
   secret: process.env.SESSION_SECRET || 'gu_semester_lib_sec_9938b849204018247df4382',
   resave: false,
@@ -65,7 +107,7 @@ app.use(session({
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
-    maxAge: 1000 * 60 * 60 * 6 // 6 hours
+    maxAge: 1000 * 60 * 60 * 24 * 7 // 7 days persistent session
   }
 }));
 
@@ -209,124 +251,9 @@ function requireLogin(req, res, next) {
   next();
 }
 
-// --- Ensure tables exist ---
-db.exec(`
-  CREATE TABLE IF NOT EXISTS students (
-    studentId TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    passwordHash TEXT NOT NULL
-  )
-`);
-
-try { db.exec(`ALTER TABLE students ADD COLUMN avatarUrl TEXT`); } catch (e) {}
-try { db.exec(`ALTER TABLE students ADD COLUMN bio TEXT`); } catch (e) {}
-try { db.exec(`ALTER TABLE students ADD COLUMN department TEXT DEFAULT 'B.Sc. CSIT'`); } catch (e) {}
-try { db.exec(`ALTER TABLE students ADD COLUMN semester TEXT DEFAULT 'Semester 1'`); } catch (e) {}
-try { db.exec(`ALTER TABLE students ADD COLUMN githubUrl TEXT`); } catch (e) {}
-try { db.exec(`ALTER TABLE students ADD COLUMN linkedinUrl TEXT`); } catch (e) {}
-try {
-  db.exec(`ALTER TABLE students ADD COLUMN role TEXT DEFAULT 'student'`);
-} catch (e) {
-  // Column already exists — safe to ignore
-}
-
-db.exec(`
-  CREATE TABLE IF NOT EXISTS follows (
-    followerId TEXT NOT NULL,
-    followingId TEXT NOT NULL,
-    createdAt TEXT NOT NULL,
-    PRIMARY KEY (followerId, followingId),
-    FOREIGN KEY (followerId) REFERENCES students(studentId),
-    FOREIGN KEY (followingId) REFERENCES students(studentId)
-  )
-`);
-
-db.exec(`
-  CREATE TABLE IF NOT EXISTS files (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    storedName TEXT NOT NULL,
-    originalName TEXT NOT NULL,
-    title TEXT,
-    uploadedBy TEXT NOT NULL,
-    sizeBytes INTEGER NOT NULL,
-    uploadedAt TEXT NOT NULL,
-    FOREIGN KEY (uploadedBy) REFERENCES students(studentId)
-  )
-`);
-try {
-  db.exec(`ALTER TABLE files ADD COLUMN subject TEXT`);
-} catch (e) {
-  // Column already exists — safe to ignore
-}
-try {
-  db.exec(`ALTER TABLE files ADD COLUMN chapter TEXT`);
-} catch (e) {
-  // Column already exists — safe to ignore
-}
-// If upgrading from an older database that doesn't have the title column yet
-try {
-  db.exec(`ALTER TABLE files ADD COLUMN title TEXT`);
-} catch (e) {
-  // Column already exists — safe to ignore
-}
-try {
-  db.exec(`ALTER TABLE files ADD COLUMN semester TEXT`);
-} catch (e) {
-  // Column already exists — safe to ignore
-}
-try {
-  db.exec(`ALTER TABLE files ADD COLUMN previewName TEXT`);
-} catch (e) {
-  // Column already exists — safe to ignore
-}
-
-db.exec(`
-  CREATE TABLE IF NOT EXISTS file_likes (
-    fileId INTEGER NOT NULL,
-    studentId TEXT NOT NULL,
-    PRIMARY KEY (fileId, studentId)
-  )
-`);
-
-db.exec(`
-  CREATE TABLE IF NOT EXISTS file_comments (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    fileId INTEGER NOT NULL,
-    studentId TEXT NOT NULL,
-    commentText TEXT NOT NULL,
-    createdAt TEXT NOT NULL
-  )
-`);
-
-db.exec(`
-  CREATE TABLE IF NOT EXISTS chat_messages (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    studentId TEXT NOT NULL,
-    text TEXT,
-    attachmentName TEXT,
-    attachmentOriginalName TEXT,
-    attachmentMimeType TEXT,
-    createdAt TEXT NOT NULL,
-    FOREIGN KEY (studentId) REFERENCES students(studentId)
-  )
-`);
-
-db.exec(`
-  CREATE TABLE IF NOT EXISTS notifications (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    recipientStudentId TEXT NOT NULL,
-    type TEXT NOT NULL,
-    relatedFileId INTEGER,
-    message TEXT NOT NULL,
-    isRead INTEGER DEFAULT 0,
-    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (recipientStudentId) REFERENCES students(studentId)
-  )
-`);
-
 // --- Routes ---
 
-app.post('/api/login', loginRateLimiter, (req, res) => {
+app.post('/api/login', loginRateLimiter, async (req, res) => {
   const studentId = (req.body.studentId || '').trim();
   const password = req.body.password || '';
   const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
@@ -335,7 +262,7 @@ app.post('/api/login', loginRateLimiter, (req, res) => {
     return res.status(400).json({ message: 'Student ID and password are required.' });
   }
 
-  const student = db.prepare('SELECT * FROM students WHERE studentId = ?').get(studentId);
+  const student = await db.get('SELECT * FROM students WHERE studentId = ?', studentId);
 
   if (!student) {
     // Record failed attempt
@@ -376,8 +303,8 @@ app.post('/api/login', loginRateLimiter, (req, res) => {
   });
 });
 
-app.get('/api/me', requireLogin, (req, res) => {
-  const student = db.prepare('SELECT studentId, name, role FROM students WHERE studentId = ?').get(req.session.studentId);
+app.get('/api/me', requireLogin, async (req, res) => {
+  const student = await db.get('SELECT studentId, name, role FROM students WHERE studentId = ?', req.session.studentId);
 
   if (!student) {
     req.session.destroy(() => {});
@@ -388,7 +315,8 @@ app.get('/api/me', requireLogin, (req, res) => {
   const isAdmin = role === 'admin';
   res.json({ studentId: student.studentId, name: student.name, role, isAdmin });
 });
-app.post('/api/change-password', requireLogin, (req, res) => {
+
+app.post('/api/change-password', requireLogin, async (req, res) => {
   const { currentPassword, newPassword } = req.body;
 
   if (!currentPassword || !newPassword) {
@@ -399,7 +327,7 @@ app.post('/api/change-password', requireLogin, (req, res) => {
     return res.status(400).json({ message: 'New password must be at least 6 characters long' });
   }
 
-  const student = db.prepare('SELECT * FROM students WHERE studentId = ?').get(req.session.studentId);
+  const student = await db.get('SELECT * FROM students WHERE studentId = ?', req.session.studentId);
   if (!student) {
     return res.status(404).json({ message: 'User not found' });
   }
@@ -410,7 +338,7 @@ app.post('/api/change-password', requireLogin, (req, res) => {
   }
 
   const newHash = bcrypt.hashSync(newPassword, 10);
-  db.prepare('UPDATE students SET passwordHash = ? WHERE studentId = ?').run(newHash, req.session.studentId);
+  await db.run('UPDATE students SET passwordHash = ? WHERE studentId = ?', newHash, req.session.studentId);
 
   res.json({ message: 'Password successfully updated' });
 });
@@ -423,9 +351,9 @@ app.post('/api/logout', (req, res) => {
 });
 
 // Helper to check if a studentId is admin in database
-function isStudentAdmin(studentId) {
+async function isStudentAdmin(studentId) {
   if (!studentId) return false;
-  const s = db.prepare('SELECT role FROM students WHERE studentId = ?').get(studentId);
+  const s = await db.get('SELECT role FROM students WHERE studentId = ?', studentId);
   return s && s.role === 'admin';
 }
 
@@ -914,12 +842,7 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
   const subject = (req.body.subject || '').trim() || null;
   const chapter = (req.body.chapter || '').trim() || null;
 
-  const stmt = db.prepare(`
-    INSERT INTO files (storedName, originalName, title, semester, subject, chapter, uploadedBy, sizeBytes, uploadedAt, previewName)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-
-  const isAdmin = isStudentAdmin(req.session.studentId);
+  const isAdmin = await isStudentAdmin(req.session.studentId);
   const processedItems = [];
 
   // Generate previews asynchronously (e.g. for PPTX via LibreOffice PDF / node-pptx-parser or DOCX via mammoth)
@@ -936,6 +859,16 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
     const ext = path.extname(f.originalname).toLowerCase();
     const filePath = path.join(UPLOAD_DIR, f.filename);
 
+    // Save main file to persistent blob storage
+    try {
+      if (fs.existsSync(filePath)) {
+        const fileBuffer = fs.readFileSync(filePath);
+        await db.saveFileBlob(f.filename, fileBuffer, f.mimetype || 'application/octet-stream');
+      }
+    } catch (err) {
+      console.warn(`[Blob Save Warning for ${f.originalname}]:`, err.message);
+    }
+
     if (ext === '.pptx') {
       // 1. Try LibreOffice PDF conversion first (preserving actual slide layout and design)
       if (isLibreOfficeAvailable()) {
@@ -943,7 +876,9 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
           const startTime = Date.now();
           const pdfBuf = await convertPptxToPdf(filePath);
           previewFilename = 'preview_' + crypto.randomBytes(16).toString('hex') + '.pdf';
-          fs.writeFileSync(path.join(UPLOAD_DIR, previewFilename), pdfBuf);
+          const previewPath = path.join(UPLOAD_DIR, previewFilename);
+          fs.writeFileSync(previewPath, pdfBuf);
+          await db.saveFileBlob(previewFilename, pdfBuf, 'application/pdf');
           console.log(`[LibreOffice PPTX->PDF Success]: Converted ${f.originalname} in ${Date.now() - startTime}ms`);
         } catch (err) {
           console.warn(`[LibreOffice PPTX->PDF Error, falling back to text extraction]: ${err.message}`);
@@ -956,7 +891,9 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
         try {
           const previewHtml = await generatePptxPreview(filePath, fileTitle, f.originalname, null);
           previewFilename = 'preview_' + crypto.randomBytes(16).toString('hex') + '.html';
-          fs.writeFileSync(path.join(UPLOAD_DIR, previewFilename), previewHtml, 'utf8');
+          const previewPath = path.join(UPLOAD_DIR, previewFilename);
+          fs.writeFileSync(previewPath, previewHtml, 'utf8');
+          await db.saveFileBlob(previewFilename, Buffer.from(previewHtml, 'utf8'), 'text/html');
         } catch (err) {
           console.error(`[PPTX Text Extraction Error for ${f.originalname}]:`, err.message);
           previewFilename = null; // Graceful fallback to normal download
@@ -966,7 +903,9 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
       try {
         const previewHtml = await generateDocxPreview(filePath, fileTitle, f.originalname, null);
         previewFilename = 'preview_' + crypto.randomBytes(16).toString('hex') + '.html';
-        fs.writeFileSync(path.join(UPLOAD_DIR, previewFilename), previewHtml, 'utf8');
+        const previewPath = path.join(UPLOAD_DIR, previewFilename);
+        fs.writeFileSync(previewPath, previewHtml, 'utf8');
+        await db.saveFileBlob(previewFilename, Buffer.from(previewHtml, 'utf8'), 'text/html');
       } catch (err) {
         console.error(`[DOCX Preview Generation Error for ${f.originalname}]:`, err.message);
         previewFilename = null; // Graceful fallback
@@ -982,41 +921,37 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
 
   const results = [];
 
-  const insertMany = db.transaction((items) => {
-    for (const item of items) {
+  try {
+    for (const item of processedItems) {
       const { f, fileTitle, previewFilename } = item;
-      const result = stmt.run(
-        f.filename,
-        f.originalname,
-        fileTitle,
-        semester,
-        subject,
-        chapter,
-        req.session.studentId,
-        f.size,
-        new Date().toISOString(),
-        previewFilename
-      );
+      const result = await db.run(`
+        INSERT INTO files (storedName, originalName, title, semester, subject, chapter, uploadedBy, sizeBytes, uploadedAt, previewName)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, f.filename, f.originalname, fileTitle, semester, subject, chapter, req.session.studentId, f.size, new Date().toISOString(), previewFilename);
 
+      const insertedId = result.lastInsertRowid;
       results.push({
-        id: result.lastInsertRowid,
+        id: insertedId,
         storedName: f.filename,
         originalName: f.originalname,
         title: fileTitle,
         previewName: previewFilename
       });
 
-      if (isAdmin) {
-        db.prepare(`
-          INSERT INTO notifications (recipientStudentId, type, relatedFileId, message)
-          SELECT studentId, 'notice', ?, ? FROM students WHERE studentId != ?
-        `).run(result.lastInsertRowid, `New Official Notice: ${fileTitle || f.originalname}`, req.session.studentId);
+      if (isAdmin && insertedId) {
+        if (db.isPostgres) {
+          await db.run(`
+            INSERT INTO notifications (recipientStudentId, type, relatedFileId, message)
+            SELECT studentId, 'notice', ?, ? FROM students WHERE studentId != ?
+          `, insertedId, `New Official Notice: ${fileTitle || f.originalname}`, req.session.studentId);
+        } else {
+          await db.run(`
+            INSERT INTO notifications (recipientStudentId, type, relatedFileId, message)
+            SELECT studentId, 'notice', ?, ? FROM students WHERE studentId != ?
+          `, insertedId, `New Official Notice: ${fileTitle || f.originalname}`, req.session.studentId);
+        }
       }
     }
-  });
-
-  try {
-    insertMany(processedItems);
   } catch (err) {
     console.error('File DB insert error:', err);
     return res.status(500).json({ message: 'Failed to save uploaded files.' });
@@ -1031,10 +966,10 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
   });
 });
 
-app.get('/api/files', requireLogin, (req, res) => {
-  const viewerIsAdmin = isStudentAdmin(req.session.studentId);
+app.get('/api/files', requireLogin, async (req, res) => {
+  const viewerIsAdmin = await isStudentAdmin(req.session.studentId);
 
-  const files = db.prepare(`
+  const files = await db.all(`
     SELECT files.id, files.originalName, files.title, files.semester, files.subject, files.chapter, files.sizeBytes, files.uploadedAt, files.uploadedBy,
       students.name AS uploaderName, students.avatarUrl AS uploaderAvatar, students.role AS uploaderRole,
       (SELECT COUNT(*) FROM file_likes WHERE file_likes.fileId = files.id) AS likeCount,
@@ -1043,7 +978,7 @@ app.get('/api/files', requireLogin, (req, res) => {
     FROM files
     JOIN students ON students.studentId = files.uploadedBy
     ORDER BY files.uploadedAt DESC
-  `).all(req.session.studentId);
+  `, req.session.studentId);
 
   const processed = files.map(f => ({
     ...f,
@@ -1056,18 +991,18 @@ app.get('/api/files', requireLogin, (req, res) => {
 });
 
 // Delete a post/file (Admins can delete any post; students can only delete their own)
-app.delete('/api/files/:id', requireLogin, (req, res) => {
+app.delete('/api/files/:id', requireLogin, async (req, res) => {
   const fileId = req.params.id;
   const studentId = req.session.studentId;
 
   // Verify role directly from database
-  const viewer = db.prepare('SELECT role FROM students WHERE studentId = ?').get(studentId);
+  const viewer = await db.get('SELECT role FROM students WHERE studentId = ?', studentId);
   if (!viewer) {
     return res.status(401).json({ message: 'Authentication required' });
   }
 
   const isAdmin = viewer.role === 'admin';
-  const file = db.prepare('SELECT * FROM files WHERE id = ?').get(fileId);
+  const file = await db.get('SELECT * FROM files WHERE id = ?', fileId);
 
   if (!file) {
     return res.status(404).json({ message: 'File/post not found' });
@@ -1078,40 +1013,39 @@ app.delete('/api/files/:id', requireLogin, (req, res) => {
     return res.status(403).json({ message: 'Forbidden: You can only delete your own posts.' });
   }
 
-  // Remove physical file and preview from uploads/
+  // Remove physical file and preview from uploads/ and persistent blob store
   const filePath = path.join(UPLOAD_DIR, path.basename(file.storedName));
   if (isSafeUploadPath(filePath) && fs.existsSync(filePath)) {
-    try {
-      fs.unlinkSync(filePath);
-    } catch (err) {
-      console.error('Error removing file from disk:', err);
-    }
+    try { fs.unlinkSync(filePath); } catch (err) {}
   }
+  await db.deleteFileBlob(file.storedName);
+
   if (file.previewName) {
     const previewPath = path.join(UPLOAD_DIR, path.basename(file.previewName));
     if (isSafeUploadPath(previewPath) && fs.existsSync(previewPath)) {
       try { fs.unlinkSync(previewPath); } catch (err) {}
     }
+    await db.deleteFileBlob(file.previewName);
   }
 
   // Remove related likes, comments, and database row
-  db.prepare('DELETE FROM file_likes WHERE fileId = ?').run(fileId);
-  db.prepare('DELETE FROM file_comments WHERE fileId = ?').run(fileId);
-  db.prepare('DELETE FROM files WHERE id = ?').run(fileId);
+  await db.run('DELETE FROM file_likes WHERE fileId = ?', fileId);
+  await db.run('DELETE FROM file_comments WHERE fileId = ?', fileId);
+  await db.run('DELETE FROM files WHERE id = ?', fileId);
 
   res.json({ success: true, message: 'Post deleted successfully', fileId: parseInt(fileId) });
 });
 
 // Support POST /api/files/:id/delete alias
-app.post('/api/files/:id/delete', requireLogin, (req, res) => {
+app.post('/api/files/:id/delete', requireLogin, async (req, res) => {
   const fileId = req.params.id;
   const studentId = req.session.studentId;
 
-  const viewer = db.prepare('SELECT role FROM students WHERE studentId = ?').get(studentId);
+  const viewer = await db.get('SELECT role FROM students WHERE studentId = ?', studentId);
   if (!viewer) return res.status(401).json({ message: 'Authentication required' });
 
   const isAdmin = viewer.role === 'admin';
-  const file = db.prepare('SELECT * FROM files WHERE id = ?').get(fileId);
+  const file = await db.get('SELECT * FROM files WHERE id = ?', fileId);
   if (!file) return res.status(404).json({ message: 'File/post not found' });
 
   if (!isAdmin && file.uploadedBy !== studentId) {
@@ -1122,24 +1056,27 @@ app.post('/api/files/:id/delete', requireLogin, (req, res) => {
   if (isSafeUploadPath(filePath) && fs.existsSync(filePath)) {
     try { fs.unlinkSync(filePath); } catch (err) {}
   }
+  await db.deleteFileBlob(file.storedName);
+
   if (file.previewName) {
     const previewPath = path.join(UPLOAD_DIR, path.basename(file.previewName));
     if (isSafeUploadPath(previewPath) && fs.existsSync(previewPath)) {
       try { fs.unlinkSync(previewPath); } catch (err) {}
     }
+    await db.deleteFileBlob(file.previewName);
   }
 
-  db.prepare('DELETE FROM file_likes WHERE fileId = ?').run(fileId);
-  db.prepare('DELETE FROM file_comments WHERE fileId = ?').run(fileId);
-  db.prepare('DELETE FROM files WHERE id = ?').run(fileId);
+  await db.run('DELETE FROM file_likes WHERE fileId = ?', fileId);
+  await db.run('DELETE FROM file_comments WHERE fileId = ?', fileId);
+  await db.run('DELETE FROM files WHERE id = ?', fileId);
 
   res.json({ success: true, message: 'Post deleted successfully', fileId: parseInt(fileId) });
 });
 
 // Batch delete all files in a specific chapter/unit
-app.post(['/api/library/chapters/delete-files', '/api/library/chapters/files/delete'], requireLogin, (req, res) => {
+app.post(['/api/library/chapters/delete-files', '/api/library/chapters/files/delete'], requireLogin, async (req, res) => {
   const studentId = req.session.studentId;
-  const viewer = db.prepare('SELECT role FROM students WHERE studentId = ?').get(studentId);
+  const viewer = await db.get('SELECT role FROM students WHERE studentId = ?', studentId);
   if (!viewer) return res.status(401).json({ message: 'Authentication required' });
   const isAdmin = viewer.role === 'admin';
 
@@ -1148,12 +1085,12 @@ app.post(['/api/library/chapters/delete-files', '/api/library/chapters/files/del
 
   if (Array.isArray(fileIds) && fileIds.length > 0) {
     const placeholders = fileIds.map(() => '?').join(',');
-    targetFiles = db.prepare(`SELECT * FROM files WHERE id IN (${placeholders})`).all(...fileIds);
+    targetFiles = await db.all(`SELECT * FROM files WHERE id IN (${placeholders})`, ...fileIds);
   } else if (subject && chapter) {
     if (isAdmin) {
-      targetFiles = db.prepare('SELECT * FROM files WHERE subject = ? AND chapter = ?').all(subject, chapter);
+      targetFiles = await db.all('SELECT * FROM files WHERE subject = ? AND chapter = ?', subject, chapter);
     } else {
-      targetFiles = db.prepare('SELECT * FROM files WHERE subject = ? AND chapter = ? AND uploadedBy = ?').all(subject, chapter, studentId);
+      targetFiles = await db.all('SELECT * FROM files WHERE subject = ? AND chapter = ? AND uploadedBy = ?', subject, chapter, studentId);
     }
   } else {
     return res.status(400).json({ message: 'Missing subject/chapter or fileIds parameter' });
@@ -1173,30 +1110,27 @@ app.post(['/api/library/chapters/delete-files', '/api/library/chapters/files/del
   }
 
   let deletedCount = 0;
-  const deleteBatch = db.transaction((filesToDelete) => {
-    for (const f of filesToDelete) {
-      // Remove physical file from uploads/
+  try {
+    for (const f of targetFiles) {
       const filePath = path.join(UPLOAD_DIR, path.basename(f.storedName));
       if (isSafeUploadPath(filePath) && fs.existsSync(filePath)) {
         try { fs.unlinkSync(filePath); } catch (err) {}
       }
-      // Remove preview file from uploads/
+      await db.deleteFileBlob(f.storedName);
+
       if (f.previewName) {
         const previewPath = path.join(UPLOAD_DIR, path.basename(f.previewName));
         if (isSafeUploadPath(previewPath) && fs.existsSync(previewPath)) {
           try { fs.unlinkSync(previewPath); } catch (err) {}
         }
+        await db.deleteFileBlob(f.previewName);
       }
 
-      db.prepare('DELETE FROM file_likes WHERE fileId = ?').run(f.id);
-      db.prepare('DELETE FROM file_comments WHERE fileId = ?').run(f.id);
-      db.prepare('DELETE FROM files WHERE id = ?').run(f.id);
+      await db.run('DELETE FROM file_likes WHERE fileId = ?', f.id);
+      await db.run('DELETE FROM file_comments WHERE fileId = ?', f.id);
+      await db.run('DELETE FROM files WHERE id = ?', f.id);
       deletedCount++;
     }
-  });
-
-  try {
-    deleteBatch(targetFiles);
   } catch (err) {
     console.error('Batch chapter delete error:', err);
     return res.status(500).json({ message: 'Failed to delete chapter files' });
@@ -1209,17 +1143,17 @@ app.post(['/api/library/chapters/delete-files', '/api/library/chapters/files/del
   });
 });
 
-app.get(['/api/files/:id/download', '/api/files/download/:id'], requireLogin, (req, res) => {
+app.get(['/api/files/:id/download', '/api/files/download/:id'], requireLogin, async (req, res) => {
   const fileId = req.params.id;
-  const file = db.prepare('SELECT * FROM files WHERE id = ?').get(fileId);
+  const file = await db.get('SELECT * FROM files WHERE id = ?', fileId);
 
   if (!file) {
     return res.status(404).json({ message: 'File not found' });
   }
 
-  const filePath = path.join(UPLOAD_DIR, path.basename(file.storedName));
+  const filePath = await ensureLocalFile(file.storedName);
 
-  if (!isSafeUploadPath(filePath) || !fs.existsSync(filePath)) {
+  if (!filePath || !fs.existsSync(filePath)) {
     return res.status(404).json({ message: 'File missing from server' });
   }
 
@@ -1233,7 +1167,7 @@ app.get(['/api/files/:id/download', '/api/files/download/:id'], requireLogin, (r
 
 // View a file in-browser (requires login) — displays preview/inline instead of downloading
 app.get('/api/files/:id/view', requireLogin, async (req, res) => {
-  const file = db.prepare('SELECT * FROM files WHERE id = ?').get(req.params.id);
+  const file = await db.get('SELECT * FROM files WHERE id = ?', req.params.id);
 
   if (!file) {
     return res.status(404).json({ message: 'File not found' });
@@ -1241,8 +1175,8 @@ app.get('/api/files/:id/view', requireLogin, async (req, res) => {
 
   // 1. If an HTML or PDF preview was pre-generated (e.g. for PPTX or DOCX), serve it
   if (file.previewName) {
-    const previewPath = path.join(UPLOAD_DIR, path.basename(file.previewName));
-    if (isSafeUploadPath(previewPath) && fs.existsSync(previewPath)) {
+    const previewPath = await ensureLocalFile(file.previewName);
+    if (previewPath && fs.existsSync(previewPath)) {
       if (file.previewName.endsWith('.pdf')) {
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(file.originalName.replace(/\.pptx$/i, '.pdf'))}"`);
@@ -1253,9 +1187,9 @@ app.get('/api/files/:id/view', requireLogin, async (req, res) => {
     }
   }
 
-  const filePath = path.join(UPLOAD_DIR, path.basename(file.storedName));
+  const filePath = await ensureLocalFile(file.storedName);
 
-  if (!isSafeUploadPath(filePath) || !fs.existsSync(filePath)) {
+  if (!filePath || !fs.existsSync(filePath)) {
     return res.status(404).json({ message: 'File missing from server' });
   }
 
@@ -1270,7 +1204,8 @@ app.get('/api/files/:id/view', requireLogin, async (req, res) => {
         const previewFilename = 'preview_' + crypto.randomBytes(16).toString('hex') + '.pdf';
         const previewPath = path.join(UPLOAD_DIR, previewFilename);
         fs.writeFileSync(previewPath, pdfBuf);
-        db.prepare('UPDATE files SET previewName = ? WHERE id = ?').run(previewFilename, file.id);
+        await db.saveFileBlob(previewFilename, pdfBuf, 'application/pdf');
+        await db.run('UPDATE files SET previewName = ? WHERE id = ?', previewFilename, file.id);
         console.log(`[On-Demand LibreOffice PPTX->PDF Success]: Converted ID ${file.id} in ${Date.now() - startTime}ms`);
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(file.originalName.replace(/\.pptx$/i, '.pdf'))}"`);
@@ -1285,7 +1220,8 @@ app.get('/api/files/:id/view', requireLogin, async (req, res) => {
       const previewFilename = 'preview_' + crypto.randomBytes(16).toString('hex') + '.html';
       const previewPath = path.join(UPLOAD_DIR, previewFilename);
       fs.writeFileSync(previewPath, previewHtml, 'utf8');
-      db.prepare('UPDATE files SET previewName = ? WHERE id = ?').run(previewFilename, file.id);
+      await db.saveFileBlob(previewFilename, Buffer.from(previewHtml, 'utf8'), 'text/html');
+      await db.run('UPDATE files SET previewName = ? WHERE id = ?', previewFilename, file.id);
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       return res.sendFile(previewPath);
     } catch (err) {
@@ -1297,7 +1233,8 @@ app.get('/api/files/:id/view', requireLogin, async (req, res) => {
       const previewFilename = 'preview_' + crypto.randomBytes(16).toString('hex') + '.html';
       const previewPath = path.join(UPLOAD_DIR, previewFilename);
       fs.writeFileSync(previewPath, previewHtml, 'utf8');
-      db.prepare('UPDATE files SET previewName = ? WHERE id = ?').run(previewFilename, file.id);
+      await db.saveFileBlob(previewFilename, Buffer.from(previewHtml, 'utf8'), 'text/html');
+      await db.run('UPDATE files SET previewName = ? WHERE id = ?', previewFilename, file.id);
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       return res.sendFile(previewPath);
     } catch (err) {
@@ -1317,108 +1254,110 @@ app.get('/api/files/:id/view', requireLogin, async (req, res) => {
 });
 
 // Toggle like on a file
-app.post('/api/files/:id/like', requireLogin, (req, res) => {
+app.post('/api/files/:id/like', requireLogin, async (req, res) => {
   const fileId = req.params.id;
   const studentId = req.session.studentId;
-  const existing = db.prepare('SELECT 1 FROM file_likes WHERE fileId = ? AND studentId = ?').get(fileId, studentId);
+  const existing = await db.get('SELECT 1 FROM file_likes WHERE fileId = ? AND studentId = ?', fileId, studentId);
 
   if (existing) {
-    db.prepare('DELETE FROM file_likes WHERE fileId = ? AND studentId = ?').run(fileId, studentId);
+    await db.run('DELETE FROM file_likes WHERE fileId = ? AND studentId = ?', fileId, studentId);
   } else {
-    db.prepare('INSERT INTO file_likes (fileId, studentId) VALUES (?, ?)').run(fileId, studentId);
+    await db.run('INSERT INTO file_likes (fileId, studentId) VALUES (?, ?)', fileId, studentId);
     
     // Create notification
-    const file = db.prepare('SELECT uploadedBy, originalName FROM files WHERE id = ?').get(fileId);
+    const file = await db.get('SELECT uploadedBy, originalName FROM files WHERE id = ?', fileId);
     if (file && file.uploadedBy !== studentId) {
-      db.prepare('INSERT INTO notifications (recipientStudentId, type, relatedFileId, message) VALUES (?, ?, ?, ?)').run(
+      await db.run('INSERT INTO notifications (recipientStudentId, type, relatedFileId, message) VALUES (?, ?, ?, ?)',
         file.uploadedBy, 'like', fileId, `${req.session.name || 'Someone'} liked your file: ${file.originalName}`
       );
     }
   }
 
-  const count = db.prepare('SELECT COUNT(*) AS c FROM file_likes WHERE fileId = ?').get(fileId).c;
+  const countRow = await db.get('SELECT COUNT(*) AS c FROM file_likes WHERE fileId = ?', fileId);
+  const count = Number(countRow?.c || countRow?.count || 0);
   res.json({ liked: !existing, likeCount: count });
 });
 
 // List comments on a file
-app.get('/api/files/:id/comments', requireLogin, (req, res) => {
-  const comments = db.prepare(`
+app.get('/api/files/:id/comments', requireLogin, async (req, res) => {
+  const comments = await db.all(`
     SELECT file_comments.id, file_comments.commentText, file_comments.createdAt, students.name AS commenterName
     FROM file_comments
     JOIN students ON students.studentId = file_comments.studentId
     WHERE fileId = ?
     ORDER BY file_comments.createdAt ASC
-  `).all(req.params.id);
+  `, req.params.id);
 
   res.json(comments);
 });
 
 // Add a comment to a file
-app.post('/api/files/:id/comments', requireLogin, (req, res) => {
+app.post('/api/files/:id/comments', requireLogin, async (req, res) => {
   const text = (req.body.text || '').trim();
   if (!text) return res.status(400).json({ message: 'Comment cannot be empty' });
   if (text.length > 500) return res.status(400).json({ message: 'Comment too long' });
 
-  const result = db.prepare(`
+  const result = await db.run(`
     INSERT INTO file_comments (fileId, studentId, commentText, createdAt) VALUES (?, ?, ?, ?)
-  `).run(req.params.id, req.session.studentId, text, new Date().toISOString());
+  `, req.params.id, req.session.studentId, text, new Date().toISOString());
 
   // Create notification
   const fileId = req.params.id;
   const studentId = req.session.studentId;
-  const file = db.prepare('SELECT uploadedBy, originalName FROM files WHERE id = ?').get(fileId);
+  const file = await db.get('SELECT uploadedBy, originalName FROM files WHERE id = ?', fileId);
   if (file && file.uploadedBy !== studentId) {
-    db.prepare('INSERT INTO notifications (recipientStudentId, type, relatedFileId, message) VALUES (?, ?, ?, ?)').run(
+    await db.run('INSERT INTO notifications (recipientStudentId, type, relatedFileId, message) VALUES (?, ?, ?, ?)',
       file.uploadedBy, 'comment', fileId, `${req.session.name || 'Someone'} commented on your file: ${file.originalName}`
     );
   }
 
   res.json({ commentId: result.lastInsertRowid });
 });
+
 // List all subjects that have at least one file
-app.get('/api/library/subjects', requireLogin, (req, res) => {
-  const subjects = db.prepare(`
+app.get('/api/library/subjects', requireLogin, async (req, res) => {
+  const subjects = await db.all(`
     SELECT subject, COUNT(*) AS fileCount, COUNT(DISTINCT chapter) AS chapterCount
     FROM files
     WHERE subject IS NOT NULL AND subject != ''
     GROUP BY subject
-    ORDER BY subject COLLATE NOCASE ASC
-  `).all();
+    ORDER BY subject ASC
+  `);
 
   res.json(subjects);
 });
 
 // List chapters within a subject
-app.get('/api/library/subjects/:subject/chapters', requireLogin, (req, res) => {
-  const chapters = db.prepare(`
+app.get('/api/library/subjects/:subject/chapters', requireLogin, async (req, res) => {
+  const chapters = await db.all(`
     SELECT chapter, COUNT(*) AS fileCount
     FROM files
     WHERE subject = ? AND chapter IS NOT NULL AND chapter != ''
     GROUP BY chapter
-    ORDER BY chapter COLLATE NOCASE ASC
-  `).all(req.params.subject);
+    ORDER BY chapter ASC
+  `, req.params.subject);
 
-  const uncategorized = db.prepare(`
+  const uncategorized = await db.get(`
     SELECT COUNT(*) AS c FROM files WHERE subject = ? AND (chapter IS NULL OR chapter = '')
-  `).get(req.params.subject);
+  `, req.params.subject);
 
-  res.json({ chapters, uncategorizedCount: uncategorized.c });
+  res.json({ chapters, uncategorizedCount: Number(uncategorized?.c || 0) });
 });
 
 // Library stats: returns file count grouped by semester, subject, and chapter
-app.get('/api/library/stats', requireLogin, (req, res) => {
-  const stats = db.prepare(`
+app.get('/api/library/stats', requireLogin, async (req, res) => {
+  const stats = await db.all(`
     SELECT semester, subject, chapter, COUNT(*) AS fileCount
     FROM files
     GROUP BY semester, subject, chapter
-  `).all();
+  `);
   res.json(stats);
 });
 
 // List files with flexible filters (semester, subject, chapter)
-app.get('/api/library/files', requireLogin, (req, res) => {
+app.get('/api/library/files', requireLogin, async (req, res) => {
   const { semester, subject, chapter } = req.query;
-  const viewerIsAdmin = isStudentAdmin(req.session.studentId);
+  const viewerIsAdmin = await isStudentAdmin(req.session.studentId);
 
   let query = `
     SELECT files.id, files.originalName, files.title, files.semester, files.subject, files.chapter, files.sizeBytes, files.uploadedAt, files.uploadedBy,
@@ -1447,7 +1386,7 @@ app.get('/api/library/files', requireLogin, (req, res) => {
 
   query += ' ORDER BY files.uploadedAt DESC';
 
-  const files = db.prepare(query).all(...params);
+  const files = await db.all(query, ...params);
   const processed = files.map(f => ({
     ...f,
     uploaderRole: f.uploaderRole || 'student',
@@ -1458,15 +1397,16 @@ app.get('/api/library/files', requireLogin, (req, res) => {
   res.json(processed);
 });
 
-// Search across files and subjects
-app.get('/api/search', requireLogin, (req, res) => {
+// Search across files and subjects (public for homepage & library search)
+app.get('/api/search', async (req, res) => {
   const q = (req.query.q || '').trim();
   if (!q) {
     return res.json({ files: [], subjects: [] });
   }
 
+  const currentStudentId = req.session ? req.session.studentId : null;
   const likeQuery = `%${q}%`;
-  const viewerIsAdmin = isStudentAdmin(req.session.studentId);
+  const viewerIsAdmin = currentStudentId ? await isStudentAdmin(currentStudentId) : false;
 
   // Search files (title, originalName, subject, chapter)
   const filesQuery = `
@@ -1481,7 +1421,7 @@ app.get('/api/search', requireLogin, (req, res) => {
     ORDER BY files.uploadedAt DESC
     LIMIT 50
   `;
-  const files = db.prepare(filesQuery).all(req.session.studentId, likeQuery, likeQuery, likeQuery, likeQuery, likeQuery);
+  const files = await db.all(filesQuery, currentStudentId || '', likeQuery, likeQuery, likeQuery, likeQuery, likeQuery);
 
   const processedFiles = files.map(f => ({
     ...f,
@@ -1496,10 +1436,10 @@ app.get('/api/search', requireLogin, (req, res) => {
     FROM files
     WHERE subject IS NOT NULL AND subject != '' AND subject LIKE ?
     GROUP BY subject
-    ORDER BY subject COLLATE NOCASE ASC
+    ORDER BY subject ASC
     LIMIT 20
   `;
-  const subjects = db.prepare(subjectsQuery).all(likeQuery);
+  const subjects = await db.all(subjectsQuery, likeQuery);
 
   res.json({ files: processedFiles, subjects });
 });
@@ -1508,10 +1448,10 @@ app.get('/api/search', requireLogin, (req, res) => {
 // GROUP CHAT SYSTEM
 // ============================================================
 
-app.get('/api/chat/messages', requireLogin, (req, res) => {
+app.get('/api/chat/messages', requireLogin, async (req, res) => {
   const since = parseInt(req.query.since) || 0;
   
-  const messages = db.prepare(`
+  const messages = await db.all(`
     SELECT chat_messages.id, chat_messages.text, chat_messages.attachmentName, chat_messages.attachmentOriginalName, chat_messages.attachmentMimeType, chat_messages.createdAt,
       students.studentId, students.name, students.avatarUrl
     FROM chat_messages
@@ -1519,7 +1459,7 @@ app.get('/api/chat/messages', requireLogin, (req, res) => {
     WHERE chat_messages.id > ?
     ORDER BY chat_messages.id ASC
     LIMIT 200
-  `).all(since);
+  `, since);
   
   res.json(messages);
 });
@@ -1536,7 +1476,7 @@ const handleChatUpload = (req, res, next) => {
   });
 };
 
-app.post('/api/chat/messages', requireLogin, chatRateLimiter, handleChatUpload, (req, res) => {
+app.post('/api/chat/messages', requireLogin, chatRateLimiter, handleChatUpload, async (req, res) => {
   const text = (req.body && req.body.text ? String(req.body.text) : '').trim();
   const file = req.file;
 
@@ -1557,13 +1497,22 @@ app.post('/api/chat/messages', requireLogin, chatRateLimiter, handleChatUpload, 
     attachmentName = file.filename;
     attachmentOriginalName = file.originalname;
     attachmentMimeType = file.mimetype;
+
+    try {
+      if (fs.existsSync(file.path)) {
+        const fileBuffer = fs.readFileSync(file.path);
+        await db.saveFileBlob(file.filename, fileBuffer, file.mimetype || 'application/octet-stream');
+      }
+    } catch (err) {
+      console.warn(`[Chat Blob Save Warning for ${file.originalname}]:`, err.message);
+    }
   }
 
   try {
-    const result = db.prepare(`
+    const result = await db.run(`
       INSERT INTO chat_messages (studentId, text, attachmentName, attachmentOriginalName, attachmentMimeType, createdAt)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(req.session.studentId, text, attachmentName, attachmentOriginalName, attachmentMimeType, new Date().toISOString());
+    `, req.session.studentId, text, attachmentName, attachmentOriginalName, attachmentMimeType, new Date().toISOString());
 
     res.json({ message: 'Sent', messageId: result.lastInsertRowid });
   } catch (error) {
@@ -1572,43 +1521,35 @@ app.post('/api/chat/messages', requireLogin, chatRateLimiter, handleChatUpload, 
   }
 });
 
-app.get('/api/chat/attachment/:filename', requireLogin, (req, res) => {
+app.get('/api/chat/attachment/:filename', requireLogin, async (req, res) => {
   const filename = path.basename(req.params.filename);
-  const filePath = path.join(UPLOAD_DIR, filename);
+  const filePath = await ensureLocalFile(filename);
 
-  if (!isSafeUploadPath(filePath)) {
-    return res.status(403).json({ message: 'Invalid file path' });
-  }
-
-  const msg = db.prepare('SELECT 1 FROM chat_messages WHERE attachmentName = ?').get(filename);
-  if (!msg) {
-    return res.status(403).json({ message: 'Unauthorized or missing attachment' });
-  }
-
-  if (!fs.existsSync(filePath)) {
+  if (!filePath || !fs.existsSync(filePath)) {
     return res.status(404).json({ message: 'File not found on server' });
   }
 
   res.setHeader('Cache-Control', 'private, max-age=86400');
   res.sendFile(filePath);
 });
+
 // ============================================================
 // NOTIFICATION SYSTEM
 // ============================================================
 
-app.get('/api/notifications/unread-count', requireLogin, (req, res) => {
-  const row = db.prepare('SELECT COUNT(*) as count FROM notifications WHERE recipientStudentId = ? AND isRead = 0').get(req.session.studentId);
-  res.json({ count: row.count });
+app.get('/api/notifications/unread-count', requireLogin, async (req, res) => {
+  const row = await db.get('SELECT COUNT(*) as count FROM notifications WHERE recipientStudentId = ? AND isRead = 0', req.session.studentId);
+  res.json({ count: Number(row?.count || 0) });
 });
 
-app.get('/api/notifications', requireLogin, (req, res) => {
-  const notifications = db.prepare('SELECT * FROM notifications WHERE recipientStudentId = ? ORDER BY createdAt DESC LIMIT 20').all(req.session.studentId);
+app.get('/api/notifications', requireLogin, async (req, res) => {
+  const notifications = await db.all('SELECT * FROM notifications WHERE recipientStudentId = ? ORDER BY createdAt DESC LIMIT 20', req.session.studentId);
   res.json(notifications);
 });
 
-app.post('/api/notifications/:id/read', requireLogin, (req, res) => {
+app.post('/api/notifications/:id/read', requireLogin, async (req, res) => {
   const id = parseInt(req.params.id);
-  const result = db.prepare('UPDATE notifications SET isRead = 1 WHERE id = ? AND recipientStudentId = ?').run(id, req.session.studentId);
+  const result = await db.run('UPDATE notifications SET isRead = 1 WHERE id = ? AND recipientStudentId = ?', id, req.session.studentId);
   if (result.changes > 0) {
     res.json({ success: true });
   } else {
@@ -1642,29 +1583,34 @@ const uploadAvatar = multer({
 });
 
 // Helper function to fetch profile with stats
-function getStudentProfile(targetStudentId, viewerStudentId) {
-  const student = db.prepare(`
+async function getStudentProfile(targetStudentId, viewerStudentId) {
+  const student = await db.get(`
     SELECT studentId, name, avatarUrl, bio, department, semester, githubUrl, linkedinUrl, role
     FROM students
     WHERE studentId = ?
-  `).get(targetStudentId);
+  `, targetStudentId);
 
   if (!student) return null;
 
-  const filesCount = db.prepare('SELECT COUNT(*) AS c FROM files WHERE uploadedBy = ?').get(targetStudentId).c;
-  
-  const likesReceived = db.prepare(`
+  const filesCountRow = await db.get('SELECT COUNT(*) AS c FROM files WHERE uploadedBy = ?', targetStudentId);
+  const filesCount = Number(filesCountRow?.c || 0);
+
+  const likesReceivedRow = await db.get(`
     SELECT COUNT(*) AS c
     FROM file_likes
     JOIN files ON files.id = file_likes.fileId
     WHERE files.uploadedBy = ?
-  `).get(targetStudentId).c;
+  `, targetStudentId);
+  const likesReceived = Number(likesReceivedRow?.c || 0);
 
-  const followersCount = db.prepare('SELECT COUNT(*) AS c FROM follows WHERE followingId = ?').get(targetStudentId).c;
-  const followingCount = db.prepare('SELECT COUNT(*) AS c FROM follows WHERE followerId = ?').get(targetStudentId).c;
+  const followersCountRow = await db.get('SELECT COUNT(*) AS c FROM follows WHERE followingId = ?', targetStudentId);
+  const followersCount = Number(followersCountRow?.c || 0);
+
+  const followingCountRow = await db.get('SELECT COUNT(*) AS c FROM follows WHERE followerId = ?', targetStudentId);
+  const followingCount = Number(followingCountRow?.c || 0);
 
   const isSelf = targetStudentId === viewerStudentId;
-  const isFollowing = !isSelf && !!db.prepare('SELECT 1 FROM follows WHERE followerId = ? AND followingId = ?').get(viewerStudentId, targetStudentId);
+  const followCheck = !isSelf && !!(await db.get('SELECT 1 FROM follows WHERE followerId = ? AND followingId = ?', viewerStudentId, targetStudentId));
   const role = student.role || 'student';
 
   return {
@@ -1685,30 +1631,30 @@ function getStudentProfile(targetStudentId, viewerStudentId) {
       followingCount
     },
     isSelf,
-    isFollowing
+    isFollowing: followCheck
   };
 }
 
 // Get logged-in student's profile
-app.get('/api/profile', requireLogin, (req, res) => {
-  const profile = getStudentProfile(req.session.studentId, req.session.studentId);
+app.get('/api/profile', requireLogin, async (req, res) => {
+  const profile = await getStudentProfile(req.session.studentId, req.session.studentId);
   if (!profile) return res.status(404).json({ message: 'Profile not found' });
   res.json(profile);
 });
 
 // Get any student's profile by ID
-app.get('/api/profile/:studentId', requireLogin, (req, res) => {
-  const profile = getStudentProfile(req.params.studentId, req.session.studentId);
+app.get('/api/profile/:studentId', requireLogin, async (req, res) => {
+  const profile = await getStudentProfile(req.params.studentId, req.session.studentId);
   if (!profile) return res.status(404).json({ message: 'Student profile not found' });
   res.json(profile);
 });
 
 // Update profile details
-app.post('/api/profile/update', requireLogin, (req, res) => {
+app.post('/api/profile/update', requireLogin, async (req, res) => {
   const { name, bio, department, semester, githubUrl, linkedinUrl } = req.body;
   const studentId = req.session.studentId;
 
-  const current = db.prepare('SELECT * FROM students WHERE studentId = ?').get(studentId);
+  const current = await db.get('SELECT * FROM students WHERE studentId = ?', studentId);
   if (!current) return res.status(404).json({ message: 'Student not found' });
 
   const updatedName = (name && name.trim()) ? name.trim() : current.name;
@@ -1718,21 +1664,21 @@ app.post('/api/profile/update', requireLogin, (req, res) => {
   const updatedGithub = typeof githubUrl === 'string' ? githubUrl.trim().slice(0, 100) : (current.githubUrl || '');
   const updatedLinkedin = typeof linkedinUrl === 'string' ? linkedinUrl.trim().slice(0, 100) : (current.linkedinUrl || '');
 
-  db.prepare(`
+  await db.run(`
     UPDATE students
     SET name = ?, bio = ?, department = ?, semester = ?, githubUrl = ?, linkedinUrl = ?
     WHERE studentId = ?
-  `).run(updatedName, updatedBio, updatedDept, updatedSem, updatedGithub, updatedLinkedin, studentId);
+  `, updatedName, updatedBio, updatedDept, updatedSem, updatedGithub, updatedLinkedin, studentId);
 
   // Update session name if changed
-  req.session.name = updatedName;
+  req.session.studentName = updatedName;
 
-  const profile = getStudentProfile(studentId, studentId);
+  const profile = await getStudentProfile(studentId, studentId);
   res.json({ message: 'Profile updated successfully', profile });
 });
 
 // Upload profile avatar picture
-app.post('/api/profile/avatar', requireLogin, uploadAvatar.single('avatar'), (req, res) => {
+app.post('/api/profile/avatar', requireLogin, uploadAvatar.single('avatar'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ message: 'No image file uploaded.' });
   }
@@ -1740,17 +1686,26 @@ app.post('/api/profile/avatar', requireLogin, uploadAvatar.single('avatar'), (re
   const studentId = req.session.studentId;
   const avatarUrl = `/api/avatar/${req.file.filename}`;
 
-  db.prepare('UPDATE students SET avatarUrl = ? WHERE studentId = ?').run(avatarUrl, studentId);
+  try {
+    if (fs.existsSync(req.file.path)) {
+      const fileBuf = fs.readFileSync(req.file.path);
+      await db.saveFileBlob(req.file.filename, fileBuf, req.file.mimetype || 'image/jpeg');
+    }
+  } catch (err) {
+    console.warn('[Avatar Blob Save Warning]:', err.message);
+  }
+
+  await db.run('UPDATE students SET avatarUrl = ? WHERE studentId = ?', avatarUrl, studentId);
 
   res.json({ message: 'Profile picture updated successfully', avatarUrl });
 });
 
 // Serve avatar image safely
-app.get('/api/avatar/:filename', (req, res) => {
+app.get('/api/avatar/:filename', async (req, res) => {
   const filename = path.basename(req.params.filename);
-  const filePath = path.join(UPLOAD_DIR, filename);
+  const filePath = await ensureLocalFile(filename);
 
-  if (!isSafeUploadPath(filePath) || !fs.existsSync(filePath)) {
+  if (!filePath || !fs.existsSync(filePath)) {
     return res.status(404).json({ message: 'Avatar image not found' });
   }
 
@@ -1759,7 +1714,7 @@ app.get('/api/avatar/:filename', (req, res) => {
 });
 
 // Toggle follow/unfollow a student
-app.post('/api/profile/:studentId/follow', requireLogin, (req, res) => {
+app.post('/api/profile/:studentId/follow', requireLogin, async (req, res) => {
   const followerId = req.session.studentId;
   const followingId = req.params.studentId;
 
@@ -1767,62 +1722,63 @@ app.post('/api/profile/:studentId/follow', requireLogin, (req, res) => {
     return res.status(400).json({ message: 'You cannot follow yourself.' });
   }
 
-  const target = db.prepare('SELECT studentId FROM students WHERE studentId = ?').get(followingId);
+  const target = await db.get('SELECT studentId FROM students WHERE studentId = ?', followingId);
   if (!target) return res.status(404).json({ message: 'Student not found.' });
 
-  const existing = db.prepare('SELECT 1 FROM follows WHERE followerId = ? AND followingId = ?').get(followerId, followingId);
+  const existing = await db.get('SELECT 1 FROM follows WHERE followerId = ? AND followingId = ?', followerId, followingId);
 
   if (existing) {
-    db.prepare('DELETE FROM follows WHERE followerId = ? AND followingId = ?').run(followerId, followingId);
+    await db.run('DELETE FROM follows WHERE followerId = ? AND followingId = ?', followerId, followingId);
   } else {
-    db.prepare('INSERT INTO follows (followerId, followingId, createdAt) VALUES (?, ?, ?)').run(followerId, followingId, new Date().toISOString());
+    await db.run('INSERT INTO follows (followerId, followingId, createdAt) VALUES (?, ?, ?)', followerId, followingId, new Date().toISOString());
   }
 
-  const followersCount = db.prepare('SELECT COUNT(*) AS c FROM follows WHERE followingId = ?').get(followingId).c;
+  const countRow = await db.get('SELECT COUNT(*) AS c FROM follows WHERE followingId = ?', followingId);
+  const followersCount = Number(countRow?.c || countRow?.count || 0);
   res.json({ isFollowing: !existing, followersCount });
 });
 
 // List followers of a student
-app.get('/api/profile/:studentId/followers', requireLogin, (req, res) => {
+app.get('/api/profile/:studentId/followers', requireLogin, async (req, res) => {
   const targetStudentId = req.params.studentId;
   const viewerStudentId = req.session.studentId;
 
-  const followers = db.prepare(`
+  const followers = await db.all(`
     SELECT students.studentId, students.name, students.avatarUrl, students.department, students.semester,
       EXISTS(SELECT 1 FROM follows WHERE followerId = ? AND followingId = students.studentId) AS isFollowing
     FROM follows
     JOIN students ON students.studentId = follows.followerId
     WHERE follows.followingId = ?
     ORDER BY follows.createdAt DESC
-  `).all(viewerStudentId, targetStudentId);
+  `, viewerStudentId, targetStudentId);
 
   res.json(followers);
 });
 
 // List students that this student is following
-app.get('/api/profile/:studentId/following', requireLogin, (req, res) => {
+app.get('/api/profile/:studentId/following', requireLogin, async (req, res) => {
   const targetStudentId = req.params.studentId;
   const viewerStudentId = req.session.studentId;
 
-  const following = db.prepare(`
+  const following = await db.all(`
     SELECT students.studentId, students.name, students.avatarUrl, students.department, students.semester,
       EXISTS(SELECT 1 FROM follows WHERE followerId = ? AND followingId = students.studentId) AS isFollowing
     FROM follows
     JOIN students ON students.studentId = follows.followingId
     WHERE follows.followerId = ?
     ORDER BY follows.createdAt DESC
-  `).all(viewerStudentId, targetStudentId);
+  `, viewerStudentId, targetStudentId);
 
   res.json(following);
 });
 
 // Get all files uploaded by a student
-app.get('/api/profile/:studentId/files', requireLogin, (req, res) => {
+app.get('/api/profile/:studentId/files', requireLogin, async (req, res) => {
   const targetStudentId = req.params.studentId;
   const viewerStudentId = req.session.studentId;
-  const viewerIsAdmin = isStudentAdmin(viewerStudentId);
+  const viewerIsAdmin = await isStudentAdmin(viewerStudentId);
 
-  const files = db.prepare(`
+  const files = await db.all(`
     SELECT files.id, files.originalName, files.title, files.semester, files.subject, files.chapter, files.sizeBytes, files.uploadedAt, files.uploadedBy,
       students.name AS uploaderName, students.avatarUrl AS uploaderAvatar, students.role AS uploaderRole,
       (SELECT COUNT(*) FROM file_likes WHERE file_likes.fileId = files.id) AS likeCount,
@@ -1832,7 +1788,7 @@ app.get('/api/profile/:studentId/files', requireLogin, (req, res) => {
     JOIN students ON students.studentId = files.uploadedBy
     WHERE files.uploadedBy = ?
     ORDER BY files.uploadedAt DESC
-  `).all(viewerStudentId, targetStudentId);
+  `, viewerStudentId, targetStudentId);
 
   const processed = files.map(f => ({
     ...f,
@@ -1845,10 +1801,10 @@ app.get('/api/profile/:studentId/files', requireLogin, (req, res) => {
 });
 
 // Suggested classmates to follow
-app.get('/api/students/suggested', requireLogin, (req, res) => {
+app.get('/api/students/suggested', requireLogin, async (req, res) => {
   const viewerStudentId = req.session.studentId;
 
-  const classmates = db.prepare(`
+  const classmates = await db.all(`
     SELECT students.studentId, students.name, students.avatarUrl, students.department, students.semester,
       (SELECT COUNT(*) FROM files WHERE files.uploadedBy = students.studentId) AS filesCount,
       EXISTS(SELECT 1 FROM follows WHERE followerId = ? AND followingId = students.studentId) AS isFollowing
@@ -1856,7 +1812,7 @@ app.get('/api/students/suggested', requireLogin, (req, res) => {
     WHERE students.studentId != ?
     ORDER BY filesCount DESC, students.name ASC
     LIMIT 12
-  `).all(viewerStudentId, viewerStudentId);
+  `, viewerStudentId, viewerStudentId);
 
   res.json(classmates);
 });
@@ -1898,7 +1854,7 @@ app.post('/api/ai/chat', requireLogin, aiRateLimiter, async (req, res) => {
       return res.status(400).json({ message: 'Message is required.' });
     }
 
-    const student = db.prepare('SELECT studentId, name, department, semester FROM students WHERE studentId = ?').get(req.session.studentId);
+    const student = await db.get('SELECT studentId, name, department, semester FROM students WHERE studentId = ?', req.session.studentId);
     const result = await aiAssistant.handleChat(db, message, student || { studentId: req.session.studentId }, history || []);
     res.json(result);
   } catch (err) {
@@ -1928,7 +1884,11 @@ app.use((err, req, res, next) => {
   next(err);
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Semester Library server running at http://localhost:${PORT}`);
-});
+if (require.main === module) {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => {
+    console.log(`Semester Library server running at http://localhost:${PORT}`);
+  });
+}
+
+module.exports = app;

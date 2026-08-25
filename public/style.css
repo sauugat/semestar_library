@@ -9037,3 +9037,140 @@ body.dark-mode .notif-item.unread {
   color: #ffffff;
   border-color: #1d1d1f;
 }
+
+/* ==========================================================================
+   CLEAN & SIMPLE MINIMALIST DESKTOP NOTICE MODAL (PURE BLACK & WHITE)
+   ========================================================================== */
+.device-notice-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999;
+  padding: 20px;
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.25s ease, visibility 0.25s ease;
+}
+
+.device-notice-overlay.device-notice-hidden,
+.device-notice-overlay.device-notice-dismissed {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+.device-notice-card {
+  position: relative;
+  background: #ffffff;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 380px;
+  padding: 26px 24px 22px;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.2);
+  animation: cleanModalFadeUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+  color: #000000;
+  text-align: left;
+}
+
+@keyframes cleanModalFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.device-notice-close-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #f2f2f5;
+  border: none;
+  color: #1d1d1f;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.device-notice-close-btn:hover {
+  background: #000000;
+  color: #ffffff;
+}
+
+.device-notice-title {
+  font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.3;
+  margin-bottom: 8px;
+  color: #000000;
+  letter-spacing: -0.01em;
+}
+
+.device-notice-desc {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #444444;
+  margin-bottom: 20px;
+  font-weight: 400;
+}
+
+.device-notice-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.device-notice-primary-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border-radius: 980px;
+  background: #000000;
+  color: #ffffff;
+  border: 1px solid #000000;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.device-notice-primary-btn:hover {
+  background: #222222;
+}
+
+.device-notice-secondary-btn {
+  padding: 10px 14px;
+  border-radius: 980px;
+  background: transparent;
+  color: #000000;
+  border: 1px solid #e0e0e5;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.device-notice-secondary-btn:hover {
+  background: #f5f5f7;
+  border-color: #000000;
+}

@@ -1249,6 +1249,107 @@
     .lib-toast svg {
       color: #10b981;
     }
+
+    @media (max-width: 768px) {
+      .library-container-clean {
+        padding: 16px 12px 60px;
+        max-width: 100%;
+      }
+
+      .sem-bar-wrap {
+        overflow-x: auto;
+        white-space: nowrap;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        max-width: 100%;
+        padding-bottom: 4px;
+      }
+
+      .sem-bar-wrap::-webkit-scrollbar {
+        display: none;
+      }
+
+      .course-grid-clean {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+
+      .course-card-minimal {
+        padding: 18px 16px;
+        border-radius: 14px;
+      }
+
+      .drawer-sheet {
+        width: 100%;
+        max-width: 100%;
+        border-radius: 20px 20px 0 0;
+        max-height: 90vh;
+      }
+
+      .drawer-header {
+        padding: 18px 16px;
+      }
+
+      .drawer-body {
+        padding: 14px 16px;
+      }
+
+      .clean-file-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 12px 14px;
+      }
+
+      .clean-file-actions {
+        width: 100%;
+        justify-content: flex-end;
+        gap: 6px;
+      }
+
+      .batch-floating-bar {
+        width: calc(100vw - 20px);
+        left: 10px;
+        bottom: max(14px, env(safe-area-inset-bottom, 0px));
+        padding: 8px 12px;
+      }
+
+      .custom-confirm-card {
+        width: calc(100vw - 24px);
+        max-width: 380px;
+        padding: 20px 16px;
+      }
+
+      .modal-card {
+        width: 100%;
+        max-width: calc(100vw - 24px);
+        max-height: 88vh;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .clean-page-title {
+        font-size: 22px;
+      }
+
+      .clean-page-sub {
+        font-size: 12.5px;
+      }
+
+      .batch-floating-bar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+        border-radius: 16px;
+        padding: 10px 12px;
+      }
+
+      .batch-floating-actions {
+        display: flex;
+        justify-content: space-between;
+        width: 100%;
+      }
+    }
   </style>
 </head>
 <body class="dash">

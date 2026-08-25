@@ -273,7 +273,7 @@ function parseSemesterNumber(str) {
 
 // --- 6. Tool Execution Functions for Real Data Retrieval ---
 
-function executeSearchFiles(db, args = {}) {
+async function executeSearchFiles(db, args = {}) {
   const qStr = (args.query || '').toLowerCase().trim();
   const semArg = args.semester ? parseSemesterNumber(args.semester) || args.semester.toUpperCase() : null;
 
@@ -298,11 +298,11 @@ function executeSearchFiles(db, args = {}) {
   const termsList = Array.from(expandedTerms);
 
   try {
-    const allFiles = db.prepare(`
+    const allFiles = await db.all(`
       SELECT id, storedName, originalName, title, subject, chapter, semester, uploadedBy, sizeBytes, uploadedAt 
       FROM files 
       ORDER BY id DESC
-    `).all();
+    `);
 
     const scored = allFiles.map(f => {
       let score = 0;
@@ -571,7 +571,7 @@ async function callGeminiWithTools(db, userMessage, conversationHistory = []) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY is not configured');
 
-  const model = 'gemini-flash-latest';
+  const model = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
   // Format multi-turn conversation history (last 8 messages)
@@ -676,7 +676,7 @@ IMPORTANT SCOPE & REASONING RULES:
 
     let toolResult = {};
     if (fnName === 'searchFiles') {
-      const res = executeSearchFiles(db, fnArgs);
+      const res = await executeSearchFiles(db, fnArgs);
       toolResult = res;
       if (res.files) collectedData.matchedFiles.push(...res.files);
     } else if (fnName === 'getSyllabus') {
@@ -772,7 +772,7 @@ async function callOpenRouterFallback(db, userMessage, conversationHistory = [])
 
   // Ground with keyword search + semester-aware search
   const parsedSem = parseSemesterNumber(userMessage);
-  const filesRes = executeSearchFiles(db, { query: userMessage, semester: parsedSem || '' });
+  const filesRes = await executeSearchFiles(db, { query: userMessage, semester: parsedSem || '' });
   const syllabusRes = executeGetSyllabus(parsedSem ? { semester: parsedSem } : { subject: userMessage });
   const routineRes = executeGetRoutine(parsedSem ? { semester: parsedSem } : { subject: userMessage });
 

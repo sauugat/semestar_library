@@ -1,6 +1,6 @@
 /**
- * Semester Library — Scoped AI Website Assistant
- * Client-side widget & full-page engine with Markdown, KaTeX & Structured Visual Cards
+ * Semester Library — AI Academic Assistant (ChatGPT & Google Gemini Inspired)
+ * Client-side widget & full-page engine with Markdown, KaTeX, Code Copy & Visual Cards
  */
 
 (function () {
@@ -10,7 +10,7 @@
   if (window.__SLA_CHATBOT_INITIALIZED__) return;
   window.__SLA_CHATBOT_INITIALIZED__ = true;
 
-  // --- 1. Load External CDN Dependencies Safely ---
+  // --- 1. Load External Dependencies (KaTeX, Marked, DOMPurify) ---
   function loadScript(src) {
     return new Promise((resolve, reject) => {
       if (document.querySelector(`script[src="${src}"]`)) return resolve();
@@ -41,24 +41,25 @@
   ]).then(() => {
     return loadScript('https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js');
   }).catch(err => {
-    console.warn('[AI Assistant] CDN dependency notice:', err.message);
+    console.warn('[AI Assistant] CDN notice:', err.message);
   });
 
   const isFullPage = document.body.classList.contains('sla-fullpage-mode') || window.location.pathname.includes('chatbot.html');
 
-  // --- 2. Build DOM Elements for Floating Mode if not already fullpage ---
-  let messagesContainer, chatInput, sendBtn, chatForm, closeBtn, clearBtn, suggestionsTray, fab, panel;
+  // --- 2. DOM Elements Binding & Widget Injection ---
+  let messagesContainer, chatInput, sendBtn, chatForm, closeBtn, clearBtn, newChatBtn, suggestionsTray, welcomeHero, fab, panel;
 
   if (isFullPage) {
-    // Dedicated page binds directly to existing DOM elements
     messagesContainer = document.getElementById('slaMessages');
     chatInput = document.getElementById('slaInput');
     sendBtn = document.getElementById('slaSendBtn');
     chatForm = document.getElementById('slaForm');
     clearBtn = document.getElementById('slaClearBtn');
+    newChatBtn = document.getElementById('slaNewChatBtn');
     suggestionsTray = document.getElementById('slaSuggestions');
+    welcomeHero = document.getElementById('slaWelcomeHero');
   } else {
-    // Inject floating bubble widget
+    // Inject floating bubble widget for all other pages
     fab = document.createElement('button');
     fab.className = 'sla-chat-fab';
     fab.setAttribute('aria-label', 'Open Semester Library AI Assistant');
@@ -67,7 +68,6 @@
       <svg class="sla-fab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
       </svg>
-      <span class="sla-fab-badge-dot" title="Online"></span>
     `;
 
     panel = document.createElement('div');
@@ -75,25 +75,20 @@
     panel.innerHTML = `
       <div class="sla-panel-header">
         <div class="sla-header-info">
-          <div class="sla-avatar-logo">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-            </svg>
-          </div>
           <div class="sla-title-wrap">
-            <h3>Semester Library AI</h3>
-            <p><span class="sla-status-indicator"></span> Website Notes & Syllabus Assistant</p>
+            <h3>AI Assistant</h3>
+            <p>Grounded in syllabus & notes</p>
           </div>
         </div>
         <div class="sla-header-actions">
-          <a href="chatbot.html" class="sla-tool-btn" title="Open Fullscreen Page">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+          <a href="chatbot.html" class="sla-tool-btn" title="Fullscreen Page">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
           </a>
-          <button type="button" class="sla-tool-btn" id="slaClearBtn" title="Clear Chat History">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+          <button type="button" class="sla-tool-btn" id="slaClearBtn" title="Clear">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
           </button>
-          <button type="button" class="sla-tool-btn" id="slaCloseBtn" title="Close Assistant">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          <button type="button" class="sla-tool-btn" id="slaCloseBtn" title="Close">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
           </button>
         </div>
       </div>
@@ -102,29 +97,36 @@
         <div class="sla-msg-row sla-ai">
           <div class="sla-msg-avatar">AI</div>
           <div class="sla-msg-bubble">
-            <h3>Hello! I'm your Semester Library Assistant.</h3>
-            <p>I can help you search uploaded notes, explore syllabus topics, and check pre-board exam schedules.</p>
+            <h3>How can I help you?</h3>
+            <p>Search notes, syllabus, or exam routines for BIT curriculum.</p>
             <div class="sla-actions-row">
-              <a href="library.html" class="sla-action-pill">📚 Browse Notes</a>
-              <a href="syllabus.html" class="sla-action-pill">📖 View Syllabus</a>
-              <a href="routine.html" class="sla-action-pill">📅 Exam Routine</a>
+              <a href="library.html" class="sla-action-pill">Library</a>
+              <a href="syllabus.html" class="sla-action-pill">Syllabus</a>
+              <a href="routine.html" class="sla-action-pill">Routine</a>
             </div>
           </div>
         </div>
       </div>
 
-      <div class="sla-suggestions-tray" id="slaSuggestions">
-        <button type="button" class="sla-suggestion-chip" data-q="what notes do we have for networking stuff">🌐 Networking Notes</button>
-        <button type="button" class="sla-suggestion-chip" data-q="Give me notes on Math">📐 Math Notes</button>
-        <button type="button" class="sla-suggestion-chip" data-q="What's in semester 3?">📖 Semester 3 Syllabus</button>
-        <button type="button" class="sla-suggestion-chip" data-q="When's the exam?">📅 Exam Schedule</button>
-      </div>
+      <div class="sla-panel-footer" style="padding: 8px 14px 12px;">
+        <div class="sla-suggestions-tray" id="slaSuggestions">
+          <button type="button" class="sla-suggestion-chip" data-q="What notes do we have for Computer Networks?">Networking</button>
+          <button type="button" class="sla-suggestion-chip" data-q="Find notes for Mathematics II">Math II</button>
+          <button type="button" class="sla-suggestion-chip" data-q="What's in semester 3?">Sem 3</button>
+          <button type="button" class="sla-suggestion-chip" data-q="When is the pre-board exam routine?">Routine</button>
+        </div>
 
-      <div class="sla-panel-footer">
-        <form class="sla-input-wrapper" id="slaForm">
-          <input type="text" id="slaInput" class="sla-chat-input" placeholder="Ask about notes, syllabus, or routine…" autocomplete="off" maxlength="400">
-          <button type="submit" class="sla-send-btn" id="slaSendBtn" title="Send Question">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <form class="sla-input-capsule" id="slaForm" style="padding: 6px 10px;">
+          <textarea 
+            id="slaInput" 
+            class="sla-input-textarea" 
+            placeholder="Ask a question…" 
+            rows="1" 
+            autocomplete="off" 
+            maxlength="500"
+          ></textarea>
+          <button type="submit" class="sla-send-btn" id="slaSendBtn" title="Send" style="width:28px; height:28px;">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <line x1="22" y1="2" x2="11" y2="13"></line>
               <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
             </svg>
@@ -149,7 +151,25 @@
   let isSending = false;
   const conversationHistory = [];
 
-  // --- 3. Normalizer & KaTeX Renderer ---
+  // --- 3. Auto-resizing Multiline Textarea ---
+  function adjustTextareaHeight() {
+    if (!chatInput) return;
+    chatInput.style.height = 'auto';
+    const newHeight = Math.min(chatInput.scrollHeight, 160);
+    chatInput.style.height = `${Math.max(newHeight, 24)}px`;
+  }
+
+  if (chatInput) {
+    chatInput.addEventListener('input', adjustTextareaHeight);
+    chatInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        handleSend();
+      }
+    });
+  }
+
+  // --- 4. LaTeX & Markdown Parser ---
   function normalizeLatexDelimiters(text) {
     if (!text) return '';
     return text
@@ -175,6 +195,46 @@
       element.innerHTML = parsedHtml;
     }
 
+    // Enhance Code Blocks with Syntax Headers and Copy Buttons
+    element.querySelectorAll('pre code').forEach((codeBlock) => {
+      const pre = codeBlock.parentElement;
+      if (pre.parentElement.classList.contains('sla-code-block-wrap')) return;
+
+      const wrap = document.createElement('div');
+      wrap.className = 'sla-code-block-wrap';
+
+      const header = document.createElement('div');
+      header.className = 'sla-code-header';
+      
+      const langMatch = codeBlock.className.match(/language-(\w+)/);
+      const langName = langMatch ? langMatch[1] : 'Code';
+      header.innerHTML = `
+        <span>${langName}</span>
+        <button type="button" class="sla-copy-code-btn">
+          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          <span>Copy</span>
+        </button>
+      `;
+
+      const copyBtn = header.querySelector('.sla-copy-code-btn');
+      copyBtn.addEventListener('click', () => {
+        navigator.clipboard.writeText(codeBlock.innerText).then(() => {
+          copyBtn.innerHTML = `<span>✓ Copied!</span>`;
+          setTimeout(() => {
+            copyBtn.innerHTML = `
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              <span>Copy</span>
+            `;
+          }, 2000);
+        });
+      });
+
+      pre.parentNode.insertBefore(wrap, pre);
+      wrap.appendChild(header);
+      wrap.appendChild(pre);
+    });
+
+    // Render KaTeX Math Expressions
     if (window.renderMathInElement) {
       try {
         window.renderMathInElement(element, {
@@ -198,8 +258,10 @@
     }
   }
 
-  // --- 4. Append Message with Structured UI Cards ---
+  // --- 5. Message Append Functions ---
   function appendUserMessage(text) {
+    if (welcomeHero) welcomeHero.style.display = 'none';
+
     const row = document.createElement('div');
     row.className = 'sla-msg-row sla-user';
     const bubble = document.createElement('div');
@@ -211,12 +273,18 @@
   }
 
   function appendAIMessage(data) {
+    if (welcomeHero) welcomeHero.style.display = 'none';
+
     const row = document.createElement('div');
     row.className = 'sla-msg-row sla-ai';
     
     const avatar = document.createElement('div');
     avatar.className = 'sla-msg-avatar';
-    avatar.textContent = 'AI';
+    avatar.innerHTML = `
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+        <path d="M12 2L14.8 8.2L21 11L14.8 13.8L12 20L9.2 13.8L3 11L9.2 8.2L12 2Z"/>
+      </svg>
+    `;
     row.appendChild(avatar);
 
     const bubble = document.createElement('div');
@@ -234,7 +302,7 @@
     if (data.matchedFiles && data.matchedFiles.length > 0) {
       const sec = document.createElement('div');
       sec.className = 'sla-structured-section';
-      sec.innerHTML = `<div class="sla-section-title">📂 Uploaded Notes Found (${data.matchedFiles.length})</div>`;
+      sec.innerHTML = `<div class="sla-section-title">Files Found (${data.matchedFiles.length})</div>`;
       
       const grid = document.createElement('div');
       grid.className = 'sla-cards-grid';
@@ -242,25 +310,20 @@
       data.matchedFiles.forEach(f => {
         const card = document.createElement('a');
         card.className = 'sla-file-card';
-        card.href = `/api/files/download/${f.id}`;
-        card.setAttribute('download', f.originalName);
+        card.href = `/api/files/${f.id}/download`;
+        card.setAttribute('download', f.originalName || 'file');
+        card.setAttribute('target', '_blank');
         card.innerHTML = `
           <div class="sla-file-card-info">
-            <div class="sla-file-card-icon">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-            </div>
             <div>
               <div class="sla-file-card-name" title="${f.originalName}">${f.title || f.originalName}</div>
               <div class="sla-file-card-meta">
-                <span class="sla-file-tag">${f.subject || 'Notes'}</span>
-                <span>${f.chapter ? f.chapter : ''}</span>
+                <span>${f.subject || 'Notes'}</span>
+                ${f.chapter ? `<span>· ${f.chapter}</span>` : ''}
               </div>
             </div>
           </div>
-          <button type="button" class="sla-file-download-btn">
-            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-            Download
-          </button>
+          <button type="button" class="sla-file-download-btn">Get</button>
         `;
         grid.appendChild(card);
       });
@@ -272,7 +335,7 @@
     if (data.matchedCourses && data.matchedCourses.length > 0) {
       const sec = document.createElement('div');
       sec.className = 'sla-structured-section';
-      sec.innerHTML = `<div class="sla-section-title">📚 Course Curriculum Matches (${data.matchedCourses.length})</div>`;
+      sec.innerHTML = `<div class="sla-section-title">Syllabus Courses (${data.matchedCourses.length})</div>`;
       
       const grid = document.createElement('div');
       grid.className = 'sla-cards-grid';
@@ -285,12 +348,12 @@
           <div>
             <div style="display:flex; align-items:center; gap:6px;">
               <span class="sla-course-code-pill">${c.code}</span>
-              <span style="font-size:11px; color:#64748b; font-weight:600;">Semester ${c.semester}</span>
+              <span style="font-size:11px; color:var(--sla-text-muted);">Sem ${c.semester}</span>
             </div>
             <div class="sla-course-title">${c.title}</div>
             <div class="sla-course-sub">${c.credit} Credits · ${c.nature}</div>
           </div>
-          <span style="font-size:16px; color:#94a3b8; font-weight:700;">&rsaquo;</span>
+          <span style="font-size:14px; color:var(--sla-text-subtle);">&rsaquo;</span>
         `;
         grid.appendChild(card);
       });
@@ -302,7 +365,7 @@
     if (data.matchedRoutine && data.matchedRoutine.length > 0) {
       const sec = document.createElement('div');
       sec.className = 'sla-structured-section';
-      sec.innerHTML = `<div class="sla-section-title">📅 Exam Schedule (${data.matchedRoutine.length})</div>`;
+      sec.innerHTML = `<div class="sla-section-title">Exam Schedule (${data.matchedRoutine.length})</div>`;
       
       const grid = document.createElement('div');
       grid.className = 'sla-cards-grid';
@@ -312,21 +375,15 @@
         card.className = 'sla-routine-card';
         card.href = `routine.html`;
         card.innerHTML = `
-          <div style="display:flex; align-items:center; gap:12px;">
-            <div class="sla-routine-date-badge">
-              <span class="sla-rday">${r.date.split('/')[2] || '25'}</span>
-              <span class="sla-rdate">${r.date.split('/')[1] || '04'}/2083</span>
-            </div>
-            <div>
-              <div class="sla-routine-subj">${r.subject}</div>
-              <div class="sla-routine-meta">
-                <span>Semester ${r.semester}</span>
-                <span>•</span>
-                <span>${r.day} @ ${r.time}</span>
-              </div>
+          <div>
+            <div class="sla-routine-subj">${r.subject}</div>
+            <div class="sla-routine-meta">
+              <span>${r.date}</span>
+              <span>·</span>
+              <span>${r.day} @ ${r.time}</span>
             </div>
           </div>
-          <span style="font-size:12px; font-weight:700; color:#d4af37;">View &rarr;</span>
+          <span style="font-size:11.5px; font-weight:500; color:var(--sla-text-main);">View &rarr;</span>
         `;
         grid.appendChild(card);
       });
@@ -348,6 +405,33 @@
       bubble.appendChild(actionsRow);
     }
 
+    // Message Actions Bar (Copy Text Tool)
+    const actionsBar = document.createElement('div');
+    actionsBar.className = 'sla-msg-actions-bar';
+    actionsBar.innerHTML = `
+      <button type="button" class="sla-msg-tool-action sla-copy-msg-btn">
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        <span>Copy</span>
+      </button>
+      <div class="sla-citation-badge">
+        <span>Grounded</span>
+      </div>
+    `;
+
+    const copyBtn = actionsBar.querySelector('.sla-copy-msg-btn');
+    copyBtn.addEventListener('click', () => {
+      navigator.clipboard.writeText(data.reply || '').then(() => {
+        copyBtn.innerHTML = `<span>✓ Copied!</span>`;
+        setTimeout(() => {
+          copyBtn.innerHTML = `
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <span>Copy response</span>
+          `;
+        }, 2000);
+      });
+    });
+
+    bubble.appendChild(actionsBar);
     row.appendChild(bubble);
     messagesContainer.appendChild(row);
     scrollToBottom();
@@ -358,7 +442,11 @@
     row.className = 'sla-msg-row sla-ai sla-typing-row';
     row.id = 'slaTypingIndicator';
     row.innerHTML = `
-      <div class="sla-msg-avatar">AI</div>
+      <div class="sla-msg-avatar">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+          <path d="M12 2L14.8 8.2L21 11L14.8 13.8L12 20L9.2 13.8L3 11L9.2 8.2L12 2Z"/>
+        </svg>
+      </div>
       <div class="sla-msg-bubble">
         <div class="sla-typing-indicator">
           <div class="sla-typing-dot"></div>
@@ -376,12 +464,16 @@
     if (indicator) indicator.remove();
   }
 
-  // --- 5. Message Submission ---
+  // --- 6. Message Submission Handler ---
   async function handleSend(textToSend) {
-    const query = (textToSend || chatInput.value || '').trim();
+    const query = (textToSend || (chatInput ? chatInput.value : '')).trim();
     if (!query || isSending) return;
 
-    chatInput.value = '';
+    if (chatInput) {
+      chatInput.value = '';
+      adjustTextareaHeight();
+    }
+
     appendUserMessage(query);
 
     isSending = true;
@@ -429,7 +521,7 @@
       const data = await response.json();
       appendAIMessage(data);
 
-      // Record to multi-turn conversation history
+      // Record to multi-turn history
       conversationHistory.push({ role: 'user', content: query });
       if (data.reply) {
         conversationHistory.push({ role: 'assistant', content: data.reply });
@@ -437,7 +529,7 @@
     } catch (err) {
       removeTypingIndicator();
       appendAIMessage({
-        reply: '⚠️ Network connection issue. Please make sure the server is reachable and try again.',
+        reply: '⚠️ Network connection issue. Please make sure the server is running and try again.',
         actions: [{ label: 'Refresh Page', url: window.location.href }]
       });
     } finally {
@@ -447,7 +539,34 @@
     }
   }
 
-  // --- 6. Event Listeners ---
+  // --- 7. Event Listeners & Reset Actions ---
+  function resetConversation() {
+    conversationHistory.length = 0;
+    messagesContainer.innerHTML = '';
+    if (welcomeHero) {
+      messagesContainer.appendChild(welcomeHero);
+      welcomeHero.style.display = 'flex';
+    } else {
+      messagesContainer.innerHTML = `
+        <div class="sla-msg-row sla-ai">
+          <div class="sla-msg-avatar">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+              <path d="M12 2L14.8 8.2L21 11L14.8 13.8L12 20L9.2 13.8L3 11L9.2 8.2L12 2Z"/>
+            </svg>
+          </div>
+          <div class="sla-msg-bubble">
+            <p>Conversation refreshed. How can I help you find notes, syllabus, or exam routines?</p>
+          </div>
+        </div>
+      `;
+    }
+    if (chatInput) {
+      chatInput.value = '';
+      adjustTextareaHeight();
+      chatInput.focus();
+    }
+  }
+
   function togglePanel(show) {
     if (isFullPage) return;
     isOpen = (typeof show === 'boolean') ? show : !isOpen;
@@ -464,19 +583,8 @@
   if (fab) fab.addEventListener('click', () => togglePanel());
   if (closeBtn) closeBtn.addEventListener('click', () => togglePanel(false));
 
-  if (clearBtn) {
-    clearBtn.addEventListener('click', () => {
-      conversationHistory.length = 0;
-      messagesContainer.innerHTML = `
-        <div class="sla-msg-row sla-ai">
-          <div class="sla-msg-avatar">AI</div>
-          <div class="sla-msg-bubble">
-            <p>Chat history cleared. How can I help you find notes, syllabus, or exam routines?</p>
-          </div>
-        </div>
-      `;
-    });
-  }
+  if (clearBtn) clearBtn.addEventListener('click', resetConversation);
+  if (newChatBtn) newChatBtn.addEventListener('click', resetConversation);
 
   if (chatForm) {
     chatForm.addEventListener('submit', (e) => {
@@ -485,14 +593,15 @@
     });
   }
 
-  if (suggestionsTray) {
-    suggestionsTray.addEventListener('click', (e) => {
-      const chip = e.target.closest('.sla-suggestion-chip') || e.target.closest('.sla-topic-btn');
-      if (chip && chip.dataset.q) {
-        handleSend(chip.dataset.q);
-      }
-    });
-  }
+  // Global delegate for suggestion chips, starter prompt cards, and topic buttons
+  document.addEventListener('click', (e) => {
+    const trigger = e.target.closest('.sla-suggestion-chip') || 
+                    e.target.closest('.sla-topic-btn') || 
+                    e.target.closest('.sla-starter-card');
+    if (trigger && trigger.dataset.q) {
+      handleSend(trigger.dataset.q);
+    }
+  });
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && isOpen && !isFullPage) {
@@ -500,7 +609,7 @@
     }
   });
 
-  // Global helper for topic buttons
+  // Global helper for external pages
   window.askAiAssistant = function(query) {
     if (isFullPage) {
       handleSend(query);
@@ -509,5 +618,16 @@
       handleSend(query);
     }
   };
+
+  // Auto-send or prefill query from URL params (?q=... or ?prompt=...)
+  try {
+    const urlParams = new URLSearchParams(window.location.search);
+    const initialQ = urlParams.get('q') || urlParams.get('prompt');
+    if (initialQ && initialQ.trim()) {
+      setTimeout(() => {
+        handleSend(initialQ.trim());
+      }, 350);
+    }
+  } catch (err) {}
 
 })();

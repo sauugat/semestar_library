@@ -933,12 +933,37 @@
     cursor: pointer;
   }
 
-  @media (max-width: 600px) {
-    .im-row { max-width: 86%; }
+  @media (max-width: 768px) {
+    .im-row { max-width: 88%; }
     .im-back-btn span { display: none; }
+    .im-header { padding: 8px 12px; }
+    .im-composer {
+      padding: 8px 10px max(10px, env(safe-area-inset-bottom, 8px));
+    }
+    .im-textarea {
+      font-size: 16px !important; /* Prevents iOS auto-zoom */
+    }
+    .im-feed {
+      padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+    }
   }
 
-  @media (min-width: 768px) {
+  @media (max-width: 480px) {
+    .im-row { max-width: 92%; }
+    .im-bubble {
+      padding: 8px 12px;
+      font-size: 14.5px;
+    }
+    .im-plus-upload-btn, .im-emoji-btn {
+      width: 32px;
+      height: 32px;
+    }
+    .im-input-capsule {
+      padding: 2px 4px 2px 10px;
+    }
+  }
+
+  @media (min-width: 769px) {
     .im-feed { padding-left: 14%; padding-right: 14%; }
   }
 </style>

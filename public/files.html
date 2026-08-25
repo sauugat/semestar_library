@@ -329,6 +329,52 @@
       cursor: not-allowed;
       transform: none;
     }
+
+    @media (max-width: 768px) {
+      .upload-container {
+        margin: 16px auto 90px;
+        padding: 0 12px;
+        max-width: 100%;
+      }
+
+      .upload-card-clean {
+        padding: 22px 16px;
+        border-radius: 14px;
+      }
+
+      .clean-dropzone {
+        padding: 20px 12px;
+      }
+
+      .clean-input, .clean-select {
+        min-height: 46px;
+        font-size: 16px !important; /* Prevents iOS auto-zoom */
+      }
+
+      .btn-submit-clean {
+        min-height: 48px;
+        font-size: 15px;
+      }
+
+      .file-queue-name {
+        max-width: 170px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .upload-head-title {
+        font-size: 19px;
+      }
+
+      .upload-head-sub {
+        font-size: 12px;
+        margin-bottom: 18px;
+      }
+
+      .clean-dropzone {
+        padding: 18px 10px;
+      }
+    }
   </style>
 </head>
 <body class="dash">

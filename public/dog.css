@@ -338,48 +338,54 @@
   }
 }
 
-/* Chat Phase 3 Features (Minimalist Theme) */
+/* Chat Phase 3 Features (Premium Glassmorphism) */
 .msg-reply-btn, .msg-reaction-btn {
   opacity: 0;
-  transition: opacity 0.2s, color 0.2s;
-  background: transparent;
+  transition: opacity 0.2s, background-color 0.2s;
+  background: rgba(0,0,0,0.05);
   border: none;
-  width: 24px;
-  height: 24px;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #999;
-  margin: 0 2px;
+  color: #666;
+  margin: 0 4px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 .msg-reply-btn:hover, .msg-reaction-btn:hover {
+  background: rgba(0,0,0,0.1);
   color: #000;
 }
 .im-row:hover .msg-reply-btn, .im-row:hover .msg-reaction-btn { opacity: 1; }
 
 .reactions-bar {
-  display: flex; gap: 4px; margin-top: -6px; margin-bottom: 8px; z-index: 10; position: relative;
+  display: flex; gap: 4px; margin-top: -8px; margin-bottom: 8px; z-index: 10; position: relative;
 }
 .im-row.self .reactions-bar { justify-content: flex-end; padding-right: 8px; }
 .im-row.other .reactions-bar { padding-left: 8px; }
 
 .reaction-pill {
-  background: #ffffff; 
-  border: 1px solid rgba(0,0,0,0.08); 
-  border-radius: 20px;
-  padding: 3px 6px; 
+  background: rgba(255,255,255,0.9); 
+  border: 1px solid rgba(0,0,0,0.06); 
+  border-radius: 12px;
+  padding: 3px 8px; 
   font-size: 11px; 
   display: flex; 
   align-items: center; 
-  gap: 3px; 
+  gap: 4px; 
   cursor: pointer; 
-  box-shadow: 0 2px 5px rgba(0,0,0,0.04);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.04);
   color: #000;
-  transition: transform 0.1s;
+  transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
 }
 .reaction-pill:hover {
-  transform: scale(1.05);
+  transform: scale(1.08);
 }
 
 .read-receipt {
@@ -392,8 +398,10 @@
 @keyframes pulse { 0% { opacity: 0.3; } 50% { opacity: 0.8; } 100% { opacity: 0.3; } }
 
 .emoji-picker-popup {
-  position: absolute; bottom: 35px; background: #ffffff; border: 1px solid rgba(0,0,0,0.08); border-radius: 24px;
-  padding: 6px 12px; display: none; gap: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); z-index: 100;
+  position: absolute; bottom: 35px; background: rgba(255,255,255,0.9); border: 1px solid rgba(0,0,0,0.08); border-radius: 20px;
+  padding: 8px 12px; display: none; gap: 10px; box-shadow: 0 8px 32px rgba(0,0,0,0.12); z-index: 100;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 .im-row.self .emoji-picker-popup { right: 0; }
 .im-row.other .emoji-picker-popup { left: 0; }

@@ -45,7 +45,7 @@ async function seed() {
     { studentId: "26020263", name: "Sangam Bhujel", password: "sangam263", role: "student" },
     { studentId: "26020264", name: "Sanjana Adhikari", password: "sanjana264", role: "student" },
     { studentId: "26020265", name: "Sankalpa Kc", password: "sankalpa265", role: "student" },
-    { studentId: "26020266", name: "Saugat Subedi", password: "saugat266", role: "admin" }, // Class Rep / Admin
+    { studentId: "26020266", name: "Saugat Subedi", password: "saugat266", role: "student" },
     { studentId: "26020267", name: "Sishir Bharati", password: "sishir267", role: "student" },
     { studentId: "26020268", name: "Subarna Poudel", password: "subarna268", role: "student" },
     { studentId: "26020269", name: "Sudarshan Poudel", password: "sudarshan269", role: "student" },

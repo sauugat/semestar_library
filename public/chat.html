@@ -967,6 +967,7 @@
     .im-feed { padding-left: 14%; padding-right: 14%; }
   }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
@@ -1355,9 +1356,8 @@
         if (tempTime) {
            tempTime.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align: middle; margin-right: 2px;"><polyline points="20 6 9 17 4 12"/></svg> Sent`;
         }
-        if (pollTimer) clearTimeout(pollTimer);
-        isFetching = false;
-        pollMessages();
+        // Realtime broadcast handles appending the message for everyone else.
+        // For the sender, we let the broadcast event replace the temp message or just append it and we deduplicate by ID.
       }
     } catch (err) {
       showError('Network error. Check connection.');
@@ -1368,22 +1368,16 @@
     }
   }
 
-  // Polling Loop
-  async function pollMessages() {
-    if (isFetching) return;
+  // Initial Fetch
+  async function fetchInitialMessages() {
     isFetching = true;
-
     try {
-      const res = await fetch(`/api/chat/messages?since=${lastMessageId}`);
+      const res = await fetch(`/api/chat/messages?since=0`);
       if (res.ok) {
         const messages = await res.json();
         if (messages && messages.length > 0) {
           const emptyElem = document.getElementById('emptyNotice');
           if (emptyElem) emptyElem.remove();
-
-          // Remove any temporary optimistic messages since real ones arrived
-          document.querySelectorAll('.temp-msg').forEach(el => el.remove());
-
           renderMessages(messages);
           lastMessageId = messages[messages.length - 1].id;
           scrollToBottom();
@@ -1392,16 +1386,44 @@
         window.location.replace('login.html');
       }
     } catch (e) {
-      console.error('Polling error:', e);
+      console.error('Initial fetch error:', e);
     } finally {
       isFetching = false;
-      pollTimer = setTimeout(pollMessages, 3000);
+    }
+  }
+
+  // Supabase Realtime Setup
+  async function initRealtime() {
+    try {
+      const res = await fetch('/api/chat/config');
+      if (!res.ok) throw new Error('Could not get config');
+      const { url, key } = await res.json();
+      
+      const supabaseClient = supabase.createClient(url, key);
+      const channel = supabaseClient.channel('public:chat_messages');
+      
+      channel.on('broadcast', { event: 'new_message' }, (payload) => {
+        const msg = payload.payload;
+        if (msg.id > lastMessageId) {
+          const emptyElem = document.getElementById('emptyNotice');
+          if (emptyElem) emptyElem.remove();
+          
+          // Remove sender's temporary optimistic message if present
+          document.querySelectorAll('.temp-msg').forEach(el => el.remove());
+          
+          // Render new message and scroll down
+          renderMessages([msg]);
+          lastMessageId = msg.id;
+          scrollToBottom();
+        }
+      }).subscribe();
+    } catch (e) {
+      console.error('Realtime init error:', e);
     }
   }
 
   function startPolling() {
-    if (pollTimer) clearTimeout(pollTimer);
-    pollMessages();
+    fetchInitialMessages().then(() => initRealtime());
   }
 
   function formatTime(iso) {

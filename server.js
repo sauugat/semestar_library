@@ -4,6 +4,12 @@ const bcrypt = require('bcryptjs');
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
+const { createClient } = require('@supabase/supabase-js');
+
+// Initialize Supabase Client
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_ANON_KEY;
+const supabase = createClient(supabaseUrl, supabaseKey);
 const crypto = require('crypto');
 const db = require('./db');
 
@@ -1506,6 +1512,10 @@ app.get('/api/search', async (req, res) => {
 // GROUP CHAT SYSTEM
 // ============================================================
 
+app.get('/api/chat/config', requireLogin, (req, res) => {
+  res.json({ url: process.env.SUPABASE_URL, key: process.env.SUPABASE_ANON_KEY });
+});
+
 app.get('/api/chat/messages', requireLogin, async (req, res) => {
   const since = parseInt(req.query.since) || 0;
   
@@ -1576,7 +1586,29 @@ app.post('/api/chat/messages', requireLogin, chatRateLimiter, handleChatUpload, 
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `, req.session.studentId, text, attachmentName, attachmentOriginalName, attachmentMimeType, replyToId, new Date().toISOString());
 
-    res.json({ message: 'Sent', messageId: result.lastInsertRowid });
+    const messageId = result.lastInsertRowid;
+
+    // Fetch the newly inserted message with all joins to broadcast it exactly as GET /api/chat/messages would
+    const newMsg = await db.get(`
+      SELECT chat_messages.id, chat_messages.text, chat_messages.attachmentName, chat_messages.attachmentOriginalName, chat_messages.attachmentMimeType, chat_messages.replyToId, chat_messages.createdAt,
+        students.studentId, students.name, students.avatarUrl,
+        reply_msg.text AS replyText, reply_student.name AS replySender
+      FROM chat_messages
+      JOIN students ON students.studentId = chat_messages.studentId
+      LEFT JOIN chat_messages AS reply_msg ON reply_msg.id = chat_messages.replyToId
+      LEFT JOIN students AS reply_student ON reply_student.studentId = reply_msg.studentId
+      WHERE chat_messages.id = ?
+    `, messageId);
+
+    if (newMsg) {
+      supabase.channel('public:chat_messages').send({
+        type: 'broadcast',
+        event: 'new_message',
+        payload: newMsg
+      });
+    }
+
+    res.json({ message: 'Sent', messageId });
   } catch (error) {
     console.error('Chat message insert error:', error.message);
     res.status(500).json({ message: 'Failed to send message.' });

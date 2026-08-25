@@ -26,18 +26,18 @@
 
   :root {
     --sf: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Inter', 'Helvetica Neue', system-ui, sans-serif;
-    --bg-base: #000000;
-    --bar-bg: rgba(18, 18, 20, 0.88);
-    --bar-border: rgba(255, 255, 255, 0.12);
-    --bubble-gray: #2c2c2e;
-    --bubble-gray-border: rgba(255, 255, 255, 0.08);
-    --bubble-outgoing: #ffffff;
-    --apple-primary: #ffffff;
-    --text-primary: #ffffff;
-    --text-secondary: #8e8e93;
-    --text-tertiary: #636366;
-    --input-bg: #1c1c1e;
-    --input-border: rgba(255, 255, 255, 0.16);
+    --bg-base: #f4f4f8;
+    --bar-bg: rgba(255, 255, 255, 0.85);
+    --bar-border: rgba(0, 0, 0, 0.08);
+    --bubble-gray: #ffffff;
+    --bubble-gray-border: rgba(0, 0, 0, 0.06);
+    --bubble-outgoing: #000000;
+    --apple-primary: #000000;
+    --text-primary: #000000;
+    --text-secondary: #6e6e73;
+    --text-tertiary: #86868b;
+    --input-bg: #ffffff;
+    --input-border: rgba(0, 0, 0, 0.12);
   }
 
   html, body {
@@ -62,83 +62,15 @@
     background: var(--bg-base);
   }
 
-  /* ═══ MOVING ANIMATED PEARL-WHITE LUXURY GRADIENT BACKDROP ═══ */
-  .white-ambient-mesh {
+  /* ═══ CLEAN MINIMALIST BACKGROUND ═══ */
+  .minimal-bg {
     position: absolute;
     inset: 0;
     pointer-events: none;
     z-index: 0;
-    overflow: hidden;
-    opacity: 0.85;
-    background: radial-gradient(circle at 50% 30%, #0d0d12 0%, #060608 100%);
+    background: radial-gradient(circle at top right, rgba(255,255,255,0.05) 0%, transparent 40%),
+                radial-gradient(circle at bottom left, rgba(255,255,255,0.03) 0%, transparent 40%);
   }
-
-  /* Floating animated pearl-white orbs */
-  .white-glow-orb {
-    position: absolute;
-    border-radius: 50%;
-    filter: blur(85px);
-    mix-blend-mode: screen;
-    will-change: transform, opacity;
-  }
-
-  .orb-1 {
-    top: -15%;
-    left: 15%;
-    width: 540px;
-    height: 540px;
-    background: radial-gradient(circle, rgba(255, 255, 255, 0.22) 0%, rgba(225, 230, 245, 0.1) 45%, transparent 75%);
-    animation: floatWhiteOrb1 18s ease-in-out infinite alternate;
-  }
-
-  .orb-2 {
-    bottom: -10%;
-    right: -10%;
-    width: 620px;
-    height: 620px;
-    background: radial-gradient(circle, rgba(255, 255, 255, 0.18) 0%, rgba(210, 220, 240, 0.08) 50%, transparent 75%);
-    animation: floatWhiteOrb2 22s ease-in-out infinite alternate;
-    animation-delay: -5s;
-  }
-
-  .orb-3 {
-    top: 40%;
-    left: -20%;
-    width: 480px;
-    height: 480px;
-    background: radial-gradient(circle, rgba(255, 255, 255, 0.14) 0%, rgba(240, 245, 255, 0.06) 55%, transparent 75%);
-    animation: floatWhiteOrb3 20s ease-in-out infinite alternate;
-    animation-delay: -10s;
-  }
-
-  .orb-4 {
-    top: 25%;
-    right: 20%;
-    width: 450px;
-    height: 450px;
-    background: radial-gradient(circle, rgba(255, 255, 255, 0.16) 0%, rgba(230, 235, 250, 0.07) 50%, transparent 75%);
-    animation: floatWhiteOrb4 24s ease-in-out infinite alternate;
-    animation-delay: -14s;
-  }
-
-  /* Shimmering fluid white wave sweep */
-  .white-wave-sweep {
-    position: absolute;
-    inset: -60%;
-    background: linear-gradient(
-      120deg,
-      transparent 25%,
-      rgba(255, 255, 255, 0.03) 40%,
-      rgba(255, 255, 255, 0.09) 50%,
-      rgba(255, 255, 255, 0.03) 60%,
-      transparent 75%
-    );
-    animation: waveMotion 15s linear infinite;
-    mix-blend-mode: overlay;
-    filter: blur(50px);
-  }
-
-  @keyframes floatWhiteOrb1 {
     0% { transform: translate(0, 0) scale(1); }
     50% { transform: translate(65px, 80px) scale(1.15); }
     100% { transform: translate(-45px, -35px) scale(0.9); }
@@ -197,7 +129,7 @@
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    color: #ffffff;
+    color: var(--apple-primary);
     text-decoration: none;
     font-size: 17px;
     font-weight: 400;
@@ -230,22 +162,22 @@
   }
 
   .im-header-center:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(0, 0, 0, 0.05);
   }
 
   .im-contact-avatar {
     width: 38px;
     height: 38px;
     border-radius: 50%;
-    background: linear-gradient(180deg, #636366 0%, #48484a 100%);
+    background: #000;
     display: flex;
     align-items: center;
     justify-content: center;
     color: #ffffff;
     margin-bottom: 2px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     overflow: hidden;
-    border: 0.5px solid rgba(255, 255, 255, 0.18);
+    border: 0.5px solid rgba(0, 0, 0, 0.08);
   }
 
   .im-contact-avatar svg {
@@ -279,16 +211,16 @@
     width: 30px;
     height: 30px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.12);
+    background: rgba(0, 0, 0, 0.1);
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 12px;
     font-weight: 600;
-    color: #fff;
+    color: #000;
     text-decoration: none;
     overflow: hidden;
-    border: 0.5px solid rgba(255, 255, 255, 0.18);
+    border: 0.5px solid rgba(0, 0, 0, 0.1);
   }
 
   .im-profile-link img {
@@ -316,7 +248,7 @@
   }
 
   .im-feed::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.15);
+    background: rgba(0, 0, 0, 0.1);
     border-radius: 8px;
   }
 
@@ -406,17 +338,17 @@
     width: 28px;
     height: 28px;
     border-radius: 50%;
-    background: #3a3a3c;
+    background: #e5e5ea;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 11px;
     font-weight: 600;
-    color: #fff;
+    color: #000;
     flex-shrink: 0;
     overflow: hidden;
     margin-bottom: 2px;
-    border: 0.5px solid rgba(255, 255, 255, 0.12);
+    border: 0.5px solid rgba(0, 0, 0, 0.05);
   }
 
   .im-msg-avatar img {
@@ -467,13 +399,13 @@
     letter-spacing: -0.3px;
     word-break: break-word;
     user-select: text;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    border: 0.5px solid rgba(0,0,0,0.1);
   }
 
   /* Link & Number Highlights */
   .im-row.other .im-bubble a,
   .im-row.other .im-bubble .link-highlight {
-    color: #ffffff;
+    color: #000000;
     text-decoration: underline;
     font-weight: 600;
     text-underline-offset: 2px;
@@ -482,25 +414,23 @@
 
   .im-row.self .im-bubble a,
   .im-row.self .im-bubble .link-highlight {
-    color: #000000;
+    color: #ffffff;
     text-decoration: underline;
     font-weight: 700;
     text-underline-offset: 2px;
     cursor: pointer;
   }
 
-  /* Incoming Gray Bubble (#2C2C2E) with White Text */
+  /* Incoming Bubble */
   .im-row.other .im-bubble {
-    background: var(--bubble-gray);
-    color: #ffffff;
-    border: 0.5px solid var(--bubble-gray-border);
+    background: #ffffff;
+    color: #000000;
   }
 
-  /* Outgoing Crisp White Bubble with Black Text */
+  /* Outgoing Bubble */
   .im-row.self .im-bubble {
-    background: linear-gradient(180deg, #ffffff 0%, #ececed 100%);
-    color: #000000;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    background: #000000;
+    color: #ffffff;
   }
 
   /* Apple Corner Radii */
@@ -537,7 +467,6 @@
     padding: 0 !important;
     background: transparent !important;
     border: none !important;
-    box-shadow: none !important;
   }
 
   .im-media-box {
@@ -545,9 +474,8 @@
     border-radius: 16px;
     overflow: hidden;
     max-width: 270px;
-    background: #1c1c1e;
-    border: 0.5px solid rgba(255, 255, 255, 0.12);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    background: #ffffff;
+    border: 0.5px solid rgba(0, 0, 0, 0.08);
   }
 
   .im-bubble:not(.media-only) .im-media-box {
@@ -614,10 +542,9 @@
     align-items: center;
     gap: 10px;
     padding: 6px 12px;
-    background: #2c2c2e;
-    border: 0.5px solid rgba(255, 255, 255, 0.16);
+    background: #ffffff;
+    border: 0.5px solid rgba(0, 0, 0, 0.1);
     border-radius: 14px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
   }
 
   .im-attachment-chip.active {
@@ -628,7 +555,7 @@
     width: 32px;
     height: 32px;
     border-radius: 8px;
-    background: rgba(255, 255, 255, 0.14);
+    background: #000;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -644,7 +571,7 @@
   .im-chip-name {
     font-size: 13px;
     font-weight: 500;
-    color: #fff;
+    color: #000;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -657,58 +584,44 @@
   }
 
   .im-chip-close-btn {
-    background: none;
+    background: rgba(0, 0, 0, 0.05);
     border: none;
-    color: var(--text-secondary);
-    cursor: pointer;
-    padding: 6px;
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    transition: background 0.15s ease;
   }
 
   .im-chip-close-btn:hover {
-    color: #ff453a;
+    background: rgba(0, 0, 0, 0.1);
   }
 
-  /* Controls Row: [+] [Text Message · SMS (wave)] [😊] */
+  /* Controls Row */
   .im-controls {
     display: flex;
     align-items: flex-end;
     gap: 8px;
   }
 
-  /* (+) Plus Button to Directly Upload Files */
+  /* (+) Plus Button */
   .im-plus-upload-btn {
     width: 34px;
     height: 34px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.12);
-    border: 0.5px solid rgba(255, 255, 255, 0.1);
-    color: #ffffff;
+    background: rgba(0,0,0,0.05);
+    border: none;
+    color: #000;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     flex-shrink: 0;
     margin-bottom: 2px;
-    transition: transform 0.15s ease, background 0.15s ease;
-  }
-
-  .im-plus-upload-btn:hover {
-    background: rgba(255, 255, 255, 0.22);
-    transform: scale(1.06);
-  }
-
-  .im-plus-upload-btn:active {
-    transform: scale(0.92);
-  }
-
-  .im-plus-upload-btn svg {
-    width: 18px;
-    height: 18px;
-    stroke-width: 2.5;
   }
 
   /* Input Capsule */
@@ -717,44 +630,34 @@
     min-height: 38px;
     display: flex;
     align-items: flex-end;
-    background: var(--input-bg);
+    background: #ffffff;
     border: 0.5px solid var(--input-border);
     border-radius: 20px;
     padding: 2px 4px 2px 14px;
-    transition: border-color 0.15s ease;
-  }
-
-  .im-input-capsule:focus-within {
-    border-color: rgba(255, 255, 255, 0.35);
   }
 
   .im-textarea {
     flex: 1;
     border: none;
     background: transparent;
-    color: #ffffff;
+    color: #000;
     font-family: var(--sf);
     font-size: 15.5px;
     line-height: 20px;
-    letter-spacing: -0.3px;
     padding: 8px 0;
     resize: none;
     max-height: 120px;
     outline: none;
   }
 
-  .im-textarea::placeholder {
-    color: rgba(235, 235, 245, 0.35);
-  }
-
-  /* High-Contrast White Upward Send Arrow Button */
+  /* Send Arrow Button */
   .im-send-btn {
     width: 30px;
     height: 30px;
     border-radius: 50%;
-    background: #ffffff;
+    background: #000;
     border: none;
-    color: #000000;
+    color: #fff;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -762,209 +665,47 @@
     flex-shrink: 0;
     margin-left: 6px;
     margin-bottom: 3px;
-    transition: all 0.18s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    opacity: 1;
-    transform: scale(1);
-    box-shadow: 0 2px 8px rgba(255, 255, 255, 0.25);
-  }
-
-  .im-send-btn:hover {
-    background: #e5e5ea;
-    transform: scale(1.08);
-  }
-
-  .im-send-btn:active {
-    transform: scale(0.92);
   }
 
   .im-send-btn.hidden {
-    opacity: 0;
-    transform: scale(0.3);
-    pointer-events: none;
-    width: 0;
-    margin-left: 0;
-  }
-
-  .im-send-btn svg {
-    width: 15px;
-    height: 15px;
-    stroke-width: 2.8;
-  }
-
-  /* Voice / Waveform Button */
-  .im-voice-record-btn {
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    cursor: pointer;
-    width: 28px;
-    height: 28px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 4px;
-    margin-right: 4px;
-    transition: color 0.15s ease;
-  }
-
-  .im-voice-record-btn:hover {
-    color: #ffffff;
-  }
-
-  .im-send-btn:not(.hidden) ~ .im-voice-record-btn {
     display: none;
   }
 
-  /* Smiley Emoji Button */
-  .im-emoji-btn {
+  /* Voice / Emoji */
+  .im-voice-record-btn, .im-emoji-btn {
     background: none;
     border: none;
-    color: var(--text-secondary);
+    color: #000;
     cursor: pointer;
     width: 34px;
     height: 34px;
     display: flex;
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
     margin-bottom: 2px;
-    transition: color 0.15s ease, transform 0.15s ease;
   }
 
-  .im-emoji-btn:hover {
-    color: #ffffff;
-    transform: scale(1.1);
-  }
-
-  .im-emoji-btn svg {
-    width: 24px;
-    height: 24px;
-  }
-
-  /* ═══ APPLE TOAST ALERT (Coming soon) ═══ */
-  .im-apple-toast {
-    position: fixed;
-    top: 85px;
-    left: 50%;
-    transform: translateX(-50%) translateY(-20px);
-    background: rgba(30, 30, 32, 0.95);
-    -webkit-backdrop-filter: blur(20px);
-    backdrop-filter: blur(20px);
-    border: 0.5px solid rgba(255, 255, 255, 0.18);
-    border-radius: 20px;
-    padding: 8px 18px;
-    font-size: 13px;
-    font-weight: 500;
-    color: #ffffff;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
-    opacity: 0;
-    pointer-events: none;
-    transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.25);
-    z-index: 9999;
-  }
-
-  .im-apple-toast.show {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
-
-  .im-apple-toast svg {
-    width: 15px;
-    height: 15px;
-    color: #ffffff;
-  }
-
-  /* ═══ ERROR BANNER ═══ */
-  #chatError {
+  /* Reply Preview */
+  #replyPreview {
     display: none;
+    padding: 6px 12px;
+    background: rgba(0,0,0,0.03);
+    border-left: 3px solid var(--apple-primary);
+    border-radius: 4px;
+    margin-bottom: 6px;
     position: relative;
-    z-index: 40;
-    padding: 8px 16px;
-    font-size: 13px;
-    text-align: center;
-    font-weight: 500;
-    color: #ff453a;
-    background: rgba(255, 69, 58, 0.12);
-    border-bottom: 0.5px solid rgba(255, 69, 58, 0.2);
   }
-
-  /* ═══ FULLSCREEN IMAGE LIGHTBOX ═══ */
-  .im-lightbox {
-    position: fixed;
-    inset: 0;
-    z-index: 9999;
-    background: rgba(0, 0, 0, 0.92);
-    -webkit-backdrop-filter: blur(25px);
-    backdrop-filter: blur(25px);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-  }
-
-  .im-lightbox.active {
-    display: flex;
-  }
-
-  .im-lightbox img {
-    max-width: 92vw;
-    max-height: 86vh;
-    border-radius: 12px;
-    object-fit: contain;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
-  }
-
-  .im-lightbox-close {
+  #replyPreviewClose {
     position: absolute;
-    top: 24px;
-    right: 24px;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.18);
-    border: none;
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    right: 8px;
+    top: 8px;
     cursor: pointer;
+    color: var(--text-tertiary);
   }
 
   @media (max-width: 768px) {
     .im-row { max-width: 88%; }
     .im-back-btn span { display: none; }
-    .im-header { padding: 8px 12px; }
-    .im-composer {
-      padding: 8px 10px max(10px, env(safe-area-inset-bottom, 8px));
-    }
-    .im-textarea {
-      font-size: 16px !important; /* Prevents iOS auto-zoom */
-    }
-    .im-feed {
-      padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
-    }
-  }
-
-  @media (max-width: 480px) {
-    .im-row { max-width: 92%; }
-    .im-bubble {
-      padding: 8px 12px;
-      font-size: 14.5px;
-    }
-    .im-plus-upload-btn, .im-emoji-btn {
-      width: 32px;
-      height: 32px;
-    }
-    .im-input-capsule {
-      padding: 2px 4px 2px 10px;
-    }
-  }
-
-  @media (min-width: 769px) {
-    .im-feed { padding-left: 14%; padding-right: 14%; }
   }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -973,28 +714,18 @@
 
 <div class="im-app">
 
-  <!-- MOVING CLASSY PEARL-WHITE ANIMATED GRADIENT BACKDROP -->
-  <div class="white-ambient-mesh">
-    <div class="white-wave-sweep"></div>
-    <div class="white-glow-orb orb-1"></div>
-    <div class="white-glow-orb orb-2"></div>
-    <div class="white-glow-orb orb-3"></div>
-    <div class="white-glow-orb orb-4"></div>
-  </div>
+  <div class="minimal-bg"></div>
 
-  <!-- NAVIGATION BAR (Exact from User Screenshot) -->
   <header class="im-header">
     <div class="im-header-side">
-      <a href="dashboard.html" class="im-back-btn" title="Back to Feed">
+      <a href="dashboard.html" class="im-back-btn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="15 18 9 12 15 6"/>
         </svg>
-        <span>Feed</span>
       </a>
     </div>
 
-    <!-- Centered Avatar + Contact Title (Exact Replica) -->
-    <div class="im-header-center" onclick="location.href='dashboard.html'" title="Conversation Details">
+    <div class="im-header-center" onclick="location.href='dashboard.html'">
       <div class="im-contact-avatar">
         <svg viewBox="0 0 24 24">
           <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
@@ -1002,34 +733,18 @@
       </div>
       <div class="im-contact-title-row">
         <span class="im-contact-name">Class Group Chat</span>
-        <svg class="im-contact-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="9 18 15 12 9 6"/>
-        </svg>
       </div>
     </div>
 
-    <!-- Right Profile Avatar -->
     <div class="im-header-side right">
-      <a href="profile.html" class="im-profile-link" id="headerProfileAvatar" title="My Profile">
+      <a href="profile.html" class="im-profile-link" id="headerProfileAvatar">
         <span id="headerAvatarChar">·</span>
       </a>
     </div>
   </header>
 
-  <!-- ERROR BANNER -->
   <div id="chatError"></div>
 
-  <!-- APPLE TOAST NOTIFICATION -->
-  <div class="im-apple-toast" id="appleToast">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="10"/>
-      <line x1="12" y1="16" x2="12" y2="12"/>
-      <line x1="12" y1="8" x2="12.01" y2="8"/>
-    </svg>
-    <span id="toastMessage">Coming soon</span>
-  </div>
-
-  <!-- MAIN MESSAGE FEED -->
   <main class="im-feed" id="chatFeed">
     <div class="im-feed-inner" id="feedInner">
       <div class="im-empty-box" id="emptyNotice">
@@ -1037,44 +752,31 @@
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
         </svg>
         <h3>No Messages Yet</h3>
-        <p>Send a message or attachment to start chatting with your class.</p>
       </div>
     </div>
   </main>
 
-  <!-- COMPOSER BAR (Exact Screenshot: [+] [Text Message · SMS (wave)] [😊]) -->
   <footer class="im-composer">
     <div class="im-composer-inner">
-
-      <!-- Attached File Chip -->
       <div class="im-attachment-chip" id="attachmentChip">
         <div class="im-chip-thumb">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-            <circle cx="8.5" cy="8.5" r="1.5"/>
-            <polyline points="21 15 16 10 5 21"/>
           </svg>
         </div>
         <div class="im-chip-info">
-          <span class="im-chip-name" id="chipFileName">image.jpg</span>
-          <span class="im-chip-size" id="chipFileSize">1.2 MB</span>
+          <span class="im-chip-name" id="chipFileName"></span>
         </div>
-        <button class="im-chip-close-btn" onclick="removeAttachedFile()" title="Remove Attachment">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18"/>
-            <line x1="6" y1="6" x2="18" y2="18"/>
-          </svg>
-        </button>
+        <button class="im-chip-close-btn" onclick="removeAttachedFile()">×</button>
       </div>
 
-      <!-- Controls Row -->
-      <div id="replyPreview" class="reply-preview-box" style="display: none; padding: 10px; background: rgba(0,0,0,0.05); border-left: 3px solid #007aff; margin-bottom: 5px; font-size: 13px; position: relative; border-radius: 12px; width: 100%;">
-        <div style="font-weight: 600; color: #007aff; margin-bottom: 2px;" id="replyPreviewName"></div>
-        <div id="replyPreviewText" style="color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></div>
-        <button type="button" onclick="cancelReply()" style="position: absolute; right: 8px; top: 8px; background: none; border: none; font-size: 16px; cursor: pointer; color: #999;">×</button>
+      <div id="replyPreview">
+        <div style="font-weight: 600; color: #000; margin-bottom: 2px;" id="replyPreviewName"></div>
+        <div id="replyPreviewText" style="color: #666; font-size: 13px;"></div>
+        <div id="replyPreviewClose" onclick="cancelReply()">×</div>
       </div>
+
       <div class="im-controls">
-
         <!-- (+) Plus Button to Directly Upload Files -->
         <button class="im-plus-upload-btn" onclick="document.getElementById('hiddenFileInput').click()" title="Attach Photo or Video">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">

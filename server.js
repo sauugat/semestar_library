@@ -10,6 +10,25 @@ const { createClient } = require('@supabase/supabase-js');
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
+
+function sendBroadcast(event, payload) {
+  const channel = supabase.channel('public:chat_messages');
+  channel.subscribe((status) => {
+    if (status === 'SUBSCRIBED') {
+      channel.send({
+        type: 'broadcast',
+        event: event,
+        payload: payload
+      }).then(() => {
+        supabase.removeChannel(channel);
+      }).catch(err => {
+        console.error('Broadcast error:', err);
+        supabase.removeChannel(channel);
+      });
+    }
+  });
+}
+
 const crypto = require('crypto');
 const db = require('./db');
 
@@ -1564,11 +1583,9 @@ app.post('/api/chat/reactions', requireLogin, async (req, res) => {
     } else {
       await db.run(`INSERT INTO chat_reactions (messageId, studentId, emoji) VALUES (?, ?, ?)`, messageId, studentId, emoji);
     }
-    supabase.channel('public:chat_messages').send({
-      type: 'broadcast',
-      event: 'reaction_update',
-      payload: { messageId, studentId, emoji, action: existing ? 'remove' : 'add' }
-    });
+    
+    sendBroadcast('reaction_update', { messageId, studentId, emoji, action: existing ? 'remove' : 'add' });
+    
     res.json({ success: true });
   } catch (error) {
     console.error('Reaction error:', error);
@@ -1587,11 +1604,8 @@ app.post('/api/chat/read', requireLogin, async (req, res) => {
       ON CONFLICT(studentId) DO UPDATE SET lastReadMessageId = excluded.lastReadMessageId
     `, studentId, lastReadMessageId);
 
-    supabase.channel('public:chat_messages').send({
-      type: 'broadcast',
-      event: 'read_receipt',
-      payload: { studentId, lastReadMessageId }
-    });
+    sendBroadcast('read_receipt', { studentId, lastReadMessageId });
+
     res.json({ success: true });
   } catch (error) {
     console.error('Read receipt error:', error);
@@ -1609,11 +1623,8 @@ app.post('/api/chat/typing', requireLogin, async (req, res) => {
       ON CONFLICT(studentId) DO UPDATE SET lastTypedAt = excluded.lastTypedAt
     `, studentId, now);
 
-    supabase.channel('public:chat_messages').send({
-      type: 'broadcast',
-      event: 'typing',
-      payload: { studentId, name, timestamp: now }
-    });
+    sendBroadcast('typing', { studentId, name, timestamp: now });
+
     res.json({ success: true });
   } catch (error) {
     console.error('Typing error:', error);
@@ -1687,11 +1698,7 @@ app.post('/api/chat/messages', requireLogin, chatRateLimiter, handleChatUpload, 
     `, messageId);
 
     if (newMsg) {
-      supabase.channel('public:chat_messages').send({
-        type: 'broadcast',
-        event: 'new_message',
-        payload: newMsg
-      });
+      sendBroadcast('new_message', newMsg);
     }
 
     res.json({ message: 'Sent', messageId });

@@ -111,7 +111,8 @@ class CustomDbStore extends session.Store {
       if (db.isPostgres) {
         await db.run(
           `INSERT INTO session (sid, sess, expire) VALUES ($1, $2::json, $3)
-           ON CONFLICT (sid) DO UPDATE SET sess = EXCLUDED.sess, expire = EXCLUDED.expire`,
+           ON CONFLICT (sid) DO UPDATE SET sess = EXCLUDED.sess, expire = EXCLUDED.expire
+           RETURNING sid`,
           sid, sessString, expire
         );
       } else {
@@ -158,18 +159,6 @@ app.use(session({
     maxAge: 1000 * 60 * 60 * 24 * 7 // 7 days persistent session
   }
 }));
-
-// --- TEMPORARY GUEST MODE ---
-// Automatically signs in everyone as a guest
-app.use((req, res, next) => {
-  if (!req.session) req.session = {};
-  if (!req.session.studentId) {
-    req.session.studentId = 'guest';
-    req.session.studentName = 'Guest User';
-    req.session.role = 'student';
-  }
-  next();
-});
 
 // --- Login Rate Limiter (Brute-Force Defense) ---
 const loginAttempts = new Map(); // ip -> { count, lockedUntil }
@@ -902,10 +891,6 @@ function handleFileUpload(req, res, next) {
 }
 
 app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) => {
-  if (req.session.studentId === 'guest') {
-    return res.status(403).json({ message: 'Uploads are temporarily disabled.' });
-  }
-
   const uploadedFiles = req.files || (req.file ? [req.file] : []);
   if (!uploadedFiles || uploadedFiles.length === 0) {
     return res.status(400).json({ message: 'No file was uploaded.' });

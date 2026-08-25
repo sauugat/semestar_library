@@ -1316,17 +1316,16 @@ app.get('/api/files/:id/view', requireLogin, async (req, res) => {
 app.post('/api/files/:id/like', requireLogin, async (req, res) => {
   const fileId = req.params.id;
   const studentId = req.session.studentId;
-  const existing = await db.get('SELECT 1 FROM file_likes WHERE fileId = ? AND studentId = ?', fileId, studentId);
 
+  const existing = await db.get('SELECT 1 FROM file_likes WHERE fileId = ? AND studentId = ?', fileId, studentId);
   if (existing) {
     await db.run('DELETE FROM file_likes WHERE fileId = ? AND studentId = ?', fileId, studentId);
   } else {
-    await db.run('INSERT INTO file_likes (fileId, studentId) VALUES (?, ?)', fileId, studentId);
-    
+    await db.run('INSERT INTO file_likes (fileId, studentId) VALUES (?, ?) RETURNING fileId', fileId, studentId);
     // Create notification
     const file = await db.get('SELECT uploadedBy, originalName FROM files WHERE id = ?', fileId);
     if (file && file.uploadedBy !== studentId) {
-      await db.run('INSERT INTO notifications (recipientStudentId, type, relatedFileId, message) VALUES (?, ?, ?, ?)',
+      await db.run('INSERT INTO notifications (recipientStudentId, type, relatedFileId, message) VALUES (?, ?, ?, ?) RETURNING id',
         file.uploadedBy, 'like', fileId, `${req.session.name || 'Someone'} liked your file: ${file.originalName}`
       );
     }
@@ -1789,7 +1788,7 @@ app.post('/api/profile/:studentId/follow', requireLogin, async (req, res) => {
   if (existing) {
     await db.run('DELETE FROM follows WHERE followerId = ? AND followingId = ?', followerId, followingId);
   } else {
-    await db.run('INSERT INTO follows (followerId, followingId, createdAt) VALUES (?, ?, ?)', followerId, followingId, new Date().toISOString());
+    await db.run('INSERT INTO follows (followerId, followingId, createdAt) VALUES (?, ?, ?) RETURNING followerId', followerId, followingId, new Date().toISOString());
   }
 
   const countRow = await db.get('SELECT COUNT(*) AS c FROM follows WHERE followingId = ?', followingId);

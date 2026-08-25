@@ -82,19 +82,66 @@ async function ensureLocalFile(filename) {
   return null;
 }
 
-let sessionStore = undefined;
-if (db.isPostgres && db.pgPool) {
-  try {
-    const PgSession = require('connect-pg-simple')(session);
-    sessionStore = new PgSession({
-      pool: db.pgPool,
-      tableName: 'session'
-    });
-    console.log('[Session]: Persistent PostgreSQL Session Store enabled (connect-pg-simple)');
-  } catch (err) {
-    console.warn('[Session]: Fallback to default session store:', err.message);
+class CustomDbStore extends session.Store {
+  async get(sid, callback) {
+    try {
+      // For PostgreSQL we can use CURRENT_TIMESTAMP or NOW() but to keep it universal, we just fetch and compare in JS, or we can just rely on the DB
+      let row;
+      if (db.isPostgres) {
+        row = await db.get('SELECT sess FROM session WHERE sid = $1 AND expire >= CURRENT_TIMESTAMP', sid);
+      } else {
+        row = await db.get('SELECT sess FROM session WHERE sid = ? AND expire >= CURRENT_TIMESTAMP', sid);
+      }
+      if (!row) return callback(null, null);
+      let data = row.sess;
+      if (typeof data === 'string') data = JSON.parse(data);
+      callback(null, data);
+    } catch (err) {
+      console.error('[Session Get Error]:', err.message);
+      callback(err);
+    }
+  }
+
+  async set(sid, sessionData, callback) {
+    try {
+      const expireDate = sessionData.cookie && sessionData.cookie.expires ? new Date(sessionData.cookie.expires) : new Date(Date.now() + 86400000);
+      const expire = expireDate.toISOString();
+      const sessString = JSON.stringify(sessionData);
+      
+      if (db.isPostgres) {
+        await db.run(
+          `INSERT INTO session (sid, sess, expire) VALUES ($1, $2::json, $3)
+           ON CONFLICT (sid) DO UPDATE SET sess = EXCLUDED.sess, expire = EXCLUDED.expire`,
+          sid, sessString, expire
+        );
+      } else {
+        await db.run(
+          `INSERT OR REPLACE INTO session (sid, sess, expire) VALUES (?, ?, ?)`,
+          sid, sessString, expire
+        );
+      }
+      if (callback) callback(null);
+    } catch (err) {
+      console.error('[Session Set Error]:', err.message);
+      if (callback) callback(err);
+    }
+  }
+
+  async destroy(sid, callback) {
+    try {
+      if (db.isPostgres) {
+        await db.run('DELETE FROM session WHERE sid = $1', sid);
+      } else {
+        await db.run('DELETE FROM session WHERE sid = ?', sid);
+      }
+      if (callback) callback(null);
+    } catch (err) {
+      if (callback) callback(err);
+    }
   }
 }
+
+const sessionStore = new CustomDbStore();
 
 app.set('trust proxy', 1);
 

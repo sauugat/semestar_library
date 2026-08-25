@@ -4,17 +4,28 @@ const bcrypt = require('bcryptjs');
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
+const crypto = require('crypto');
+const db = require('./db');
 const { createClient } = require('@supabase/supabase-js');
 
 // Initialize Supabase Client
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+let supabase = null;
+let broadcastChannel = null;
 
-let broadcastChannel = supabase.channel('public:chat_messages');
-broadcastChannel.subscribe();
+if (supabaseUrl && supabaseKey) {
+  try {
+    supabase = createClient(supabaseUrl, supabaseKey);
+    broadcastChannel = supabase.channel('public:chat_messages');
+    broadcastChannel.subscribe();
+  } catch (err) {
+    console.warn('[Supabase Client Warning]:', err.message);
+  }
+}
 
 function sendBroadcast(event, payload) {
+  if (!broadcastChannel) return;
   broadcastChannel.send({
     type: 'broadcast',
     event: event,
@@ -23,9 +34,6 @@ function sendBroadcast(event, payload) {
     console.error('Broadcast error:', err);
   });
 }
-
-const crypto = require('crypto');
-const db = require('./db');
 
 const app = express();
 
@@ -1700,6 +1708,36 @@ app.post('/api/chat/messages', requireLogin, chatRateLimiter, handleChatUpload, 
   } catch (error) {
     console.error('Chat message insert error:', error.message);
     res.status(500).json({ message: 'Failed to send message.' });
+  }
+});
+
+app.delete('/api/chat/messages/:id', requireLogin, async (req, res) => {
+  const messageId = parseInt(req.params.id, 10);
+  if (!messageId) return res.status(400).json({ error: 'Invalid message ID' });
+
+  const studentId = req.session.studentId;
+  const isAdmin = await isStudentAdmin(studentId);
+
+  try {
+    const msg = await db.get('SELECT * FROM chat_messages WHERE id = ?', messageId);
+    if (!msg) return res.status(404).json({ error: 'Message not found' });
+
+    if (msg.studentId !== studentId && !isAdmin) {
+      return res.status(403).json({ error: 'Unauthorized to delete this message' });
+    }
+
+    // Clean up foreign references & reactions
+    await db.run('UPDATE chat_messages SET replyToId = NULL WHERE replyToId = ?', messageId);
+    await db.run('DELETE FROM chat_reactions WHERE messageId = ?', messageId);
+    await db.run('DELETE FROM chat_messages WHERE id = ?', messageId);
+
+    // Broadcast message deletion to all clients
+    sendBroadcast('delete_message', { messageId });
+
+    res.json({ success: true, messageId });
+  } catch (error) {
+    console.error('Delete chat message error:', error);
+    res.status(500).json({ error: 'Failed to delete message' });
   }
 });
 

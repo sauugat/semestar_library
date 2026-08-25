@@ -1071,28 +1071,41 @@
     .im-send-btn {
       width: 32px !important;
       height: 32px !important;
-      margin-right: 4px !important;
-      margin-bottom: 4px !important;
+      min-width: 32px !important;
+      margin-left: 6px !important;
+      margin-bottom: 2px !important;
       border-radius: 8px !important;
-      background: #111 !important;
-      color: #fff !important;
+      border: none !important;
+      background: #f0f0f0 !important;
+      color: #999999 !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      cursor: default !important;
       box-shadow: none !important;
-      transition: transform var(--ease), opacity var(--ease), background var(--ease) !important;
+      transition: all var(--ease) !important;
     }
 
-    .im-send-btn:hover {
-      background: #000 !important;
-      transform: translateY(-1px) !important;
+    .im-send-btn.ready {
+      background: #111111 !important;
+      color: #ffffff !important;
+      cursor: pointer !important;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12) !important;
+    }
+
+    .im-send-btn.ready:hover {
+      background: #000000 !important;
+      transform: translateY(-1px) scale(1.04) !important;
+    }
+
+    .im-send-btn.ready:active {
+      transform: translateY(0) scale(0.96) !important;
     }
 
     .im-send-btn svg {
       width: 16px !important;
       height: 16px !important;
-      stroke-width: 2 !important;
-    }
-
-    .im-send-btn.hidden {
-      display: none !important;
+      stroke-width: 2.2 !important;
     }
 
     .im-attachment-chip,
@@ -1131,14 +1144,345 @@
       background: #ededed !important;
     }
 
+    /* ═══ ADVANCED LIGHTBOX MODAL WITH ZOOM & SAVE ═══ */
     .im-lightbox {
-      background: rgba(0, 0, 0, .94) !important;
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      right: 0 !important;
+      bottom: 0 !important;
+      background: rgba(12, 12, 12, 0.94) !important;
+      backdrop-filter: blur(14px) !important;
+      -webkit-backdrop-filter: blur(14px) !important;
+      z-index: 99999 !important;
+      display: none;
+      flex-direction: column !important;
+      opacity: 0;
+      transition: opacity 0.2s ease !important;
+      user-select: none;
     }
 
-    .im-lightbox-close {
-      background: #fff !important;
-      color: #111 !important;
-      border: 0 !important;
+    .im-lightbox.active {
+      display: flex !important;
+      opacity: 1 !important;
+    }
+
+    .im-lightbox-header {
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      background: rgba(22, 22, 22, 0.85);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      flex-shrink: 0;
+      z-index: 10;
+    }
+
+    .im-lightbox-title {
+      color: #e5e5e5;
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: -0.1px;
+      max-width: 35%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .im-lightbox-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .im-lightbox-btn {
+      height: 32px;
+      padding: 0 10px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #f0f0f0;
+      font-size: 12px;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      cursor: pointer;
+      transition: background var(--ease), transform var(--ease);
+    }
+
+    .im-lightbox-btn:hover {
+      background: rgba(255, 255, 255, 0.18);
+      color: #ffffff;
+    }
+
+    .im-lightbox-btn.save-btn {
+      background: #ffffff;
+      color: #0b0b0b;
+      border-color: #ffffff;
+      font-weight: 600;
+    }
+
+    .im-lightbox-btn.save-btn:hover {
+      background: #e8e8e8;
+      color: #000000;
+    }
+
+    .im-lightbox-btn.close-btn {
+      padding: 0 8px;
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .im-lightbox-btn.close-btn:hover {
+      background: rgba(255, 255, 255, 0.25);
+    }
+
+    .im-lightbox-zoom-level {
+      color: #999;
+      font-size: 11px;
+      font-weight: 500;
+      min-width: 40px;
+      text-align: center;
+    }
+
+    .im-lightbox-body {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: default;
+    }
+
+    .im-lightbox-body.can-pan {
+      cursor: grab;
+    }
+
+    .im-lightbox-body.panning {
+      cursor: grabbing;
+    }
+
+    .im-lightbox-img-wrapper {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transform-origin: center center;
+      transition: transform 0.08s ease-out;
+      will-change: transform;
+    }
+
+    .im-lightbox-img-wrapper img {
+      max-width: 90vw;
+      max-height: 80vh;
+      object-fit: contain;
+      border-radius: 6px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+      pointer-events: auto;
+    }
+
+    /* ═══ TYPING INDICATOR ═══ */
+    .im-typing-indicator {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      background: #f7f7f7;
+      border: 1px solid #ededed;
+      border-radius: 14px;
+      width: fit-content;
+      margin: 4px 0 6px 4px;
+      animation: fadeInTyping 0.18s ease forwards;
+    }
+
+    @keyframes fadeInTyping {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .typing-dots {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .typing-dots span {
+      width: 5px;
+      height: 5px;
+      background: #888888;
+      border-radius: 50%;
+      animation: typingBounce 1.4s infinite ease-in-out both;
+    }
+
+    .typing-dots span:nth-child(1) { animation-delay: -0.32s; }
+    .typing-dots span:nth-child(2) { animation-delay: -0.16s; }
+    .typing-dots span:nth-child(3) { animation-delay: 0s; }
+
+    @keyframes typingBounce {
+      0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+      40% { transform: scale(1.15); opacity: 1; }
+    }
+
+    .typing-text {
+      font-size: 12px;
+      color: #666666;
+      font-weight: 500;
+    }
+
+    /* Message Delete Button */
+    .msg-delete-btn {
+      width: 28px !important;
+      height: 28px !important;
+      border-radius: 8px !important;
+      border: 1px solid #e6e6e6 !important;
+      background: rgba(255, 255, 255, .98) !important;
+      color: #888 !important;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, .06) !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      cursor: pointer !important;
+      transition: opacity var(--ease), transform var(--ease), background var(--ease), color var(--ease);
+    }
+
+    .msg-delete-btn:hover {
+      background: #111111 !important;
+      border-color: #111111 !important;
+      color: #ffffff !important;
+      transform: none !important;
+    }
+
+    .im-row.deleting {
+      opacity: 0 !important;
+      transform: scale(0.92) translateY(6px) !important;
+      max-height: 0 !important;
+      margin: 0 !important;
+      overflow: hidden !important;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    }
+
+    /* ═══ MINIMALIST MONOCHROME DELETE CONFIRMATION MODAL ═══ */
+    .im-confirm-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      z-index: 100000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      opacity: 0;
+      transition: opacity 0.18s ease;
+      user-select: none;
+    }
+
+    .im-confirm-overlay.active {
+      display: flex;
+      opacity: 1;
+    }
+
+    .im-confirm-card {
+      width: 100%;
+      max-width: 320px;
+      background: #ffffff;
+      border: 1px solid #e8e8e8;
+      border-radius: 14px;
+      padding: 24px 20px 20px;
+      box-shadow: 0 20px 48px rgba(0, 0, 0, 0.16);
+      transform: scale(0.95) translateY(6px);
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+      text-align: center;
+    }
+
+    .im-confirm-overlay.active .im-confirm-card {
+      transform: scale(1) translateY(0);
+    }
+
+    .im-confirm-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: #f7f7f7;
+      color: #111111;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 14px;
+      border: 1px solid #ededed;
+    }
+
+    .im-confirm-icon svg {
+      width: 18px;
+      height: 18px;
+      stroke-width: 2;
+    }
+
+    .im-confirm-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #111111;
+      letter-spacing: -0.2px;
+      margin-bottom: 6px;
+    }
+
+    .im-confirm-desc {
+      font-size: 13px;
+      color: #737373;
+      line-height: 1.45;
+      margin-bottom: 22px;
+    }
+
+    .im-confirm-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .im-confirm-btn {
+      flex: 1;
+      height: 38px;
+      border-radius: 9px;
+      font-size: 13px;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-family: inherit;
+    }
+
+    .im-confirm-btn.cancel {
+      background: #ffffff;
+      color: #444444;
+      border: 1px solid #dedede;
+    }
+
+    .im-confirm-btn.cancel:hover {
+      background: #f5f5f5;
+      border-color: #cecece;
+      color: #111111;
+    }
+
+    .im-confirm-btn.delete {
+      background: #111111;
+      color: #ffffff;
+      border: 1px solid #111111;
+      font-weight: 600;
+    }
+
+    .im-confirm-btn.delete:hover {
+      background: #000000;
+      border-color: #000000;
+      transform: translateY(-1px);
     }
 
     .emoji-picker-popup {
@@ -1154,19 +1498,21 @@
       text-underline-offset: 2px;
     }
 
-    /* Desktop: hide secondary message controls until the message is relevant. */
+    /* Desktop: hide secondary message controls until hover/focus */
     @media (min-width: 769px) {
-
       .im-row .msg-reaction-btn,
-      .im-row .msg-reply-btn {
+      .im-row .msg-reply-btn,
+      .im-row .msg-delete-btn {
         opacity: 0;
         pointer-events: none;
       }
 
       .im-row:hover .msg-reaction-btn,
       .im-row:hover .msg-reply-btn,
+      .im-row:hover .msg-delete-btn,
       .im-row:focus-within .msg-reaction-btn,
-      .im-row:focus-within .msg-reply-btn {
+      .im-row:focus-within .msg-reply-btn,
+      .im-row:focus-within .msg-delete-btn {
         opacity: 1;
         pointer-events: auto;
       }
@@ -1284,6 +1630,16 @@
           <h3>No Messages Yet</h3>
           <p>Send a message or attachment to start chatting with your class.</p>
         </div>
+
+        <!-- Typing Indicator in Feed -->
+        <div id="typingIndicator" class="im-typing-indicator" style="display:none;">
+          <div class="typing-dots">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <span id="typingIndicatorText" class="typing-text">Someone is typing...</span>
+        </div>
       </div>
 
       <!-- New Messages Pill -->
@@ -1328,8 +1684,8 @@
             <textarea class="im-textarea" id="chatTextarea" placeholder="Write a message..." rows="1" maxlength="2000"
               oninput="handleInputState()" onkeydown="handleKeyAction(event)"></textarea>
 
-            <!-- Blue Upward Send Arrow Button -->
-            <button class="im-send-btn hidden" id="sendBtn" onclick="sendMessage()" title="Send">
+            <!-- Send Arrow Button (Always Visible in Capsule) -->
+            <button class="im-send-btn" id="sendBtn" onclick="sendMessage()" title="Send message" aria-label="Send message">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="12" y1="19" x2="12" y2="5" />
                 <polyline points="5 12 12 5 19 12" />
@@ -1343,23 +1699,80 @@
 
   </div>
 
-  <!-- LIGHTBOX MODAL -->
-  <div class="im-lightbox" id="lightboxModal" onclick="closeLightbox()">
-    <button class="im-lightbox-close" onclick="closeLightbox()">
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5"
-        stroke-linecap="round" stroke-linejoin="round">
-        <line x1="18" y1="6" x2="6" y2="18" />
-        <line x1="6" y1="6" x2="18" y2="18" />
-      </svg>
-    </button>
-    <img id="lightboxTargetImg" src="" alt="Fullscreen Media" onclick="event.stopPropagation()">
+  <!-- ADVANCED LIGHTBOX MODAL WITH ZOOM & SAVE -->
+  <div class="im-lightbox" id="lightboxModal" role="dialog" aria-modal="true">
+    <div class="im-lightbox-header" onclick="event.stopPropagation()">
+      <div class="im-lightbox-title" id="lightboxTitle">Image Preview</div>
+      <div class="im-lightbox-actions">
+        <button class="im-lightbox-btn" onclick="zoomImage(-0.25)" title="Zoom Out (–)">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            <line x1="8" y1="11" x2="14" y2="11"></line>
+          </svg>
+        </button>
+        <span class="im-lightbox-zoom-level" id="lightboxZoomLevel">100%</span>
+        <button class="im-lightbox-btn" onclick="zoomImage(0.25)" title="Zoom In (+)">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            <line x1="11" y1="8" x2="11" y2="14"></line>
+            <line x1="8" y1="11" x2="14" y2="11"></line>
+          </svg>
+        </button>
+        <button class="im-lightbox-btn" onclick="resetZoom()" title="Reset Zoom">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+            <path d="M3 3v5h5"></path>
+          </svg>
+        </button>
+        <button class="im-lightbox-btn save-btn" onclick="downloadCurrentMedia()" title="Save Image">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span id="saveBtnText">Save</span>
+        </button>
+        <button class="im-lightbox-btn close-btn" onclick="closeLightbox()" title="Close (Esc)">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div class="im-lightbox-body" id="lightboxBody">
+      <div class="im-lightbox-img-wrapper" id="lightboxImgWrapper">
+        <img id="lightboxTargetImg" src="" alt="Fullscreen Media" onclick="event.stopPropagation()">
+      </div>
+    </div>
+  </div>
+
+  <!-- MINIMALIST MONOCHROME DELETE CONFIRMATION MODAL -->
+  <div class="im-confirm-overlay" id="deleteConfirmModal" onclick="closeDeleteConfirm(event)">
+    <div class="im-confirm-card" onclick="event.stopPropagation()">
+      <div class="im-confirm-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="3 6 5 6 21 6"></polyline>
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          <line x1="10" y1="11" x2="10" y2="17"></line>
+          <line x1="14" y1="11" x2="14" y2="17"></line>
+        </svg>
+      </div>
+      <div class="im-confirm-title">Delete message?</div>
+      <div class="im-confirm-desc">This message will be removed for everyone in this group chat.</div>
+      <div class="im-confirm-actions">
+        <button type="button" class="im-confirm-btn cancel" onclick="closeDeleteConfirm()">Cancel</button>
+        <button type="button" class="im-confirm-btn delete" id="confirmDeleteBtn" onclick="executeDeleteMessage()">Delete</button>
+      </div>
+    </div>
   </div>
 
   <script>
     let currentStudent = null;
     let lastMessageId = 0;
     let isFetching = false;
-    let pollTimer = null;
     let lastDateString = null;
     let toastTimer = null;
     let myLastReadId = 0;
@@ -1367,11 +1780,26 @@
     const textarea = document.getElementById('chatTextarea');
     const sendBtn = document.getElementById('sendBtn');
 
+    // Typing state & active typers
+    let lastTypingSent = 0;
+    const activeTypers = new Map();
+
+    // Lightbox & Zoom state
+    let currentZoom = 1;
+    let panX = 0;
+    let panY = 0;
+    let isPanning = false;
+    let panStartX = 0;
+    let panStartY = 0;
+    let currentLightboxUrl = '';
+    let currentLightboxFilename = '';
+
     let currentReplyToId = null;
     function cancelReply() {
       currentReplyToId = null;
       document.getElementById('replyPreview').style.display = 'none';
     }
+
     window.initReply = function (id, name, text) {
       currentReplyToId = id;
       document.getElementById('replyPreviewName').textContent = 'Replying to ' + name;
@@ -1393,9 +1821,13 @@
         sendBtn.classList.remove('ready');
       }
 
-      // Typing indicator throttle
+      // Typing indicator throttle (at most once every 2 seconds)
       if (hasText) {
-        fetch('/api/chat/typing', { method: 'POST' }).catch(e => { });
+        const now = Date.now();
+        if (now - lastTypingSent > 2000) {
+          lastTypingSent = now;
+          fetch('/api/chat/typing', { method: 'POST' }).catch(() => {});
+        }
       }
     }
 
@@ -1404,17 +1836,6 @@
         e.preventDefault();
         sendMessage();
       }
-    }
-
-    // Toast Notification for 'Coming Soon'
-    function showToast(msg) {
-      const toast = document.getElementById('appleToast');
-      document.getElementById('toastMessage').textContent = msg;
-      toast.classList.add('show');
-      if (toastTimer) clearTimeout(toastTimer);
-      toastTimer = setTimeout(() => {
-        toast.classList.remove('show');
-      }, 2400);
     }
 
     // Session Init
@@ -1463,7 +1884,6 @@
       }
 
       document.getElementById('chipFileName').textContent = file.name;
-      document.getElementById('chipFileSize').textContent = formatBytes(file.size);
       document.getElementById('attachmentChip').classList.add('active');
       handleInputState();
     }
@@ -1472,12 +1892,6 @@
       document.getElementById('hiddenFileInput').value = '';
       document.getElementById('attachmentChip').classList.remove('active');
       handleInputState();
-    }
-
-    function formatBytes(bytes) {
-      if (bytes < 1024) return bytes + ' B';
-      if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
-      return (bytes / 1048576).toFixed(1) + ' MB';
     }
 
     function showError(msg) {
@@ -1545,8 +1959,14 @@
       col.appendChild(timeMeta);
 
       row.appendChild(col);
-      container.appendChild(row);
-      scrollToBottom();
+      
+      const typingEl = document.getElementById('typingIndicator');
+      if (typingEl) {
+        container.insertBefore(row, typingEl);
+      } else {
+        container.appendChild(row);
+      }
+      scrollToBottom(true);
 
       const payload = new FormData();
       if (text) payload.append('text', text);
@@ -1558,6 +1978,7 @@
       textarea.style.height = 'auto';
       cancelReply();
       removeAttachedFile();
+      handleInputState();
 
       try {
         const res = await fetch('/api/chat/messages', {
@@ -1570,13 +1991,10 @@
           showError(data.message || 'Unable to send.');
           document.getElementById(tempId)?.remove();
         } else {
-          // Change temp status to Sent (single tick)
           const tempTime = document.getElementById(tempId)?.querySelector('.im-time-meta');
           if (tempTime) {
             tempTime.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align: middle; margin-right: 2px;"><polyline points="20 6 9 17 4 12"/></svg> Sent`;
           }
-          // Realtime broadcast handles appending the message for everyone else.
-          // For the sender, we let the broadcast event replace the temp message or just append it and we deduplicate by ID.
         }
       } catch (err) {
         showError('Network error. Check connection.');
@@ -1584,6 +2002,71 @@
       } finally {
         sendBtn.disabled = false;
         textarea.focus();
+      }
+    }
+
+    // Delete Message Modal & Logic
+    let pendingDeleteMsgId = null;
+
+    function openDeleteConfirm(msgId) {
+      pendingDeleteMsgId = msgId;
+      const modal = document.getElementById('deleteConfirmModal');
+      if (modal) modal.classList.add('active');
+    }
+
+    function closeDeleteConfirm(e) {
+      if (e && e.target && e.target !== e.currentTarget && !e.target.classList.contains('cancel')) return;
+      pendingDeleteMsgId = null;
+      const modal = document.getElementById('deleteConfirmModal');
+      if (modal) modal.classList.remove('active');
+    }
+
+    async function executeDeleteMessage() {
+      if (!pendingDeleteMsgId) return;
+      const msgId = pendingDeleteMsgId;
+      closeDeleteConfirm();
+
+      try {
+        const res = await fetch(`/api/chat/messages/${msgId}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (!res.ok) {
+          showError(data.error || 'Failed to delete message');
+        } else {
+          removeMessageElement(msgId);
+        }
+      } catch (err) {
+        showError('Network error. Failed to delete.');
+      }
+    }
+
+    function removeMessageElement(msgId) {
+      const row = document.getElementById(`msg-row-${msgId}`);
+      if (row) {
+        row.classList.add('deleting');
+        setTimeout(() => {
+          row.remove();
+          checkEmptyFeed();
+        }, 260);
+      }
+    }
+
+    function checkEmptyFeed() {
+      const container = document.getElementById('feedInner');
+      const messages = container.querySelectorAll('.im-row:not(.temp-msg)');
+      if (messages.length === 0) {
+        if (!document.getElementById('emptyNotice')) {
+          const emptyDiv = document.createElement('div');
+          emptyDiv.className = 'im-empty-box';
+          emptyDiv.id = 'emptyNotice';
+          emptyDiv.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+            <h3>No Messages Yet</h3>
+            <p>Send a message or attachment to start chatting with your class.</p>
+          `;
+          container.prepend(emptyDiv);
+        }
       }
     }
 
@@ -1607,7 +2090,7 @@
             if (emptyElem) emptyElem.remove();
             renderMessages(messages);
             lastMessageId = messages[messages.length - 1].id;
-            scrollToBottom();
+            scrollToBottom(true);
             markAsRead(lastMessageId);
           }
         } else if (res.status === 401) {
@@ -1617,6 +2100,48 @@
         console.error('Initial fetch error:', e);
       } finally {
         isFetching = false;
+      }
+    }
+
+    // Typing Event Handler
+    function handleTypingEvent(data) {
+      if (!currentStudent || data.studentId === currentStudent.studentId) return;
+      
+      if (activeTypers.has(data.studentId)) {
+        clearTimeout(activeTypers.get(data.studentId).timer);
+      }
+      
+      const timer = setTimeout(() => {
+        activeTypers.delete(data.studentId);
+        updateTypingUI();
+      }, 3500);
+
+      activeTypers.set(data.studentId, { name: data.name || 'Someone', timer });
+      updateTypingUI();
+    }
+
+    function updateTypingUI() {
+      const ind = document.getElementById('typingIndicator');
+      const textEl = document.getElementById('typingIndicatorText');
+      if (!ind || !textEl) return;
+
+      if (activeTypers.size === 0) {
+        ind.style.display = 'none';
+        return;
+      }
+
+      const names = Array.from(activeTypers.values()).map(v => v.name);
+      if (names.length === 1) {
+        textEl.textContent = `${names[0]} is typing...`;
+      } else if (names.length === 2) {
+        textEl.textContent = `${names[0]} and ${names[1]} are typing...`;
+      } else {
+        textEl.textContent = `${names[0]} and ${names.length - 1} others are typing...`;
+      }
+
+      ind.style.display = 'flex';
+      if (isNearBottom()) {
+        scrollToBottom(false);
       }
     }
 
@@ -1639,27 +2164,22 @@
             // Remove sender's temporary optimistic message if present
             document.querySelectorAll('.temp-msg').forEach(el => el.remove());
 
-            // Render new message and scroll down
+            // Render new message and auto-scroll
             renderMessages([msg]);
             lastMessageId = msg.id;
-            scrollToBottom();
+            scrollToBottom(true);
             markAsRead(lastMessageId);
           }
         })
+          .on('broadcast', { event: 'delete_message' }, (payload) => {
+            removeMessageElement(payload.payload.messageId);
+          })
           .on('broadcast', { event: 'reaction_update' }, (payload) => {
             const p = payload.payload;
             updateReactionUI(p.messageId, p.studentId, p.emoji, p.action);
           })
           .on('broadcast', { event: 'typing' }, (payload) => {
-            const p = payload.payload;
-            if (p.studentId !== currentStudent?.studentId) {
-              const ind = document.getElementById('typingIndicator');
-              ind.textContent = `${p.name} is typing...`;
-              ind.style.display = 'block';
-              clearTimeout(typingTimer);
-              typingTimer = setTimeout(() => { ind.style.display = 'none'; }, 3000);
-              scrollToBottom();
-            }
+            handleTypingEvent(payload.payload);
           })
           .on('broadcast', { event: 'read_receipt' }, (payload) => {
             const p = payload.payload;
@@ -1692,7 +2212,6 @@
       const dayName = days[d.getDay()];
       const dateNum = d.getDate();
       const monthName = months[d.getMonth()];
-      const timeStr = formatTime(iso);
 
       const isToday = d.toDateString() === today.toDateString();
       const yesterday = new Date(today);
@@ -1704,7 +2223,7 @@
       return `${dayName.toUpperCase()}, ${dateNum} ${monthName.toUpperCase()}`;
     }
 
-    // Auto-highlight phone numbers and links (like in screenshot)
+    // Auto-highlight phone numbers and links
     function escapeHtml(text) {
       const div = document.createElement('div');
       div.textContent = text;
@@ -1721,9 +2240,14 @@
     // Render Messages
     function renderMessages(messages) {
       const container = document.getElementById('feedInner');
+      const typingEl = document.getElementById('typingIndicator');
 
       messages.forEach((msg, idx) => {
+        // Prevent duplicate rendering
+        if (document.getElementById(`msg-row-${msg.id}`)) return;
+
         const isSelf = currentStudent && msg.studentId === currentStudent.studentId;
+        const canDelete = isSelf || (currentStudent && currentStudent.isAdmin);
 
         const prev = idx > 0 ? messages[idx - 1] : null;
         const next = idx < messages.length - 1 ? messages[idx + 1] : null;
@@ -1737,17 +2261,19 @@
           const dateElem = document.createElement('div');
           dateElem.className = 'im-date-stamp';
           dateElem.textContent = formatStamp(msg.createdAt);
-          container.appendChild(dateElem);
+          if (typingEl) container.insertBefore(dateElem, typingEl);
+          else container.appendChild(dateElem);
         }
         lastDateString = msgTimestamp;
 
-        // Apple Corner Radii Position Class
         let posClass = 'solo';
         if (!samePrev && sameNext) posClass = 'group-top';
         else if (samePrev && sameNext) posClass = 'group-mid';
         else if (samePrev && !sameNext) posClass = 'group-bottom';
 
         const row = document.createElement('div');
+        row.id = `msg-row-${msg.id}`;
+        row.dataset.messageId = msg.id;
         row.className = `im-row ${isSelf ? 'self' : 'other'} ${posClass}${!samePrev ? ' cluster-start' : ''}${sameNext ? ' grouped' : ''}`;
 
         // Left Avatar (Incoming Only)
@@ -1804,6 +2330,7 @@
           const mediaElem = document.createElement('div');
           mediaElem.className = 'im-media-box';
           const fileUrl = `/api/chat/attachment/${msg.attachmentName}`;
+          const origName = msg.attachmentOriginalName || 'Photo';
 
           if (msg.attachmentMimeType && msg.attachmentMimeType.startsWith('video/')) {
             const videoElem = document.createElement('video');
@@ -1815,9 +2342,12 @@
           } else {
             const imgElem = document.createElement('img');
             imgElem.src = fileUrl;
-            imgElem.alt = msg.attachmentOriginalName || 'Photo';
+            imgElem.alt = origName;
             imgElem.loading = 'lazy';
-            imgElem.onclick = () => openLightbox(fileUrl);
+            imgElem.onload = () => {
+              if (isNearBottom()) scrollToBottom(false);
+            };
+            imgElem.onclick = () => openLightbox(fileUrl, origName);
             mediaElem.appendChild(imgElem);
           }
           bubbleElem.appendChild(mediaElem);
@@ -1837,7 +2367,7 @@
 
         // Action buttons container
         const actionDiv = document.createElement('div');
-        actionDiv.style.cssText = 'position: absolute; ' + (isSelf ? 'left: -60px;' : 'right: -60px;') + ' top: 50%; transform: translateY(-50%); display: flex; align-items: center;';
+        actionDiv.style.cssText = 'position: absolute; ' + (isSelf ? 'left: -88px;' : 'right: -88px;') + ' top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 4px; z-index: 15;';
 
         const reactBtn = document.createElement('button');
         reactBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>';
@@ -1851,8 +2381,34 @@
         replyBtn.title = 'Reply';
         replyBtn.onclick = () => window.initReply(msg.id, msg.name, msg.text);
 
-        if (isSelf) { actionDiv.appendChild(replyBtn); actionDiv.appendChild(reactBtn); }
-        else { actionDiv.appendChild(reactBtn); actionDiv.appendChild(replyBtn); }
+        if (canDelete) {
+          const deleteBtn = document.createElement('button');
+          deleteBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>';
+          deleteBtn.className = 'msg-delete-btn';
+          deleteBtn.title = 'Delete message';
+          deleteBtn.onclick = (e) => {
+            e.stopPropagation();
+            openDeleteConfirm(msg.id);
+          };
+
+          if (isSelf) {
+            actionDiv.appendChild(deleteBtn);
+            actionDiv.appendChild(replyBtn);
+            actionDiv.appendChild(reactBtn);
+          } else {
+            actionDiv.appendChild(reactBtn);
+            actionDiv.appendChild(replyBtn);
+            actionDiv.appendChild(deleteBtn);
+          }
+        } else {
+          if (isSelf) {
+            actionDiv.appendChild(replyBtn);
+            actionDiv.appendChild(reactBtn);
+          } else {
+            actionDiv.appendChild(reactBtn);
+            actionDiv.appendChild(replyBtn);
+          }
+        }
 
         bubbleElem.style.position = 'relative';
         bubbleElem.appendChild(actionDiv);
@@ -1875,7 +2431,12 @@
         }
 
         row.appendChild(col);
-        container.appendChild(row);
+        
+        if (typingEl) {
+          container.insertBefore(row, typingEl);
+        } else {
+          container.appendChild(row);
+        }
       });
 
       updateReadReceiptsUI();
@@ -1934,7 +2495,6 @@
 
       if (reactions.length === 0) return;
 
-      // Group by emoji
       const grouped = {};
       reactions.forEach(r => {
         grouped[r.emoji] = (grouped[r.emoji] || 0) + 1;
@@ -1964,10 +2524,8 @@
     }
 
     function updateReadReceiptsUI() {
-      // Clear all existing read receipts
       document.querySelectorAll('.read-receipt').forEach(el => el.innerHTML = '');
 
-      // Find the latest message ID that has been read by ANYONE
       const readIds = Object.values(readReceiptsMap);
       if (readIds.length === 0) return;
 
@@ -1984,12 +2542,19 @@
       }
     });
 
+    // Auto-Scroll Downwards
+    function isNearBottom() {
+      const feed = document.getElementById('chatFeed');
+      if (!feed) return true;
+      return feed.scrollHeight - feed.scrollTop - feed.clientHeight < 160;
+    }
+
     function scrollToBottom(force = false) {
       const feed = document.getElementById('chatFeed');
       const pill = document.getElementById('newMessagesPill');
+      if (!feed) return;
 
-      // If not forced and user has scrolled up significantly, show pill instead
-      if (!force && feed.scrollTop < feed.scrollHeight - feed.clientHeight - 100) {
+      if (!force && !isNearBottom()) {
         if (pill) pill.classList.add('visible');
         return;
       }
@@ -2000,24 +2565,160 @@
       });
     }
 
-    // Hide pill when user manually scrolls to bottom
     document.getElementById('chatFeed').addEventListener('scroll', (e) => {
       const feed = e.target;
-      if (feed.scrollTop >= feed.scrollHeight - feed.clientHeight - 50) {
+      if (feed.scrollTop >= feed.scrollHeight - feed.clientHeight - 60) {
         const pill = document.getElementById('newMessagesPill');
         if (pill) pill.classList.remove('visible');
       }
     });
 
-    function openLightbox(url) {
+    // Lightbox & Zoom Functions
+    function openLightbox(url, filename = 'Image Preview') {
+      currentLightboxUrl = url;
+      currentLightboxFilename = filename || 'image.jpg';
       const modal = document.getElementById('lightboxModal');
-      document.getElementById('lightboxTargetImg').src = url;
+      const targetImg = document.getElementById('lightboxTargetImg');
+      const titleEl = document.getElementById('lightboxTitle');
+
+      targetImg.src = url;
+      if (titleEl) titleEl.textContent = currentLightboxFilename;
+
+      resetZoom();
       modal.classList.add('active');
+      document.body.style.overflow = 'hidden';
     }
 
     function closeLightbox() {
-      document.getElementById('lightboxModal').classList.remove('active');
+      const modal = document.getElementById('lightboxModal');
+      modal.classList.remove('active');
+      document.body.style.overflow = '';
+      resetZoom();
     }
+
+    function zoomImage(delta) {
+      currentZoom = Math.max(0.5, Math.min(4.0, parseFloat((currentZoom + delta).toFixed(2))));
+      if (currentZoom === 1) {
+        panX = 0;
+        panY = 0;
+      }
+      applyLightboxTransform();
+    }
+
+    function resetZoom() {
+      currentZoom = 1;
+      panX = 0;
+      panY = 0;
+      applyLightboxTransform();
+    }
+
+    function applyLightboxTransform() {
+      const wrapper = document.getElementById('lightboxImgWrapper');
+      const zoomLabel = document.getElementById('lightboxZoomLevel');
+      const body = document.getElementById('lightboxBody');
+
+      if (wrapper) {
+        wrapper.style.transform = `translate(${panX}px, ${panY}px) scale(${currentZoom})`;
+      }
+      if (zoomLabel) {
+        zoomLabel.textContent = `${Math.round(currentZoom * 100)}%`;
+      }
+      if (body) {
+        if (currentZoom > 1) body.classList.add('can-pan');
+        else body.classList.remove('can-pan');
+      }
+    }
+
+    async function downloadCurrentMedia() {
+      if (!currentLightboxUrl) return;
+      const btnText = document.getElementById('saveBtnText');
+      if (btnText) btnText.textContent = 'Saving...';
+
+      try {
+        const res = await fetch(currentLightboxUrl);
+        if (!res.ok) throw new Error('Download request failed');
+        const blob = await res.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = currentLightboxFilename || 'chat-image.jpg';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(blobUrl);
+        if (btnText) btnText.textContent = 'Saved!';
+      } catch (err) {
+        const link = document.createElement('a');
+        link.href = currentLightboxUrl;
+        link.download = currentLightboxFilename || 'chat-image.jpg';
+        link.target = '_blank';
+        link.click();
+        if (btnText) btnText.textContent = 'Saved!';
+      } finally {
+        setTimeout(() => { if (btnText) btnText.textContent = 'Save'; }, 1800);
+      }
+    }
+
+    // Lightbox Pan, Wheel Zoom & Hotkeys
+    const lightboxBody = document.getElementById('lightboxBody');
+    if (lightboxBody) {
+      lightboxBody.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const delta = e.deltaY < 0 ? 0.2 : -0.2;
+        zoomImage(delta);
+      }, { passive: false });
+
+      lightboxBody.addEventListener('dblclick', (e) => {
+        if (e.target.closest('.im-lightbox-header')) return;
+        if (currentZoom > 1.05) resetZoom();
+        else {
+          currentZoom = 2;
+          applyLightboxTransform();
+        }
+      });
+
+      lightboxBody.addEventListener('mousedown', (e) => {
+        if (currentZoom <= 1 || e.target.closest('.im-lightbox-header')) return;
+        isPanning = true;
+        panStartX = e.clientX - panX;
+        panStartY = e.clientY - panY;
+        lightboxBody.classList.add('panning');
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!isPanning) return;
+        panX = e.clientX - panStartX;
+        panY = e.clientY - panStartY;
+        applyLightboxTransform();
+      });
+
+      window.addEventListener('mouseup', () => {
+        if (isPanning) {
+          isPanning = false;
+          lightboxBody.classList.remove('panning');
+        }
+      });
+    }
+
+    document.addEventListener('keydown', (e) => {
+      const deleteModal = document.getElementById('deleteConfirmModal');
+      if (deleteModal && deleteModal.classList.contains('active')) {
+        if (e.key === 'Escape') {
+          closeDeleteConfirm();
+          return;
+        } else if (e.key === 'Enter') {
+          executeDeleteMessage();
+          return;
+        }
+      }
+
+      const modal = document.getElementById('lightboxModal');
+      if (!modal || !modal.classList.contains('active')) return;
+      if (e.key === 'Escape') closeLightbox();
+      else if (e.key === '+' || e.key === '=') zoomImage(0.25);
+      else if (e.key === '-' || e.key === '_') zoomImage(-0.25);
+      else if (e.key === '0') resetZoom();
+    });
   </script>
   <script src="notifications.js"></script>
 </body>

@@ -1067,6 +1067,11 @@
       </div>
 
       <!-- Controls Row -->
+      <div id="replyPreview" class="reply-preview-box" style="display: none; padding: 10px; background: rgba(0,0,0,0.05); border-left: 3px solid #007aff; margin-bottom: 5px; font-size: 13px; position: relative; border-radius: 12px; width: 100%;">
+        <div style="font-weight: 600; color: #007aff; margin-bottom: 2px;" id="replyPreviewName"></div>
+        <div id="replyPreviewText" style="color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></div>
+        <button type="button" onclick="cancelReply()" style="position: absolute; right: 8px; top: 8px; background: none; border: none; font-size: 16px; cursor: pointer; color: #999;">×</button>
+      </div>
       <div class="im-controls">
 
         <!-- (+) Plus Button to Directly Upload Files -->
@@ -1077,14 +1082,6 @@
           </svg>
         </button>
         <input type="file" id="hiddenFileInput" accept="image/*,video/*" style="display:none" onchange="handleFileSelected(event)">
-
-        <!-- Text Message Capsule Input -->
-        <div id="replyPreview" class="reply-preview-box" style="display: none; padding: 10px; background: rgba(0,0,0,0.05); border-left: 3px solid #007aff; margin-bottom: 5px; font-size: 13px; position: relative; border-radius: 4px;">
-        <div style="font-weight: 600; color: #007aff; margin-bottom: 2px;" id="replyPreviewName"></div>
-        <div id="replyPreviewText" style="color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></div>
-        <button type="button" onclick="cancelReply()" style="position: absolute; right: 8px; top: 8px; background: none; border: none; font-size: 16px; cursor: pointer; color: #999;">×</button>
-      </div>
-      <div class="chat-input-bar">
         <div class="im-input-capsule">
           <textarea
             class="im-textarea"

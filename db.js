@@ -72,6 +72,34 @@ function normalizeParams(params) {
   return params;
 }
 
+// Map PostgreSQL lowercase column names back to expected camelCase
+const camelMap = {
+  studentid: 'studentId', passwordhash: 'passwordHash', avatarurl: 'avatarUrl',
+  githuburl: 'githubUrl', linkedinurl: 'linkedinUrl', followerid: 'followerId',
+  followingid: 'followingId', createdat: 'createdAt', storedname: 'storedName',
+  originalname: 'originalName', previewname: 'previewName', uploadedby: 'uploadedBy',
+  sizebytes: 'sizeBytes', uploadedat: 'uploadedAt', fileid: 'fileId',
+  commenttext: 'commentText', attachmentname: 'attachmentName', 
+  attachmentoriginalname: 'attachmentOriginalName', attachmentmimetype: 'attachmentMimeType',
+  recipientstudentid: 'recipientStudentId', relatedfileid: 'relatedFileId',
+  isread: 'isRead', mimetype: 'mimeType', filedata: 'fileData',
+  lastinsertrowid: 'lastInsertRowid'
+};
+
+function formatRow(row) {
+  if (!row) return row;
+  const formatted = {};
+  for (const [key, value] of Object.entries(row)) {
+    formatted[camelMap[key] || key] = value;
+  }
+  return formatted;
+}
+
+function formatRows(rows) {
+  if (!rows) return rows;
+  return rows.map(formatRow);
+}
+
 // Universal Query Executor
 async function query(sql, ...params) {
   const normParams = normalizeParams(params);
@@ -79,10 +107,10 @@ async function query(sql, ...params) {
   if (isPostgres && pgPool) {
     const pgSql = toPostgresSql(sql);
     const res = await pgPool.query(pgSql, normParams);
-    return res.rows;
+    return formatRows(res.rows);
   } else if (libsqlClient) {
     const res = await libsqlClient.execute({ sql, args: normParams });
-    return res.rows;
+    return formatRows(res.rows);
   }
   throw new Error('Database client is not initialized.');
 }
@@ -94,10 +122,10 @@ async function get(sql, ...params) {
   if (isPostgres && pgPool) {
     const pgSql = toPostgresSql(sql);
     const res = await pgPool.query(pgSql, normParams);
-    return res.rows[0] || null;
+    return formatRow(res.rows[0] || null);
   } else if (libsqlClient) {
     const res = await libsqlClient.execute({ sql, args: normParams });
-    return res.rows[0] || null;
+    return formatRow(res.rows[0] || null);
   }
   throw new Error('Database client is not initialized.');
 }
@@ -109,10 +137,10 @@ async function all(sql, ...params) {
   if (isPostgres && pgPool) {
     const pgSql = toPostgresSql(sql);
     const res = await pgPool.query(pgSql, normParams);
-    return res.rows;
+    return formatRows(res.rows);
   } else if (libsqlClient) {
     const res = await libsqlClient.execute({ sql, args: normParams });
-    return res.rows;
+    return formatRows(res.rows);
   }
   throw new Error('Database client is not initialized.');
 }

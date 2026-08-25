@@ -76,15 +76,13 @@
   .im-header {
     position: relative;
     z-index: 50;
-    height: 72px;
+    height: 64px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 0 16px;
-    background: var(--bar-bg);
-    -webkit-backdrop-filter: saturate(180%) blur(25px);
-    backdrop-filter: saturate(180%) blur(25px);
-    border-bottom: 0.5px solid var(--bar-border);
+    background: #ffffff;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
     flex-shrink: 0;
   }
 
@@ -135,7 +133,7 @@
   }
 
   .im-header-center:hover {
-    background: rgba(0, 0, 0, 0.05);
+    opacity: 0.7;
   }
 
   .im-contact-avatar {
@@ -164,7 +162,8 @@
   }
 
   .im-contact-name {
-    font-size: 12px;
+    font-family: 'Fraunces', serif;
+    font-size: 18px;
     font-weight: 600;
     color: var(--text-primary);
     letter-spacing: -0.2px;
@@ -242,35 +241,38 @@
     letter-spacing: -0.1px;
   }
 
-  /* Empty state */
+  /* ═══ EMPTY STATE ═══ */
   .im-empty-box {
-    margin: auto;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     text-align: center;
-    padding: 50px 20px;
-    gap: 12px;
+    height: 100%;
+    color: var(--text-tertiary);
+    padding: 40px 20px;
   }
 
   .im-empty-box svg {
     width: 48px;
     height: 48px;
-    color: var(--text-tertiary);
+    margin-bottom: 24px;
+    opacity: 0.4;
   }
 
   .im-empty-box h3 {
-    font-size: 17px;
-    font-weight: 600;
+    font-family: 'Fraunces', serif;
+    font-size: 24px;
+    font-weight: 500;
     color: var(--text-primary);
+    margin-bottom: 12px;
+    letter-spacing: -0.5px;
   }
 
   .im-empty-box p {
-    font-size: 13.5px;
-    color: var(--text-secondary);
-    max-width: 260px;
-    line-height: 1.45;
+    font-size: 15px;
+    max-width: 280px;
+    line-height: 1.5;
   }
 
   /* ═══ MESSAGE BUBBLE ROW ═══ */
@@ -362,15 +364,15 @@
     display: none;
   }
 
-  /* ═══ BUBBLE SHAPE WITH MONOCHROMATIC CONTRAST ═══ */
   .im-bubble {
     position: relative;
-    padding: 10px 16px;
+    padding: 12px 16px;
     font-size: 15px;
-    line-height: 1.4;
-    letter-spacing: -0.2px;
+    line-height: 1.5;
+    letter-spacing: -0.1px;
     word-break: break-word;
     user-select: text;
+    border-radius: 12px;
   }
 
   /* Link & Number Highlights */
@@ -396,6 +398,7 @@
   .im-row.other .im-bubble {
     background: var(--bubble-incoming);
     color: var(--text-primary);
+    border: 1px solid rgba(0, 0, 0, 0.06);
   }
 
   /* Outgoing Bubble */
@@ -404,33 +407,9 @@
     color: #ffffff;
   }
 
-  /* Apple Corner Radii */
-  /* Outgoing (Self) */
-  .im-row.self.solo .im-bubble {
-    border-radius: 18px 18px 4px 18px;
-  }
-  .im-row.self.group-top .im-bubble {
-    border-radius: 18px 18px 6px 18px;
-  }
-  .im-row.self.group-mid .im-bubble {
-    border-radius: 18px 6px 6px 18px;
-  }
-  .im-row.self.group-bottom .im-bubble {
-    border-radius: 18px 6px 18px 18px;
-  }
-
-  /* Incoming (Other) */
-  .im-row.other.solo .im-bubble {
-    border-radius: 18px 18px 18px 4px;
-  }
-  .im-row.other.group-top .im-bubble {
-    border-radius: 18px 18px 18px 6px;
-  }
-  .im-row.other.group-mid .im-bubble {
-    border-radius: 6px 18px 18px 6px;
-  }
-  .im-row.other.group-bottom .im-bubble {
-    border-radius: 6px 18px 18px 18px;
+  /* Remove the complex corner radii shapes for minimalism */
+  .im-row.self .im-bubble, .im-row.other .im-bubble {
+    border-radius: 12px;
   }
 
   /* Attachment Only */
@@ -442,11 +421,10 @@
 
   .im-media-box {
     position: relative;
-    border-radius: 12px;
+    border-radius: 8px;
     overflow: hidden;
     max-width: 270px;
-    background: #ffffff;
-    border: 0.5px solid rgba(0, 0, 0, 0.05);
+    background: transparent;
   }
 
   .im-bubble:not(.media-only) .im-media-box {
@@ -491,11 +469,9 @@
   .im-composer {
     position: relative;
     z-index: 50;
-    background: var(--bar-bg);
-    -webkit-backdrop-filter: saturate(180%) blur(25px);
-    backdrop-filter: saturate(180%) blur(25px);
-    border-top: 0.5px solid var(--bar-border);
-    padding: 8px 12px calc(env(safe-area-inset-bottom, 8px) + 8px);
+    background: #ffffff;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+    padding: 16px 20px calc(env(safe-area-inset-bottom, 16px) + 16px);
     flex-shrink: 0;
   }
 
@@ -600,13 +576,12 @@
   /* Input Capsule */
   .im-input-capsule {
     flex: 1;
-    min-height: 38px;
+    min-height: 44px;
     display: flex;
     align-items: flex-end;
-    background: var(--input-bg);
-    border: 0.5px solid var(--input-border);
-    border-radius: 20px;
-    padding: 2px 4px 2px 16px;
+    background: var(--bg-base);
+    border-radius: 22px;
+    padding: 4px 6px 4px 20px;
   }
 
   .im-textarea {
@@ -616,32 +591,63 @@
     color: var(--text-primary);
     font-family: var(--sf);
     font-size: 15px;
-    line-height: 20px;
-    padding: 8px 0;
+    line-height: 22px;
+    padding: 11px 0;
     resize: none;
-    max-height: 120px;
+    max-height: 140px;
     outline: none;
   }
 
   /* Send Arrow Button */
   .im-send-btn {
-    width: 30px;
-    height: 30px;
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
-    background: var(--apple-primary);
+    background: transparent;
     border: none;
-    color: #fff;
+    color: var(--text-tertiary);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     flex-shrink: 0;
     margin-left: 6px;
-    margin-bottom: 3px;
+    margin-bottom: 0px;
+    transition: color 0.2s;
+  }
+  
+  .im-send-btn.ready {
+    color: var(--apple-primary);
   }
 
   .im-send-btn.hidden {
     display: none;
+  }
+
+  /* New Messages Pill */
+  .im-new-messages-pill {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(50px);
+    background: var(--apple-primary);
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 8px 16px;
+    border-radius: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    z-index: 60;
+  }
+
+  .im-new-messages-pill.visible {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+    pointer-events: auto;
   }
 
   /* Voice / Emoji */
@@ -677,8 +683,10 @@
   }
 
   @media (max-width: 768px) {
-    .im-row { max-width: 88%; }
-    .im-back-btn span { display: none; }
+    .im-feed { padding-left: 12px; padding-right: 12px; }
+    .im-composer {
+      padding: 12px 16px max(16px, env(safe-area-inset-bottom, 12px));
+    }
   }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -725,7 +733,13 @@
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
         </svg>
         <h3>No Messages Yet</h3>
+        <p>Send a message or attachment to start chatting with your class.</p>
       </div>
+    </div>
+    
+    <!-- New Messages Pill -->
+    <div id="newMessagesPill" class="im-new-messages-pill" onclick="scrollToBottom(true)">
+      New Messages ↓
     </div>
   </main>
 
@@ -840,18 +854,17 @@
     document.getElementById('chatTextarea').focus();
   };
 
-  // Input Auto-Grow & Send Button Display
   function handleInputState() {
     textarea.style.height = 'auto';
-    textarea.style.height = Math.min(textarea.scrollHeight, 110) + 'px';
+    textarea.style.height = Math.min(textarea.scrollHeight, 140) + 'px';
 
     const hasText = textarea.value.trim().length > 0;
     const hasFile = document.getElementById('attachmentChip').classList.contains('active');
 
     if (hasText || hasFile) {
-      sendBtn.classList.remove('hidden');
+      sendBtn.classList.add('ready');
     } else {
-      sendBtn.classList.add('hidden');
+      sendBtn.classList.remove('ready');
     }
     
     // Typing indicator throttle
@@ -1445,12 +1458,30 @@
     }
   });
 
-  function scrollToBottom() {
+  function scrollToBottom(force = false) {
     const feed = document.getElementById('chatFeed');
+    const pill = document.getElementById('newMessagesPill');
+    
+    // If not forced and user has scrolled up significantly, show pill instead
+    if (!force && feed.scrollTop < feed.scrollHeight - feed.clientHeight - 100) {
+      if (pill) pill.classList.add('visible');
+      return;
+    }
+    
     requestAnimationFrame(() => {
-      feed.scrollTop = feed.scrollHeight;
+      feed.scrollTo({ top: feed.scrollHeight, behavior: force ? 'smooth' : 'auto' });
+      if (pill) pill.classList.remove('visible');
     });
   }
+
+  // Hide pill when user manually scrolls to bottom
+  document.getElementById('chatFeed').addEventListener('scroll', (e) => {
+    const feed = e.target;
+    if (feed.scrollTop >= feed.scrollHeight - feed.clientHeight - 50) {
+      const pill = document.getElementById('newMessagesPill');
+      if (pill) pill.classList.remove('visible');
+    }
+  });
 
   function openLightbox(url) {
     const modal = document.getElementById('lightboxModal');

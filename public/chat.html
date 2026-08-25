@@ -1362,7 +1362,8 @@
     let pollTimer = null;
     let lastDateString = null;
     let toastTimer = null;
-
+    let myLastReadId = 0;
+    let readReceiptsMap = {};
     const textarea = document.getElementById('chatTextarea');
     const sendBtn = document.getElementById('sendBtn');
 

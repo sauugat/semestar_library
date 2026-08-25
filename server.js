@@ -1510,10 +1510,13 @@ app.get('/api/chat/messages', requireLogin, async (req, res) => {
   const since = parseInt(req.query.since) || 0;
   
   const messages = await db.all(`
-    SELECT chat_messages.id, chat_messages.text, chat_messages.attachmentName, chat_messages.attachmentOriginalName, chat_messages.attachmentMimeType, chat_messages.createdAt,
-      students.studentId, students.name, students.avatarUrl
+    SELECT chat_messages.id, chat_messages.text, chat_messages.attachmentName, chat_messages.attachmentOriginalName, chat_messages.attachmentMimeType, chat_messages.replyToId, chat_messages.createdAt,
+      students.studentId, students.name, students.avatarUrl,
+      reply_msg.text AS replyText, reply_student.name AS replySender
     FROM chat_messages
     JOIN students ON students.studentId = chat_messages.studentId
+    LEFT JOIN chat_messages AS reply_msg ON reply_msg.id = chat_messages.replyToId
+    LEFT JOIN students AS reply_student ON reply_student.studentId = reply_msg.studentId
     WHERE chat_messages.id > ?
     ORDER BY chat_messages.id ASC
     LIMIT 200
@@ -1537,6 +1540,7 @@ const handleChatUpload = (req, res, next) => {
 app.post('/api/chat/messages', requireLogin, chatRateLimiter, handleChatUpload, async (req, res) => {
   const text = (req.body && req.body.text ? String(req.body.text) : '').trim();
   const file = req.file;
+  const replyToId = req.body.replyToId ? parseInt(req.body.replyToId, 10) : null;
 
   if (!text && !file) {
     return res.status(400).json({ message: 'Cannot send an empty message.' });
@@ -1568,9 +1572,9 @@ app.post('/api/chat/messages', requireLogin, chatRateLimiter, handleChatUpload, 
 
   try {
     const result = await db.run(`
-      INSERT INTO chat_messages (studentId, text, attachmentName, attachmentOriginalName, attachmentMimeType, createdAt)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, req.session.studentId, text, attachmentName, attachmentOriginalName, attachmentMimeType, new Date().toISOString());
+      INSERT INTO chat_messages (studentId, text, attachmentName, attachmentOriginalName, attachmentMimeType, replyToId, createdAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `, req.session.studentId, text, attachmentName, attachmentOriginalName, attachmentMimeType, replyToId, new Date().toISOString());
 
     res.json({ message: 'Sent', messageId: result.lastInsertRowid });
   } catch (error) {

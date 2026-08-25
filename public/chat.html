@@ -970,7 +970,7 @@
 </head>
 <body>
 
-<div class="im-app">
+<div class="chat-container">
 
   <!-- MOVING CLASSY PEARL-WHITE ANIMATED GRADIENT BACKDROP -->
   <div class="white-ambient-mesh">
@@ -1079,6 +1079,12 @@
         <input type="file" id="hiddenFileInput" accept="image/*,video/*" style="display:none" onchange="handleFileSelected(event)">
 
         <!-- Text Message Capsule Input -->
+        <div id="replyPreview" class="reply-preview-box" style="display: none; padding: 10px; background: rgba(0,0,0,0.05); border-left: 3px solid #007aff; margin-bottom: 5px; font-size: 13px; position: relative; border-radius: 4px;">
+        <div style="font-weight: 600; color: #007aff; margin-bottom: 2px;" id="replyPreviewName"></div>
+        <div id="replyPreviewText" style="color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></div>
+        <button type="button" onclick="cancelReply()" style="position: absolute; right: 8px; top: 8px; background: none; border: none; font-size: 16px; cursor: pointer; color: #999;">×</button>
+      </div>
+      <div class="chat-input-bar">
         <div class="im-input-capsule">
           <textarea
             class="im-textarea"
@@ -1147,6 +1153,19 @@
 
   const textarea = document.getElementById('chatTextarea');
   const sendBtn = document.getElementById('sendBtn');
+  
+  let currentReplyToId = null;
+  function cancelReply() {
+    currentReplyToId = null;
+    document.getElementById('replyPreview').style.display = 'none';
+  }
+  window.initReply = function(id, name, text) {
+    currentReplyToId = id;
+    document.getElementById('replyPreviewName').textContent = name;
+    document.getElementById('replyPreviewText').textContent = text || 'Attachment';
+    document.getElementById('replyPreview').style.display = 'block';
+    document.getElementById('chatTextarea').focus();
+  };
 
   // Input Auto-Grow & Send Button Display
   function handleInputState() {
@@ -1312,15 +1331,16 @@
     container.appendChild(row);
     scrollToBottom();
 
+    const payload = new FormData();
+    if (text) payload.append('text', text);
+    if (file) payload.append('attachment', file);
+    if (currentReplyToId) payload.append('replyToId', currentReplyToId);
+
     // Clear input instantly for snappy feel
     textarea.value = '';
     textarea.style.height = 'auto';
-    const oldFile = file;
+    cancelReply();
     removeAttachedFile();
-
-    const payload = new FormData();
-    if (text) payload.append('text', text);
-    if (oldFile) payload.append('attachment', oldFile);
 
     try {
       const res = await fetch('/api/chat/messages', {
@@ -1414,14 +1434,16 @@
   }
 
   // Auto-highlight phone numbers and links (like in screenshot)
-  function formatMessageBody(rawText) {
+  function escapeHtml(text) {
     const div = document.createElement('div');
-    div.textContent = rawText;
-    let safe = div.innerHTML;
+    div.textContent = text;
+    return div.innerHTML;
+  }
 
+  function formatMessageBody(rawText) {
+    let safe = escapeHtml(rawText);
     safe = safe.replace(/(\b\d{10}\b|\*\d+#|\b\d{4,6}\b)/g, '<span class="link-highlight">$1</span>');
     safe = safe.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
-
     return safe;
   }
 
@@ -1491,6 +1513,14 @@
       const bubbleElem = document.createElement('div');
       bubbleElem.className = `im-bubble${!hasText && hasMedia ? ' media-only' : ''}`;
 
+      if (msg.replyToId && msg.replySender) {
+        const quoteDiv = document.createElement('div');
+        quoteDiv.style.cssText = 'background: rgba(0,0,0,0.1); border-left: 3px solid ' + (isSelf ? 'white' : '#007aff') + '; padding: 5px 8px; border-radius: 4px; font-size: 0.85em; margin-bottom: 6px; opacity: 0.9; cursor: pointer;';
+        quoteDiv.innerHTML = '<div style="font-weight: 600; margin-bottom: 2px;">' + escapeHtml(msg.replySender) + '</div>' + 
+                             '<div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">' + escapeHtml(msg.replyText || 'Attachment') + '</div>';
+        bubbleElem.appendChild(quoteDiv);
+      }
+
       if (hasText) {
         const textSpan = document.createElement('span');
         textSpan.innerHTML = formatMessageBody(msg.text);
@@ -1534,6 +1564,22 @@
         timeMeta.textContent = formatTime(msg.createdAt);
       }
       col.appendChild(timeMeta);
+
+      const replyBtn = document.createElement('button');
+      replyBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>';
+      replyBtn.className = 'msg-reply-btn';
+      replyBtn.title = 'Reply';
+      replyBtn.style.cssText = 'background: rgba(0,0,0,0.05); border: none; border-radius: 50%; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; opacity: 0; transition: opacity 0.2s; margin: 0 5px; color: #666;';
+      replyBtn.onclick = () => window.initReply(msg.id, msg.name, msg.text);
+      
+      row.onmouseenter = () => replyBtn.style.opacity = '1';
+      row.onmouseleave = () => replyBtn.style.opacity = '0';
+      
+      if (isSelf) {
+        col.insertBefore(replyBtn, bubbleElem);
+      } else {
+        col.appendChild(replyBtn);
+      }
 
       row.appendChild(col);
       container.appendChild(row);

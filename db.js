@@ -87,7 +87,11 @@ const camelMap = {
   uploaderavatar: 'uploaderAvatar', uploaderrole: 'uploaderRole',
   likecount: 'likeCount', commentcount: 'commentCount',
   commentername: 'commenterName', isfollowing: 'isFollowing',
-  followerscount: 'followersCount', followingcount: 'followingCount'
+  followerscount: 'followersCount', followingcount: 'followingCount',
+  replytoid: 'replyToId', linktitle: 'linkTitle', linkdesc: 'linkDesc',
+  linkimage: 'linkImage', linkurl: 'linkUrl', messageid: 'messageId',
+  lastreadmessageid: 'lastReadMessageId', lasttypedat: 'lastTypedAt',
+  replytext: 'replyText', replysender: 'replySender'
 };
 
 function formatRow(row) {
@@ -337,7 +341,29 @@ async function initSchema() {
             attachmentName TEXT,
             attachmentOriginalName TEXT,
             attachmentMimeType TEXT,
+            replyToId INTEGER,
+            linkUrl TEXT,
+            linkTitle TEXT,
+            linkDesc TEXT,
+            linkImage TEXT,
             createdAt TEXT NOT NULL
+          );
+
+          CREATE TABLE IF NOT EXISTS chat_reactions (
+            messageId INTEGER NOT NULL REFERENCES chat_messages(id) ON DELETE CASCADE,
+            studentId TEXT NOT NULL REFERENCES students(studentId) ON DELETE CASCADE,
+            emoji TEXT NOT NULL,
+            PRIMARY KEY (messageId, studentId)
+          );
+
+          CREATE TABLE IF NOT EXISTS chat_read_receipts (
+            studentId TEXT PRIMARY KEY REFERENCES students(studentId) ON DELETE CASCADE,
+            lastReadMessageId INTEGER NOT NULL
+          );
+
+          CREATE TABLE IF NOT EXISTS chat_typing (
+            studentId TEXT PRIMARY KEY REFERENCES students(studentId) ON DELETE CASCADE,
+            lastTypedAt TEXT NOT NULL
           );
 
           CREATE TABLE IF NOT EXISTS notifications (
@@ -426,7 +452,33 @@ async function initSchema() {
             attachmentName TEXT,
             attachmentOriginalName TEXT,
             attachmentMimeType TEXT,
+            replyToId INTEGER,
+            linkUrl TEXT,
+            linkTitle TEXT,
+            linkDesc TEXT,
+            linkImage TEXT,
             createdAt TEXT NOT NULL,
+            FOREIGN KEY (studentId) REFERENCES students(studentId)
+          );
+
+          CREATE TABLE IF NOT EXISTS chat_reactions (
+            messageId INTEGER NOT NULL,
+            studentId TEXT NOT NULL,
+            emoji TEXT NOT NULL,
+            PRIMARY KEY (messageId, studentId),
+            FOREIGN KEY (messageId) REFERENCES chat_messages(id),
+            FOREIGN KEY (studentId) REFERENCES students(studentId)
+          );
+
+          CREATE TABLE IF NOT EXISTS chat_read_receipts (
+            studentId TEXT PRIMARY KEY,
+            lastReadMessageId INTEGER NOT NULL,
+            FOREIGN KEY (studentId) REFERENCES students(studentId)
+          );
+
+          CREATE TABLE IF NOT EXISTS chat_typing (
+            studentId TEXT PRIMARY KEY,
+            lastTypedAt TEXT NOT NULL,
             FOREIGN KEY (studentId) REFERENCES students(studentId)
           );
 

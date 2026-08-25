@@ -30,14 +30,11 @@ let libsqlClient = null;
 if (isPostgres) {
   const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
   try {
-    const { Pool } = require('pg');
+    const { Pool } = require('@neondatabase/serverless');
     pgPool = new Pool({
-      connectionString,
-      ssl: connectionString && connectionString.includes('localhost') ? false : { rejectUnauthorized: false },
-      max: 10,
-      idleTimeoutMillis: 30000
+      connectionString
     });
-    console.log('[DB Engine]: Connected to PostgreSQL/Neon Database');
+    console.log('[DB Engine]: Connected to PostgreSQL/Neon Database via serverless driver');
   } catch (err) {
     console.error('[DB Engine]: PostgreSQL init error:', err.message);
   }

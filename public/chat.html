@@ -1262,9 +1262,65 @@
 
     sendBtn.disabled = true;
 
+    // --- OPTIMISTIC UI: Instantly show "Sending..." ---
+    const tempId = 'temp-' + Date.now();
+    const container = document.getElementById('feedInner');
+    const emptyElem = document.getElementById('emptyNotice');
+    if (emptyElem) emptyElem.remove();
+
+    const row = document.createElement('div');
+    row.id = tempId;
+    row.className = 'im-row self solo temp-msg';
+    
+    const col = document.createElement('div');
+    col.className = 'im-msg-content-wrap';
+    
+    const bubble = document.createElement('div');
+    bubble.className = `im-bubble${!text && file ? ' media-only' : ''}`;
+    
+    if (text) {
+      const textSpan = document.createElement('span');
+      textSpan.textContent = text;
+      textSpan.style.whiteSpace = 'pre-wrap';
+      bubble.appendChild(textSpan);
+    }
+    
+    if (file) {
+      const mediaElem = document.createElement('div');
+      mediaElem.className = 'im-media-box';
+      mediaElem.style.opacity = '0.6';
+      
+      if (file.type.startsWith('video/')) {
+        const videoElem = document.createElement('video');
+        videoElem.src = URL.createObjectURL(file);
+        mediaElem.appendChild(videoElem);
+      } else {
+        const imgElem = document.createElement('img');
+        imgElem.src = URL.createObjectURL(file);
+        mediaElem.appendChild(imgElem);
+      }
+      bubble.appendChild(mediaElem);
+    }
+    col.appendChild(bubble);
+
+    const timeMeta = document.createElement('div');
+    timeMeta.className = 'im-time-meta';
+    timeMeta.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align: middle; margin-right: 2px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Sending...`;
+    col.appendChild(timeMeta);
+    
+    row.appendChild(col);
+    container.appendChild(row);
+    scrollToBottom();
+
+    // Clear input instantly for snappy feel
+    textarea.value = '';
+    textarea.style.height = 'auto';
+    const oldFile = file;
+    removeAttachedFile();
+
     const payload = new FormData();
     if (text) payload.append('text', text);
-    if (file) payload.append('attachment', file);
+    if (oldFile) payload.append('attachment', oldFile);
 
     try {
       const res = await fetch('/api/chat/messages', {
@@ -1275,16 +1331,20 @@
 
       if (!res.ok) {
         showError(data.message || 'Unable to send.');
+        document.getElementById(tempId)?.remove();
       } else {
-        textarea.value = '';
-        textarea.style.height = 'auto';
-        removeAttachedFile();
+        // Change temp status to Sent (single tick)
+        const tempTime = document.getElementById(tempId)?.querySelector('.im-time-meta');
+        if (tempTime) {
+           tempTime.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align: middle; margin-right: 2px;"><polyline points="20 6 9 17 4 12"/></svg> Sent`;
+        }
         if (pollTimer) clearTimeout(pollTimer);
         isFetching = false;
         pollMessages();
       }
     } catch (err) {
       showError('Network error. Check connection.');
+      document.getElementById(tempId)?.remove();
     } finally {
       sendBtn.disabled = false;
       textarea.focus();
@@ -1303,6 +1363,9 @@
         if (messages && messages.length > 0) {
           const emptyElem = document.getElementById('emptyNotice');
           if (emptyElem) emptyElem.remove();
+
+          // Remove any temporary optimistic messages since real ones arrived
+          document.querySelectorAll('.temp-msg').forEach(el => el.remove());
 
           renderMessages(messages);
           lastMessageId = messages[messages.length - 1].id;
@@ -1464,7 +1527,12 @@
       // Timestamp under message
       const timeMeta = document.createElement('div');
       timeMeta.className = 'im-time-meta';
-      timeMeta.textContent = formatTime(msg.createdAt);
+      if (isSelf) {
+        // Double-tick for delivered
+        timeMeta.innerHTML = `${formatTime(msg.createdAt)} <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align: middle; margin-left: 2px;"><polyline points="18 6 7 17 2 12"/><polyline points="22 6 11 17 6 12"/></svg>`;
+      } else {
+        timeMeta.textContent = formatTime(msg.createdAt);
+      }
       col.appendChild(timeMeta);
 
       row.appendChild(col);

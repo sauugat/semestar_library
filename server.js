@@ -1677,7 +1677,7 @@ async function getStudentProfile(targetStudentId, viewerStudentId) {
     name: student.name,
     avatarUrl: student.avatarUrl || null,
     bio: student.bio || '',
-    department: student.department || 'B.Sc. CSIT',
+    department: student.department || 'BIT',
     semester: student.semester || 'Semester 1',
     githubUrl: student.githubUrl || '',
     linkedinUrl: student.linkedinUrl || '',
@@ -1718,7 +1718,7 @@ app.post('/api/profile/update', requireLogin, async (req, res) => {
 
   const updatedName = (name && name.trim()) ? name.trim() : current.name;
   const updatedBio = typeof bio === 'string' ? bio.trim().slice(0, 300) : (current.bio || '');
-  const updatedDept = (department && department.trim()) ? department.trim().slice(0, 50) : (current.department || 'B.Sc. CSIT');
+  const updatedDept = (department && department.trim()) ? department.trim().slice(0, 50) : (current.department || 'BIT');
   const updatedSem = (semester && semester.trim()) ? semester.trim().slice(0, 30) : (current.semester || 'Semester 1');
   const updatedGithub = typeof githubUrl === 'string' ? githubUrl.trim().slice(0, 100) : (current.githubUrl || '');
   const updatedLinkedin = typeof linkedinUrl === 'string' ? linkedinUrl.trim().slice(0, 100) : (current.linkedinUrl || '');

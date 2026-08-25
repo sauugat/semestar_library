@@ -83,7 +83,9 @@ const camelMap = {
   attachmentoriginalname: 'attachmentOriginalName', attachmentmimetype: 'attachmentMimeType',
   recipientstudentid: 'recipientStudentId', relatedfileid: 'relatedFileId',
   isread: 'isRead', mimetype: 'mimeType', filedata: 'fileData',
-  lastinsertrowid: 'lastInsertRowid'
+  lastinsertrowid: 'lastInsertRowid', uploadername: 'uploaderName',
+  uploaderavatar: 'uploaderAvatar', uploaderrole: 'uploaderRole',
+  likecount: 'likeCount', commentcount: 'commentCount'
 };
 
 function formatRow(row) {
@@ -284,7 +286,7 @@ async function initSchema() {
             passwordHash TEXT NOT NULL,
             avatarUrl TEXT,
             bio TEXT,
-            department TEXT DEFAULT 'B.Sc. CSIT',
+            department TEXT DEFAULT 'BIT',
             semester TEXT DEFAULT 'Semester 1',
             githubUrl TEXT,
             linkedinUrl TEXT,
@@ -370,7 +372,7 @@ async function initSchema() {
             passwordHash TEXT NOT NULL,
             avatarUrl TEXT,
             bio TEXT,
-            department TEXT DEFAULT 'B.Sc. CSIT',
+            department TEXT DEFAULT 'BIT',
             semester TEXT DEFAULT 'Semester 1',
             githubUrl TEXT,
             linkedinUrl TEXT,

@@ -202,6 +202,17 @@
     }
 
     async function toggleLike(fileId, btn) {
+      const isLiked = btn.dataset.liked === 'true';
+      const countEl = btn.querySelector('.like-count');
+      const currentCount = parseInt(countEl.textContent || '0', 10);
+      
+      const newLiked = !isLiked;
+      const newCount = newLiked ? currentCount + 1 : currentCount - 1;
+      
+      btn.dataset.liked = newLiked ? 'true' : 'false';
+      btn.classList.toggle('liked', newLiked);
+      countEl.textContent = newCount;
+
       try {
         const res = await fetch(`/api/files/${fileId}/like`, { method: 'POST' });
         const data = await res.json();
@@ -210,6 +221,9 @@
         btn.classList.toggle('liked', data.liked);
       } catch (err) {
         console.error('Like error:', err);
+        btn.dataset.liked = isLiked ? 'true' : 'false';
+        btn.classList.toggle('liked', isLiked);
+        countEl.textContent = currentCount;
       }
     }
 

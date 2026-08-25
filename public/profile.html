@@ -95,7 +95,7 @@
           <div class="profile-badges-row">
             <span class="profile-tag-pill" id="profileDept">
               <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
-              B.Sc. CSIT
+              BIT
             </span>
             <span class="profile-tag-pill" id="profileSem">
               <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
@@ -238,14 +238,14 @@
 
         <div class="form-group">
           <label for="editBio">Bio / Headline</label>
-          <textarea id="editBio" rows="3" maxlength="300" placeholder="e.g. CSIT student, passionate about Cloud & AI…" class="form-input form-textarea"></textarea>
+          <textarea id="editBio" rows="3" maxlength="300" placeholder="e.g. BIT student, passionate about Cloud & AI…" class="form-input form-textarea"></textarea>
           <span class="form-hint">Brief intro for your classmates (max 300 chars)</span>
         </div>
 
         <div class="form-row-2">
           <div class="form-group">
             <label for="editDept">Department / Degree</label>
-            <input type="text" id="editDept" placeholder="B.Sc. CSIT" maxlength="50" class="form-input">
+            <input type="text" id="editDept" placeholder="BIT" maxlength="50" class="form-input">
           </div>
           <div class="form-group">
             <label for="editSem">Semester</label>
@@ -377,7 +377,7 @@
       document.title = `${p.name} — ${isAdmin ? 'Class Rep Profile' : 'Student Profile'}`;
       document.getElementById('profileName').textContent = p.name;
       document.getElementById('profileHandle').textContent = `@${p.studentId}`;
-      document.getElementById('profileDept').innerHTML = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>${escapeHtml(p.department || 'B.Sc. CSIT')}`;
+      document.getElementById('profileDept').innerHTML = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>${escapeHtml(p.department || 'BIT')}`;
       document.getElementById('profileSem').innerHTML = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>${escapeHtml(p.semester || 'Semester 1')}`;
       
       const heroCard = document.querySelector('.profile-hero-card');
@@ -718,7 +718,7 @@
               </div>
               <div class="classmate-info">
                 <a href="profile.html?id=${c.studentId}" class="classmate-name">${escapeHtml(c.name)}</a>
-                <span class="classmate-sub">@${escapeHtml(c.studentId)} &middot; ${escapeHtml(c.department || 'CSIT')}</span>
+                <span class="classmate-sub">@${escapeHtml(c.studentId)} &middot; ${escapeHtml(c.department || 'BIT')}</span>
                 <span class="classmate-files-count">${c.filesCount || 0} shared ${c.filesCount === 1 ? 'file' : 'files'}</span>
               </div>
               <button class="classmate-follow-btn ${c.isFollowing ? 'following' : ''}" onclick="toggleFollowClassmate('${c.studentId}', this)">
@@ -755,7 +755,7 @@
       if (!currentProfile) return;
       document.getElementById('editName').value = currentProfile.name || '';
       document.getElementById('editBio').value = currentProfile.bio || '';
-      document.getElementById('editDept').value = currentProfile.department || 'B.Sc. CSIT';
+      document.getElementById('editDept').value = currentProfile.department || 'BIT';
       document.getElementById('editSem').value = currentProfile.semester || 'Semester 1';
       document.getElementById('editGithub').value = currentProfile.githubUrl || '';
       document.getElementById('editLinkedin').value = currentProfile.linkedinUrl || '';
@@ -833,7 +833,7 @@
               </div>
               <div class="follow-user-meta">
                 <a href="profile.html?id=${u.studentId}" class="follow-user-name">${escapeHtml(u.name)}</a>
-                <span class="follow-user-sub">@${escapeHtml(u.studentId)} &middot; ${escapeHtml(u.department || 'CSIT')}</span>
+                <span class="follow-user-sub">@${escapeHtml(u.studentId)} &middot; ${escapeHtml(u.department || 'BIT')}</span>
               </div>
             </div>
           `;
@@ -849,6 +849,17 @@
 
     // Like & Comment Handlers
     async function toggleLike(fileId, btn) {
+      const isLiked = btn.dataset.liked === 'true';
+      const countEl = btn.querySelector('.like-count');
+      const currentCount = parseInt(countEl.textContent || '0', 10);
+      
+      const newLiked = !isLiked;
+      const newCount = newLiked ? currentCount + 1 : currentCount - 1;
+      
+      btn.dataset.liked = newLiked ? 'true' : 'false';
+      btn.classList.toggle('liked', newLiked);
+      countEl.textContent = newCount;
+
       try {
         const res = await fetch(`/api/files/${fileId}/like`, { method: 'POST' });
         const data = await res.json();
@@ -857,6 +868,9 @@
         btn.classList.toggle('liked', data.liked);
       } catch (err) {
         console.error('Like error:', err);
+        btn.dataset.liked = isLiked ? 'true' : 'false';
+        btn.classList.toggle('liked', isLiked);
+        countEl.textContent = currentCount;
       }
     }
 

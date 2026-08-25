@@ -340,27 +340,8 @@
 
 /* Chat Phase 3 Features (Premium Glassmorphism) */
 .msg-reply-btn, .msg-reaction-btn {
-  opacity: 0;
-  transition: opacity 0.2s, background-color 0.2s;
-  background: rgba(0,0,0,0.05);
-  border: none;
-  border-radius: 50%;
-  width: 28px;
-  height: 28px;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: #666;
-  margin: 0 4px;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  display: none !important;
 }
-.msg-reply-btn:hover, .msg-reaction-btn:hover {
-  background: rgba(0,0,0,0.1);
-  color: #000;
-}
-.im-row:hover .msg-reply-btn, .im-row:hover .msg-reaction-btn { opacity: 1; }
 
 .reactions-bar {
   display: flex; gap: 4px; margin-top: -8px; margin-bottom: 8px; z-index: 10; position: relative;

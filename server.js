@@ -1532,7 +1532,93 @@ app.get('/api/chat/messages', requireLogin, async (req, res) => {
     LIMIT 200
   `, since);
   
-  res.json(messages);
+  const messageIds = messages.map(m => m.id);
+  if (messageIds.length > 0) {
+    const placeholders = messageIds.map(() => '?').join(',');
+    const reactions = await db.all(`SELECT messageId, studentId, emoji FROM chat_reactions WHERE messageId IN (${placeholders})`, ...messageIds);
+    const reactionMap = {};
+    reactions.forEach(r => {
+      if (!reactionMap[r.messageId]) reactionMap[r.messageId] = [];
+      reactionMap[r.messageId].push({ studentId: r.studentId, emoji: r.emoji });
+    });
+    messages.forEach(m => {
+      m.reactions = reactionMap[m.id] || [];
+    });
+  }
+
+  const readReceipts = await db.all(`SELECT studentId, lastReadMessageId FROM chat_read_receipts`);
+
+  // We return an object now. We should keep backwards compatibility if the frontend still expects an array on `since > 0`, but we will update the frontend to handle { messages, readReceipts }.
+  res.json({ messages, readReceipts });
+});
+
+app.post('/api/chat/reactions', requireLogin, async (req, res) => {
+  const { messageId, emoji } = req.body;
+  const studentId = req.session.studentId;
+  if (!messageId || !emoji) return res.status(400).json({ error: 'Missing data' });
+  
+  try {
+    const existing = await db.get(`SELECT * FROM chat_reactions WHERE messageId = ? AND studentId = ? AND emoji = ?`, messageId, studentId, emoji);
+    if (existing) {
+      await db.run(`DELETE FROM chat_reactions WHERE messageId = ? AND studentId = ? AND emoji = ?`, messageId, studentId, emoji);
+    } else {
+      await db.run(`INSERT INTO chat_reactions (messageId, studentId, emoji) VALUES (?, ?, ?)`, messageId, studentId, emoji);
+    }
+    supabase.channel('public:chat_messages').send({
+      type: 'broadcast',
+      event: 'reaction_update',
+      payload: { messageId, studentId, emoji, action: existing ? 'remove' : 'add' }
+    });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Reaction error:', error);
+    res.status(500).json({ error: 'Failed to update reaction' });
+  }
+});
+
+app.post('/api/chat/read', requireLogin, async (req, res) => {
+  const { lastReadMessageId } = req.body;
+  const studentId = req.session.studentId;
+  if (!lastReadMessageId) return res.status(400).json({ error: 'Missing data' });
+
+  try {
+    await db.run(`
+      INSERT INTO chat_read_receipts (studentId, lastReadMessageId) VALUES (?, ?)
+      ON CONFLICT(studentId) DO UPDATE SET lastReadMessageId = excluded.lastReadMessageId
+    `, studentId, lastReadMessageId);
+
+    supabase.channel('public:chat_messages').send({
+      type: 'broadcast',
+      event: 'read_receipt',
+      payload: { studentId, lastReadMessageId }
+    });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Read receipt error:', error);
+    res.status(500).json({ error: 'Failed to update read receipt' });
+  }
+});
+
+app.post('/api/chat/typing', requireLogin, async (req, res) => {
+  const studentId = req.session.studentId;
+  const name = req.session.studentName;
+  try {
+    const now = new Date().toISOString();
+    await db.run(`
+      INSERT INTO chat_typing (studentId, lastTypedAt) VALUES (?, ?)
+      ON CONFLICT(studentId) DO UPDATE SET lastTypedAt = excluded.lastTypedAt
+    `, studentId, now);
+
+    supabase.channel('public:chat_messages').send({
+      type: 'broadcast',
+      event: 'typing',
+      payload: { studentId, name, timestamp: now }
+    });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Typing error:', error);
+    res.status(500).json({ error: 'Failed to update typing indicator' });
+  }
 });
 
 const handleChatUpload = (req, res, next) => {

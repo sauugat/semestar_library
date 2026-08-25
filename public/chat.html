@@ -1159,7 +1159,7 @@
   }
   window.initReply = function(id, name, text) {
     currentReplyToId = id;
-    document.getElementById('replyPreviewName').textContent = name;
+    document.getElementById('replyPreviewName').textContent = 'Replying to ' + name;
     document.getElementById('replyPreviewText').textContent = text || 'Attachment';
     document.getElementById('replyPreview').style.display = 'block';
     document.getElementById('chatTextarea').focus();
@@ -1171,12 +1171,17 @@
     textarea.style.height = Math.min(textarea.scrollHeight, 110) + 'px';
 
     const hasText = textarea.value.trim().length > 0;
-    const hasFile = document.getElementById('hiddenFileInput').files.length > 0;
+    const hasFile = document.getElementById('attachmentChip').classList.contains('active');
 
     if (hasText || hasFile) {
       sendBtn.classList.remove('hidden');
     } else {
       sendBtn.classList.add('hidden');
+    }
+    
+    // Typing indicator throttle
+    if (hasText) {
+      fetch('/api/chat/typing', { method: 'POST' }).catch(e => {});
     }
   }
 
@@ -1374,13 +1379,22 @@
     try {
       const res = await fetch(`/api/chat/messages?since=0`);
       if (res.ok) {
-        const messages = await res.json();
+        const data = await res.json();
+        const messages = Array.isArray(data) ? data : data.messages;
+        if (data.readReceipts) {
+          data.readReceipts.forEach(r => {
+            if (r.studentId === currentStudent?.studentId) myLastReadId = r.lastReadMessageId;
+            else readReceiptsMap[r.studentId] = r.lastReadMessageId;
+          });
+        }
+        
         if (messages && messages.length > 0) {
           const emptyElem = document.getElementById('emptyNotice');
           if (emptyElem) emptyElem.remove();
           renderMessages(messages);
           lastMessageId = messages[messages.length - 1].id;
           scrollToBottom();
+          markAsRead(lastMessageId);
         }
       } else if (res.status === 401) {
         window.location.replace('login.html');
@@ -1415,8 +1429,32 @@
           renderMessages([msg]);
           lastMessageId = msg.id;
           scrollToBottom();
+          markAsRead(lastMessageId);
         }
-      }).subscribe();
+      })
+      .on('broadcast', { event: 'reaction_update' }, (payload) => {
+        const p = payload.payload;
+        updateReactionUI(p.messageId, p.studentId, p.emoji, p.action);
+      })
+      .on('broadcast', { event: 'typing' }, (payload) => {
+        const p = payload.payload;
+        if (p.studentId !== currentStudent?.studentId) {
+          const ind = document.getElementById('typingIndicator');
+          ind.textContent = `${p.name} is typing...`;
+          ind.style.display = 'block';
+          clearTimeout(typingTimer);
+          typingTimer = setTimeout(() => { ind.style.display = 'none'; }, 3000);
+          scrollToBottom();
+        }
+      })
+      .on('broadcast', { event: 'read_receipt' }, (payload) => {
+        const p = payload.payload;
+        if (p.studentId !== currentStudent?.studentId) {
+          readReceiptsMap[p.studentId] = p.lastReadMessageId;
+          updateReadReceiptsUI();
+        }
+      })
+      .subscribe();
     } catch (e) {
       console.error('Realtime init error:', e);
     }
@@ -1577,33 +1615,160 @@
       const timeMeta = document.createElement('div');
       timeMeta.className = 'im-time-meta';
       if (isSelf) {
-        // Double-tick for delivered
         timeMeta.innerHTML = `${formatTime(msg.createdAt)} <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align: middle; margin-left: 2px;"><polyline points="18 6 7 17 2 12"/><polyline points="22 6 11 17 6 12"/></svg>`;
       } else {
         timeMeta.textContent = formatTime(msg.createdAt);
       }
       col.appendChild(timeMeta);
 
+      // Action buttons container
+      const actionDiv = document.createElement('div');
+      actionDiv.style.cssText = 'position: absolute; ' + (isSelf ? 'left: -60px;' : 'right: -60px;') + ' top: 50%; transform: translateY(-50%); display: flex; align-items: center;';
+      
+      const reactBtn = document.createElement('button');
+      reactBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>';
+      reactBtn.className = 'msg-reaction-btn';
+      reactBtn.title = 'React';
+      reactBtn.onclick = (e) => toggleEmojiPicker(e, msg.id, row);
+
       const replyBtn = document.createElement('button');
       replyBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>';
       replyBtn.className = 'msg-reply-btn';
       replyBtn.title = 'Reply';
-      replyBtn.style.cssText = 'background: rgba(0,0,0,0.05); border: none; border-radius: 50%; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; opacity: 0; transition: opacity 0.2s; margin: 0 5px; color: #666;';
       replyBtn.onclick = () => window.initReply(msg.id, msg.name, msg.text);
       
-      row.onmouseenter = () => replyBtn.style.opacity = '1';
-      row.onmouseleave = () => replyBtn.style.opacity = '0';
-      
+      if (isSelf) { actionDiv.appendChild(replyBtn); actionDiv.appendChild(reactBtn); } 
+      else { actionDiv.appendChild(reactBtn); actionDiv.appendChild(replyBtn); }
+
+      bubbleElem.style.position = 'relative';
+      bubbleElem.appendChild(actionDiv);
+
+      // Reactions Bar
+      const reactBar = document.createElement('div');
+      reactBar.className = 'reactions-bar';
+      reactBar.id = `reactions-${msg.id}`;
+      col.appendChild(reactBar);
+      if (msg.reactions && msg.reactions.length > 0) {
+        renderReactions(msg.id, msg.reactions);
+      }
+
+      // Read Receipt slot (only for self messages)
       if (isSelf) {
-        col.insertBefore(replyBtn, bubbleElem);
-      } else {
-        col.appendChild(replyBtn);
+        const readDiv = document.createElement('div');
+        readDiv.className = 'read-receipt';
+        readDiv.id = `read-receipt-${msg.id}`;
+        col.appendChild(readDiv);
       }
 
       row.appendChild(col);
       container.appendChild(row);
     });
+    
+    updateReadReceiptsUI();
   }
+
+  // Reactions Logic
+  function toggleEmojiPicker(e, msgId, row) {
+    let picker = row.querySelector('.emoji-picker-popup');
+    if (!picker) {
+      picker = document.createElement('div');
+      picker.className = 'emoji-picker-popup';
+      picker.innerHTML = `
+        <span onclick="sendReaction(${msgId}, '👍')">👍</span>
+        <span onclick="sendReaction(${msgId}, '❤️')">❤️</span>
+        <span onclick="sendReaction(${msgId}, '😂')">😂</span>
+        <span onclick="sendReaction(${msgId}, '😮')">😮</span>
+        <span onclick="sendReaction(${msgId}, '😢')">😢</span>
+        <span onclick="sendReaction(${msgId}, '🔥')">🔥</span>
+      `;
+      row.querySelector('.im-msg-content-wrap').appendChild(picker);
+    }
+    picker.style.display = picker.style.display === 'flex' ? 'none' : 'flex';
+  }
+
+  async function sendReaction(messageId, emoji) {
+    document.querySelectorAll('.emoji-picker-popup').forEach(p => p.style.display = 'none');
+    try {
+      await fetch('/api/chat/reactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messageId, emoji })
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  function updateReactionUI(messageId, studentId, emoji, action) {
+    const bar = document.getElementById(`reactions-${messageId}`);
+    if (!bar) return;
+    
+    let reactions = JSON.parse(bar.dataset.reactions || '[]');
+    if (action === 'add') {
+      reactions.push({ studentId, emoji });
+    } else {
+      reactions = reactions.filter(r => !(r.studentId === studentId && r.emoji === emoji));
+    }
+    renderReactions(messageId, reactions);
+  }
+
+  function renderReactions(messageId, reactions) {
+    const bar = document.getElementById(`reactions-${messageId}`);
+    if (!bar) return;
+    bar.dataset.reactions = JSON.stringify(reactions);
+    bar.innerHTML = '';
+    
+    if (reactions.length === 0) return;
+    
+    // Group by emoji
+    const grouped = {};
+    reactions.forEach(r => {
+      grouped[r.emoji] = (grouped[r.emoji] || 0) + 1;
+    });
+    
+    for (const [em, count] of Object.entries(grouped)) {
+      const pill = document.createElement('div');
+      pill.className = 'reaction-pill';
+      pill.innerHTML = `<span>${em}</span><span style="font-weight:600; font-size:10px;">${count > 1 ? count : ''}</span>`;
+      pill.onclick = () => sendReaction(messageId, em);
+      bar.appendChild(pill);
+    }
+  }
+
+  // Read Receipts Logic
+  async function markAsRead(messageId) {
+    if (messageId > myLastReadId) {
+      myLastReadId = messageId;
+      try {
+        await fetch('/api/chat/read', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ lastReadMessageId: messageId })
+        });
+      } catch (e) {}
+    }
+  }
+
+  function updateReadReceiptsUI() {
+    // Clear all existing read receipts
+    document.querySelectorAll('.read-receipt').forEach(el => el.innerHTML = '');
+    
+    // Find the latest message ID that has been read by ANYONE
+    const readIds = Object.values(readReceiptsMap);
+    if (readIds.length === 0) return;
+    
+    const maxReadId = Math.max(...readIds);
+    const readDiv = document.getElementById(`read-receipt-${maxReadId}`);
+    if (readDiv) {
+       readDiv.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#007aff" stroke-width="2.5" style="vertical-align: middle;"><polyline points="20 6 9 17 4 12"/></svg><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#007aff" stroke-width="2.5" style="vertical-align: middle; margin-left:-8px;"><polyline points="20 6 9 17 4 12"/></svg> Read`;
+    }
+  }
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.msg-reaction-btn') && !e.target.closest('.emoji-picker-popup')) {
+      document.querySelectorAll('.emoji-picker-popup').forEach(p => p.style.display = 'none');
+    }
+  });
 
   function scrollToBottom() {
     const feed = document.getElementById('chatFeed');

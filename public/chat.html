@@ -26,18 +26,17 @@
 
   :root {
     --sf: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Inter', 'Helvetica Neue', system-ui, sans-serif;
-    --bg-base: #f4f4f8;
-    --bar-bg: rgba(255, 255, 255, 0.85);
+    --bg-base: #f5f5f7;
+    --bar-bg: rgba(245, 245, 247, 0.85);
     --bar-border: rgba(0, 0, 0, 0.08);
-    --bubble-gray: #ffffff;
-    --bubble-gray-border: rgba(0, 0, 0, 0.06);
-    --bubble-outgoing: #000000;
+    --bubble-incoming: #e9e9eb;
+    --bubble-outgoing: #1d1d1f;
     --apple-primary: #000000;
-    --text-primary: #000000;
-    --text-secondary: #6e6e73;
-    --text-tertiary: #86868b;
+    --text-primary: #1d1d1f;
+    --text-secondary: #86868b;
+    --text-tertiary: #a1a1a6;
     --input-bg: #ffffff;
-    --input-border: rgba(0, 0, 0, 0.12);
+    --input-border: rgba(0, 0, 0, 0.1);
   }
 
   html, body {
@@ -71,33 +70,7 @@
     background: radial-gradient(circle at top right, rgba(255,255,255,0.05) 0%, transparent 40%),
                 radial-gradient(circle at bottom left, rgba(255,255,255,0.03) 0%, transparent 40%);
   }
-    0% { transform: translate(0, 0) scale(1); }
-    50% { transform: translate(65px, 80px) scale(1.15); }
-    100% { transform: translate(-45px, -35px) scale(0.9); }
-  }
 
-  @keyframes floatWhiteOrb2 {
-    0% { transform: translate(0, 0) scale(0.92); }
-    50% { transform: translate(-80px, -55px) scale(1.14); }
-    100% { transform: translate(35px, 65px) scale(1); }
-  }
-
-  @keyframes floatWhiteOrb3 {
-    0% { transform: translate(0, 0) scale(1.06); }
-    50% { transform: translate(55px, -65px) scale(0.9); }
-    100% { transform: translate(-35px, 45px) scale(1.12); }
-  }
-
-  @keyframes floatWhiteOrb4 {
-    0% { transform: translate(0, 0) scale(1); }
-    50% { transform: translate(-55px, 75px) scale(1.18); }
-    100% { transform: translate(45px, -45px) scale(0.94); }
-  }
-
-  @keyframes waveMotion {
-    0% { transform: translateY(-40%) rotate(20deg); }
-    100% { transform: translateY(40%) rotate(20deg); }
-  }
 
   /* ═══ NAVIGATION HEADER ═══ */
   .im-header {
@@ -166,18 +139,16 @@
   }
 
   .im-contact-avatar {
-    width: 38px;
-    height: 38px;
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
-    background: #000;
+    background: #1d1d1f;
     display: flex;
     align-items: center;
     justify-content: center;
     color: #ffffff;
     margin-bottom: 2px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     overflow: hidden;
-    border: 0.5px solid rgba(0, 0, 0, 0.08);
   }
 
   .im-contact-avatar svg {
@@ -368,12 +339,13 @@
   .im-msg-content-wrap {
     display: flex;
     flex-direction: column;
-    min-width: 0;
+    align-items: flex-end;
     position: relative;
+    max-width: 85%;
   }
 
-  .im-row.self .im-msg-content-wrap {
-    align-items: flex-end;
+  .im-row.other .im-msg-content-wrap {
+    align-items: flex-start;
   }
 
   /* Sender Name Header */
@@ -393,13 +365,12 @@
   /* ═══ BUBBLE SHAPE WITH MONOCHROMATIC CONTRAST ═══ */
   .im-bubble {
     position: relative;
-    padding: 9px 14px;
-    font-size: 15.5px;
-    line-height: 1.38;
-    letter-spacing: -0.3px;
+    padding: 10px 16px;
+    font-size: 15px;
+    line-height: 1.4;
+    letter-spacing: -0.2px;
     word-break: break-word;
     user-select: text;
-    border: 0.5px solid rgba(0,0,0,0.1);
   }
 
   /* Link & Number Highlights */
@@ -423,13 +394,13 @@
 
   /* Incoming Bubble */
   .im-row.other .im-bubble {
-    background: #ffffff;
-    color: #000000;
+    background: var(--bubble-incoming);
+    color: var(--text-primary);
   }
 
   /* Outgoing Bubble */
   .im-row.self .im-bubble {
-    background: #000000;
+    background: var(--bubble-outgoing);
     color: #ffffff;
   }
 
@@ -471,11 +442,11 @@
 
   .im-media-box {
     position: relative;
-    border-radius: 16px;
+    border-radius: 12px;
     overflow: hidden;
     max-width: 270px;
     background: #ffffff;
-    border: 0.5px solid rgba(0, 0, 0, 0.08);
+    border: 0.5px solid rgba(0, 0, 0, 0.05);
   }
 
   .im-bubble:not(.media-only) .im-media-box {
@@ -613,16 +584,18 @@
     width: 34px;
     height: 34px;
     border-radius: 50%;
-    background: rgba(0,0,0,0.05);
+    background: rgba(0,0,0,0.06);
     border: none;
-    color: #000;
+    color: var(--text-secondary);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     flex-shrink: 0;
     margin-bottom: 2px;
+    transition: background 0.15s;
   }
+  .im-plus-upload-btn:hover { background: rgba(0,0,0,0.1); }
 
   /* Input Capsule */
   .im-input-capsule {
@@ -630,19 +603,19 @@
     min-height: 38px;
     display: flex;
     align-items: flex-end;
-    background: #ffffff;
+    background: var(--input-bg);
     border: 0.5px solid var(--input-border);
     border-radius: 20px;
-    padding: 2px 4px 2px 14px;
+    padding: 2px 4px 2px 16px;
   }
 
   .im-textarea {
     flex: 1;
     border: none;
     background: transparent;
-    color: #000;
+    color: var(--text-primary);
     font-family: var(--sf);
-    font-size: 15.5px;
+    font-size: 15px;
     line-height: 20px;
     padding: 8px 0;
     resize: none;
@@ -655,7 +628,7 @@
     width: 30px;
     height: 30px;
     border-radius: 50%;
-    background: #000;
+    background: var(--apple-primary);
     border: none;
     color: #fff;
     display: flex;

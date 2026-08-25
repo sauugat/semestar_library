@@ -88,8 +88,7 @@ if (db.isPostgres && db.pgPool) {
     const PgSession = require('connect-pg-simple')(session);
     sessionStore = new PgSession({
       pool: db.pgPool,
-      tableName: 'session',
-      createTableIfMissing: true
+      tableName: 'session'
     });
     console.log('[Session]: Persistent PostgreSQL Session Store enabled (connect-pg-simple)');
   } catch (err) {
@@ -301,7 +300,13 @@ app.post('/api/login', loginRateLimiter, async (req, res) => {
     req.session.studentId = student.studentId;
     req.session.studentName = student.name;
     req.session.role = student.role || 'student';
-    return res.json({ message: 'Login successful', redirect: '/dashboard.html' });
+    req.session.save((saveErr) => {
+      if (saveErr) {
+        console.error('Session save error:', saveErr);
+        return res.status(500).json({ message: 'Authentication session creation error.' });
+      }
+      return res.json({ message: 'Login successful', redirect: '/dashboard.html' });
+    });
   });
 });
 

@@ -85,7 +85,9 @@ const camelMap = {
   isread: 'isRead', mimetype: 'mimeType', filedata: 'fileData',
   lastinsertrowid: 'lastInsertRowid', uploadername: 'uploaderName',
   uploaderavatar: 'uploaderAvatar', uploaderrole: 'uploaderRole',
-  likecount: 'likeCount', commentcount: 'commentCount'
+  likecount: 'likeCount', commentcount: 'commentCount',
+  commentername: 'commenterName', isfollowing: 'isFollowing',
+  followerscount: 'followersCount', followingcount: 'followingCount'
 };
 
 function formatRow(row) {

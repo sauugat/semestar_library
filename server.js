@@ -97,6 +97,8 @@ if (db.isPostgres && db.pgPool) {
   }
 }
 
+app.set('trust proxy', 1);
+
 app.use(session({
   store: sessionStore,
   name: '__gu_session',

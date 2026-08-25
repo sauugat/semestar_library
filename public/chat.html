@@ -1158,14 +1158,21 @@
 
   // Session Init
   fetch('/api/me')
-    .then(r => r.json())
+    .then(r => {
+      if (!r.ok) {
+        window.location.replace('login.html');
+        return null;
+      }
+      return r.json();
+    })
     .then(data => {
+      if (!data) return;
       currentStudent = data;
       const charEl = document.getElementById('headerAvatarChar');
       if (charEl) charEl.textContent = data.name.charAt(0).toUpperCase();
 
       fetch('/api/profile')
-        .then(r => r.json())
+        .then(r => r.ok ? r.json() : null)
         .then(p => {
           if (p && p.avatarUrl) {
             document.getElementById('headerProfileAvatar').innerHTML = `<img src="${p.avatarUrl}" alt="${data.name}">`;

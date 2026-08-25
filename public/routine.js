@@ -47,3 +47,17 @@ semesterButtons.forEach(button => {
   });
 
 });
+
+// Auto-filter from URL query param (e.g. ?semester=IV)
+(function autoFilterFromURL() {
+  const params = new URLSearchParams(window.location.search);
+  const sem = params.get('semester');
+  if (sem) {
+    const targetBtn = Array.from(semesterButtons).find(
+      btn => btn.dataset.semester === sem
+    );
+    if (targetBtn) {
+      targetBtn.click();
+    }
+  }
+})();

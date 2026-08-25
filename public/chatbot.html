@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Assistant — Semester Library</title>
+  <script>
+    fetch('/api/me').then(r => { if (!r.ok) window.location.replace('login.html'); }).catch(() => window.location.replace('login.html'));
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="chatbot.css">
+</head>
+<body class="dash sla-fullpage-mode">
+
+  <!-- TOP PRO NAVIGATION HEADER -->
+  <header class="dash-header">
+    <a href="dashboard.html" class="lib-wordmark">Semester Library</a>
+
+    <nav class="dash-header-nav">
+      <a href="dashboard.html" class="header-nav-item">Feed</a>
+      <a href="library.html" class="header-nav-item">Library</a>
+      <a href="syllabus.html" class="header-nav-item">Syllabus</a>
+      <a href="routine.html" class="header-nav-item">Routine</a>
+      <a href="chat.html" class="header-nav-item">Chat</a>
+      <a href="chatbot.html" class="header-nav-item active" style="color: #0b1528; font-weight: 700;">AI Assistant</a>
+    </nav>
+
+    <div class="dash-header-right">
+      <a href="profile.html" class="dash-user-chip" id="headerProfileChip" style="text-decoration: none;">
+        <div class="dash-user-avatar" id="headerAvatar">S</div>
+        <span class="dash-user-name" id="headerProfileName">Profile</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- FULLPAGE ASSISTANT CONTAINER -->
+  <div class="sla-fullpage-wrapper">
+    
+    <!-- LEFT SIDEBAR -->
+    <aside class="sla-fullpage-sidebar">
+      <div class="sla-sidebar-hero">
+        <div class="sla-sidebar-hero-icon">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+        </div>
+        <div>
+          <h2>Library Assistant</h2>
+          <p>Strict Website Scope & Grounding</p>
+        </div>
+      </div>
+
+      <div class="sla-topics-group">
+        <h4>Curated Topics & Roadmaps</h4>
+        <button type="button" class="sla-topic-btn" data-q="what notes do we have for networking stuff">
+          <span>🌐 Networking & Networks</span>
+          <span>&rsaquo;</span>
+        </button>
+        <button type="button" class="sla-topic-btn" data-q="Give me notes on Math">
+          <span>📐 Mathematics & Series</span>
+          <span>&rsaquo;</span>
+        </button>
+        <button type="button" class="sla-topic-btn" data-q="What's in semester 3?">
+          <span>📖 Semester 3 Syllabus</span>
+          <span>&rsaquo;</span>
+        </button>
+        <button type="button" class="sla-topic-btn" data-q="When's the exam?">
+          <span>📅 Pre-Board Exam Routine</span>
+          <span>&rsaquo;</span>
+        </button>
+        <button type="button" class="sla-topic-btn" data-q="What operating systems courses and notes exist?">
+          <span>💻 Operating Systems (OS)</span>
+          <span>&rsaquo;</span>
+        </button>
+        <button type="button" class="sla-topic-btn" data-q="Show me database management and SQL topics">
+          <span>🗄️ Database Management (DBMS)</span>
+          <span>&rsaquo;</span>
+        </button>
+      </div>
+
+      <div style="background: #f8fafc; border: 1px solid rgba(0,0,0,0.06); border-radius: 14px; padding: 14px; margin-top: auto;">
+        <div style="font-size: 11.5px; font-weight: 700; color: #0b1528; margin-bottom: 4px;">⚡ Real-Time Grounding</div>
+        <div style="font-size: 11px; color: #64748b; line-height: 1.45;">
+          Directly connected to SQLite files, BIT curriculum syllabus, and official pre-board routine.
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN CHAT CONTAINER -->
+    <main class="sla-fullpage-chatbox">
+      
+      <div class="sla-fullpage-header">
+        <div>
+          <h1>
+            <span style="display:inline-block; width:9px; height:9px; border-radius:50%; background:#10b981; box-shadow:0 0 8px #10b981;"></span>
+            Semester Library AI Assistant
+          </h1>
+          <span style="font-size: 12px; color: #64748b;">Find notes, explore course chapters, and look up exam routines</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="sla-rate-badge">20 msgs / hr</span>
+          <button type="button" class="sla-tool-btn" id="slaClearBtn" title="Clear Chat History" style="background: rgba(0,0,0,0.06); color: #0b1528;">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- MESSAGES SCROLL AREA -->
+      <div class="sla-chat-messages" id="slaMessages">
+        <div class="sla-msg-row sla-ai">
+          <div class="sla-msg-avatar">AI</div>
+          <div class="sla-msg-bubble">
+            <h3>Welcome to Semester Library AI! 👋</h3>
+            <p>I'm your dedicated academic assistant for <strong>Gandaki University BIT</strong>. Ask me anything about:</p>
+            <ul>
+              <li><strong>Uploaded class notes & assignments</strong> (fuzzy search & download)</li>
+              <li><strong>Course syllabus & credit roadmaps</strong> across all 8 semesters</li>
+              <li><strong>Pre-board examination dates & schedules</strong></li>
+            </ul>
+            <p>Click any quick topic below or type your question in the box to get started!</p>
+            <div class="sla-actions-row">
+              <a href="library.html" class="sla-action-pill">📚 Browse Notes Library</a>
+              <a href="syllabus.html" class="sla-action-pill">📖 View Syllabus Catalog</a>
+              <a href="routine.html" class="sla-action-pill">📅 Check Exam Routine</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SUGGESTIONS TRAY -->
+      <div class="sla-suggestions-tray" id="slaSuggestions">
+        <button type="button" class="sla-suggestion-chip" data-q="what notes do we have for networking stuff">🌐 Networking Notes</button>
+        <button type="button" class="sla-suggestion-chip" data-q="Give me notes on Math">📐 Math Notes</button>
+        <button type="button" class="sla-suggestion-chip" data-q="What's in semester 3?">📖 Semester 3 Syllabus</button>
+        <button type="button" class="sla-suggestion-chip" data-q="When's the exam?">📅 Exam Routine</button>
+        <button type="button" class="sla-suggestion-chip" data-q="How do I upload notes?">📤 Upload Guide</button>
+      </div>
+
+      <!-- INPUT FOOTER -->
+      <div class="sla-panel-footer">
+        <form class="sla-input-wrapper" id="slaForm">
+          <input type="text" id="slaInput" class="sla-chat-input" placeholder="Ask about networking notes, math infinite series, semester 3 syllabus, exam dates…" autocomplete="off" maxlength="400">
+          <button type="submit" class="sla-send-btn" id="slaSendBtn" title="Send Question">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+          </button>
+        </form>
+      </div>
+
+    </main>
+
+  </div>
+
+  <script>
+    // Load student profile for header chip
+    fetch('/api/profile').then(r => {
+      if (r.ok) return r.json();
+      throw new Error('Not logged in');
+    }).then(p => {
+      if (p) {
+        const headerAvatar = document.getElementById('headerAvatar');
+        const headerName = document.getElementById('headerProfileName');
+        if (headerName) headerName.textContent = p.name ? p.name.split(' ')[0] : 'Profile';
+        if (headerAvatar) {
+          if (p.avatarUrl) {
+            headerAvatar.innerHTML = `<img src="${p.avatarUrl}" alt="${p.name}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
+          } else {
+            headerAvatar.textContent = p.name ? p.name.charAt(0).toUpperCase() : 'S';
+          }
+        }
+      }
+    }).catch(() => {});
+
+    // Sidebar topic button clicks
+    document.querySelectorAll('.sla-topic-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const q = btn.dataset.q;
+        if (q && window.askAiAssistant) {
+          window.askAiAssistant(q);
+        }
+      });
+    });
+  </script>
+
+  <script src="chatbot.js"></script>
+</body>
+</html>

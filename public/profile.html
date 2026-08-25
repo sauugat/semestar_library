@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="chatbot.css">
   <script>
     fetch('/api/profile').then(r => { if (!r.ok) window.location.replace('/login.html'); }).catch(() => window.location.replace('/login.html'));
   </script>
@@ -20,10 +21,11 @@
 
     <nav class="dash-header-nav">
       <a href="dashboard.html" class="header-nav-item">Feed</a>
-      <a href="chat.html" class="header-nav-item">Chat</a>
       <a href="library.html" class="header-nav-item">Library</a>
       <a href="syllabus.html" class="header-nav-item">Syllabus</a>
       <a href="routine.html" class="header-nav-item">Routine</a>
+      <a href="chat.html" class="header-nav-item">Chat</a>
+      <a href="chatbot.html" class="header-nav-item">AI Assistant</a>
     </nav>
 
     <div class="dash-header-actions">
@@ -932,5 +934,6 @@
     loadProfile();
   </script>
   <script src="notifications.js"></script>
+  <script src="chatbot.js"></script>
 </body>
 </html>

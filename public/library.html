@@ -11,6 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="chatbot.css">
   <script src="syllabus-helper.js"></script>
   <style>
     /* ==========================================================================
@@ -471,6 +472,783 @@
       color: #ffffff;
     }
     .btn-file-get:hover { background: #000000; }
+
+    .btn-file-delete {
+      background: #fff1f2;
+      color: #e11d48;
+      border: 1px solid #ffe4e6;
+      cursor: pointer;
+      padding: 6px 9px;
+    }
+    .btn-file-delete:hover {
+      background: #ffe4e6;
+      color: #be123c;
+      border-color: #fecdd3;
+      transform: translateY(-1px);
+    }
+
+    .btn-unit-delete-all {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #e11d48;
+      background: #fff1f2;
+      border: 1px solid #ffe4e6;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn-unit-delete-all:hover {
+      background: #ffe4e6;
+      color: #be123c;
+      border-color: #fecdd3;
+      transform: scale(1.02);
+    }
+
+    /* Checkbox for Multi-File Selection */
+    .file-checkbox-label {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      padding: 4px;
+      margin-right: 4px;
+      user-select: none;
+      flex-shrink: 0;
+    }
+    .file-checkbox-label input {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+      pointer-events: none;
+    }
+    .file-custom-check {
+      width: 18px;
+      height: 18px;
+      border: 1.8px solid #cbd5e1;
+      border-radius: 5px;
+      background: #ffffff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.18s ease;
+    }
+    .file-checkbox-label:hover .file-custom-check {
+      border-color: #0f172a;
+    }
+    .file-checkbox-label input:checked ~ .file-custom-check {
+      background: #e11d48;
+      border-color: #e11d48;
+    }
+    .file-checkbox-label input:checked ~ .file-custom-check::after {
+      content: '';
+      width: 4px;
+      height: 8px;
+      border: solid #ffffff;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg) translate(-0.5px, -0.5px);
+      display: block;
+    }
+
+    /* Floating Batch Action Bar */
+    .batch-floating-bar {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      z-index: 1200;
+      transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
+      opacity: 0;
+      pointer-events: none;
+      max-width: 92vw;
+    }
+    .batch-floating-bar.active {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .batch-floating-inner {
+      background: rgba(15, 23, 42, 0.94);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      color: #ffffff;
+      padding: 9px 18px;
+      border-radius: 980px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.12);
+    }
+    .batch-floating-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .batch-badge-count {
+      background: #e11d48;
+      color: #ffffff;
+      font-size: 11.5px;
+      font-weight: 800;
+      padding: 2px 8px;
+      border-radius: 980px;
+      min-width: 22px;
+      text-align: center;
+    }
+    .batch-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #f1f5f9;
+      white-space: nowrap;
+    }
+    .batch-floating-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .batch-btn-toggle {
+      background: rgba(255, 255, 255, 0.12);
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 6px 12px;
+      border-radius: 980px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .batch-btn-toggle:hover {
+      background: rgba(255, 255, 255, 0.22);
+    }
+    .batch-btn-delete-action {
+      background: #e11d48;
+      color: #ffffff;
+      border: none;
+      padding: 6px 14px;
+      border-radius: 980px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 2px 10px rgba(225, 29, 72, 0.4);
+      transition: all 0.2s;
+    }
+    .batch-btn-delete-action:hover {
+      background: #be123c;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 14px rgba(225, 29, 72, 0.6);
+    }
+
+    /* Luxury Theme Custom Confirmation / Alert Modal */
+    .custom-confirm-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.52);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      z-index: 2500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.25s var(--ease-apple);
+      padding: 16px;
+    }
+    .custom-confirm-overlay.open {
+      opacity: 1;
+      visibility: visible;
+    }
+    .custom-confirm-card {
+      background: var(--surface);
+      width: 100%;
+      max-width: 440px;
+      border-radius: var(--radius-lg);
+      border: 1.5px solid var(--border);
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.22), 0 0 0 1px rgba(255, 255, 255, 0.8) inset;
+      padding: 24px;
+      transform: scale(0.95) translateY(10px);
+      transition: all 0.25s var(--ease-apple);
+      display: flex;
+      flex-direction: column;
+    }
+    .custom-confirm-overlay.open .custom-confirm-card {
+      transform: scale(1) translateY(0);
+    }
+    .confirm-icon-wrap {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: #fff1f2;
+      color: #e11d48;
+      border: 1.5px solid #ffe4e6;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 16px;
+      box-shadow: 0 0 0 6px rgba(225, 29, 72, 0.08);
+    }
+    .confirm-title {
+      font-size: 19px;
+      font-weight: 800;
+      color: var(--text);
+      letter-spacing: -0.02em;
+      margin: 0 0 8px;
+    }
+    .confirm-message {
+      font-size: 13.5px;
+      color: var(--text-muted);
+      line-height: 1.5;
+      margin: 0 0 14px;
+    }
+    .confirm-file-preview-list {
+      max-height: 150px;
+      overflow-y: auto;
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 6px 12px;
+      margin-bottom: 18px;
+    }
+    .confirm-file-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+    }
+    .confirm-file-item:last-child {
+      border-bottom: none;
+    }
+    .confirm-badge {
+      font-size: 10px;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: #e2e8f0;
+      color: #334155;
+      flex-shrink: 0;
+    }
+    .confirm-badge.pdf { background: #fee2e2; color: #dc2626; }
+    .confirm-badge.ppt, .confirm-badge.pptx { background: #ffedd5; color: #c2410c; }
+    .confirm-badge.doc, .confirm-badge.docx { background: #dbeafe; color: #1d4ed8; }
+    .confirm-badge.img { background: #f3e8ff; color: #7e22ce; }
+    .confirm-file-name {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      min-width: 0;
+    }
+    .confirm-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 6px;
+    }
+    .btn-confirm-cancel {
+      padding: 9px 18px;
+      border-radius: 980px;
+      background: #f1f5f9;
+      color: var(--text);
+      border: 1px solid var(--border);
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-confirm-cancel:hover {
+      background: #e2e8f0;
+    }
+    .btn-confirm-danger {
+      padding: 9px 20px;
+      border-radius: 980px;
+      background: #e11d48;
+      color: #ffffff;
+      border: 1px solid #be123c;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 4px 12px rgba(225, 29, 72, 0.35);
+      transition: all 0.2s;
+    }
+    .btn-confirm-danger:hover {
+      background: #be123c;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(225, 29, 72, 0.5);
+    }
+
+    /* Upload CTA Button */
+    .upload-cta-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px 16px;
+      border-radius: 980px;
+      background: #111827;
+      color: #ffffff;
+      font-size: 13px;
+      font-weight: 700;
+      text-decoration: none;
+      border: 1.5px solid #111827;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+      transition: all 0.2s var(--ease-apple);
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .upload-cta-btn:hover {
+      background: #000000;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+    }
+    .upload-cta-btn svg {
+      transition: transform 0.2s ease;
+      stroke-width: 2.4px;
+    }
+    .upload-cta-btn:hover svg {
+      transform: translateY(-1.5px);
+    }
+
+    /* Direct Upload Modal Dialog */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      z-index: 2000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.25s var(--ease-apple);
+      padding: 16px;
+    }
+
+    .modal-overlay.open {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal-card {
+      background: #ffffff;
+      width: 100%;
+      max-width: 580px;
+      max-height: 90vh;
+      border-radius: var(--radius-lg);
+      border: 1.5px solid var(--border);
+      box-shadow: var(--shadow-lg);
+      display: flex;
+      flex-direction: column;
+      transform: scale(0.96) translateY(8px);
+      transition: all 0.25s var(--ease-apple);
+      overflow: hidden;
+    }
+
+    .modal-overlay.open .modal-card {
+      transform: scale(1) translateY(0);
+    }
+
+    .modal-header {
+      padding: 20px 24px 16px;
+      border-bottom: 1.5px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background: #ffffff;
+    }
+
+    .modal-header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .modal-header-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: #111827;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    }
+
+    .modal-title {
+      font-size: 17px;
+      font-weight: 800;
+      color: var(--text);
+      margin: 0 0 2px;
+      letter-spacing: -0.02em;
+    }
+
+    .modal-subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin: 0;
+    }
+
+    .modal-close-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #f3f4f6;
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+    }
+
+    .modal-close-btn:hover {
+      background: #e5e7eb;
+      transform: scale(1.05);
+    }
+
+    .modal-body {
+      padding: 20px 24px;
+      overflow-y: auto;
+      max-height: calc(90vh - 150px);
+    }
+
+    /* Modal Dropzone */
+    .clean-dropzone {
+      border: 2px dashed rgba(0, 0, 0, 0.18);
+      border-radius: 14px;
+      padding: 22px 16px;
+      text-align: center;
+      cursor: pointer;
+      background: #fafafa;
+      transition: all 0.2s var(--ease-apple);
+      margin-bottom: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .clean-dropzone:hover, .clean-dropzone.dragover {
+      border-color: #111827;
+      background: #f4f4f5;
+    }
+
+    .dropzone-icon-circle {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: #111827;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 2px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      transition: transform 0.2s ease;
+    }
+
+    .clean-dropzone:hover .dropzone-icon-circle {
+      transform: translateY(-2px) scale(1.04);
+      background: #000000;
+    }
+
+    .dropzone-label {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .dropzone-hint {
+      font-size: 11.5px;
+      color: var(--text-muted);
+    }
+
+    /* File Queue Section */
+    .file-queue-section {
+      background: #f9fafb;
+      border: 1.5px solid var(--border);
+      border-radius: 14px;
+      padding: 12px 14px;
+      margin-bottom: 16px;
+    }
+
+    .file-queue-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    }
+
+    .file-queue-title {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .btn-clear-all {
+      background: none;
+      border: none;
+      color: #ef4444;
+      font-size: 11.5px;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 6px;
+      transition: background 0.15s;
+    }
+
+    .btn-clear-all:hover {
+      background: rgba(239, 68, 68, 0.1);
+    }
+
+    .file-queue-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 160px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .file-queue-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 10px;
+      background: #ffffff;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 9px;
+      font-size: 12.5px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    }
+
+    .file-queue-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .file-type-pill {
+      font-size: 9.5px;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 5px;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+      flex-shrink: 0;
+    }
+
+    .badge-pdf { background: #fee2e2; color: #b91c1c; }
+    .badge-doc { background: #dbeafe; color: #1d4ed8; }
+    .badge-img { background: #dcfce7; color: #15803d; }
+    .badge-zip { background: #f3e8ff; color: #7e22ce; }
+    .badge-ppt { background: #ffedd5; color: #c2410c; }
+    .badge-other { background: #f3f4f6; color: #4b5563; }
+
+    .file-queue-name {
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 250px;
+    }
+
+    .file-queue-size {
+      font-size: 11px;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .file-queue-remove {
+      background: none;
+      border: none;
+      color: #9ca3af;
+      font-size: 16px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: all 0.15s;
+    }
+
+    .file-queue-remove:hover {
+      color: #ef4444;
+      background: #fee2e2;
+    }
+
+    /* Modal Form Controls */
+    .clean-field {
+      margin-bottom: 14px;
+    }
+
+    .clean-label {
+      display: block;
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #374151;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      margin-bottom: 5px;
+    }
+
+    .clean-input, .clean-select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      font-size: 13px;
+      font-family: inherit;
+      color: var(--text);
+      background: #ffffff;
+      outline: none;
+      transition: all 0.2s;
+      box-sizing: border-box;
+    }
+
+    .clean-input:focus, .clean-select:focus {
+      border-color: #111827;
+      box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.06);
+    }
+
+    .clean-select:disabled {
+      background: #f9fafb;
+      color: #9ca3af;
+      cursor: not-allowed;
+    }
+
+    .modal-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 18px;
+      padding-top: 14px;
+      border-top: 1.5px solid var(--border);
+    }
+
+    .btn-modal-cancel {
+      padding: 9px 16px;
+      border-radius: 10px;
+      background: #f3f4f6;
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+
+    .btn-modal-cancel:hover {
+      background: #e5e7eb;
+    }
+
+    .btn-modal-submit {
+      padding: 9px 20px;
+      border-radius: 10px;
+      background: #111827;
+      border: none;
+      color: #ffffff;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+      transition: all 0.2s var(--ease-apple);
+      font-family: inherit;
+    }
+
+    .btn-modal-submit:hover {
+      background: #000000;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.22);
+    }
+
+    .btn-modal-submit:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .modal-status-msg {
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 12.5px;
+      font-weight: 600;
+      margin-top: 10px;
+      text-align: center;
+    }
+
+    .modal-status-msg.error {
+      background: #fee2e2;
+      color: #b91c1c;
+      border: 1px solid #fecaca;
+    }
+
+    .modal-status-msg.success {
+      background: #dcfce7;
+      color: #15803d;
+      border: 1px solid #bbf7d0;
+    }
+
+    /* Toast Notification */
+    .lib-toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #111827;
+      color: #ffffff;
+      padding: 12px 22px;
+      border-radius: 980px;
+      font-size: 13.5px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+      z-index: 3000;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s var(--ease-apple);
+    }
+
+    .lib-toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    .lib-toast svg {
+      color: #10b981;
+    }
   </style>
 </head>
 <body class="dash">
@@ -481,10 +1259,11 @@
 
     <nav class="dash-header-nav">
       <a href="dashboard.html" class="header-nav-item">Feed</a>
-      <a href="chat.html" class="header-nav-item">Chat</a>
       <a href="library.html" class="header-nav-item active">Library</a>
       <a href="syllabus.html" class="header-nav-item">Syllabus</a>
       <a href="routine.html" class="header-nav-item">Routine</a>
+      <a href="chat.html" class="header-nav-item">Chat</a>
+      <a href="chatbot.html" class="header-nav-item">AI Assistant</a>
     </nav>
 
     <div class="dash-header-actions">
@@ -503,9 +1282,15 @@
       <div>
         <h1 class="lib-page-title" id="libSectionHeader">Semester 1 Courses</h1>
       </div>
-      <div class="lib-search-pill">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-        <input type="text" id="libSearch" placeholder="Search subjects, chapters, notes, or topics…">
+      <div style="display:flex; align-items:center; gap:12px; flex:1; justify-content:flex-end; max-width:620px;">
+        <div class="lib-search-pill" style="max-width:380px;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          <input type="text" id="libSearch" placeholder="Search subjects, chapters, notes, or topics…">
+        </div>
+        <button type="button" class="upload-cta-btn" onclick="openDirectUploadModal()" title="Upload Notes to Library">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+          <span>Upload Notes</span>
+        </button>
       </div>
     </div>
 
@@ -542,10 +1327,10 @@
         </div>
         <h2 style="font-size:18px; font-weight:800; margin:0 0 12px; color:var(--text);" id="dCourseTitle">Course Title</h2>
         <div style="display:flex; gap:8px;">
-          <a href="#" id="dUploadBtn" class="upload-cta-btn" style="padding:6px 14px; font-size:12px;">
+          <button type="button" id="dUploadBtn" class="upload-cta-btn" style="padding:6px 14px; font-size:12px;">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
             <span>+ Upload Note</span>
-          </a>
+          </button>
         </div>
       </div>
 
@@ -555,12 +1340,175 @@
     </div>
   </div>
 
+  <!-- Direct Upload Modal Dialog -->
+  <div class="modal-overlay" id="uploadModalOverlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-header-left">
+          <div class="modal-header-icon">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+            </svg>
+          </div>
+          <div>
+            <h2 class="modal-title">Upload Study Materials</h2>
+            <p class="modal-subtitle">Add notes, slides, or assignments directly to your library.</p>
+          </div>
+        </div>
+        <button type="button" class="modal-close-btn" id="uploadModalClose" title="Close">&times;</button>
+      </div>
 
+      <form id="directUploadForm" class="modal-body">
+        <!-- Multi-File Dropzone -->
+        <label for="directFileInput" class="clean-dropzone" id="directDropZone">
+          <div class="dropzone-icon-circle">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+            </svg>
+          </div>
+          <span class="dropzone-label" id="directDropLabel">Choose file(s) or drag & drop</span>
+          <span class="dropzone-hint">PDF, DOCX, ZIP, Images, PPTX up to 25MB each &middot; Select multiple files at once</span>
+          <input type="file" id="directFileInput" multiple hidden>
+        </label>
+
+        <!-- Selected Files Queue Display -->
+        <div id="fileQueueSection" class="file-queue-section" style="display:none;">
+          <div class="file-queue-header">
+            <span class="file-queue-title" id="fileQueueSummary">0 files selected</span>
+            <button type="button" class="btn-clear-all" id="clearAllFilesBtn">Clear All</button>
+          </div>
+          <div class="file-queue-list" id="fileQueueList"></div>
+        </div>
+
+        <!-- Optional Batch / Resource Title -->
+        <div class="clean-field">
+          <label class="clean-label" for="modalTitleInput">Resource Title <span style="font-weight:500; text-transform:none; color:var(--text-subtle);">(Optional &middot; defaults to file name)</span></label>
+          <input type="text" id="modalTitleInput" class="clean-input" placeholder="e.g. Unit 2 Digital Logic Lecture Notes" maxlength="100">
+        </div>
+
+        <!-- Semester & Course Row -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+          <div class="clean-field">
+            <label class="clean-label" for="modalSemesterSelect">Semester</label>
+            <select id="modalSemesterSelect" class="clean-select" required>
+              <option value="">Select Semester…</option>
+            </select>
+          </div>
+
+          <div class="clean-field">
+            <label class="clean-label" for="modalSubjectSelect">Course / Subject</label>
+            <select id="modalSubjectSelect" class="clean-select" required disabled>
+              <option value="">Choose semester first</option>
+            </select>
+          </div>
+        </div>
+
+        <input type="text" id="modalCustomSubInput" class="clean-input" placeholder="Enter custom subject name" style="display:none; margin-bottom:14px;">
+
+        <!-- Chapter / Unit Row -->
+        <div class="clean-field">
+          <label class="clean-label" for="modalChapterSelect">Chapter / Unit</label>
+          <select id="modalChapterSelect" class="clean-select" disabled>
+            <option value="">Choose course first</option>
+          </select>
+        </div>
+
+        <input type="text" id="modalCustomChapterInput" class="clean-input" placeholder="Enter custom unit name" style="display:none; margin-bottom:14px;">
+
+        <!-- Status / Error message -->
+        <div id="modalStatusMsg" class="modal-status-msg" style="display:none;"></div>
+
+        <!-- Action Buttons -->
+        <div class="modal-actions">
+          <button type="button" class="btn-modal-cancel" id="uploadModalCancel">Cancel</button>
+          <button type="submit" class="btn-modal-submit" id="directUploadSubmit">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+            </svg>
+            <span id="submitBtnText">Publish Files</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- FLOATING BATCH SELECTION BAR -->
+  <div class="batch-floating-bar" id="batchFloatingBar">
+    <div class="batch-floating-inner">
+      <div class="batch-floating-info">
+        <span class="batch-badge-count" id="batchSelectedCount">0</span>
+        <span class="batch-label" id="batchSelectedLabel">notes selected</span>
+      </div>
+      <div class="batch-floating-actions">
+        <button type="button" class="batch-btn-toggle" onclick="selectAllDrawerFiles()">Select All</button>
+        <button type="button" class="batch-btn-toggle" onclick="clearSelectedDrawerFiles()">Deselect</button>
+        <button type="button" class="batch-btn-delete-action" onclick="deleteSelectedBatchFiles()">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2">
+            <polyline points="3 6 5 6 21 6"/>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+          </svg>
+          <span>Delete Selected</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LUXURY THEMED CUSTOM CONFIRMATION / DELETE MODAL -->
+  <div class="custom-confirm-overlay" id="customConfirmOverlay">
+    <div class="custom-confirm-card" role="dialog" aria-modal="true">
+      <div class="confirm-icon-wrap" id="confirmIconWrap">
+        <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.2">
+          <polyline points="3 6 5 6 21 6"/>
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+          <line x1="10" y1="11" x2="10" y2="17"/>
+          <line x1="14" y1="11" x2="14" y2="17"/>
+        </svg>
+      </div>
+      <h3 class="confirm-title" id="confirmTitle">Delete Study Materials?</h3>
+      <p class="confirm-message" id="confirmMessage">Are you sure you want to permanently delete these notes? This action cannot be undone.</p>
+      
+      <div class="confirm-file-preview-list" id="confirmFileList" style="display:none;"></div>
+
+      <div class="confirm-actions">
+        <button type="button" class="btn-confirm-cancel" id="confirmCancelBtn">Cancel</button>
+        <button type="button" class="btn-confirm-danger" id="confirmDangerBtn">
+          <span id="confirmDangerBtnText">Yes, Delete</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="libToast" class="lib-toast">
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+    <span id="toastMsg">Uploaded successfully!</span>
+  </div>
 
   <script>
-    fetch('/api/me').then(r => { if (!r.ok) window.location.href = 'login.html'; });
+    async function safeFetchJson(url, defaultVal = null) {
+      try {
+        const res = await fetch(url);
+        if (res.status === 401) {
+          window.location.replace('login.html');
+          return defaultVal;
+        }
+        if (!res.ok) return defaultVal;
+        const ct = res.headers.get('content-type') || '';
+        if (ct.includes('application/json')) {
+          return await res.json();
+        }
+        return defaultVal;
+      } catch (e) {
+        console.warn(`Safe fetch warning for ${url}:`, e);
+        return defaultVal;
+      }
+    }
 
-    fetch('/api/profile').then(r => r.json()).then(p => {
+    safeFetchJson('/api/me').then(me => {
+      if (!me) window.location.replace('login.html');
+    });
+
+    safeFetchJson('/api/profile').then(p => {
       if (p) {
         const headerAvatar = document.getElementById('headerAvatar');
         const headerName = document.getElementById('headerProfileName');
@@ -592,24 +1540,46 @@
     let FILE_STATS = [];
     let ALL_FILES = [];
     let ACTIVE_SEM = 'I'; // Default to Semester 1
+    let CURRENT_DRAWER_COURSE = null;
+    let SEMESTER_LIST = [];
+    let SELECTED_FILES = [];
 
     async function init() {
       try {
         const [sData, statsRes, filesRes] = await Promise.all([
           window.SyllabusHelper.loadSyllabusData(),
-          fetch('/api/library/stats').then(r => r.ok ? r.json() : []),
-          fetch('/api/files').then(r => r.ok ? r.json() : [])
+          safeFetchJson('/api/library/stats', []),
+          safeFetchJson('/api/files', [])
         ]);
         SYLLABUS_DATA = sData;
         ALL_COURSES = window.SyllabusHelper.getAllCourses(sData);
+        SEMESTER_LIST = window.SyllabusHelper.getFormattedSemesters(sData);
         FILE_STATS = statsRes || [];
         ALL_FILES = filesRes || [];
 
         setupSemSwitcher();
+        setupUploadModalControls();
         renderView();
         checkUrl();
       } catch (e) {
         console.error('Init error:', e);
+      }
+    }
+
+    async function refreshLibraryData() {
+      try {
+        const [statsRes, filesRes] = await Promise.all([
+          safeFetchJson('/api/library/stats', []),
+          safeFetchJson('/api/files', [])
+        ]);
+        FILE_STATS = statsRes || [];
+        ALL_FILES = filesRes || [];
+        renderView();
+        if (CURRENT_DRAWER_COURSE && overlay.classList.contains('open')) {
+          openDrawer(CURRENT_DRAWER_COURSE.title);
+        }
+      } catch (e) {
+        console.error('Error refreshing library data:', e);
       }
     }
 
@@ -643,6 +1613,300 @@
       const h = document.getElementById('libSectionHeader');
       h.textContent = `${SEM_MAP[ACTIVE_SEM] || 'Semester'} Courses`;
     }
+
+    let CURRENT_DRAWER_FILES = [];
+
+    function getFileBadge(filename) {
+      if (!filename) return 'DOC';
+      const ext = (filename.split('.').pop() || '').toLowerCase();
+      if (['pdf'].includes(ext)) return 'PDF';
+      if (['ppt', 'pptx'].includes(ext)) return 'PPT';
+      if (['doc', 'docx', 'txt', 'rtf'].includes(ext)) return 'DOC';
+      if (['png', 'jpg', 'jpeg', 'webp', 'svg'].includes(ext)) return 'IMG';
+      if (['zip', 'rar', '7z'].includes(ext)) return 'ZIP';
+      return 'DOC';
+    }
+
+    function renderFileActions(f) {
+      const fileBadge = getFileBadge(f.originalName || f.title);
+      return `
+        <div class="clean-file-actions">
+          ${f.canDelete ? `
+            <label class="file-checkbox-label" onclick="event.stopPropagation();" title="Select note">
+              <input type="checkbox" class="file-select-checkbox" data-file-id="${f.id}" data-file-title="${escapeHtml(f.title || f.originalName)}" data-file-type="${fileBadge}" onchange="handleFileSelectionChange()">
+              <span class="file-custom-check"></span>
+            </label>
+          ` : ''}
+          <a href="/api/files/${f.id}/view" target="_blank" class="btn-file-action btn-file-view">View</a>
+          <a href="/api/files/${f.id}/download" class="btn-file-action btn-file-get" download="${escapeHtml(f.originalName || 'file')}" target="_blank">Get</a>
+          ${f.canDelete ? `
+            <button type="button" class="btn-file-action btn-file-delete" onclick="deleteLibraryFile(${f.id}, event)" title="Delete this note">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </button>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    function showCustomConfirmModal({
+      title = 'Delete Study Note?',
+      message = 'Are you sure you want to delete this study note? This action cannot be undone.',
+      confirmText = 'Yes, Delete',
+      files = []
+    }) {
+      return new Promise((resolve) => {
+        const overlay = document.getElementById('customConfirmOverlay');
+        const titleEl = document.getElementById('confirmTitle');
+        const msgEl = document.getElementById('confirmMessage');
+        const listEl = document.getElementById('confirmFileList');
+        const cancelBtn = document.getElementById('confirmCancelBtn');
+        const dangerBtn = document.getElementById('confirmDangerBtn');
+        const dangerBtnText = document.getElementById('confirmDangerBtnText');
+
+        titleEl.textContent = title;
+        msgEl.textContent = message;
+        dangerBtnText.textContent = confirmText;
+
+        if (files && files.length > 0) {
+          listEl.style.display = 'block';
+          listEl.innerHTML = files.slice(0, 20).map(f => `
+            <div class="confirm-file-item">
+              <span class="confirm-badge ${f.type ? f.type.toLowerCase() : 'doc'}">${escapeHtml(f.type || 'DOC')}</span>
+              <span class="confirm-file-name" title="${escapeHtml(f.title || f.name)}">${escapeHtml(f.title || f.name)}</span>
+            </div>
+          `).join('') + (files.length > 20 ? `<div style="font-size:11.5px; color:var(--text-muted); text-align:center; padding-top:4px;">+ ${files.length - 20} more files…</div>` : '');
+        } else {
+          listEl.style.display = 'none';
+          listEl.innerHTML = '';
+        }
+
+        overlay.classList.add('open');
+
+        function cleanup(result) {
+          overlay.classList.remove('open');
+          cancelBtn.removeEventListener('click', onCancel);
+          dangerBtn.removeEventListener('click', onConfirm);
+          overlay.removeEventListener('click', onOverlayClick);
+          document.removeEventListener('keydown', onKeyDown);
+          resolve(result);
+        }
+
+        function onCancel() { cleanup(false); }
+        function onConfirm() { cleanup(true); }
+        function onOverlayClick(e) { if (e.target === overlay) cleanup(false); }
+        function onKeyDown(e) {
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            cleanup(false);
+          } else if (e.key === 'Enter') {
+            e.preventDefault();
+            cleanup(true);
+          }
+        }
+
+        cancelBtn.addEventListener('click', onCancel);
+        dangerBtn.addEventListener('click', onConfirm);
+        overlay.addEventListener('click', onOverlayClick);
+        document.addEventListener('keydown', onKeyDown);
+      });
+    }
+
+    window.handleFileSelectionChange = function() {
+      const checkedBoxes = Array.from(document.querySelectorAll('.file-select-checkbox:checked'));
+      const count = checkedBoxes.length;
+      const bar = document.getElementById('batchFloatingBar');
+      const countEl = document.getElementById('batchSelectedCount');
+      const labelEl = document.getElementById('batchSelectedLabel');
+
+      if (count > 0) {
+        countEl.textContent = count;
+        labelEl.textContent = count === 1 ? 'note selected' : 'notes selected';
+        bar.classList.add('active');
+      } else {
+        bar.classList.remove('active');
+      }
+    };
+
+    window.selectAllDrawerFiles = function() {
+      const allBoxes = document.querySelectorAll('.file-select-checkbox');
+      allBoxes.forEach(b => b.checked = true);
+      handleFileSelectionChange();
+    };
+
+    window.clearSelectedDrawerFiles = function() {
+      const allBoxes = document.querySelectorAll('.file-select-checkbox');
+      allBoxes.forEach(b => b.checked = false);
+      handleFileSelectionChange();
+    };
+
+    window.deleteSelectedBatchFiles = async function() {
+      const checkedBoxes = Array.from(document.querySelectorAll('.file-select-checkbox:checked'));
+      if (!checkedBoxes.length) return;
+
+      const fileIds = checkedBoxes.map(b => parseInt(b.dataset.fileId));
+      const fileList = checkedBoxes.map(b => ({
+        id: parseInt(b.dataset.fileId),
+        title: b.dataset.fileTitle,
+        type: b.dataset.fileType
+      }));
+
+      const confirmed = await showCustomConfirmModal({
+        title: `Delete ${fileList.length} Selected Note${fileList.length > 1 ? 's' : ''}?`,
+        message: `You are about to permanently delete the selected study materials. This action cannot be undone.`,
+        confirmText: `Yes, Delete (${fileList.length})`,
+        files: fileList
+      });
+
+      if (!confirmed) return;
+
+      try {
+        const res = await fetch('/api/library/chapters/delete-files', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileIds })
+        });
+
+        if (res.status === 401) {
+          window.location.replace('login.html');
+          return;
+        }
+
+        const ct = res.headers.get('content-type') || '';
+        let data = {};
+        if (ct.includes('application/json')) {
+          data = await res.json();
+        } else {
+          throw new Error(`Server returned status ${res.status}`);
+        }
+
+        if (!res.ok) {
+          throw new Error(data.message || 'Failed to delete selected files');
+        }
+
+        clearSelectedDrawerFiles();
+        showToast(`🗑️ ${data.message || `Deleted ${fileIds.length} notes successfully`}`);
+        await refreshLibraryData();
+      } catch (err) {
+        console.error('Batch delete error:', err);
+        alert(err.message || 'Could not delete selected files. Please try again.');
+      }
+    };
+
+    window.deleteLibraryFile = async function(fileId, event) {
+      if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+      }
+
+      const id = parseInt(fileId);
+      const f = (CURRENT_DRAWER_FILES && CURRENT_DRAWER_FILES.find(x => x.id === id)) || 
+                (ALL_FILES && ALL_FILES.find(x => x.id === id)) || {};
+      const fileTitle = f.title || f.originalName || 'Study Note';
+      const fileType = getFileBadge(f.originalName || f.title);
+
+      const confirmed = await showCustomConfirmModal({
+        title: 'Delete Study Note?',
+        message: 'Are you sure you want to permanently delete this study note? This action cannot be undone.',
+        confirmText: 'Yes, Delete Note',
+        files: [{ title: fileTitle, type: fileType }]
+      });
+
+      if (!confirmed) return;
+
+      try {
+        const res = await fetch(`/api/files/${id}`, {
+          method: 'DELETE'
+        });
+
+        if (res.status === 401) {
+          window.location.replace('login.html');
+          return;
+        }
+
+        const ct = res.headers.get('content-type') || '';
+        let data = {};
+        if (ct.includes('application/json')) {
+          data = await res.json();
+        } else {
+          throw new Error(`Server returned status ${res.status}`);
+        }
+
+        if (!res.ok) {
+          throw new Error(data.message || 'Failed to delete note');
+        }
+
+        showToast('🗑️ Note deleted successfully');
+        await refreshLibraryData();
+      } catch (err) {
+        console.error('Delete error:', err);
+        alert(err.message || 'Could not delete note. Please try again.');
+      }
+    };
+
+    window.deleteChapterFiles = async function(subject, chapter, fileIds, event) {
+      if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+      }
+
+      if (!fileIds || !fileIds.length) return;
+
+      const fileList = fileIds.map(id => {
+        const f = (CURRENT_DRAWER_FILES && CURRENT_DRAWER_FILES.find(x => x.id === id)) ||
+                  (ALL_FILES && ALL_FILES.find(x => x.id === id)) || {};
+        return {
+          id,
+          title: f.title || f.originalName || 'Study Note',
+          type: getFileBadge(f.originalName || f.title)
+        };
+      });
+
+      const confirmed = await showCustomConfirmModal({
+        title: `Delete All Notes from ${chapter}?`,
+        message: `You are about to permanently delete all ${fileIds.length} note${fileIds.length > 1 ? 's' : ''} in "${chapter}". This cannot be undone.`,
+        confirmText: `Yes, Delete All (${fileIds.length})`,
+        files: fileList
+      });
+
+      if (!confirmed) return;
+
+      try {
+        const res = await fetch('/api/library/chapters/delete-files', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            subject,
+            chapter,
+            fileIds
+          })
+        });
+
+        if (res.status === 401) {
+          window.location.replace('login.html');
+          return;
+        }
+
+        const ct = res.headers.get('content-type') || '';
+        let data = {};
+        if (ct.includes('application/json')) {
+          data = await res.json();
+        } else {
+          throw new Error(`Server error (${res.status})`);
+        }
+
+        if (!res.ok) {
+          throw new Error(data.message || 'Failed to delete chapter notes');
+        }
+
+        showToast(`🗑️ ${data.message || `Deleted ${fileIds.length} notes successfully`}`);
+        await refreshLibraryData();
+      } catch (err) {
+        console.error('Delete chapter error:', err);
+        alert(err.message || 'Could not delete chapter notes. Please try again.');
+      }
+    };
 
     function renderView() {
       const container = document.getElementById('mainContentContainer');
@@ -736,7 +2000,7 @@
               ${matchFiles.slice(0, 15).map(f => `
                 <div class="clean-file-item">
                   <div class="clean-file-left">
-                    <div class="clean-file-icon">DOC</div>
+                    <div class="clean-file-icon">${getFileBadge(f.originalName || f.title)}</div>
                     <div style="min-width:0;">
                       <p class="clean-file-title" title="${escapeHtml(f.title || f.originalName)}">${escapeHtml(f.title || f.originalName)}</p>
                       <p class="clean-file-meta">
@@ -746,10 +2010,7 @@
                       </p>
                     </div>
                   </div>
-                  <div class="clean-file-actions">
-                    <a href="/api/files/${f.id}/view" target="_blank" class="btn-file-action btn-file-view">View</a>
-                    <a href="/api/files/${f.id}/download" class="btn-file-action btn-file-get">Get</a>
-                  </div>
+                  ${renderFileActions(f)}
                 </div>
               `).join('')}
             </div>
@@ -767,7 +2028,7 @@
             </h3>
             <div>
               ${matchChapters.slice(0, 12).map(ch => `
-                <div class="search-chapter-item" onclick="openDrawer('${escapeHtml(ch.courseTitle).replace(/'/g, "\\'")}', '${ch.unitNum}')">
+                <div class="search-chapter-item" onclick="openDrawer('${escapeJs(ch.courseTitle)}', '${ch.unitNum}')">
                   <div style="min-width:0;">
                     <div style="display:flex; align-items:center; gap:8px; margin-bottom:3px;">
                       <span class="course-code-badge">${escapeHtml(ch.courseCode || 'COURSE')}</span>
@@ -809,7 +2070,7 @@
       const semLabel = SEM_MAP[c.rawSemester] || c.rawSemester;
 
       return `
-        <div class="course-card-minimal" onclick="openDrawer('${escapeHtml(c.title).replace(/'/g, "\\'")}')">
+        <div class="course-card-minimal" onclick="openDrawer('${escapeJs(c.title)}')">
           <div>
             <div class="course-card-head">
               <span class="course-code-badge">${escapeHtml(c.code || 'COURSE')}</span>
@@ -833,12 +2094,16 @@
 
     drawerClose.addEventListener('click', () => {
       overlay.classList.remove('open');
+      CURRENT_DRAWER_COURSE = null;
+      clearSelectedDrawerFiles();
       history.replaceState(null, null, ' ');
     });
 
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay) {
         overlay.classList.remove('open');
+        CURRENT_DRAWER_COURSE = null;
+        clearSelectedDrawerFiles();
         history.replaceState(null, null, ' ');
       }
     });
@@ -847,6 +2112,7 @@
       const course = window.SyllabusHelper.findCourse(SYLLABUS_DATA, title);
       if (!course) return;
 
+      CURRENT_DRAWER_COURSE = course;
       location.hash = encodeURIComponent(course.title);
 
       const semLabel = SEM_MAP[course.rawSemester] || course.semester;
@@ -854,24 +2120,23 @@
       document.getElementById('dCourseCode').textContent = course.code || 'COURSE';
       document.getElementById('dCourseMeta').textContent = `${semLabel} · ${course.credit} Credits`;
       document.getElementById('dCourseTitle').textContent = course.title;
-      document.getElementById('dUploadBtn').href = `files.html?sem=${encodeURIComponent(course.rawSemester)}&subject=${encodeURIComponent(course.title)}`;
+      
+      const dUploadBtn = document.getElementById('dUploadBtn');
+      dUploadBtn.onclick = () => openDirectUploadModal(course.title, course.rawSemester);
 
       const body = document.getElementById('drawerBody');
       body.innerHTML = '<p style="color:var(--text-muted); font-size:13px;">Loading notes…</p>';
       overlay.classList.add('open');
 
       const units = course.contents ? window.SyllabusHelper.parseCourseUnits(course.contents) : [];
-      let files = [];
-      try {
-        const res = await fetch(`/api/library/files?subject=${encodeURIComponent(course.title)}`);
-        if (res.ok) files = await res.json();
-      } catch (err) {}
+      let files = await safeFetchJson(`/api/library/files?subject=${encodeURIComponent(course.title)}`, []);
+      CURRENT_DRAWER_FILES = files || [];
 
       if (!units.length && !files.length) {
         body.innerHTML = `
           <div style="text-align:center; padding:40px 20px; color:var(--text-muted); font-size:13px; border:1.5px dashed var(--border); border-radius:14px;">
             No study notes uploaded for this course yet.<br>
-            <a href="files.html?sem=${encodeURIComponent(course.rawSemester)}&subject=${encodeURIComponent(course.title)}" style="color:var(--accent); font-weight:700; text-decoration:none; display:inline-block; margin-top:8px;">+ Upload First Note</a>
+            <button type="button" onclick="openDirectUploadModal('${escapeJs(course.title)}', '${course.rawSemester}')" class="upload-cta-btn" style="margin-top:12px; font-size:12px; padding:6px 14px;">+ Upload First Note</button>
           </div>
         `;
         return;
@@ -880,34 +2145,42 @@
       let html = '';
       units.forEach((u, i) => {
         const uFiles = files.filter(f => f.chapter && (f.chapter.includes(`Unit ${u.num}`) || f.chapter.toLowerCase().includes(u.title.toLowerCase())));
+        const deletableUFiles = uFiles.filter(f => f.canDelete);
         const isOpen = (autoOpenUnitNum && String(autoOpenUnitNum) === String(u.num)) || (!autoOpenUnitNum && (i === 0 || uFiles.length > 0));
 
         html += `
           <div class="clean-unit-row ${isOpen ? 'open' : ''}">
             <div class="clean-unit-head" onclick="this.parentElement.classList.toggle('open')">
               <span>Unit ${u.num}: ${escapeHtml(u.title)}</span>
-              <span style="font-size:12px; color:var(--text-muted); font-weight:600;">${uFiles.length} file${uFiles.length === 1 ? '' : 's'}</span>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="font-size:12px; color:var(--text-muted); font-weight:600;">${uFiles.length} file${uFiles.length === 1 ? '' : 's'}</span>
+                ${deletableUFiles.length > 0 ? `
+                  <button type="button" class="btn-unit-delete-all" onclick="deleteChapterFiles('${escapeJs(course.title)}', 'Unit ${u.num}: ${escapeJs(u.title)}', [${deletableUFiles.map(f => f.id).join(',')}], event)" title="Delete all ${deletableUFiles.length} note${deletableUFiles.length > 1 ? 's' : ''} you have in this unit">
+                    <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    <span>Delete All (${deletableUFiles.length})</span>
+                  </button>
+                ` : ''}
+              </div>
             </div>
             <div class="clean-unit-body">
               ${uFiles.length ? uFiles.map(f => `
                 <div class="clean-file-item">
                   <div class="clean-file-left">
-                    <div class="clean-file-icon">DOC</div>
+                    <div class="clean-file-icon">${getFileBadge(f.originalName || f.title)}</div>
                     <div style="min-width:0;">
                       <p class="clean-file-title" title="${escapeHtml(f.title || f.originalName)}">${escapeHtml(f.title || f.originalName)}</p>
                       <p class="clean-file-meta">By ${escapeHtml(f.uploaderName || 'Student')}</p>
                     </div>
                   </div>
-                  <div class="clean-file-actions">
-                    <a href="/api/files/${f.id}/view" target="_blank" class="btn-file-action btn-file-view">View</a>
-                    <a href="/api/files/${f.id}/download" class="btn-file-action btn-file-get">Get</a>
-                  </div>
+                  ${renderFileActions(f)}
                 </div>
               `).join('') : `
-                <p style="font-size:12px; color:var(--text-subtle); margin:0;">
-                  No notes for this unit. 
-                  <a href="files.html?sem=${encodeURIComponent(course.rawSemester)}&subject=${encodeURIComponent(course.title)}&chapter=Unit%20${u.num}" style="color:var(--accent); font-weight:700; text-decoration:none;">+ Upload</a>
-                </p>
+                <div style="display:flex; align-items:center; justify-content:space-between; padding:4px 0;">
+                  <p style="font-size:12px; color:var(--text-subtle); margin:0;">
+                    No notes for this unit yet.
+                  </p>
+                  <button type="button" onclick="openDirectUploadModal('${escapeJs(course.title)}', '${course.rawSemester}', 'Unit ${u.num}: ${escapeJs(u.title)}')" class="btn-file-action btn-file-view" style="font-size:11.5px; padding:4px 10px; cursor:pointer;">+ Upload</button>
+                </div>
               `}
             </div>
           </div>
@@ -916,27 +2189,33 @@
 
       // General files
       const general = files.filter(f => !f.chapter || f.chapter === 'General' || !units.some(u => f.chapter.includes(`Unit ${u.num}`)));
+      const deletableGeneral = general.filter(f => f.canDelete);
       if (general.length) {
         html += `
           <div class="clean-unit-row open">
             <div class="clean-unit-head" onclick="this.parentElement.classList.toggle('open')">
               <span>General & Labs</span>
-              <span style="font-size:12px; color:var(--text-muted); font-weight:600;">${general.length} files</span>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="font-size:12px; color:var(--text-muted); font-weight:600;">${general.length} files</span>
+                ${deletableGeneral.length > 0 ? `
+                  <button type="button" class="btn-unit-delete-all" onclick="deleteChapterFiles('${escapeJs(course.title)}', 'General', [${deletableGeneral.map(f => f.id).join(',')}], event)" title="Delete all ${deletableGeneral.length} note${deletableGeneral.length > 1 ? 's' : ''} in General & Labs">
+                    <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    <span>Delete All (${deletableGeneral.length})</span>
+                  </button>
+                ` : ''}
+              </div>
             </div>
             <div class="clean-unit-body">
               ${general.map(f => `
                 <div class="clean-file-item">
                   <div class="clean-file-left">
-                    <div class="clean-file-icon">DOC</div>
+                    <div class="clean-file-icon">${getFileBadge(f.originalName || f.title)}</div>
                     <div style="min-width:0;">
                       <p class="clean-file-title" title="${escapeHtml(f.title || f.originalName)}">${escapeHtml(f.title || f.originalName)}</p>
                       <p class="clean-file-meta">By ${escapeHtml(f.uploaderName || 'Student')}</p>
                     </div>
                   </div>
-                  <div class="clean-file-actions">
-                    <a href="/api/files/${f.id}/view" target="_blank" class="btn-file-action btn-file-view">View</a>
-                    <a href="/api/files/${f.id}/download" class="btn-file-action btn-file-get">Get</a>
-                  </div>
+                  ${renderFileActions(f)}
                 </div>
               `).join('')}
             </div>
@@ -953,13 +2232,379 @@
     }
     window.addEventListener('hashchange', checkUrl);
 
+    // =========================================================================
+    // DIRECT IN-PLACE UPLOAD MODAL & MULTI-FILE QUEUE SYSTEM
+    // =========================================================================
+
+    const uploadModalOverlay = document.getElementById('uploadModalOverlay');
+    const uploadModalClose = document.getElementById('uploadModalClose');
+    const uploadModalCancel = document.getElementById('uploadModalCancel');
+    const directFileInput = document.getElementById('directFileInput');
+    const directDropZone = document.getElementById('directDropZone');
+    const fileQueueSection = document.getElementById('fileQueueSection');
+    const fileQueueSummary = document.getElementById('fileQueueSummary');
+    const fileQueueList = document.getElementById('fileQueueList');
+    const clearAllFilesBtn = document.getElementById('clearAllFilesBtn');
+    const modalTitleInput = document.getElementById('modalTitleInput');
+    const modalSemesterSelect = document.getElementById('modalSemesterSelect');
+    const modalSubjectSelect = document.getElementById('modalSubjectSelect');
+    const modalChapterSelect = document.getElementById('modalChapterSelect');
+    const modalCustomSubInput = document.getElementById('modalCustomSubInput');
+    const modalCustomChapterInput = document.getElementById('modalCustomChapterInput');
+    const modalStatusMsg = document.getElementById('modalStatusMsg');
+    const directUploadSubmit = document.getElementById('directUploadSubmit');
+    const submitBtnText = document.getElementById('submitBtnText');
+    const libToast = document.getElementById('libToast');
+    const toastMsg = document.getElementById('toastMsg');
+
+    function showToast(message) {
+      toastMsg.textContent = message;
+      libToast.classList.add('show');
+      setTimeout(() => {
+        libToast.classList.remove('show');
+      }, 4000);
+    }
+
+    function formatBytes(bytes) {
+      if (!bytes || bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    }
+
+    function getFileTypeInfo(filename) {
+      const ext = (filename.split('.').pop() || '').toLowerCase();
+      if (['pdf'].includes(ext)) return { ext: 'PDF', badge: 'badge-pdf' };
+      if (['doc', 'docx', 'txt', 'rtf', 'odt'].includes(ext)) return { ext: ext.toUpperCase(), badge: 'badge-doc' };
+      if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext)) return { ext: 'IMG', badge: 'badge-img' };
+      if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) return { ext: 'ZIP', badge: 'badge-zip' };
+      if (['ppt', 'pptx'].includes(ext)) return { ext: 'PPT', badge: 'badge-ppt' };
+      return { ext: ext.slice(0, 4).toUpperCase() || 'FILE', badge: 'badge-other' };
+    }
+
+    function renderFileQueue() {
+      if (SELECTED_FILES.length === 0) {
+        fileQueueSection.style.display = 'none';
+        submitBtnText.textContent = 'Publish Files';
+        directUploadSubmit.disabled = false;
+        return;
+      }
+
+      fileQueueSection.style.display = 'block';
+      let totalSize = SELECTED_FILES.reduce((acc, f) => acc + f.size, 0);
+      fileQueueSummary.textContent = `${SELECTED_FILES.length} file${SELECTED_FILES.length > 1 ? 's' : ''} selected (${formatBytes(totalSize)})`;
+      submitBtnText.textContent = `Publish ${SELECTED_FILES.length} Note${SELECTED_FILES.length > 1 ? 's' : ''}`;
+
+      fileQueueList.innerHTML = SELECTED_FILES.map((file, idx) => {
+        const info = getFileTypeInfo(file.name);
+        return `
+          <div class="file-queue-item">
+            <div class="file-queue-left">
+              <span class="file-type-pill ${info.badge}">${info.ext}</span>
+              <span class="file-queue-name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</span>
+              <span class="file-queue-size">${formatBytes(file.size)}</span>
+            </div>
+            <button type="button" class="file-queue-remove" onclick="removeQueuedFile(${idx})" title="Remove file">&times;</button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    window.removeQueuedFile = function(index) {
+      SELECTED_FILES.splice(index, 1);
+      renderFileQueue();
+    };
+
+    clearAllFilesBtn.addEventListener('click', () => {
+      SELECTED_FILES = [];
+      directFileInput.value = '';
+      renderFileQueue();
+    });
+
+    function addFilesToQueue(files) {
+      if (!files || !files.length) return;
+      let oversized = false;
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (file.size > 25 * 1024 * 1024) {
+          oversized = true;
+          continue;
+        }
+        // Avoid exact duplicate addition
+        const alreadyExists = SELECTED_FILES.some(f => f.name === file.name && f.size === file.size);
+        if (!alreadyExists) {
+          SELECTED_FILES.push(file);
+        }
+      }
+
+      if (oversized) {
+        setModalStatus('Some files were ignored because they exceed the 25MB limit.', 'error');
+      } else {
+        clearModalStatus();
+      }
+
+      // Auto pre-populate title if empty and single file
+      if (SELECTED_FILES.length === 1 && !modalTitleInput.value.trim()) {
+        modalTitleInput.value = SELECTED_FILES[0].name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+      }
+
+      renderFileQueue();
+    }
+
+    directFileInput.addEventListener('change', () => {
+      if (directFileInput.files.length) {
+        addFilesToQueue(directFileInput.files);
+      }
+    });
+
+    ['dragenter', 'dragover'].forEach(name => {
+      directDropZone.addEventListener(name, (e) => {
+        e.preventDefault();
+        directDropZone.classList.add('dragover');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach(name => {
+      directDropZone.addEventListener(name, (e) => {
+        e.preventDefault();
+        directDropZone.classList.remove('dragover');
+      });
+    });
+
+    directDropZone.addEventListener('drop', (e) => {
+      if (e.dataTransfer && e.dataTransfer.files.length) {
+        addFilesToQueue(e.dataTransfer.files);
+      }
+    });
+
+    function setModalStatus(msg, type = 'error') {
+      modalStatusMsg.textContent = msg;
+      modalStatusMsg.className = `modal-status-msg ${type}`;
+      modalStatusMsg.style.display = 'block';
+    }
+
+    function clearModalStatus() {
+      modalStatusMsg.textContent = '';
+      modalStatusMsg.style.display = 'none';
+    }
+
+    function setupUploadModalControls() {
+      modalSemesterSelect.innerHTML = '<option value="">Select Semester…</option>' + 
+        SEMESTER_LIST.map(s => `<option value="${s.shortName}">${s.fullLabel}</option>`).join('') +
+        '<option value="General">General / All Semesters</option>';
+
+      modalSemesterSelect.addEventListener('change', () => {
+        const val = modalSemesterSelect.value;
+        modalCustomSubInput.style.display = 'none';
+        modalCustomChapterInput.style.display = 'none';
+
+        if (!val) {
+          modalSubjectSelect.innerHTML = '<option value="">Choose semester first</option>';
+          modalSubjectSelect.disabled = true;
+          modalChapterSelect.innerHTML = '<option value="">Choose course first</option>';
+          modalChapterSelect.disabled = true;
+          return;
+        }
+
+        const sem = SEMESTER_LIST.find(s => s.shortName === val);
+        const courses = sem ? sem.courses : [];
+
+        if (!courses.length || val === 'General') {
+          modalSubjectSelect.innerHTML = '<option value="">Select Subject…</option><option value="__custom__">+ Custom Subject</option>';
+          modalSubjectSelect.disabled = false;
+          modalChapterSelect.innerHTML = '<option value="General">General / All Chapters</option><option value="__custom__">+ Custom Unit</option>';
+          modalChapterSelect.disabled = false;
+          return;
+        }
+
+        modalSubjectSelect.innerHTML = '<option value="">Select Course…</option>' +
+          courses.map(c => `<option value="${escapeHtml(c.title)}">${c.code ? c.code + ' — ' : ''}${escapeHtml(c.title)}</option>`).join('') +
+          '<option value="__custom__">+ Custom Subject</option>';
+        modalSubjectSelect.disabled = false;
+
+        modalChapterSelect.innerHTML = '<option value="">Choose course first</option>';
+        modalChapterSelect.disabled = true;
+      });
+
+      modalSubjectSelect.addEventListener('change', () => {
+        const val = modalSubjectSelect.value;
+        modalCustomChapterInput.style.display = 'none';
+
+        if (val === '__custom__') {
+          modalCustomSubInput.style.display = 'block';
+          modalCustomSubInput.focus();
+          modalChapterSelect.innerHTML = '<option value="General">General Notes</option><option value="__custom__">+ Custom Unit</option>';
+          modalChapterSelect.disabled = false;
+          return;
+        }
+        modalCustomSubInput.style.display = 'none';
+
+        if (!val) {
+          modalChapterSelect.innerHTML = '<option value="">Choose course first</option>';
+          modalChapterSelect.disabled = true;
+          return;
+        }
+
+        const course = window.SyllabusHelper.findCourse(SYLLABUS_DATA, val);
+        const units = course && course.contents ? window.SyllabusHelper.parseCourseUnits(course.contents) : [];
+
+        let opts = '<option value="General">Complete Notes / General</option>';
+        units.forEach(u => {
+          opts += `<option value="Unit ${u.num}: ${escapeHtml(u.title)}">Unit ${u.num}: ${escapeHtml(u.title)}</option>`;
+        });
+        opts += '<option value="Lab / Practical">Lab / Practical Work</option><option value="__custom__">+ Custom Unit</option>';
+
+        modalChapterSelect.innerHTML = opts;
+        modalChapterSelect.disabled = false;
+      });
+
+      modalChapterSelect.addEventListener('change', () => {
+        if (modalChapterSelect.value === '__custom__') {
+          modalCustomChapterInput.style.display = 'block';
+          modalCustomChapterInput.focus();
+        } else {
+          modalCustomChapterInput.style.display = 'none';
+        }
+      });
+    }
+
+    window.openDirectUploadModal = function(prefillSubject = null, prefillSem = null, prefillChapter = null) {
+      clearModalStatus();
+      SELECTED_FILES = [];
+      directFileInput.value = '';
+      modalTitleInput.value = '';
+      renderFileQueue();
+
+      // Set semester
+      const targetSem = prefillSem || ACTIVE_SEM || 'I';
+      const semObj = SEMESTER_LIST.find(s => s.rawSemester.toLowerCase() === targetSem.toLowerCase() || s.shortName.toLowerCase() === targetSem.toLowerCase());
+      if (semObj) {
+        modalSemesterSelect.value = semObj.shortName;
+      } else {
+        modalSemesterSelect.value = targetSem;
+      }
+      modalSemesterSelect.dispatchEvent(new Event('change'));
+
+      // Set subject
+      if (prefillSubject) {
+        setTimeout(() => {
+          for (let opt of modalSubjectSelect.options) {
+            if (opt.value.toLowerCase() === prefillSubject.toLowerCase() || opt.value.toLowerCase().includes(prefillSubject.toLowerCase())) {
+              modalSubjectSelect.value = opt.value;
+              modalSubjectSelect.dispatchEvent(new Event('change'));
+              break;
+            }
+          }
+
+          // Set chapter
+          if (prefillChapter) {
+            setTimeout(() => {
+              for (let opt of modalChapterSelect.options) {
+                if (opt.value.toLowerCase().includes(prefillChapter.toLowerCase())) {
+                  modalChapterSelect.value = opt.value;
+                  modalChapterSelect.dispatchEvent(new Event('change'));
+                  break;
+                }
+              }
+            }, 50);
+          }
+        }, 50);
+      }
+
+      uploadModalOverlay.classList.add('open');
+    };
+
+    window.closeDirectUploadModal = function() {
+      uploadModalOverlay.classList.remove('open');
+      SELECTED_FILES = [];
+      directFileInput.value = '';
+      clearModalStatus();
+    };
+
+    uploadModalClose.addEventListener('click', closeDirectUploadModal);
+    uploadModalCancel.addEventListener('click', closeDirectUploadModal);
+    uploadModalOverlay.addEventListener('click', (e) => {
+      if (e.target === uploadModalOverlay) closeDirectUploadModal();
+    });
+
+    document.getElementById('directUploadForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      if (SELECTED_FILES.length === 0) {
+        setModalStatus('Please select at least one file to upload.', 'error');
+        return;
+      }
+
+      let sub = modalSubjectSelect.value === '__custom__' ? modalCustomSubInput.value.trim() : modalSubjectSelect.value;
+      let chap = modalChapterSelect.value === '__custom__' ? modalCustomChapterInput.value.trim() : modalChapterSelect.value;
+
+      if (!modalSemesterSelect.value || !sub) {
+        setModalStatus('Please choose a semester and course / subject.', 'error');
+        return;
+      }
+
+      const fd = new FormData();
+      for (const file of SELECTED_FILES) {
+        fd.append('files', file);
+      }
+      fd.append('title', modalTitleInput.value.trim());
+      fd.append('semester', modalSemesterSelect.value);
+      fd.append('subject', sub);
+      fd.append('chapter', chap || '');
+
+      directUploadSubmit.disabled = true;
+      submitBtnText.textContent = `Uploading ${SELECTED_FILES.length} file${SELECTED_FILES.length > 1 ? 's' : ''}…`;
+      clearModalStatus();
+
+      try {
+        const res = await fetch('/api/files/upload', {
+          method: 'POST',
+          body: fd
+        });
+
+        if (res.status === 401) {
+          window.location.replace('login.html');
+          return;
+        }
+
+        const ct = res.headers.get('content-type') || '';
+        let data = {};
+        if (ct.includes('application/json')) {
+          data = await res.json();
+        } else {
+          const text = await res.text();
+          throw new Error(`Server returned status ${res.status}. Please make sure you have restarted your server if changes were made.`);
+        }
+
+        if (!res.ok) throw new Error(data.message || 'Upload failed');
+
+        closeDirectUploadModal();
+        showToast(`🎉 ${data.message || `${SELECTED_FILES.length} notes uploaded successfully!`}`);
+        await refreshLibraryData();
+      } catch (err) {
+        console.error('Direct upload error:', err);
+        setModalStatus(err.message || 'Upload error. Please try again.', 'error');
+      } finally {
+        directUploadSubmit.disabled = false;
+        submitBtnText.textContent = 'Publish Files';
+      }
+    });
+
     function escapeHtml(str) {
       if (!str) return '';
       return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
+    function escapeJs(str) {
+      if (!str) return '';
+      return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    }
+
     init();
   </script>
 
+  <script src="chatbot.js"></script>
 </body>
 </html>

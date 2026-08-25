@@ -190,6 +190,11 @@ app.get('/chat', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'chat.html'));
 });
 
+app.get(['/chatbot', '/assistant'], (req, res) => {
+  if (!req.session || !req.session.studentId) return res.redirect('/login.html');
+  res.sendFile(path.join(__dirname, 'public', 'chatbot.html'));
+});
+
 app.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
@@ -266,6 +271,11 @@ try {
 }
 try {
   db.exec(`ALTER TABLE files ADD COLUMN semester TEXT`);
+} catch (e) {
+  // Column already exists — safe to ignore
+}
+try {
+  db.exec(`ALTER TABLE files ADD COLUMN previewName TEXT`);
 } catch (e) {
   // Column already exists — safe to ignore
 }
@@ -419,10 +429,483 @@ function isStudentAdmin(studentId) {
   return s && s.role === 'admin';
 }
 
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function wrapDocPreviewHtml({ title, originalName, fileId, type, typeLabel, contentHtml, disclaimerText }) {
+  const downloadUrl = fileId ? `/api/files/${fileId}/download` : '#';
+  const badgeClass = type === 'pptx' ? 'pres-type-badge' : 'doc-type-badge';
+  const badgeText = type === 'pptx' ? 'PPTX' : 'DOCX';
+  const defaultDisclaimer = type === 'pptx'
+    ? 'Text extracted from slides — for full formatting and design, download the original file.'
+    : 'Formatted document preview extracted from Word file — for original fonts, layout, and embedded objects, download the original file.';
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escapeHtml(title || originalName)} — Document Preview</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --navy: #0f172a;
+      --brass: #b45309;
+      --brass-bg: #fffbeb;
+      --brass-border: #fde68a;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --border: rgba(15, 23, 42, 0.1);
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06);
+      --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.06), 0 2px 4px -1px rgba(0,0,0,0.04);
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      color: var(--text);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      padding: 0 0 60px;
+    }
+
+    .preview-navbar {
+      background: rgba(255, 255, 255, 0.94);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1.5px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .nav-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .btn-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      background: #f1f5f9;
+      color: var(--navy);
+      font-size: 13px;
+      font-weight: 700;
+      text-decoration: none;
+      border-radius: 980px;
+      border: 1px solid var(--border);
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+
+    .btn-back:hover {
+      background: #e2e8f0;
+      transform: translateX(-2px);
+    }
+
+    .file-title-head {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--navy);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .btn-download-original {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px 18px;
+      border-radius: 980px;
+      background: var(--navy);
+      color: #ffffff;
+      font-size: 13px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.15);
+      flex-shrink: 0;
+    }
+
+    .btn-download-original:hover {
+      background: #000000;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.25);
+    }
+
+    .preview-container {
+      max-width: 840px;
+      margin: 28px auto 0;
+      padding: 0 20px;
+    }
+
+    .preview-disclaimer {
+      background: var(--brass-bg);
+      border: 1px solid var(--brass-border);
+      color: var(--brass);
+      border-radius: var(--radius-md);
+      padding: 12px 18px;
+      margin-bottom: 22px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.45;
+    }
+
+    .preview-disclaimer svg {
+      flex-shrink: 0;
+    }
+
+    .doc-header-card {
+      background: var(--card-bg);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 26px 30px;
+      margin-bottom: 22px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .doc-badge-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .pres-type-badge {
+      font-size: 11px;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: #fed7aa;
+      color: #9a3412;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .doc-type-badge {
+      font-size: 11px;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: #dbeafe;
+      color: #1e40af;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .doc-meta-tag {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .doc-title {
+      font-family: 'Fraunces', serif;
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--navy);
+      margin: 0 0 4px;
+      letter-spacing: -0.02em;
+    }
+
+    .doc-filename {
+      font-size: 13px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    /* Slide Card */
+    .slide-card {
+      background: var(--card-bg);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-md);
+      margin-bottom: 18px;
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+      transition: all 0.2s ease;
+    }
+
+    .slide-card:hover {
+      border-color: rgba(15, 23, 42, 0.25);
+      box-shadow: var(--shadow-md);
+    }
+
+    .slide-card-header {
+      background: #f8fafc;
+      border-bottom: 1.5px solid var(--border);
+      padding: 10px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .slide-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--navy);
+      background: #ffffff;
+      border: 1px solid var(--border);
+      padding: 3px 10px;
+      border-radius: 980px;
+    }
+
+    .slide-count {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .slide-card-body {
+      padding: 20px 24px;
+      font-size: 14.5px;
+      color: #1e293b;
+      line-height: 1.7;
+    }
+
+    .slide-card-body p {
+      margin-bottom: 10px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .slide-card-body p:last-child {
+      margin-bottom: 0;
+    }
+
+    /* Docx Content Card */
+    .docx-content-card {
+      background: var(--card-bg);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 36px 40px;
+      box-shadow: var(--shadow-sm);
+      font-size: 15px;
+      color: #1e293b;
+      line-height: 1.8;
+    }
+
+    .docx-content-card h1, .docx-content-card h2, .docx-content-card h3 {
+      font-family: 'Fraunces', serif;
+      color: var(--navy);
+      margin: 24px 0 12px;
+    }
+
+    .docx-content-card p {
+      margin-bottom: 14px;
+    }
+
+    .docx-content-card ul, .docx-content-card ol {
+      margin: 12px 0 16px 24px;
+    }
+
+    .docx-content-card table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+    }
+
+    .docx-content-card th, .docx-content-card td {
+      border: 1px solid var(--border);
+      padding: 8px 12px;
+    }
+
+    .empty-slide-note {
+      font-style: italic;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <header class="preview-navbar">
+    <div class="nav-left">
+      <a href="javascript:history.back()" class="btn-back">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        <span>Back</span>
+      </a>
+      <span class="file-title-head">${escapeHtml(title || originalName)}</span>
+    </div>
+    <a href="${downloadUrl}" class="btn-download-original" download>
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+      <span>Download ${type === 'pptx' ? 'Presentation' : 'Document'}</span>
+    </a>
+  </header>
+
+  <main class="preview-container">
+    <div class="preview-disclaimer">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span>${escapeHtml(disclaimerText || defaultDisclaimer)}</span>
+    </div>
+
+    <div class="doc-header-card">
+      <div class="doc-badge-row">
+        <span class="${badgeClass}">${badgeText}</span>
+        <span class="doc-meta-tag">${escapeHtml(typeLabel || '')}</span>
+      </div>
+      <h1 class="doc-title">${escapeHtml(title || originalName)}</h1>
+      <p class="doc-filename">${escapeHtml(originalName)}</p>
+    </div>
+
+    <div class="preview-main-content">
+      ${contentHtml}
+    </div>
+  </main>
+</body>
+</html>`;
+}
+
+async function generatePptxPreview(filePath, title, originalName, fileId) {
+  const PptxParserRaw = require('node-pptx-parser');
+  const PptxParser = PptxParserRaw.default || PptxParserRaw;
+  const parser = new PptxParser(filePath);
+  const slides = await parser.extractText();
+
+  const totalSlides = (slides && slides.length) || 0;
+  let slidesHtml = '';
+
+  if (totalSlides === 0) {
+    slidesHtml = `
+      <div class="slide-card">
+        <div class="slide-card-body">
+          <p class="empty-slide-note">No slides found in this presentation.</p>
+        </div>
+      </div>
+    `;
+  } else {
+    slides.forEach((slide, idx) => {
+      const rawTexts = Array.isArray(slide.text) ? slide.text : (slide.text ? [slide.text] : []);
+      const cleanParagraphs = rawTexts
+        .map(t => typeof t === 'string' ? t.trim() : '')
+        .filter(t => t.length > 0);
+
+      let bodyContent = '';
+      if (cleanParagraphs.length === 0) {
+        bodyContent = '<p class="empty-slide-note">No text content detected on this slide (may contain only images, shapes, or diagrams).</p>';
+      } else {
+        bodyContent = cleanParagraphs.map(para => `<p>${escapeHtml(para).replace(/\n/g, '<br>')}</p>`).join('\n');
+      }
+
+      slidesHtml += `
+        <div class="slide-card">
+          <div class="slide-card-header">
+            <span class="slide-badge">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+              Slide ${idx + 1}
+            </span>
+            <span class="slide-count">Slide ${idx + 1} of ${totalSlides}</span>
+          </div>
+          <div class="slide-card-body">
+            ${bodyContent}
+          </div>
+        </div>
+      `;
+    });
+  }
+
+  return wrapDocPreviewHtml({
+    title,
+    originalName,
+    fileId,
+    type: 'pptx',
+    typeLabel: `${totalSlides} Slide${totalSlides === 1 ? '' : 's'}`,
+    contentHtml: `<div class="slides-stack">${slidesHtml}</div>`
+  });
+}
+
+async function generateDocxPreview(filePath, title, originalName, fileId) {
+  const mammoth = require('mammoth');
+  const result = await mammoth.convertToHtml({ path: filePath });
+  const html = result.value || '<p class="empty-slide-note">No text content found in document.</p>';
+  return wrapDocPreviewHtml({
+    title,
+    originalName,
+    fileId,
+    type: 'docx',
+    typeLabel: 'Word Document',
+    contentHtml: `<div class="docx-content-card">${html}</div>`
+  });
+}
+
+function getLibreOfficeBinaryPath() {
+  const possiblePaths = [
+    '/Applications/LibreOffice.app/Contents/MacOS/soffice',
+    '/usr/local/bin/soffice',
+    '/opt/homebrew/bin/soffice',
+    '/usr/bin/soffice',
+    '/usr/bin/libreoffice'
+  ];
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p)) return p;
+  }
+  try {
+    const which = require('child_process').execSync('which soffice', { stdio: 'pipe' }).toString().trim();
+    if (which) return which;
+  } catch (e) {}
+  return null;
+}
+
+function isLibreOfficeAvailable() {
+  return !!getLibreOfficeBinaryPath();
+}
+
+async function convertPptxToPdf(filePath) {
+  const libreoffice = require('libreoffice-convert');
+  const util = require('util');
+  const libreConvert = util.promisify(libreoffice.convertWithOptions || libreoffice.convert);
+  const inputBuf = fs.readFileSync(filePath);
+  const sofficePath = getLibreOfficeBinaryPath();
+  const options = sofficePath ? { sofficeBinaryPaths: [sofficePath] } : {};
+  const pdfBuf = await libreConvert(inputBuf, '.pdf', undefined, options);
+  return pdfBuf;
+}
+
 // --- File upload system ---
 
-app.post('/api/files/upload', requireLogin, upload.single('file'), (req, res) => {
-  if (!req.file) {
+function handleFileUpload(req, res, next) {
+  upload.any()(req, res, (err) => {
+    if (err) {
+      if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({ message: 'One or more files exceed the 25MB size limit.' });
+        }
+        return res.status(400).json({ message: `Upload error: ${err.message}` });
+      }
+      return res.status(400).json({ message: err.message || 'Error processing uploaded files.' });
+    }
+    next();
+  });
+}
+
+app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) => {
+  const uploadedFiles = req.files || (req.file ? [req.file] : []);
+  if (!uploadedFiles || uploadedFiles.length === 0) {
     return res.status(400).json({ message: 'No file was uploaded.' });
   }
 
@@ -432,32 +915,118 @@ app.post('/api/files/upload', requireLogin, upload.single('file'), (req, res) =>
   const chapter = (req.body.chapter || '').trim() || null;
 
   const stmt = db.prepare(`
-    INSERT INTO files (storedName, originalName, title, semester, subject, chapter, uploadedBy, sizeBytes, uploadedAt)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO files (storedName, originalName, title, semester, subject, chapter, uploadedBy, sizeBytes, uploadedAt, previewName)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
-  const result = stmt.run(
-    req.file.filename,
-    req.file.originalname,
-    title,
-    semester,
-    subject,
-    chapter,
-    req.session.studentId,
-    req.file.size,
-    new Date().toISOString()
-  );
 
   const isAdmin = isStudentAdmin(req.session.studentId);
-  if (isAdmin) {
-    db.prepare(`
-      INSERT INTO notifications (recipientStudentId, type, relatedFileId, message)
-      SELECT studentId, 'notice', ?, ? FROM students WHERE studentId != ?
-    `).run(result.lastInsertRowid, `New Official Notice: ${title || req.file.originalname}`, req.session.studentId);
+  const processedItems = [];
+
+  // Generate previews asynchronously (e.g. for PPTX via LibreOffice PDF / node-pptx-parser or DOCX via mammoth)
+  for (let i = 0; i < uploadedFiles.length; i++) {
+    const f = uploadedFiles[i];
+    let fileTitle = title;
+    if (uploadedFiles.length > 1 && title) {
+      fileTitle = `${title} (${f.originalname.replace(/\.[^/.]+$/, '')})`;
+    } else if (!fileTitle) {
+      fileTitle = f.originalname.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+    }
+
+    let previewFilename = null;
+    const ext = path.extname(f.originalname).toLowerCase();
+    const filePath = path.join(UPLOAD_DIR, f.filename);
+
+    if (ext === '.pptx') {
+      // 1. Try LibreOffice PDF conversion first (preserving actual slide layout and design)
+      if (isLibreOfficeAvailable()) {
+        try {
+          const startTime = Date.now();
+          const pdfBuf = await convertPptxToPdf(filePath);
+          previewFilename = 'preview_' + crypto.randomBytes(16).toString('hex') + '.pdf';
+          fs.writeFileSync(path.join(UPLOAD_DIR, previewFilename), pdfBuf);
+          console.log(`[LibreOffice PPTX->PDF Success]: Converted ${f.originalname} in ${Date.now() - startTime}ms`);
+        } catch (err) {
+          console.warn(`[LibreOffice PPTX->PDF Error, falling back to text extraction]: ${err.message}`);
+          previewFilename = null;
+        }
+      }
+
+      // 2. Fallback to text extraction preview if LibreOffice was not available or failed
+      if (!previewFilename) {
+        try {
+          const previewHtml = await generatePptxPreview(filePath, fileTitle, f.originalname, null);
+          previewFilename = 'preview_' + crypto.randomBytes(16).toString('hex') + '.html';
+          fs.writeFileSync(path.join(UPLOAD_DIR, previewFilename), previewHtml, 'utf8');
+        } catch (err) {
+          console.error(`[PPTX Text Extraction Error for ${f.originalname}]:`, err.message);
+          previewFilename = null; // Graceful fallback to normal download
+        }
+      }
+    } else if (ext === '.docx') {
+      try {
+        const previewHtml = await generateDocxPreview(filePath, fileTitle, f.originalname, null);
+        previewFilename = 'preview_' + crypto.randomBytes(16).toString('hex') + '.html';
+        fs.writeFileSync(path.join(UPLOAD_DIR, previewFilename), previewHtml, 'utf8');
+      } catch (err) {
+        console.error(`[DOCX Preview Generation Error for ${f.originalname}]:`, err.message);
+        previewFilename = null; // Graceful fallback
+      }
+    }
+
+    processedItems.push({
+      f,
+      fileTitle,
+      previewFilename
+    });
+  }
+
+  const results = [];
+
+  const insertMany = db.transaction((items) => {
+    for (const item of items) {
+      const { f, fileTitle, previewFilename } = item;
+      const result = stmt.run(
+        f.filename,
+        f.originalname,
+        fileTitle,
+        semester,
+        subject,
+        chapter,
+        req.session.studentId,
+        f.size,
+        new Date().toISOString(),
+        previewFilename
+      );
+
+      results.push({
+        id: result.lastInsertRowid,
+        storedName: f.filename,
+        originalName: f.originalname,
+        title: fileTitle,
+        previewName: previewFilename
+      });
+
+      if (isAdmin) {
+        db.prepare(`
+          INSERT INTO notifications (recipientStudentId, type, relatedFileId, message)
+          SELECT studentId, 'notice', ?, ? FROM students WHERE studentId != ?
+        `).run(result.lastInsertRowid, `New Official Notice: ${fileTitle || f.originalname}`, req.session.studentId);
+      }
+    }
+  });
+
+  try {
+    insertMany(processedItems);
+  } catch (err) {
+    console.error('File DB insert error:', err);
+    return res.status(500).json({ message: 'Failed to save uploaded files.' });
   }
 
   res.json({
-    message: 'File uploaded successfully',
-    fileId: result.lastInsertRowid,
+    message: `${uploadedFiles.length} file${uploadedFiles.length > 1 ? 's' : ''} uploaded successfully`,
+    fileId: results[0]?.id,
+    files: results,
+    count: uploadedFiles.length,
     isOfficial: isAdmin
   });
 });
@@ -509,13 +1078,19 @@ app.delete('/api/files/:id', requireLogin, (req, res) => {
     return res.status(403).json({ message: 'Forbidden: You can only delete your own posts.' });
   }
 
-  // Remove physical file from uploads/
+  // Remove physical file and preview from uploads/
   const filePath = path.join(UPLOAD_DIR, path.basename(file.storedName));
   if (isSafeUploadPath(filePath) && fs.existsSync(filePath)) {
     try {
       fs.unlinkSync(filePath);
     } catch (err) {
       console.error('Error removing file from disk:', err);
+    }
+  }
+  if (file.previewName) {
+    const previewPath = path.join(UPLOAD_DIR, path.basename(file.previewName));
+    if (isSafeUploadPath(previewPath) && fs.existsSync(previewPath)) {
+      try { fs.unlinkSync(previewPath); } catch (err) {}
     }
   }
 
@@ -547,6 +1122,12 @@ app.post('/api/files/:id/delete', requireLogin, (req, res) => {
   if (isSafeUploadPath(filePath) && fs.existsSync(filePath)) {
     try { fs.unlinkSync(filePath); } catch (err) {}
   }
+  if (file.previewName) {
+    const previewPath = path.join(UPLOAD_DIR, path.basename(file.previewName));
+    if (isSafeUploadPath(previewPath) && fs.existsSync(previewPath)) {
+      try { fs.unlinkSync(previewPath); } catch (err) {}
+    }
+  }
 
   db.prepare('DELETE FROM file_likes WHERE fileId = ?').run(fileId);
   db.prepare('DELETE FROM file_comments WHERE fileId = ?').run(fileId);
@@ -555,25 +1136,82 @@ app.post('/api/files/:id/delete', requireLogin, (req, res) => {
   res.json({ success: true, message: 'Post deleted successfully', fileId: parseInt(fileId) });
 });
 
-app.get('/api/files/:id/download', requireLogin, (req, res) => {
-  const file = db.prepare('SELECT * FROM files WHERE id = ?').get(req.params.id);
+// Batch delete all files in a specific chapter/unit
+app.post(['/api/library/chapters/delete-files', '/api/library/chapters/files/delete'], requireLogin, (req, res) => {
+  const studentId = req.session.studentId;
+  const viewer = db.prepare('SELECT role FROM students WHERE studentId = ?').get(studentId);
+  if (!viewer) return res.status(401).json({ message: 'Authentication required' });
+  const isAdmin = viewer.role === 'admin';
 
-  if (!file) {
-    return res.status(404).json({ message: 'File not found' });
+  let { subject, chapter, fileIds } = req.body || {};
+  let targetFiles = [];
+
+  if (Array.isArray(fileIds) && fileIds.length > 0) {
+    const placeholders = fileIds.map(() => '?').join(',');
+    targetFiles = db.prepare(`SELECT * FROM files WHERE id IN (${placeholders})`).all(...fileIds);
+  } else if (subject && chapter) {
+    if (isAdmin) {
+      targetFiles = db.prepare('SELECT * FROM files WHERE subject = ? AND chapter = ?').all(subject, chapter);
+    } else {
+      targetFiles = db.prepare('SELECT * FROM files WHERE subject = ? AND chapter = ? AND uploadedBy = ?').all(subject, chapter, studentId);
+    }
+  } else {
+    return res.status(400).json({ message: 'Missing subject/chapter or fileIds parameter' });
   }
 
-  const filePath = path.join(UPLOAD_DIR, path.basename(file.storedName));
-
-  if (!isSafeUploadPath(filePath) || !fs.existsSync(filePath)) {
-    return res.status(404).json({ message: 'File missing from server' });
+  if (!targetFiles || targetFiles.length === 0) {
+    return res.status(404).json({ message: 'No deletable files found for this chapter.' });
   }
 
-  res.download(filePath, file.originalName);
+  // Security enforcement: Non-admins can only delete files they themselves uploaded
+  if (!isAdmin) {
+    targetFiles = targetFiles.filter(f => f.uploadedBy === studentId);
+  }
+
+  if (targetFiles.length === 0) {
+    return res.status(403).json({ message: 'Forbidden: You do not have permission to delete these files.' });
+  }
+
+  let deletedCount = 0;
+  const deleteBatch = db.transaction((filesToDelete) => {
+    for (const f of filesToDelete) {
+      // Remove physical file from uploads/
+      const filePath = path.join(UPLOAD_DIR, path.basename(f.storedName));
+      if (isSafeUploadPath(filePath) && fs.existsSync(filePath)) {
+        try { fs.unlinkSync(filePath); } catch (err) {}
+      }
+      // Remove preview file from uploads/
+      if (f.previewName) {
+        const previewPath = path.join(UPLOAD_DIR, path.basename(f.previewName));
+        if (isSafeUploadPath(previewPath) && fs.existsSync(previewPath)) {
+          try { fs.unlinkSync(previewPath); } catch (err) {}
+        }
+      }
+
+      db.prepare('DELETE FROM file_likes WHERE fileId = ?').run(f.id);
+      db.prepare('DELETE FROM file_comments WHERE fileId = ?').run(f.id);
+      db.prepare('DELETE FROM files WHERE id = ?').run(f.id);
+      deletedCount++;
+    }
+  });
+
+  try {
+    deleteBatch(targetFiles);
+  } catch (err) {
+    console.error('Batch chapter delete error:', err);
+    return res.status(500).json({ message: 'Failed to delete chapter files' });
+  }
+
+  res.json({
+    success: true,
+    count: deletedCount,
+    message: `Successfully deleted ${deletedCount} note${deletedCount === 1 ? '' : 's'} from ${chapter || 'unit'}`
+  });
 });
 
-// View a file in-browser (requires login) — displays it instead of downloading
-app.get('/api/files/:id/view', requireLogin, (req, res) => {
-  const file = db.prepare('SELECT * FROM files WHERE id = ?').get(req.params.id);
+app.get(['/api/files/:id/download', '/api/files/download/:id'], requireLogin, (req, res) => {
+  const fileId = req.params.id;
+  const file = db.prepare('SELECT * FROM files WHERE id = ?').get(fileId);
 
   if (!file) {
     return res.status(404).json({ message: 'File not found' });
@@ -585,8 +1223,97 @@ app.get('/api/files/:id/view', requireLogin, (req, res) => {
     return res.status(404).json({ message: 'File missing from server' });
   }
 
-  res.setHeader('Content-Disposition', `inline; filename="${file.originalName}"`);
-  res.sendFile(filePath);
+  res.download(filePath, file.originalName, (err) => {
+    if (err && !res.headersSent) {
+      console.error('Download error:', err);
+      res.status(500).json({ message: 'Error downloading file' });
+    }
+  });
+});
+
+// View a file in-browser (requires login) — displays preview/inline instead of downloading
+app.get('/api/files/:id/view', requireLogin, async (req, res) => {
+  const file = db.prepare('SELECT * FROM files WHERE id = ?').get(req.params.id);
+
+  if (!file) {
+    return res.status(404).json({ message: 'File not found' });
+  }
+
+  // 1. If an HTML or PDF preview was pre-generated (e.g. for PPTX or DOCX), serve it
+  if (file.previewName) {
+    const previewPath = path.join(UPLOAD_DIR, path.basename(file.previewName));
+    if (isSafeUploadPath(previewPath) && fs.existsSync(previewPath)) {
+      if (file.previewName.endsWith('.pdf')) {
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(file.originalName.replace(/\.pptx$/i, '.pdf'))}"`);
+        return res.sendFile(previewPath);
+      }
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.sendFile(previewPath);
+    }
+  }
+
+  const filePath = path.join(UPLOAD_DIR, path.basename(file.storedName));
+
+  if (!isSafeUploadPath(filePath) || !fs.existsSync(filePath)) {
+    return res.status(404).json({ message: 'File missing from server' });
+  }
+
+  const ext = path.extname(file.originalName).toLowerCase();
+
+  // 2. On-demand preview generation for PPTX / DOCX if not generated yet
+  if (ext === '.pptx') {
+    if (isLibreOfficeAvailable()) {
+      try {
+        const startTime = Date.now();
+        const pdfBuf = await convertPptxToPdf(filePath);
+        const previewFilename = 'preview_' + crypto.randomBytes(16).toString('hex') + '.pdf';
+        const previewPath = path.join(UPLOAD_DIR, previewFilename);
+        fs.writeFileSync(previewPath, pdfBuf);
+        db.prepare('UPDATE files SET previewName = ? WHERE id = ?').run(previewFilename, file.id);
+        console.log(`[On-Demand LibreOffice PPTX->PDF Success]: Converted ID ${file.id} in ${Date.now() - startTime}ms`);
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(file.originalName.replace(/\.pptx$/i, '.pdf'))}"`);
+        return res.sendFile(previewPath);
+      } catch (err) {
+        console.warn(`[On-Demand LibreOffice Error, falling back to text extraction]: ${err.message}`);
+      }
+    }
+    // Fallback to text extraction
+    try {
+      const previewHtml = await generatePptxPreview(filePath, file.title, file.originalName, file.id);
+      const previewFilename = 'preview_' + crypto.randomBytes(16).toString('hex') + '.html';
+      const previewPath = path.join(UPLOAD_DIR, previewFilename);
+      fs.writeFileSync(previewPath, previewHtml, 'utf8');
+      db.prepare('UPDATE files SET previewName = ? WHERE id = ?').run(previewFilename, file.id);
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.sendFile(previewPath);
+    } catch (err) {
+      console.error(`[On-Demand PPTX Preview Error for ID ${file.id}]:`, err.message);
+    }
+  } else if (ext === '.docx') {
+    try {
+      const previewHtml = await generateDocxPreview(filePath, file.title, file.originalName, file.id);
+      const previewFilename = 'preview_' + crypto.randomBytes(16).toString('hex') + '.html';
+      const previewPath = path.join(UPLOAD_DIR, previewFilename);
+      fs.writeFileSync(previewPath, previewHtml, 'utf8');
+      db.prepare('UPDATE files SET previewName = ? WHERE id = ?').run(previewFilename, file.id);
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.sendFile(previewPath);
+    } catch (err) {
+      console.error(`[On-Demand DOCX Preview Error for ID ${file.id}]:`, err.message);
+    }
+  }
+
+  // 3. For native browser viewable files (PDF, images, text, html)
+  const inlineExts = ['.pdf', '.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg', '.txt', '.html'];
+  if (inlineExts.includes(ext)) {
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(file.originalName)}"`);
+    return res.sendFile(filePath);
+  }
+
+  // 4. Fallback: download the file
+  res.download(filePath, file.originalName);
 });
 
 // Toggle like on a file
@@ -1132,7 +1859,74 @@ app.get('/api/students/suggested', requireLogin, (req, res) => {
   `).all(viewerStudentId, viewerStudentId);
 
   res.json(classmates);
-}); 
+});
+
+// --- AI Assistant Service ---
+const aiAssistant = require('./ai-assistant');
+
+// AI Rate Limiter: Max 20 messages per student per hour
+const aiRateLimits = new Map(); // studentId -> { count, windowStart }
+const AI_RATE_LIMIT_MAX = 20;
+const AI_RATE_LIMIT_WINDOW = 60 * 60 * 1000; // 1 hour
+
+function aiRateLimiter(req, res, next) {
+  const studentId = req.session.studentId;
+  const now = Date.now();
+  const record = aiRateLimits.get(studentId) || { count: 0, windowStart: now };
+
+  if (now - record.windowStart > AI_RATE_LIMIT_WINDOW) {
+    record.count = 1;
+    record.windowStart = now;
+  } else {
+    record.count += 1;
+  }
+  aiRateLimits.set(studentId, record);
+
+  if (record.count > AI_RATE_LIMIT_MAX) {
+    const remainingMinutes = Math.ceil((record.windowStart + AI_RATE_LIMIT_WINDOW - now) / (60 * 1000));
+    return res.status(429).json({
+      message: `Hourly AI limit reached (${AI_RATE_LIMIT_MAX} requests/hr). Please wait ${remainingMinutes} minute(s) before asking again.`
+    });
+  }
+  next();
+}
+
+app.post('/api/ai/chat', requireLogin, aiRateLimiter, async (req, res) => {
+  try {
+    const { message, history } = req.body;
+    if (!message || typeof message !== 'string') {
+      return res.status(400).json({ message: 'Message is required.' });
+    }
+
+    const student = db.prepare('SELECT studentId, name, department, semester FROM students WHERE studentId = ?').get(req.session.studentId);
+    const result = await aiAssistant.handleChat(db, message, student || { studentId: req.session.studentId }, history || []);
+    res.json(result);
+  } catch (err) {
+    console.error('[API /api/ai/chat Error]:', err.message);
+    res.status(500).json({ message: err.message || 'An error occurred while processing your request.' });
+  }
+});
+
+app.get('/api/ai/suggestions', requireLogin, (req, res) => {
+  res.json([
+    { label: '📚 Find Math notes', query: 'Give me notes on Math' },
+    { label: '📖 What is in Semester 3?', query: "What's in semester 3?" },
+    { label: '📅 When is the next exam?', query: "When's the exam?" },
+    { label: '📤 How do I upload notes?', query: 'How do I upload notes to the library?' }
+  ]);
+});
+
+// --- Global API Error Handler (Ensures all /api routes return JSON, never HTML) ---
+app.use((err, req, res, next) => {
+  console.error('[API Error]:', err);
+  if (res.headersSent) return next(err);
+  if (req.path.startsWith('/api/')) {
+    return res.status(err.status || 500).json({
+      message: err.message || 'An unexpected server error occurred.'
+    });
+  }
+  next(err);
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

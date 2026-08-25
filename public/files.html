@@ -11,6 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="chatbot.css">
   <script src="syllabus-helper.js"></script>
   <style>
     :root {
@@ -142,17 +143,122 @@
       color: var(--text-muted);
     }
 
-    .file-pill {
+    /* File Queue Section */
+    .file-queue-section {
+      background: #f9fafb;
+      border: 1.5px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 20px;
+    }
+
+    .file-queue-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 12px 16px;
-      background: #f3f4f6;
-      border: 1.5px solid var(--border);
-      border-radius: 12px;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    }
+
+    .file-queue-title {
       font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .btn-clear-all {
+      background: none;
+      border: none;
+      color: #ef4444;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 6px;
+      transition: background 0.15s;
+    }
+
+    .btn-clear-all:hover {
+      background: rgba(239, 68, 68, 0.1);
+    }
+
+    .file-queue-list {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      max-height: 200px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .file-queue-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 9px 12px;
+      background: #ffffff;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 10px;
+      font-size: 13px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    }
+
+    .file-queue-left {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      min-width: 0;
+    }
+
+    .file-type-pill {
+      font-size: 10px;
+      font-weight: 800;
+      padding: 2px 7px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+      flex-shrink: 0;
+    }
+
+    .badge-pdf { background: #fee2e2; color: #b91c1c; }
+    .badge-doc { background: #dbeafe; color: #1d4ed8; }
+    .badge-img { background: #dcfce7; color: #15803d; }
+    .badge-zip { background: #f3e8ff; color: #7e22ce; }
+    .badge-ppt { background: #ffedd5; color: #c2410c; }
+    .badge-other { background: #f3f4f6; color: #4b5563; }
+
+    .file-queue-name {
       font-weight: 600;
-      margin-bottom: 20px;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 280px;
+    }
+
+    .file-queue-size {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .file-queue-remove {
+      background: none;
+      border: none;
+      color: #9ca3af;
+      font-size: 18px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: all 0.15s;
+    }
+
+    .file-queue-remove:hover {
+      color: #ef4444;
+      background: #fee2e2;
     }
 
     .clean-field {
@@ -233,10 +339,11 @@
 
     <nav class="dash-header-nav">
       <a href="dashboard.html" class="header-nav-item">Feed</a>
-      <a href="chat.html" class="header-nav-item">Chat</a>
       <a href="library.html" class="header-nav-item">Library</a>
       <a href="syllabus.html" class="header-nav-item">Syllabus</a>
       <a href="routine.html" class="header-nav-item">Routine</a>
+      <a href="chat.html" class="header-nav-item">Chat</a>
+      <a href="chatbot.html" class="header-nav-item">AI Assistant</a>
     </nav>
 
     <div class="dash-header-actions">
@@ -254,26 +361,30 @@
 
       <form id="uploadForm">
         
-        <!-- Dropzone with stylized Icon -->
+        <!-- Multi-File Dropzone with stylized Icon -->
         <label for="fileInput" class="clean-dropzone" id="dropZone">
           <div class="dropzone-icon-circle">
             <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
             </svg>
           </div>
-          <span class="dropzone-label" id="dropLabel">Choose a file or drag & drop</span>
-          <span class="dropzone-hint">PDF, DOCX, ZIP, Images, PPTX up to 25MB</span>
-          <input type="file" id="fileInput" name="file" hidden required>
+          <span class="dropzone-label" id="dropLabel">Choose file(s) or drag & drop</span>
+          <span class="dropzone-hint">PDF, DOCX, ZIP, Images, PPTX up to 25MB each &middot; Select multiple files</span>
+          <input type="file" id="fileInput" multiple hidden>
         </label>
 
-        <div id="filePickedBar" class="file-pill" style="display:none;">
-          <span id="fileNameDisplay" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">file.pdf</span>
-          <button type="button" id="clearFileBtn" style="background:none; border:none; font-size:16px; cursor:pointer; color:#6b7280;">&times;</button>
+        <!-- Selected Files Queue Display -->
+        <div id="fileQueueSection" class="file-queue-section" style="display:none;">
+          <div class="file-queue-header">
+            <span class="file-queue-title" id="fileQueueSummary">0 files selected</span>
+            <button type="button" class="btn-clear-all" id="clearAllFilesBtn">Clear All</button>
+          </div>
+          <div class="file-queue-list" id="fileQueueList"></div>
         </div>
 
         <!-- Title -->
         <div class="clean-field">
-          <label class="clean-label" for="titleInput">Resource Title</label>
+          <label class="clean-label" for="titleInput">Resource Title <span style="font-weight:normal; text-transform:none; color:var(--text-muted);">(Optional &middot; defaults to file name)</span></label>
           <input type="text" id="titleInput" class="clean-input" placeholder="e.g. Chapter 2 Digital Logic Notes" maxlength="100">
         </div>
 
@@ -307,7 +418,7 @@
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
           </svg>
-          <span>Publish to Library</span>
+          <span id="submitBtnLabel">Publish to Library</span>
         </button>
         <p id="statusMsg" style="font-size:13px; text-align:center; margin-top:12px; font-weight:600;"></p>
       </form>
@@ -326,12 +437,10 @@
     </div>
   </footer>
 
-
-
   <script>
-    fetch('/api/me').then(r => { if (!r.ok) window.location.href = 'login.html'; });
+    fetch('/api/me').then(r => { if (!r.ok) window.location.replace('login.html'); });
 
-    fetch('/api/profile').then(r => r.json()).then(p => {
+    fetch('/api/profile').then(r => r.ok ? r.json() : null).then(p => {
       if (p) {
         const headerAvatar = document.getElementById('headerAvatar');
         const headerName = document.getElementById('headerProfileName');
@@ -348,9 +457,10 @@
 
     const fileInput = document.getElementById('fileInput');
     const dropZone = document.getElementById('dropZone');
-    const filePickedBar = document.getElementById('filePickedBar');
-    const fileNameDisplay = document.getElementById('fileNameDisplay');
-    const clearFileBtn = document.getElementById('clearFileBtn');
+    const fileQueueSection = document.getElementById('fileQueueSection');
+    const fileQueueSummary = document.getElementById('fileQueueSummary');
+    const fileQueueList = document.getElementById('fileQueueList');
+    const clearAllFilesBtn = document.getElementById('clearAllFilesBtn');
     const titleInput = document.getElementById('titleInput');
 
     const semesterSelect = document.getElementById('semesterSelect');
@@ -359,10 +469,96 @@
     const customSubInput = document.getElementById('customSubInput');
     const customChapterInput = document.getElementById('customChapterInput');
     const submitBtn = document.getElementById('submitBtn');
+    const submitBtnLabel = document.getElementById('submitBtnLabel');
     const statusMsg = document.getElementById('statusMsg');
 
     let syllabusData = null;
     let semesterList = [];
+    let selectedFiles = [];
+
+    function formatBytes(bytes) {
+      if (!bytes || bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    }
+
+    function getFileTypeInfo(filename) {
+      const ext = (filename.split('.').pop() || '').toLowerCase();
+      if (['pdf'].includes(ext)) return { ext: 'PDF', badge: 'badge-pdf' };
+      if (['doc', 'docx', 'txt', 'rtf', 'odt'].includes(ext)) return { ext: ext.toUpperCase(), badge: 'badge-doc' };
+      if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext)) return { ext: 'IMG', badge: 'badge-img' };
+      if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) return { ext: 'ZIP', badge: 'badge-zip' };
+      if (['ppt', 'pptx'].includes(ext)) return { ext: 'PPT', badge: 'badge-ppt' };
+      return { ext: ext.slice(0, 4).toUpperCase() || 'FILE', badge: 'badge-other' };
+    }
+
+    function renderFileQueue() {
+      if (selectedFiles.length === 0) {
+        fileQueueSection.style.display = 'none';
+        submitBtnLabel.textContent = 'Publish to Library';
+        return;
+      }
+
+      fileQueueSection.style.display = 'block';
+      let totalSize = selectedFiles.reduce((acc, f) => acc + f.size, 0);
+      fileQueueSummary.textContent = `${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''} selected (${formatBytes(totalSize)})`;
+      submitBtnLabel.textContent = `Publish ${selectedFiles.length} File${selectedFiles.length > 1 ? 's' : ''} to Library`;
+
+      fileQueueList.innerHTML = selectedFiles.map((file, idx) => {
+        const info = getFileTypeInfo(file.name);
+        return `
+          <div class="file-queue-item">
+            <div class="file-queue-left">
+              <span class="file-type-pill ${info.badge}">${info.ext}</span>
+              <span class="file-queue-name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</span>
+              <span class="file-queue-size">${formatBytes(file.size)}</span>
+            </div>
+            <button type="button" class="file-queue-remove" onclick="removeQueuedFile(${idx})" title="Remove file">&times;</button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    window.removeQueuedFile = function(index) {
+      selectedFiles.splice(index, 1);
+      renderFileQueue();
+    };
+
+    clearAllFilesBtn.addEventListener('click', () => {
+      selectedFiles = [];
+      fileInput.value = '';
+      renderFileQueue();
+    });
+
+    function addFiles(files) {
+      if (!files || !files.length) return;
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (file.size > 25 * 1024 * 1024) continue;
+        const exists = selectedFiles.some(f => f.name === file.name && f.size === file.size);
+        if (!exists) selectedFiles.push(file);
+      }
+      if (selectedFiles.length === 1 && !titleInput.value.trim()) {
+        titleInput.value = selectedFiles[0].name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+      }
+      renderFileQueue();
+    }
+
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files.length) addFiles(fileInput.files);
+    });
+
+    ['dragover', 'dragleave', 'drop'].forEach(e => dropZone.addEventListener(e, evt => evt.preventDefault()));
+    dropZone.addEventListener('dragover', () => dropZone.classList.add('dragover'));
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', e => {
+      dropZone.classList.remove('dragover');
+      if (e.dataTransfer && e.dataTransfer.files.length) {
+        addFiles(e.dataTransfer.files);
+      }
+    });
 
     async function init() {
       try {
@@ -439,7 +635,7 @@
       }
 
       subjectSelect.innerHTML = '<option value="">Select Course…</option>' +
-        courses.map(c => `<option value="${c.title}">${c.code ? c.code + ' — ' : ''}${c.title}</option>`).join('') +
+        courses.map(c => `<option value="${escapeHtml(c.title)}">${c.code ? c.code + ' — ' : ''}${escapeHtml(c.title)}</option>`).join('') +
         '<option value="__custom__">+ Custom Subject</option>';
       subjectSelect.disabled = false;
 
@@ -471,7 +667,7 @@
 
       let opts = '<option value="General">Complete Notes / General</option>';
       units.forEach(u => {
-        opts += `<option value="Unit ${u.num}: ${u.title}">Unit ${u.num}: ${u.title}</option>`;
+        opts += `<option value="Unit ${u.num}: ${escapeHtml(u.title)}">Unit ${u.num}: ${escapeHtml(u.title)}</option>`;
       });
       opts += '<option value="Lab / Practical">Lab / Practical Work</option><option value="__custom__">+ Custom Unit</option>';
 
@@ -488,39 +684,15 @@
       }
     });
 
-    function setFile(f) {
-      if (!f) return;
-      fileNameDisplay.textContent = f.name;
-      filePickedBar.style.display = 'flex';
-      if (!titleInput.value) {
-        titleInput.value = f.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
-      }
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
-
-    fileInput.addEventListener('change', () => {
-      if (fileInput.files.length) setFile(fileInput.files[0]);
-    });
-
-    clearFileBtn.addEventListener('click', () => {
-      fileInput.value = '';
-      filePickedBar.style.display = 'none';
-    });
-
-    ['dragover', 'dragleave', 'drop'].forEach(e => dropZone.addEventListener(e, evt => evt.preventDefault()));
-    dropZone.addEventListener('dragover', () => dropZone.classList.add('dragover'));
-    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-    dropZone.addEventListener('drop', e => {
-      dropZone.classList.remove('dragover');
-      if (e.dataTransfer.files.length) {
-        fileInput.files = e.dataTransfer.files;
-        setFile(e.dataTransfer.files[0]);
-      }
-    });
 
     document.getElementById('uploadForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      if (!fileInput.files.length) {
-        statusMsg.textContent = 'Please choose a file.';
+      if (selectedFiles.length === 0) {
+        statusMsg.textContent = 'Please choose at least one file.';
         statusMsg.style.color = '#ef4444';
         return;
       }
@@ -535,27 +707,43 @@
       }
 
       const fd = new FormData();
-      fd.append('file', fileInput.files[0]);
+      for (const file of selectedFiles) {
+        fd.append('files', file);
+      }
       fd.append('title', titleInput.value.trim());
       fd.append('semester', semesterSelect.value);
       fd.append('subject', sub);
       fd.append('chapter', chap || '');
 
       submitBtn.disabled = true;
-      submitBtn.textContent = 'Publishing…';
+      submitBtnLabel.textContent = `Publishing ${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''}…`;
       statusMsg.textContent = '';
 
       try {
         const res = await fetch('/api/files/upload', { method: 'POST', body: fd });
-        if (!res.ok) throw new Error('Upload failed');
-        statusMsg.textContent = 'Uploaded successfully! Redirecting to library…';
+        if (res.status === 401) {
+          window.location.replace('login.html');
+          return;
+        }
+
+        const ct = res.headers.get('content-type') || '';
+        let data = {};
+        if (ct.includes('application/json')) {
+          data = await res.json();
+        } else {
+          const text = await res.text();
+          throw new Error(`Server returned status ${res.status}. Please restart your server if updated.`);
+        }
+
+        if (!res.ok) throw new Error(data.message || 'Upload failed');
+        statusMsg.textContent = `Uploaded ${selectedFiles.length} file(s) successfully! Redirecting to library…`;
         statusMsg.style.color = '#10b981';
         setTimeout(() => location.href = 'library.html', 1000);
       } catch (err) {
         statusMsg.textContent = err.message || 'Upload error.';
         statusMsg.style.color = '#ef4444';
         submitBtn.disabled = false;
-        submitBtn.textContent = 'Publish to Library';
+        submitBtnLabel.textContent = 'Publish to Library';
       }
     });
 
@@ -563,5 +751,6 @@
   </script>
 
   <script src="notifications.js"></script>
+  <script src="chatbot.js"></script>
 </body>
 </html>

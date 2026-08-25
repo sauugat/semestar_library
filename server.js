@@ -11,21 +11,16 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+let broadcastChannel = supabase.channel('public:chat_messages');
+broadcastChannel.subscribe();
+
 function sendBroadcast(event, payload) {
-  const channel = supabase.channel('public:chat_messages');
-  channel.subscribe((status) => {
-    if (status === 'SUBSCRIBED') {
-      channel.send({
-        type: 'broadcast',
-        event: event,
-        payload: payload
-      }).then(() => {
-        supabase.removeChannel(channel);
-      }).catch(err => {
-        console.error('Broadcast error:', err);
-        supabase.removeChannel(channel);
-      });
-    }
+  broadcastChannel.send({
+    type: 'broadcast',
+    event: event,
+    payload: payload
+  }).catch(err => {
+    console.error('Broadcast error:', err);
   });
 }
 

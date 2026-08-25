@@ -370,6 +370,10 @@ app.post('/api/login', loginRateLimiter, async (req, res) => {
 });
 
 app.get('/api/me', requireLogin, async (req, res) => {
+  if (req.session.studentId === 'guest') {
+    return res.json({ studentId: 'guest', name: 'Guest User', role: 'student', isAdmin: false });
+  }
+
   const student = await db.get('SELECT studentId, name, role FROM students WHERE studentId = ?', req.session.studentId);
 
   if (!student) {

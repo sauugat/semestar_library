@@ -3323,10 +3323,26 @@ body.dash .dash-header-actions {
 
 @media (max-width: 768px) {
   .dash-header-nav {
-    gap: 14px;
+    gap: 10px !important;
   }
   .header-nav-item {
-    font-size: 12px;
+    font-size: 11.5px !important;
+    padding: 4px 6px !important;
+  }
+  
+  body.dash .dash-profile-chip {
+    height: 28px !important;
+    padding: 0 10px 0 2px !important;
+    font-size: 12px !important;
+    gap: 6px !important;
+  }
+
+  body.dash .dash-profile-chip .dash-profile-avatar {
+    width: 20px !important;
+    height: 20px !important;
+    min-width: 20px !important;
+    min-height: 20px !important;
+    font-size: 10px !important;
   }
 }
 

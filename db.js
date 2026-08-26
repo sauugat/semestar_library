@@ -30,7 +30,9 @@ let libsqlClient = null;
 if (isPostgres) {
   const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
   try {
-    const { Pool } = require('@neondatabase/serverless');
+    const { Pool, neonConfig } = require('@neondatabase/serverless');
+    const ws = require('ws');
+    neonConfig.webSocketConstructor = ws;
     pgPool = new Pool({
       connectionString
     });
@@ -384,6 +386,16 @@ async function initSchema() {
             createdAt TEXT NOT NULL
           );
 
+          CREATE TABLE IF NOT EXISTS exam_schedule (
+            id SERIAL PRIMARY KEY,
+            subject TEXT NOT NULL,
+            examDate TEXT NOT NULL,
+            day TEXT,
+            time TEXT,
+            semester TEXT NOT NULL,
+            type TEXT
+          );
+
           CREATE TABLE IF NOT EXISTS "session" (
             "sid" varchar NOT NULL COLLATE "default",
             "sess" json NOT NULL,
@@ -500,6 +512,16 @@ async function initSchema() {
             fileData BLOB NOT NULL,
             createdAt TEXT NOT NULL
           );
+
+          CREATE TABLE IF NOT EXISTS exam_schedule (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            subject TEXT NOT NULL,
+            examDate TEXT NOT NULL,
+            day TEXT,
+            time TEXT,
+            semester TEXT NOT NULL,
+            type TEXT
+          );
         `);
       }
 
@@ -526,6 +548,49 @@ async function initSchema() {
           }
         }
         console.log('[DB Engine]: Seeding complete!');
+      }
+
+      // Auto-seed exams if table is empty
+      const countExamsRow = await get('SELECT COUNT(*) AS c FROM exam_schedule');
+      const examCount = Number(countExamsRow?.c || countExamsRow?.count || 0);
+
+      if (examCount === 0) {
+        console.log('[DB Engine]: Fresh database detected. Seeding exam schedules...');
+        const routineExams = [
+          // Semester II
+          { semester: 'II', semNum: 2, date: '2083/05/17', time: 'CIT121', subject: 'Discrete Mathematics', type: 'Examination' },
+          { semester: 'II', semNum: 2, date: '2083/05/23', time: 'CIT122', subject: 'Computer Programming II (Java)', type: 'Examination' },
+          { semester: 'II', semNum: 2, date: '2083/05/26', time: 'ELX121', subject: 'Digital Logic', type: 'Examination' },
+          { semester: 'II', semNum: 2, date: '2083/05/30', time: 'CIT123', subject: 'Web Technology I', type: 'Examination' },
+          { semester: 'II', semNum: 2, date: '2083/06/02', time: 'BSM121', subject: 'Mathematics-II', type: 'Examination' },
+
+          // Semester IV
+          { semester: 'IV', semNum: 4, date: '2083/06/05', time: 'CIT222', subject: 'Management Information System', type: 'Examination' },
+          { semester: 'IV', semNum: 4, date: '2083/06/09', time: 'CIT221', subject: 'Operating Systems', type: 'Examination' },
+          { semester: 'IV', semNum: 4, date: '2083/06/13', time: 'CIT223', subject: 'Data Communication and Computer Networks', type: 'Examination' },
+          { semester: 'IV', semNum: 4, date: '2083/06/16', time: 'BSM221', subject: 'Fundamentals of Probability and Statistics', type: 'Examination' },
+          { semester: 'IV', semNum: 4, date: '2083/06/21', time: 'CIT224', subject: 'Computer Graphics Technology', type: 'Examination' },
+
+          // Semester VI
+          { semester: 'VI', semNum: 6, date: '2083/05/22', time: 'CIT321', subject: 'Human Computer Interface and UI Design', type: 'Examination' },
+          { semester: 'VI', semNum: 6, date: '2083/05/25', time: 'CIT323', subject: 'Artificial Intelligence', type: 'Examination' },
+          { semester: 'VI', semNum: 6, date: '2083/05/31', time: 'BCT322', subject: 'Financial Accounting', type: 'Examination' },
+          { semester: 'VI', semNum: 6, date: '2083/06/05', time: 'BCT321', subject: 'IT Project Management', type: 'Examination' },
+          { semester: 'VI', semNum: 6, date: '2083/06/08', time: 'CIT322', subject: 'Digital Forensic Security Technologies', type: 'Examination' },
+
+          // Semester VIII
+          { semester: 'VIII', semNum: 8, date: '2083/05/16', time: 'CIT421', subject: 'Big Data Technologies', type: 'Examination' },
+          { semester: 'VIII', semNum: 8, date: '2083/05/18', time: 'BCT421', subject: 'Society, IT and Law', type: 'Examination' },
+          { semester: 'VIII', semNum: 8, date: '2083/05/22', time: 'Elective', subject: 'IoT and Smart Technologies / E-Business and E-Commerce', type: 'Examination' }
+        ];
+
+        for (const e of routineExams) {
+          await run(
+            `INSERT INTO exam_schedule (subject, examDate, day, time, semester, type) VALUES (?, ?, ?, ?, ?, ?)`,
+            e.subject, e.date, e.day, e.time, e.semester, e.type
+          );
+        }
+        console.log('[DB Engine]: Exam schedules seeded!');
       }
     } catch (err) {
       console.error('[DB Engine]: Schema initialization error:', err);

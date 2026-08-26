@@ -1398,6 +1398,40 @@ app.post('/api/files/:id/comments', requireLogin, async (req, res) => {
   res.json({ commentId: result.lastInsertRowid });
 });
 
+// --- Routine/Exam Endpoints ---
+app.get('/api/routine', async (req, res) => {
+  try {
+    const routine = await db.all('SELECT * FROM exam_schedule ORDER BY examDate ASC');
+    res.json(routine);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch routine' });
+  }
+});
+
+app.post('/api/routine', requireLogin, async (req, res) => {
+  try {
+    const student = await db.get('SELECT role FROM students WHERE studentId = ?', req.session.studentId);
+    if (!student || student.role !== 'admin') {
+      return res.status(403).json({ error: 'Only admins can add exam routines.' });
+    }
+    const { subject, examDate, semester, type, day, time } = req.body;
+    if (!subject || !examDate || !semester) {
+      return res.status(400).json({ error: 'Missing required fields: subject, examDate, semester' });
+    }
+    
+    const timeStr = time || '11:30 AM'; 
+    const dayStr = day || '';
+
+    await db.run(
+      'INSERT INTO exam_schedule (subject, examDate, day, time, semester, type) VALUES (?, ?, ?, ?, ?, ?)',
+      subject, examDate, dayStr, timeStr, semester, type || 'Pre-board Examination'
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to add routine' });
+  }
+});
+
 // List all subjects that have at least one file
 app.get('/api/library/subjects', async (req, res) => {
   const subjects = await db.all(`

@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI Assistant — Semester Library</title>
-  <meta name="description" content="Minimalist AI Assistant for Semester Library syllabus, notes, and exam schedules.">
+  <title>Kyana — Semester Library</title>
+  <meta name="description" content="Meet Kyana, your personal AI study assistant for Gandaki University BIT notes, syllabus, and exam routines.">
   <script>
     fetch('/api/me').then(r => { 
       if (!r.ok) {
@@ -25,6 +25,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <link rel="stylesheet" href="style.v4.css">
   <link rel="stylesheet" href="chatbot.css">
   <link rel="stylesheet" href="auth-modal.css">
@@ -52,61 +56,17 @@
     </div>
   </header>
 
-  <!-- FULLPAGE ASSISTANT CONTAINER -->
+  <!-- FULLPAGE ASSISTANT CONTAINER (MINIMALIST CENTERED) -->
   <div class="sla-fullpage-wrapper">
     
-    <!-- LEFT SIDEBAR -->
-    <aside class="sla-fullpage-sidebar">
-      <button type="button" class="sla-sidebar-new-btn" id="slaNewChatBtn">
-        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="12" y1="5" x2="12" y2="19"></line>
-          <line x1="5" y1="12" x2="19" y2="12"></line>
-        </svg>
-        <span>New Chat</span>
-      </button>
-
-      <div class="sla-sidebar-section-title">Topics</div>
-      
-      <div class="sla-topics-group">
-        <button type="button" class="sla-topic-btn" data-q="What notes do we have for Computer Networks?">
-          <span>Computer Networks</span>
-          <span class="arrow">&rsaquo;</span>
-        </button>
-        <button type="button" class="sla-topic-btn" data-q="Find notes and formulas for Mathematics II">
-          <span>Mathematics II</span>
-          <span class="arrow">&rsaquo;</span>
-        </button>
-        <button type="button" class="sla-topic-btn" data-q="What courses are taught in Semester 3?">
-          <span>Semester 3 Syllabus</span>
-          <span class="arrow">&rsaquo;</span>
-        </button>
-        <button type="button" class="sla-topic-btn" data-q="When is the pre-board exam routine?">
-          <span>Exam Routine</span>
-          <span class="arrow">&rsaquo;</span>
-        </button>
-        <button type="button" class="sla-topic-btn" data-q="What operating systems notes and slides exist?">
-          <span>Operating Systems</span>
-          <span class="arrow">&rsaquo;</span>
-        </button>
-        <button type="button" class="sla-topic-btn" data-q="Show me database management and SQL resources">
-          <span>Database Management</span>
-          <span class="arrow">&rsaquo;</span>
-        </button>
-      </div>
-
-      <div class="sla-sidebar-grounding-card">
-        Synced with BIT curriculum, library files, and routine.
-      </div>
-    </aside>
-
     <!-- MAIN CHAT STAGE -->
     <main class="sla-fullpage-chatbox">
       
       <!-- Stage Header -->
       <div class="sla-fullpage-header">
         <div class="sla-header-left">
-          <h1>AI Assistant</h1>
-          <span class="sla-model-tag">Grounded</span>
+          <h1>Kyana</h1>
+          <span class="sla-model-tag">AI Assistant</span>
         </div>
         
         <div style="display:flex; align-items:center; gap:8px;">
@@ -118,55 +78,25 @@
 
       <!-- MESSAGES SCROLL AREA -->
       <div class="sla-chat-messages" id="slaMessages">
-        
-        <!-- MINIMAL WELCOME HERO (EMPTY STATE) -->
+        <!-- Minimal Empty State -->
         <div class="sla-welcome-hero" id="slaWelcomeHero">
-          <h2 id="slaHeroGreeting">How can I help you today?</h2>
-          <p>Search uploaded notes, explore semester syllabi, or check exam dates.</p>
-
-          <!-- Starter Prompt Cards Grid -->
-          <div class="sla-starter-grid">
-            <div class="sla-starter-card" data-q="What notes do we have for Computer Networks?">
-              <div class="sla-starter-title">Search Notes</div>
-              <div class="sla-starter-desc">Find lecture slides and PDFs for Computer Networks</div>
-            </div>
-
-            <div class="sla-starter-card" data-q="What courses are in semester 3 and what are their credits?">
-              <div class="sla-starter-title">Syllabus Overview</div>
-              <div class="sla-starter-desc">View subjects and credit hours for Semester 3</div>
-            </div>
-
-            <div class="sla-starter-card" data-q="When is the pre-board exam schedule?">
-              <div class="sla-starter-title">Exam Schedule</div>
-              <div class="sla-starter-desc">Check upcoming pre-board examination dates</div>
-            </div>
-
-            <div class="sla-starter-card" data-q="Explain infinite series convergence from Mathematics II">
-              <div class="sla-starter-title">Concept Explanations</div>
-              <div class="sla-starter-desc">Ask for step-by-step topic notes and formulas</div>
-            </div>
+          <div class="sla-welcome-sparkle">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+            </svg>
           </div>
+          <h2 id="slaHeroGreeting">Hi, I am Kyana</h2>
+          <p>Your BIT study companion. Ask me anything about your curriculum, notes, files, or pre-board routine.</p>
         </div>
-
       </div>
 
       <!-- INPUT FOOTER -->
       <div class="sla-panel-footer">
-        
-        <!-- Suggestions Tray -->
-        <div class="sla-suggestions-tray" id="slaSuggestions">
-          <button type="button" class="sla-suggestion-chip" data-q="What notes do we have for Computer Networks?">Computer Networks</button>
-          <button type="button" class="sla-suggestion-chip" data-q="Find notes on Math II infinite series">Math II</button>
-          <button type="button" class="sla-suggestion-chip" data-q="What subjects are in Semester 3?">Semester 3</button>
-          <button type="button" class="sla-suggestion-chip" data-q="When is the pre-board exam routine?">Exam Routine</button>
-        </div>
-
-        <!-- Input Capsule -->
         <form class="sla-input-capsule" id="slaForm">
           <textarea 
             id="slaInput" 
             class="sla-input-textarea" 
-            placeholder="Ask a question…" 
+            placeholder="Ask Kyana a question…" 
             rows="1" 
             autocomplete="off" 
             maxlength="600"
@@ -201,8 +131,8 @@
         
         const firstName = p.name ? p.name.split(' ')[0] : '';
         if (headerName) headerName.textContent = firstName || 'Profile';
-        if (heroGreeting && firstName) {
-          heroGreeting.textContent = `Hello, ${firstName}. How can I help you today?`;
+        if (heroGreeting) {
+          heroGreeting.textContent = `Hi, I am Kyana`;
         }
 
         if (headerAvatar) {

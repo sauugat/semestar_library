@@ -2090,12 +2090,26 @@
           }
 
           if (messages && messages.length > 0) {
+          if (messages && messages.length > 0) {
             const emptyElem = document.getElementById('emptyNotice');
             if (emptyElem) emptyElem.remove();
+            
+            const feed = document.getElementById('chatFeed');
+            feed.style.visibility = 'hidden';
+            
             renderMessages(messages);
             lastMessageId = messages[messages.length - 1].id;
+            
+            // Force layout recalculation so scrollHeight is updated
+            void feed.offsetHeight; 
+            
             scrollToBottom(true, false); // Instant snap on load
             markAsRead(lastMessageId);
+            
+            // Reveal chat after it's securely at the bottom
+            requestAnimationFrame(() => {
+              feed.style.visibility = 'visible';
+            });
           }
         }
       } catch (e) {

@@ -62,8 +62,8 @@
     // Inject floating bubble widget for all other pages
     fab = document.createElement('button');
     fab.className = 'sla-chat-fab';
-    fab.setAttribute('aria-label', 'Open Semester Library AI Assistant');
-    fab.title = 'AI Assistant';
+    fab.setAttribute('aria-label', 'Open Kyana AI Study Assistant');
+    fab.title = 'Kyana';
     fab.innerHTML = `
       <svg class="sla-fab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
@@ -76,8 +76,8 @@
       <div class="sla-panel-header">
         <div class="sla-header-info">
           <div class="sla-title-wrap">
-            <h3>AI Assistant</h3>
-            <p>Grounded in syllabus & notes</p>
+            <h3>Kyana</h3>
+            <p>Your BIT study companion</p>
           </div>
         </div>
         <div class="sla-header-actions">
@@ -93,34 +93,14 @@
         </div>
       </div>
 
-      <div class="sla-chat-messages" id="slaMessages">
-        <div class="sla-msg-row sla-ai">
-          <div class="sla-msg-avatar">AI</div>
-          <div class="sla-msg-bubble">
-            <h3>How can I help you?</h3>
-            <p>Search notes, syllabus, or exam routines for BIT curriculum.</p>
-            <div class="sla-actions-row">
-              <a href="library.html" class="sla-action-pill">Library</a>
-              <a href="syllabus.html" class="sla-action-pill">Syllabus</a>
-              <a href="routine.html" class="sla-action-pill">Routine</a>
-            </div>
-          </div>
-        </div>
-      </div>
+      <div class="sla-chat-messages" id="slaMessages"></div>
 
       <div class="sla-panel-footer" style="padding: 8px 14px 12px;">
-        <div class="sla-suggestions-tray" id="slaSuggestions">
-          <button type="button" class="sla-suggestion-chip" data-q="What notes do we have for Computer Networks?">Networking</button>
-          <button type="button" class="sla-suggestion-chip" data-q="Find notes for Mathematics II">Math II</button>
-          <button type="button" class="sla-suggestion-chip" data-q="What's in semester 3?">Sem 3</button>
-          <button type="button" class="sla-suggestion-chip" data-q="When is the pre-board exam routine?">Routine</button>
-        </div>
-
         <form class="sla-input-capsule" id="slaForm" style="padding: 6px 10px;">
           <textarea 
             id="slaInput" 
             class="sla-input-textarea" 
-            placeholder="Ask a question…" 
+            placeholder="Ask Kyana a question…" 
             rows="1" 
             autocomplete="off" 
             maxlength="500"
@@ -298,96 +278,164 @@
 
     // --- STRUCTURED CARDS SECTION ---
 
-    // 1. Matched File Cards
+    // 1. Matched File Cards (Exact Library Style with View & Get Buttons)
     if (data.matchedFiles && data.matchedFiles.length > 0) {
       const sec = document.createElement('div');
-      sec.className = 'sla-structured-section';
-      sec.innerHTML = `<div class="sla-section-title">Files Found (${data.matchedFiles.length})</div>`;
+      sec.className = 'sla-structured-section sla-files-section';
+      sec.innerHTML = `
+        <div class="sla-section-header">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+          <span>Library Files (${data.matchedFiles.length})</span>
+        </div>
+      `;
       
-      const grid = document.createElement('div');
-      grid.className = 'sla-cards-grid';
+      const list = document.createElement('div');
+      list.className = 'sla-files-clean-list';
+
+      function getFileBadge(filename) {
+        if (!filename) return 'DOC';
+        const ext = (filename.split('.').pop() || '').toLowerCase();
+        if (['pdf'].includes(ext)) return 'PDF';
+        if (['ppt', 'pptx'].includes(ext)) return 'PPT';
+        if (['doc', 'docx', 'txt', 'rtf'].includes(ext)) return 'DOC';
+        if (['png', 'jpg', 'jpeg', 'webp', 'svg'].includes(ext)) return 'IMG';
+        if (['zip', 'rar', '7z'].includes(ext)) return 'ZIP';
+        return 'DOC';
+      }
+
+      function escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      }
 
       data.matchedFiles.forEach(f => {
-        const card = document.createElement('a');
-        card.className = 'sla-file-card';
-        card.href = `/api/files/${f.id}/download`;
-        card.setAttribute('download', f.originalName || 'file');
-        card.setAttribute('target', '_blank');
-        card.innerHTML = `
-          <div class="sla-file-card-info">
-            <div>
-              <div class="sla-file-card-name" title="${f.originalName}">${f.title || f.originalName}</div>
-              <div class="sla-file-card-meta">
-                <span>${f.subject || 'Notes'}</span>
-                ${f.chapter ? `<span>· ${f.chapter}</span>` : ''}
-              </div>
+        const item = document.createElement('div');
+        item.className = 'clean-file-item sla-clean-file-item';
+        const badge = getFileBadge(f.originalName || f.title);
+        const fileName = f.title || f.originalName || 'Study Note';
+        const metaText = `${f.subject || 'Library'}${f.chapter ? ' · ' + f.chapter : ''}${f.semester ? ' · ' + f.semester : ''}`;
+        
+        item.innerHTML = `
+          <div class="clean-file-left">
+            <div class="clean-file-icon ${badge.toLowerCase()}">${badge}</div>
+            <div style="min-width:0;">
+              <p class="clean-file-title" title="${escapeHtml(fileName)}">${escapeHtml(fileName)}</p>
+              <p class="clean-file-meta">${escapeHtml(metaText)}</p>
             </div>
           </div>
-          <button type="button" class="sla-file-download-btn">Get</button>
+          <div class="clean-file-actions">
+            <a href="/api/files/${f.id}/view" target="_blank" class="btn-file-action btn-file-view">View</a>
+            <a href="/api/files/${f.id}/download" download="${escapeHtml(f.originalName || 'file')}" target="_blank" class="btn-file-action btn-file-get">Get</a>
+          </div>
         `;
-        grid.appendChild(card);
+        list.appendChild(item);
       });
-      sec.appendChild(grid);
+      sec.appendChild(list);
       bubble.appendChild(sec);
     }
 
-    // 2. Matched Syllabus Course Cards
+    // 2. Matched Syllabus Course Cards (Curriculum Layout)
     if (data.matchedCourses && data.matchedCourses.length > 0) {
       const sec = document.createElement('div');
-      sec.className = 'sla-structured-section';
-      sec.innerHTML = `<div class="sla-section-title">Syllabus Courses (${data.matchedCourses.length})</div>`;
+      sec.className = 'sla-structured-section sla-syllabus-section';
+      sec.innerHTML = `
+        <div class="sla-section-header">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+          <span>Curriculum & Syllabus (${data.matchedCourses.length})</span>
+        </div>
+      `;
       
-      const grid = document.createElement('div');
-      grid.className = 'sla-cards-grid';
+      const list = document.createElement('div');
+      list.className = 'sla-syllabus-cards-list';
 
       data.matchedCourses.forEach(c => {
-        const card = document.createElement('a');
-        card.className = 'sla-course-card';
-        card.href = `syllabus.html`;
+        const card = document.createElement('div');
+        card.className = 'sla-syllabus-card';
+        const year = c.year || 'Year 1';
+        const courseKey = c.code ? `${c.code}-${c.title}` : c.title;
+        const syllabusLink = `syllabus.html#${encodeURIComponent(year)}/${encodeURIComponent(c.semester)}/${encodeURIComponent(courseKey)}`;
+        
         card.innerHTML = `
-          <div>
-            <div style="display:flex; align-items:center; gap:6px;">
-              <span class="sla-course-code-pill">${c.code}</span>
-              <span style="font-size:11px; color:var(--sla-text-muted);">Sem ${c.semester}</span>
-            </div>
-            <div class="sla-course-title">${c.title}</div>
-            <div class="sla-course-sub">${c.credit} Credits · ${c.nature}</div>
+          <div class="sla-syllabus-card-header">
+            <span class="sla-syllabus-code">${c.code || 'COURSE'}</span>
+            <span class="sla-syllabus-sem">Semester ${c.semester}</span>
+            <span class="sla-syllabus-credits">${c.credit} Credits</span>
           </div>
-          <span style="font-size:14px; color:var(--sla-text-subtle);">&rsaquo;</span>
+          <div class="sla-syllabus-card-body">
+            <h4 class="sla-syllabus-title">${c.title}</h4>
+            <p class="sla-syllabus-nature">${c.nature || 'Core Curriculum'}</p>
+          </div>
+          <div class="sla-syllabus-card-footer">
+            <a href="${syllabusLink}" class="sla-syllabus-link">
+              <span>View Full Syllabus Outline</span>
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </a>
+          </div>
         `;
-        grid.appendChild(card);
+        list.appendChild(card);
       });
-      sec.appendChild(grid);
+      sec.appendChild(list);
       bubble.appendChild(sec);
     }
 
-    // 3. Matched Pre-Board Exam Routine Cards
+    // 3. Matched Pre-Board Exam Routine Cards (Timetable Date Block Layout)
     if (data.matchedRoutine && data.matchedRoutine.length > 0) {
       const sec = document.createElement('div');
-      sec.className = 'sla-structured-section';
-      sec.innerHTML = `<div class="sla-section-title">Exam Schedule (${data.matchedRoutine.length})</div>`;
+      sec.className = 'sla-structured-section sla-routine-section';
+      sec.innerHTML = `
+        <div class="sla-section-header">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+          <span>Examination Timetable (${data.matchedRoutine.length})</span>
+        </div>
+      `;
       
-      const grid = document.createElement('div');
-      grid.className = 'sla-cards-grid';
+      const list = document.createElement('div');
+      list.className = 'sla-routine-exams-list';
 
       data.matchedRoutine.forEach(r => {
-        const card = document.createElement('a');
-        card.className = 'sla-routine-card';
-        card.href = `routine.html`;
-        card.innerHTML = `
-          <div>
-            <div class="sla-routine-subj">${r.subject}</div>
-            <div class="sla-routine-meta">
-              <span>${r.date}</span>
-              <span>·</span>
-              <span>${r.day} @ ${r.time}</span>
-            </div>
+        const item = document.createElement('div');
+        item.className = 'sla-routine-exam-row';
+        const dateStr = r.date || '';
+        let day = '??';
+        let monthYear = '?? / ????';
+        if (dateStr) {
+          const parts = dateStr.split('/');
+          const dashParts = dateStr.split('-');
+          if (parts.length === 3) {
+            day = parts[2];
+            monthYear = `${parts[1]} / ${parts[0]}`;
+          } else if (dashParts.length === 3) {
+            day = dashParts[2];
+            monthYear = `${dashParts[1]} / ${dashParts[0]}`;
+          } else {
+            day = dateStr;
+            monthYear = '2083';
+          }
+        }
+
+        const codeOrTime = r.time || '11:30 AM';
+        const routineUrl = `routine.html?semester=${encodeURIComponent(r.semester)}`;
+
+        item.innerHTML = `
+          <div class="sla-routine-date-box">
+            <span class="sla-routine-day">${day}</span>
+            <span class="sla-routine-month">${monthYear}</span>
           </div>
-          <span style="font-size:11.5px; font-weight:500; color:var(--sla-text-main);">View &rarr;</span>
+          <div class="sla-routine-info">
+            <div class="sla-routine-tags">
+              <span class="sla-routine-sem-tag">Semester ${r.semester}</span>
+              ${codeOrTime.startsWith('CIT') || codeOrTime.startsWith('BSM') || codeOrTime.startsWith('ELX') || codeOrTime.startsWith('BCT') ? `<span class="sla-routine-code-tag">${codeOrTime}</span>` : ''}
+            </div>
+            <h4 class="sla-routine-title">${r.subject}</h4>
+            <p class="sla-routine-time-sub">${r.type || 'Examination'}${r.day ? ' · ' + r.day : ''}</p>
+          </div>
+          <a href="${routineUrl}" class="sla-routine-open-btn" title="Open Routine Page">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </a>
         `;
-        grid.appendChild(card);
+        list.appendChild(item);
       });
-      sec.appendChild(grid);
+      sec.appendChild(list);
       bubble.appendChild(sec);
     }
 
@@ -442,16 +490,19 @@
     row.className = 'sla-msg-row sla-ai sla-typing-row';
     row.id = 'slaTypingIndicator';
     row.innerHTML = `
-      <div class="sla-msg-avatar">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+      <div class="sla-msg-avatar sla-avatar-thinking">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
           <path d="M12 2L14.8 8.2L21 11L14.8 13.8L12 20L9.2 13.8L3 11L9.2 8.2L12 2Z"/>
         </svg>
       </div>
       <div class="sla-msg-bubble">
-        <div class="sla-typing-indicator">
-          <div class="sla-typing-dot"></div>
-          <div class="sla-typing-dot"></div>
-          <div class="sla-typing-dot"></div>
+        <div class="sla-minimal-thinking">
+          <span class="sla-thinking-label">Thinking</span>
+          <span class="sla-thinking-dots">
+            <span class="sla-dot"></span>
+            <span class="sla-dot"></span>
+            <span class="sla-dot"></span>
+          </span>
         </div>
       </div>
     `;

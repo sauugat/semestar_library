@@ -586,12 +586,38 @@
     async function loadCourseDetail(year, semester, courseKey) {
       const data = await loadData();
       const isElectives = year === 'Electives';
-      const courses = isElectives ? data.electives : (data.semesters.find(s => s.year === year && s.semester === semester)?.courses || []);
-      const course = courses.find(c => (c.code + '-' + c.title) === courseKey);
+      let courses = isElectives ? data.electives : (data.semesters.find(s => s.year === year && s.semester === semester)?.courses || []);
+      
+      // Flexible course matcher (code-title, title only, code only, or case-insensitive)
+      let course = courses.find(c => 
+        (c.code + '-' + c.title).toLowerCase() === courseKey.toLowerCase() ||
+        c.title.toLowerCase() === courseKey.toLowerCase() ||
+        c.code.toLowerCase() === courseKey.toLowerCase() ||
+        courseKey.toLowerCase().includes(c.title.toLowerCase())
+      );
+
+      // If not found in current semester, search all semesters
+      if (!course) {
+        for (const sem of (data.semesters || [])) {
+          const match = sem.courses.find(c => 
+            (c.code + '-' + c.title).toLowerCase() === courseKey.toLowerCase() ||
+            c.title.toLowerCase() === courseKey.toLowerCase() ||
+            c.code.toLowerCase() === courseKey.toLowerCase() ||
+            courseKey.toLowerCase().includes(c.title.toLowerCase())
+          );
+          if (match) {
+            course = match;
+            year = sem.year;
+            semester = sem.semester;
+            break;
+          }
+        }
+      }
+
       const grid = document.getElementById('syllabusGrid');
 
       if (!course) {
-        grid.innerHTML = '<p class="empty-state">Course not found.</p>';
+        grid.innerHTML = '<p class="empty-state">Course syllabus not found.</p>';
         return;
       }
 
@@ -737,7 +763,28 @@
     }
 
     // Router
-    function route() {
+    async function route() {
+      // Check query parameter ?semester=3 or ?semester=III or ?sem=3
+      const urlParams = new URLSearchParams(window.location.search);
+      const semParam = urlParams.get('semester') || urlParams.get('sem');
+      if (semParam && (!location.hash || location.hash === '#')) {
+        const semMap = {
+          '1': { year: 'Year 1', sem: 'I' }, 'I': { year: 'Year 1', sem: 'I' },
+          '2': { year: 'Year 1', sem: 'II' }, 'II': { year: 'Year 1', sem: 'II' },
+          '3': { year: 'Year 2', sem: 'III' }, 'III': { year: 'Year 2', sem: 'III' },
+          '4': { year: 'Year 2', sem: 'IV' }, 'IV': { year: 'Year 2', sem: 'IV' },
+          '5': { year: 'Year 3', sem: 'V' }, 'V': { year: 'Year 3', sem: 'V' },
+          '6': { year: 'Year 3', sem: 'VI' }, 'VI': { year: 'Year 3', sem: 'VI' },
+          '7': { year: 'Year 4', sem: 'VII' }, 'VII': { year: 'Year 4', sem: 'VII' },
+          '8': { year: 'Year 4', sem: 'VIII' }, 'VIII': { year: 'Year 4', sem: 'VIII' }
+        };
+        const target = semMap[semParam.toUpperCase()] || semMap[semParam];
+        if (target) {
+          location.hash = `#${encodeURIComponent(target.year)}/${encodeURIComponent(target.sem)}`;
+          return;
+        }
+      }
+
       const path = currentPath();
       renderBreadcrumb(path);
       if (path.length === 0) {
@@ -747,11 +794,40 @@
       } else if (path.length === 1) {
         if (path[0] === 'Electives') {
           loadCourses('Electives', '');
+        } else if (/^Year\s+\d$/i.test(path[0])) {
+          loadSemesters(path[0]);
         } else {
+          // Check if it's a semester code (I to VIII)
+          const semMap = { 'I': 'Year 1', 'II': 'Year 1', 'III': 'Year 2', 'IV': 'Year 2', 'V': 'Year 3', 'VI': 'Year 3', 'VII': 'Year 4', 'VIII': 'Year 4' };
+          const semYear = semMap[path[0].toUpperCase()];
+          if (semYear) {
+            loadCourses(semYear, path[0].toUpperCase());
+            return;
+          }
+          // Check if it's a course name
+          const data = await loadData();
+          for (const s of (data.semesters || [])) {
+            const match = s.courses.find(c => 
+              c.title.toLowerCase() === path[0].toLowerCase() ||
+              c.code.toLowerCase() === path[0].toLowerCase() ||
+              (c.code + '-' + c.title).toLowerCase() === path[0].toLowerCase() ||
+              path[0].toLowerCase().includes(c.title.toLowerCase())
+            );
+            if (match) {
+              loadCourseDetail(s.year, s.semester, match.code + '-' + match.title);
+              return;
+            }
+          }
           loadSemesters(path[0]);
         }
       } else if (path.length === 2) {
-        loadCourses(path[0], path[1]);
+        // Check if path[1] is a semester Roman numeral
+        if (/^(I|II|III|IV|V|VI|VII|VIII)$/i.test(path[1])) {
+          loadCourses(path[0], path[1].toUpperCase());
+        } else {
+          // e.g. Year 2 / Database Management System
+          loadCourseDetail(path[0], '', path[1]);
+        }
       } else {
         loadCourseDetail(path[0], path[1], path[2]);
       }

@@ -28,15 +28,66 @@ function loadEnvSafely() {
 loadEnvSafely();
 
 console.log('----------------------------------------------------');
-console.log('[AI Assistant] Initializing Semester Library AI Service');
-console.log(`[AI Assistant] Gemini API Key Configured: ${process.env.GEMINI_API_KEY ? 'Yes' : 'No'}`);
-console.log(`[AI Assistant] OpenRouter API Key Configured: ${process.env.OPENROUTER_API_KEY ? 'Yes' : 'No'}`);
+console.log('[AI Assistant] Initializing Semester Library AI Engine v3.0');
+console.log(`[AI Assistant] Gemini Configured: ${process.env.GEMINI_API_KEY ? 'Yes' : 'No'}`);
+console.log(`[AI Assistant] OpenRouter Configured: ${process.env.OPENROUTER_API_KEY ? 'Yes' : 'No'}`);
 console.log('----------------------------------------------------');
 
-// --- 2. Ingest Syllabus Data ---
+// ============================================================================
+// 2. CANONICAL REGISTRIES (Semesters, Curriculum, Subjects, Topics)
+// ============================================================================
+
+const SEMESTER_REGISTRY = {
+  1: { num: 1, roman: 'I', year: 'Year 1', name: 'Semester 1', aliases: ['1', '1st', 'first', 'sem 1', 'semester 1', 'sem i', 'semester i', 'first sem', 'first semester'] },
+  2: { num: 2, roman: 'II', year: 'Year 1', name: 'Semester 2', aliases: ['2', '2nd', 'second', 'sem 2', 'semester 2', 'sem ii', 'semester ii', 'second sem', 'second semester'] },
+  3: { num: 3, roman: 'III', year: 'Year 2', name: 'Semester 3', aliases: ['3', '3rd', 'third', 'sem 3', 'semester 3', 'sem iii', 'semester iii', 'third sem', 'third semester'] },
+  4: { num: 4, roman: 'IV', year: 'Year 2', name: 'Semester 4', aliases: ['4', '4th', 'fourth', 'sem 4', 'semester 4', 'sem iv', 'semester iv', 'fourth sem', 'fourth semester'] },
+  5: { num: 5, roman: 'V', year: 'Year 3', name: 'Semester 5', aliases: ['5', '5th', 'fifth', 'sem 5', 'semester 5', 'sem v', 'semester v', 'fifth sem', 'fifth semester'] },
+  6: { num: 6, roman: 'VI', year: 'Year 3', name: 'Semester 6', aliases: ['6', '6th', 'sixth', 'sem 6', 'semester 6', 'sem vi', 'semester vi', 'sixth sem', 'sixth semester'] },
+  7: { num: 7, roman: 'VII', year: 'Year 4', name: 'Semester 7', aliases: ['7', '7th', 'seventh', 'sem 7', 'semester 7', 'sem vii', 'semester vii', 'seventh sem', 'seventh semester'] },
+  8: { num: 8, roman: 'VIII', year: 'Year 4', name: 'Semester 8', aliases: ['8', '8th', 'eighth', 'sem 8', 'semester 8', 'sem viii', 'semester viii', 'eighth sem', 'eighth semester'] }
+};
+
+function normalizeSemester(str) {
+  if (!str) return null;
+  const s = String(str).toLowerCase().trim();
+  
+  // 1. Explicit Semester mentions (e.g. "sem 2", "semester 3", "3rd sem", "semester ii")
+  for (const meta of Object.values(SEMESTER_REGISTRY)) {
+    const explicitPatterns = [
+      `sem\\s*${meta.num}`, `semester\\s*${meta.num}`,
+      `sem\\s*${meta.roman.toLowerCase()}`, `semester\\s*${meta.roman.toLowerCase()}`,
+      `${meta.aliases[1]}\\s*sem`, `${meta.aliases[1]}\\s*semester`,
+      `${meta.aliases[2]}\\s*sem`, `${meta.aliases[2]}\\s*semester`
+    ];
+    for (const pat of explicitPatterns) {
+      if (new RegExp(`\\b${pat}\\b`, 'i').test(s)) return meta;
+    }
+  }
+
+  // 2. Standalone exact match ("II", "3", "Semester 4")
+  const romanUpper = s.toUpperCase();
+  for (const meta of Object.values(SEMESTER_REGISTRY)) {
+    if (romanUpper === meta.roman || s === String(meta.num) || s === `semester ${meta.num}` || s === `sem ${meta.num}`) return meta;
+  }
+
+  // 3. Multi-word aliases (e.g. "second sem", "third semester")
+  for (const meta of Object.values(SEMESTER_REGISTRY)) {
+    for (const alias of meta.aliases) {
+      if (alias.length <= 2) continue; // skip bare '1', '2'
+      const regex = new RegExp(`\\b${alias.replace(/\s+/g, '\\s+')}\\b`, 'i');
+      if (regex.test(s)) return meta;
+    }
+  }
+  return null;
+}
+
+// Ingest Syllabus Data
 let syllabusData = { semesters: [] };
 const ALL_COURSES = [];
-const KNOWN_SUBJECT_TERMS = new Set();
+const CANONICAL_SUBJECTS = new Map(); // Canonical Title -> Subject Info
+const ALIAS_TO_SUBJECT = new Map();   // Alias string -> Canonical Title
+const TOPIC_REGISTRY = [];            // Array of { topic, synonyms, canonicalSubject, semesterNum, unitName }
 
 try {
   const syllabusPath = path.join(__dirname, 'public', 'syllabus-data.json');
@@ -44,9 +95,11 @@ try {
     syllabusData = JSON.parse(fs.readFileSync(syllabusPath, 'utf8'));
     if (syllabusData && syllabusData.semesters) {
       syllabusData.semesters.forEach(sem => {
+        const semMeta = normalizeSemester(sem.semester);
         sem.courses.forEach(c => {
-          ALL_COURSES.push({
+          const courseObj = {
             semester: sem.semester,
+            semesterNum: semMeta ? semMeta.num : null,
             year: sem.year,
             title: c.title,
             code: c.code,
@@ -56,11 +109,9 @@ try {
             contents: c.contents || '',
             objectivesSummary: c.objectives ? c.objectives.substring(0, 180) + '…' : '',
             contentsSummary: c.contents ? c.contents.substring(0, 240) + '…' : ''
-          });
-
-          c.title.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).forEach(w => {
-            if (w.length >= 4) KNOWN_SUBJECT_TERMS.add(w);
-          });
+          };
+          ALL_COURSES.push(courseObj);
+          CANONICAL_SUBJECTS.set(c.title, courseObj);
         });
       });
     }
@@ -69,147 +120,356 @@ try {
   console.error('[AI Assistant] Error parsing syllabus-data.json:', e.message);
 }
 
-[
-  'networking', 'networks', 'network', 'router', 'switch', 'tcp', 'ip',
-  'database', 'databases', 'sql', 'mysql', 'queries', 'normalization',
-  'programming', 'algorithm', 'algorithms', 'structure', 'structures',
-  'operating', 'system', 'systems', 'kernel', 'process', 'memory',
-  'electronics', 'circuits', 'logic', 'gates', 'boolean', 'discrete',
-  'mathematics', 'calculus', 'derivatives', 'series', 'infinite', 'probability',
-  'statistics', 'accounting', 'finance', 'microprocessor', 'architecture',
-  'assembly', 'graphics', 'rendering', 'artificial', 'intelligence',
-  'forensics', 'security', 'cyber', 'wireless', 'cloud', 'devops', 'mining'
-].forEach(t => KNOWN_SUBJECT_TERMS.add(t));
+// Comprehensive Subject Aliases Dictionary
+const SUBJECT_ALIASES = {
+  'Database Management System': ['dbms', 'db', 'database', 'sql', 'mysql', 'relational database', 'database system', 'database management'],
+  'Data Structure and Algorithms': ['dsa', 'ds', 'algo', 'algorithms', 'data structure', 'data structures', 'linked list', 'stack and queue', 'binary tree'],
+  'Mathematics I': ['math 1', 'math i', 'm1', 'calculus', 'derivatives', 'integration', 'maths 1', 'first semester math'],
+  'Mathematics II': ['math 2', 'math ii', 'm2', 'complex numbers', 'complex number', 'complex variables', 'infinite series', 'differential equations', 'maths 2', 'second semester math'],
+  'Discrete Mathematics': ['discrete math', 'discrete mathematics', 'discrete', 'graph theory', 'finite automata', 'fsm', 'fsa', 'recurrence relations'],
+  'Computer Programming I (C)': ['c programming', 'c prog', 'prog 1', 'prog i', 'c language', 'c prog 1', 'computer programming 1'],
+  'Computer Programming II (Java)': ['java', 'java programming', 'prog 2', 'prog ii', 'oop java', 'oop', 'computer programming 2', 'swing gui'],
+  'Digital Logic': ['digital logic', 'dl', 'logic gates', 'boolean algebra', 'k map', 'karnaugh map', 'flip flop', 'combinational circuits'],
+  'Web Technology I': ['web 1', 'web tech 1', 'web technology 1', 'web technology i', 'html css', 'php mysql', 'web dev 1', 'web development 1'],
+  'Web Technology II': ['web 2', 'web tech 2', 'web technology 2', 'web technology ii', 'react', 'node', 'fullstack web', 'web dev 2'],
+  'Microprocessor and Computer Architecture': ['microprocessor', 'computer architecture', 'coa', 'mp', '8085', 'intel 8085', '8086', 'assembly', 'assembly language', 'cpu architecture'],
+  'Operating Systems': ['operating systems', 'operating system', 'os', 'linux', 'unix', 'processes and threads', 'deadlock', 'virtual memory', 'paging'],
+  'Data Communication and Computer Networks': ['dccn', 'cn', 'computer networks', 'networking', 'networks', 'network', 'data communication', 'tcp ip', 'osi model'],
+  'Fundamentals of Probability and Statistics': ['probability and statistics', 'stats', 'probability', 'statistics', 'prob stats', 'prob', 'business stats'],
+  'Object Oriented Analysis and Design using UML': ['ooad', 'uml', 'object oriented analysis', 'uml diagrams', 'use case diagram', 'class diagram', 'design patterns'],
+  'Financial Accounting': ['financial accounting', 'accounting', 'finance', 'balance sheet', 'journal ledger', 'account'],
+  'Principles of Organization and Management': ['principles of management', 'management', 'pom', 'organization management', 'org management'],
+  'Computer Graphics Technology': ['computer graphics', 'graphics', 'cg', 'rendering', '2d 3d transformation', 'opengl'],
+  'Artificial Intelligence': ['artificial intelligence', 'ai', 'machine learning', 'expert systems', 'knowledge representation'],
+  'Digital Forensic Security Technologies': ['digital forensics', 'forensics', 'cyber security', 'cybersecurity', 'security', 'digital forensic'],
+  'Software Engineering': ['software engineering', 'se', 'sdlc', 'agile', 'scrum', 'software testing'],
+  'Economics': ['economics', 'microeconomics', 'macroeconomics'],
+  'Cloud Computing and Virtualization': ['cloud computing', 'cloud', 'virtualization', 'aws', 'docker', 'kubernetes'],
+  'Mobile Application Development': ['mobile app development', 'mobile development', 'mad', 'android', 'flutter', 'android development'],
+  'Big Data Technologies': ['big data', 'big data technologies', 'hadoop', 'spark', 'mapreduce'],
+  'Data Mining and Warehousing': ['data mining', 'data warehouse', 'data warehousing', 'data mining and warehousing', 'dmw'],
+  'Wireless Communication Systems': ['wireless communication', 'wireless', '5g', 'cellular'],
+  'Software Development and Operations (DevOps)': ['devops', 'ci cd', 'jenkins', 'devops engineering'],
+  'Basic Electronics': ['basic electronics', 'electronics', 'circuit theory', 'semiconductors', 'diodes', 'op-amp'],
+  'Basics of IT': ['basics of it', 'it basics', 'fundamental of it', 'it fundamentals', 'information technology basics'],
+  'Workshop: Problem Solving and Logic': ['problem solving', 'psl', 'logic workshop', 'flowcharts and algorithms'],
+  'Business Communication Technique': ['business communication', 'bct', 'communication skills', 'technical writing']
+};
 
-// --- 3. Ingest Pre-Board Routine Schedule ---
-const routineExams = [
-  { semester: 'II', semNum: 2, date: '2083/04/25', day: 'Monday', time: '11:30 AM', subject: 'Mathematics II', type: 'Pre-board Examination' },
-  { semester: 'IV', semNum: 4, date: '2083/04/25', day: 'Monday', time: '11:30 AM', subject: 'Computer Graphics', type: 'Pre-board Examination' },
-  { semester: 'VI', semNum: 6, date: '2083/04/25', day: 'Monday', time: '11:30 AM', subject: 'Financial Accounting', type: 'Pre-board Examination' },
-  { semester: 'II', semNum: 2, date: '2083/04/26', day: 'Tuesday', time: '11:30 AM', subject: 'Computer Programming II (Java)', type: 'Pre-board Examination' },
-  { semester: 'IV', semNum: 4, date: '2083/04/26', day: 'Tuesday', time: '11:30 AM', subject: 'Data Communication and Computer Network', type: 'Pre-board Examination' },
-  { semester: 'VI', semNum: 6, date: '2083/04/26', day: 'Tuesday', time: '11:30 AM', subject: 'Artificial Intelligence', type: 'Pre-board Examination' },
-  { semester: 'II', semNum: 2, date: '2083/04/27', day: 'Wednesday', time: '11:30 AM', subject: 'Digital Logic', type: 'Pre-board Examination' },
-  { semester: 'IV', semNum: 4, date: '2083/04/27', day: 'Wednesday', time: '11:30 AM', subject: 'Operating System', type: 'Pre-board Examination' },
-  { semester: 'VI', semNum: 6, date: '2083/04/27', day: 'Wednesday', time: '11:30 AM', subject: 'Digital Forensic Security and Technology', type: 'Pre-board Examination' },
-  { semester: 'VIII', semNum: 8, date: '2083/04/27', day: 'Wednesday', time: '11:30 AM', subject: 'Big Data Technologies', type: 'Pre-board Examination' },
-  { semester: 'II', semNum: 2, date: '2083/04/28', day: 'Thursday', time: '11:30 AM', subject: 'Discrete Mathematics', type: 'Pre-board Examination' },
-  { semester: 'IV', semNum: 4, date: '2083/04/28', day: 'Thursday', time: '11:30 AM', subject: 'Database Management System', type: 'Pre-board Examination' },
-  { semester: 'VI', semNum: 6, date: '2083/04/28', day: 'Thursday', time: '11:30 AM', subject: 'Software Engineering and Project Management', type: 'Pre-board Examination' },
-  { semester: 'VIII', semNum: 8, date: '2083/04/28', day: 'Thursday', time: '11:30 AM', subject: 'Cloud Computing and Virtualization', type: 'Pre-board Examination' },
-  { semester: 'II', semNum: 2, date: '2083/04/29', day: 'Friday', time: '11:30 AM', subject: 'Web Technology I', type: 'Pre-board Examination' },
-  { semester: 'IV', semNum: 4, date: '2083/04/29', day: 'Friday', time: '11:30 AM', subject: 'Probability and Statistics', type: 'Pre-board Examination' },
-  { semester: 'VI', semNum: 6, date: '2083/04/29', day: 'Friday', time: '11:30 AM', subject: 'Mobile Application Development', type: 'Pre-board Examination' }
+// Index Aliases
+for (const [canonical, aliases] of Object.entries(SUBJECT_ALIASES)) {
+  ALIAS_TO_SUBJECT.set(canonical.toLowerCase(), canonical);
+  for (const alias of aliases) {
+    ALIAS_TO_SUBJECT.set(alias.toLowerCase(), canonical);
+  }
+}
+
+// Topic Definitions for Deep Topic Matching & Disambiguation
+const TOPIC_DEFINITIONS = [
+  {
+    topic: 'complex numbers',
+    synonyms: ['complex number', 'complex numbers', 'complex no', 'complex nos', 'complex num', 'complex variable', 'complex variables', 'functions of complex variable', 'de moivre'],
+    canonicalSubject: 'Mathematics II',
+    semesterNum: 2,
+    unit: 'Unit 5: Functions of Complex Variable'
+  },
+  {
+    topic: 'matrices and determinants',
+    synonyms: ['matrices', 'matrix', 'determinant', 'determinants', 'cramers rule', 'eigenvalues'],
+    canonicalSubject: 'Mathematics I',
+    semesterNum: 1,
+    unit: 'Unit 4: Matrices and Determinants'
+  },
+  {
+    topic: 'derivatives and calculus',
+    synonyms: ['derivative', 'derivatives', 'differentiation', 'calculus', 'taylor series', 'limits and continuity'],
+    canonicalSubject: 'Mathematics I',
+    semesterNum: 1,
+    unit: 'Unit 1 & 2: Derivatives & Applications'
+  },
+  {
+    topic: 'normalization',
+    synonyms: ['normalization', '1nf', '2nf', '3nf', 'bcnf', 'functional dependency', 'functional dependencies'],
+    canonicalSubject: 'Database Management System',
+    semesterNum: 3,
+    unit: 'Unit 5: Relational Database Design'
+  },
+  {
+    topic: 'sql queries and relational algebra',
+    synonyms: ['sql', 'queries', 'ddl', 'dml', 'relational algebra', 'joins', 'subqueries'],
+    canonicalSubject: 'Database Management System',
+    semesterNum: 3,
+    unit: 'Unit 4: Relational Language and Database Constraints'
+  },
+  {
+    topic: 'er diagram and data modeling',
+    synonyms: ['er diagram', 'e-r model', 'entity relationship', 'entity relation', 'data modeling'],
+    canonicalSubject: 'Database Management System',
+    semesterNum: 3,
+    unit: 'Unit 2: Data Model'
+  },
+  {
+    topic: 'trees and bst',
+    synonyms: ['tree', 'trees', 'binary search tree', 'bst', 'avl tree', 'heap', 'tree traversal', 'b tree'],
+    canonicalSubject: 'Data Structure and Algorithms',
+    semesterNum: 3,
+    unit: 'Unit 4: Trees'
+  },
+  {
+    topic: 'graphs and shortest path',
+    synonyms: ['graph', 'graphs', 'dijkstra', 'kruskal', 'prim', 'bfs', 'dfs', 'minimum spanning tree'],
+    canonicalSubject: 'Data Structure and Algorithms',
+    semesterNum: 3,
+    unit: 'Unit 7: Graph'
+  },
+  {
+    topic: 'stack and queue',
+    synonyms: ['stack', 'queue', 'stacks', 'queues', 'infix to postfix', 'circular queue'],
+    canonicalSubject: 'Data Structure and Algorithms',
+    semesterNum: 3,
+    unit: 'Unit 3: Stacks, Queue and Recursion'
+  },
+  {
+    topic: 'sorting and searching',
+    synonyms: ['sorting', 'quicksort', 'mergesort', 'bubblesort', 'heapsort', 'binary search', 'linear search', 'hashing'],
+    canonicalSubject: 'Data Structure and Algorithms',
+    semesterNum: 3,
+    unit: 'Unit 5 & 6: Sorting & Searching'
+  },
+  {
+    topic: 'processes and deadlock',
+    synonyms: ['deadlock', 'deadlocks', 'process synchronization', 'bankers algorithm', 'semaphores', 'mutex', 'cpu scheduling'],
+    canonicalSubject: 'Operating Systems',
+    semesterNum: 4,
+    unit: 'Process Management & Deadlock'
+  },
+  {
+    topic: 'memory management and paging',
+    synonyms: ['paging', 'virtual memory', 'page replacement', 'segmentation', 'memory management'],
+    canonicalSubject: 'Operating Systems',
+    semesterNum: 4,
+    unit: 'Memory Management'
+  },
+  {
+    topic: '8085 microprocessor',
+    synonyms: ['8085', 'intel 8085', '8085 microprocessor', 'pin diagram', 'instruction cycle', 'addressing modes'],
+    canonicalSubject: 'Microprocessor and Computer Architecture',
+    semesterNum: 3,
+    unit: 'Unit 2: Intel 8085'
+  },
+  {
+    topic: 'logic gates and k-map',
+    synonyms: ['logic gate', 'logic gates', 'k-map', 'karnaugh map', 'boolean simplification', 'demorgan'],
+    canonicalSubject: 'Digital Logic',
+    semesterNum: 2,
+    unit: 'Unit 3: Boolean Algebra'
+  },
+  {
+    topic: 'flip flops and counters',
+    synonyms: ['flip flop', 'flip flops', 'jk flip flop', 'rs flip flop', 'counter', 'registers', 'shift register'],
+    canonicalSubject: 'Digital Logic',
+    semesterNum: 2,
+    unit: 'Unit 5 & 6: Sequential Circuits & Counters'
+  },
+  {
+    topic: 'css and styling',
+    synonyms: ['css', 'cascading style sheet', 'cascading style sheets', 'css selectors', 'styling'],
+    canonicalSubject: 'Web Technology I',
+    semesterNum: 2,
+    unit: 'Unit 3: Introducing Cascading Style Sheet'
+  },
+  {
+    topic: 'html and web markup',
+    synonyms: ['html', 'xhtml', 'html forms', 'tables', 'web markup', 'html elements'],
+    canonicalSubject: 'Web Technology I',
+    semesterNum: 2,
+    unit: 'Unit 2: HTML and XHTML'
+  },
+  {
+    topic: 'javascript basics',
+    synonyms: ['javascript', 'js', 'dom', 'form validation', 'client script'],
+    canonicalSubject: 'Web Technology I',
+    semesterNum: 2,
+    unit: 'Unit 4: Learning JavaScript'
+  },
+  {
+    topic: 'php and mysql',
+    synonyms: ['php', 'mysql', 'php mysql', 'server side php', 'crud in php'],
+    canonicalSubject: 'Web Technology I',
+    semesterNum: 2,
+    unit: 'Unit 5: Programming in PHP and MYSQL'
+  },
+  {
+    topic: 'java oop and basics',
+    synonyms: ['java', 'java basics', 'oop java', 'java oop', 'inheritance in java', 'java exceptions', 'java io', 'event handling', 'swing'],
+    canonicalSubject: 'Computer Programming II (Java)',
+    semesterNum: 2,
+    unit: 'Java Programming'
+  },
+  {
+    topic: 'infinite series',
+    synonyms: ['infinite series', 'convergence of series', 'alternating series', 'power series', 'radius of convergence'],
+    canonicalSubject: 'Mathematics II',
+    semesterNum: 2,
+    unit: 'Unit 2: Infinite Series'
+  },
+  {
+    topic: 'differential equations',
+    synonyms: ['differential equations', 'differential equation', 'ode', 'homogeneous differential', 'initial value problem', '2nd order de'],
+    canonicalSubject: 'Mathematics II',
+    semesterNum: 2,
+    unit: 'Unit 4: Differential Equations'
+  }
 ];
 
-// --- 3b. Semester-to-Year Mapping (matches syllabus.html hash routing) ---
-const SEMESTER_TO_YEAR = {
-  'I': 'Year 1', 'II': 'Year 1',
-  'III': 'Year 2', 'IV': 'Year 2',
-  'V': 'Year 3', 'VI': 'Year 3',
-  'VII': 'Year 4', 'VIII': 'Year 4'
+// Ingest Default Routine Schedule
+const DEFAULT_ROUTINE_SCHEDULE = [
+  // Semester II
+  { semester: 'II', semNum: 2, date: '2083/05/17', time: 'CIT121', subject: 'Discrete Mathematics', type: 'Examination' },
+  { semester: 'II', semNum: 2, date: '2083/05/23', time: 'CIT122', subject: 'Computer Programming II (Java)', type: 'Examination' },
+  { semester: 'II', semNum: 2, date: '2083/05/26', time: 'ELX121', subject: 'Digital Logic', type: 'Examination' },
+  { semester: 'II', semNum: 2, date: '2083/05/30', time: 'CIT123', subject: 'Web Technology I', type: 'Examination' },
+  { semester: 'II', semNum: 2, date: '2083/06/02', time: 'BSM121', subject: 'Mathematics-II', type: 'Examination' },
+
+  // Semester IV
+  { semester: 'IV', semNum: 4, date: '2083/06/05', time: 'CIT222', subject: 'Management Information System', type: 'Examination' },
+  { semester: 'IV', semNum: 4, date: '2083/06/09', time: 'CIT221', subject: 'Operating Systems', type: 'Examination' },
+  { semester: 'IV', semNum: 4, date: '2083/06/13', time: 'CIT223', subject: 'Data Communication and Computer Networks', type: 'Examination' },
+  { semester: 'IV', semNum: 4, date: '2083/06/16', time: 'BSM221', subject: 'Fundamentals of Probability and Statistics', type: 'Examination' },
+  { semester: 'IV', semNum: 4, date: '2083/06/21', time: 'CIT224', subject: 'Computer Graphics Technology', type: 'Examination' },
+
+  // Semester VI
+  { semester: 'VI', semNum: 6, date: '2083/05/22', time: 'CIT321', subject: 'Human Computer Interface and UI Design', type: 'Examination' },
+  { semester: 'VI', semNum: 6, date: '2083/05/25', time: 'CIT323', subject: 'Artificial Intelligence', type: 'Examination' },
+  { semester: 'VI', semNum: 6, date: '2083/05/31', time: 'BCT322', subject: 'Financial Accounting', type: 'Examination' },
+  { semester: 'VI', semNum: 6, date: '2083/06/05', time: 'BCT321', subject: 'IT Project Management', type: 'Examination' },
+  { semester: 'VI', semNum: 6, date: '2083/06/08', time: 'CIT322', subject: 'Digital Forensic Security Technologies', type: 'Examination' },
+
+  // Semester VIII
+  { semester: 'VIII', semNum: 8, date: '2083/05/16', time: 'CIT421', subject: 'Big Data Technologies', type: 'Examination' },
+  { semester: 'VIII', semNum: 8, date: '2083/05/18', time: 'BCT421', subject: 'Society, IT and Law', type: 'Examination' },
+  { semester: 'VIII', semNum: 8, date: '2083/05/22', time: 'Elective', subject: 'IoT and Smart Technologies / E-Business and E-Commerce', type: 'Examination' }
+];
+
+// Website Navigation Constants
+const SITE_PAGES = [
+  { name: 'Dashboard', url: 'dashboard.html', description: 'Recent file uploads, campus feed, announcements' },
+  { name: 'Library', url: 'library.html', description: 'Browse uploaded subject notes, assignments, documents' },
+  { name: 'Syllabus', url: 'syllabus.html', description: 'Full 8-semester Gandaki University BIT curriculum' },
+  { name: 'Routine', url: 'routine.html', description: 'Pre-board examination timetable and dates' },
+  { name: 'Chat', url: 'chat.html', description: 'Real-time student community discussion group' },
+  { name: 'Upload', url: 'files.html', description: 'Upload notes and study resources' },
+  { name: 'Profile', url: 'profile.html', description: 'Student profile settings and uploads history' },
+  { name: 'AI Assistant', url: 'chatbot.html', description: 'AI study assistant grounded in website library' }
+];
+
+// ============================================================================
+// 3. DETERMINISTIC ROUTE RESOLVER
+// ============================================================================
+
+const RouteResolver = {
+  getSemesterSyllabusRoute(semMeta) {
+    if (!semMeta) return 'syllabus.html';
+    return `syllabus.html#${encodeURIComponent(semMeta.year)}/${encodeURIComponent(semMeta.roman)}`;
+  },
+
+  getCourseSyllabusRoute(semMeta, courseTitle, courseCode) {
+    if (!semMeta || !courseTitle) return 'syllabus.html';
+    const key = courseCode ? `${courseCode}-${courseTitle}` : courseTitle;
+    return `syllabus.html#${encodeURIComponent(semMeta.year)}/${encodeURIComponent(semMeta.roman)}/${encodeURIComponent(key)}`;
+  },
+
+  getSemesterRoutineRoute(semMeta) {
+    if (!semMeta) return 'routine.html';
+    return `routine.html?semester=${encodeURIComponent(semMeta.roman)}`;
+  },
+
+  getLibrarySubjectRoute(subjectName) {
+    if (!subjectName) return 'library.html';
+    return `library.html#${encodeURIComponent(subjectName)}`;
+  },
+
+  getFileDownloadRoute(fileId) {
+    return `/api/files/${fileId}/download`;
+  },
+
+  getNoticeRoute() {
+    return 'dashboard.html';
+  }
 };
 
-// --- 3c. Site Structure Knowledge ---
-const SITE_MAP = {
-  pages: [
-    { name: 'Dashboard / Feed', url: 'dashboard.html', description: 'Main feed showing recent uploads, announcements, and activity from all students.' },
-    { name: 'Library', url: 'library.html', description: 'Browse all uploaded study notes, assignments, and files organized by subject and chapter. Click any course to see uploaded files.' },
-    { name: 'Syllabus', url: 'syllabus.html', description: 'Complete 8-semester BIT curriculum from Gandaki University. Browse by Year → Semester → Course to see full course outlines, unit contents, and textbook references.' },
-    { name: 'Routine / Exam Schedule', url: 'routine.html', description: 'Pre-board examination schedule with dates, times, and subjects. Filter by semester (II, IV, VI, VIII).' },
-    { name: 'Chat', url: 'chat.html', description: 'Real-time class chat room for students to discuss topics, share links, and ask each other questions.' },
-    { name: 'Upload Files', url: 'files.html', description: 'Upload your own notes, assignments, or study materials to the library. Select subject, chapter, and semester.' },
-    { name: 'Profile', url: 'profile.html', description: 'View and edit your student profile, avatar, and account settings.' },
-    { name: 'AI Assistant', url: 'chatbot.html', description: 'This AI assistant — helps you find notes, syllabus info, and exam schedules on the website.' }
-  ],
-  features: [
-    'Students can upload PDF/DOCX/PPTX notes to the Library under specific subjects and chapters.',
-    'The Syllabus page has the complete Gandaki University BIT curriculum for all 8 semesters.',
-    'The Routine page shows pre-board exam dates filtered by semester.',
-    'The Chat page is a real-time messaging room for class discussions.',
-    'Each course in the Library shows uploaded file count and allows direct download.'
-  ]
-};
+// ============================================================================
+// 4. QUERY UNDERSTANDING & MULTI-INTENT PARSER
+// ============================================================================
 
-// --- 4. CS & Curriculum Alias Dictionary ---
-const ALIAS_MAP = {
-  'dsa': ['Data Structure and Algorithms', 'Data Structure', 'Algorithms'],
-  'ds': ['Data Structure and Algorithms', 'Data Structure'],
-  'algo': ['Data Structure and Algorithms', 'Algorithms'],
-  'os': ['Operating Systems', 'Operating System'],
-  'dbms': ['Database Management System', 'Database', 'SQL'],
-  'db': ['Database Management System', 'Database'],
-  'sql': ['Database Management System', 'SQL'],
-  'prog 1': ['Computer Programming I (C)', 'C Programming', 'C'],
-  'prog i': ['Computer Programming I (C)', 'C Programming'],
-  'c prog': ['Computer Programming I (C)', 'C Programming'],
-  'c programming': ['Computer Programming I (C)', 'C Programming'],
-  'prog 2': ['Computer Programming II (Java)', 'Java'],
-  'prog ii': ['Computer Programming II (Java)', 'Java'],
-  'java': ['Computer Programming II (Java)', 'Java'],
-  'oop': ['Computer Programming II (Java)', 'Object Oriented Analysis and Design using UML'],
-  'ooad': ['Object Oriented Analysis and Design using UML', 'UML'],
-  'uml': ['Object Oriented Analysis and Design using UML'],
-  'networking': ['Data Communication and Computer Networks', 'Wireless Communication Systems', 'Networking'],
-  'networks': ['Data Communication and Computer Networks', 'Wireless Communication Systems', 'Networking'],
-  'network': ['Data Communication and Computer Networks', 'Wireless Communication Systems', 'Networking'],
-  'dccn': ['Data Communication and Computer Networks'],
-  'cn': ['Data Communication and Computer Networks'],
-  'wireless': ['Wireless Communication Systems'],
-  'coa': ['Microprocessor and Computer Architecture'],
-  'mp': ['Microprocessor and Computer Architecture'],
-  'microprocessor': ['Microprocessor and Computer Architecture'],
-  'dl': ['Digital Logic'],
-  'logic': ['Digital Logic', 'Workshop: Problem Solving and Logic'],
-  'electronics': ['Basic Electronics'],
-  'math 1': ['Mathematics I', 'Calculus', 'Derivatives'],
-  'math i': ['Mathematics I'],
-  'm1': ['Mathematics I'],
-  'math 2': ['Mathematics II', 'Infinite Series', 'Permutation'],
-  'math ii': ['Mathematics II'],
-  'm2': ['Mathematics II'],
-  'math': ['Mathematics I', 'Mathematics II', 'Discrete Mathematics', 'Math'],
-  'maths': ['Mathematics I', 'Mathematics II', 'Discrete Mathematics', 'Math'],
-  'discrete': ['Discrete Mathematics'],
-  'discrete math': ['Discrete Mathematics'],
-  'stats': ['Fundamentals of Probability and Statistics', 'Probability'],
-  'prob': ['Fundamentals of Probability and Statistics', 'Probability'],
-  'probability': ['Fundamentals of Probability and Statistics'],
-  'numerical': ['Numerical Methods'],
-  'nm': ['Numerical Methods'],
-  'web 1': ['Web Technology I', 'Web Development'],
-  'web 2': ['Web Technology II', 'Web Development'],
-  'web tech': ['Web Technology I', 'Web Technology II', 'Web Development'],
-  'web': ['Web Technology I', 'Web Technology II', 'Web Development', 'Assignment( Web Development )'],
-  'graphics': ['Computer Graphics Technology'],
-  'cg': ['Computer Graphics Technology'],
-  'ui': ['Human Computer Interface and UI Design'],
-  'ux': ['Human Computer Interface and UI Design'],
-  'hci': ['Human Computer Interface and UI Design'],
-  'ai': ['Artificial Intelligence'],
-  'se': ['Software Engineering', 'IT Project Management'],
-  'software engineering': ['Software Engineering'],
-  'cloud': ['Cloud Computing'],
-  'devops': ['Software Development and Operations (DevOps)'],
-  'big data': ['Big Data Technologies'],
-  'data mining': ['Data Mining and Warehousing'],
-  'mining': ['Data Mining and Warehousing'],
-  'forensics': ['Digital Forensic Security Technologies'],
-  'security': ['Digital Forensic Security Technologies'],
-  'cyber': ['Digital Forensic Security Technologies'],
-  'mobile': ['Mobile Application Development'],
-  'android': ['Mobile Application Development'],
-  'mad': ['Mobile Application Development'],
-  'accounting': ['Financial Accounting'],
-  'finance': ['Financial Accounting'],
-  'management': ['Principles of Organization and Management', 'IT Project Management'],
-  'pom': ['Principles of Organization and Management'],
-  'mis': ['Management Information System'],
-  'economics': ['Economics'],
-  'infinite series': ['infinite series', 'Mathematics II']
-};
+/**
+ * Parses user message into structured query metadata.
+ * Distinguishes:
+ * - RESOURCE_SEARCH (Mode A)
+ * - WEBSITE_INFO (Mode B)
+ * - KNOWLEDGE_QUESTION (Mode C)
+ * - NAVIGATE_RESOURCE (Mode D)
+ * - MULTI_INTENT
+ */
+function parseQueryIntent(rawQuery, conversationHistory = []) {
+  const q = (rawQuery || '').toLowerCase().trim();
 
-// --- 5. Pure Fast Levenshtein Distance ---
+  // 1. Detect Smalltalk / Greeting
+  if (/^(hi|hello|hey|greetings|good morning|good evening|how are you|whats up|sup|thanks|thank you|bye|goodbye)\b/i.test(q)) {
+    return {
+      intent: 'SMALLTALK',
+      resourceType: null,
+      semester: null,
+      subject: null,
+      topic: null,
+      searchQuery: q,
+      subQueries: []
+    };
+  }
+
+  // 2. Extract Active Context from Conversation History (for follow-ups like "what about its syllabus?", "and PYQs?")
+  let contextualSemester = null;
+  let contextualSubject = null;
+  let contextualTopic = null;
+
+  if (Array.isArray(conversationHistory) && conversationHistory.length > 0) {
+    for (let i = conversationHistory.length - 1; i >= 0; i--) {
+      const msg = conversationHistory[i];
+      if (msg.content) {
+        const histSem = normalizeSemester(msg.content);
+        if (histSem && !contextualSemester) contextualSemester = histSem;
+
+        const histSubj = matchSubjectInText(msg.content);
+        if (histSubj && !contextualSubject) contextualSubject = histSubj;
+
+        const histTopic = matchTopicInText(msg.content);
+        if (histTopic && !contextualTopic) contextualTopic = histTopic;
+      }
+    }
+  }
+
+  // 3. Check for Multi-Intent Conjunctions ("Give me DBMS notes and tell me when the exam is")
+  const multiIntentConjunction = /\b(?:and\s+(?:tell\s+me|show\s+me|when\s+is|what\s+is|give\s+me)|also\s+(?:tell\s+me|show\s+me|when\s+is|give\s+me))\b/i;
+  if (multiIntentConjunction.test(q)) {
+    const parts = q.split(/\band\b|\balso\b/i).map(p => p.trim()).filter(Boolean);
+    if (parts.length >= 2) {
+      const subQueries = parts.map(part => parseSingleIntent(part, contextualSemester, contextualSubject, contextualTopic));
+      return {
+        intent: 'MULTI_INTENT',
+        resourceType: 'MULTIPLE',
+        semester: subQueries.find(s => s.semester)?.semester || contextualSemester,
+        subject: subQueries.find(s => s.subject)?.subject || contextualSubject,
+        topic: subQueries.find(s => s.topic)?.topic || contextualTopic,
+        searchQuery: q,
+        subQueries
+      };
+    }
+  }
+
+  return parseSingleIntent(q, contextualSemester, contextualSubject, contextualTopic);
+}
+
+// --- Pure Fast Levenshtein Distance for Typo & Fuzzy Prediction ---
 function levenshteinDistance(a, b) {
   if (a === b) return 0;
   const la = a.length, lb = b.length;
@@ -232,619 +492,610 @@ function levenshteinDistance(a, b) {
   return prev[lb];
 }
 
-function findClosestTerm(word) {
-  if (word.length < 4) return word;
-  let bestMatch = word;
-  let minDistance = 99;
-
-  for (const term of KNOWN_SUBJECT_TERMS) {
-    const dist = levenshteinDistance(word, term);
-    const maxAllowed = word.length <= 5 ? 1 : 2;
-    if (dist <= maxAllowed && dist < minDistance) {
-      minDistance = dist;
-      bestMatch = term;
+function matchSubjectInText(text) {
+  const t = text.toLowerCase();
+  
+  // 1. Check exact word boundary matches on aliases
+  const sortedAliases = Array.from(ALIAS_TO_SUBJECT.keys()).sort((a, b) => b.length - a.length);
+  for (const alias of sortedAliases) {
+    if (alias.length < 3) continue;
+    const regex = new RegExp(`\\b${alias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+    if (regex.test(t)) {
+      return ALIAS_TO_SUBJECT.get(alias);
     }
   }
-  return bestMatch;
-}
 
-const STOP_WORDS = new Set([
-  'the', 'a', 'an', 'and', 'or', 'of', 'in', 'on', 'at', 'to', 'for', 'with',
-  'by', 'from', 'about', 'is', 'are', 'was', 'were', 'be', 'been', 'do', 'does',
-  'did', 'have', 'has', 'had', 'give', 'me', 'find', 'show', 'search', 'get',
-  'we', 'i', 'you', 'what', 'whats', 'where', 'when', 'how', 'which', 'who',
-  'notes', 'note', 'stuff', 'material', 'materials', 'file', 'files', 'pdf',
-  'pdfs', 'slides', 'doc', 'docs', 'please', 'can', 'could', 'would', 'tell',
-  'available', 'some', 'any', 'all', 'our', 'my'
-]);
+  // 2. Fuzzy Typo & Predictive Matching across tokens
+  const words = t.replace(/[^\w\s]/g, ' ').split(/\s+/).filter(w => w.length >= 4);
+  for (const word of words) {
+    for (const alias of sortedAliases) {
+      if (alias.length >= 4) {
+        const dist = levenshteinDistance(word, alias);
+        const maxAllowed = word.length <= 5 ? 1 : 2;
+        if (dist <= maxAllowed) {
+          return ALIAS_TO_SUBJECT.get(alias);
+        }
+      }
+    }
+  }
 
-function parseSemesterNumber(str) {
-  const s = (str || '').toLowerCase();
-  if (s.includes('sem 1') || s.includes('semester 1') || s.includes('sem i') || s.includes('semester i') || s.includes('first sem')) return 'I';
-  if (s.includes('sem 2') || s.includes('semester 2') || s.includes('sem ii') || s.includes('semester ii') || s.includes('second sem')) return 'II';
-  if (s.includes('sem 3') || s.includes('semester 3') || s.includes('sem iii') || s.includes('semester iii') || s.includes('third sem')) return 'III';
-  if (s.includes('sem 4') || s.includes('semester 4') || s.includes('sem iv') || s.includes('semester iv') || s.includes('fourth sem')) return 'IV';
-  if (s.includes('sem 5') || s.includes('semester 5') || s.includes('sem v') || s.includes('semester v') || s.includes('fifth sem')) return 'V';
-  if (s.includes('sem 6') || s.includes('semester 6') || s.includes('sem vi') || s.includes('semester vi') || s.includes('sixth sem')) return 'VI';
-  if (s.includes('sem 7') || s.includes('semester 7') || s.includes('sem vii') || s.includes('semester vii') || s.includes('seventh sem')) return 'VII';
-  if (s.includes('sem 8') || s.includes('semester 8') || s.includes('sem viii') || s.includes('semester viii') || s.includes('eighth sem')) return 'VIII';
   return null;
 }
 
-// --- 6. Tool Execution Functions for Real Data Retrieval ---
-
-async function executeSearchFiles(db, args = {}) {
-  const qStr = (args.query || '').toLowerCase().trim();
-  const semArg = args.semester ? parseSemesterNumber(args.semester) || args.semester.toUpperCase() : null;
-
-  const rawWords = qStr.replace(/[^\w\s]/g, ' ').split(/\s+/).filter(w => w.length >= 2);
-  const queryTokens = [];
-  rawWords.forEach(w => {
-    if (!STOP_WORDS.has(w)) queryTokens.push(findClosestTerm(w));
-  });
-
-  const expandedTerms = new Set(queryTokens);
-  for (const [alias, fullTerms] of Object.entries(ALIAS_MAP)) {
-    if (qStr.includes(alias)) {
-      fullTerms.forEach(t => {
-        expandedTerms.add(t.toLowerCase());
-        t.toLowerCase().split(/\s+/).forEach(w => {
-          if (!STOP_WORDS.has(w) && w.length >= 3) expandedTerms.add(w);
-        });
-      });
+function matchTopicInText(text) {
+  const t = text.toLowerCase();
+  for (const item of TOPIC_DEFINITIONS) {
+    for (const syn of item.synonyms) {
+      const regex = new RegExp(`\\b${syn.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+      if (regex.test(t)) {
+        return item;
+      }
     }
   }
 
-  const termsList = Array.from(expandedTerms);
-
-  try {
-    const allFiles = await db.all(`
-      SELECT id, storedName, originalName, title, subject, chapter, semester, uploadedBy, sizeBytes, uploadedAt 
-      FROM files 
-      ORDER BY id DESC
-    `);
-
-    const scored = allFiles.map(f => {
-      let score = 0;
-      const fSubject = (f.subject || '').toLowerCase();
-      const fChapter = (f.chapter || '').toLowerCase();
-      const fTitle = (f.title || '').toLowerCase();
-      const fOriginal = (f.originalName || '').toLowerCase();
-      const fSemester = (f.semester || '').toUpperCase();
-      const fullText = `${fSubject} ${fChapter} ${fTitle} ${fOriginal}`;
-
-      if (semArg && (fSemester === semArg || fullText.includes(`semester ${semArg.toLowerCase()}`))) {
-        score += 10;
-      }
-
-      termsList.forEach(term => {
-        if (term.length < 3) return;
-        if (fSubject.includes(term)) score += 10;
-        if (fChapter.includes(term)) score += 8;
-        if (fTitle.includes(term)) score += 6;
-        if (fOriginal.includes(term)) score += 4;
-      });
-
-      return { file: f, score };
-    });
-
-    const results = scored
-      .filter(item => item.score >= 4 || (semArg && item.file.semester === semArg))
-      .sort((a, b) => b.score - a.score)
-      .map(item => item.file)
-      .slice(0, 8);
-
-    return {
-      success: true,
-      count: results.length,
-      files: results.map(f => ({
-        id: f.id,
-        title: f.title || f.originalName,
-        subject: f.subject || 'General',
-        chapter: f.chapter || '',
-        originalName: f.originalName,
-        semester: f.semester || null,
-        sizeBytes: f.sizeBytes
-      }))
-    };
-  } catch (err) {
-    return { success: false, error: err.message, files: [] };
-  }
-}
-
-function executeGetSyllabus(args = {}) {
-  const semArg = args.semester ? parseSemesterNumber(args.semester) || args.semester.toUpperCase() : null;
-  const subjArg = (args.subject || '').toLowerCase().trim();
-
-  const matched = ALL_COURSES.filter(c => {
-    if (semArg && c.semester.toUpperCase() === semArg) return true;
-    if (subjArg) {
-      const full = `${c.title} ${c.code} ${c.objectives}`.toLowerCase();
-      if (full.includes(subjArg)) return true;
-      for (const [alias, fullTerms] of Object.entries(ALIAS_MAP)) {
-        if (subjArg.includes(alias)) {
-          if (fullTerms.some(t => full.includes(t.toLowerCase()))) return true;
+  // Fuzzy topic matching
+  const words = t.replace(/[^\w\s]/g, ' ').split(/\s+/).filter(w => w.length >= 5);
+  for (const word of words) {
+    for (const item of TOPIC_DEFINITIONS) {
+      for (const syn of item.synonyms) {
+        const synWords = syn.split(/\s+/);
+        for (const sw of synWords) {
+          if (sw.length >= 5) {
+            const dist = levenshteinDistance(word, sw);
+            if (dist <= 1) {
+              return item;
+            }
+          }
         }
       }
     }
-    return false;
-  }).slice(0, 8);
+  }
+
+  return null;
+}
+
+function parseSingleIntent(queryStr, ctxSem, ctxSubj, ctxTopic) {
+  const q = queryStr.toLowerCase().trim();
+
+  // Extract Direct Entities
+  let semester = normalizeSemester(q);
+  let subject = matchSubjectInText(q);
+  let topicObj = matchTopicInText(q);
+
+  // If topic found, deduce subject & semester if not explicitly contradicted
+  if (topicObj) {
+    if (!subject) subject = topicObj.canonicalSubject;
+    if (!semester && topicObj.semesterNum) semester = SEMESTER_REGISTRY[topicObj.semesterNum];
+  }
+
+  // Handle follow-up pronouns ("what about its syllabus?", "show its notes")
+  const hasPronounRef = /\b(it|its|this|that|same)\b/i.test(q);
+  if (hasPronounRef) {
+    if (!semester && ctxSem) semester = ctxSem;
+    if (!subject && ctxSubj) subject = ctxSubj;
+    if (!topicObj && ctxTopic) topicObj = ctxTopic;
+  }
+
+  // Detect Resource Type
+  let resourceType = null;
+  if (/\b(note|notes|pdf|pdfs|slides|handouts|study material|doc|docs|lecture)\b/i.test(q)) {
+    resourceType = 'NOTE';
+  } else if (/\b(syllabus|curriculum|course outline|course content|credit|credits)\b/i.test(q)) {
+    resourceType = 'SYLLABUS';
+  } else if (/\b(routine|exam|schedule|timetable|exam date|exam time|pre-board|preboard)\b/i.test(q)) {
+    resourceType = 'ROUTINE';
+  } else if (/\b(pyq|pyqs|previous year|past questions|old questions|question paper|model question)\b/i.test(q)) {
+    resourceType = 'PYQ';
+  } else if (/\b(notice|notices|announcement|announcements|news)\b/i.test(q)) {
+    resourceType = 'NOTICE';
+  } else if (/\b(subject|subjects|courses|classes)\b/i.test(q)) {
+    resourceType = 'SUBJECT';
+  }
+
+  // Classify Intent Mode
+  let intent = 'WEBSITE_INFO';
+
+  const isChitChat = /^(hi|hello|hey|who\s+(are\s+you|r\s+u|you)|what\s+is\s+your\s+name|your\s+name|what\s+can\s+you\s+do|how\s+are\s+you|thanks|thank\s+you|bye|good\s+(morning|afternoon|evening))\b/i.test(q.trim()) ||
+    q.trim().length <= 2;
+
+  const isResourceSearchVerb = /\b(give\s+me|find|show\s+me|send\s+me|search|get\s+me|download|where\s+can\s+i\s+find|where\s+is|provide)\b/i.test(q);
+  const isKnowledgeVerb = /^(what\s+is|what\s+are|explain|how\s+does|how\s+to|why\s+is|differentiate|define|solve|calculate|teach\s+me)\b/i.test(q);
+
+  if (isChitChat) {
+    intent = 'CHITCHAT';
+    resourceType = 'NONE';
+  } else if (isKnowledgeVerb && !resourceType && !/\b(routine|exam|schedule|syllabus|library|upload|semester|file)\b/i.test(q)) {
+    intent = 'KNOWLEDGE_QUESTION';
+    resourceType = 'NONE';
+  } else if (isResourceSearchVerb && (resourceType === 'NOTE' || resourceType === 'PYQ' || topicObj || subject)) {
+    intent = 'RESOURCE_SEARCH';
+  } else if (/\b(open|take\s+me\s+to|go\s+to|navigate\s+to|show\s+page)\b/i.test(q)) {
+    intent = 'NAVIGATE_RESOURCE';
+  } else if (resourceType === 'NOTE' || resourceType === 'PYQ') {
+    intent = 'RESOURCE_SEARCH';
+  } else if (resourceType === 'SYLLABUS' || resourceType === 'ROUTINE' || resourceType === 'NOTICE' || resourceType === 'SUBJECT') {
+    intent = 'WEBSITE_INFO';
+  }
 
   return {
-    success: true,
-    count: matched.length,
-    courses: matched.map(c => ({
-      code: c.code,
-      title: c.title,
-      semester: c.semester,
-      year: c.year,
-      credit: c.credit,
-      nature: c.nature,
-      objectives: c.objectivesSummary,
-      contents: c.contentsSummary
-    }))
+    intent,
+    resourceType: resourceType || (intent === 'CHITCHAT' || intent === 'KNOWLEDGE_QUESTION' ? 'NONE' : 'ALL'),
+    semester,
+    subject,
+    topic: topicObj ? topicObj.topic : null,
+    topicObj,
+    searchQuery: q,
+    subQueries: []
   };
 }
 
-function executeGetSiteMap() {
-  return {
-    success: true,
-    pages: SITE_MAP.pages,
-    features: SITE_MAP.features
-  };
-}
+// ============================================================================
+// 5. CANONICAL CENTRAL SEARCH SERVICE (searchWebsite)
+// ============================================================================
 
-function executeGetRoutine(args = {}) {
-  const semArg = args.semester ? parseSemesterNumber(args.semester) || args.semester.toUpperCase() : null;
-  const subjArg = (args.subject || '').toLowerCase().trim();
+/**
+ * Searches website resources (files, syllabus, routine) with hard constraints,
+ * multi-tiered relevance scoring, and zero-hallucination thresholds.
+ */
+async function searchWebsite(db, queryMeta, student = {}) {
+  const { intent, resourceType, semester, subject, topic, topicObj, searchQuery } = queryMeta;
 
-  const matched = routineExams.filter(r => {
-    if (semArg && r.semester.toUpperCase() === semArg) return true;
-    if (subjArg) {
-      const s = r.subject.toLowerCase();
-      if (s.includes(subjArg)) return true;
-      for (const [alias, fullTerms] of Object.entries(ALIAS_MAP)) {
-        if (subjArg.includes(alias)) {
-          if (fullTerms.some(t => s.includes(t.toLowerCase()))) return true;
-        }
-      }
-    }
-    if (!semArg && !subjArg) return true; // full routine
-    return false;
-  }).slice(0, 8);
+  console.log(`[AI Search Engine] Query: "${searchQuery}" | Intent: ${intent} | Type: ${resourceType} | Sem: ${semester ? semester.num : 'None'} | Subj: ${subject || 'None'} | Topic: ${topic || 'None'}`);
 
-  return {
-    success: true,
-    count: matched.length,
-    routine: matched.map(r => ({
-      semester: r.semester,
-      subject: r.subject,
-      date: r.date,
-      day: r.day,
-      time: r.time,
-      type: r.type
-    })),
-    note: 'BIT Pre-board examination schedule for Gandaki University.'
-  };
-}
-
-// --- 7. Gemini Native Tools Declaration Schema ---
-const GEMINI_FUNCTION_TOOLS = [
-  {
-    functionDeclarations: [
-      {
-        name: 'searchFiles',
-        description: 'Search uploaded student class notes, assignments, PDFs, and study materials in the Semester Library SQLite database.',
-        parameters: {
-          type: 'OBJECT',
-          properties: {
-            query: { type: 'STRING', description: 'Subject name, chapter name, or topic keywords to search for' },
-            semester: { type: 'STRING', description: 'Semester numeral e.g. I, II, III, IV, etc. if specified' }
-          }
-        }
-      },
-      {
-        name: 'getSyllabus',
-        description: 'Look up curriculum course titles, codes, credits, and syllabus topics from Gandaki University BIT curriculum.',
-        parameters: {
-          type: 'OBJECT',
-          properties: {
-            semester: { type: 'STRING', description: 'Semester numeral e.g. I, II, III, IV, V, VI, VII, VIII' },
-            subject: { type: 'STRING', description: 'Course title or code e.g. CIT214, Discrete Mathematics, Networking' }
-          }
-        }
-      },
-      {
-        name: 'getRoutine',
-        description: 'Look up official pre-board examination dates, days, times, and subjects for Gandaki University BIT.',
-        parameters: {
-          type: 'OBJECT',
-          properties: {
-            semester: { type: 'STRING', description: 'Semester numeral e.g. II, IV, VI, VIII' },
-            subject: { type: 'STRING', description: 'Subject or course name' }
-          }
-        }
-      },
-      {
-        name: 'getSiteMap',
-        description: 'Get the full site structure and page list for the Semester Library website. Use this when a student asks about what pages exist, where to find something, how to navigate the site, or how to upload/download files.',
-        parameters: {
-          type: 'OBJECT',
-          properties: {}
-        }
-      }
-    ]
-  }
-];
-
-// --- 8. Self-Check Verification Pass for Factual Claims ---
-function verifyFactualClaims(responseText, collectedData) {
-  if (!responseText) return '';
-
-  const validFiles = new Set(collectedData.matchedFiles.map(f => (f.originalName || '').toLowerCase()));
-  collectedData.matchedFiles.forEach(f => {
-    if (f.title) validFiles.add(f.title.toLowerCase());
-  });
-
-  const validDates = new Set(collectedData.matchedRoutine.map(r => r.date));
-  
-  // Guard against invented file attachments if 0 real files were retrieved
-  let verified = responseText;
-  if (collectedData.matchedFiles.length === 0) {
-    const fakeFileRegex = /\b([a-zA-Z0-9_\-\s()]+\.(?:pdf|docx|pptx|xlsx|zip))\b/gi;
-    verified = verified.replace(fakeFileRegex, (match) => {
-      const clean = match.trim().toLowerCase();
-      const isKnown = Array.from(validFiles).some(vf => vf.includes(clean) || clean.includes(vf));
-      return isKnown ? match : `[File: ${match} (not currently uploaded)]`;
-    });
-  }
-
-  // Guard against fabricated exam dates
-  if (collectedData.matchedRoutine.length > 0) {
-    const dateRegex = /\b(208[0-9]\/[0-1][0-9]\/[0-3][0-9])\b/g;
-    verified = verified.replace(dateRegex, (match) => {
-      if (!validDates.has(match)) {
-        const realDate = Array.from(validDates)[0];
-        return realDate || match;
-      }
-      return match;
-    });
-  }
-
-  return verified;
-}
-
-// --- 9. Pre-AI Scope Classifier (Quota Saver) ---
-function evaluateScope(query) {
-  const q = query.toLowerCase().trim();
-
-  // Handle small talk directly without consuming API quota
-  const isSmallTalk = /^(hi|hello|hey|how are you|how's it going|what's up|sup|good morning|good evening|thanks|thank you|bye|goodbye|see you)\b/i.test(q);
-  if (isSmallTalk) {
-    return {
-      inScope: true,
-      isSmallTalk: true,
-      cannedReply: `Hey! 👋 I'm the **Semester Library Assistant**. I can help you find:\n\n- 📚 **Uploaded notes & files** in the Library\n- 📖 **Course syllabus** for any semester\n- 📅 **Exam schedule** and routine\n- 🧭 **Navigate** to any page on the site\n\nWhat would you like to know?`,
-      actions: [
-        { label: '📚 Browse Library', url: 'library.html' },
-        { label: '📖 View Syllabus', url: 'syllabus.html' },
-        { label: '📅 Exam Routine', url: 'routine.html' }
-      ]
-    };
-  }
-
-  const isExplicitGeneralTutoring = (
-    /^what is (?!the (exam|routine|syllabus|library|upload|semester|file|schedule))\w+/i.test(q) ||
-    /^(teach me|explain to me|how to code|write (a|me) (code|script|program|essay|story|poem)|who is|solve|calculate)/i.test(q) ||
-    (q.includes('what is java') && !q.includes('note') && !q.includes('syllabus') && !q.includes('exam') && !q.includes('file')) ||
-    (q.includes('teach me python') || q.includes('what is python') || q.includes('what is c++')) ||
-    (q.includes('explain photosynthesis') || q.includes('who is prime minister') || q.includes('capital of'))
-  );
-
-  const isSiteNavigation = (
-    q.includes('upload') || q.includes('where is') || q.includes('how to find') || q.includes('where do') || q.includes('where can') ||
-    q.includes('download') || q.includes('profile') || q.includes('feed') ||
-    q.includes('dashboard') || q.includes('login') || q.includes('library') ||
-    q.includes('routine') || q.includes('syllabus') || q.includes('notes') ||
-    q.includes('file') || q.includes('chat') || q.includes('semester') ||
-    q.includes('exam') || q.includes('schedule') || q.includes('exercise') || q.includes('practice') ||
-    q.includes('page') || q.includes('section') || q.includes('navigate') || q.includes('find')
-  );
-
-  if (isExplicitGeneralTutoring && !isSiteNavigation) {
-    return {
-      inScope: false,
-      cannedReply: `I am the **Semester Library Assistant**, designed exclusively to help you find and navigate resources on this website (such as uploaded notes, syllabus contents, course roadmaps, and exam routines).\n\nI do not act as a general academic tutor or teach subjects from scratch.\n\nIs there a specific **subject note, syllabus chapter, or exam routine** on the site you would like me to help you find?`,
-      actions: [
-        { label: 'Browse Library Notes', url: 'library.html' },
-        { label: 'View Degree Syllabus', url: 'syllabus.html' },
-        { label: 'Check Exam Routine', url: 'routine.html' }
-      ]
-    };
-  }
-
-  return { inScope: true };
-}
-
-// --- 10. Gemini Function Calling Engine with Multi-Turn Context ---
-async function callGeminiWithTools(db, userMessage, conversationHistory = []) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error('GEMINI_API_KEY is not configured');
-
-  const model = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-
-  // Format multi-turn conversation history (last 8 messages)
-  const contents = [];
-  if (Array.isArray(conversationHistory)) {
-    conversationHistory.slice(-8).forEach(msg => {
-      const role = (msg.role === 'assistant' || msg.role === 'model') ? 'model' : 'user';
-      if (msg.content && typeof msg.content === 'string') {
-        contents.push({
-          role: role,
-          parts: [{ text: msg.content }]
-        });
-      }
-    });
-  }
-
-  // Append current user message
-  contents.push({
-    role: 'user',
-    parts: [{ text: userMessage }]
-  });
-
-  const systemInstructionText = `You are the Semester Library Website Assistant for Gandaki University (Bachelor of Information Technology - BIT).
-
-IMPORTANT SCOPE & REASONING RULES:
-1. USE TOOLS: Use the searchFiles, getSyllabus, getRoutine, and getSiteMap tools whenever a student asks about notes, course topics, syllabus details, exam dates, or site navigation. You may call multiple tools in parallel if the user's question touches multiple topics.
-2. SITE NAVIGATION: When a student asks "where do I find X" or "how do I upload" or anything about navigating the site, use the getSiteMap tool to provide accurate page names and descriptions.
-3. EXERCISE CAPPING: When asked for practice questions, exercises, or questions on a topic (including follow-up questions like "give me exercises on this"), generate EXACTLY 3-5 focused questions unless the student specifies a different count. Do not generate excessive lists.
-4. CONCISE & STRUCTURED: Keep your explanatory text short, organized with markdown headers (###), bold key terms, and short bullet points. Do not write filler preambles.
-5. STRICT HONESTY: Never invent file names, course codes, or exam dates that are not in the tool results. If no files or routines exist for a semester/subject, state that clearly.
-6. SEMESTER AWARENESS: The BIT program has 8 semesters across 4 years: Year 1 (Sem I, II), Year 2 (Sem III, IV), Year 3 (Sem V, VI), Year 4 (Sem VII, VIII). Pre-board exams are only scheduled for even semesters (II, IV, VI, VIII). If asked about odd semester exams, explain this clearly.`;
-
-  // Step 1: Request with tools
-  let attempts = 0;
-  let initialResponseData = null;
-
-  while (attempts < 2) {
-    attempts++;
-    try {
-      const res1 = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: contents,
-          tools: GEMINI_FUNCTION_TOOLS,
-          systemInstruction: { parts: [{ text: systemInstructionText }] },
-          generationConfig: { temperature: 0.2, maxOutputTokens: 1200 }
-        })
-      });
-
-      if (res1.status === 503 || res1.status === 429) {
-        if (attempts < 2) {
-          await new Promise(r => setTimeout(r, 1200));
-          continue;
-        }
-      }
-
-      if (!res1.ok) {
-        const errText = await res1.text();
-        throw new Error(`Gemini Tools HTTP ${res1.status}: ${errText}`);
-      }
-
-      initialResponseData = await res1.json();
-      break;
-    } catch (err) {
-      if (attempts >= 2) throw err;
-      await new Promise(r => setTimeout(r, 1000));
-    }
-  }
-
-  const candidate = initialResponseData?.candidates?.[0];
-  const modelParts = candidate?.content?.parts || [];
-
-  // Check if Gemini invoked any function calls
-  const functionCalls = modelParts.filter(p => p.functionCall);
-
-  const collectedData = {
+  const results = {
     matchedFiles: [],
     matchedCourses: [],
-    matchedRoutine: []
+    matchedRoutine: [],
+    actions: [],
+    debug: {}
   };
 
-  // If no function calls, return text directly
-  if (functionCalls.length === 0) {
-    const rawText = modelParts.map(p => p.text || '').join('').trim();
-    return {
-      text: verifyFactualClaims(rawText, collectedData),
-      collectedData
-    };
+  // If user is just chatting or asking a general knowledge/identity question, do not search cards!
+  if (intent === 'CHITCHAT' || intent === 'KNOWLEDGE_QUESTION' || resourceType === 'NONE') {
+    return results;
   }
 
-  // Step 2: Execute function calls
-  contents.push({
-    role: 'model',
-    parts: modelParts
-  });
+  // --------------------------------------------------------------------------
+  // Intent Classification Flags
+  // --------------------------------------------------------------------------
+  const isRoutineQuery = resourceType === 'ROUTINE' || 
+    /\b(routine|exam|schedule|timetable|preboard|pre-board|when is the exam|exam date|exam time)\b/i.test(searchQuery);
 
-  const toolResponseParts = [];
-  for (const part of functionCalls) {
-    const fnName = part.functionCall.name;
-    const fnArgs = part.functionCall.args || {};
+  const isSyllabusQuery = resourceType === 'SYLLABUS' || 
+    resourceType === 'SUBJECT' ||
+    /\b(syllabus|curriculum|course outline|credit|credits|course content|subjects taught|courses taught)\b/i.test(searchQuery);
 
-    let toolResult = {};
-    if (fnName === 'searchFiles') {
-      const res = await executeSearchFiles(db, fnArgs);
-      toolResult = res;
-      if (res.files) collectedData.matchedFiles.push(...res.files);
-    } else if (fnName === 'getSyllabus') {
-      const res = executeGetSyllabus(fnArgs);
-      toolResult = res;
-      if (res.courses) collectedData.matchedCourses.push(...res.courses);
-    } else if (fnName === 'getRoutine') {
-      const res = executeGetRoutine(fnArgs);
-      toolResult = res;
-      if (res.routine) collectedData.matchedRoutine.push(...res.routine);
-    } else if (fnName === 'getSiteMap') {
-      toolResult = executeGetSiteMap();
-      collectedData.siteMapUsed = true;
+  const wantsFiles = resourceType === 'NOTE' || 
+    resourceType === 'PYQ' || 
+    intent === 'RESOURCE_SEARCH' ||
+    Boolean(topicObj) ||
+    /\b(note|notes|pdf|pdfs|slide|slides|handout|handouts|doc|docs|material|materials|download)\b/i.test(searchQuery);
+
+  // --------------------------------------------------------------------------
+  // 1. Search Files in Library (Only if user explicitly asked for files/topics)
+  // --------------------------------------------------------------------------
+  if (wantsFiles) {
+    try {
+      const allFiles = await db.all(`
+        SELECT id, storedName, originalName, title, subject, chapter, semester, uploadedBy, sizeBytes, uploadedAt 
+        FROM files 
+        ORDER BY id DESC
+      `);
+
+      const scoredFiles = allFiles.map(f => {
+        let score = 0;
+        const fSubject = (f.subject || '').toLowerCase();
+        const fChapter = (f.chapter || '').toLowerCase();
+        const fTitle = (f.title || '').toLowerCase();
+        const fOriginal = (f.originalName || '').toLowerCase();
+        const fullFileText = `${fSubject} ${fChapter} ${fTitle} ${fOriginal}`;
+
+        // --- HARD CONSTRAINT: Semester Filtering ---
+        if (semester) {
+          const fileSemMeta = normalizeSemester(f.semester);
+          if (fileSemMeta) {
+            if (fileSemMeta.num !== semester.num) {
+              return { file: f, score: -999 };
+            } else {
+              score += 50;
+            }
+          }
+        }
+
+        // --- HARD CONSTRAINT: Subject Filtering ---
+        if (subject) {
+          const canonicalLower = subject.toLowerCase();
+          const isExactSubj = fSubject.includes(canonicalLower) || fTitle.includes(canonicalLower);
+          
+          let hasAliasMatch = false;
+          const aliases = SUBJECT_ALIASES[subject] || [];
+          for (const a of aliases) {
+            if (fullFileText.includes(a.toLowerCase())) {
+              hasAliasMatch = true;
+              break;
+            }
+          }
+
+          if (isExactSubj || hasAliasMatch) {
+            score += 60;
+          } else {
+            score -= 100;
+          }
+        }
+
+        // --- TOPIC RELEVANCE: Strict Topic Matching ---
+        if (topicObj) {
+          let hasTopicMatch = false;
+          for (const syn of topicObj.synonyms) {
+            if (fullFileText.includes(syn.toLowerCase())) {
+              score += 100;
+              hasTopicMatch = true;
+              break;
+            }
+          }
+          if (topicObj.unit && fullFileText.includes(topicObj.unit.toLowerCase())) {
+            score += 90;
+            hasTopicMatch = true;
+          }
+          if (!hasTopicMatch) {
+            score -= 150;
+          }
+        } else {
+          // Token Keyword Overlap Scoring
+          const rawTokens = searchQuery.replace(/[^\w\s]/g, ' ').split(/\s+/).filter(w => w.length >= 3);
+          const stopWords = ['give', 'notes', 'find', 'show', 'semester', 'please', 'with', 'what', 'have', 'note', 'some', 'about', 'material', 'materials', 'study', 'pdfs', 'slides', 'send', 'want', 'need', 'course', 'tell'];
+          const meaningfulTokens = rawTokens.filter(t => !stopWords.includes(t));
+
+          let matchedTokensCount = 0;
+          meaningfulTokens.forEach(t => {
+            if (fullFileText.includes(t)) {
+              matchedTokensCount++;
+              if (fTitle.includes(t)) score += 30;
+              if (fChapter.includes(t)) score += 25;
+              if (fSubject.includes(t)) score += 20;
+              if (fOriginal.includes(t)) score += 15;
+            }
+          });
+
+          if (meaningfulTokens.length >= 2 && matchedTokensCount < meaningfulTokens.length) {
+            score -= 100;
+          } else if (meaningfulTokens.length === 1 && matchedTokensCount === 0) {
+            score -= 50;
+          }
+        }
+
+        if (resourceType === 'PYQ' && (fTitle.includes('pyq') || fOriginal.includes('pyq') || fTitle.includes('question'))) {
+          score += 40;
+        }
+
+        return { file: f, score };
+      });
+
+      const filteredFiles = scoredFiles
+        .filter(item => item.score >= 20)
+        .sort((a, b) => b.score - a.score)
+        .map(item => item.file)
+        .slice(0, 5);
+
+      results.matchedFiles = filteredFiles;
+      console.log(`[AI Search Engine] Filtered Files (${filteredFiles.length} matches):`, filteredFiles.map(f => f.title || f.originalName));
+    } catch (err) {
+      console.error('[AI Search Engine] File search error:', err.message);
     }
+  }
 
-    toolResponseParts.push({
-      functionResponse: {
-        name: fnName,
-        response: toolResult
+  // --------------------------------------------------------------------------
+  // 2. Search Syllabus Curriculum (Only if user explicitly asked for syllabus)
+  // --------------------------------------------------------------------------
+  if (isSyllabusQuery) {
+    const matchedCourses = ALL_COURSES.filter(c => {
+      // Semester constraint
+      if (semester) {
+        if (c.semester.toUpperCase() !== semester.roman && c.semesterNum !== semester.num) {
+          return false;
+        }
       }
+
+      // Subject constraint
+      if (subject) {
+        if (c.title === subject) return true;
+        const aliases = SUBJECT_ALIASES[subject] || [];
+        if (aliases.some(a => c.title.toLowerCase().includes(a.toLowerCase()))) return true;
+      }
+
+      // Topic constraint
+      if (topicObj) {
+        if (c.title === topicObj.canonicalSubject) return true;
+        for (const syn of topicObj.synonyms) {
+          if (c.contents.toLowerCase().includes(syn.toLowerCase())) return true;
+        }
+      }
+
+      // General query token match
+      if (!subject && !topicObj && semester) {
+        return true;
+      }
+
+      if (!subject && !topicObj && !semester) {
+        const fullCourse = `${c.title} ${c.code} ${c.objectives} ${c.contents}`.toLowerCase();
+        return searchQuery.length > 3 && fullCourse.includes(searchQuery);
+      }
+
+      return false;
+    }).slice(0, 6);
+
+    results.matchedCourses = matchedCourses;
+    console.log(`[AI Search Engine] Filtered Courses (${matchedCourses.length} matches):`, matchedCourses.map(c => c.title));
+  }
+
+  // --------------------------------------------------------------------------
+  // 3. Search Examination Routine (Only if user explicitly asked for routine)
+  // --------------------------------------------------------------------------
+  if (isRoutineQuery) {
+    let allRoutines = [];
+    try {
+      allRoutines = await db.all('SELECT * FROM exam_schedule ORDER BY id ASC');
+    } catch (e) {
+      allRoutines = DEFAULT_ROUTINE_SCHEDULE;
+    }
+    if (!allRoutines || allRoutines.length === 0) allRoutines = DEFAULT_ROUTINE_SCHEDULE;
+
+    const matchedRoutine = allRoutines.filter(r => {
+      const rSem = normalizeSemester(r.semester);
+      // Semester filter
+      if (semester) {
+        if (!rSem || rSem.num !== semester.num) return false;
+      }
+
+      // Subject filter
+      if (subject) {
+        const rSubj = (r.subject || '').toLowerCase();
+        const sSubj = subject.toLowerCase();
+        if (rSubj.includes(sSubj) || sSubj.includes(rSubj)) return true;
+        const aliases = SUBJECT_ALIASES[subject] || [];
+        if (aliases.some(a => rSubj.includes(a.toLowerCase()) || a.toLowerCase().includes(rSubj))) return true;
+        return false;
+      }
+
+      return true;
+    }).slice(0, 8);
+
+    results.matchedRoutine = matchedRoutine.map(r => {
+      const rSem = normalizeSemester(r.semester);
+      return {
+        semester: rSem ? rSem.roman : (r.semester || 'General'),
+        subject: r.subject,
+        date: r.examdate || r.examDate || r.date || 'To be announced',
+        day: r.day || '',
+        time: r.time || '11:30 AM',
+        type: r.type || 'Examination'
+      };
     });
+
+    console.log(`[AI Search Engine] Filtered Routine (${results.matchedRoutine.length} matches):`, results.matchedRoutine.map(r => `${r.subject} (${r.date})`));
   }
 
-  contents.push({
-    role: 'user',
-    parts: toolResponseParts
-  });
+  // --------------------------------------------------------------------------
+  // 4. Deterministic Action Button Generation
+  // --------------------------------------------------------------------------
+  results.actions = buildDeterministicActions(queryMeta, results);
 
-  // Step 3: Send function responses back to Gemini for final grounded generation
-  const res2 = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: contents,
-      tools: GEMINI_FUNCTION_TOOLS,
-      generationConfig: { temperature: 0.2, maxOutputTokens: 1200 }
-    })
-  });
-
-  if (!res2.ok) {
-    const errText = await res2.text();
-    throw new Error(`Gemini Tool Response HTTP ${res2.status}: ${errText}`);
-  }
-
-  const finalData = await res2.json();
-  const finalText = finalData.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('').trim() || '';
-
-  // Deduplicate collected entities
-  const uniqueFiles = [];
-  const seenFIds = new Set();
-  collectedData.matchedFiles.forEach(f => {
-    if (!seenFIds.has(f.id)) {
-      seenFIds.add(f.id);
-      uniqueFiles.push(f);
-    }
-  });
-
-  const uniqueCourses = [];
-  const seenCCodes = new Set();
-  collectedData.matchedCourses.forEach(c => {
-    if (!seenCCodes.has(c.code)) {
-      seenCCodes.add(c.code);
-      uniqueCourses.push(c);
-    }
-  });
-
-  const uniqueRoutine = [];
-  const seenRKeys = new Set();
-  collectedData.matchedRoutine.forEach(r => {
-    const k = `${r.semester}_${r.subject}_${r.date}`;
-    if (!seenRKeys.has(k)) {
-      seenRKeys.add(k);
-      uniqueRoutine.push(r);
-    }
-  });
-
-  const finalCollected = {
-    matchedFiles: uniqueFiles,
-    matchedCourses: uniqueCourses,
-    matchedRoutine: uniqueRoutine
-  };
-
-  return {
-    text: verifyFactualClaims(finalText, finalCollected),
-    collectedData: finalCollected
-  };
+  return results;
 }
 
-// --- 11. Fallback Path (OpenRouter with Pre-Grounding) ---
-async function callOpenRouterFallback(db, userMessage, conversationHistory = []) {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) throw new Error('OPENROUTER_API_KEY is not configured');
+/**
+ * Builds precise, labeled action navigation buttons that link directly to actual website routes.
+ */
+function buildDeterministicActions(queryMeta, searchResults) {
+  const actions = [];
+  const seenUrls = new Set();
 
-  // Ground with keyword search + semester-aware search
-  const parsedSem = parseSemesterNumber(userMessage);
-  const filesRes = await executeSearchFiles(db, { query: userMessage, semester: parsedSem || '' });
-  const syllabusRes = executeGetSyllabus(parsedSem ? { semester: parsedSem } : { subject: userMessage });
-  const routineRes = executeGetRoutine(parsedSem ? { semester: parsedSem } : { subject: userMessage });
+  function addAction(label, url) {
+    if (url && !seenUrls.has(url)) {
+      seenUrls.add(url);
+      actions.push({ label, url });
+    }
+  }
 
-  const collectedData = {
-    matchedFiles: filesRes.files || [],
-    matchedCourses: syllabusRes.courses || [],
-    matchedRoutine: routineRes.routine || []
-  };
+  const { semester, subject, resourceType, topic } = queryMeta;
+  const isRoutine = resourceType === 'ROUTINE' || queryMeta.searchQuery.includes('routine') || queryMeta.searchQuery.includes('exam');
+  const isSyllabus = resourceType === 'SYLLABUS' || queryMeta.searchQuery.includes('syllabus') || queryMeta.searchQuery.includes('curriculum');
+  const wantsFiles = resourceType === 'NOTE' || resourceType === 'PYQ' || searchResults.matchedFiles.length > 0;
 
-  const systemPrompt = `You are the Semester Library Assistant for Gandaki University BIT.
-RULES:
-1. When asked for practice questions or exercises (including "give me exercises on this"), generate EXACTLY 3-5 focused questions.
-2. Short & organized: Use headers (###), bold key terms, and short bullet points.
-3. Only reference facts provided in the Grounding Context below.
-4. The BIT program has 8 semesters across 4 years: Year 1 (Sem I, II), Year 2 (Sem III, IV), Year 3 (Sem V, VI), Year 4 (Sem VII, VIII). Pre-board exams are only scheduled for even semesters (II, IV, VI, VIII).
+  // 1. Exact Routine Navigation (Only when routine was requested)
+  if (isRoutine || searchResults.matchedRoutine.length > 0) {
+    if (semester) {
+      addAction(`Open Semester ${semester.num} Routine`, RouteResolver.getSemesterRoutineRoute(semester));
+    } else {
+      addAction('Open Exam Routine', 'routine.html');
+    }
+  }
+
+  // 2. Exact Syllabus Navigation (Only when syllabus was requested)
+  if (isSyllabus || (searchResults.matchedCourses.length > 0 && !isRoutine && !wantsFiles)) {
+    if (semester) {
+      addAction(`Open Semester ${semester.num} Syllabus`, RouteResolver.getSemesterSyllabusRoute(semester));
+    } else {
+      addAction('Open Full Syllabus', 'syllabus.html');
+    }
+  }
+
+  // 3. Subject-Specific Library Navigation (Only when files were requested or matched)
+  if (wantsFiles && searchResults.matchedFiles.length > 0) {
+    const exactFileSubj = searchResults.matchedFiles[0].subject || subject;
+    if (exactFileSubj) {
+      addAction(`Open ${exactFileSubj} in Library`, RouteResolver.getLibrarySubjectRoute(exactFileSubj));
+    }
+  }
+
+  // 4. File-Specific Direct Download Action
+  if (wantsFiles && searchResults.matchedFiles.length === 1) {
+    const f = searchResults.matchedFiles[0];
+    addAction(`Download "${f.title || f.originalName}"`, RouteResolver.getFileDownloadRoute(f.id));
+  }
+
+  return actions.slice(0, 3);
+}
+
+// ============================================================================
+// 6. GROUNDED AI ANSWER GENERATION (Gemini + OpenRouter Fallback)
+// ============================================================================
+
+async function callGroundedAI(userMessage, queryMeta, searchResults, conversationHistory = []) {
+  const { intent, resourceType, semester, subject, topic } = queryMeta;
+
+  // System Prompt for Grounded Language Generation with Natural Classmate Tone
+  const systemPrompt = `You are Kyana, the AI study assistant for Semester Library at Gandaki University (BIT).
+
+TONE & COMMUNICATION STYLE:
+- Talk like a helpful, friendly classmate — not a formal customer support bot.
+- Use natural, conversational language. It's fine to use contractions (I'll, you're, that's), start sentences casually, and show a little warmth or light enthusiasm when it fits (e.g. "Found a few good ones for Complex Numbers!" instead of "The following files have been located matching your query.").
+- Avoid stiff phrases like "I have located", "Please find below", "According to the available data" — just talk normally, the way a classmate explaining something would.
+- Stay concise and don't ramble — natural doesn't mean long-winded.
+- Keep the same honesty standard: if you don't have real data to answer something, say so plainly and simply ("Don't see anything uploaded for that yet — want me to check something else?") rather than a formal apology.
+- Keep this appropriate for a shared class tool used by many students — friendly and warm, not overly familiar, flirtatious, or unpredictable. This is a reliable assistant students depend on, not a persona or companion character.
+
+CONVERSATIONAL DIALOGUE EXAMPLES (FEW-SHOT TONE BENCHMARK):
+- Student: "I literally cannot focus on studying today, my brain is completely fried"
+  Kyana: "Felt that. Take a quick 10-minute break — grab some water or step outside for a bit. When you're back, we can tackle just one small section at a time instead of the whole chapter. What subject are you trying to get through?"
+
+- Student: "do we have any notes for operating systems unit 2?"
+  Kyana: "Found a couple of good ones! There's lecture slides for Process Scheduling and a chapter summary from Unit 2 uploaded in our library. You can check them out right below."
+
+- Student: "how many credits is data structures?"
+  Kyana: "Data Structure and Algorithms (CIT214) is 3 credits in Semester 3 — covers theory and practical lab work."
+
+- Student: "when is the math 2 exam?"
+  Kyana: "Our Mathematics-II (BSM121) exam for Semester II is on 2083/06/02. You've got time to practice — let me know if you need any unit notes or formulas!"
+
+- Student: "got any notes on quantum machine learning for sem 1?"
+  Kyana: "Don't see anything uploaded for that in our library yet — want me to check something else for Semester 1?"
 
 GROUNDING CONTEXT:
-=== FILES IN LIBRARY ===
-${collectedData.matchedFiles.length > 0 ? collectedData.matchedFiles.map(f => `- [File #${f.id}] "${f.title}" (${f.originalName}) | Subject: ${f.subject}`).join('\n') : 'No matching files found.'}
+=== MATCHED FILES IN LIBRARY ===
+${searchResults.matchedFiles.length > 0 
+  ? searchResults.matchedFiles.map(f => `- [File #${f.id}] "${f.title || f.originalName}" | Subject: ${f.subject} | Semester: ${f.semester || 'General'} | Chapter: ${f.chapter || 'All'}`).join('\n')
+  : 'No files matched.'}
 
-=== SYLLABUS COURSES ===
-${collectedData.matchedCourses.length > 0 ? collectedData.matchedCourses.map(c => `- ${c.title} (${c.code}) [Sem ${c.semester}, ${c.credit} Credits]: ${c.objectives}`).join('\n') : 'No matching syllabus courses found.'}
+=== MATCHED SYLLABUS COURSES ===
+${searchResults.matchedCourses.length > 0
+  ? searchResults.matchedCourses.map(c => `- ${c.title} (${c.code}) [Semester ${c.semester}, ${c.credit} Credits]: ${c.objectivesSummary}`).join('\n')
+  : 'No syllabus courses matched.'}
 
-=== EXAM ROUTINE ===
-${collectedData.matchedRoutine.length > 0 ? collectedData.matchedRoutine.map(r => `- Semester ${r.semester}: ${r.subject} on ${r.date} at ${r.time}`).join('\n') : 'No specific routine match.'}
+=== MATCHED EXAM ROUTINE ===
+${searchResults.matchedRoutine.length > 0
+  ? searchResults.matchedRoutine.map(r => `- Semester ${r.semester}: ${r.subject} on ${r.date} (${r.day}) at ${r.time} [${r.type}]`).join('\n')
+  : 'No routine matched.'}
 
-=== WEBSITE PAGES ===
-${SITE_MAP.pages.map(p => `- ${p.name}: ${p.url} — ${p.description}`).join('\n')}
+=== PLATFORM PAGES ===
+${SITE_PAGES.map(p => `- ${p.name} (${p.url}): ${p.description}`).join('\n')}
 `;
 
   const messages = [{ role: 'system', content: systemPrompt }];
+
   if (Array.isArray(conversationHistory)) {
-    conversationHistory.slice(-8).forEach(msg => {
+    conversationHistory.slice(-6).forEach(msg => {
       messages.push({
         role: msg.role === 'assistant' || msg.role === 'model' ? 'assistant' : 'user',
         content: msg.content
       });
     });
   }
+
   messages.push({ role: 'user', content: userMessage });
 
-  const url = 'https://openrouter.ai/api/v1/chat/completions';
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-      'HTTP-Referer': 'http://localhost:3000',
-      'X-Title': 'Semester Library Assistant'
-    },
-    body: JSON.stringify({
-      model: 'meta-llama/llama-3.3-70b-instruct',
-      messages: messages,
-      temperature: 0.2,
-      max_tokens: 1200
-    })
-  });
+  let rawReply = '';
 
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`OpenRouter HTTP ${response.status}: ${errText}`);
+  // 1. Try Gemini API
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (geminiKey) {
+    try {
+      const model = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`;
+      
+      const contents = messages.filter(m => m.role !== 'system').map(m => ({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: m.content }]
+      }));
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: contents,
+          systemInstruction: { parts: [{ text: systemPrompt }] },
+          generationConfig: { temperature: 0.7, maxOutputTokens: 1000 }
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        rawReply = data.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('').trim() || '';
+      }
+    } catch (e) {
+      console.warn('[AI Service] Gemini invocation notice:', e.message);
+    }
   }
 
-  const data = await response.json();
-  const rawText = data.choices?.[0]?.message?.content || '';
-  return {
-    text: verifyFactualClaims(rawText, collectedData),
-    collectedData
-  };
+  // 2. Try OpenRouter API Fallback
+  if (!rawReply && process.env.OPENROUTER_API_KEY) {
+    try {
+      const url = 'https://openrouter.ai/api/v1/chat/completions';
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          'HTTP-Referer': 'http://localhost:3000',
+          'X-Title': 'Kyana - Semester Library Assistant'
+        },
+        body: JSON.stringify({
+          model: 'meta-llama/llama-3.3-70b-instruct',
+          messages: messages,
+          temperature: 0.7,
+          max_tokens: 1000
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        rawReply = data.choices?.[0]?.message?.content || '';
+      }
+    } catch (e) {
+      console.warn('[AI Service] OpenRouter fallback notice:', e.message);
+    }
+  }
+
+  // 3. Fallback Template Generator if external AI models are unreachable
+  if (!rawReply) {
+    if (/(who are you|what is your name|your name|introduce yourself)/i.test(userMessage)) {
+      rawReply = `Hey! I'm Kyana, your study assistant for Semester Library. I can help you pull up notes, check syllabus details, or look up exam dates. What are you working on?`;
+    } else if (intent === 'RESOURCE_SEARCH') {
+      if (searchResults.matchedFiles.length > 0) {
+        rawReply = `Found ${searchResults.matchedFiles.length} file(s) for that in the library:\n\n` +
+          searchResults.matchedFiles.map(f => `- **${f.title || f.originalName}** (${f.subject || 'General'})`).join('\n') +
+          `\n\nYou can view or download them right below!`;
+      } else {
+        rawReply = `Don't see anything uploaded for "${userMessage}" yet — want me to check another topic or subject?`;
+      }
+    } else if (intent === 'WEBSITE_INFO' && searchResults.matchedRoutine.length > 0) {
+      rawReply = `Here are the upcoming exam dates:\n\n` +
+        searchResults.matchedRoutine.map(r => `- **${r.subject}** (${r.time || 'CIT'}): **${r.date}**`).join('\n');
+    } else if (intent === 'WEBSITE_INFO' && searchResults.matchedCourses.length > 0) {
+      rawReply = `Here's the course lineup:\n\n` +
+        searchResults.matchedCourses.map(c => `- **${c.title}** (${c.code}) — ${c.credit} credits`).join('\n');
+    } else {
+      rawReply = `Here's what I found from the library for you!`;
+    }
+  }
+
+  return rawReply;
 }
 
-// --- 12. Main Assistant Dispatcher ---
+// ============================================================================
+// 7. MAIN ASSISTANT DISPATCHER (handleChat)
+// ============================================================================
+
 async function handleChat(db, userMessage, studentInfo = {}, conversationHistory = []) {
   const query = (userMessage || '').trim();
   if (!query) {
@@ -857,146 +1108,72 @@ async function handleChat(db, userMessage, studentInfo = {}, conversationHistory
     };
   }
 
-  // 1. Fast Pre-AI Scope Evaluation (Quota Saver)
-  const scopeResult = evaluateScope(query);
-  if (!scopeResult.inScope) {
-    return {
-      reply: scopeResult.cannedReply,
-      actions: scopeResult.actions || [],
-      matchedFiles: [],
-      matchedCourses: [],
-      matchedRoutine: []
-    };
-  }
+  // 1. Query Understanding & Intent Decomposition
+  const queryMeta = parseQueryIntent(query, conversationHistory);
 
-  // 1b. Small talk shortcut — skip API call entirely
-  if (scopeResult.isSmallTalk) {
-    return {
-      reply: scopeResult.cannedReply,
-      actions: scopeResult.actions || [],
-      matchedFiles: [],
-      matchedCourses: [],
-      matchedRoutine: []
-    };
-  }
+  // 2. Smalltalk / Chitchat passes through to dynamic AI generation with zero extra cards
+  // (Central search returns empty matched cards for chitchat)
 
-  // 2. Dispatch to Native Gemini Function Calling with OpenRouter Fallback
-  let result;
-  try {
-    result = await callGeminiWithTools(db, query, conversationHistory);
-  } catch (geminiErr) {
-    console.warn('[AI Service] Gemini function calling failed:', geminiErr.message);
-    console.log('[AI Service] Executing grounded OpenRouter fallback...');
-    try {
-      result = await callOpenRouterFallback(db, query, conversationHistory);
-    } catch (fallbackErr) {
-      console.error('[AI Service] Both AI providers failed:', fallbackErr.message);
-      throw new Error('Both AI providers encountered a temporary issue. Please try asking again.');
+  // 3. Centralized Search Service Execution
+  let searchResults;
+  if (queryMeta.intent === 'MULTI_INTENT') {
+    // Combine sub-query searches
+    const combinedFiles = [];
+    const combinedCourses = [];
+    const combinedRoutine = [];
+    const combinedActions = [];
+
+    for (const sub of queryMeta.subQueries) {
+      const subRes = await searchWebsite(db, sub, studentInfo);
+      combinedFiles.push(...subRes.matchedFiles);
+      combinedCourses.push(...subRes.matchedCourses);
+      combinedRoutine.push(...subRes.matchedRoutine);
+      combinedActions.push(...subRes.actions);
     }
+
+    // Deduplicate
+    const uniqueFiles = Array.from(new Map(combinedFiles.map(f => [f.id, f])).values());
+    const uniqueCourses = Array.from(new Map(combinedCourses.map(c => [c.code, c])).values());
+    const uniqueRoutine = Array.from(new Map(combinedRoutine.map(r => [`${r.semester}-${r.subject}`, r])).values());
+    const uniqueActions = Array.from(new Map(combinedActions.map(a => [a.url, a])).values());
+
+    searchResults = {
+      matchedFiles: uniqueFiles,
+      matchedCourses: uniqueCourses,
+      matchedRoutine: uniqueRoutine,
+      actions: uniqueActions
+    };
+  } else {
+    searchResults = await searchWebsite(db, queryMeta, studentInfo);
   }
 
-  const { text, collectedData } = result;
-
-  // 3. Build Deep-Link Navigation Actions from Matched Data
-  const actions = buildNavigationActions(collectedData);
+  // 4. Grounded AI Response Generation
+  let replyText = '';
+  try {
+    replyText = await callGroundedAI(query, queryMeta, searchResults, conversationHistory);
+  } catch (err) {
+    console.error('[AI Assistant] callGroundedAI error:', err.message);
+    replyText = `I encountered a temporary issue processing your request. Please try again.`;
+  }
 
   return {
-    reply: text,
-    actions: actions,
-    matchedFiles: collectedData.matchedFiles || [],
-    matchedCourses: collectedData.matchedCourses || [],
-    matchedRoutine: collectedData.matchedRoutine || []
+    reply: replyText,
+    intent: queryMeta.intent,
+    resourceType: queryMeta.resourceType,
+    actions: searchResults.actions,
+    matchedFiles: searchResults.matchedFiles,
+    matchedCourses: searchResults.matchedCourses,
+    matchedRoutine: searchResults.matchedRoutine
   };
-}
-
-// --- 13. Build Deep-Link Navigation Actions from Matched Data ---
-function buildNavigationActions(collectedData) {
-  const actions = [];
-  const seenUrls = new Set();
-
-  function addAction(label, url) {
-    if (!seenUrls.has(url)) {
-      seenUrls.add(url);
-      actions.push({ label, url });
-    }
-  }
-
-  // --- Syllabus deep links ---
-  if (collectedData.matchedCourses && collectedData.matchedCourses.length > 0) {
-    // Collect distinct semesters
-    const semestersSet = new Map();
-    collectedData.matchedCourses.forEach(c => {
-      const sem = c.semester;
-      const year = c.year || SEMESTER_TO_YEAR[sem] || 'Year 1';
-      const key = `${year}/${sem}`;
-      if (!semestersSet.has(key)) semestersSet.set(key, { year, sem, count: 0 });
-      semestersSet.get(key).count++;
-    });
-
-    if (semestersSet.size === 1) {
-      // Single semester: deep-link directly to that semester's course list
-      const entry = Array.from(semestersSet.values())[0];
-      const hashPath = `${encodeURIComponent(entry.year)}/${encodeURIComponent(entry.sem)}`;
-      addAction(`View Semester ${entry.sem} Syllabus`, `syllabus.html#${hashPath}`);
-    } else if (semestersSet.size <= 3) {
-      // Multiple semesters: link to each
-      for (const [key, entry] of semestersSet) {
-        const hashPath = `${encodeURIComponent(entry.year)}/${encodeURIComponent(entry.sem)}`;
-        addAction(`Semester ${entry.sem} Syllabus`, `syllabus.html#${hashPath}`);
-      }
-    } else {
-      // Too many — just link to syllabus root
-      addAction('View Full Syllabus', 'syllabus.html');
-    }
-
-    // If only 1 specific course matched, also link to its detail page
-    if (collectedData.matchedCourses.length === 1) {
-      const c = collectedData.matchedCourses[0];
-      const year = c.year || SEMESTER_TO_YEAR[c.semester] || 'Year 1';
-      const hashPath = `${encodeURIComponent(year)}/${encodeURIComponent(c.semester)}/${encodeURIComponent(c.title)}`;
-      addAction(`View ${c.title}`, `syllabus.html#${hashPath}`);
-    }
-  }
-
-  // --- Library deep links ---
-  if (collectedData.matchedFiles && collectedData.matchedFiles.length > 0) {
-    // If files share a single subject, deep-link to that subject in library
-    const subjects = new Set(collectedData.matchedFiles.map(f => f.subject).filter(Boolean));
-    if (subjects.size === 1) {
-      const subj = Array.from(subjects)[0];
-      addAction(`View "${subj}" in Library`, `library.html#${encodeURIComponent(subj)}`);
-    } else {
-      addAction(`View Files in Library (${collectedData.matchedFiles.length})`, 'library.html');
-    }
-
-    // If only 1 file matched, also offer direct download
-    if (collectedData.matchedFiles.length === 1) {
-      const f = collectedData.matchedFiles[0];
-      addAction(`Download "${f.title || f.originalName}"`, `/api/files/${f.id}/download`);
-    }
-  }
-
-  // --- Routine deep links ---
-  if (collectedData.matchedRoutine && collectedData.matchedRoutine.length > 0) {
-    const routineSemesters = new Set(collectedData.matchedRoutine.map(r => r.semester));
-    if (routineSemesters.size === 1) {
-      const sem = Array.from(routineSemesters)[0];
-      addAction(`View Semester ${sem} Exam Routine`, `routine.html?semester=${encodeURIComponent(sem)}`);
-    } else {
-      addAction('View Full Exam Routine', 'routine.html');
-    }
-  }
-
-  return actions.slice(0, 5);
 }
 
 module.exports = {
   handleChat,
-  executeSearchFiles,
-  executeGetSyllabus,
-  executeGetRoutine,
-  executeGetSiteMap,
-  buildNavigationActions,
-  verifyFactualClaims,
-  loadEnvSafely
+  parseQueryIntent,
+  searchWebsite,
+  normalizeSemester,
+  RouteResolver,
+  CANONICAL_SUBJECTS,
+  SUBJECT_ALIASES,
+  TOPIC_DEFINITIONS
 };

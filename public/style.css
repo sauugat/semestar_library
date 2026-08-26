@@ -9277,4 +9277,26 @@ body.dark-mode .notif-item.unread {
     width: 100%;
     justify-content: center;
   }
+
+  /* Login Page Mobile Optimizations */
+  .apple-signin-container {
+    padding: 24px 16px !important;
+    justify-content: flex-start !important;
+  }
+  
+  .apple-signin-card {
+    padding: 32px 20px !important;
+    border-radius: 24px !important;
+    margin-top: 5vh !important;
+  }
+
+  .apple-signin-headline {
+    font-size: 24px !important;
+  }
+
+  .apple-signin-subtext {
+    font-size: 13.5px !important;
+    margin-bottom: 24px !important;
+    padding: 0 10px;
+  }
 }

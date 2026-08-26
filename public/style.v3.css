@@ -189,7 +189,7 @@ body.login {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #fbfbfd;
+  background: #000000;
   color: var(--ap-text-primary);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "SF Pro", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
   position: relative;
@@ -231,7 +231,7 @@ body.login {
   font-size: 15px;
   font-weight: 600;
   letter-spacing: -0.02em;
-  color: #1d1d1f;
+  color: #f5f5f7;
   transition: opacity 0.2s ease;
 }
 
@@ -242,7 +242,7 @@ body.login {
 .apple-nav-icon {
   width: 18px;
   height: 18px;
-  color: #1d1d1f;
+  color: #f5f5f7;
 }
 
 .apple-signin-nav-links {
@@ -260,7 +260,7 @@ body.login {
 }
 
 .apple-signin-nav-links a:hover {
-  color: #1d1d1f;
+  color: #f5f5f7;
 }
 
 .apple-nav-univ {
@@ -314,16 +314,16 @@ body.login {
   align-items: center;
   justify-content: center;
   /* Premium Glassmorphism */
-  background: rgba(255, 255, 255, 0.65);
+  background: rgba(28, 28, 30, 0.65);
   backdrop-filter: blur(40px) saturate(200%);
   -webkit-backdrop-filter: blur(40px) saturate(200%);
-  border: 1px solid rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 32px;
   padding: 48px 32px;
   box-shadow:
     0 32px 64px rgba(0, 0, 0, 0.05),
     0 12px 24px rgba(0, 0, 0, 0.03),
-    inset 0 1px 0 rgba(255, 255, 255, 1);
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
   transform: translateY(24px);
   opacity: 0;
   animation: cardRise 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
@@ -351,7 +351,7 @@ body.login {
   box-shadow:
     0 8px 24px rgba(0, 0, 0, 0.06),
     0 2px 6px rgba(0, 0, 0, 0.03),
-    inset 0 1px 0 rgba(255, 255, 255, 1);
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
   animation: emblemFloat 4.2s ease-in-out infinite, appleFadeUp 0.6s var(--ap-spring) 0.05s both;
   transition: transform 0.3s var(--ap-spring), box-shadow 0.3s ease;
 }
@@ -386,7 +386,7 @@ body.login {
   font-size: clamp(25px, 4vw, 31px);
   font-weight: 700;
   letter-spacing: -0.03em;
-  color: #1d1d1f;
+  color: #f5f5f7;
   line-height: 1.16;
   margin: 0 0 8px;
   text-align: center;
@@ -419,7 +419,7 @@ body.login {
   width: 100%;
   border: 1.5px solid #d2d2d7;
   border-radius: 14px;
-  background: #ffffff;
+  background: rgba(0, 0, 0, 0.6);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
   overflow: hidden;
   transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
@@ -434,7 +434,7 @@ body.login {
 .apple-input-row {
   position: relative;
   padding: 10px 16px 8px;
-  background: #ffffff;
+  background: rgba(0, 0, 0, 0.6);
   transition: background 0.15s ease;
 }
 
@@ -452,7 +452,7 @@ body.login {
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: #86868b;
+  color: #a1a1a6;
   margin-bottom: 2px;
 }
 
@@ -462,8 +462,8 @@ body.login {
   outline: none;
   font-size: 15.5px;
   font-weight: 500;
-  color: #1d1d1f;
-  background: transparent;
+  color: #f5f5f7;
+  background: rgba(0,0,0,0.4);
   padding: 2px 0 4px;
   font-family: inherit;
 }
@@ -502,7 +502,7 @@ body.login {
   height: 18px;
   border-radius: 5px;
   border: 1.5px solid #c7c7cc;
-  background: #ffffff;
+  background: rgba(0, 0, 0, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -511,12 +511,12 @@ body.login {
 }
 
 .apple-remember-wrap:hover .apple-custom-check {
-  border-color: #1d1d1f;
+  border-color: #f5f5f7;
 }
 
 .apple-real-checkbox:checked+.apple-custom-check {
   background: #1d1d1f;
-  border-color: #1d1d1f;
+  border-color: #f5f5f7;
 }
 
 .apple-real-checkbox:checked+.apple-custom-check::after {
@@ -623,7 +623,7 @@ body.login {
 }
 
 .apple-text-link {
-  color: #1d1d1f;
+  color: #f5f5f7;
   font-size: 13px;
   font-weight: 500;
   text-decoration: none;
@@ -636,7 +636,7 @@ body.login {
 }
 
 .apple-link-dot {
-  color: #86868b;
+  color: #a1a1a6;
   font-size: 12px;
 }
 
@@ -650,7 +650,7 @@ body.login {
   margin: 36px auto 0;
   padding: 14px 18px;
   border-radius: 14px;
-  background: #ffffff;
+  background: rgba(0, 0, 0, 0.6);
   border: 1.5px solid #e5e5ea;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
   text-align: left;
@@ -679,7 +679,7 @@ body.login {
 .security-icon-wrap svg {
   width: 17px;
   height: 17px;
-  color: #1d1d1f;
+  color: #f5f5f7;
 }
 
 .apple-security-callout p {
@@ -710,7 +710,7 @@ body.login {
 
 .apple-copyright {
   font-size: 11.5px;
-  color: #86868b;
+  color: #a1a1a6;
 }
 
 .apple-legal-links {
@@ -725,7 +725,7 @@ body.login {
 }
 
 .apple-legal-links a:hover {
-  color: #1d1d1f;
+  color: #f5f5f7;
 }
 
 /* Apple Fade Up Entry Animation */
@@ -774,7 +774,7 @@ body.landing {
   display: block;
   background-color: #fafafc;
   background-image: radial-gradient(circle at 50% -10%, rgba(240, 240, 248, 0.8) 0%, rgba(250, 250, 252, 0.4) 60%, #fafafc 100%);
-  color: #1d1d1f;
+  color: #f5f5f7;
   min-height: 100vh;
   position: relative;
   overflow-x: hidden;
@@ -890,7 +890,7 @@ body.landing .apple-wordmark {
   font-weight: 700;
   letter-spacing: -0.03em;
   line-height: 1.15;
-  color: #1d1d1f;
+  color: #f5f5f7;
   text-decoration: none;
   transition: opacity 0.2s ease;
 }
@@ -912,7 +912,7 @@ body.landing .apple-univ-tag {
 }
 
 body.landing .apple-univ-tag:hover {
-  color: #1d1d1f;
+  color: #f5f5f7;
   background: rgba(0, 0, 0, 0.07);
 }
 
@@ -967,14 +967,14 @@ body.landing .apple-univ-tag:hover {
   padding: 6px 16px 6px 14px;
   border-radius: 980px;
   margin-bottom: 26px;
-  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 1);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.1);
   animation: appleHeroReveal 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .apple-kicker-tag {
   font-size: 10px;
   font-weight: 700;
-  color: #1d1d1f;
+  color: #f5f5f7;
   background: linear-gradient(135deg, #f0f0f4 0%, #e5e5ea 100%);
   border: 1px solid #d2d2d7;
   padding: 2px 8px;
@@ -1009,7 +1009,7 @@ body.landing .apple-univ-tag:hover {
   font-size: 11.5px;
   font-weight: 600;
   letter-spacing: 0.03em;
-  color: #1d1d1f;
+  color: #f5f5f7;
 }
 
 /* High-Contrast Apple Titanium Shimmer Gradient Typography (Clean Monochrome) */
@@ -1172,7 +1172,7 @@ body.landing .apple-univ-tag:hover {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #86868b;
+  color: #a1a1a6;
   margin-right: 12px;
   flex-shrink: 0;
 }
@@ -1190,7 +1190,7 @@ body.landing .apple-univ-tag:hover {
   overflow: hidden;
   white-space: nowrap;
   font-size: 14.5px;
-  color: #1d1d1f;
+  color: #f5f5f7;
   font-weight: 500;
   letter-spacing: -0.015em;
   padding-right: 12px;
@@ -1198,14 +1198,14 @@ body.landing .apple-univ-tag:hover {
 
 .jitter-prompt-text {
   display: inline-block;
-  color: #1d1d1f;
+  color: #f5f5f7;
 }
 
 .jitter-cursor {
   display: inline-block;
   width: 2px;
   height: 17px;
-  background-color: #1d1d1f;
+  background-color: #f5f5f7;
   margin-left: 2px;
   border-radius: 1px;
   animation: jitterCursorBlink 0.9s infinite;
@@ -1240,7 +1240,7 @@ body.landing .apple-univ-tag:hover {
   justify-content: center;
   background: transparent;
   border: none;
-  color: #86868b;
+  color: #a1a1a6;
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -1252,7 +1252,7 @@ body.landing .apple-univ-tag:hover {
 
 .jitter-tool-btn:hover {
   background: #f0f0f4;
-  color: #1d1d1f;
+  color: #f5f5f7;
   transform: scale(1.08);
 }
 
@@ -1982,7 +1982,7 @@ body.landing .apple-univ-tag:hover {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #1d1d1f;
+  color: #f5f5f7;
   background: linear-gradient(135deg, #f5f5f7 0%, #e5e5ea 100%);
   border: 1px solid #d2d2d7;
   padding: 4px 11px;
@@ -2019,7 +2019,7 @@ body.landing .apple-univ-tag:hover {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
   font-size: 21px;
   font-weight: 700;
-  color: #1d1d1f;
+  color: #f5f5f7;
   margin: 0 0 7px;
   letter-spacing: -0.025em;
   position: relative;
@@ -2075,7 +2075,7 @@ body.landing .apple-univ-tag:hover {
   border: 1px solid #d2d2d7;
   padding: 5px 12px;
   border-radius: 980px;
-  color: #1d1d1f;
+  color: #f5f5f7;
   white-space: nowrap;
   letter-spacing: 0.03em;
 }
@@ -2199,7 +2199,7 @@ body.landing .apple-univ-tag:hover {
 .mini-notice-headline {
   font-size: 12.5px;
   font-weight: 600;
-  color: #1d1d1f;
+  color: #f5f5f7;
   line-height: 1.4;
   margin: 0 0 8px;
 }
@@ -2218,7 +2218,7 @@ body.landing .apple-univ-tag:hover {
 }
 
 .notice-status-open {
-  color: #1d1d1f;
+  color: #f5f5f7;
   font-weight: 700;
 }
 
@@ -2298,7 +2298,7 @@ body.landing .apple-univ-tag:hover {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", monospace;
   font-weight: 700;
   letter-spacing: 0.06em;
-  color: #1d1d1f;
+  color: #f5f5f7;
   background: linear-gradient(135deg, #e5e5ea 0%, #d2d2d7 100%);
   padding: 2px 6px;
   border-radius: 4px;
@@ -2339,20 +2339,20 @@ body.landing .apple-univ-tag:hover {
   font-size: 9.5px;
   font-weight: 700;
   background: linear-gradient(135deg, #f0f0f4 0%, #e2e2e8 100%);
-  color: #1d1d1f;
+  color: #f5f5f7;
   padding: 1px 6px;
   border-radius: 980px;
   border: 1px solid #d2d2d7;
 }
 
 .mock-time-tag {
-  color: #86868b;
+  color: #a1a1a6;
   font-size: 11.5px;
 }
 
 .mock-caption {
   font-size: 12.5px;
-  color: #1d1d1f;
+  color: #f5f5f7;
   margin: 0 0 6px;
   line-height: 1.35;
   font-weight: 500;
@@ -2398,7 +2398,7 @@ body.landing .apple-univ-tag:hover {
   border-radius: 8px;
   font-size: 11px;
   font-weight: 600;
-  color: #1d1d1f;
+  color: #f5f5f7;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
 }
 
@@ -2413,7 +2413,7 @@ body.landing .apple-univ-tag:hover {
   padding: 3px 8px;
   font-size: 11px;
   font-weight: 700;
-  color: #1d1d1f;
+  color: #f5f5f7;
   cursor: pointer;
   transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   user-select: none;
@@ -2421,7 +2421,7 @@ body.landing .apple-univ-tag:hover {
 }
 
 .apple-like-btn:hover {
-  border-color: #1d1d1f;
+  border-color: #f5f5f7;
   color: #000000;
   transform: scale(1.12);
 }
@@ -2458,7 +2458,7 @@ body.landing .apple-univ-tag:hover {
 /* High-Contrast Monochromatic Chrono Countdown Widget inside Card 2 */
 .apple-countdown-box {
   background: #ffffff !important;
-  color: #1d1d1f;
+  color: #f5f5f7;
   border-radius: 18px;
   padding: 18px 20px;
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04);
@@ -2553,7 +2553,7 @@ body.landing .apple-univ-tag:hover {
 }
 
 .digit-box {
-  background: #fbfbfd;
+  background: #000000;
   border: 1px solid #e5e5ea;
   border-radius: 9px;
   padding: 8px 11px;
@@ -2573,13 +2573,13 @@ body.landing .apple-univ-tag:hover {
   font-size: 17px;
   font-weight: 700;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", monospace;
-  color: #1d1d1f;
+  color: #f5f5f7;
   line-height: 1;
 }
 
 .digit-box small {
   font-size: 8.5px;
-  color: #86868b;
+  color: #a1a1a6;
   text-transform: uppercase;
   font-weight: 600;
 }
@@ -2587,7 +2587,7 @@ body.landing .apple-univ-tag:hover {
 .digit-colon {
   font-size: 15px;
   font-weight: 700;
-  color: #86868b;
+  color: #a1a1a6;
 }
 
 .apple-routine-submeta {
@@ -2635,7 +2635,7 @@ body.landing .apple-univ-tag:hover {
 }
 
 .roadmap-pill:hover {
-  border-color: #1d1d1f;
+  border-color: #f5f5f7;
   color: #000000;
   transform: translateY(-2px) scale(1.06);
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
@@ -2650,7 +2650,7 @@ body.landing .apple-univ-tag:hover {
 }
 
 .roadmap-sep {
-  color: #86868b;
+  color: #a1a1a6;
   font-size: 11px;
 }
 
@@ -2677,7 +2677,7 @@ body.landing .apple-univ-tag:hover {
 .apple-card-link {
   font-size: 13.5px;
   font-weight: 600;
-  color: #1d1d1f;
+  color: #f5f5f7;
   text-decoration: none;
   display: inline-flex;
   align-items: center;
@@ -2758,7 +2758,7 @@ body.landing .apple-univ-tag:hover {
   justify-content: center;
   flex-shrink: 0;
   background: #f5f5f7;
-  color: #1d1d1f;
+  color: #f5f5f7;
   border: 1px solid rgba(0, 0, 0, 0.07);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
@@ -2767,7 +2767,7 @@ body.landing .apple-univ-tag:hover {
 .poster-stat-item:hover .stat-indicator-badge {
   background: #1d1d1f;
   color: #ffffff;
-  border-color: #1d1d1f;
+  border-color: #f5f5f7;
   transform: scale(1.06) translateY(-1px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
 }
@@ -2787,7 +2787,7 @@ body.landing .apple-univ-tag:hover {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
   font-size: 16px;
   font-weight: 700;
-  color: #1d1d1f;
+  color: #f5f5f7;
   letter-spacing: -0.02em;
   line-height: 1.25;
   display: block;
@@ -2796,7 +2796,7 @@ body.landing .apple-univ-tag:hover {
 .apple-stats-strip .poster-stat-item span {
   font-size: 12px;
   font-weight: 500;
-  color: #86868b;
+  color: #a1a1a6;
   letter-spacing: -0.01em;
   margin-top: 2px;
   display: block;
@@ -3816,7 +3816,7 @@ body.dark-mode .fb-card::after {
   box-shadow:
     0 8px 24px rgba(0, 0, 0, 0.1),
     0 24px 56px -6px rgba(0, 0, 0, 0.14),
-    inset 0 1px 0 rgba(255, 255, 255, 1);
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 body.dark-mode .social-post-card:hover,
@@ -8136,7 +8136,7 @@ body.dark-mode .notif-item.unread {
   flex-direction: column;
   justify-content: space-between;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03), inset 0 1px 0 rgba(255, 255, 255, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03), inset 0 1px 0 rgba(255, 255, 255, 0.1);
   transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.22s ease, background 0.22s ease;
   transform-style: preserve-3d;
   perspective: 900px;
@@ -8145,7 +8145,7 @@ body.dark-mode .notif-item.unread {
 .portal-card:hover {
   background: #fcfcfe;
   transform: translateY(-5px);
-  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 1);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.1);
   border-color: rgba(0, 0, 0, 0.16);
 }
 
@@ -8332,7 +8332,7 @@ body.dark-mode .notif-item.unread {
   font-weight: 600;
   letter-spacing: 0.05em;
   color: #48484a;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.03), inset 0 1px 0 rgba(255, 255, 255, 1);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.03), inset 0 1px 0 rgba(255, 255, 255, 0.1);
   margin-bottom: 20px;
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
@@ -8426,7 +8426,7 @@ body.dark-mode .notif-item.unread {
 
 .ag-marquee-card:hover {
   transform: scale(1.04) translateY(-4px);
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 1);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.1);
   border-color: rgba(0, 0, 0, 0.18);
 }
 
@@ -8477,7 +8477,7 @@ body.dark-mode .notif-item.unread {
   border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 980px;
   padding: 8px 14px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02), inset 0 1px 0 rgba(255, 255, 255, 1);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02), inset 0 1px 0 rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(36px) saturate(200%);
   -webkit-backdrop-filter: blur(36px) saturate(200%);
   display: flex;
@@ -8620,7 +8620,7 @@ body.dark-mode .notif-item.unread {
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03), 0 8px 24px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 1);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03), 0 8px 24px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.1);
   transition: transform 0.38s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.38s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease, background 0.25s ease;
   transform-style: preserve-3d;
   perspective: 900px;
@@ -8630,7 +8630,7 @@ body.dark-mode .notif-item.unread {
 .ag-photo-card:hover {
   background: #fcfcfe;
   transform: translateY(-6px) scale(1.01);
-  box-shadow: 0 22px 50px rgba(0, 0, 0, 0.09), 0 4px 14px rgba(0, 0, 0, 0.03), inset 0 1px 0 rgba(255, 255, 255, 1);
+  box-shadow: 0 22px 50px rgba(0, 0, 0, 0.09), 0 4px 14px rgba(0, 0, 0, 0.03), inset 0 1px 0 rgba(255, 255, 255, 0.1);
   border-color: rgba(0, 0, 0, 0.18);
 }
 

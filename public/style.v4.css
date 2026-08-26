@@ -314,16 +314,13 @@ body.login {
   align-items: center;
   justify-content: center;
   /* Premium Glassmorphism */
-  background: rgba(255, 255, 255, 0.65);
-  backdrop-filter: blur(40px) saturate(200%);
-  -webkit-backdrop-filter: blur(40px) saturate(200%);
-  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.05);
   border-radius: 32px;
   padding: 48px 32px;
   box-shadow:
     0 32px 64px rgba(0, 0, 0, 0.05),
-    0 12px 24px rgba(0, 0, 0, 0.03),
-    inset 0 1px 0 rgba(255, 255, 255, 1);
+    0 12px 24px rgba(0, 0, 0, 0.03);
   transform: translateY(24px);
   opacity: 0;
   animation: cardRise 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;

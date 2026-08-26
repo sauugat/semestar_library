@@ -2073,15 +2073,15 @@ app.get('/api/students/suggested', requireLogin, async (req, res) => {
 // --- AI Assistant Service ---
 const aiAssistant = require('./ai-assistant');
 
-// AI Rate Limiter: Max 20 messages per student per hour
-const aiRateLimits = new Map(); // studentId -> { count, windowStart }
-const AI_RATE_LIMIT_MAX = 20;
+// AI Rate Limiter: Max 30 messages per user/IP per hour
+const aiRateLimits = new Map(); // idOrIp -> { count, windowStart }
+const AI_RATE_LIMIT_MAX = 30;
 const AI_RATE_LIMIT_WINDOW = 60 * 60 * 1000; // 1 hour
 
 function aiRateLimiter(req, res, next) {
-  const studentId = req.session.studentId;
+  const clientId = (req.session && req.session.studentId) ? req.session.studentId : (req.ip || 'guest');
   const now = Date.now();
-  const record = aiRateLimits.get(studentId) || { count: 0, windowStart: now };
+  const record = aiRateLimits.get(clientId) || { count: 0, windowStart: now };
 
   if (now - record.windowStart > AI_RATE_LIMIT_WINDOW) {
     record.count = 1;
@@ -2089,7 +2089,7 @@ function aiRateLimiter(req, res, next) {
   } else {
     record.count += 1;
   }
-  aiRateLimits.set(studentId, record);
+  aiRateLimits.set(clientId, record);
 
   if (record.count > AI_RATE_LIMIT_MAX) {
     const remainingMinutes = Math.ceil((record.windowStart + AI_RATE_LIMIT_WINDOW - now) / (60 * 1000));
@@ -2100,15 +2100,18 @@ function aiRateLimiter(req, res, next) {
   next();
 }
 
-app.post('/api/ai/chat', requireLogin, aiRateLimiter, async (req, res) => {
+app.post('/api/ai/chat', aiRateLimiter, async (req, res) => {
   try {
     const { message, history } = req.body;
     if (!message || typeof message !== 'string') {
       return res.status(400).json({ message: 'Message is required.' });
     }
 
-    const student = await db.get('SELECT studentId, name, department, semester FROM students WHERE studentId = ?', req.session.studentId);
-    const result = await aiAssistant.handleChat(db, message, student || { studentId: req.session.studentId }, history || []);
+    let student = null;
+    if (req.session && req.session.studentId) {
+      student = await db.get('SELECT studentId, name, department, semester FROM students WHERE studentId = ?', req.session.studentId);
+    }
+    const result = await aiAssistant.handleChat(db, message, student || { studentId: 'guest', name: 'Student' }, history || []);
     res.json(result);
   } catch (err) {
     console.error('[API /api/ai/chat Error]:', err.message);
@@ -2116,7 +2119,7 @@ app.post('/api/ai/chat', requireLogin, aiRateLimiter, async (req, res) => {
   }
 });
 
-app.get('/api/ai/suggestions', requireLogin, (req, res) => {
+app.get('/api/ai/suggestions', (req, res) => {
   res.json([
     { label: '📚 Find Math notes', query: 'Give me notes on Math' },
     { label: '📖 What is in Semester 3?', query: "What's in semester 3?" },

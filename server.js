@@ -228,15 +228,7 @@ function chatRateLimiter(req, res, next) {
 }
 
 // --- Strict Server-Side Page Route Guards ---
-const PROTECTED_PAGES = new Set([
-  '/dashboard.html', '/dashboard',
-  '/files.html', '/files',
-  '/library.html', '/library',
-  '/syllabus.html', '/syllabus',
-  '/routine.html', '/routine',
-  '/profile.html', '/profile',
-  '/chat.html', '/chat'
-]);
+const PROTECTED_PAGES = new Set([]);
 
 app.use((req, res, next) => {
   // Canonical path normalization
@@ -251,14 +243,7 @@ app.use((req, res, next) => {
     norm = norm.slice(0, -1);
   }
 
-  const isProtected = PROTECTED_PAGES.has(norm) ||
-    norm.startsWith('/dashboard') ||
-    norm.startsWith('/files') ||
-    norm.startsWith('/library') ||
-    norm.startsWith('/routine') ||
-    norm.startsWith('/syllabus') ||
-    norm.startsWith('/profile') ||
-    norm.startsWith('/chat');
+  const isProtected = PROTECTED_PAGES.has(norm);
 
   // If attempting to access any protected student page without an active session
   if (isProtected) {
@@ -285,18 +270,31 @@ app.get('/files', (req, res) => {
 });
 
 app.get('/library', (req, res) => {
-  if (!req.session || !req.session.studentId) return res.redirect('/login.html');
   res.sendFile(path.join(__dirname, 'public', 'library.html'));
 });
 
 app.get('/syllabus', (req, res) => {
-  if (!req.session || !req.session.studentId) return res.redirect('/login.html');
   res.sendFile(path.join(__dirname, 'public', 'syllabus.html'));
 });
 
 app.get('/routine', (req, res) => {
-  if (!req.session || !req.session.studentId) return res.redirect('/login.html');
   res.sendFile(path.join(__dirname, 'public', 'routine.html'));
+});
+
+app.get('/about', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'about.html'));
+});
+
+app.get('/semesters', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'semesters.html'));
+});
+
+app.get('/notices', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'notices.html'));
+});
+
+app.get('/semester/:id', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'semester.html'));
 });
 
 app.get('/profile', (req, res) => {
@@ -1401,7 +1399,7 @@ app.post('/api/files/:id/comments', requireLogin, async (req, res) => {
 });
 
 // List all subjects that have at least one file
-app.get('/api/library/subjects', requireLogin, async (req, res) => {
+app.get('/api/library/subjects', async (req, res) => {
   const subjects = await db.all(`
     SELECT subject, COUNT(*) AS fileCount, COUNT(DISTINCT chapter) AS chapterCount
     FROM files
@@ -1414,7 +1412,7 @@ app.get('/api/library/subjects', requireLogin, async (req, res) => {
 });
 
 // List chapters within a subject
-app.get('/api/library/subjects/:subject/chapters', requireLogin, async (req, res) => {
+app.get('/api/library/subjects/:subject/chapters', async (req, res) => {
   const chapters = await db.all(`
     SELECT chapter, COUNT(*) AS fileCount
     FROM files
@@ -1431,7 +1429,7 @@ app.get('/api/library/subjects/:subject/chapters', requireLogin, async (req, res
 });
 
 // Library stats: returns file count grouped by semester, subject, and chapter
-app.get('/api/library/stats', requireLogin, async (req, res) => {
+app.get('/api/library/stats', async (req, res) => {
   const stats = await db.all(`
     SELECT semester, subject, chapter, COUNT(*) AS fileCount
     FROM files
@@ -1441,9 +1439,10 @@ app.get('/api/library/stats', requireLogin, async (req, res) => {
 });
 
 // List files with flexible filters (semester, subject, chapter)
-app.get('/api/library/files', requireLogin, async (req, res) => {
+app.get('/api/library/files', async (req, res) => {
   const { semester, subject, chapter } = req.query;
-  const viewerIsAdmin = await isStudentAdmin(req.session.studentId);
+  const studentId = req.session ? req.session.studentId : null;
+  const viewerIsAdmin = studentId ? await isStudentAdmin(studentId) : false;
 
   let query = `
     SELECT files.id, files.originalName, files.title, files.semester, files.subject, files.chapter, files.sizeBytes, files.uploadedAt, files.uploadedBy,
@@ -1455,7 +1454,7 @@ app.get('/api/library/files', requireLogin, async (req, res) => {
     JOIN students ON students.studentId = files.uploadedBy
     WHERE 1=1
   `;
-  const params = [req.session.studentId];
+  const params = [studentId || ''];
 
   if (semester) {
     query += ' AND files.semester = ?';

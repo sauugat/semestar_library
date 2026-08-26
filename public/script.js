@@ -26,7 +26,9 @@ async function doLogin() {
     const data = await res.json();
 
     if (res.ok) {
-      window.location.href = data.redirect || '/dashboard.html';
+      const urlParams = new URLSearchParams(window.location.search);
+      const redirectParam = urlParams.get('redirect');
+      window.location.href = redirectParam || data.redirect || '/dashboard.html';
     } else {
       errorMsg.textContent = data.message || 'Invalid Student ID or Password';
       loginBtn.disabled = false;

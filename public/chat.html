@@ -6,13 +6,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
   <title>Group Chat — Semester Library</title>
   <meta name="description" content="Minimal black and white group chat for Semester Library">
-  <script>
-    fetch('/api/me').then(r => { if (!r.ok) window.location.replace('login.html') }).catch(() => window.location.replace('login.html'));
-  </script>
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=2">
   <style>
     /* ==========================================================================
      APPLE MESSAGES — MOVING CLASSY PEARL-WHITE GRADIENT THEME
@@ -1842,7 +1840,7 @@
     fetch('/api/me')
       .then(r => {
         if (!r.ok) {
-          window.location.replace('login.html');
+          showAuthToast();
           return null;
         }
         return r.json();
@@ -1865,7 +1863,7 @@
         startPolling();
       })
       .catch(() => {
-        window.location.replace('login.html');
+        showAuthToast();
       });
 
     // File Upload via Plus (+) Icon
@@ -2093,8 +2091,6 @@
             scrollToBottom(true);
             markAsRead(lastMessageId);
           }
-        } else if (res.status === 401) {
-          window.location.replace('login.html');
         }
       } catch (e) {
         console.error('Initial fetch error:', e);
@@ -2719,8 +2715,24 @@
       else if (e.key === '-' || e.key === '_') zoomImage(-0.25);
       else if (e.key === '0') resetZoom();
     });
+
+    function showAuthToast() {
+      const toast = document.getElementById('minimalAuthToast');
+      if (toast) {
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 4000);
+      }
+    }
   </script>
   <script src="notifications.js"></script>
+
+  <div id="minimalAuthToast" class="minimal-auth-toast">
+    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none" stroke-width="2.5" style="opacity: 0.9;">
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+      <path d="M7 11V7a5 5 0 0110 0v4"></path>
+    </svg>
+    <span>Login required to access this page. <a href="/login.html">Sign In</a></span>
+  </div>
 </body>
 
 </html>

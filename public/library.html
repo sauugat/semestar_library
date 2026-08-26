@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Curriculum Library — Semester Library</title>
   <script>
-    fetch('/api/me').then(r => { if (!r.ok) window.location.replace('login.html'); }).catch(() => window.location.replace('login.html'));
+    // Library is now publicly accessible for browsing. Authentication is checked before viewing/downloading files.
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=2">
   <link rel="stylesheet" href="chatbot.css">
   <script src="syllabus-helper.js"></script>
   <style>
@@ -1350,6 +1350,7 @@
         width: 100%;
       }
     }
+
   </style>
 </head>
 <body class="dash">
@@ -1411,7 +1412,10 @@
     <!-- Minimal Course & Search Grid -->
     <div id="mainContentContainer">
       <div class="course-grid-clean" id="courseGrid">
-        <p style="color:var(--text-muted); font-size:14px;">Loading curriculum…</p>
+        <div class="loading-container">
+          <div class="loading-spinner"></div>
+          <p>Loading curriculum…</p>
+        </div>
       </div>
     </div>
 
@@ -1585,12 +1589,19 @@
     <span id="toastMsg">Uploaded successfully!</span>
   </div>
 
+  <div id="minimalAuthToast" class="minimal-auth-toast">
+    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none" stroke-width="2.5" style="opacity: 0.9;">
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+      <path d="M7 11V7a5 5 0 0110 0v4"></path>
+    </svg>
+    <span>Login required to access this page. <a href="/login.html">Sign In</a></span>
+  </div>
+
   <script>
     async function safeFetchJson(url, defaultVal = null) {
       try {
         const res = await fetch(url);
         if (res.status === 401) {
-          window.location.replace('login.html');
           return defaultVal;
         }
         if (!res.ok) return defaultVal;
@@ -1605,12 +1616,11 @@
       }
     }
 
-    safeFetchJson('/api/me').then(me => {
-      if (!me) window.location.replace('login.html');
-    });
+    window.IS_AUTHENTICATED = false;
 
     safeFetchJson('/api/profile').then(p => {
       if (p) {
+        window.IS_AUTHENTICATED = true;
         const headerAvatar = document.getElementById('headerAvatar');
         const headerName = document.getElementById('headerProfileName');
         if (headerName) headerName.textContent = p.name ? p.name.split(' ')[0] : 'Profile';
@@ -1621,8 +1631,27 @@
             headerAvatar.textContent = p.name ? p.name.charAt(0).toUpperCase() : 'S';
           }
         }
+      } else {
+        // Replace profile chip with Sign In button
+        const profileChip = document.querySelector('.dash-profile-chip');
+        if (profileChip) {
+          profileChip.outerHTML = `<a href="/login.html" class="nav-cta-btn apple-nav-btn">Sign In</a>`;
+        }
       }
     }).catch(() => {});
+
+    window.requireLoginForFile = function(e, fileId, action) {
+      if (!window.IS_AUTHENTICATED) {
+        e.preventDefault();
+        const toast = document.getElementById('minimalAuthToast');
+        if (toast) {
+          toast.classList.add('show');
+          setTimeout(() => toast.classList.remove('show'), 4000);
+        }
+        return false;
+      }
+      return true;
+    };
 
     const SEM_MAP = {
       'I': 'Semester 1',
@@ -1738,8 +1767,8 @@
               <span class="file-custom-check"></span>
             </label>
           ` : ''}
-          <a href="/api/files/${f.id}/view" target="_blank" class="btn-file-action btn-file-view">View</a>
-          <a href="/api/files/${f.id}/download" class="btn-file-action btn-file-get" download="${escapeHtml(f.originalName || 'file')}" target="_blank">Get</a>
+          <a href="/api/files/${f.id}/view" target="_blank" class="btn-file-action btn-file-view" onclick="return requireLoginForFile(event, ${f.id}, 'view')">View</a>
+          <a href="/api/files/${f.id}/download" class="btn-file-action btn-file-get" download="${escapeHtml(f.originalName || 'file')}" target="_blank" onclick="return requireLoginForFile(event, ${f.id}, 'download')">Get</a>
           ${f.canDelete ? `
             <button type="button" class="btn-file-action btn-file-delete" onclick="deleteLibraryFile(${f.id}, event)" title="Delete this note">
               <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
@@ -2704,6 +2733,26 @@
     }
 
     init();
+
+    // Prevent redirect for protected pages if not logged in
+    document.addEventListener('click', function(e) {
+      const target = e.target.closest('a');
+      if (!target) return;
+      const href = target.getAttribute('href');
+      if (!href) return;
+      
+      const protectedPages = ['dashboard.html', 'chat.html', 'chatbot.html', 'profile.html'];
+      if (protectedPages.some(page => href.includes(page))) {
+        if (!window.IS_AUTHENTICATED) {
+          e.preventDefault();
+          const toast = document.getElementById('minimalAuthToast');
+          if (toast) {
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 4000);
+          }
+        }
+      }
+    });
   </script>
 
   <script src="chatbot.js"></script>

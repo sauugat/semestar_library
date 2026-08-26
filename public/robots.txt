@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+Allow: /syllabus
+Allow: /routine
+Allow: /about
+Disallow: /dashboard
+Disallow: /profile
+Disallow: /chat
+Disallow: /chatbot
+Disallow: /files
+Disallow: /library
+Disallow: /login
+Disallow: /api/
+
+Sitemap: https://semestar-library.vercel.app/sitemap.xml

@@ -916,7 +916,7 @@ body.landing .apple-univ-tag:hover {
   background: rgba(0, 0, 0, 0.07);
 }
 
-body.landing .apple-nav-btn {
+.apple-nav-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -933,13 +933,13 @@ body.landing .apple-nav-btn {
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-body.landing .apple-nav-btn:hover {
+.apple-nav-btn:hover {
   background: #000000;
   transform: translateY(-1px) scale(1.03);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
 }
 
-body.landing .apple-nav-btn:active {
+.apple-nav-btn:active {
   transform: scale(0.97);
 }
 
@@ -9315,4 +9315,79 @@ body.dark-mode .notif-item.unread {
     margin-bottom: 24px !important;
     padding: 0 10px;
   }
+/* ==========================================================================
+   LOADING SPINNER & AUTH TOAST
+   ========================================================================== */
+.loading-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgba(0, 0, 0, 0.1);
+  border-radius: 50%;
+  border-top-color: #111827;
+  animation: spin 1s ease-in-out infinite;
+  margin: 0 auto 16px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  width: 100%;
+  grid-column: 1 / -1;
+  text-align: center;
+}
+
+.loading-container p {
+  color: var(--text-muted, #4b5563);
+  font-size: 14.5px;
+  font-weight: 500;
+  animation: pulseOpacity 1.5s infinite;
+}
+
+@keyframes pulseOpacity {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+.minimal-auth-toast {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background-color: #111;
+  color: #fff;
+  padding: 14px 24px;
+  border-radius: 8px;
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+  opacity: 0;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 10000;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.minimal-auth-toast.show {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+.minimal-auth-toast a {
+  color: #fff;
+  text-decoration: underline;
+  font-weight: 600;
+  cursor: pointer;
+}
+.minimal-auth-toast a:hover {
+  opacity: 0.8;
 }

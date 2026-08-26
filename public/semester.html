@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Semester Details — Semester Library</title>
+  <meta name="description" content="Explore specific semester academic resources including subjects, syllabus, notes, routines and relevant study materials available through Semester Library.">
+  <meta name="robots" content="index, follow">
+  
+  <script>
+    // Redirect to syllabus page where the specific semester is loaded
+    // Parse ID from URL (e.g. /semester/3)
+    const parts = window.location.pathname.split('/');
+    const sem = parts[parts.length - 1];
+    let hash = '';
+    if (sem >= 1 && sem <= 2) hash = '#Year%201/Semester%20' + sem;
+    else if (sem >= 3 && sem <= 4) hash = '#Year%202/Semester%20' + sem;
+    else if (sem >= 5 && sem <= 6) hash = '#Year%203/Semester%20' + sem;
+    else if (sem >= 7 && sem <= 8) hash = '#Year%204/Semester%20' + sem;
+    
+    if (hash) {
+      window.location.replace('/syllabus' + hash);
+    } else {
+      window.location.replace('/syllabus');
+    }
+  </script>
+</head>
+<body>
+  <h1>Gandaki University Semester Resources</h1>
+  <p>Explore academic resources, notes, and the syllabus for your specific semester at Gandaki University.</p>
+  <a href="/syllabus">View full syllabus</a>
+</body>
+</html>

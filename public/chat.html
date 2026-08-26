@@ -1971,7 +1971,7 @@
       } else {
         container.appendChild(row);
       }
-      scrollToBottom(true);
+      scrollToBottom(true, false);
 
       const payload = new FormData();
       if (text) payload.append('text', text);
@@ -2095,7 +2095,7 @@
             if (emptyElem) emptyElem.remove();
             renderMessages(messages);
             lastMessageId = messages[messages.length - 1].id;
-            scrollToBottom(true);
+            scrollToBottom(true, false); // Instant snap on load
             markAsRead(lastMessageId);
           }
         }
@@ -2552,7 +2552,7 @@
       return feed.scrollHeight - feed.scrollTop - feed.clientHeight < 160;
     }
 
-    function scrollToBottom(force = false) {
+    function scrollToBottom(force = false, smooth = true) {
       const feed = document.getElementById('chatFeed');
       const pill = document.getElementById('newMessagesPill');
       if (!feed) return;
@@ -2563,7 +2563,7 @@
       }
 
       requestAnimationFrame(() => {
-        feed.scrollTo({ top: feed.scrollHeight, behavior: force ? 'smooth' : 'auto' });
+        feed.scrollTo({ top: feed.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
         if (pill) pill.classList.remove('visible');
       });
     }

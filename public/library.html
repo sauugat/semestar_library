@@ -1440,7 +1440,10 @@
       </div>
 
       <div class="drawer-body" id="drawerBody">
-        <p style="color:var(--text-muted); font-size:13px;">Loading chapters…</p>
+        <div class="loading-container" style="padding: 40px 10px;">
+          <div class="loading-spinner" style="width:28px; height:28px; border-width:2px; margin-bottom:12px;"></div>
+          <p>Loading chapters…</p>
+        </div>
       </div>
     </div>
   </div>
@@ -2255,7 +2258,12 @@
       dUploadBtn.onclick = () => openDirectUploadModal(course.title, course.rawSemester);
 
       const body = document.getElementById('drawerBody');
-      body.innerHTML = '<p style="color:var(--text-muted); font-size:13px;">Loading notes…</p>';
+      body.innerHTML = `
+        <div class="loading-container" style="padding: 40px 10px;">
+          <div class="loading-spinner" style="width:28px; height:28px; border-width:2px; margin-bottom:12px;"></div>
+          <p>Loading notes…</p>
+        </div>
+      `;
       overlay.classList.add('open');
 
       const units = course.contents ? window.SyllabusHelper.parseCourseUnits(course.contents) : [];

@@ -2120,7 +2120,9 @@
       }
 
       if (closeBtn) closeBtn.addEventListener('click', dismissNotice);
-      if (continueBtn) continueBtn.addEventListener('click', dismissNotice);
+      if (continueBtn) continueBtn.addEventListener('click', () => {
+        window.location.href = 'login.html';
+      });
       if (noticeOverlay) {
         noticeOverlay.addEventListener('click', (e) => {
           if (e.target === noticeOverlay) dismissNotice();

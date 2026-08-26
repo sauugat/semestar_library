@@ -1,12 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <title>Routine — Semester Library</title>
+
   <script>
-    fetch('/api/me').then(r => { if (!r.ok) window.location.replace('login.html'); }).catch(() => window.location.replace('login.html'));
+    fetch('/api/me')
+      .then(r => {
+        if (!r.ok) window.location.replace('login.html');
+      })
+      .catch(() => window.location.replace('login.html'));
   </script>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -14,8 +20,7 @@
 
   <link
     href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap"
-    rel="stylesheet"
-  >
+    rel="stylesheet">
 
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="chatbot.css">
@@ -33,7 +38,6 @@
       <a href="syllabus.html" class="header-nav-item">Syllabus</a>
       <a href="routine.html" class="header-nav-item active">Routine</a>
       <a href="chat.html" class="header-nav-item">Chat</a>
-      <a href="chatbot.html" class="header-nav-item">AI Assistant</a>
     </nav>
 
     <div class="dash-header-actions">
@@ -51,14 +55,14 @@
     <section class="routine-heading">
 
       <p class="routine-eyebrow">
-        BIT · PRE-BOARD EXAMINATION
+        BIT · EXAMINATION ROUTINE
       </p>
 
       <h1>Examination<br>Schedule.</h1>
 
       <p class="routine-description">
-        Pre-board examination schedule for BIT students.
-        Select your semester to view the subjects and examination dates.
+        Examination schedule for BIT students.
+        Select your semester to view the examination dates and subjects.
       </p>
 
     </section>
@@ -68,18 +72,18 @@
     <section class="exam-info">
 
       <div class="exam-info-item">
-        <span class="info-label">Published</span>
-        <strong>2083/04/15</strong>
-      </div>
-
-      <div class="exam-info-item">
-        <span class="info-label">Exam Time</span>
-        <strong>11:30 AM</strong>
+        <span class="info-label">Routine</span>
+        <strong>2083</strong>
       </div>
 
       <div class="exam-info-item">
         <span class="info-label">Program</span>
         <strong>BIT</strong>
+      </div>
+
+      <div class="exam-info-item">
+        <span class="info-label">Semesters</span>
+        <strong>II · IV · VI · VIII</strong>
       </div>
 
     </section>
@@ -88,11 +92,7 @@
     <!-- SEMESTER FILTER -->
     <section class="semester-filter">
 
-      <button class="semester-btn active" data-semester="all">
-        All
-      </button>
-
-      <button class="semester-btn" data-semester="II">
+      <button class="semester-btn active" data-semester="II">
         Semester II
       </button>
 
@@ -114,386 +114,263 @@
     <!-- SCHEDULE -->
     <section class="schedule">
 
-      <!-- 25 -->
+      <!-- ==================== SEMESTER II ==================== -->
+
       <article class="exam-row" data-semester="II">
-
         <div class="exam-date">
-          <span class="date-day">25</span>
-          <span class="date-month">04 / 2083</span>
-          <span class="date-weekday">Monday</span>
-        </div>
-
-        <div class="exam-details">
-          <span class="semester-tag">Semester II</span>
-          <h2>Mathematics II</h2>
-          <p>Pre-board Examination</p>
-        </div>
-
-        <div class="exam-time">
-          11:30 AM
-        </div>
-
-      </article>
-
-
-      <article class="exam-row" data-semester="IV">
-
-        <div class="exam-date">
-          <span class="date-day">25</span>
-          <span class="date-month">04 / 2083</span>
-          <span class="date-weekday">Monday</span>
-        </div>
-
-        <div class="exam-details">
-          <span class="semester-tag">Semester IV</span>
-          <h2>Computer Graphics</h2>
-          <p>Pre-board Examination</p>
-        </div>
-
-        <div class="exam-time">
-          11:30 AM
-        </div>
-
-      </article>
-
-
-      <article class="exam-row" data-semester="VI">
-
-        <div class="exam-date">
-          <span class="date-day">25</span>
-          <span class="date-month">04 / 2083</span>
-          <span class="date-weekday">Monday</span>
-        </div>
-
-        <div class="exam-details">
-          <span class="semester-tag">Semester VI</span>
-          <h2>Financial Accounting</h2>
-          <p>Pre-board Examination</p>
-        </div>
-
-        <div class="exam-time">
-          11:30 AM
-        </div>
-
-      </article>
-
-
-      <!-- 26 -->
-      <article class="exam-row" data-semester="II">
-
-        <div class="exam-date">
-          <span class="date-day">26</span>
-          <span class="date-month">04 / 2083</span>
-          <span class="date-weekday">Tuesday</span>
-        </div>
-
-        <div class="exam-details">
-          <span class="semester-tag">Semester II</span>
-          <h2>Computer Programming II</h2>
-          <p>Pre-board Examination</p>
-        </div>
-
-        <div class="exam-time">
-          11:30 AM
-        </div>
-
-      </article>
-
-
-      <article class="exam-row" data-semester="IV">
-
-        <div class="exam-date">
-          <span class="date-day">26</span>
-          <span class="date-month">04 / 2083</span>
-          <span class="date-weekday">Tuesday</span>
-        </div>
-
-        <div class="exam-details">
-          <span class="semester-tag">Semester IV</span>
-          <h2>Data Communication and Computer Network</h2>
-          <p>Pre-board Examination</p>
-        </div>
-
-        <div class="exam-time">
-          11:30 AM
-        </div>
-
-      </article>
-
-
-      <article class="exam-row" data-semester="VI">
-
-        <div class="exam-date">
-          <span class="date-day">26</span>
-          <span class="date-month">04 / 2083</span>
-          <span class="date-weekday">Tuesday</span>
-        </div>
-
-        <div class="exam-details">
-          <span class="semester-tag">Semester VI</span>
-          <h2>Artificial Intelligence</h2>
-          <p>Pre-board Examination</p>
-        </div>
-
-        <div class="exam-time">
-          11:30 AM
-        </div>
-
-      </article>
-
-
-      <!-- 27 -->
-      <article class="exam-row" data-semester="II">
-
-        <div class="exam-date">
-          <span class="date-day">27</span>
-          <span class="date-month">04 / 2082</span>
-          <span class="date-weekday">Wednesday</span>
-        </div>
-
-        <div class="exam-details">
-          <span class="semester-tag">Semester II</span>
-          <h2>Digital Logic</h2>
-          <p>Pre-board Examination</p>
-        </div>
-
-        <div class="exam-time">
-          11:30 AM
-        </div>
-
-      </article>
-
-
-      <article class="exam-row" data-semester="IV">
-
-        <div class="exam-date">
-          <span class="date-day">27</span>
-          <span class="date-month">04 / 2082</span>
-          <span class="date-weekday">Wednesday</span>
-        </div>
-
-        <div class="exam-details">
-          <span class="semester-tag">Semester IV</span>
-          <h2>Operating System</h2>
-          <p>Pre-board Examination</p>
-        </div>
-
-        <div class="exam-time">
-          11:30 AM
-        </div>
-
-      </article>
-
-
-      <article class="exam-row" data-semester="VI">
-
-        <div class="exam-date">
-          <span class="date-day">27</span>
-          <span class="date-month">04 / 2082</span>
-          <span class="date-weekday">Wednesday</span>
-        </div>
-
-        <div class="exam-details">
-          <span class="semester-tag">Semester VI</span>
-          <h2>Digital Forensic Security and Technology</h2>
-          <p>Pre-board Examination</p>
-        </div>
-
-        <div class="exam-time">
-          11:30 AM
-        </div>
-
-      </article>
-
-
-      <article class="exam-row" data-semester="VIII">
-
-        <div class="exam-date">
-          <span class="date-day">27</span>
-          <span class="date-month">04 / 2082</span>
-          <span class="date-weekday">Wednesday</span>
-        </div>
-
-        <div class="exam-details">
-          <span class="semester-tag">Semester VIII</span>
-          <h2>Big Data Technologies</h2>
-          <p>Pre-board Examination</p>
-        </div>
-
-        <div class="exam-time">
-          11:30 AM
-        </div>
-
-      </article>
-
-
-      <!-- 28 -->
-      <article class="exam-row" data-semester="II">
-
-        <div class="exam-date">
-          <span class="date-day">28</span>
-          <span class="date-month">04 / 2082</span>
-          <span class="date-weekday">Thursday</span>
+          <span class="date-day">17</span>
+          <span class="date-month">05 / 2083</span>
         </div>
 
         <div class="exam-details">
           <span class="semester-tag">Semester II</span>
           <h2>Discrete Mathematics</h2>
-          <p>Pre-board Examination</p>
+          <p>CIT121</p>
         </div>
-
-        <div class="exam-time">
-          11:30 AM
-        </div>
-
       </article>
 
 
-      <article class="exam-row" data-semester="IV">
-
-        <div class="exam-date">
-          <span class="date-day">28</span>
-          <span class="date-month">04 / 2082</span>
-          <span class="date-weekday">Thursday</span>
-        </div>
-
-        <div class="exam-details">
-          <span class="semester-tag">Semester IV</span>
-          <h2>Management Information System</h2>
-          <p>Pre-board Examination</p>
-        </div>
-
-        <div class="exam-time">
-          11:30 AM
-        </div>
-
-      </article>
-
-
-      <article class="exam-row" data-semester="VI">
-
-        <div class="exam-date">
-          <span class="date-day">28</span>
-          <span class="date-month">04 / 2082</span>
-          <span class="date-weekday">Thursday</span>
-        </div>
-
-        <div class="exam-details">
-          <span class="semester-tag">Semester VI</span>
-          <h2>IT Project Management</h2>
-          <p>Pre-board Examination</p>
-        </div>
-
-        <div class="exam-time">
-          11:30 AM
-        </div>
-
-      </article>
-
-
-      <article class="exam-row" data-semester="VIII">
-
-        <div class="exam-date">
-          <span class="date-day">28</span>
-          <span class="date-month">04 / 2082</span>
-          <span class="date-weekday">Thursday</span>
-        </div>
-
-        <div class="exam-details">
-          <span class="semester-tag">Semester VIII</span>
-          <h2>Elective II</h2>
-          <p>Pre-board Examination</p>
-        </div>
-
-        <div class="exam-time">
-          11:30 AM
-        </div>
-
-      </article>
-
-
-      <!-- 29 -->
       <article class="exam-row" data-semester="II">
-
         <div class="exam-date">
-          <span class="date-day">29</span>
-          <span class="date-month">04 / 2082</span>
-          <span class="date-weekday">Friday</span>
+          <span class="date-day">23</span>
+          <span class="date-month">05 / 2083</span>
+        </div>
+
+        <div class="exam-details">
+          <span class="semester-tag">Semester II</span>
+          <h2>Computer Programming II (Java)</h2>
+          <p>CIT122</p>
+        </div>
+      </article>
+
+
+      <article class="exam-row" data-semester="II">
+        <div class="exam-date">
+          <span class="date-day">26</span>
+          <span class="date-month">05 / 2083</span>
+        </div>
+
+        <div class="exam-details">
+          <span class="semester-tag">Semester II</span>
+          <h2>Digital Logic</h2>
+          <p>ELX121</p>
+        </div>
+      </article>
+
+
+      <article class="exam-row" data-semester="II">
+        <div class="exam-date">
+          <span class="date-day">30</span>
+          <span class="date-month">05 / 2083</span>
         </div>
 
         <div class="exam-details">
           <span class="semester-tag">Semester II</span>
           <h2>Web Technology I</h2>
-          <p>Pre-board Examination</p>
+          <p>CIT123</p>
+        </div>
+      </article>
+
+
+      <article class="exam-row" data-semester="II">
+        <div class="exam-date">
+          <span class="date-day">02</span>
+          <span class="date-month">06 / 2083</span>
         </div>
 
-        <div class="exam-time">
-          11:30 AM
+        <div class="exam-details">
+          <span class="semester-tag">Semester II</span>
+          <h2>Mathematics-II</h2>
+          <p>BSM121</p>
+        </div>
+      </article>
+
+
+      <!-- ==================== SEMESTER IV ==================== -->
+
+      <article class="exam-row" data-semester="IV">
+        <div class="exam-date">
+          <span class="date-day">05</span>
+          <span class="date-month">06 / 2083</span>
         </div>
 
+        <div class="exam-details">
+          <span class="semester-tag">Semester IV</span>
+          <h2>Management Information System</h2>
+          <p>CIT222</p>
+        </div>
       </article>
 
 
       <article class="exam-row" data-semester="IV">
-
         <div class="exam-date">
-          <span class="date-day">29</span>
-          <span class="date-month">04 / 2082</span>
-          <span class="date-weekday">Friday</span>
+          <span class="date-day">09</span>
+          <span class="date-month">06 / 2083</span>
+        </div>
+
+        <div class="exam-details">
+          <span class="semester-tag">Semester IV</span>
+          <h2>Operating Systems</h2>
+          <p>CIT221</p>
+        </div>
+      </article>
+
+
+      <article class="exam-row" data-semester="IV">
+        <div class="exam-date">
+          <span class="date-day">13</span>
+          <span class="date-month">06 / 2083</span>
+        </div>
+
+        <div class="exam-details">
+          <span class="semester-tag">Semester IV</span>
+          <h2>Data Communication and Computer Networks</h2>
+          <p>CIT223</p>
+        </div>
+      </article>
+
+
+      <article class="exam-row" data-semester="IV">
+        <div class="exam-date">
+          <span class="date-day">16</span>
+          <span class="date-month">06 / 2083</span>
         </div>
 
         <div class="exam-details">
           <span class="semester-tag">Semester IV</span>
           <h2>Fundamentals of Probability and Statistics</h2>
-          <p>Pre-board Examination</p>
+          <p>BSM221</p>
         </div>
-
-        <div class="exam-time">
-          11:30 AM
-        </div>
-
       </article>
 
 
-      <article class="exam-row" data-semester="VI">
-
+      <article class="exam-row" data-semester="IV">
         <div class="exam-date">
-          <span class="date-day">29</span>
-          <span class="date-month">04 / 2082</span>
-          <span class="date-weekday">Friday</span>
+          <span class="date-day">21</span>
+          <span class="date-month">06 / 2083</span>
+        </div>
+
+        <div class="exam-details">
+          <span class="semester-tag">Semester IV</span>
+          <h2>Computer Graphics Technology</h2>
+          <p>CIT224</p>
+        </div>
+      </article>
+
+
+      <!-- ==================== SEMESTER VI ==================== -->
+
+      <article class="exam-row" data-semester="VI">
+        <div class="exam-date">
+          <span class="date-day">22</span>
+          <span class="date-month">05 / 2083</span>
         </div>
 
         <div class="exam-details">
           <span class="semester-tag">Semester VI</span>
-          <h2>HCI and UI Design</h2>
-          <p>Pre-board Examination</p>
+          <h2>Human Computer Interface and UI Design</h2>
+          <p>CIT321</p>
+        </div>
+      </article>
+
+
+      <article class="exam-row" data-semester="VI">
+        <div class="exam-date">
+          <span class="date-day">25</span>
+          <span class="date-month">05 / 2083</span>
         </div>
 
-        <div class="exam-time">
-          11:30 AM
+        <div class="exam-details">
+          <span class="semester-tag">Semester VI</span>
+          <h2>Artificial Intelligence</h2>
+          <p>CIT323</p>
+        </div>
+      </article>
+
+
+      <article class="exam-row" data-semester="VI">
+        <div class="exam-date">
+          <span class="date-day">31</span>
+          <span class="date-month">05 / 2083</span>
         </div>
 
+        <div class="exam-details">
+          <span class="semester-tag">Semester VI</span>
+          <h2>Financial Accounting</h2>
+          <p>BCT322</p>
+        </div>
+      </article>
+
+
+      <article class="exam-row" data-semester="VI">
+        <div class="exam-date">
+          <span class="date-day">05</span>
+          <span class="date-month">06 / 2083</span>
+        </div>
+
+        <div class="exam-details">
+          <span class="semester-tag">Semester VI</span>
+          <h2>IT Project Management</h2>
+          <p>BCT321</p>
+        </div>
+      </article>
+
+
+      <article class="exam-row" data-semester="VI">
+        <div class="exam-date">
+          <span class="date-day">08</span>
+          <span class="date-month">06 / 2083</span>
+        </div>
+
+        <div class="exam-details">
+          <span class="semester-tag">Semester VI</span>
+          <h2>Digital Forensic Security Technologies</h2>
+          <p>CIT322</p>
+        </div>
+      </article>
+
+
+      <!-- ==================== SEMESTER VIII ==================== -->
+
+      <article class="exam-row" data-semester="VIII">
+        <div class="exam-date">
+          <span class="date-day">16</span>
+          <span class="date-month">05 / 2083</span>
+        </div>
+
+        <div class="exam-details">
+          <span class="semester-tag">Semester VIII</span>
+          <h2>Big Data Technologies</h2>
+          <p>CIT421</p>
+        </div>
       </article>
 
 
       <article class="exam-row" data-semester="VIII">
-
         <div class="exam-date">
-          <span class="date-day">29</span>
-          <span class="date-month">04 / 2082</span>
-          <span class="date-weekday">Friday</span>
+          <span class="date-day">18</span>
+          <span class="date-month">05 / 2083</span>
         </div>
 
         <div class="exam-details">
           <span class="semester-tag">Semester VIII</span>
           <h2>Society, IT and Law</h2>
-          <p>Pre-board Examination</p>
+          <p>BCT421</p>
+        </div>
+      </article>
+
+
+      <article class="exam-row" data-semester="VIII">
+        <div class="exam-date">
+          <span class="date-day">22</span>
+          <span class="date-month">05 / 2083</span>
         </div>
 
-        <div class="exam-time">
-          11:30 AM
+        <div class="exam-details">
+          <span class="semester-tag">Semester VIII</span>
+          <h2>IoT and Smart Technologies / E-Business and E-Commerce</h2>
+          <p>Elective</p>
         </div>
-
       </article>
 
     </section>
@@ -509,27 +386,23 @@
 
       <ol>
         <li>
-          The examination starts from <strong>11:30 AM</strong>.
+          Students must follow the examination schedule published by the university.
         </li>
 
         <li>
-          Students are not allowed to enter the examination hall
-          without college uniform.
+          Students are required to appear for the examination according to their semester.
         </li>
 
         <li>
-          Students arriving after half an hour of commencement
-          will not be allowed to sit for the examination.
+          Students should carry their required examination materials and identification.
         </li>
 
         <li>
-          Students absent without prior approval will be marked
-          ABSENT and receive no marks.
+          Students must follow all examination rules and instructions issued by the university.
         </li>
 
         <li>
-          Mobile phones and digital communication devices are
-          strictly prohibited inside the examination hall.
+          Any changes to the examination schedule will be communicated through official notices.
         </li>
       </ol>
 
@@ -538,43 +411,61 @@
   </main>
 
 
-
-
   <footer class="app-global-footer">
     <div class="app-footer-inner">
+
       <div class="app-footer-brand">
         <strong>Semester Library</strong>
         <span>· Bachelor of Information Technology</span>
       </div>
+
       <div class="app-footer-meta">
         <span>Gandaki University</span>
       </div>
+
     </div>
   </footer>
 
 
   <script src="routine.js"></script>
+
   <script>
-    fetch('/api/profile').then(r => {
-      if (r.ok) return r.json();
-      throw new Error('Not logged in');
-    }).then(p => {
-      if (p) {
-        const chip = document.getElementById('routineProfileChip');
-        const headerAvatar = document.getElementById('headerAvatar');
-        const headerName = document.getElementById('headerProfileName');
-        if (chip) chip.style.display = 'inline-flex';
-        if (headerName) headerName.textContent = p.name ? p.name.split(' ')[0] : 'Profile';
-        if (headerAvatar) {
-          if (p.avatarUrl) {
-            headerAvatar.innerHTML = `<img src="${p.avatarUrl}" alt="${p.name}">`;
-          } else {
-            headerAvatar.textContent = p.name ? p.name.charAt(0).toUpperCase() : 'S';
+    fetch('/api/profile')
+      .then(r => {
+        if (r.ok) return r.json();
+        throw new Error('Not logged in');
+      })
+      .then(p => {
+        if (p) {
+          const chip = document.getElementById('routineProfileChip');
+          const headerAvatar = document.getElementById('headerAvatar');
+          const headerName = document.getElementById('headerProfileName');
+
+          if (chip) chip.style.display = 'inline-flex';
+
+          if (headerName) {
+            headerName.textContent = p.name
+              ? p.name.split(' ')[0]
+              : 'Profile';
+          }
+
+          if (headerAvatar) {
+            if (p.avatarUrl) {
+              headerAvatar.innerHTML =
+                `<img src="${p.avatarUrl}" alt="${p.name}">`;
+            } else {
+              headerAvatar.textContent = p.name
+                ? p.name.charAt(0).toUpperCase()
+                : 'S';
+            }
           }
         }
-      }
-    }).catch(() => {});
+      })
+      .catch(() => { });
   </script>
+
   <script src="chatbot.js"></script>
+
 </body>
+
 </html>

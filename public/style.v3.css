@@ -189,7 +189,7 @@ body.login {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #000000;
+  background: #fbfbfd;
   color: var(--ap-text-primary);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "SF Pro", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
   position: relative;

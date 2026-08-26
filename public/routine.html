@@ -17,6 +17,7 @@
 
   <link rel="stylesheet" href="style.v3.css">
   <link rel="stylesheet" href="chatbot.css">
+  <link rel="stylesheet" href="auth-modal.css">
 </head>
 
 <body class="routine-page dash">
@@ -462,7 +463,7 @@
       .catch(() => {
         const chip = document.querySelector('.dash-profile-chip');
         if (chip) {
-          chip.outerHTML = `<a href="/login.html" class="nav-cta-btn apple-nav-btn">Sign In</a>`;
+          chip.outerHTML = `<a href="javascript:void(0)" onclick="showAuthModal()" class="nav-cta-btn apple-nav-btn">Sign In</a>`;
         }
       });
 
@@ -494,7 +495,8 @@
       <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
       <path d="M7 11V7a5 5 0 0110 0v4"></path>
     </svg>
-    <span>Login required to access this page. <a href="/login.html">Sign In</a></span>
+    <span>Login required to access this page. <a href="javascript:void(0)" onclick="showAuthModal()">Sign In</a></span>
   </div>
+  <script src="auth-modal.js"></script>
 </body>
 </html>

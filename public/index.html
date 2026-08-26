@@ -37,6 +37,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.v3.css">
+  <link rel="stylesheet" href="auth-modal.css">
 </head>
 
 <body class="landing apple-poster-landing">
@@ -69,7 +70,7 @@
     <div class="nav-right">
       <a href="https://gandakiuniversity.edu.np" target="_blank" rel="noopener noreferrer"
         class="univ-tag apple-univ-tag">Gandaki University</a>
-      <a href="login.html" class="nav-cta-btn apple-nav-btn">Sign In</a>
+      <a href="javascript:void(0)" onclick="showAuthModal()" class="nav-cta-btn apple-nav-btn">Sign In</a>
     </div>
   </header>
 
@@ -2145,7 +2146,7 @@
 
       if (closeBtn) closeBtn.addEventListener('click', dismissNotice);
       if (continueBtn) continueBtn.addEventListener('click', () => {
-        window.location.href = 'login.html';
+        showAuthModal(true);
       });
       if (noticeOverlay) {
         noticeOverlay.addEventListener('click', (e) => {
@@ -2178,5 +2179,6 @@
       };
     })();
   </script>
+  <script src="auth-modal.js"></script>
 </body>
 </html>

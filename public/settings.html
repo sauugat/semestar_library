@@ -9,8 +9,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.v3.css">
   <script>
-    fetch('/api/me').then(r => { if (!r.ok) window.location.replace('/login.html'); }).catch(() => window.location.replace('/login.html'));
+    fetch('/api/me').then(r => { if (!r.ok) showAuthModal(true); }).catch(() => showAuthModal(true));
   </script>
+  <link rel="stylesheet" href="auth-modal.css">
 </head>
 <body class="dash profile-body">
 
@@ -127,9 +128,10 @@
 
     document.getElementById('logoutBtn').addEventListener('click', async () => {
       await fetch('/api/logout', { method: 'POST' });
-      window.location.replace('login.html');
+      showAuthModal(true);
     });
   </script>
   <script src="notifications.js"></script>
+  <script src="auth-modal.js"></script>
 </body>
 </html>

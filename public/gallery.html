@@ -876,6 +876,7 @@
       border-color: #1d1d1f;
     }
   </style>
+  <link rel="stylesheet" href="auth-modal.css">
 </head>
 
 <body class="gallery-page-body">
@@ -904,7 +905,7 @@
       <div style="display: flex; align-items: center; gap: 14px;">
         <a href="https://gandakiuniversity.edu.np" target="_blank" rel="noopener noreferrer"
           class="univ-tag apple-univ-tag" style="padding: 6px 14px; font-size: 12px;">Gandaki University</a>
-        <a href="login.html" class="nav-cta-btn apple-nav-btn" style="padding: 6px 16px; font-size: 12px;">Sign In</a>
+        <a href="javascript:void(0)" onclick="showAuthModal()" class="nav-cta-btn apple-nav-btn" style="padding: 6px 16px; font-size: 12px;">Sign In</a>
       </div>
     </div>
   </header>
@@ -1674,6 +1675,7 @@
     buildMarquee();
     renderBentoWall();
   </script>
+  <script src="auth-modal.js"></script>
 </body>
 
 </html>

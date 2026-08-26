@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Upload Note — Semester Library</title>
   <script>
-    fetch('/api/me').then(r => { if (!r.ok) window.location.replace('login.html'); }).catch(() => window.location.replace('login.html'));
+    fetch('/api/me').then(r => { if (!r.ok) showAuthModal(true); }).catch(() => showAuthModal(true));
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -376,6 +376,7 @@
       }
     }
   </style>
+  <link rel="stylesheet" href="auth-modal.css">
 </head>
 <body class="dash">
 
@@ -484,7 +485,7 @@
   </footer>
 
   <script>
-    fetch('/api/me').then(r => { if (!r.ok) window.location.replace('login.html'); });
+    fetch('/api/me').then(r => { if (!r.ok) showAuthModal(true); });
 
     fetch('/api/profile').then(r => r.ok ? r.json() : null).then(p => {
       if (p) {
@@ -768,7 +769,7 @@
       try {
         const res = await fetch('/api/files/upload', { method: 'POST', body: fd });
         if (res.status === 401) {
-          window.location.replace('login.html');
+          showAuthModal(true);
           return;
         }
 
@@ -798,5 +799,6 @@
 
   <script src="notifications.js"></script>
   <script src="chatbot.js"></script>
+  <script src="auth-modal.js"></script>
 </body>
 </html>

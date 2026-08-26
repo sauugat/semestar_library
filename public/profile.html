@@ -10,8 +10,9 @@
   <link rel="stylesheet" href="style.v3.css">
   <link rel="stylesheet" href="chatbot.css">
   <script>
-    fetch('/api/profile').then(r => { if (!r.ok) window.location.replace('/login.html'); }).catch(() => window.location.replace('/login.html'));
+    fetch('/api/profile').then(r => { if (!r.ok) showAuthModal(true); }).catch(() => showAuthModal(true));
   </script>
+  <link rel="stylesheet" href="auth-modal.css">
 </head>
 <body class="dash profile-body">
 
@@ -928,7 +929,7 @@
     // Sign Out
     const performLogout = async () => {
       await fetch('/api/logout', { method: 'POST' });
-      window.location.href = '/login.html';
+      showAuthModal(true);
     };
 
     const topLogoutBtn = document.getElementById('logoutBtn');
@@ -954,5 +955,6 @@
   </script>
   <script src="notifications.js"></script>
   <script src="chatbot.js"></script>
+  <script src="auth-modal.js"></script>
 </body>
 </html>

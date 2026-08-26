@@ -34,9 +34,9 @@
   position: absolute;
   top: 16px;
   right: 16px;
-  background: rgba(255,255,255,0.1);
+  background: rgba(0,0,0,0.05);
   border: none;
-  color: #fff;
+  color: #111;
   width: 32px; height: 32px;
   border-radius: 50%;
   display: flex;
@@ -48,5 +48,5 @@
 }
 
 .auth-modal-close-btn:hover {
-  background: rgba(255,255,255,0.2);
+  background: rgba(0,0,0,0.1);
 }

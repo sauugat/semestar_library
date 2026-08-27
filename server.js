@@ -1579,7 +1579,7 @@ app.get('/api/chat/messages', requireLogin, async (req, res) => {
       students.studentId, students.name, students.avatarUrl,
       reply_msg.text AS replyText, reply_student.name AS replySender
     FROM chat_messages
-    JOIN students ON students.studentId = chat_messages.studentId
+    LEFT JOIN students ON students.studentId = chat_messages.studentId
     LEFT JOIN chat_messages AS reply_msg ON reply_msg.id = chat_messages.replyToId
     LEFT JOIN students AS reply_student ON reply_student.studentId = reply_msg.studentId
     WHERE chat_messages.id > ?
@@ -1727,7 +1727,7 @@ app.post('/api/chat/messages', requireLogin, chatRateLimiter, handleChatUpload, 
         students.studentId, students.name, students.avatarUrl,
         reply_msg.text AS replyText, reply_student.name AS replySender
       FROM chat_messages
-      JOIN students ON students.studentId = chat_messages.studentId
+      LEFT JOIN students ON students.studentId = chat_messages.studentId
       LEFT JOIN chat_messages AS reply_msg ON reply_msg.id = chat_messages.replyToId
       LEFT JOIN students AS reply_student ON reply_student.studentId = reply_msg.studentId
       WHERE chat_messages.id = ?
@@ -1737,7 +1737,7 @@ app.post('/api/chat/messages', requireLogin, chatRateLimiter, handleChatUpload, 
       sendBroadcast('new_message', newMsg);
     }
 
-    res.json({ message: 'Sent', messageId });
+    res.json({ message: 'Sent', messageId, data: newMsg });
   } catch (error) {
     console.error('Chat message insert error:', error.message);
     res.status(500).json({ message: 'Failed to send message.' });

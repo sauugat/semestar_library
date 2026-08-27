@@ -1995,9 +1995,14 @@
           showError(data.message || 'Unable to send.');
           document.getElementById(tempId)?.remove();
         } else {
-          const tempTime = document.getElementById(tempId)?.querySelector('.im-time-meta');
-          if (tempTime) {
-            tempTime.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align: middle; margin-right: 2px;"><polyline points="20 6 9 17 4 12"/></svg> Sent`;
+          document.getElementById(tempId)?.remove();
+          if (data.data) {
+            renderMessages([data.data]);
+            lastMessageId = Math.max(lastMessageId, data.data.id);
+            scrollToBottom(true);
+            markAsRead(lastMessageId);
+          } else {
+            fetchNewMessages();
           }
         }
       } catch (err) {
@@ -2056,6 +2061,7 @@
 
     function checkEmptyFeed() {
       const container = document.getElementById('feedInner');
+      if (!container) return;
       const messages = container.querySelectorAll('.im-row:not(.temp-msg)');
       if (messages.length === 0) {
         if (!document.getElementById('emptyNotice')) {
@@ -2076,12 +2082,14 @@
 
     // Initial Fetch
     async function fetchInitialMessages() {
+      if (isFetching) return;
       isFetching = true;
       try {
         const res = await fetch(`/api/chat/messages?since=0`);
+        const feed = document.getElementById('chatFeed');
         if (res.ok) {
           const data = await res.json();
-          const messages = Array.isArray(data) ? data : data.messages;
+          const messages = Array.isArray(data) ? data : (data.messages || []);
           if (data.readReceipts) {
             data.readReceipts.forEach(r => {
               if (r.studentId === currentStudent?.studentId) myLastReadId = r.lastReadMessageId;
@@ -2090,30 +2098,59 @@
           }
 
           if (messages && messages.length > 0) {
-          if (messages && messages.length > 0) {
             const emptyElem = document.getElementById('emptyNotice');
             if (emptyElem) emptyElem.remove();
-            
-            const feed = document.getElementById('chatFeed');
-            feed.style.visibility = 'hidden';
             
             renderMessages(messages);
             lastMessageId = messages[messages.length - 1].id;
             
-            // Force layout recalculation so scrollHeight is updated
-            void feed.offsetHeight; 
-            
-            scrollToBottom(true, false); // Instant snap on load
+            scrollToBottom(true, false);
             markAsRead(lastMessageId);
-            
-            // Reveal chat after it's securely at the bottom
-            requestAnimationFrame(() => {
-              feed.style.visibility = 'visible';
-            });
+          } else {
+            checkEmptyFeed();
           }
         }
       } catch (e) {
         console.error('Initial fetch error:', e);
+      } finally {
+        isFetching = false;
+        const feed = document.getElementById('chatFeed');
+        if (feed) feed.style.visibility = 'visible';
+      }
+    }
+
+    // Polling fetch for new messages & receipts sync
+    async function fetchNewMessages() {
+      if (isFetching) return;
+      isFetching = true;
+      try {
+        const res = await fetch(`/api/chat/messages?since=${lastMessageId}`);
+        if (res.ok) {
+          const data = await res.json();
+          const messages = Array.isArray(data) ? data : (data.messages || []);
+          if (data.readReceipts) {
+            data.readReceipts.forEach(r => {
+              if (r.studentId === currentStudent?.studentId) myLastReadId = r.lastReadMessageId;
+              else readReceiptsMap[r.studentId] = r.lastReadMessageId;
+            });
+            updateReadReceiptsUI();
+          }
+
+          if (messages && messages.length > 0) {
+            const emptyElem = document.getElementById('emptyNotice');
+            if (emptyElem) emptyElem.remove();
+
+            // Remove any temporary optimistic messages
+            document.querySelectorAll('.temp-msg').forEach(el => el.remove());
+
+            renderMessages(messages);
+            lastMessageId = Math.max(lastMessageId, messages[messages.length - 1].id);
+            scrollToBottom(true);
+            markAsRead(lastMessageId);
+          }
+        }
+      } catch (e) {
+        console.error('Fetch new messages error:', e);
       } finally {
         isFetching = false;
       }
@@ -2167,6 +2204,7 @@
         const res = await fetch('/api/chat/config');
         if (!res.ok) throw new Error('Could not get config');
         const { url, key } = await res.json();
+        if (!url || !key) return;
 
         const supabaseClient = supabase.createClient(url, key);
         const channel = supabaseClient.channel('public:chat_messages');
@@ -2211,7 +2249,11 @@
     }
 
     function startPolling() {
-      fetchInitialMessages().then(() => initRealtime());
+      fetchInitialMessages().then(() => {
+        initRealtime();
+        // Reliable fallback polling interval (every 2.5s) to guarantee messages sync continuously
+        setInterval(fetchNewMessages, 2500);
+      });
     }
 
     function formatTime(iso) {

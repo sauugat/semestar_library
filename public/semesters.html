@@ -2,11 +2,20 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Semesters — Semester Library</title>
   <meta name="description" content="Explore academic resources for all 8 semesters of the Gandaki University BIT program. Access semester-wise notes, syllabus, and study materials.">
   <meta name="robots" content="index, follow">
   <link rel="canonical" href="https://semestar-library.vercel.app/semesters">
+
+  <!-- Web App Manifest & iOS PWA Metadata -->
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Semester Library">
+  <meta name="theme-color" content="#ffffff">
   
   <script>
     // Redirect to syllabus page where all semesters are listed interactively
@@ -28,5 +37,15 @@
     <li><a href="/semester/8">Semester 8</a></li>
   </ul>
   <script src="auth-modal.js"></script>
+  <!-- PWA Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(err => {
+          console.warn('[SW Registration Notice]:', err);
+        });
+      });
+    }
+  </script>
 </body>
 </html>

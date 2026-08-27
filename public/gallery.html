@@ -3,9 +3,18 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Media Archive &middot; Gandaki University &mdash; Antigravity Visuals</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Media Archive · Gandaki University — Antigravity Visuals</title>
   <meta name="description" content="Next-Generation Photographic Archive of Gandaki University. Powered by Apple Keynote & Antigravity futuristic visual architecture.">
+  
+  <!-- Web App Manifest & iOS PWA Metadata -->
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Semester Library">
+  <meta name="theme-color" content="#ffffff">
   
   <!-- Modern Typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1676,6 +1685,15 @@
     renderBentoWall();
   </script>
   <script src="auth-modal.js"></script>
+  <!-- PWA Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(err => {
+          console.warn('[SW Registration Notice]:', err);
+        });
+      });
+    }
+  </script>
 </body>
-
 </html>

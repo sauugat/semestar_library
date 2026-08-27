@@ -2,9 +2,18 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Kyana AI — Semester Library</title>
   <meta name="description" content="Meet Kyana AI, your personal study assistant for Gandaki University BIT notes, syllabus, and exam routines.">
+
+  <!-- Web App Manifest & iOS PWA Metadata -->
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Semester Library">
+  <meta name="theme-color" content="#ffffff">
   <script>
     fetch('/api/me').then(r => { 
       if (!r.ok) {
@@ -153,5 +162,15 @@
     <span>Login required to access this page. <a href="javascript:void(0)" onclick="showAuthModal()">Sign In</a></span>
   </div>
   <script src="auth-modal.js"></script>
+  <!-- PWA Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(err => {
+          console.warn('[SW Registration Notice]:', err);
+        });
+      });
+    }
+  </script>
 </body>
 </html>

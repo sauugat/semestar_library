@@ -3221,7 +3221,7 @@ body.dash {
 }
 
 body.dash:has(.bottom-nav) {
-  padding-bottom: 110px;
+  padding-bottom: max(110px, calc(80px + env(safe-area-inset-bottom, 16px)));
 }
 
 /* Apple Pro Header with Translucent Blur */
@@ -3321,7 +3321,10 @@ body.dash .dash-header-actions {
 @media (max-width: 768px) {
   body.dash .dash-header,
   .dash-header {
-    padding: 14px 20px !important;
+    padding-top: max(14px, env(safe-area-inset-top, 14px)) !important;
+    padding-bottom: 14px !important;
+    padding-left: max(20px, env(safe-area-inset-left, 20px)) !important;
+    padding-right: max(20px, env(safe-area-inset-right, 20px)) !important;
     gap: 10px !important;
   }
 
@@ -4394,7 +4397,7 @@ body.dark-mode .fb-card:hover {
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
-  bottom: 22px;
+  bottom: max(16px, env(safe-area-inset-bottom, 16px));
   width: min(540px, 90vw);
   display: flex;
   justify-content: space-around;

@@ -2,8 +2,18 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Upload Note — Semester Library</title>
+
+  <!-- Web App Manifest & iOS PWA Metadata -->
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Semester Library">
+  <meta name="theme-color" content="#ffffff">
+
   <script>
     fetch('/api/me').then(r => { if (!r.ok) showAuthModal(true); }).catch(() => showAuthModal(true));
   </script>
@@ -800,5 +810,15 @@
   <script src="notifications.js"></script>
   <script src="chatbot.js"></script>
   <script src="auth-modal.js"></script>
+  <!-- PWA Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(err => {
+          console.warn('[SW Registration Notice]:', err);
+        });
+      });
+    }
+  </script>
 </body>
 </html>

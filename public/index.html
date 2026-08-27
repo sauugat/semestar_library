@@ -3,11 +3,20 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Semester Library — Gandaki University Notes, Syllabus & Routines</title>
   <meta name="description" content="Semester Library is an academic resource platform for Gandaki University students, providing semester-wise notes, syllabus, exam routines, notices and study resources.">
   <meta name="robots" content="index, follow">
   <link rel="canonical" href="https://semestar-library.vercel.app/">
+  
+  <!-- Web App Manifest & iOS PWA Metadata -->
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Semester Library">
+  <meta name="theme-color" content="#ffffff">
   
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website">
@@ -2180,5 +2189,15 @@
     })();
   </script>
   <script src="auth-modal.js"></script>
+  <!-- PWA Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(err => {
+          console.warn('[SW Registration Notice]:', err);
+        });
+      });
+    }
+  </script>
 </body>
 </html>

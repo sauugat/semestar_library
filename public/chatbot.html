@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kyana — Semester Library</title>
-  <meta name="description" content="Meet Kyana, your personal AI study assistant for Gandaki University BIT notes, syllabus, and exam routines.">
+  <title>Kyana AI — Semester Library</title>
+  <meta name="description" content="Meet Kyana AI, your personal study assistant for Gandaki University BIT notes, syllabus, and exam routines.">
   <script>
     fetch('/api/me').then(r => { 
       if (!r.ok) {
@@ -24,7 +24,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Outfit:wght@500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
@@ -45,10 +45,13 @@
       <a href="syllabus.html" class="header-nav-item">Syllabus</a>
       <a href="routine.html" class="header-nav-item">Routine</a>
       <a href="chat.html" class="header-nav-item">Chat</a>
-      <a href="chatbot.html" class="header-nav-item active">AI Assistant</a>
+      <a href="chatbot.html" class="header-nav-item active">Kyana AI</a>
     </nav>
 
     <div class="dash-header-actions">
+      <button type="button" class="sla-tool-btn" id="slaClearBtn" title="Clear Chat" style="width:32px; height:32px; border-radius:8px; background:rgba(168, 85, 247, 0.15); color:#d8b4fe; border:1px solid rgba(168,85,247,0.25);">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+      </button>
       <a href="profile.html" class="dash-profile-chip" id="headerProfileChip" title="View Profile">
         <div class="dash-profile-avatar" id="headerAvatar">S</div>
         <span class="dash-profile-label" id="headerProfileName">Profile</span>
@@ -56,24 +59,18 @@
     </div>
   </header>
 
-  <!-- FULLPAGE ASSISTANT CONTAINER (MINIMALIST CENTERED) -->
+  <!-- FULLPAGE ASSISTANT CONTAINER (FULL-SCREEN RESPONSIVE CHATSPACE) -->
   <div class="sla-fullpage-wrapper">
     
     <!-- MAIN CHAT STAGE -->
     <main class="sla-fullpage-chatbox">
-      
-      <!-- Stage Header -->
-      <div class="sla-fullpage-header">
-        <div class="sla-header-left">
-          <h1>Kyana</h1>
-          <span class="sla-model-tag">AI Assistant</span>
-        </div>
-        
-        <div style="display:flex; align-items:center; gap:8px;">
-          <button type="button" class="sla-tool-btn" id="slaClearBtn" title="Clear Chat">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
-          </button>
-        </div>
+
+      <!-- Atmospheric Glowing Smoke / Rising Vapor Canvas -->
+      <div class="sla-ambient-glow-canvas" aria-hidden="true">
+        <div class="sla-smoke-base"></div>
+        <div class="sla-smoke-plume sla-smoke-plume-1"></div>
+        <div class="sla-smoke-plume sla-smoke-plume-2"></div>
+        <div class="sla-smoke-plume sla-smoke-plume-3"></div>
       </div>
 
       <!-- MESSAGES SCROLL AREA -->
@@ -96,7 +93,7 @@
           <textarea 
             id="slaInput" 
             class="sla-input-textarea" 
-            placeholder="Ask Kyana a question…" 
+            placeholder="Ask Kyana AI a question…" 
             rows="1" 
             autocomplete="off" 
             maxlength="600"

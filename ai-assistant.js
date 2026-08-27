@@ -202,32 +202,60 @@ const TOPIC_DEFINITIONS = [
     unit: 'Unit 4: Relational Language and Database Constraints'
   },
   {
-    topic: 'er diagram and data modeling',
-    synonyms: ['er diagram', 'e-r model', 'entity relationship', 'entity relation', 'data modeling'],
-    canonicalSubject: 'Database Management System',
-    semesterNum: 3,
-    unit: 'Unit 2: Data Model'
-  },
-  {
-    topic: 'trees and bst',
-    synonyms: ['tree', 'trees', 'binary search tree', 'bst', 'avl tree', 'heap', 'tree traversal', 'b tree'],
-    canonicalSubject: 'Data Structure and Algorithms',
-    semesterNum: 3,
-    unit: 'Unit 4: Trees'
-  },
-  {
     topic: 'graphs and shortest path',
-    synonyms: ['graph', 'graphs', 'dijkstra', 'kruskal', 'prim', 'bfs', 'dfs', 'minimum spanning tree'],
-    canonicalSubject: 'Data Structure and Algorithms',
-    semesterNum: 3,
-    unit: 'Unit 7: Graph'
+    synonyms: ['graph', 'graphs', 'graph theory', 'dijkstra', 'kruskal', 'prim', 'bfs', 'dfs', 'minimum spanning tree', 'shortest path', 'isomorphism', 'graph coloring'],
+    canonicalSubject: 'Discrete Mathematics',
+    semesterNum: 2,
+    unit: 'Unit 5: Graph Theory'
   },
   {
-    topic: 'stack and queue',
-    synonyms: ['stack', 'queue', 'stacks', 'queues', 'infix to postfix', 'circular queue'],
-    canonicalSubject: 'Data Structure and Algorithms',
-    semesterNum: 3,
-    unit: 'Unit 3: Stacks, Queue and Recursion'
+    topic: 'logic and proposition',
+    synonyms: ['logic', 'proposition', 'truth table', 'predicates', 'quantifiers', 'nested quantifiers', 'tautology', 'logical equivalence'],
+    canonicalSubject: 'Discrete Mathematics',
+    semesterNum: 2,
+    unit: 'Unit 1: Logic and Induction'
+  },
+  {
+    topic: 'mathematical reasoning and proofs',
+    synonyms: ['proof', 'proofs', 'direct proof', 'indirect proof', 'rules of inference', 'mathematical reasoning'],
+    canonicalSubject: 'Discrete Mathematics',
+    semesterNum: 2,
+    unit: 'Unit 2: Mathematical Reasoning'
+  },
+  {
+    topic: 'automata and fsm',
+    synonyms: ['automata', 'fsm', 'fsa', 'dfa', 'nfa', 'finite state', 'grammars', 'languages', 'nfa to dfa'],
+    canonicalSubject: 'Discrete Mathematics',
+    semesterNum: 2,
+    unit: 'Unit 3: Finite state Automata, Grammars and Languages'
+  },
+  {
+    topic: 'recurrence relation',
+    synonyms: ['recurrence relation', 'linear recurrence', 'non linear recurrence', 'recursive definition'],
+    canonicalSubject: 'Discrete Mathematics',
+    semesterNum: 2,
+    unit: 'Unit 4: Recurrence Relation'
+  },
+  {
+    topic: 'complex numbers and variables',
+    synonyms: ['complex number', 'complex numbers', 'complex variable', 'cauchy riemann', 'analytic function', 'harmonic function'],
+    canonicalSubject: 'Mathematics II',
+    semesterNum: 2,
+    unit: 'Unit 5: Functions of Complex Variable'
+  },
+  {
+    topic: 'several variables and partial derivatives',
+    synonyms: ['several variables', 'partial derivative', 'partial derivatives', 'maxima and minima', 'total derivative', 'euler theorem'],
+    canonicalSubject: 'Mathematics II',
+    semesterNum: 2,
+    unit: 'Unit 3: Function of Several Variables'
+  },
+  {
+    topic: 'permutation and combination',
+    synonyms: ['permutation', 'permutations', 'combination', 'combinations', 'counting principle'],
+    canonicalSubject: 'Mathematics II',
+    semesterNum: 2,
+    unit: 'Unit 1: Permutation and Combination'
   },
   {
     topic: 'sorting and searching',
@@ -557,15 +585,21 @@ function matchTopicInText(text) {
 function parseSingleIntent(queryStr, ctxSem, ctxSubj, ctxTopic) {
   const q = queryStr.toLowerCase().trim();
 
-  // Extract Direct Entities
-  let semester = normalizeSemester(q);
-  let subject = matchSubjectInText(q);
+  // Extract Direct Entities from Query Text
+  let explicitSemester = normalizeSemester(q);
+  let explicitSubject = matchSubjectInText(q);
   let topicObj = matchTopicInText(q);
 
-  // If topic found, deduce subject & semester if not explicitly contradicted
+  // Extract clean search tokens
+  let subject = explicitSubject;
+  let semester = explicitSemester;
+
   if (topicObj) {
     if (!subject) subject = topicObj.canonicalSubject;
-    if (!semester && topicObj.semesterNum) semester = SEMESTER_REGISTRY[topicObj.semesterNum];
+    // Only inherit semester from topic if not explicitly specified
+    if (!semester && topicObj.semesterNum && explicitSubject) {
+      semester = SEMESTER_REGISTRY[topicObj.semesterNum];
+    }
   }
 
   // Handle follow-up pronouns ("what about its syllabus?", "show its notes")
@@ -578,7 +612,7 @@ function parseSingleIntent(queryStr, ctxSem, ctxSubj, ctxTopic) {
 
   // Detect Resource Type
   let resourceType = null;
-  if (/\b(note|notes|pdf|pdfs|slides|handouts|study material|doc|docs|lecture)\b/i.test(q)) {
+  if (/\b(note|notes|pdf|pdfs|slides|handouts|study material|doc|docs|lecture|exercises|exercise|material|materials|slides)\b/i.test(q)) {
     resourceType = 'NOTE';
   } else if (/\b(syllabus|curriculum|course outline|course content|credit|credits)\b/i.test(q)) {
     resourceType = 'SYLLABUS';
@@ -672,7 +706,7 @@ async function searchWebsite(db, queryMeta, student = {}) {
     /\b(note|notes|pdf|pdfs|slide|slides|handout|handouts|doc|docs|material|materials|download)\b/i.test(searchQuery);
 
   // --------------------------------------------------------------------------
-  // 1. Search Files in Library (Only if user explicitly asked for files/topics)
+  // 1. Search Files in Library with Advanced Fuzzy & TF-IDF Scoring
   // --------------------------------------------------------------------------
   if (wantsFiles) {
     try {
@@ -682,6 +716,28 @@ async function searchWebsite(db, queryMeta, student = {}) {
         ORDER BY id DESC
       `);
 
+      // Clean query tokens
+      const stopWords = new Set([
+        'give', 'notes', 'find', 'show', 'semester', 'please', 'with', 'what', 'have', 'note',
+        'some', 'about', 'material', 'materials', 'study', 'pdfs', 'slides', 'send', 'want',
+        'need', 'course', 'tell', 'from', 'help', 'there', 'any', 'for', 'the', 'and', 'are', 'you'
+      ]);
+
+      const rawTokens = searchQuery
+        .toLowerCase()
+        .replace(/[^\w\s]/g, ' ')
+        .split(/\s+/)
+        .filter(w => w.length >= 2 && !stopWords.has(w));
+
+      // Check for specific lecture/chapter numbers in query (e.g. "lecture 12", "unit 3", "ch 2")
+      const lectureMatch = searchQuery.match(/\b(?:lecture|lec|l)\s*(\d+)\b/i);
+      const targetLecNum = lectureMatch ? lectureMatch[1] : null;
+
+      const unitMatch = searchQuery.match(/\b(?:unit|chapter|ch)\s*(\d+)\b/i);
+      const targetUnitNum = unitMatch ? unitMatch[1] : null;
+
+      const cleanQueryPhrase = rawTokens.join(' ');
+
       const scoredFiles = allFiles.map(f => {
         let score = 0;
         const fSubject = (f.subject || '').toLowerCase();
@@ -690,19 +746,17 @@ async function searchWebsite(db, queryMeta, student = {}) {
         const fOriginal = (f.originalName || '').toLowerCase();
         const fullFileText = `${fSubject} ${fChapter} ${fTitle} ${fOriginal}`;
 
-        // --- HARD CONSTRAINT: Semester Filtering ---
+        // 1. Strict Explicit Semester Constraint
         if (semester) {
           const fileSemMeta = normalizeSemester(f.semester);
-          if (fileSemMeta) {
-            if (fileSemMeta.num !== semester.num) {
-              return { file: f, score: -999 };
-            } else {
-              score += 50;
-            }
+          if (fileSemMeta && fileSemMeta.num !== semester.num) {
+            return { file: f, score: -999 };
+          } else if (fileSemMeta && fileSemMeta.num === semester.num) {
+            score += 30;
           }
         }
 
-        // --- HARD CONSTRAINT: Subject Filtering ---
+        // 2. Subject Boost / Soft Constraint
         if (subject) {
           const canonicalLower = subject.toLowerCase();
           const isExactSubj = fSubject.includes(canonicalLower) || fTitle.includes(canonicalLower);
@@ -717,54 +771,74 @@ async function searchWebsite(db, queryMeta, student = {}) {
           }
 
           if (isExactSubj || hasAliasMatch) {
-            score += 60;
+            score += 70;
           } else {
-            score -= 100;
+            score -= 30; // soft penalty
           }
         }
 
-        // --- TOPIC RELEVANCE: Strict Topic Matching ---
+        // 3. Topic & Synonym Matching
         if (topicObj) {
-          let hasTopicMatch = false;
+          let topicMatched = false;
           for (const syn of topicObj.synonyms) {
             if (fullFileText.includes(syn.toLowerCase())) {
-              score += 100;
-              hasTopicMatch = true;
+              score += 90;
+              topicMatched = true;
               break;
             }
           }
           if (topicObj.unit && fullFileText.includes(topicObj.unit.toLowerCase())) {
+            score += 80;
+            topicMatched = true;
+          }
+          if (topicMatched) score += 40;
+        }
+
+        // 4. Exact Phrase Match
+        if (cleanQueryPhrase.length >= 4 && fullFileText.includes(cleanQueryPhrase)) {
+          score += 100;
+        }
+
+        // 5. Lecture / Unit Number Precision Match
+        if (targetLecNum) {
+          const lecRegex = new RegExp(`\\b(?:lecture|lec|l)\\s*${targetLecNum}\\b`, 'i');
+          if (lecRegex.test(fTitle) || lecRegex.test(fOriginal)) {
             score += 90;
-            hasTopicMatch = true;
-          }
-          if (!hasTopicMatch) {
-            score -= 150;
-          }
-        } else {
-          // Token Keyword Overlap Scoring
-          const rawTokens = searchQuery.replace(/[^\w\s]/g, ' ').split(/\s+/).filter(w => w.length >= 3);
-          const stopWords = ['give', 'notes', 'find', 'show', 'semester', 'please', 'with', 'what', 'have', 'note', 'some', 'about', 'material', 'materials', 'study', 'pdfs', 'slides', 'send', 'want', 'need', 'course', 'tell'];
-          const meaningfulTokens = rawTokens.filter(t => !stopWords.includes(t));
-
-          let matchedTokensCount = 0;
-          meaningfulTokens.forEach(t => {
-            if (fullFileText.includes(t)) {
-              matchedTokensCount++;
-              if (fTitle.includes(t)) score += 30;
-              if (fChapter.includes(t)) score += 25;
-              if (fSubject.includes(t)) score += 20;
-              if (fOriginal.includes(t)) score += 15;
-            }
-          });
-
-          if (meaningfulTokens.length >= 2 && matchedTokensCount < meaningfulTokens.length) {
-            score -= 100;
-          } else if (meaningfulTokens.length === 1 && matchedTokensCount === 0) {
-            score -= 50;
           }
         }
 
-        if (resourceType === 'PYQ' && (fTitle.includes('pyq') || fOriginal.includes('pyq') || fTitle.includes('question'))) {
+        if (targetUnitNum) {
+          const unitRegex = new RegExp(`\\b(?:unit|chapter|ch)\\s*${targetUnitNum}\\b`, 'i');
+          if (unitRegex.test(fChapter) || unitRegex.test(fTitle)) {
+            score += 70;
+          }
+        }
+
+        // 6. Token Overlap Scoring
+        let tokenHits = 0;
+        for (const token of rawTokens) {
+          let tokenFound = false;
+          if (fTitle.includes(token)) {
+            score += 35;
+            tokenFound = true;
+          }
+          if (fChapter.includes(token)) {
+            score += 30;
+            tokenFound = true;
+          }
+          if (fSubject.includes(token)) {
+            score += 25;
+            tokenFound = true;
+          }
+          if (fOriginal.includes(token)) {
+            score += 15;
+            tokenFound = true;
+          }
+          if (tokenFound) tokenHits++;
+        }
+
+        // Reward files that match multiple query tokens
+        if (rawTokens.length > 0 && tokenHits === rawTokens.length) {
           score += 40;
         }
 
@@ -772,7 +846,7 @@ async function searchWebsite(db, queryMeta, student = {}) {
       });
 
       const filteredFiles = scoredFiles
-        .filter(item => item.score >= 20)
+        .filter(item => item.score >= 35)
         .sort((a, b) => b.score - a.score)
         .map(item => item.file)
         .slice(0, 5);

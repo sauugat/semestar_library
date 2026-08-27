@@ -63,7 +63,7 @@
     fab = document.createElement('button');
     fab.className = 'sla-chat-fab';
     fab.setAttribute('aria-label', 'Open Kyana AI Study Assistant');
-    fab.title = 'Kyana';
+    fab.title = 'Kyana AI';
     fab.innerHTML = `
       <svg class="sla-fab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
@@ -75,8 +75,11 @@
     panel.innerHTML = `
       <div class="sla-panel-header">
         <div class="sla-header-info">
+          <div class="sla-avatar-badge">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 2L14.8 8.2L21 11L14.8 13.8L12 20L9.2 13.8L3 11L9.2 8.2L12 2Z"/></svg>
+          </div>
           <div class="sla-title-wrap">
-            <h3>Kyana</h3>
+            <h3>Kyana AI</h3>
             <p>Your BIT study companion</p>
           </div>
         </div>
@@ -93,6 +96,13 @@
         </div>
       </div>
 
+      <div class="sla-ambient-glow-canvas" aria-hidden="true">
+        <div class="sla-smoke-base"></div>
+        <div class="sla-smoke-plume sla-smoke-plume-1"></div>
+        <div class="sla-smoke-plume sla-smoke-plume-2"></div>
+        <div class="sla-smoke-plume sla-smoke-plume-3"></div>
+      </div>
+
       <div class="sla-chat-messages" id="slaMessages"></div>
 
       <div class="sla-panel-footer" style="padding: 8px 14px 12px;">
@@ -100,7 +110,7 @@
           <textarea 
             id="slaInput" 
             class="sla-input-textarea" 
-            placeholder="Ask Kyana a question…" 
+            placeholder="Ask Kyana AI a question…" 
             rows="1" 
             autocomplete="off" 
             maxlength="500"

@@ -1647,6 +1647,12 @@ body.sla-fullpage-mode .sla-panel-footer .sla-disclaimer-text {
     display: none !important;
   }
 
+  .sla-fullpage-header {
+    padding: 14px 20px !important;
+    height: auto !important;
+    min-height: 52px !important;
+  }
+
   .sla-input-textarea {
     font-size: 16px !important;
     /* Prevents iOS auto-zoom */
@@ -1687,7 +1693,7 @@ body.sla-fullpage-mode .sla-panel-footer .sla-disclaimer-text {
 
 @media (max-width: 480px) {
   .sla-fullpage-header {
-    padding: 8px 14px;
+    padding: 14px 16px !important;
   }
 
   .sla-fullpage-header h1 {

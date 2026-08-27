@@ -402,6 +402,9 @@
       justify-content: space-between;
       gap: 12px;
       box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+      min-width: 0;
+      width: 100%;
+      box-sizing: border-box;
     }
 
     .clean-file-left {
@@ -409,6 +412,15 @@
       align-items: center;
       gap: 10px;
       min-width: 0;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .clean-file-left > div:not(.clean-file-icon) {
+      min-width: 0;
+      flex: 1;
+      overflow: hidden;
+      width: 100%;
     }
 
     .clean-file-icon {
@@ -433,12 +445,19 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      max-width: 100%;
     }
 
     .clean-file-meta {
       font-size: 11.5px;
       color: var(--text-muted);
       margin: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
     }
 
     .clean-file-actions {
@@ -1295,16 +1314,79 @@
       }
 
       .clean-file-item {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 10px;
-        padding: 12px 14px;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 10px !important;
+        padding: 12px 14px !important;
+        overflow: hidden !important;
+      }
+
+      .clean-file-left {
+        width: 100% !important;
+        min-width: 0 !important;
+        flex: 1 1 100% !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 10px !important;
+      }
+
+      .clean-file-left > div:not(.clean-file-icon) {
+        flex: 1 !important;
+        min-width: 0 !important;
+        width: 100% !important;
+        overflow: hidden !important;
+      }
+
+      .clean-file-title {
+        font-size: 13px !important;
+        font-weight: 700 !important;
+        color: var(--text) !important;
+        margin: 0 0 2px !important;
+        white-space: normal !important;
+        word-break: break-word !important;
+        overflow-wrap: anywhere !important;
+        line-height: 1.35 !important;
+        display: -webkit-box !important;
+        -webkit-line-clamp: 2 !important;
+        -webkit-box-orient: vertical !important;
+        overflow: hidden !important;
+      }
+
+      .clean-file-meta {
+        font-size: 11px !important;
+        color: var(--text-muted) !important;
+        margin: 0 !important;
+        white-space: normal !important;
+        word-break: break-word !important;
+        overflow-wrap: anywhere !important;
+        line-height: 1.3 !important;
       }
 
       .clean-file-actions {
-        width: 100%;
-        justify-content: flex-end;
-        gap: 6px;
+        width: 100% !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-end !important;
+        gap: 6px !important;
+        border-top: 1px dashed rgba(0, 0, 0, 0.08) !important;
+        padding-top: 8px !important;
+        margin-top: 2px !important;
+      }
+
+      .btn-file-action {
+        flex: 1 !important;
+        justify-content: center !important;
+        padding: 6px 8px !important;
+        font-size: 11.5px !important;
+        text-align: center !important;
+      }
+
+      .btn-file-delete {
+        flex: 0 0 auto !important;
+        padding: 6px 10px !important;
       }
 
       .batch-floating-bar {

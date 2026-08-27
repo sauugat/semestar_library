@@ -3327,19 +3327,10 @@ body.dash .dash-header-actions {
     padding: 4px 6px !important;
   }
   
-  body.dash .dash-profile-chip {
-    height: 28px !important;
-    padding: 0 10px 0 2px !important;
-    font-size: 12px !important;
-    gap: 6px !important;
-  }
-
-  body.dash .dash-profile-chip .dash-profile-avatar {
-    width: 20px !important;
-    height: 20px !important;
-    min-width: 20px !important;
-    min-height: 20px !important;
-    font-size: 10px !important;
+  .dash-profile-chip,
+  body.dash .dash-profile-chip,
+  #headerProfileChip {
+    display: none !important;
   }
 }
 

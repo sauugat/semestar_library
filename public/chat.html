@@ -224,6 +224,40 @@
       letter-spacing: 0.8px;
     }
 
+    /* ═══ LOADING STATE ═══ */
+    .im-loading-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      height: 100%;
+      min-height: 280px;
+      color: var(--text-tertiary);
+      padding: 60px 20px;
+    }
+
+    .im-loading-spinner {
+      width: 32px;
+      height: 32px;
+      border: 2.5px solid rgba(0, 0, 0, 0.08);
+      border-top-color: var(--apple-primary, #111111);
+      border-radius: 50%;
+      animation: imSpin 0.75s linear infinite;
+      margin-bottom: 16px;
+    }
+
+    @keyframes imSpin {
+      to { transform: rotate(360deg); }
+    }
+
+    .im-loading-text {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      letter-spacing: -0.2px;
+    }
+
     /* ═══ EMPTY STATE ═══ */
     .im-empty-box {
       display: flex;
@@ -1626,13 +1660,10 @@
 
     <main class="im-feed" id="chatFeed">
       <div class="im-feed-inner" id="feedInner">
-        <div class="im-empty-box" id="emptyNotice">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
-            stroke-linejoin="round">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-          </svg>
-          <h3>No Messages Yet</h3>
-          <p>Send a message or attachment to start chatting with your class.</p>
+        <!-- Initial Loading State -->
+        <div class="im-loading-box" id="loadingNotice">
+          <div class="im-loading-spinner"></div>
+          <span class="im-loading-text">Loading messages...</span>
         </div>
 
         <!-- Typing Indicator in Feed -->
@@ -2062,6 +2093,8 @@
     function checkEmptyFeed() {
       const container = document.getElementById('feedInner');
       if (!container) return;
+      const loadingEl = document.getElementById('loadingNotice');
+      if (loadingEl) loadingEl.remove();
       const messages = container.querySelectorAll('.im-row:not(.temp-msg)');
       if (messages.length === 0) {
         if (!document.getElementById('emptyNotice')) {
@@ -2097,6 +2130,9 @@
             });
           }
 
+          const loadingEl = document.getElementById('loadingNotice');
+          if (loadingEl) loadingEl.remove();
+
           if (messages && messages.length > 0) {
             const emptyElem = document.getElementById('emptyNotice');
             if (emptyElem) emptyElem.remove();
@@ -2112,6 +2148,9 @@
         }
       } catch (e) {
         console.error('Initial fetch error:', e);
+        const loadingEl = document.getElementById('loadingNotice');
+        if (loadingEl) loadingEl.remove();
+        checkEmptyFeed();
       } finally {
         isFetching = false;
         const feed = document.getElementById('chatFeed');
@@ -2299,6 +2338,10 @@
     function renderMessages(messages) {
       const container = document.getElementById('feedInner');
       const typingEl = document.getElementById('typingIndicator');
+      const loadingEl = document.getElementById('loadingNotice');
+      if (loadingEl) loadingEl.remove();
+      const emptyEl = document.getElementById('emptyNotice');
+      if (emptyEl) emptyEl.remove();
 
       messages.forEach((msg, idx) => {
         // Prevent duplicate rendering

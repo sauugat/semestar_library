@@ -46,98 +46,25 @@
 
   const isFullPage = document.body.classList.contains('sla-fullpage-mode') || window.location.pathname.includes('chatbot.html');
 
-  // --- 2. DOM Elements Binding & Widget Injection ---
-  let messagesContainer, chatInput, sendBtn, chatForm, closeBtn, clearBtn, newChatBtn, suggestionsTray, welcomeHero, fab, panel;
-
-  if (isFullPage) {
-    messagesContainer = document.getElementById('slaMessages');
-    chatInput = document.getElementById('slaInput');
-    sendBtn = document.getElementById('slaSendBtn');
-    chatForm = document.getElementById('slaForm');
-    clearBtn = document.getElementById('slaClearBtn');
-    newChatBtn = document.getElementById('slaNewChatBtn');
-    suggestionsTray = document.getElementById('slaSuggestions');
-    welcomeHero = document.getElementById('slaWelcomeHero');
-  } else {
-    // Inject floating bubble widget for all other pages
-    fab = document.createElement('button');
-    fab.className = 'sla-chat-fab';
-    fab.setAttribute('aria-label', 'Open Kyana AI Study Assistant');
-    fab.title = 'Kyana AI';
-    fab.innerHTML = `
-      <svg class="sla-fab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-      </svg>
-    `;
-
-    panel = document.createElement('div');
-    panel.className = 'sla-chat-panel';
-    panel.innerHTML = `
-      <div class="sla-panel-header">
-        <div class="sla-header-info">
-          <div class="sla-avatar-badge">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 2L14.8 8.2L21 11L14.8 13.8L12 20L9.2 13.8L3 11L9.2 8.2L12 2Z"/></svg>
-          </div>
-          <div class="sla-title-wrap">
-            <h3>Kyana AI</h3>
-            <p>Your BIT study companion</p>
-          </div>
-        </div>
-        <div class="sla-header-actions">
-          <a href="chatbot.html" class="sla-tool-btn" title="Fullscreen Page">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
-          </a>
-          <button type="button" class="sla-tool-btn" id="slaClearBtn" title="Clear">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
-          </button>
-          <button type="button" class="sla-tool-btn" id="slaCloseBtn" title="Close">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-          </button>
-        </div>
-      </div>
-
-      <div class="sla-ambient-glow-canvas" aria-hidden="true">
-        <div class="sla-smoke-base"></div>
-        <div class="sla-smoke-plume sla-smoke-plume-1"></div>
-        <div class="sla-smoke-plume sla-smoke-plume-2"></div>
-        <div class="sla-smoke-plume sla-smoke-plume-3"></div>
-      </div>
-
-      <div class="sla-chat-messages" id="slaMessages"></div>
-
-      <div class="sla-panel-footer" style="padding: 8px 14px 12px;">
-        <form class="sla-input-capsule" id="slaForm" style="padding: 6px 10px;">
-          <textarea 
-            id="slaInput" 
-            class="sla-input-textarea" 
-            placeholder="Ask Kyana AI a question…" 
-            rows="1" 
-            autocomplete="off" 
-            maxlength="500"
-          ></textarea>
-          <button type="submit" class="sla-send-btn" id="slaSendBtn" title="Send" style="width:28px; height:28px;">
-            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="22" y1="2" x2="11" y2="13"></line>
-              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-            </svg>
-          </button>
-        </form>
-      </div>
-    `;
-
-    document.body.appendChild(fab);
-    document.body.appendChild(panel);
-
-    messagesContainer = panel.querySelector('#slaMessages');
-    chatInput = panel.querySelector('#slaInput');
-    sendBtn = panel.querySelector('#slaSendBtn');
-    chatForm = panel.querySelector('#slaForm');
-    closeBtn = panel.querySelector('#slaCloseBtn');
-    clearBtn = panel.querySelector('#slaClearBtn');
-    suggestionsTray = panel.querySelector('#slaSuggestions');
+  // If not on the dedicated chatbot page, do not inject floating bot icon
+  if (!isFullPage) {
+    return;
   }
 
-  let isOpen = false;
+  // --- 2. DOM Elements Binding (Full-Screen Assistant) ---
+  let messagesContainer = document.getElementById('slaMessages');
+  let chatInput = document.getElementById('slaInput');
+  let sendBtn = document.getElementById('slaSendBtn');
+  let chatForm = document.getElementById('slaForm');
+  let clearBtn = document.getElementById('slaClearBtn');
+  let newChatBtn = document.getElementById('slaNewChatBtn');
+  let suggestionsTray = document.getElementById('slaSuggestions');
+  let welcomeHero = document.getElementById('slaWelcomeHero');
+  let closeBtn = null;
+  let fab = null;
+  let panel = null;
+
+  let isOpen = true;
   let isSending = false;
   const conversationHistory = [];
 

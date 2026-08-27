@@ -133,69 +133,83 @@ a.header-nav-item[href="chatbot.html"] {
 
 @keyframes slaSmokeBasePulse {
   0% {
-    opacity: 0.75;
-    transform: scaleY(0.92);
+    opacity: 0.65;
+    transform: scaleY(0.9) scaleX(0.98);
   }
-
   50% {
-    opacity: 1;
-    transform: scaleY(1.18);
+    opacity: 0.85;
+    transform: scaleY(1.2) scaleX(1.02);
   }
-
   100% {
-    opacity: 0.8;
-    transform: scaleY(0.96);
+    opacity: 0.7;
+    transform: scaleY(0.96) scaleX(1);
   }
 }
 
-@keyframes slaSmokeRiseLeft {
+/* Organic Asymmetrical Morphing Smoke Plume 1 (Left Swirl) */
+@keyframes slaSmokeMorph1 {
   0% {
-    transform: translate3d(0, 0, 0) scale(0.95);
-    opacity: 0.7;
-  }
-
-  50% {
-    transform: translate3d(40px, -70px, 0) scale(1.22);
-    opacity: 0.95;
-  }
-
-  100% {
-    transform: translate3d(-30px, -120px, 0) scale(1.1);
+    border-radius: 42% 58% 70% 30% / 45% 45% 55% 55%;
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1, 0.95);
     opacity: 0.6;
   }
+  33% {
+    border-radius: 60% 40% 35% 65% / 55% 35% 65% 45%;
+    transform: translate3d(50px, -60px, 0) rotate(7deg) scale(1.15, 1.22);
+    opacity: 0.82;
+  }
+  66% {
+    border-radius: 35% 65% 55% 45% / 60% 50% 50% 40%;
+    transform: translate3d(-35px, -115px, 0) rotate(-6deg) scale(1.22, 1.35);
+    opacity: 0.65;
+  }
+  100% {
+    border-radius: 52% 48% 62% 38% / 48% 58% 42% 52%;
+    transform: translate3d(20px, -165px, 0) rotate(4deg) scale(1.08, 1.42);
+    opacity: 0.4;
+  }
 }
 
-@keyframes slaSmokeRiseRight {
+/* Organic Asymmetrical Morphing Smoke Plume 2 (Right Swirl) */
+@keyframes slaSmokeMorph2 {
   0% {
-    transform: translate3d(0, 0, 0) scale(0.95);
-    opacity: 0.7;
-  }
-
-  50% {
-    transform: translate3d(-45px, -80px, 0) scale(1.25);
-    opacity: 0.95;
-  }
-
-  100% {
-    transform: translate3d(35px, -130px, 0) scale(1.08);
+    border-radius: 55% 45% 40% 60% / 48% 58% 42% 52%;
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(0.98, 1);
     opacity: 0.6;
   }
+  33% {
+    border-radius: 38% 62% 65% 35% / 42% 65% 35% 58%;
+    transform: translate3d(-55px, -70px, 0) rotate(-8deg) scale(1.2, 1.25);
+    opacity: 0.82;
+  }
+  66% {
+    border-radius: 62% 38% 45% 55% / 58% 42% 58% 42%;
+    transform: translate3d(40px, -125px, 0) rotate(7deg) scale(1.25, 1.38);
+    opacity: 0.65;
+  }
+  100% {
+    border-radius: 46% 54% 58% 42% / 54% 46% 54% 46%;
+    transform: translate3d(-20px, -175px, 0) rotate(-4deg) scale(1.1, 1.45);
+    opacity: 0.4;
+  }
 }
 
-@keyframes slaSmokeRiseCenter {
+/* Organic Center Vapor Dispersion */
+@keyframes slaSmokeMorph3 {
   0% {
-    transform: translate3d(-50%, 0, 0) scale(0.9);
-    opacity: 0.55;
+    border-radius: 50% 50% 60% 40% / 45% 55% 45% 55%;
+    transform: translate3d(-50%, 0, 0) scale(0.9, 0.95);
+    opacity: 0.5;
   }
-
   50% {
-    transform: translate3d(calc(-50% + 25px), -65px, 0) scale(1.18);
-    opacity: 0.88;
+    border-radius: 45% 55% 40% 60% / 60% 40% 60% 40%;
+    transform: translate3d(calc(-50% + 30px), -75px, 0) scale(1.2, 1.28);
+    opacity: 0.78;
   }
-
   100% {
-    transform: translate3d(calc(-50% - 25px), -95px, 0) scale(1.02);
-    opacity: 0.48;
+    border-radius: 58% 42% 52% 48% / 42% 58% 42% 58%;
+    transform: translate3d(calc(-50% - 30px), -145px, 0) scale(1.05, 1.4);
+    opacity: 0.35;
   }
 }
 
@@ -210,157 +224,77 @@ a.header-nav-item[href="chatbot.html"] {
   z-index: 0;
 }
 
-/* Base Light Line - Radiant Floor Glow */
+/* Base Light Line - Smooth Diffused Floor Fog */
 .sla-smoke-base {
   position: absolute;
-  bottom: -30px;
-  left: 0;
-  width: 100%;
-  height: 240px;
-  background: linear-gradient(0deg, rgba(168, 85, 247, 0.48) 0%, rgba(139, 92, 246, 0.28) 35%, rgba(107, 33, 168, 0.12) 65%, transparent 100%);
-  filter: blur(55px);
-  -webkit-filter: blur(55px);
-  animation: slaSmokeBasePulse 8s ease-in-out infinite alternate;
+  bottom: -40px;
+  left: -5%;
+  width: 110%;
+  height: 260px;
+  background: 
+    linear-gradient(0deg, rgba(168, 85, 247, 0.45) 0%, rgba(139, 92, 246, 0.25) 30%, rgba(107, 33, 168, 0.1) 60%, transparent 100%),
+    radial-gradient(ellipse 70% 50% at 50% 100%, rgba(233, 213, 255, 0.25) 0%, transparent 70%);
+  filter: blur(85px);
+  -webkit-filter: blur(85px);
+  animation: slaSmokeBasePulse 9s ease-in-out infinite alternate;
   pointer-events: none;
 }
 
 .sla-smoke-plume {
   position: absolute;
   pointer-events: none;
-  border-radius: 50% 50% 40% 40%;
-  will-change: transform, opacity;
+  will-change: transform, opacity, border-radius;
 }
 
-/* Plume 1: Rising Left Violet Smoke Column */
+/* Plume 1: Asymmetrical Rising Left Violet Smoke Strand */
 .sla-smoke-plume-1 {
-  bottom: -70px;
-  left: 3%;
-  width: 480px;
-  height: 560px;
-  background: radial-gradient(ellipse at 50% 85%, rgba(168, 85, 247, 0.52) 0%, rgba(124, 58, 237, 0.3) 38%, rgba(76, 29, 149, 0.08) 68%, transparent 85%);
-  filter: blur(65px);
-  -webkit-filter: blur(65px);
-  animation: slaSmokeRiseLeft 12s ease-in-out infinite alternate;
-}
-
-/* Plume 2: Rising Right Luminous Lavender Smoke Column */
-.sla-smoke-plume-2 {
-  bottom: -70px;
-  right: 3%;
-  width: 500px;
-  height: 580px;
-  background: radial-gradient(ellipse at 50% 85%, rgba(233, 213, 255, 0.45) 0%, rgba(192, 132, 252, 0.3) 38%, rgba(147, 51, 234, 0.08) 68%, transparent 85%);
-  filter: blur(65px);
-  -webkit-filter: blur(65px);
-  animation: slaSmokeRiseRight 14s ease-in-out infinite alternate;
-}
-
-/* Plume 3: Center Diffusing Vapor Wisp */
-.sla-smoke-plume-3 {
   bottom: -90px;
+  left: -40px;
+  width: 580px;
+  height: 640px;
+  background: 
+    radial-gradient(ellipse 75% 55% at 35% 85%, rgba(168, 85, 247, 0.5) 0%, rgba(124, 58, 237, 0.28) 40%, rgba(76, 29, 149, 0.08) 65%, transparent 80%),
+    radial-gradient(ellipse 65% 50% at 65% 75%, rgba(192, 132, 252, 0.3) 0%, transparent 70%);
+  filter: blur(95px);
+  -webkit-filter: blur(95px);
+  animation: slaSmokeMorph1 14s ease-in-out infinite alternate;
+}
+
+/* Plume 2: Asymmetrical Rising Right Lavender Smoke Strand */
+.sla-smoke-plume-2 {
+  bottom: -90px;
+  right: -40px;
+  width: 600px;
+  height: 660px;
+  background: 
+    radial-gradient(ellipse 75% 55% at 65% 85%, rgba(233, 213, 255, 0.52) 0%, rgba(192, 132, 252, 0.32) 40%, rgba(147, 51, 234, 0.08) 65%, transparent 80%),
+    radial-gradient(ellipse 65% 50% at 35% 75%, rgba(168, 85, 247, 0.28) 0%, transparent 70%);
+  filter: blur(95px);
+  -webkit-filter: blur(95px);
+  animation: slaSmokeMorph2 16s ease-in-out infinite alternate;
+}
+
+/* Plume 3: Center Ascending Vapor Veil */
+.sla-smoke-plume-3 {
+  bottom: -110px;
   left: 50%;
   transform: translateX(-50%);
-  width: 420px;
-  height: 500px;
-  background: radial-gradient(ellipse at 50% 85%, rgba(216, 180, 254, 0.38) 0%, rgba(168, 85, 247, 0.22) 42%, rgba(99, 102, 241, 0.06) 72%, transparent 88%);
-  filter: blur(60px);
-  -webkit-filter: blur(60px);
-  animation: slaSmokeRiseCenter 10s ease-in-out infinite alternate;
+  width: 500px;
+  height: 580px;
+  background: 
+    radial-gradient(ellipse 70% 60% at 50% 85%, rgba(216, 180, 254, 0.4) 0%, rgba(168, 85, 247, 0.2) 45%, rgba(99, 102, 241, 0.05) 70%, transparent 85%);
+  filter: blur(90px);
+  -webkit-filter: blur(90px);
+  animation: slaSmokeMorph3 12s ease-in-out infinite alternate;
 }
 
 /* ==========================================================================
-   FLOATING FAB (TRIGGER BUTTON IN GLOWING VIOLET)
+   FLOATING FAB WIDGET (DISABLED - ACCESS VIA DEDICATED FULLPAGE CHAT)
    ========================================================================== */
 
-.sla-chat-fab {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  z-index: 9999;
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #8b5cf6 0%, #6b21a8 70%, #4c1d95 100%);
-  border: 1px solid rgba(233, 213, 255, 0.4);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45), 0 0 18px rgba(168, 85, 247, 0.4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: #ffffff;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-  outline: none;
-}
-
-.sla-chat-fab:hover {
-  transform: translateY(-2px) scale(1.04);
-  border-color: rgba(243, 232, 255, 0.7);
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55), 0 0 26px rgba(192, 132, 252, 0.6);
-  color: #ffffff;
-}
-
-.sla-chat-fab:active {
-  transform: scale(0.96);
-}
-
-.sla-fab-icon {
-  width: 18px;
-  height: 18px;
-  transition: transform 0.2s ease;
-}
-
-.sla-chat-fab.sla-open .sla-fab-icon {
-  transform: rotate(90deg);
-}
-
-.sla-fab-badge-dot {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: #f3e8ff;
-  border: 2px solid #07060c;
-  box-shadow: 0 0 8px rgba(243, 232, 255, 0.9);
-}
-
-/* ==========================================================================
-   FLOATING CHAT PANEL (WIDGET MODE WITH GLOWING BLOB)
-   ========================================================================== */
-
+.sla-chat-fab,
 .sla-chat-panel {
-  position: fixed;
-  bottom: 82px;
-  right: 24px;
-  width: 420px;
-  max-width: calc(100vw - 32px);
-  height: 590px;
-  max-height: calc(100vh - 110px);
-  background: linear-gradient(135deg, #07060c 0%, #110a22 25%, #1c1038 50%, #0d081b 75%, #07060c 100%) !important;
-  background-size: 300% 300% !important;
-  animation: slaBgGradientShift 12s ease-in-out infinite alternate !important;
-  border: 1px solid var(--sla-border-glass);
-  border-radius: 18px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 1px rgba(192, 132, 252, 0.4);
-  display: flex;
-  flex-direction: column;
-  z-index: 9998;
-  overflow: hidden;
-  opacity: 0;
-  transform: translateY(12px) scale(0.98);
-  pointer-events: none;
-  transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  font-family: var(--sla-font-sans);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  letter-spacing: -0.012em;
-}
-
-.sla-chat-panel.sla-visible {
-  opacity: 1;
-  transform: translateY(0) scale(1);
-  pointer-events: auto;
+  display: none !important;
 }
 
 .sla-panel-header {
@@ -1476,22 +1410,34 @@ body.sla-fullpage-mode .sla-panel-footer .sla-disclaimer-text {
   box-shadow: 0 0 12px rgba(168, 85, 247, 0.25);
 }
 
-/* Prompt Box */
+/* Prompt Box (Pure Clear Transparent Glass) */
 .sla-input-capsule {
-  background: rgba(20, 16, 34, 0.8);
-  border: 1px solid var(--sla-border-glass);
-  border-radius: 12px;
-  padding: 8px 12px;
+  background: rgba(6, 4, 14, 0.2) !important;
+  backdrop-filter: blur(1px) !important;
+  -webkit-backdrop-filter: blur(1px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 14px;
+  padding: 9px 14px;
   display: flex;
   align-items: flex-end;
-  gap: 8px;
-  transition: all 0.2s ease;
+  gap: 10px;
+  box-shadow: 
+    0 8px 24px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 0 1px rgba(255, 255, 255, 0.1) !important;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .sla-input-capsule:focus-within {
-  background: rgba(24, 19, 42, 0.95);
-  border-color: var(--sla-border-glow);
-  box-shadow: 0 0 0 1.5px rgba(168, 85, 247, 0.4), 0 4px 20px rgba(139, 92, 246, 0.2);
+  background: rgba(8, 6, 18, 0.28) !important;
+  backdrop-filter: blur(1.5px) !important;
+  -webkit-backdrop-filter: blur(1.5px) !important;
+  border-color: rgba(216, 180, 254, 0.3) !important;
+  box-shadow: 
+    0 10px 30px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 0 0 1px rgba(168, 85, 247, 0.25),
+    0 0 16px rgba(168, 85, 247, 0.12) !important;
 }
 
 .sla-input-textarea {

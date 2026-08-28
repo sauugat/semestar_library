@@ -164,9 +164,13 @@ async function run(sql, ...params) {
     const isInsert = /^\s*INSERT\s+INTO/i.test(sql);
     const hasReturning = /RETURNING/i.test(sql);
 
-    // Auto-append RETURNING id for inserts so lastInsertRowid is available
+    // Auto-append RETURNING id for inserts so lastInsertRowid is available, but only for tables with an id column
     if (isInsert && !hasReturning) {
-      pgSql += ' RETURNING id';
+      const noIdTables = ['chat_read_receipts', 'chat_typing', 'file_likes', 'follows', 'chat_reactions', 'students'];
+      const isNoIdTable = noIdTables.some(tbl => new RegExp(`INSERT\\s+INTO\\s+${tbl}\\b`, 'i').test(sql));
+      if (!isNoIdTable) {
+        pgSql += ' RETURNING id';
+      }
     }
 
     const convertedSql = toPostgresSql(pgSql);

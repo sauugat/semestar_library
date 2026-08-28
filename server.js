@@ -1023,13 +1023,29 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
         previewName: previewFilename
       });
 
-      if (isAdmin && insertedId) {
-        if (db.isPostgres) {
-          await db.run(`
-            INSERT INTO notifications (recipientStudentId, type, relatedFileId, message)
-            SELECT studentId, 'notice', ?, ? FROM students WHERE studentId != ?
-          `, insertedId, `New Official Notice: ${fileTitle || f.originalname}`, req.session.studentId);
-        } else {
+      if (insertedId) {
+        // If Saugat Subedi (26020266) uploads, automatically add random natural likes from student accounts (17-44 likes)
+        if (req.session.studentId === '26020266') {
+          const targetLikes = Math.floor(Math.random() * (44 - 17 + 1)) + 17;
+          if (db.isPostgres) {
+            await db.run(`
+              INSERT INTO file_likes (fileId, studentId)
+              SELECT ?, studentId FROM (
+                SELECT studentId FROM students ORDER BY RANDOM() LIMIT ${targetLikes}
+              ) rand_students
+              ON CONFLICT (fileId, studentId) DO NOTHING RETURNING fileId
+            `, insertedId);
+          } else {
+            await db.run(`
+              INSERT OR IGNORE INTO file_likes (fileId, studentId)
+              SELECT ?, studentId FROM (
+                SELECT studentId FROM students ORDER BY RANDOM() LIMIT ${targetLikes}
+              )
+            `, insertedId);
+          }
+        }
+
+        if (isAdmin) {
           await db.run(`
             INSERT INTO notifications (recipientStudentId, type, relatedFileId, message)
             SELECT studentId, 'notice', ?, ? FROM students WHERE studentId != ?
@@ -1347,11 +1363,15 @@ app.post('/api/files/:id/like', requireLogin, async (req, res) => {
   if (existing) {
     await db.run('DELETE FROM file_likes WHERE fileId = ? AND studentId = ?', fileId, studentId);
   } else {
-    await db.run('INSERT INTO file_likes (fileId, studentId) VALUES (?, ?) RETURNING fileId', fileId, studentId);
+    if (db.isPostgres) {
+      await db.run('INSERT INTO file_likes (fileId, studentId) VALUES (?, ?) ON CONFLICT (fileId, studentId) DO NOTHING', fileId, studentId);
+    } else {
+      await db.run('INSERT OR IGNORE INTO file_likes (fileId, studentId) VALUES (?, ?)', fileId, studentId);
+    }
     // Create notification
     const file = await db.get('SELECT uploadedBy, originalName FROM files WHERE id = ?', fileId);
     if (file && file.uploadedBy !== studentId) {
-      await db.run('INSERT INTO notifications (recipientStudentId, type, relatedFileId, message) VALUES (?, ?, ?, ?) RETURNING id',
+      await db.run('INSERT INTO notifications (recipientStudentId, type, relatedFileId, message) VALUES (?, ?, ?, ?)',
         file.uploadedBy, 'like', fileId, `${req.session.name || 'Someone'} liked your file: ${file.originalName}`
       );
     }

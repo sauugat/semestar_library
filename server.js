@@ -1516,18 +1516,20 @@ app.get('/api/library/files', async (req, res) => {
   res.json(processed);
 });
 
-// Search across files and subjects (public for homepage & library search)
+// Search across files, subjects, and students (public for homepage & library search)
 app.get('/api/search', async (req, res) => {
   const q = (req.query.q || '').trim();
   if (!q) {
-    return res.json({ files: [], subjects: [] });
+    return res.json({ files: [], subjects: [], students: [] });
   }
 
   const currentStudentId = req.session ? req.session.studentId : null;
+  const cleanQ = q.replace(/^@/, '').trim();
   const likeQuery = `%${q}%`;
+  const cleanLikeQuery = `%${cleanQ}%`;
   const viewerIsAdmin = currentStudentId ? await isStudentAdmin(currentStudentId) : false;
 
-  // Search files (title, originalName, subject, chapter)
+  // Search files (title, originalName, subject, chapter, uploadedBy studentId, uploader name)
   const filesQuery = `
     SELECT files.id, files.originalName, files.title, files.semester, files.subject, files.chapter, files.sizeBytes, files.uploadedAt, files.uploadedBy,
       students.name AS uploaderName, students.avatarUrl AS uploaderAvatar, students.role AS uploaderRole,
@@ -1536,11 +1538,11 @@ app.get('/api/search', async (req, res) => {
       (SELECT COUNT(*) FROM file_comments WHERE file_comments.fileId = files.id) AS commentCount
     FROM files
     JOIN students ON students.studentId = files.uploadedBy
-    WHERE files.title LIKE ? OR files.originalName LIKE ? OR files.subject LIKE ? OR files.chapter LIKE ? OR files.semester LIKE ?
+    WHERE LOWER(files.title) LIKE LOWER(?) OR LOWER(files.originalName) LIKE LOWER(?) OR LOWER(files.subject) LIKE LOWER(?) OR LOWER(files.chapter) LIKE LOWER(?) OR LOWER(files.semester) LIKE LOWER(?) OR LOWER(files.uploadedBy) LIKE LOWER(?) OR LOWER(students.name) LIKE LOWER(?)
     ORDER BY files.uploadedAt DESC
     LIMIT 50
   `;
-  const files = await db.all(filesQuery, currentStudentId || '', likeQuery, likeQuery, likeQuery, likeQuery, likeQuery);
+  const files = await db.all(filesQuery, currentStudentId || '', likeQuery, likeQuery, likeQuery, likeQuery, likeQuery, cleanLikeQuery, cleanLikeQuery);
 
   const processedFiles = files.map(f => ({
     ...f,
@@ -1553,14 +1555,25 @@ app.get('/api/search', async (req, res) => {
   const subjectsQuery = `
     SELECT subject, COUNT(*) AS fileCount, COUNT(DISTINCT chapter) AS chapterCount
     FROM files
-    WHERE subject IS NOT NULL AND subject != '' AND subject LIKE ?
+    WHERE subject IS NOT NULL AND subject != '' AND LOWER(subject) LIKE LOWER(?)
     GROUP BY subject
     ORDER BY subject ASC
     LIMIT 20
   `;
   const subjects = await db.all(subjectsQuery, likeQuery);
 
-  res.json({ files: processedFiles, subjects });
+  // Search students (by studentId, name, department)
+  const studentsQuery = `
+    SELECT studentId, name, avatarUrl, role, department, semester, bio,
+      (SELECT COUNT(*) FROM files WHERE files.uploadedBy = students.studentId) AS filesCount
+    FROM students
+    WHERE LOWER(studentId) LIKE LOWER(?) OR LOWER(name) LIKE LOWER(?)
+    ORDER BY (role = 'admin') DESC, (role = 'cr') DESC, name ASC
+    LIMIT 10
+  `;
+  const students = await db.all(studentsQuery, cleanLikeQuery, cleanLikeQuery);
+
+  res.json({ files: processedFiles, subjects, students });
 });
 
 // ============================================================

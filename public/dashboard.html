@@ -14,15 +14,16 @@
 <meta name="apple-mobile-web-app-title" content="Semester Library">
 <meta name="theme-color" content="#ffffff">
 
+<script src="auth-modal.js"></script>
 <script>
-  fetch('/api/me').then(r => { if (!r.ok) showAuthModal(true); }).catch(() => showAuthModal(true));
+  fetch('/api/me').then(r => { if (!r.ok && typeof showAuthModal === 'function') showAuthModal(true); }).catch(() => { if (typeof showAuthModal === 'function') showAuthModal(true); });
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.v4.css">
 <link rel="stylesheet" href="chatbot.css">
-  <link rel="stylesheet" href="auth-modal.css">
+<link rel="stylesheet" href="auth-modal.css">
 </head>
 <body class="dash">
 
@@ -44,7 +45,7 @@
         </svg>
       </div>
       <div class="jitter-prompt-input-area">
-        <input type="search" id="headerSearchInput" class="header-search-input" placeholder="Search files, subjects...">
+        <input type="search" id="headerSearchInput" class="header-search-input" placeholder="Search files, subjects, student ID...">
       </div>
       <div class="jitter-prompt-tools" style="padding-right: 4px;">
         <button type="button" class="jitter-tool-btn" style="pointer-events: none;">
@@ -494,6 +495,37 @@
       `;
     }
 
+    function renderStudentCard(s) {
+      const initial = (s.name || 'S').charAt(0).toUpperCase();
+      const avatarHtml = s.avatarUrl 
+        ? `<img src="${s.avatarUrl}" alt="${escapeHtml(s.name)}">`
+        : initial;
+      
+      let badgeHtml = '';
+      if (s.role === 'admin') {
+        badgeHtml = `<span class="post-verified-badge post-admin-badge" title="System Administrator">Admin</span>`;
+      } else if (s.role === 'cr' || s.role === 'class_rep') {
+        badgeHtml = `<span class="post-verified-badge post-cr-badge" title="Class Representative">Class Rep</span>`;
+      }
+
+      return `
+        <a href="profile.html?id=${s.studentId}" class="search-student-card">
+          <div class="student-card-avatar">${avatarHtml}</div>
+          <div class="student-card-info">
+            <div class="student-card-name-row">
+              <h4 class="student-card-name">${escapeHtml(s.name)}</h4>
+              ${badgeHtml}
+            </div>
+            <div class="student-card-meta">
+              <span>@${escapeHtml(s.studentId)}</span>
+              &middot; <span>${escapeHtml(s.semester || 'Semester 1')}</span>
+              &middot; <span>${s.filesCount || s.filescount || 0} upload${(s.filesCount || s.filescount) == 1 ? '' : 's'}</span>
+            </div>
+          </div>
+        </a>
+      `;
+    }
+
     if (searchInput) {
       searchInput.addEventListener('input', (e) => {
         const q = e.target.value.trim();
@@ -524,6 +556,13 @@
             
             let html = '<div class="search-results-heading"><h2>Search Results</h2><span>For "' + escapeHtml(q) + '"</span></div>';
 
+            if (data.students && data.students.length > 0) {
+              html += '<h3 class="search-section-title">Students & Classmates</h3>';
+              html += '<div class="search-students-grid">';
+              html += data.students.map(renderStudentCard).join('');
+              html += '</div>';
+            }
+
             if (data.subjects && data.subjects.length > 0) {
               html += '<h3 class="search-section-title">Subjects</h3>';
               html += '<div class="search-subjects-grid">';
@@ -532,12 +571,13 @@
             }
 
             if (data.files && data.files.length > 0) {
-              html += '<h3 class="search-section-title">Files</h3>';
+              html += '<h3 class="search-section-title">Files & Notes</h3>';
               html += data.files.map(renderPost).join('');
             }
 
-            if ((!data.subjects || data.subjects.length === 0) && (!data.files || data.files.length === 0)) {
-              html += '<div class="empty-search-state"><p>No files or subjects found matching your query.</p></div>';
+            const hasResults = (data.students && data.students.length > 0) || (data.subjects && data.subjects.length > 0) || (data.files && data.files.length > 0);
+            if (!hasResults) {
+              html += '<div class="empty-search-state"><p>No students, files, or subjects found matching your query.</p></div>';
             }
 
             searchResults.innerHTML = html;
@@ -551,7 +591,7 @@
 
     // --- 3D Gyro Perspective Tilt Physics (Same as Photo Gallery) ---
     function initDashboardCardPhysics() {
-      const cards = document.querySelectorAll('.feed-card, .fb-card, .social-post-card, .search-subject-card');
+      const cards = document.querySelectorAll('.feed-card, .fb-card, .social-post-card, .search-subject-card, .search-student-card');
       cards.forEach(card => {
         if (card.dataset.physicsBound) return;
         card.dataset.physicsBound = 'true';
@@ -594,7 +634,6 @@
     </svg>
     <span>Login required to access this page. <a href="javascript:void(0)" onclick="showAuthModal()">Sign In</a></span>
   </div>
-  <script src="auth-modal.js"></script>
   <!-- PWA Service Worker Registration -->
   <script>
     if ('serviceWorker' in navigator) {

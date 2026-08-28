@@ -3487,6 +3487,80 @@ body.dash .dash-header-actions {
   color: var(--ap-text-secondary);
 }
 
+.search-students-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.search-student-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--ap-surface);
+  border: 1px solid var(--ap-border-subtle);
+  border-radius: var(--ap-radius-item);
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.2s var(--ap-spring);
+}
+
+.search-student-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--ap-shadow-sm);
+  border-color: var(--ap-border);
+}
+
+.student-card-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--apple-primary, #000);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 16px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.student-card-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.student-card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.student-card-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.student-card-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1d1d1f;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.student-card-meta {
+  font-size: 12.5px;
+  color: #86868b;
+  margin-top: 2px;
+}
+
 .empty-search-state {
   text-align: center;
   padding: 48px 24px;

@@ -9,7 +9,7 @@ async function seed() {
 
   // Students loaded from Gandaki University BIT batch 2025 transcript (BIT-I.pdf)
   const students = [
-    { studentId: "26020230", name: "Aashrita Lamichhane", password: "aashrita230", role: "admin" }, // Class Rep / Admin
+    { studentId: "26020230", name: "Aashrita Lamichhane", password: "aashrita230", role: "student" },
     { studentId: "26020231", name: "Anisha Gurung", password: "anisha231", role: "student" },
     { studentId: "26020232", name: "Ankit Bhandari", password: "ankit232", role: "student" },
     { studentId: "26020233", name: "Apekshya Shrestha", password: "apekshya233", role: "student" },
@@ -45,12 +45,12 @@ async function seed() {
     { studentId: "26020263", name: "Sangam Bhujel", password: "sangam263", role: "student" },
     { studentId: "26020264", name: "Sanjana Adhikari", password: "sanjana264", role: "student" },
     { studentId: "26020265", name: "Sankalpa Kc", password: "sankalpa265", role: "student" },
-    { studentId: "26020266", name: "Saugat Subedi", password: "saugat266", role: "student" },
+    { studentId: "26020266", name: "Saugat Subedi", password: "saugat266", role: "admin" },
     { studentId: "26020267", name: "Sishir Bharati", password: "sishir267", role: "student" },
     { studentId: "26020268", name: "Subarna Poudel", password: "subarna268", role: "student" },
     { studentId: "26020269", name: "Sudarshan Poudel", password: "sudarshan269", role: "student" },
     { studentId: "26020270", name: "Sujan Giri", password: "sujan270", role: "student" },
-    { studentId: "26020271", name: "Sujan Shrestha", password: "sujan271", role: "student" },
+    { studentId: "26020271", name: "Sujan Shrestha", password: "sujan271", role: "cr" },
     { studentId: "26020272", name: "Suresh Gurung", password: "suresh272", role: "student" },
     { studentId: "26020273", name: "Ujjwal Gurung", password: "ujjwal273", role: "student" },
     { studentId: "26020274", name: "Yujina Bhattarai", password: "yujina274", role: "student" },

@@ -323,20 +323,25 @@
       const avatarHtml = f.uploaderAvatar 
         ? `<img src="${f.uploaderAvatar}" alt="${escapeHtml(f.uploaderName)}" class="post-avatar-img">`
         : initial;
-      const isAdminUploader = f.isOfficial || f.uploaderRole === 'admin';
-      
       const subjectTag = f.subject ? `<span class="post-pill-tag"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>${escapeHtml(f.subject)}</span>` : '';
       const chapterTag = f.chapter ? `<span class="post-pill-tag"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>${escapeHtml(f.chapter)}</span>` : '';
+      const uploaderRole = f.uploaderRole || 'student';
+      let verifiedBadgeHtml = `<span class="post-verified-badge" title="Verified Gandaki University Student">
+          <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+          GU Student
+        </span>`;
 
-      const verifiedBadgeHtml = isAdminUploader
-        ? `<span class="post-verified-badge post-admin-badge" title="Verified Class Rep / Admin">
+      if (uploaderRole === 'admin') {
+        verifiedBadgeHtml = `<span class="post-verified-badge post-admin-badge" title="Verified System Administrator">
             <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
             Admin
-          </span>`
-        : `<span class="post-verified-badge" title="Verified Gandaki University Student">
-            <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
-            GU Student
           </span>`;
+      } else if (uploaderRole === 'cr' || uploaderRole === 'class_rep') {
+        verifiedBadgeHtml = `<span class="post-verified-badge post-cr-badge" title="Official Class Representative">
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
+            Class Rep
+          </span>`;
+      }
 
       const deleteBtnHtml = f.canDelete
         ? `<button class="post-delete-btn" onclick="deletePost(${f.id}, this)" title="Delete post">
@@ -437,12 +442,33 @@
       `;
     }
 
-    fetch('/api/files')
-      .then(res => res.ok ? res.json() : [])
-      .then(files => {
-        if (!files.length) return;
-        document.getElementById('realFiles').innerHTML = files.map(renderPost).join('');
-      });
+    function loadFeed() {
+      fetch('/api/files')
+        .then(res => {
+          if (!res.ok) throw new Error('Failed to load feed');
+          return res.json();
+        })
+        .then(files => {
+          const container = document.getElementById('realFiles');
+          if (!container) return;
+          if (!files || !files.length) {
+            container.innerHTML = `
+              <div style="text-align: center; padding: 48px 16px; color: var(--text-tertiary, #86868b);">
+                <p style="font-size: 15px; font-weight: 500;">No posts shared yet in your semester feed.</p>
+                <p style="font-size: 13px; margin-top: 6px;">Upload notes in Library to share with your class!</p>
+              </div>
+            `;
+            return;
+          }
+          container.innerHTML = files.map(renderPost).join('');
+          initDashboardCardPhysics();
+        })
+        .catch(err => {
+          console.error('[Feed Error]:', err);
+        });
+    }
+
+    loadFeed();
 
     // --- Search Logic ---
     const searchInput = document.getElementById('headerSearchInput');

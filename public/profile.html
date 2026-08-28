@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -16,7 +17,9 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
   <link rel="stylesheet" href="style.v4.css">
   <link rel="stylesheet" href="chatbot.css">
   <script>
@@ -24,6 +27,7 @@
   </script>
   <link rel="stylesheet" href="auth-modal.css">
 </head>
+
 <body class="dash profile-body">
 
   <!-- Top Apple Pro Header -->
@@ -52,7 +56,7 @@
 
     <!-- Profile Hero Card with Ambient Aurora -->
     <section class="profile-hero-card">
-      
+
       <!-- Top Banner Strip -->
       <div class="profile-banner">
         <div class="banner-aurora"></div>
@@ -60,7 +64,7 @@
 
       <!-- Profile Identity Box -->
       <div class="profile-identity-content">
-        
+
         <!-- Avatar Column -->
         <div class="profile-avatar-wrapper">
           <div class="profile-avatar-large" id="profileAvatar">
@@ -69,9 +73,10 @@
           </div>
           <label class="avatar-edit-badge" id="avatarUploadLabel" title="Change Profile Picture" style="display:none;">
             <input type="file" id="avatarFileInput" accept="image/*" style="display:none;">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-              <circle cx="12" cy="13" r="4"/>
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+              <circle cx="12" cy="13" r="4" />
             </svg>
           </label>
         </div>
@@ -81,7 +86,10 @@
           <div class="profile-name-row">
             <h1 class="profile-name" id="profileName">Loading Student…</h1>
             <span id="profileVerifiedBadge" class="post-verified-badge" title="Verified Gandaki University Student">
-              <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+              <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor">
+                <path
+                  d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+              </svg>
               GU Student
             </span>
           </div>
@@ -91,44 +99,64 @@
           <!-- Distinguished Admin Accolade Ribbon -->
           <div class="admin-accolade-ribbon" id="adminAccoladeRibbon" style="display:none;">
             <div class="accolade-icon-wrap">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path
+                  d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z" />
               </svg>
             </div>
             <div class="accolade-details">
-              <div class="accolade-title">Class Representative &amp; Council Moderator</div>
+              <div class="accolade-title">Class Representative</div>
               <div class="accolade-desc">Gandaki University BIT Student Representative &amp; Academic Coordinator</div>
             </div>
-            <span class="accolade-pill">OFFICIAL COUNCIL</span>
+
           </div>
 
           <!-- Chips Row: Department, Semester, Campus -->
           <div class="profile-badges-row">
             <span class="profile-tag-pill" id="profileDept">
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+                <path d="M6 12v5c3 3 9 3 12 0v-5" />
+              </svg>
               BIT
             </span>
             <span class="profile-tag-pill" id="profileSem">
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
               Semester 1
             </span>
             <span class="profile-tag-pill">
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+              </svg>
               Gandaki University
             </span>
           </div>
 
           <!-- Bio / Status Description -->
-          <p class="profile-bio" id="profileBio">No bio added yet. Click 'Edit Profile' to introduce yourself to your class.</p>
+          <p class="profile-bio" id="profileBio">No bio added yet. Click 'Edit Profile' to introduce yourself to your
+            class.</p>
 
           <!-- Social Links Row -->
           <div class="profile-social-links" id="profileSocialLinks">
             <a href="#" id="githubLink" class="social-chip" target="_blank" rel="noopener" style="display:none;">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                <path
+                  d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+              </svg>
               GitHub
             </a>
             <a href="#" id="linkedinLink" class="social-chip" target="_blank" rel="noopener" style="display:none;">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                <path
+                  d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" />
+              </svg>
               LinkedIn
             </a>
           </div>
@@ -137,9 +165,10 @@
         <!-- Profile CTAs: Edit (Self) or Follow (Others) -->
         <div class="profile-actions-col">
           <button id="editProfileBtn" class="profile-primary-btn" style="display:none;" onclick="openEditModal()">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
             </svg>
             Edit Profile
           </button>
@@ -149,8 +178,9 @@
           </button>
 
           <button class="profile-secondary-btn" onclick="copyProfileLink()" title="Share Profile">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13"/>
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13" />
             </svg>
             Share
           </button>
@@ -183,11 +213,19 @@
     <!-- Profile Tabs Section -->
     <nav class="profile-tabs-nav">
       <button class="profile-tab active" data-tab="uploads" onclick="switchTab('uploads')">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+        </svg>
         Shared Resources (<span id="tabUploadsCount">0</span>)
       </button>
       <button class="profile-tab" data-tab="classmates" onclick="switchTab('classmates')">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
         Classmates to Follow
       </button>
     </nav>
@@ -214,15 +252,20 @@
       </div>
       <div style="display: flex; gap: 10px; flex-wrap: wrap;">
         <button id="accountLogoutBtn" class="account-logout-btn">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-            <path d="M16 17l5-5-5-5"/><path d="M21 12H9"/>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <path d="M16 17l5-5-5-5" />
+            <path d="M21 12H9" />
           </svg>
           Log Out
         </button>
-        <button class="account-logout-btn" onclick="location.href='settings.html'" style="background: transparent; border-color: var(--ap-border); color: var(--ap-text-primary);">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+        <button class="account-logout-btn" onclick="location.href='settings.html'"
+          style="background: transparent; border-color: var(--ap-border); color: var(--ap-text-primary);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round" width="16" height="16">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
           </svg>
           Change Password
         </button>
@@ -241,7 +284,7 @@
         <button class="modal-close" onclick="closeEditModal()">&times;</button>
       </div>
       <form id="editProfileForm" onsubmit="saveProfileChanges(event)">
-        
+
         <div class="form-group">
           <label for="editName">Full Name</label>
           <input type="text" id="editName" required maxlength="60" class="form-input">
@@ -249,7 +292,8 @@
 
         <div class="form-group">
           <label for="editBio">Bio / Headline</label>
-          <textarea id="editBio" rows="3" maxlength="300" placeholder="e.g. BIT student, passionate about Cloud & AI…" class="form-input form-textarea"></textarea>
+          <textarea id="editBio" rows="3" maxlength="300" placeholder="e.g. BIT student, passionate about Cloud & AI…"
+            class="form-input form-textarea"></textarea>
           <span class="form-hint">Brief intro for your classmates (max 300 chars)</span>
         </div>
 
@@ -315,10 +359,10 @@
       if (!iso) return 'just now';
       const time = new Date(iso).getTime();
       if (isNaN(time)) return 'just now';
-      
+
       let diffMs = Date.now() - time;
       if (diffMs < 0) diffMs = Math.abs(diffMs);
-      
+
       const mins = Math.floor(diffMs / 60000);
       if (mins < 1) return 'just now';
       if (mins < 60) return mins + 'm ago';
@@ -389,13 +433,16 @@
     }
 
     function renderProfileHeader(p) {
-      const isAdmin = p.isAdmin || p.role === 'admin';
-      document.title = `${p.name} — ${isAdmin ? 'Class Rep Profile' : 'Student Profile'}`;
+      const role = p.role || (p.isAdmin ? 'admin' : 'student');
+      const isAdmin = role === 'admin';
+      const isCR = role === 'cr' || role === 'class_rep';
+
+      document.title = `${p.name} — ${isAdmin ? 'Admin Profile' : (isCR ? 'Class Rep Profile' : 'Student Profile')}`;
       document.getElementById('profileName').textContent = p.name;
       document.getElementById('profileHandle').textContent = `@${p.studentId}`;
       document.getElementById('profileDept').innerHTML = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>${escapeHtml(p.department || 'BIT')}`;
       document.getElementById('profileSem').innerHTML = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>${escapeHtml(p.semester || 'Semester 1')}`;
-      
+
       const heroCard = document.querySelector('.profile-hero-card');
       const badgeEl = document.getElementById('profileVerifiedBadge');
       const accoladeEl = document.getElementById('adminAccoladeRibbon');
@@ -404,10 +451,26 @@
         if (heroCard) heroCard.classList.add('admin-profile-hero');
         if (badgeEl) {
           badgeEl.className = 'post-verified-badge post-admin-badge';
-          badgeEl.title = 'Distinguished Class Representative & System Administrator';
-          badgeEl.innerHTML = `<svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>Class Rep &middot; Admin`;
+          badgeEl.title = 'System Administrator';
+          badgeEl.innerHTML = `<svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>Admin`;
         }
-        if (accoladeEl) accoladeEl.style.display = 'flex';
+        if (accoladeEl) {
+          accoladeEl.style.display = 'flex';
+          accoladeEl.querySelector('.accolade-title').textContent = 'System Administrator';
+          accoladeEl.querySelector('.accolade-desc').textContent = 'Gandaki University Platform Administrator & Lead Developer';
+        }
+      } else if (isCR) {
+        if (heroCard) heroCard.classList.add('admin-profile-hero');
+        if (badgeEl) {
+          badgeEl.className = 'post-verified-badge post-cr-badge';
+          badgeEl.title = 'Official Gandaki University Class Representative';
+          badgeEl.innerHTML = `<svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>Class Rep`;
+        }
+        if (accoladeEl) {
+          accoladeEl.style.display = 'flex';
+          accoladeEl.querySelector('.accolade-title').textContent = 'Class Representative';
+          accoladeEl.querySelector('.accolade-desc').textContent = 'Gandaki University BIT Student Representative & Academic Coordinator';
+        }
       } else {
         if (heroCard) heroCard.classList.remove('admin-profile-hero');
         if (badgeEl) {
@@ -423,9 +486,9 @@
         bioEl.textContent = p.bio;
         bioEl.style.fontStyle = 'normal';
       } else {
-        bioEl.textContent = p.isSelf 
-          ? (isAdmin ? 'Class Representative for Semester 1 (Gandaki University). Reach out for official curriculum notices, notes, or moderation.' : 'No bio added yet. Click \'Edit Profile\' to introduce yourself to your class.')
-          : (isAdmin ? 'Gandaki University Class Representative.' : 'No bio provided.');
+        bioEl.textContent = p.isSelf
+          ? (isAdmin ? 'System Administrator for Semester Library. Reach out for platform support.' : (isCR ? 'Class Representative for Semester 1 (Gandaki University). Reach out for official curriculum notices, notes, or moderation.' : 'No bio added yet. Click \'Edit Profile\' to introduce yourself to your class.'))
+          : (isAdmin ? 'Gandaki University System Administrator.' : (isCR ? 'Gandaki University Class Representative.' : 'No bio provided.'));
         bioEl.style.fontStyle = 'italic';
       }
 
@@ -433,7 +496,7 @@
       const initials = p.name ? p.name.charAt(0).toUpperCase() : 'S';
       const initialsEl = document.getElementById('profileInitials');
       const imgEl = document.getElementById('profileAvatarImg');
-      
+
       // Update top header profile avatar & name
       const headerAvatar = document.getElementById('headerAvatar');
       const headerName = document.getElementById('headerProfileName');
@@ -586,20 +649,23 @@
     // Render Posts Uploaded by User
     function renderPost(f) {
       const badge = getFileBadge(f.originalName);
-      const initial = (f.uploaderName || 'S').charAt(0).toUpperCase();
-      const isAdminUploader = f.isOfficial || f.uploaderRole === 'admin';
-      const subjectTag = f.subject ? `<span class="post-pill-tag"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>${escapeHtml(f.subject)}</span>` : '';
-      const chapterTag = f.chapter ? `<span class="post-pill-tag"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>${escapeHtml(f.chapter)}</span>` : '';
+      const uploaderRole = f.uploaderRole || 'student';
+      let verifiedBadgeHtml = `<span class="post-verified-badge" title="Verified Gandaki University Student">
+          <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+          GU Student
+        </span>`;
 
-      const verifiedBadgeHtml = isAdminUploader
-        ? `<span class="post-verified-badge post-admin-badge" title="Verified Class Rep / Admin">
+      if (uploaderRole === 'admin') {
+        verifiedBadgeHtml = `<span class="post-verified-badge post-admin-badge" title="Verified System Administrator">
             <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
             Admin
-          </span>`
-        : `<span class="post-verified-badge" title="Verified Gandaki University Student">
-            <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
-            GU Student
           </span>`;
+      } else if (uploaderRole === 'cr' || uploaderRole === 'class_rep') {
+        verifiedBadgeHtml = `<span class="post-verified-badge post-cr-badge" title="Official Class Representative">
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
+            Class Rep
+          </span>`;
+      }
 
       const deleteBtnHtml = f.canDelete
         ? `<button class="post-delete-btn" onclick="deletePost(${f.id}, this)" title="Delete post">
@@ -868,10 +934,10 @@
       const isLiked = btn.dataset.liked === 'true';
       const countEl = btn.querySelector('.like-count');
       const currentCount = parseInt(countEl.textContent || '0', 10);
-      
+
       const newLiked = !isLiked;
       const newCount = newLiked ? currentCount + 1 : currentCount - 1;
-      
+
       btn.dataset.liked = newLiked ? 'true' : 'false';
       btn.classList.toggle('liked', newLiked);
       countEl.textContent = newCount;
@@ -977,4 +1043,5 @@
     }
   </script>
 </body>
+
 </html>

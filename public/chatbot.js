@@ -207,11 +207,50 @@
     const bubble = document.createElement('div');
     bubble.className = 'sla-msg-bubble';
 
+    // 0. Internet Fallback Label / Badge (Visual Distinction from Site Results)
+    if (data.isWebSearch || data.sourceLabel) {
+      const webBadge = document.createElement('div');
+      webBadge.className = 'sla-web-search-badge';
+      webBadge.innerHTML = `
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+        <span>${data.sourceLabel || '🌐 From the web — not from Semester Library'}</span>
+      `;
+      bubble.appendChild(webBadge);
+    }
+
     // Prose Text Response
     const textContent = document.createElement('div');
     textContent.className = 'sla-msg-text';
     renderFormattedContent(textContent, data.reply || '');
     bubble.appendChild(textContent);
+
+    // Web Search Citations & Verification Links (if grounded search returned citations)
+    if (data.webSources && data.webSources.length > 0) {
+      const sourcesWrap = document.createElement('div');
+      sourcesWrap.className = 'sla-web-sources-section';
+      sourcesWrap.innerHTML = `
+        <div class="sla-web-sources-header">
+          <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+          <span>Web Sources & Citations</span>
+        </div>
+        <div class="sla-web-sources-list"></div>
+      `;
+      const listEl = sourcesWrap.querySelector('.sla-web-sources-list');
+      data.webSources.forEach(src => {
+        const a = document.createElement('a');
+        a.className = 'sla-web-source-pill';
+        a.href = src.url;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.innerHTML = `
+          <span class="sla-web-source-title">${src.title || src.domain || 'Source'}</span>
+          <span class="sla-web-source-domain">${src.domain || ''}</span>
+          <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+        `;
+        listEl.appendChild(a);
+      });
+      bubble.appendChild(sourcesWrap);
+    }
 
     // --- STRUCTURED CARDS SECTION ---
 
@@ -393,13 +432,21 @@
     // Message Actions Bar (Copy Text Tool)
     const actionsBar = document.createElement('div');
     actionsBar.className = 'sla-msg-actions-bar';
+    
+    let badgeText = 'Library Grounded';
+    let badgeClass = 'sla-citation-badge';
+    if (data.isWebSearch) {
+      badgeText = (data.webSources && data.webSources.length > 0) ? '🌐 Web Grounded' : '🌐 Web Fallback';
+      badgeClass = 'sla-citation-badge sla-badge-web';
+    }
+
     actionsBar.innerHTML = `
       <button type="button" class="sla-msg-tool-action sla-copy-msg-btn">
         <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
         <span>Copy</span>
       </button>
-      <div class="sla-citation-badge">
-        <span>Grounded</span>
+      <div class="${badgeClass}">
+        <span>${badgeText}</span>
       </div>
     `;
 

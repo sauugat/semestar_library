@@ -232,7 +232,7 @@ function transaction(fn) {
 // AUTOMATIC DATABASE SCHEMA INITIALIZATION & INITIAL SEEDING
 // ============================================================================
 const DEFAULT_STUDENTS = [
-  { studentId: "26020230", name: "Aashrita Lamichhane", password: "aashrita230", role: "admin" },
+  { studentId: "26020230", name: "Aashrita Lamichhane", password: "aashrita230", role: "student" },
   { studentId: "26020231", name: "Anisha Gurung", password: "anisha231", role: "student" },
   { studentId: "26020232", name: "Ankit Bhandari", password: "ankit232", role: "student" },
   { studentId: "26020233", name: "Apekshya Shrestha", password: "apekshya233", role: "student" },
@@ -273,7 +273,7 @@ const DEFAULT_STUDENTS = [
   { studentId: "26020268", name: "Subarna Poudel", password: "subarna268", role: "student" },
   { studentId: "26020269", name: "Sudarshan Poudel", password: "sudarshan269", role: "student" },
   { studentId: "26020270", name: "Sujan Giri", password: "sujan270", role: "student" },
-  { studentId: "26020271", name: "Sujan Shrestha", password: "sujan271", role: "student" },
+  { studentId: "26020271", name: "Sujan Shrestha", password: "sujan271", role: "cr" },
   { studentId: "26020272", name: "Suresh Gurung", password: "suresh272", role: "student" },
   { studentId: "26020273", name: "Ujjwal Gurung", password: "ujjwal273", role: "student" },
   { studentId: "26020274", name: "Yujina Bhattarai", password: "yujina274", role: "student" }

@@ -82,12 +82,48 @@ function normalizeSemester(str) {
   return null;
 }
 
-// Ingest Syllabus Data
+// Ingest Syllabus Data & Build High-Precision Search Corpus
 let syllabusData = { semesters: [] };
 const ALL_COURSES = [];
 const CANONICAL_SUBJECTS = new Map(); // Canonical Title -> Subject Info
 const ALIAS_TO_SUBJECT = new Map();   // Alias string -> Canonical Title
-const TOPIC_REGISTRY = [];            // Array of { topic, synonyms, canonicalSubject, semesterNum, unitName }
+const DYNAMIC_SYLLABUS_UNITS = [];    // Extracted from all 300+ syllabus units across all semesters
+
+// Comprehensive Subject Aliases Dictionary
+const SUBJECT_ALIASES = {
+  'Database Management System': ['dbms', 'db', 'database', 'sql', 'mysql', 'relational database', 'database system', 'database management'],
+  'Data Structure and Algorithms': ['dsa', 'ds', 'algo', 'algorithms', 'data structure', 'data structures', 'linked list', 'stack and queue', 'binary tree', 'trees and graphs'],
+  'Mathematics I': ['math 1', 'math i', 'm1', 'calculus', 'derivatives', 'integration', 'maths 1', 'first semester math', 'matrices and determinants'],
+  'Mathematics II': ['math 2', 'math ii', 'm2', 'complex numbers', 'complex number', 'complex variables', 'infinite series', 'differential equations', 'maths 2', 'second semester math'],
+  'Discrete Mathematics': ['discrete math', 'discrete mathematics', 'discrete', 'graph theory', 'finite automata', 'fsm', 'fsa', 'recurrence relations', 'predicate logic'],
+  'Computer Programming I (C)': ['c programming', 'c prog', 'prog 1', 'prog i', 'c language', 'c prog 1', 'computer programming 1', 'c pointers', 'c functions'],
+  'Computer Programming II (Java)': ['java', 'java programming', 'prog 2', 'prog ii', 'oop java', 'oop', 'computer programming 2', 'swing gui', 'java oop'],
+  'Digital Logic': ['digital logic', 'dl', 'logic gates', 'boolean algebra', 'k map', 'karnaugh map', 'flip flop', 'combinational circuits', 'sequential circuits'],
+  'Web Technology I': ['web 1', 'web tech 1', 'web technology 1', 'web technology i', 'html css', 'php mysql', 'web dev 1', 'web development 1'],
+  'Web Technology II': ['web 2', 'web tech 2', 'web technology 2', 'web technology ii', 'react', 'node', 'fullstack web', 'web dev 2'],
+  'Microprocessor and Computer Architecture': ['microprocessor', 'computer architecture', 'coa', 'mp', '8085', 'intel 8085', '8086', 'assembly', 'assembly language', 'cpu architecture'],
+  'Operating Systems': ['operating systems', 'operating system', 'os', 'linux', 'unix', 'processes and threads', 'deadlock', 'virtual memory', 'paging', 'cpu scheduling'],
+  'Data Communication and Computer Networks': ['dccn', 'cn', 'computer networks', 'networking', 'networks', 'network', 'data communication', 'tcp ip', 'osi model'],
+  'Fundamentals of Probability and Statistics': ['probability and statistics', 'stats', 'probability', 'statistics', 'prob stats', 'prob', 'business stats'],
+  'Object Oriented Analysis and Design using UML': ['ooad', 'uml', 'object oriented analysis', 'uml diagrams', 'use case diagram', 'class diagram', 'design patterns'],
+  'Financial Accounting': ['financial accounting', 'accounting', 'finance', 'balance sheet', 'journal ledger', 'account'],
+  'Principles of Organization and Management': ['principles of management', 'management', 'pom', 'organization management', 'org management'],
+  'Computer Graphics Technology': ['computer graphics', 'graphics', 'cg', 'rendering', '2d 3d transformation', 'opengl'],
+  'Artificial Intelligence': ['artificial intelligence', 'ai', 'machine learning', 'expert systems', 'knowledge representation'],
+  'Digital Forensic Security Technologies': ['digital forensics', 'forensics', 'cyber security', 'cybersecurity', 'security', 'digital forensic'],
+  'Software Engineering': ['software engineering', 'se', 'sdlc', 'agile', 'scrum', 'software testing'],
+  'Economics': ['economics', 'microeconomics', 'macroeconomics'],
+  'Cloud Computing and Virtualization': ['cloud computing', 'cloud', 'virtualization', 'aws', 'docker', 'kubernetes'],
+  'Mobile Application Development': ['mobile app development', 'mobile development', 'mad', 'android', 'flutter', 'android development'],
+  'Big Data Technologies': ['big data', 'big data technologies', 'hadoop', 'spark', 'mapreduce'],
+  'Data Mining and Warehousing': ['data mining', 'data warehouse', 'data warehousing', 'data mining and warehousing', 'dmw'],
+  'Wireless Communication Systems': ['wireless communication', 'wireless', '5g', 'cellular'],
+  'Software Development and Operations (DevOps)': ['devops', 'ci cd', 'jenkins', 'devops engineering'],
+  'Basic Electronics': ['basic electronics', 'electronics', 'circuit theory', 'semiconductors', 'diodes', 'op-amp'],
+  'Basics of IT': ['basics of it', 'it basics', 'fundamental of it', 'it fundamentals', 'information technology basics'],
+  'Workshop: Problem Solving and Logic': ['problem solving', 'psl', 'logic workshop', 'flowcharts and algorithms'],
+  'Business Communication Technique': ['business communication', 'bct', 'communication skills', 'technical writing']
+};
 
 try {
   const syllabusPath = path.join(__dirname, 'public', 'syllabus-data.json');
@@ -112,6 +148,27 @@ try {
           };
           ALL_COURSES.push(courseObj);
           CANONICAL_SUBJECTS.set(c.title, courseObj);
+
+          // Parse units dynamically from syllabus contents
+          if (c.contents) {
+            const lines = c.contents.split('\n');
+            lines.forEach(line => {
+              const m = line.match(/^\s*(\d+)\.\s+([^0-9\n]+?)(?:\s+\d+\s*hrs)?\s*$/i);
+              if (m) {
+                const uNum = m[1].trim();
+                const uTitle = m[2].trim();
+                if (uTitle.length >= 3) {
+                  DYNAMIC_SYLLABUS_UNITS.push({
+                    unitNum: uNum,
+                    unitTitle: uTitle,
+                    canonicalSubject: c.title,
+                    semesterNum: semMeta ? semMeta.num : null,
+                    courseCode: c.code
+                  });
+                }
+              }
+            });
+          }
         });
       });
     }
@@ -119,42 +176,6 @@ try {
 } catch (e) {
   console.error('[AI Assistant] Error parsing syllabus-data.json:', e.message);
 }
-
-// Comprehensive Subject Aliases Dictionary
-const SUBJECT_ALIASES = {
-  'Database Management System': ['dbms', 'db', 'database', 'sql', 'mysql', 'relational database', 'database system', 'database management'],
-  'Data Structure and Algorithms': ['dsa', 'ds', 'algo', 'algorithms', 'data structure', 'data structures', 'linked list', 'stack and queue', 'binary tree'],
-  'Mathematics I': ['math 1', 'math i', 'm1', 'calculus', 'derivatives', 'integration', 'maths 1', 'first semester math'],
-  'Mathematics II': ['math 2', 'math ii', 'm2', 'complex numbers', 'complex number', 'complex variables', 'infinite series', 'differential equations', 'maths 2', 'second semester math'],
-  'Discrete Mathematics': ['discrete math', 'discrete mathematics', 'discrete', 'graph theory', 'finite automata', 'fsm', 'fsa', 'recurrence relations'],
-  'Computer Programming I (C)': ['c programming', 'c prog', 'prog 1', 'prog i', 'c language', 'c prog 1', 'computer programming 1'],
-  'Computer Programming II (Java)': ['java', 'java programming', 'prog 2', 'prog ii', 'oop java', 'oop', 'computer programming 2', 'swing gui'],
-  'Digital Logic': ['digital logic', 'dl', 'logic gates', 'boolean algebra', 'k map', 'karnaugh map', 'flip flop', 'combinational circuits'],
-  'Web Technology I': ['web 1', 'web tech 1', 'web technology 1', 'web technology i', 'html css', 'php mysql', 'web dev 1', 'web development 1'],
-  'Web Technology II': ['web 2', 'web tech 2', 'web technology 2', 'web technology ii', 'react', 'node', 'fullstack web', 'web dev 2'],
-  'Microprocessor and Computer Architecture': ['microprocessor', 'computer architecture', 'coa', 'mp', '8085', 'intel 8085', '8086', 'assembly', 'assembly language', 'cpu architecture'],
-  'Operating Systems': ['operating systems', 'operating system', 'os', 'linux', 'unix', 'processes and threads', 'deadlock', 'virtual memory', 'paging'],
-  'Data Communication and Computer Networks': ['dccn', 'cn', 'computer networks', 'networking', 'networks', 'network', 'data communication', 'tcp ip', 'osi model'],
-  'Fundamentals of Probability and Statistics': ['probability and statistics', 'stats', 'probability', 'statistics', 'prob stats', 'prob', 'business stats'],
-  'Object Oriented Analysis and Design using UML': ['ooad', 'uml', 'object oriented analysis', 'uml diagrams', 'use case diagram', 'class diagram', 'design patterns'],
-  'Financial Accounting': ['financial accounting', 'accounting', 'finance', 'balance sheet', 'journal ledger', 'account'],
-  'Principles of Organization and Management': ['principles of management', 'management', 'pom', 'organization management', 'org management'],
-  'Computer Graphics Technology': ['computer graphics', 'graphics', 'cg', 'rendering', '2d 3d transformation', 'opengl'],
-  'Artificial Intelligence': ['artificial intelligence', 'ai', 'machine learning', 'expert systems', 'knowledge representation'],
-  'Digital Forensic Security Technologies': ['digital forensics', 'forensics', 'cyber security', 'cybersecurity', 'security', 'digital forensic'],
-  'Software Engineering': ['software engineering', 'se', 'sdlc', 'agile', 'scrum', 'software testing'],
-  'Economics': ['economics', 'microeconomics', 'macroeconomics'],
-  'Cloud Computing and Virtualization': ['cloud computing', 'cloud', 'virtualization', 'aws', 'docker', 'kubernetes'],
-  'Mobile Application Development': ['mobile app development', 'mobile development', 'mad', 'android', 'flutter', 'android development'],
-  'Big Data Technologies': ['big data', 'big data technologies', 'hadoop', 'spark', 'mapreduce'],
-  'Data Mining and Warehousing': ['data mining', 'data warehouse', 'data warehousing', 'data mining and warehousing', 'dmw'],
-  'Wireless Communication Systems': ['wireless communication', 'wireless', '5g', 'cellular'],
-  'Software Development and Operations (DevOps)': ['devops', 'ci cd', 'jenkins', 'devops engineering'],
-  'Basic Electronics': ['basic electronics', 'electronics', 'circuit theory', 'semiconductors', 'diodes', 'op-amp'],
-  'Basics of IT': ['basics of it', 'it basics', 'fundamental of it', 'it fundamentals', 'information technology basics'],
-  'Workshop: Problem Solving and Logic': ['problem solving', 'psl', 'logic workshop', 'flowcharts and algorithms'],
-  'Business Communication Technique': ['business communication', 'bct', 'communication skills', 'technical writing']
-};
 
 // Index Aliases
 for (const [canonical, aliases] of Object.entries(SUBJECT_ALIASES)) {
@@ -520,27 +541,38 @@ function levenshteinDistance(a, b) {
   return prev[lb];
 }
 
+function escapeRegex(str) {
+  return str.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+}
+
 function matchSubjectInText(text) {
   const t = text.toLowerCase();
   
-  // 1. Check exact word boundary matches on aliases
+  // 0. High priority coding language patterns
+  if (/\b(?:in\s+c|c\s+program|c\s+programming|c\s+code|c\s+language|wap\s+in\s+c)\b/i.test(t)) {
+    return 'Computer Programming I (C)';
+  }
+  if (/\b(?:in\s+java|java\s+program|java\s+programming|java\s+code|wap\s+in\s+java|java\s+oop)\b/i.test(t)) {
+    return 'Computer Programming II (Java)';
+  }
+
+  // 1. Check exact word boundary matches on aliases (longest alias first)
   const sortedAliases = Array.from(ALIAS_TO_SUBJECT.keys()).sort((a, b) => b.length - a.length);
   for (const alias of sortedAliases) {
     if (alias.length < 3) continue;
-    const regex = new RegExp(`\\b${alias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+    const regex = new RegExp(`(^|[^a-z0-9])${escapeRegex(alias)}([^a-z0-9]|$)`, 'i');
     if (regex.test(t)) {
       return ALIAS_TO_SUBJECT.get(alias);
     }
   }
 
-  // 2. Fuzzy Typo & Predictive Matching across tokens
-  const words = t.replace(/[^\w\s]/g, ' ').split(/\s+/).filter(w => w.length >= 4);
-  for (const word of words) {
+  // 2. Fuzzy Typo & Predictive Matching across tokens (only for non-stop words with min length >= 5)
+  const queryWords = t.replace(/[^\w\s]/g, ' ').split(/\s+/).filter(w => w.length >= 5);
+  for (const word of queryWords) {
     for (const alias of sortedAliases) {
-      if (alias.length >= 4) {
+      if (alias.length >= 5 && !alias.includes(' ')) {
         const dist = levenshteinDistance(word, alias);
-        const maxAllowed = word.length <= 5 ? 1 : 2;
-        if (dist <= maxAllowed) {
+        if (dist <= 1) {
           return ALIAS_TO_SUBJECT.get(alias);
         }
       }
@@ -552,27 +584,44 @@ function matchSubjectInText(text) {
 
 function matchTopicInText(text) {
   const t = text.toLowerCase();
+  
+  // 1. Exact / Boundary Synonym Match in TOPIC_DEFINITIONS (Full phrase matching)
   for (const item of TOPIC_DEFINITIONS) {
     for (const syn of item.synonyms) {
-      const regex = new RegExp(`\\b${syn.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+      const regex = new RegExp(`(^|[^a-z0-9])${escapeRegex(syn)}([^a-z0-9]|$)`, 'i');
       if (regex.test(t)) {
         return item;
       }
     }
   }
 
-  // Fuzzy topic matching
-  const words = t.replace(/[^\w\s]/g, ' ').split(/\s+/).filter(w => w.length >= 5);
+  // 2. Dynamic Match in all 300+ Syllabus Units (Full phrase matching)
+  for (const unit of DYNAMIC_SYLLABUS_UNITS) {
+    const uTitleLower = unit.unitTitle.toLowerCase();
+    if (uTitleLower.length >= 4) {
+      const regex = new RegExp(`(^|[^a-z0-9])${escapeRegex(uTitleLower)}([^a-z0-9]|$)`, 'i');
+      if (regex.test(t)) {
+        return {
+          topic: unit.unitTitle,
+          synonyms: [unit.unitTitle],
+          canonicalSubject: unit.canonicalSubject,
+          semesterNum: unit.semesterNum,
+          unit: `Unit ${unit.unitNum}: ${unit.unitTitle}`
+        };
+      }
+    }
+  }
+
+  // 3. Fuzzy topic matching ONLY against single-word synonyms (e.g. "determinants", "normalization")
+  // Multi-word phrases like "complex numbers" MUST NEVER match just because the word "number" appeared!
+  const words = t.replace(/[^\w\s]/g, ' ').split(/\s+/).filter(w => w.length >= 6);
   for (const word of words) {
     for (const item of TOPIC_DEFINITIONS) {
       for (const syn of item.synonyms) {
-        const synWords = syn.split(/\s+/);
-        for (const sw of synWords) {
-          if (sw.length >= 5) {
-            const dist = levenshteinDistance(word, sw);
-            if (dist <= 1) {
-              return item;
-            }
+        if (!syn.includes(' ') && syn.length >= 6) {
+          const dist = levenshteinDistance(word, syn);
+          if (dist <= 1) {
+            return item;
           }
         }
       }
@@ -590,13 +639,11 @@ function parseSingleIntent(queryStr, ctxSem, ctxSubj, ctxTopic) {
   let explicitSubject = matchSubjectInText(q);
   let topicObj = matchTopicInText(q);
 
-  // Extract clean search tokens
   let subject = explicitSubject;
   let semester = explicitSemester;
 
   if (topicObj) {
     if (!subject) subject = topicObj.canonicalSubject;
-    // Only inherit semester from topic if not explicitly specified
     if (!semester && topicObj.semesterNum && explicitSubject) {
       semester = SEMESTER_REGISTRY[topicObj.semesterNum];
     }
@@ -632,23 +679,28 @@ function parseSingleIntent(queryStr, ctxSem, ctxSubj, ctxTopic) {
   const isChitChat = /^(hi|hello|hey|who\s+(are\s+you|r\s+u|you)|what\s+is\s+your\s+name|your\s+name|what\s+can\s+you\s+do|how\s+are\s+you|thanks|thank\s+you|bye|good\s+(morning|afternoon|evening))\b/i.test(q.trim()) ||
     q.trim().length <= 2;
 
-  const isResourceSearchVerb = /\b(give\s+me|find|show\s+me|send\s+me|search|get\s+me|download|where\s+can\s+i\s+find|where\s+is|provide)\b/i.test(q);
-  const isKnowledgeVerb = /^(what\s+is|what\s+are|explain|how\s+does|how\s+to|why\s+is|differentiate|define|solve|calculate|teach\s+me)\b/i.test(q);
+  // Strict check: Explicit file search requests vs knowledge / code generation questions
+  const isExplicitFileSearch = /\b(give\s+me\s+(?:notes|pdf|handout|file|slides)|find\s+(?:notes|pdf|handout|file)|show\s+me\s+(?:notes|pdf|slides|handouts)|send\s+me\s+(?:notes|pdf|file)|get\s+me\s+(?:notes|pdf|file)|download\s+(?:notes|pdf|file)|where\s+can\s+i\s+find\s+notes|any\s+notes\s+for|have\s+notes\s+for)\b/i.test(q);
+  
+  const isCodingOrKnowledgeVerb = /^(wap|write\s+a\s+program|write\s+a\s+c|write\s+a\s+java|write\s+a\s+code|write\s+code|code\s+for|program\s+to|what\s+is|what\s+are|explain|how\s+does|how\s+to|why\s+is|differentiate|define|solve|calculate|teach\s+me|difference\s+between|create\s+a\s+function)\b/i.test(q);
 
   if (isChitChat) {
     intent = 'CHITCHAT';
     resourceType = 'NONE';
-  } else if (isKnowledgeVerb && !resourceType && !/\b(routine|exam|schedule|syllabus|library|upload|semester|file)\b/i.test(q)) {
+  } else if (isCodingOrKnowledgeVerb && !isExplicitFileSearch) {
+    // Pure coding task or conceptual question -> answer clearly with code/explanation without pushing random file cards!
     intent = 'KNOWLEDGE_QUESTION';
     resourceType = 'NONE';
-  } else if (isResourceSearchVerb && (resourceType === 'NOTE' || resourceType === 'PYQ' || topicObj || subject)) {
+  } else if (isExplicitFileSearch || resourceType === 'NOTE' || resourceType === 'PYQ') {
     intent = 'RESOURCE_SEARCH';
   } else if (/\b(open|take\s+me\s+to|go\s+to|navigate\s+to|show\s+page)\b/i.test(q)) {
     intent = 'NAVIGATE_RESOURCE';
-  } else if (resourceType === 'NOTE' || resourceType === 'PYQ') {
-    intent = 'RESOURCE_SEARCH';
   } else if (resourceType === 'SYLLABUS' || resourceType === 'ROUTINE' || resourceType === 'NOTICE' || resourceType === 'SUBJECT') {
     intent = 'WEBSITE_INFO';
+  } else {
+    // If the query does not ask for files, routine, or syllabus, treat as general knowledge
+    intent = 'KNOWLEDGE_QUESTION';
+    resourceType = 'NONE';
   }
 
   return {
@@ -706,7 +758,7 @@ async function searchWebsite(db, queryMeta, student = {}) {
     /\b(note|notes|pdf|pdfs|slide|slides|handout|handouts|doc|docs|material|materials|download)\b/i.test(searchQuery);
 
   // --------------------------------------------------------------------------
-  // 1. Search Files in Library with Advanced Fuzzy & TF-IDF Scoring
+  // 1. Search Files in Library with Advanced BM25 + Multi-Tier Scoring & Strict Verification
   // --------------------------------------------------------------------------
   if (wantsFiles) {
     try {
@@ -716,11 +768,18 @@ async function searchWebsite(db, queryMeta, student = {}) {
         ORDER BY id DESC
       `);
 
-      // Clean query tokens
+      if (!allFiles || allFiles.length === 0) {
+        results.matchedFiles = [];
+        return results;
+      }
+
+      // Comprehensive English and domain stop words
       const stopWords = new Set([
         'give', 'notes', 'find', 'show', 'semester', 'please', 'with', 'what', 'have', 'note',
         'some', 'about', 'material', 'materials', 'study', 'pdfs', 'slides', 'send', 'want',
-        'need', 'course', 'tell', 'from', 'help', 'there', 'any', 'for', 'the', 'and', 'are', 'you'
+        'need', 'course', 'tell', 'from', 'help', 'there', 'any', 'for', 'the', 'and', 'are', 'you',
+        'me', 'of', 'in', 'on', 'at', 'to', 'a', 'an', 'is', 'it', 'get', 'can', 'i', 'will', 'do',
+        'does', 'did', 'how', 'when', 'where', 'why', 'all', 'handouts', 'lecture', 'lectures'
       ]);
 
       const rawTokens = searchQuery
@@ -729,7 +788,31 @@ async function searchWebsite(db, queryMeta, student = {}) {
         .split(/\s+/)
         .filter(w => w.length >= 2 && !stopWords.has(w));
 
-      // Check for specific lecture/chapter numbers in query (e.g. "lecture 12", "unit 3", "ch 2")
+      console.log(`[AI Search Engine] Extracted Keywords from "${searchQuery}":`, rawTokens);
+
+      // Build BM25 Corpus Statistics
+      const N = allFiles.length;
+      const k1 = 1.2;
+      const b = 0.75;
+      
+      const docTokensList = allFiles.map(f => {
+        const full = `${f.subject || ''} ${f.chapter || ''} ${f.title || ''} ${f.originalName || ''}`.toLowerCase();
+        return full.replace(/[^\w\s]/g, ' ').split(/\s+/).filter(w => w.length >= 2);
+      });
+
+      const avgDocLen = docTokensList.reduce((sum, d) => sum + d.length, 0) / (N || 1);
+
+      // Document frequencies (DF) for each query token
+      const dfMap = new Map();
+      rawTokens.forEach(token => {
+        let count = 0;
+        docTokensList.forEach(tokens => {
+          if (tokens.includes(token)) count++;
+        });
+        dfMap.set(token, count);
+      });
+
+      // Specific Chapter/Unit and Lecture Number Extraction
       const lectureMatch = searchQuery.match(/\b(?:lecture|lec|l)\s*(\d+)\b/i);
       const targetLecNum = lectureMatch ? lectureMatch[1] : null;
 
@@ -738,25 +821,40 @@ async function searchWebsite(db, queryMeta, student = {}) {
 
       const cleanQueryPhrase = rawTokens.join(' ');
 
-      const scoredFiles = allFiles.map(f => {
+      // Substring & Token Helper
+      function matchesToken(token, text) {
+        if (!token || !text) return false;
+        const tLower = text.toLowerCase();
+        const tokLower = token.toLowerCase();
+        if (tokLower.length <= 4) {
+          const regex = new RegExp(`(^|[^a-z0-9])${tokLower.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}([^a-z0-9]|$)`, 'i');
+          return regex.test(tLower);
+        }
+        return tLower.includes(tokLower);
+      }
+
+      const scoredFiles = allFiles.map((f, docIdx) => {
         let score = 0;
         const fSubject = (f.subject || '').toLowerCase();
         const fChapter = (f.chapter || '').toLowerCase();
         const fTitle = (f.title || '').toLowerCase();
         const fOriginal = (f.originalName || '').toLowerCase();
         const fullFileText = `${fSubject} ${fChapter} ${fTitle} ${fOriginal}`;
+        const docTokens = docTokensList[docIdx];
+        const docLen = docTokens.length;
 
-        // 1. Strict Explicit Semester Constraint
+        // 1. Strict Explicit Semester Constraint (Eliminates Cross-Semester Contamination)
         if (semester) {
           const fileSemMeta = normalizeSemester(f.semester);
           if (fileSemMeta && fileSemMeta.num !== semester.num) {
-            return { file: f, score: -999 };
+            return { file: f, score: -999, reasons: ['Mismatched semester'] };
           } else if (fileSemMeta && fileSemMeta.num === semester.num) {
-            score += 30;
+            score += 35;
           }
         }
 
-        // 2. Subject Boost / Soft Constraint
+        // 2. Subject Affinity Scoring & Strict Mismatch Filter
+        let isFileSubjectMatch = false;
         if (subject) {
           const canonicalLower = subject.toLowerCase();
           const isExactSubj = fSubject.includes(canonicalLower) || fTitle.includes(canonicalLower);
@@ -771,82 +869,140 @@ async function searchWebsite(db, queryMeta, student = {}) {
           }
 
           if (isExactSubj || hasAliasMatch) {
-            score += 70;
+            score += 85;
+            isFileSubjectMatch = true;
           } else {
-            score -= 30; // soft penalty
+            // Check if file belongs to an ENTIRELY DIFFERENT known subject
+            let fileBelongsToOtherSubject = false;
+            for (const [otherSubj, otherAliases] of Object.entries(SUBJECT_ALIASES)) {
+              if (otherSubj !== subject) {
+                if (fSubject.includes(otherSubj.toLowerCase())) {
+                  fileBelongsToOtherSubject = true;
+                  break;
+                }
+              }
+            }
+
+            if (fileBelongsToOtherSubject) {
+              // If user explicitly searched for a specific subject, NEVER return notes from a conflicting subject!
+              return { file: f, score: -999, reasons: ['Conflicting subject'] };
+            }
+            score -= 40;
           }
         }
 
-        // 3. Topic & Synonym Matching
+        // 3. BM25 Probabilistic Relevance Calculation
+        let bm25Score = 0;
+        let tokenHits = 0;
+
+        rawTokens.forEach(token => {
+          const df = dfMap.get(token) || 0;
+          // Standard Lucene/BM25 IDF
+          const idf = Math.log(1 + (N - df + 0.5) / (df + 0.5));
+          
+          // Term frequency in document
+          let tf = 0;
+          docTokens.forEach(dt => { if (dt === token) tf++; });
+
+          if (tf > 0) {
+            tokenHits++;
+            const tfWeight = (tf * (k1 + 1)) / (tf + k1 * (1 - b + b * (docLen / (avgDocLen || 1))));
+            bm25Score += idf * tfWeight * 20;
+          }
+        });
+        score += bm25Score;
+
+        // 4. Topic Definition & Syllabus Alignment Boost
         if (topicObj) {
           let topicMatched = false;
           for (const syn of topicObj.synonyms) {
             if (fullFileText.includes(syn.toLowerCase())) {
-              score += 90;
+              score += 95;
               topicMatched = true;
               break;
             }
           }
           if (topicObj.unit && fullFileText.includes(topicObj.unit.toLowerCase())) {
-            score += 80;
+            score += 85;
             topicMatched = true;
           }
-          if (topicMatched) score += 40;
+          if (topicMatched) score += 45;
         }
 
-        // 4. Exact Phrase Match
+        // 5. Exact Phrase & N-Gram Match
         if (cleanQueryPhrase.length >= 4 && fullFileText.includes(cleanQueryPhrase)) {
-          score += 100;
+          score += 120;
         }
 
-        // 5. Lecture / Unit Number Precision Match
+        // 6. Lecture & Unit Number Exact Matching
         if (targetLecNum) {
-          const lecRegex = new RegExp(`\\b(?:lecture|lec|l)\\s*${targetLecNum}\\b`, 'i');
-          if (lecRegex.test(fTitle) || lecRegex.test(fOriginal)) {
-            score += 90;
+          const lecRegex = new RegExp(`(^|[^a-z0-9])(?:lecture|lec|l)\\s*0*${targetLecNum}([^a-z0-9]|$)`, 'i');
+          if (lecRegex.test(fTitle) || lecRegex.test(fOriginal) || lecRegex.test(fChapter)) {
+            score += 95;
+          } else {
+            score -= 20;
           }
         }
 
         if (targetUnitNum) {
-          const unitRegex = new RegExp(`\\b(?:unit|chapter|ch)\\s*${targetUnitNum}\\b`, 'i');
+          const unitRegex = new RegExp(`(^|[^a-z0-9])(?:unit|chapter|ch)\\s*0*${targetUnitNum}([^a-z0-9]|$)`, 'i');
           if (unitRegex.test(fChapter) || unitRegex.test(fTitle)) {
-            score += 70;
+            score += 80;
+          } else {
+            score -= 15;
           }
         }
 
-        // 6. Token Overlap Scoring
-        let tokenHits = 0;
+        // 7. Field-Specific Priority Weights
         for (const token of rawTokens) {
-          let tokenFound = false;
-          if (fTitle.includes(token)) {
-            score += 35;
-            tokenFound = true;
-          }
-          if (fChapter.includes(token)) {
-            score += 30;
-            tokenFound = true;
-          }
-          if (fSubject.includes(token)) {
+          if (matchesToken(token, fTitle)) score += 30;
+          if (matchesToken(token, fChapter)) score += 25;
+          if (matchesToken(token, fSubject)) score += 20;
+          if (matchesToken(token, fOriginal)) score += 15;
+        }
+
+        // Multi-Token Coverage Bonus
+        if (rawTokens.length >= 2) {
+          const coverageRatio = tokenHits / rawTokens.length;
+          if (coverageRatio === 1) {
+            score += 60; // 100% keyword coverage
+          } else if (coverageRatio >= 0.5) {
             score += 25;
-            tokenFound = true;
           }
-          if (fOriginal.includes(token)) {
-            score += 15;
-            tokenFound = true;
-          }
-          if (tokenFound) tokenHits++;
         }
 
-        // Reward files that match multiple query tokens
-        if (rawTokens.length > 0 && tokenHits === rawTokens.length) {
-          score += 40;
+        // Fuzzy Typo Match Bonus if zero direct token hits
+        if (tokenHits === 0 && rawTokens.length > 0) {
+          for (const token of rawTokens) {
+            if (token.length >= 4) {
+              for (const dt of docTokens) {
+                if (dt.length >= 4) {
+                  const dist = levenshteinDistance(token, dt);
+                  if (dist <= 1) {
+                    score += 25;
+                    tokenHits++;
+                    break;
+                  }
+                }
+              }
+            }
+          }
         }
 
-        return { file: f, score };
+        // If user searched for specific keywords and this file had ZERO keyword hits, and no subject/topic match, penalize
+        if (rawTokens.length > 0 && tokenHits === 0 && !isFileSubjectMatch && !topicObj) {
+          score = -999;
+        }
+
+        return { file: f, score, tokenHits };
       });
 
+      // Filter with Adaptive Relevance Threshold
+      // Minimum score threshold 45 prevents irrelevant cross-subject noise
+      const MIN_RELEVANCE_SCORE = (subject || topicObj) ? 50 : 40;
+
       const filteredFiles = scoredFiles
-        .filter(item => item.score >= 35)
+        .filter(item => item.score >= MIN_RELEVANCE_SCORE)
         .sort((a, b) => b.score - a.score)
         .map(item => item.file)
         .slice(0, 5);
@@ -925,9 +1081,13 @@ async function searchWebsite(db, queryMeta, student = {}) {
       if (subject) {
         const rSubj = (r.subject || '').toLowerCase();
         const sSubj = subject.toLowerCase();
-        if (rSubj.includes(sSubj) || sSubj.includes(rSubj)) return true;
+        const norm = str => (str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (rSubj.includes(sSubj) || sSubj.includes(rSubj) || (norm(rSubj) && norm(sSubj) && (norm(rSubj).includes(norm(sSubj)) || norm(sSubj).includes(norm(rSubj))))) return true;
         const aliases = SUBJECT_ALIASES[subject] || [];
-        if (aliases.some(a => rSubj.includes(a.toLowerCase()) || a.toLowerCase().includes(rSubj))) return true;
+        if (aliases.some(a => {
+          const aLower = a.toLowerCase();
+          return rSubj.includes(aLower) || aLower.includes(rSubj) || (norm(rSubj) && norm(aLower) && (norm(rSubj).includes(norm(aLower)) || norm(aLower).includes(norm(rSubj))));
+        })) return true;
         return false;
       }
 
@@ -1018,6 +1178,15 @@ function buildDeterministicActions(queryMeta, searchResults) {
 async function callGroundedAI(userMessage, queryMeta, searchResults, conversationHistory = []) {
   const { intent, resourceType, semester, subject, topic } = queryMeta;
 
+  const hasSiteData = (searchResults.matchedFiles && searchResults.matchedFiles.length > 0) ||
+    (searchResults.matchedCourses && searchResults.matchedCourses.length > 0) ||
+    (searchResults.matchedRoutine && searchResults.matchedRoutine.length > 0);
+
+  const isSmalltalkOrIdentity = /^(hi|hello|hey|who\s+(are\s+you|r\s+u|you)|what\s+is\s+your\s+name|your\s+name|what\s+can\s+you\s+do|how\s+are\s+you|thanks|thank\s+you|bye|good\s+(morning|afternoon|evening))\b/i.test(userMessage.trim()) ||
+    /(who are you|what is your name|your name|introduce yourself)/i.test(userMessage);
+
+  const isWebFallback = !hasSiteData && !isSmalltalkOrIdentity;
+
   // System Prompt for Grounded Language Generation with Natural Classmate Tone
   const systemPrompt = `You are Kyana, the AI study assistant for Semester Library at Gandaki University (BIT).
 
@@ -1028,6 +1197,7 @@ TONE & COMMUNICATION STYLE:
 - Stay concise and don't ramble — natural doesn't mean long-winded.
 - Keep the same honesty standard: if you don't have real data to answer something, say so plainly and simply ("Don't see anything uploaded for that yet — want me to check something else?") rather than a formal apology.
 - Keep this appropriate for a shared class tool used by many students — friendly and warm, not overly familiar, flirtatious, or unpredictable. This is a reliable assistant students depend on, not a persona or companion character.
+${isWebFallback ? `\nINTERNET FALLBACK INSTRUCTIONS:\n- This question has NO matching file, subject, syllabus entry, or routine in the Semester Library website.\n- Open your response directly with the brief natural acknowledgment: "I couldn't find this on the site, but here's what I found online:" followed by the clear, accurate web-grounded answer.\n- Do NOT pretend this information comes from Gandaki University or Semester Library.` : ''}
 
 CONVERSATIONAL DIALOGUE EXAMPLES (FEW-SHOT TONE BENCHMARK):
 - Student: "I literally cannot focus on studying today, my brain is completely fried"
@@ -1079,12 +1249,15 @@ ${SITE_PAGES.map(p => `- ${p.name} (${p.url}): ${p.description}`).join('\n')}
   messages.push({ role: 'user', content: userMessage });
 
   let rawReply = '';
+  let isWebSearch = false;
+  let webSources = [];
+  let sourceLabel = '';
 
-  // 1. Try Gemini API
+  // 1. Try Gemini API (with Google Search Grounding when falling back to internet)
   const geminiKey = process.env.GEMINI_API_KEY;
   if (geminiKey) {
     try {
-      const model = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+      const model = process.env.GEMINI_MODEL || 'gemini-3.7-flash';
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`;
       
       const contents = messages.filter(m => m.role !== 'system').map(m => ({
@@ -1092,19 +1265,60 @@ ${SITE_PAGES.map(p => `- ${p.name} (${p.url}): ${p.description}`).join('\n')}
         parts: [{ text: m.content }]
       }));
 
+      const requestBody = {
+        contents: contents,
+        systemInstruction: { parts: [{ text: systemPrompt }] },
+        generationConfig: { temperature: 0.7, maxOutputTokens: 1000 }
+      };
+
+      // If no site data matched, enable Google Search Grounding
+      if (isWebFallback) {
+        requestBody.tools = [{ googleSearch: {} }];
+      }
+
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: contents,
-          systemInstruction: { parts: [{ text: systemPrompt }] },
-          generationConfig: { temperature: 0.7, maxOutputTokens: 1000 }
-        })
+        body: JSON.stringify(requestBody),
+        signal: AbortSignal.timeout(12000)
       });
 
       if (res.ok) {
         const data = await res.json();
-        rawReply = data.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('').trim() || '';
+        const candidate = data.candidates?.[0];
+        rawReply = candidate?.content?.parts?.map(p => p.text || '').join('').trim() || '';
+
+        // Extract Google Search Grounding Metadata if available
+        if (candidate?.groundingMetadata) {
+          isWebSearch = true;
+          sourceLabel = '🌐 From the web — not from Semester Library';
+          const meta = candidate.groundingMetadata;
+          const chunks = meta.groundingChunks || [];
+          chunks.forEach(chunk => {
+            if (chunk.web && chunk.web.uri) {
+              try {
+                const urlObj = new URL(chunk.web.uri);
+                webSources.push({
+                  title: chunk.web.title || urlObj.hostname.replace(/^www\./, ''),
+                  url: chunk.web.uri,
+                  domain: urlObj.hostname.replace(/^www\./, '')
+                });
+              } catch (uErr) {
+                webSources.push({
+                  title: chunk.web.title || 'Web Source',
+                  url: chunk.web.uri,
+                  domain: 'web'
+                });
+              }
+            }
+          });
+
+          // Deduplicate web sources by URL
+          webSources = Array.from(new Map(webSources.map(s => [s.url, s])).values()).slice(0, 5);
+        } else if (isWebFallback) {
+          isWebSearch = true;
+          sourceLabel = '🌐 From the web — not from Semester Library';
+        }
       }
     } catch (e) {
       console.warn('[AI Service] Gemini invocation notice:', e.message);
@@ -1128,12 +1342,18 @@ ${SITE_PAGES.map(p => `- ${p.name} (${p.url}): ${p.description}`).join('\n')}
           messages: messages,
           temperature: 0.7,
           max_tokens: 1000
-        })
+        }),
+        signal: AbortSignal.timeout(15000)
       });
 
       if (response.ok) {
         const data = await response.json();
         rawReply = data.choices?.[0]?.message?.content || '';
+        if (isWebFallback) {
+          isWebSearch = true;
+          // OpenRouter is ungrounded general knowledge: label with lower confidence note
+          sourceLabel = 'ℹ️ General Knowledge (Ungrounded) — not from Semester Library';
+        }
       }
     } catch (e) {
       console.warn('[AI Service] OpenRouter fallback notice:', e.message);
@@ -1142,7 +1362,7 @@ ${SITE_PAGES.map(p => `- ${p.name} (${p.url}): ${p.description}`).join('\n')}
 
   // 3. Fallback Template Generator if external AI models are unreachable
   if (!rawReply) {
-    if (/(who are you|what is your name|your name|introduce yourself)/i.test(userMessage)) {
+    if (isSmalltalkOrIdentity) {
       rawReply = `Hey! I'm Kyana, your study assistant for Semester Library. I can help you pull up notes, check syllabus details, or look up exam dates. What are you working on?`;
     } else if (intent === 'RESOURCE_SEARCH') {
       if (searchResults.matchedFiles.length > 0) {
@@ -1163,7 +1383,12 @@ ${SITE_PAGES.map(p => `- ${p.name} (${p.url}): ${p.description}`).join('\n')}
     }
   }
 
-  return rawReply;
+  return {
+    replyText: rawReply,
+    isWebSearch,
+    webSources,
+    sourceLabel
+  };
 }
 
 // ============================================================================
@@ -1178,7 +1403,10 @@ async function handleChat(db, userMessage, studentInfo = {}, conversationHistory
       actions: [],
       matchedFiles: [],
       matchedCourses: [],
-      matchedRoutine: []
+      matchedRoutine: [],
+      isWebSearch: false,
+      webSources: [],
+      sourceLabel: ''
     };
   }
 
@@ -1222,22 +1450,25 @@ async function handleChat(db, userMessage, studentInfo = {}, conversationHistory
   }
 
   // 4. Grounded AI Response Generation
-  let replyText = '';
+  let aiOutput = { replyText: '', isWebSearch: false, webSources: [], sourceLabel: '' };
   try {
-    replyText = await callGroundedAI(query, queryMeta, searchResults, conversationHistory);
+    aiOutput = await callGroundedAI(query, queryMeta, searchResults, conversationHistory);
   } catch (err) {
     console.error('[AI Assistant] callGroundedAI error:', err.message);
-    replyText = `I encountered a temporary issue processing your request. Please try again.`;
+    aiOutput.replyText = `I encountered a temporary issue processing your request. Please try again.`;
   }
 
   return {
-    reply: replyText,
+    reply: aiOutput.replyText,
     intent: queryMeta.intent,
     resourceType: queryMeta.resourceType,
     actions: searchResults.actions,
     matchedFiles: searchResults.matchedFiles,
     matchedCourses: searchResults.matchedCourses,
-    matchedRoutine: searchResults.matchedRoutine
+    matchedRoutine: searchResults.matchedRoutine,
+    isWebSearch: aiOutput.isWebSearch,
+    webSources: aiOutput.webSources || [],
+    sourceLabel: aiOutput.sourceLabel || ''
   };
 }
 

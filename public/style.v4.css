@@ -3946,6 +3946,17 @@ body.dark-mode .fb-card:hover {
   color: #ffffff;
 }
 
+.post-verified-badge.post-cr-badge {
+  background: #1e1b4b;
+  color: #ffffff;
+  border-color: #312e81;
+  box-shadow: 0 2px 8px rgba(30, 27, 75, 0.25);
+}
+
+.post-verified-badge.post-cr-badge svg {
+  color: #a5b4fc;
+}
+
 .post-meta-row {
   display: flex;
   align-items: center;

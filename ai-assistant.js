@@ -682,12 +682,13 @@ function parseSingleIntent(queryStr, ctxSem, ctxSubj, ctxTopic) {
   // Strict check: Explicit file search requests vs knowledge / code generation questions
   const isExplicitFileSearch = /\b(give\s+me\s+(?:notes|pdf|handout|file|slides)|find\s+(?:notes|pdf|handout|file)|show\s+me\s+(?:notes|pdf|slides|handouts)|send\s+me\s+(?:notes|pdf|file)|get\s+me\s+(?:notes|pdf|file)|download\s+(?:notes|pdf|file)|where\s+can\s+i\s+find\s+notes|any\s+notes\s+for|have\s+notes\s+for)\b/i.test(q);
   
-  const isCodingOrKnowledgeVerb = /^(wap|write\s+a\s+program|write\s+a\s+c|write\s+a\s+java|write\s+a\s+code|write\s+code|code\s+for|program\s+to|what\s+is|what\s+are|explain|how\s+does|how\s+to|why\s+is|differentiate|define|solve|calculate|teach\s+me|difference\s+between|create\s+a\s+function)\b/i.test(q);
+  const isCodingOrKnowledgeVerb = /^(wap|write\s+a\s+program|write\s+a\s+c|write\s+a\s+java|write\s+a\s+code|write\s+code|code\s+for|program\s+to|what\s+is|what\s+are|what\s+do\s+you\s+know|what\s+do\s+we\s+have|explain|describe|tell\s+me\s+about|tell\s+me\s+something|overview\s+of|how\s+does|how\s+to|how\s+is|why\s+is|differentiate|define|solve|calculate|teach\s+me|difference\s+between|create\s+a\s+function|can\s+you\s+explain|list\s+(all|the)\s+(subjects|courses|topics)|what\s+topics|what\s+units|what\s+chapters|what\s+is\s+covered|what\s+will\s+(i|we)\s+(learn|study|cover))\b/i.test(q);
+  const isPrefixedKnowledgeVerb = /^\s*(can\s+you|could\s+you|please|hey|so|ok|umm?|hmm?|basically|actually|kindly)?\s*(of|tell\s+me\s+about|explain|describe|what\s+is|what\s+are|how\s+does|how\s+to|overview\s+of|define|difference\s+between)\b/i.test(q);
 
   if (isChitChat) {
     intent = 'CHITCHAT';
     resourceType = 'NONE';
-  } else if (isCodingOrKnowledgeVerb && !isExplicitFileSearch) {
+  } else if ((isCodingOrKnowledgeVerb || isPrefixedKnowledgeVerb) && !isExplicitFileSearch) {
     // Pure coding task or conceptual question -> answer clearly with code/explanation without pushing random file cards!
     intent = 'KNOWLEDGE_QUESTION';
     resourceType = 'NONE';
@@ -695,7 +696,7 @@ function parseSingleIntent(queryStr, ctxSem, ctxSubj, ctxTopic) {
     intent = 'RESOURCE_SEARCH';
   } else if (/\b(open|take\s+me\s+to|go\s+to|navigate\s+to|show\s+page)\b/i.test(q)) {
     intent = 'NAVIGATE_RESOURCE';
-  } else if (resourceType === 'SYLLABUS' || resourceType === 'ROUTINE' || resourceType === 'NOTICE' || resourceType === 'SUBJECT') {
+  } else if (resourceType === 'NOTE' || resourceType === 'SYLLABUS' || resourceType === 'ROUTINE' || resourceType === 'NOTICE' || resourceType === 'SUBJECT') {
     intent = 'WEBSITE_INFO';
   } else {
     // If the query does not ask for files, routine, or syllabus, treat as general knowledge
@@ -738,23 +739,32 @@ async function searchWebsite(db, queryMeta, student = {}) {
 
   // If user is just chatting or asking a general knowledge/identity question, do not search cards!
   if (intent === 'CHITCHAT' || intent === 'KNOWLEDGE_QUESTION' || resourceType === 'NONE') {
+    console.log(`[AI Search Engine] Skipping card search for non-resource query (Intent: ${intent}, Type: ${resourceType})`);
     return results;
   }
 
   // --------------------------------------------------------------------------
   // Intent Classification Flags
-  // --------------------------------------------------------------------------
-  const isRoutineQuery = resourceType === 'ROUTINE' || 
-    /\b(routine|exam|schedule|timetable|preboard|pre-board|when is the exam|exam date|exam time)\b/i.test(searchQuery);
+  // --------------------------------------------------------------------------  // --- Explicit Resource Request Detection ---
+  // Only treat as explicit request when user clearly asks for a specific resource type
+  const isExplicitResourceRequest = resourceType === 'NOTE' || resourceType === 'SYLLABUS' ||
+    resourceType === 'ROUTINE' || resourceType === 'PYQ' || intent === 'RESOURCE_SEARCH';
 
-  const isSyllabusQuery = resourceType === 'SYLLABUS' || 
+  // Pure knowledge questions: no resource type AND not an explicit search request
+  const isPureKnowledge = intent === 'KNOWLEDGE_QUESTION' || intent === 'CHITCHAT' ||
+    (resourceType === 'NONE' && !isExplicitResourceRequest);
+
+  const isRoutineQuery = (resourceType === 'ROUTINE' && isExplicitResourceRequest) || 
+    /\b(routine|exam\s+date|exam\s+time|exam\s+schedule|exam\s+timetable|preboard|pre-board|when is the exam)\b/i.test(searchQuery);
+
+  const isSyllabusQuery = (resourceType === 'SYLLABUS' && isExplicitResourceRequest) || 
     resourceType === 'SUBJECT' ||
     /\b(syllabus|curriculum|course outline|credit|credits|course content|subjects taught|courses taught)\b/i.test(searchQuery);
 
-  const wantsFiles = resourceType === 'NOTE' || 
-    resourceType === 'PYQ' || 
-    intent === 'RESOURCE_SEARCH' ||
-    Boolean(topicObj) ||
+  const wantsFiles = (resourceType === 'NOTE' && isExplicitResourceRequest) || 
+    (resourceType === 'PYQ' && isExplicitResourceRequest) ||
+    (intent === 'RESOURCE_SEARCH') ||
+    Boolean(topicObj && isExplicitResourceRequest) ||
     /\b(note|notes|pdf|pdfs|slide|slides|handout|handouts|doc|docs|material|materials|download)\b/i.test(searchQuery);
 
   // --------------------------------------------------------------------------
@@ -994,6 +1004,15 @@ async function searchWebsite(db, queryMeta, student = {}) {
           score = -999;
         }
 
+        // When user asks for specific topic notes (e.g. "DBMS unit 2"), heavily penalize files that only match subject
+        // but NOT the specific topic — prevents flooding with irrelevant subject-wide notes
+        if (topicObj && isFileSubjectMatch && !rawTokens.some(token => fullFileText.includes(token))) {
+          score -= 30;
+        }
+        if (targetUnitNum && isFileSubjectMatch && !fChapter.includes(targetUnitNum) && !fTitle.includes(targetUnitNum)) {
+          score -= 25;
+        }
+
         return { file: f, score, tokenHits };
       });
 
@@ -1197,6 +1216,12 @@ TONE & COMMUNICATION STYLE:
 - Stay concise and don't ramble — natural doesn't mean long-winded.
 - Keep the same honesty standard: if you don't have real data to answer something, say so plainly and simply ("Don't see anything uploaded for that yet — want me to check something else?") rather than a formal apology.
 - Keep this appropriate for a shared class tool used by many students — friendly and warm, not overly familiar, flirtatious, or unpredictable. This is a reliable assistant students depend on, not a persona or companion character.
+
+CRITICAL RESOURCE RULES (follow strictly):
+- ONLY mention files, notes, syllabus, or exam routines when the GROUNDING CONTEXT shows actual matched results (files, courses, or routine entries above).
+- If the grounding context says "No files matched", "No syllabus courses matched", and "No routine matched" — do NOT suggest the student look for notes or files. Just answer the conceptual question directly.
+- If the student asks a knowledge question ("what is X", "tell me about Y", "explain Z"), provide a clear, accurate explanation. Do NOT push file cards, syllabus links, or routine links unless the student explicitly asked for them.
+- When matched results ARE shown below your response, briefly reference them naturally ("There are a few notes uploaded for that — check them out below!") rather than listing file details redundantly since the cards already show everything.
 ${isWebFallback ? `\nINTERNET FALLBACK INSTRUCTIONS:\n- This question has NO matching file, subject, syllabus entry, or routine in the Semester Library website.\n- Open your response directly with the brief natural acknowledgment: "I couldn't find this on the site, but here's what I found online:" followed by the clear, accurate web-grounded answer.\n- Do NOT pretend this information comes from Gandaki University or Semester Library.` : ''}
 
 CONVERSATIONAL DIALOGUE EXAMPLES (FEW-SHOT TONE BENCHMARK):

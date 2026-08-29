@@ -1,0 +1,7 @@
+[DB Engine]: Connected to PostgreSQL/Neon Database via serverless driver
+----------------------------------------------------
+[AI Assistant] Initializing Semester Library AI Engine v3.0
+[AI Assistant] Gemini Configured: Yes
+[AI Assistant] OpenRouter Configured: Yes
+----------------------------------------------------
+Semester Library server running at http://localhost:3001

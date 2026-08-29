@@ -68,6 +68,48 @@
   let isSending = false;
   const conversationHistory = [];
 
+  // --- 2.5 Starfield Generator (Gentle, Low-Density Stars in Upper Sky) ---
+  function initStarfield() {
+    const starfield = document.getElementById('slaStarfield');
+    if (!starfield) return;
+
+    starfield.innerHTML = '';
+    // Subtle, gentle quantity (30 - 40 stars)
+    const starCount = Math.min(Math.floor((window.innerWidth * window.innerHeight) / 24000), 40);
+    const fragment = document.createDocumentFragment();
+
+    for (let i = 0; i < starCount; i++) {
+      const star = document.createElement('div');
+      star.className = 'sla-star';
+      
+      const size = Math.random() < 0.8 ? (Math.random() * 1.2 + 1.0) : (Math.random() * 1.5 + 2.0); // 1.0px - 3.5px
+      const posX = (Math.random() * 96 + 2).toFixed(2); // 2% to 98%
+      // Upper & mid sky only (top 65%), keeping bottom area clear
+      const posY = (Math.pow(Math.random(), 1.25) * 65 + 3).toFixed(2); 
+      const duration = (Math.random() * 3 + 3.0).toFixed(2); // 3.0s - 6.0s
+      const delay = (Math.random() * 4).toFixed(2);
+      const opacity = (Math.random() * 0.45 + 0.3).toFixed(2); // 0.3 - 0.75
+
+      star.style.width = `${size.toFixed(1)}px`;
+      star.style.height = `${size.toFixed(1)}px`;
+      star.style.left = `${posX}%`;
+      star.style.top = `${posY}%`;
+      star.style.setProperty('--twinkle-duration', `${duration}s`);
+      star.style.setProperty('--twinkle-delay', `${delay}s`);
+      star.style.setProperty('--star-base-opacity', opacity);
+
+      fragment.appendChild(star);
+    }
+
+    starfield.appendChild(fragment);
+  }
+
+  initStarfield();
+  window.addEventListener('resize', () => {
+    clearTimeout(window.__starResizeTimer);
+    window.__starResizeTimer = setTimeout(initStarfield, 250);
+  });
+
   // --- 3. Auto-resizing Multiline Textarea ---
   function adjustTextareaHeight() {
     if (!chatInput) return;

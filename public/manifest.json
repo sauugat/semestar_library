@@ -11,21 +11,21 @@
   "prefer_related_applications": false,
   "icons": [
     {
-      "src": "/logo.jpg",
+      "src": "/logo.png",
       "sizes": "180x180",
-      "type": "image/png/jpg",
+      "type": "image/jpeg",
       "purpose": "any"
     },
     {
-      "src": "/logo.jpg",
+      "src": "/logo.png",
       "sizes": "192x192",
-      "type": "image/png/jpg",
+      "type": "image/jpeg",
       "purpose": "any maskable"
     },
     {
-      "src": "/logo.jpg",
+      "src": "/logo.png",
       "sizes": "512x512",
-      "type": "image/png/jpg",
+      "type": "image/jpeg",
       "purpose": "any maskable"
     }
   ]

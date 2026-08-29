@@ -1,14 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Curriculum Library — Semester Library</title>
-  
+
   <!-- Web App Manifest & iOS PWA Metadata -->
   <link rel="manifest" href="/manifest.json">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <link rel="apple-touch-icon" href="/logo.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/logo.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Semester Library">
@@ -19,7 +20,9 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet">
   <link rel="stylesheet" href="style.v4.css">
   <link rel="stylesheet" href="chatbot.css">
   <script src="syllabus-helper.js"></script>
@@ -27,7 +30,7 @@
     /* ==========================================================================
        MINIMALIST LUXURY APPLE / LINEAR AESTHETIC — CURRICULUM LIBRARY
        ========================================================================== */
-    
+
     :root {
       --bg: #f8f9fa;
       --surface: #ffffff;
@@ -41,9 +44,9 @@
       --radius-sm: 10px;
       --radius-md: 16px;
       --radius-lg: 22px;
-      --shadow-sm: 0 2px 6px rgba(0,0,0,0.03);
-      --shadow-md: 0 8px 24px -4px rgba(0,0,0,0.08);
-      --shadow-lg: 0 24px 48px -10px rgba(0,0,0,0.12);
+      --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.03);
+      --shadow-md: 0 8px 24px -4px rgba(0, 0, 0, 0.08);
+      --shadow-lg: 0 24px 48px -10px rgba(0, 0, 0, 0.12);
       --ease-apple: cubic-bezier(0.16, 1, 0.3, 1);
     }
 
@@ -411,7 +414,7 @@
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
       min-width: 0;
       width: 100%;
       box-sizing: border-box;
@@ -426,7 +429,7 @@
       overflow: hidden;
     }
 
-    .clean-file-left > div:not(.clean-file-icon) {
+    .clean-file-left>div:not(.clean-file-icon) {
       min-width: 0;
       flex: 1;
       overflow: hidden;
@@ -494,13 +497,19 @@
       color: #111827;
       border: 1px solid var(--border);
     }
-    .btn-file-view:hover { background: #e5e7eb; }
+
+    .btn-file-view:hover {
+      background: #e5e7eb;
+    }
 
     .btn-file-get {
       background: #111827;
       color: #ffffff;
     }
-    .btn-file-get:hover { background: #000000; }
+
+    .btn-file-get:hover {
+      background: #000000;
+    }
 
     .btn-file-delete {
       background: #fff1f2;
@@ -509,6 +518,7 @@
       cursor: pointer;
       padding: 6px 9px;
     }
+
     .btn-file-delete:hover {
       background: #ffe4e6;
       color: #be123c;
@@ -530,6 +540,7 @@
       cursor: pointer;
       transition: all 0.2s ease;
     }
+
     .btn-unit-delete-all:hover {
       background: #ffe4e6;
       color: #be123c;
@@ -548,6 +559,7 @@
       user-select: none;
       flex-shrink: 0;
     }
+
     .file-checkbox-label input {
       position: absolute;
       opacity: 0;
@@ -555,6 +567,7 @@
       height: 0;
       pointer-events: none;
     }
+
     .file-custom-check {
       width: 18px;
       height: 18px;
@@ -566,14 +579,17 @@
       justify-content: center;
       transition: all 0.18s ease;
     }
+
     .file-checkbox-label:hover .file-custom-check {
       border-color: #0f172a;
     }
-    .file-checkbox-label input:checked ~ .file-custom-check {
+
+    .file-checkbox-label input:checked~.file-custom-check {
       background: #e11d48;
       border-color: #e11d48;
     }
-    .file-checkbox-label input:checked ~ .file-custom-check::after {
+
+    .file-checkbox-label input:checked~.file-custom-check::after {
       content: '';
       width: 4px;
       height: 8px;
@@ -595,11 +611,13 @@
       pointer-events: none;
       max-width: 92vw;
     }
+
     .batch-floating-bar.active {
       transform: translateX(-50%) translateY(0);
       opacity: 1;
       pointer-events: auto;
     }
+
     .batch-floating-inner {
       background: rgba(15, 23, 42, 0.94);
       backdrop-filter: blur(16px);
@@ -612,11 +630,13 @@
       gap: 16px;
       box-shadow: 0 16px 36px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.12);
     }
+
     .batch-floating-info {
       display: flex;
       align-items: center;
       gap: 8px;
     }
+
     .batch-badge-count {
       background: #e11d48;
       color: #ffffff;
@@ -627,17 +647,20 @@
       min-width: 22px;
       text-align: center;
     }
+
     .batch-label {
       font-size: 13px;
       font-weight: 600;
       color: #f1f5f9;
       white-space: nowrap;
     }
+
     .batch-floating-actions {
       display: flex;
       align-items: center;
       gap: 8px;
     }
+
     .batch-btn-toggle {
       background: rgba(255, 255, 255, 0.12);
       color: #ffffff;
@@ -649,9 +672,11 @@
       cursor: pointer;
       transition: all 0.2s;
     }
+
     .batch-btn-toggle:hover {
       background: rgba(255, 255, 255, 0.22);
     }
+
     .batch-btn-delete-action {
       background: #e11d48;
       color: #ffffff;
@@ -667,6 +692,7 @@
       box-shadow: 0 2px 10px rgba(225, 29, 72, 0.4);
       transition: all 0.2s;
     }
+
     .batch-btn-delete-action:hover {
       background: #be123c;
       transform: translateY(-1px);
@@ -689,10 +715,12 @@
       transition: all 0.25s var(--ease-apple);
       padding: 16px;
     }
+
     .custom-confirm-overlay.open {
       opacity: 1;
       visibility: visible;
     }
+
     .custom-confirm-card {
       background: var(--surface);
       width: 100%;
@@ -706,9 +734,11 @@
       display: flex;
       flex-direction: column;
     }
+
     .custom-confirm-overlay.open .custom-confirm-card {
       transform: scale(1) translateY(0);
     }
+
     .confirm-icon-wrap {
       width: 52px;
       height: 52px;
@@ -722,6 +752,7 @@
       margin-bottom: 16px;
       box-shadow: 0 0 0 6px rgba(225, 29, 72, 0.08);
     }
+
     .confirm-title {
       font-size: 19px;
       font-weight: 800;
@@ -729,12 +760,14 @@
       letter-spacing: -0.02em;
       margin: 0 0 8px;
     }
+
     .confirm-message {
       font-size: 13.5px;
       color: var(--text-muted);
       line-height: 1.5;
       margin: 0 0 14px;
     }
+
     .confirm-file-preview-list {
       max-height: 150px;
       overflow-y: auto;
@@ -744,6 +777,7 @@
       padding: 6px 12px;
       margin-bottom: 18px;
     }
+
     .confirm-file-item {
       display: flex;
       align-items: center;
@@ -751,9 +785,11 @@
       padding: 6px 0;
       border-bottom: 1px solid rgba(0, 0, 0, 0.04);
     }
+
     .confirm-file-item:last-child {
       border-bottom: none;
     }
+
     .confirm-badge {
       font-size: 10px;
       font-weight: 800;
@@ -763,10 +799,29 @@
       color: #334155;
       flex-shrink: 0;
     }
-    .confirm-badge.pdf { background: #fee2e2; color: #dc2626; }
-    .confirm-badge.ppt, .confirm-badge.pptx { background: #ffedd5; color: #c2410c; }
-    .confirm-badge.doc, .confirm-badge.docx { background: #dbeafe; color: #1d4ed8; }
-    .confirm-badge.img { background: #f3e8ff; color: #7e22ce; }
+
+    .confirm-badge.pdf {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+
+    .confirm-badge.ppt,
+    .confirm-badge.pptx {
+      background: #ffedd5;
+      color: #c2410c;
+    }
+
+    .confirm-badge.doc,
+    .confirm-badge.docx {
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
+
+    .confirm-badge.img {
+      background: #f3e8ff;
+      color: #7e22ce;
+    }
+
     .confirm-file-name {
       font-size: 12.5px;
       font-weight: 600;
@@ -776,6 +831,7 @@
       text-overflow: ellipsis;
       min-width: 0;
     }
+
     .confirm-actions {
       display: flex;
       align-items: center;
@@ -783,6 +839,7 @@
       gap: 10px;
       margin-top: 6px;
     }
+
     .btn-confirm-cancel {
       padding: 9px 18px;
       border-radius: 980px;
@@ -794,9 +851,11 @@
       cursor: pointer;
       transition: all 0.2s;
     }
+
     .btn-confirm-cancel:hover {
       background: #e2e8f0;
     }
+
     .btn-confirm-danger {
       padding: 9px 20px;
       border-radius: 980px;
@@ -812,6 +871,7 @@
       box-shadow: 0 4px 12px rgba(225, 29, 72, 0.35);
       transition: all 0.2s;
     }
+
     .btn-confirm-danger:hover {
       background: #be123c;
       transform: translateY(-1px);
@@ -836,15 +896,18 @@
       cursor: pointer;
       font-family: inherit;
     }
+
     .upload-cta-btn:hover {
       background: #000000;
       transform: translateY(-2px);
       box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
     }
+
     .upload-cta-btn svg {
       transition: transform 0.2s ease;
       stroke-width: 2.4px;
     }
+
     .upload-cta-btn:hover svg {
       transform: translateY(-1.5px);
     }
@@ -917,7 +980,7 @@
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
     }
 
     .modal-title {
@@ -977,7 +1040,8 @@
       gap: 6px;
     }
 
-    .clean-dropzone:hover, .clean-dropzone.dragover {
+    .clean-dropzone:hover,
+    .clean-dropzone.dragover {
       border-color: #111827;
       background: #f4f4f5;
     }
@@ -1071,7 +1135,7 @@
       border: 1px solid rgba(0, 0, 0, 0.08);
       border-radius: 9px;
       font-size: 12.5px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
     }
 
     .file-queue-left {
@@ -1091,12 +1155,35 @@
       flex-shrink: 0;
     }
 
-    .badge-pdf { background: #fee2e2; color: #b91c1c; }
-    .badge-doc { background: #dbeafe; color: #1d4ed8; }
-    .badge-img { background: #dcfce7; color: #15803d; }
-    .badge-zip { background: #f3e8ff; color: #7e22ce; }
-    .badge-ppt { background: #ffedd5; color: #c2410c; }
-    .badge-other { background: #f3f4f6; color: #4b5563; }
+    .badge-pdf {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+
+    .badge-doc {
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
+
+    .badge-img {
+      background: #dcfce7;
+      color: #15803d;
+    }
+
+    .badge-zip {
+      background: #f3e8ff;
+      color: #7e22ce;
+    }
+
+    .badge-ppt {
+      background: #ffedd5;
+      color: #c2410c;
+    }
+
+    .badge-other {
+      background: #f3f4f6;
+      color: #4b5563;
+    }
 
     .file-queue-name {
       font-weight: 600;
@@ -1145,7 +1232,8 @@
       margin-bottom: 5px;
     }
 
-    .clean-input, .clean-select {
+    .clean-input,
+    .clean-select {
       width: 100%;
       padding: 10px 12px;
       border: 1.5px solid var(--border);
@@ -1159,7 +1247,8 @@
       box-sizing: border-box;
     }
 
-    .clean-input:focus, .clean-select:focus {
+    .clean-input:focus,
+    .clean-select:focus {
       border-color: #111827;
       box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.06);
     }
@@ -1209,7 +1298,7 @@
       display: inline-flex;
       align-items: center;
       gap: 7px;
-      box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
       transition: all 0.2s var(--ease-apple);
       font-family: inherit;
     }
@@ -1217,7 +1306,7 @@
     .btn-modal-submit:hover {
       background: #000000;
       transform: translateY(-1px);
-      box-shadow: 0 6px 16px rgba(0,0,0,0.22);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.22);
     }
 
     .btn-modal-submit:disabled {
@@ -1343,7 +1432,7 @@
         gap: 10px !important;
       }
 
-      .clean-file-left > div:not(.clean-file-icon) {
+      .clean-file-left>div:not(.clean-file-icon) {
         flex: 1 !important;
         min-width: 0 !important;
         width: 100% !important;
@@ -1442,10 +1531,10 @@
         width: 100%;
       }
     }
-
   </style>
   <link rel="stylesheet" href="auth-modal.css">
 </head>
+
 <body class="dash">
 
   <!-- Slim Apple Pro Header -->
@@ -1471,7 +1560,7 @@
 
   <!-- Clean Minimal Container -->
   <main class="lib-page-wrap">
-    
+
     <!-- Top Action Bar -->
     <div class="lib-top-bar">
       <div>
@@ -1479,11 +1568,16 @@
       </div>
       <div style="display:flex; align-items:center; gap:12px; flex:1; justify-content:flex-end; max-width:620px;">
         <div class="lib-search-pill" style="max-width:380px;">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2">
+            <circle cx="11" cy="11" r="8" />
+            <path d="M21 21l-4.35-4.35" />
+          </svg>
           <input type="text" id="libSearch" placeholder="Search subjects, chapters, notes, or topics…">
         </div>
         <button type="button" class="upload-cta-btn" onclick="openDirectUploadModal()" title="Upload Notes to Library">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />
+          </svg>
           <span>Upload Notes</span>
         </button>
       </div>
@@ -1521,12 +1615,16 @@
         <button class="drawer-close" id="drawerClose" title="Close">&times;</button>
         <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
           <span class="course-code-badge" id="dCourseCode">BIT101</span>
-          <span style="font-size:12px; font-weight:600; color:var(--text-muted);" id="dCourseMeta">Semester 1 &middot; 3 Credits</span>
+          <span style="font-size:12px; font-weight:600; color:var(--text-muted);" id="dCourseMeta">Semester 1 &middot; 3
+            Credits</span>
         </div>
-        <h2 style="font-size:18px; font-weight:800; margin:0 0 12px; color:var(--text);" id="dCourseTitle">Course Title</h2>
+        <h2 style="font-size:18px; font-weight:800; margin:0 0 12px; color:var(--text);" id="dCourseTitle">Course Title
+        </h2>
         <div style="display:flex; gap:8px;">
           <button type="button" id="dUploadBtn" class="upload-cta-btn" style="padding:6px 14px; font-size:12px;">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />
+            </svg>
             <span>+ Upload Note</span>
           </button>
         </div>
@@ -1547,8 +1645,9 @@
       <div class="modal-header">
         <div class="modal-header-left">
           <div class="modal-header-icon">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />
             </svg>
           </div>
           <div>
@@ -1563,12 +1662,14 @@
         <!-- Multi-File Dropzone -->
         <label for="directFileInput" class="clean-dropzone" id="directDropZone">
           <div class="dropzone-icon-circle">
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />
             </svg>
           </div>
           <span class="dropzone-label" id="directDropLabel">Choose file(s) or drag & drop</span>
-          <span class="dropzone-hint">PDF, DOCX, ZIP, Images, PPTX up to 25MB each &middot; Select multiple files at once</span>
+          <span class="dropzone-hint">PDF, DOCX, ZIP, Images, PPTX up to 25MB each &middot; Select multiple files at
+            once</span>
           <input type="file" id="directFileInput" multiple hidden>
         </label>
 
@@ -1583,8 +1684,11 @@
 
         <!-- Optional Batch / Resource Title -->
         <div class="clean-field">
-          <label class="clean-label" for="modalTitleInput">Resource Title <span style="font-weight:500; text-transform:none; color:var(--text-subtle);">(Optional &middot; defaults to file name)</span></label>
-          <input type="text" id="modalTitleInput" class="clean-input" placeholder="e.g. Unit 2 Digital Logic Lecture Notes" maxlength="100">
+          <label class="clean-label" for="modalTitleInput">Resource Title <span
+              style="font-weight:500; text-transform:none; color:var(--text-subtle);">(Optional &middot; defaults to
+              file name)</span></label>
+          <input type="text" id="modalTitleInput" class="clean-input"
+            placeholder="e.g. Unit 2 Digital Logic Lecture Notes" maxlength="100">
         </div>
 
         <!-- Semester & Course Row -->
@@ -1604,7 +1708,8 @@
           </div>
         </div>
 
-        <input type="text" id="modalCustomSubInput" class="clean-input" placeholder="Enter custom subject name" style="display:none; margin-bottom:14px;">
+        <input type="text" id="modalCustomSubInput" class="clean-input" placeholder="Enter custom subject name"
+          style="display:none; margin-bottom:14px;">
 
         <!-- Chapter / Unit Row -->
         <div class="clean-field">
@@ -1614,7 +1719,8 @@
           </select>
         </div>
 
-        <input type="text" id="modalCustomChapterInput" class="clean-input" placeholder="Enter custom unit name" style="display:none; margin-bottom:14px;">
+        <input type="text" id="modalCustomChapterInput" class="clean-input" placeholder="Enter custom unit name"
+          style="display:none; margin-bottom:14px;">
 
         <!-- Status / Error message -->
         <div id="modalStatusMsg" class="modal-status-msg" style="display:none;"></div>
@@ -1623,8 +1729,9 @@
         <div class="modal-actions">
           <button type="button" class="btn-modal-cancel" id="uploadModalCancel">Cancel</button>
           <button type="submit" class="btn-modal-submit" id="directUploadSubmit">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />
             </svg>
             <span id="submitBtnText">Publish Files</span>
           </button>
@@ -1645,8 +1752,8 @@
         <button type="button" class="batch-btn-toggle" onclick="clearSelectedDrawerFiles()">Deselect</button>
         <button type="button" class="batch-btn-delete-action" onclick="deleteSelectedBatchFiles()">
           <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2">
-            <polyline points="3 6 5 6 21 6"/>
-            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
           </svg>
           <span>Delete Selected</span>
         </button>
@@ -1659,15 +1766,16 @@
     <div class="custom-confirm-card" role="dialog" aria-modal="true">
       <div class="confirm-icon-wrap" id="confirmIconWrap">
         <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.2">
-          <polyline points="3 6 5 6 21 6"/>
-          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-          <line x1="10" y1="11" x2="10" y2="17"/>
-          <line x1="14" y1="11" x2="14" y2="17"/>
+          <polyline points="3 6 5 6 21 6" />
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+          <line x1="10" y1="11" x2="10" y2="17" />
+          <line x1="14" y1="11" x2="14" y2="17" />
         </svg>
       </div>
       <h3 class="confirm-title" id="confirmTitle">Delete Study Materials?</h3>
-      <p class="confirm-message" id="confirmMessage">Are you sure you want to permanently delete these notes? This action cannot be undone.</p>
-      
+      <p class="confirm-message" id="confirmMessage">Are you sure you want to permanently delete these notes? This
+        action cannot be undone.</p>
+
       <div class="confirm-file-preview-list" id="confirmFileList" style="display:none;"></div>
 
       <div class="confirm-actions">
@@ -1681,12 +1789,15 @@
 
   <!-- Toast Notification -->
   <div id="libToast" class="lib-toast">
-    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
     <span id="toastMsg">Uploaded successfully!</span>
   </div>
 
   <div id="minimalAuthToast" class="minimal-auth-toast">
-    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none" stroke-width="2.5" style="opacity: 0.9;">
+    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none" stroke-width="2.5"
+      style="opacity: 0.9;">
       <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
       <path d="M7 11V7a5 5 0 0110 0v4"></path>
     </svg>
@@ -1734,9 +1845,9 @@
           profileChip.outerHTML = `<a href="javascript:void(0)" onclick="showAuthModal()" class="nav-cta-btn apple-nav-btn">Sign In</a>`;
         }
       }
-    }).catch(() => {});
+    }).catch(() => { });
 
-    window.requireLoginForFile = function(e, fileId, action) {
+    window.requireLoginForFile = function (e, fileId, action) {
       if (!window.IS_AUTHENTICATED) {
         e.preventDefault();
         const toast = document.getElementById('minimalAuthToast');
@@ -1827,7 +1938,7 @@
           btn.classList.add('active');
           ACTIVE_SEM = btn.dataset.sem;
           updateHeaderTitle();
-          
+
           // Clear search when switching tabs for a clean experience
           document.getElementById('libSearch').value = '';
           renderView();
@@ -1937,7 +2048,7 @@
       });
     }
 
-    window.handleFileSelectionChange = function() {
+    window.handleFileSelectionChange = function () {
       const checkedBoxes = Array.from(document.querySelectorAll('.file-select-checkbox:checked'));
       const count = checkedBoxes.length;
       const bar = document.getElementById('batchFloatingBar');
@@ -1953,19 +2064,19 @@
       }
     };
 
-    window.selectAllDrawerFiles = function() {
+    window.selectAllDrawerFiles = function () {
       const allBoxes = document.querySelectorAll('.file-select-checkbox');
       allBoxes.forEach(b => b.checked = true);
       handleFileSelectionChange();
     };
 
-    window.clearSelectedDrawerFiles = function() {
+    window.clearSelectedDrawerFiles = function () {
       const allBoxes = document.querySelectorAll('.file-select-checkbox');
       allBoxes.forEach(b => b.checked = false);
       handleFileSelectionChange();
     };
 
-    window.deleteSelectedBatchFiles = async function() {
+    window.deleteSelectedBatchFiles = async function () {
       const checkedBoxes = Array.from(document.querySelectorAll('.file-select-checkbox:checked'));
       if (!checkedBoxes.length) return;
 
@@ -2018,15 +2129,15 @@
       }
     };
 
-    window.deleteLibraryFile = async function(fileId, event) {
+    window.deleteLibraryFile = async function (fileId, event) {
       if (event) {
         event.stopPropagation();
         event.preventDefault();
       }
 
       const id = parseInt(fileId);
-      const f = (CURRENT_DRAWER_FILES && CURRENT_DRAWER_FILES.find(x => x.id === id)) || 
-                (ALL_FILES && ALL_FILES.find(x => x.id === id)) || {};
+      const f = (CURRENT_DRAWER_FILES && CURRENT_DRAWER_FILES.find(x => x.id === id)) ||
+        (ALL_FILES && ALL_FILES.find(x => x.id === id)) || {};
       const fileTitle = f.title || f.originalName || 'Study Note';
       const fileType = getFileBadge(f.originalName || f.title);
 
@@ -2069,7 +2180,7 @@
       }
     };
 
-    window.deleteChapterFiles = async function(subject, chapter, fileIds, event) {
+    window.deleteChapterFiles = async function (subject, chapter, fileIds, event) {
       if (event) {
         event.stopPropagation();
         event.preventDefault();
@@ -2079,7 +2190,7 @@
 
       const fileList = fileIds.map(id => {
         const f = (CURRENT_DRAWER_FILES && CURRENT_DRAWER_FILES.find(x => x.id === id)) ||
-                  (ALL_FILES && ALL_FILES.find(x => x.id === id)) || {};
+          (ALL_FILES && ALL_FILES.find(x => x.id === id)) || {};
         return {
           id,
           title: f.title || f.originalName || 'Study Note',
@@ -2346,7 +2457,7 @@
       document.getElementById('dCourseCode').textContent = course.code || 'COURSE';
       document.getElementById('dCourseMeta').textContent = `${semLabel} · ${course.credit} Credits`;
       document.getElementById('dCourseTitle').textContent = course.title;
-      
+
       const dUploadBtn = document.getElementById('dUploadBtn');
       dUploadBtn.onclick = () => openDirectUploadModal(course.title, course.rawSemester);
 
@@ -2542,7 +2653,7 @@
       }).join('');
     }
 
-    window.removeQueuedFile = function(index) {
+    window.removeQueuedFile = function (index) {
       SELECTED_FILES.splice(index, 1);
       renderFileQueue();
     };
@@ -2622,7 +2733,7 @@
     }
 
     function setupUploadModalControls() {
-      modalSemesterSelect.innerHTML = '<option value="">Select Semester…</option>' + 
+      modalSemesterSelect.innerHTML = '<option value="">Select Semester…</option>' +
         SEMESTER_LIST.map(s => `<option value="${s.shortName}">${s.fullLabel}</option>`).join('') +
         '<option value="General">General / All Semesters</option>';
 
@@ -2701,7 +2812,7 @@
       });
     }
 
-    window.openDirectUploadModal = function(prefillSubject = null, prefillSem = null, prefillChapter = null) {
+    window.openDirectUploadModal = function (prefillSubject = null, prefillSem = null, prefillChapter = null) {
       clearModalStatus();
       SELECTED_FILES = [];
       directFileInput.value = '';
@@ -2747,7 +2858,7 @@
       uploadModalOverlay.classList.add('open');
     };
 
-    window.closeDirectUploadModal = function() {
+    window.closeDirectUploadModal = function () {
       uploadModalOverlay.classList.remove('open');
       SELECTED_FILES = [];
       directFileInput.value = '';
@@ -2836,12 +2947,12 @@
     init();
 
     // Prevent redirect for protected pages if not logged in
-    document.addEventListener('click', function(e) {
+    document.addEventListener('click', function (e) {
       const target = e.target.closest('a');
       if (!target) return;
       const href = target.getAttribute('href');
       if (!href) return;
-      
+
       const protectedPages = ['dashboard.html', 'chat.html', 'chatbot.html', 'profile.html'];
       if (protectedPages.some(page => href.includes(page))) {
         if (!window.IS_AUTHENTICATED) {
@@ -2869,4 +2980,5 @@
     }
   </script>
 </body>
+
 </html>

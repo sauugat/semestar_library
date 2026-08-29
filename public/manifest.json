@@ -11,21 +11,21 @@
   "prefer_related_applications": false,
   "icons": [
     {
-      "src": "/apple-touch-icon.png",
+      "src": "/logo.jpg",
       "sizes": "180x180",
-      "type": "image/png",
+      "type": "image/png/jpg",
       "purpose": "any"
     },
     {
-      "src": "/icon-192.png",
+      "src": "/logo.jpg",
       "sizes": "192x192",
-      "type": "image/png",
+      "type": "image/png/jpg",
       "purpose": "any maskable"
     },
     {
-      "src": "/icon-512.png",
+      "src": "/logo.jpg",
       "sizes": "512x512",
-      "type": "image/png",
+      "type": "image/png/jpg",
       "purpose": "any maskable"
     }
   ]

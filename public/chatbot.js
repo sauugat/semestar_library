@@ -255,7 +255,7 @@
       webBadge.className = 'sla-web-search-badge';
       webBadge.innerHTML = `
         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
-        <span>${data.sourceLabel || '🌐 From the web — not from Semester Library'}</span>
+        <span>${data.sourceLabel || 'From the web — not from Semester Library'}</span>
       `;
       bubble.appendChild(webBadge);
     }
@@ -475,11 +475,20 @@
     const actionsBar = document.createElement('div');
     actionsBar.className = 'sla-msg-actions-bar';
     
-    let badgeText = 'Library Grounded';
-    let badgeClass = 'sla-citation-badge';
+    let badgeHtml = '';
     if (data.isWebSearch) {
-      badgeText = (data.webSources && data.webSources.length > 0) ? '🌐 Web Grounded' : '🌐 Web Fallback';
-      badgeClass = 'sla-citation-badge sla-badge-web';
+      const bText = (data.webSources && data.webSources.length > 0) ? 'Web Grounded' : 'Web Fallback';
+      badgeHtml = `
+        <div class="sla-citation-badge sla-badge-web">
+          <span>${bText}</span>
+        </div>
+      `;
+    } else {
+      badgeHtml = `
+        <div class="sla-citation-badge">
+          <span>Library Grounded</span>
+        </div>
+      `;
     }
 
     actionsBar.innerHTML = `
@@ -487,9 +496,7 @@
         <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
         <span>Copy</span>
       </button>
-      <div class="${badgeClass}">
-        <span>${badgeText}</span>
-      </div>
+      ${badgeHtml}
     `;
 
     const copyBtn = actionsBar.querySelector('.sla-copy-msg-btn');

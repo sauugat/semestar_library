@@ -994,7 +994,7 @@ body.sla-fullpage-mode .sla-welcome-hero {
 }
 
 .sla-citation-badge.sla-badge-web {
-  color: #38bdf8;
+  color: var(--sla-lavender);
   font-weight: 600;
 }
 
@@ -1006,20 +1006,20 @@ body.sla-fullpage-mode .sla-welcome-hero {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: rgba(14, 116, 144, 0.16);
-  border: 1px solid rgba(56, 189, 248, 0.35);
+  background: var(--sla-bg-card);
+  border: 1px solid var(--sla-border-glass);
   border-radius: 20px;
   padding: 4px 12px;
   font-size: 11px;
   font-weight: 650;
-  color: #7dd3fc;
+  color: var(--sla-lavender);
   letter-spacing: 0.01em;
   margin-bottom: 10px;
-  box-shadow: 0 2px 10px rgba(14, 116, 144, 0.2);
+  box-shadow: 0 2px 10px rgba(139, 92, 246, 0.15);
 }
 
 .sla-web-search-badge svg {
-  color: #38bdf8;
+  color: var(--sla-violet);
   flex-shrink: 0;
 }
 

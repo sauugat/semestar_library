@@ -657,49 +657,81 @@ function parseSingleIntent(queryStr, ctxSem, ctxSubj, ctxTopic) {
     if (!topicObj && ctxTopic) topicObj = ctxTopic;
   }
 
-  // Detect Resource Type
+  // ---- ADVANCED RESOURCE TYPE CLASSIFICATION ----
+  // Phase 1: Detect if user is EXPLICITLY requesting a resource (not just mentioning keywords)
+
+  // Request verbs — user is asking FOR something, not asking ABOUT something
+  const hasResourceRequestVerb = /\b(give\s+me|show\s+me|find\s+me|find\s+(?:some|any)?|send\s+me|get\s+me|download|provide|share|pull\s+up|i\s+need|i\s+want|do\s+(we|you)\s+have|is\s+there|are\s+there|where\s+(can\s+i\s+find|is|are))\b/i.test(q);
+
+  // Resource noun detectors (presence check only — NOT intent)
+  const mentionsNoteNouns = /\b(note|notes|pdf|pdfs|slides|handouts|study\s+material|lecture\s+notes|material|materials)\b/i.test(q);
+  const mentionsSyllabusNouns = /\b(syllabus|curriculum|course\s+outline|course\s+content)\b/i.test(q);
+  const mentionsRoutineNouns = /\b(routine|timetable|exam\s+date|exam\s+time|exam\s+schedule|pre-?board\s+schedule)\b/i.test(q);
+  const mentionsPYQNouns = /\b(pyq|pyqs|previous\s+year|past\s+questions|old\s+questions|question\s+paper|model\s+question)\b/i.test(q);
+  const mentionsNoticeNouns = /\b(notice|notices|announcement|announcements)\b/i.test(q);
+
+  // Direct resource request patterns: "X notes", "notes for X", standalone "notes" at end of query
+  const isNounDirectRequest = /\b(notes|pdf|slides|handouts|syllabus|routine|timetable|schedule|pyq|pyqs|question\s+paper|past\s+questions|previous\s+year\s+questions?|old\s+questions|model\s+question)\s+(for|of|on|about)\b/i.test(q) ||
+    /\b(notes|pdf|slides|handouts|material|syllabus|routine|schedule|pyqs?|questions?)\s*[?.!]?\s*$/i.test(q) ||
+    /^(notes|pdf|slides|handouts|syllabus|routine|schedule|pyq|pyqs|previous\s+year|past\s+questions|model\s+question)\b/i.test(q);
+
+  // "When is X exam?" — always a routine request, never a knowledge question
+  const isWhenExamPattern = /\b(when\s+is|when\s+are|when\s+does|when\s+do|what\s+date|what\s+day|which\s+date)\b.*\b(exam|test|pre-?board|board)\b/i.test(q) ||
+    /\b(exam|test|pre-?board)\b.*\b(when|date|day|schedule)\b/i.test(q);
+
+  // Phase 2: Set resource type ONLY when clear request signals are present
   let resourceType = null;
-  if (/\b(note|notes|pdf|pdfs|slides|handouts|study material|doc|docs|lecture|exercises|exercise|material|materials|slides)\b/i.test(q)) {
+  if ((hasResourceRequestVerb || isNounDirectRequest) && mentionsNoteNouns) {
     resourceType = 'NOTE';
-  } else if (/\b(syllabus|curriculum|course outline|course content|credit|credits)\b/i.test(q)) {
+  } else if ((hasResourceRequestVerb || isNounDirectRequest) && mentionsSyllabusNouns) {
     resourceType = 'SYLLABUS';
-  } else if (/\b(routine|exam|schedule|timetable|exam date|exam time|pre-board|preboard)\b/i.test(q)) {
+  } else if (isWhenExamPattern || ((hasResourceRequestVerb || isNounDirectRequest) && mentionsRoutineNouns)) {
     resourceType = 'ROUTINE';
-  } else if (/\b(pyq|pyqs|previous year|past questions|old questions|question paper|model question)\b/i.test(q)) {
+  } else if ((hasResourceRequestVerb || isNounDirectRequest) && mentionsPYQNouns) {
     resourceType = 'PYQ';
-  } else if (/\b(notice|notices|announcement|announcements|news)\b/i.test(q)) {
+  } else if (hasResourceRequestVerb && mentionsNoticeNouns) {
     resourceType = 'NOTICE';
-  } else if (/\b(subject|subjects|courses|classes)\b/i.test(q)) {
-    resourceType = 'SUBJECT';
   }
 
-  // Classify Intent Mode
-  let intent = 'WEBSITE_INFO';
+  // Phase 3: Intent Classification (default: answer the question, don't push resource cards)
+  let intent = 'KNOWLEDGE_QUESTION';
 
   const isChitChat = /^(hi|hello|hey|who\s+(are\s+you|r\s+u|you)|what\s+is\s+your\s+name|your\s+name|what\s+can\s+you\s+do|how\s+are\s+you|thanks|thank\s+you|bye|good\s+(morning|afternoon|evening))\b/i.test(q.trim()) ||
     q.trim().length <= 2;
 
-  // Strict check: Explicit file search requests vs knowledge / code generation questions
+  // Explicit file/resource search patterns (strong request signals)
   const isExplicitFileSearch = /\b(give\s+me\s+(?:notes|pdf|handout|file|slides)|find\s+(?:notes|pdf|handout|file)|show\s+me\s+(?:notes|pdf|slides|handouts)|send\s+me\s+(?:notes|pdf|file)|get\s+me\s+(?:notes|pdf|file)|download\s+(?:notes|pdf|file)|where\s+can\s+i\s+find\s+notes|any\s+notes\s+for|have\s+notes\s+for)\b/i.test(q);
-  
-  const isCodingOrKnowledgeVerb = /^(wap|write\s+a\s+program|write\s+a\s+c|write\s+a\s+java|write\s+a\s+code|write\s+code|code\s+for|program\s+to|what\s+is|what\s+are|what\s+do\s+you\s+know|what\s+do\s+we\s+have|explain|describe|tell\s+me\s+about|tell\s+me\s+something|overview\s+of|how\s+does|how\s+to|how\s+is|why\s+is|differentiate|define|solve|calculate|teach\s+me|difference\s+between|create\s+a\s+function|can\s+you\s+explain|list\s+(all|the)\s+(subjects|courses|topics)|what\s+topics|what\s+units|what\s+chapters|what\s+is\s+covered|what\s+will\s+(i|we)\s+(learn|study|cover))\b/i.test(q);
-  const isPrefixedKnowledgeVerb = /^\s*(can\s+you|could\s+you|please|hey|so|ok|umm?|hmm?|basically|actually|kindly)?\s*(of|tell\s+me\s+about|explain|describe|what\s+is|what\s+are|how\s+does|how\s+to|overview\s+of|define|difference\s+between)\b/i.test(q);
+
+  // Broad knowledge/conceptual question verbs — user wants to LEARN, not GET a resource
+  const isKnowledgeQuestion = /^(wap|write\s+a?\s*(program|code|function)|code\s+for|program\s+to|what\s+is|what\s+are|what\s+do|what\s+does|what\s+was|what\s+were|explain|describe|tell\s+me\s+(about|something|the|how|what|why)|overview\s+of|how\s+does|how\s+to|how\s+is|how\s+do|how\s+can|how\s+many|why\s+is|why\s+do|why\s+does|differentiate|define|solve|calculate|teach\s+me|difference\s+between|create\s+a\s+function|can\s+you\s+(explain|describe|tell)|list\s+(all|the)\s+(subjects|courses|topics)|what\s+topics|what\s+units|what\s+chapters|what\s+is\s+covered|what\s+will\s+(i|we)\s+(learn|study|cover)|compare|discuss|elaborate|summarize|derive|prove|meaning\s+of|advantages|disadvantages|features\s+of|types\s+of|steps\s+to|process\s+of|what\s+happens|who\s+(invented|created|discovered|developed))\b/i.test(q);
+  const isPrefixedKnowledge = /^\s*(can\s+you|could\s+you|please|hey|so|ok|umm?|hmm?|basically|actually|kindly|bro|dude|yo)?\s*(tell\s+me\s+about|explain|describe|what\s+is|what\s+are|what\s+do|how\s+does|how\s+to|how\s+do|how\s+can|how\s+many|overview\s+of|define|difference\s+between|meaning\s+of|discuss|elaborate|summarize)\b/i.test(q);
+  // Conceptual questions that contain resource words but do NOT want the resource itself
+  // e.g. "what topics come in the exam?", "is normalization in the syllabus?", "how many credits is DSA?"
+  const isConceptualWithResourceWord = /\b(what\s+(topics?|chapters?|units?|things?|concepts?|portions?)\s+(come|are|is|will|do|does|should|might|could)\b|what\s+(is|are)\s+(covered|included|taught|there)\s+in|how\s+many\s+(subjects?|courses?|credits?)|is\s+.{0,20}\s+in\s+the\s+(syllabus|exam|curriculum))/i.test(q);
 
   if (isChitChat) {
     intent = 'CHITCHAT';
     resourceType = 'NONE';
-  } else if ((isCodingOrKnowledgeVerb || isPrefixedKnowledgeVerb) && !isExplicitFileSearch) {
-    // Pure coding task or conceptual question -> answer clearly with code/explanation without pushing random file cards!
+  } else if (isConceptualWithResourceWord && !isExplicitFileSearch && !hasResourceRequestVerb) {
+    // "What topics come in the exam?" → answer the question, don't show routine/cards
+    intent = 'KNOWLEDGE_QUESTION';
+    resourceType = 'NONE';
+  } else if ((isKnowledgeQuestion || isPrefixedKnowledge) && !isExplicitFileSearch && !hasResourceRequestVerb && !isWhenExamPattern && !resourceType) {
+    // Pure knowledge question with no explicit resource request → just answer
     intent = 'KNOWLEDGE_QUESTION';
     resourceType = 'NONE';
   } else if (isExplicitFileSearch || resourceType === 'NOTE' || resourceType === 'PYQ') {
     intent = 'RESOURCE_SEARCH';
+  } else if (resourceType === 'ROUTINE') {
+    intent = 'WEBSITE_INFO';
+  } else if (resourceType === 'SYLLABUS') {
+    intent = 'WEBSITE_INFO';
   } else if (/\b(open|take\s+me\s+to|go\s+to|navigate\s+to|show\s+page)\b/i.test(q)) {
     intent = 'NAVIGATE_RESOURCE';
-  } else if (resourceType === 'NOTE' || resourceType === 'SYLLABUS' || resourceType === 'ROUTINE' || resourceType === 'NOTICE' || resourceType === 'SUBJECT') {
+  } else if (resourceType === 'NOTICE') {
     intent = 'WEBSITE_INFO';
   } else {
-    // If the query does not ask for files, routine, or syllabus, treat as general knowledge
+    // Default: answer the question directly — no resource cards
     intent = 'KNOWLEDGE_QUESTION';
     resourceType = 'NONE';
   }
@@ -744,28 +776,11 @@ async function searchWebsite(db, queryMeta, student = {}) {
   }
 
   // --------------------------------------------------------------------------
-  // Intent Classification Flags
-  // --------------------------------------------------------------------------  // --- Explicit Resource Request Detection ---
-  // Only treat as explicit request when user clearly asks for a specific resource type
-  const isExplicitResourceRequest = resourceType === 'NOTE' || resourceType === 'SYLLABUS' ||
-    resourceType === 'ROUTINE' || resourceType === 'PYQ' || intent === 'RESOURCE_SEARCH';
-
-  // Pure knowledge questions: no resource type AND not an explicit search request
-  const isPureKnowledge = intent === 'KNOWLEDGE_QUESTION' || intent === 'CHITCHAT' ||
-    (resourceType === 'NONE' && !isExplicitResourceRequest);
-
-  const isRoutineQuery = (resourceType === 'ROUTINE' && isExplicitResourceRequest) || 
-    /\b(routine|exam\s+date|exam\s+time|exam\s+schedule|exam\s+timetable|preboard|pre-board|when is the exam)\b/i.test(searchQuery);
-
-  const isSyllabusQuery = (resourceType === 'SYLLABUS' && isExplicitResourceRequest) || 
-    resourceType === 'SUBJECT' ||
-    /\b(syllabus|curriculum|course outline|credit|credits|course content|subjects taught|courses taught)\b/i.test(searchQuery);
-
-  const wantsFiles = (resourceType === 'NOTE' && isExplicitResourceRequest) || 
-    (resourceType === 'PYQ' && isExplicitResourceRequest) ||
-    (intent === 'RESOURCE_SEARCH') ||
-    Boolean(topicObj && isExplicitResourceRequest) ||
-    /\b(note|notes|pdf|pdfs|slide|slides|handout|handouts|doc|docs|material|materials|download)\b/i.test(searchQuery);
+  // Resource Search Flags — rely on intent classification, no re-scanning keywords
+  // --------------------------------------------------------------------------
+  const isRoutineQuery = resourceType === 'ROUTINE';
+  const isSyllabusQuery = resourceType === 'SYLLABUS';
+  const wantsFiles = resourceType === 'NOTE' || resourceType === 'PYQ' || intent === 'RESOURCE_SEARCH';
 
   // --------------------------------------------------------------------------
   // 1. Search Files in Library with Advanced BM25 + Multi-Tier Scoring & Strict Verification
@@ -1017,14 +1032,16 @@ async function searchWebsite(db, queryMeta, student = {}) {
       });
 
       // Filter with Adaptive Relevance Threshold
-      // Minimum score threshold 45 prevents irrelevant cross-subject noise
-      const MIN_RELEVANCE_SCORE = (subject || topicObj) ? 50 : 40;
+      // Higher threshold when subject/topic detected for precision; lower for general searches
+      const MIN_RELEVANCE_SCORE = (subject || topicObj) ? 60 : 45;
 
+      // Precision limit: return fewer, more relevant files — don't overwhelm with loosely-matched results
+      const maxFileResults = (subject || topicObj) ? 3 : 4;
       const filteredFiles = scoredFiles
         .filter(item => item.score >= MIN_RELEVANCE_SCORE)
         .sort((a, b) => b.score - a.score)
         .map(item => item.file)
-        .slice(0, 5);
+        .slice(0, maxFileResults);
 
       results.matchedFiles = filteredFiles;
       console.log(`[AI Search Engine] Filtered Files (${filteredFiles.length} matches):`, filteredFiles.map(f => f.title || f.originalName));
@@ -1045,36 +1062,36 @@ async function searchWebsite(db, queryMeta, student = {}) {
         }
       }
 
-      // Subject constraint
+      // Subject constraint — when specified, ONLY return the exact matching course
       if (subject) {
         if (c.title === subject) return true;
         const aliases = SUBJECT_ALIASES[subject] || [];
         if (aliases.some(a => c.title.toLowerCase().includes(a.toLowerCase()))) return true;
+        return false; // Strict: if subject specified, exclude all non-matching courses
       }
 
-      // Topic constraint
+      // Topic constraint — only return the course containing this topic
       if (topicObj) {
         if (c.title === topicObj.canonicalSubject) return true;
         for (const syn of topicObj.synonyms) {
           if (c.contents.toLowerCase().includes(syn.toLowerCase())) return true;
         }
+        return false; // Strict: don't include unrelated courses
       }
 
-      // General query token match
-      if (!subject && !topicObj && semester) {
+      // Semester-only query — return all courses for that semester
+      if (semester) {
         return true;
       }
 
-      if (!subject && !topicObj && !semester) {
-        const fullCourse = `${c.title} ${c.code} ${c.objectives} ${c.contents}`.toLowerCase();
-        return searchQuery.length > 3 && fullCourse.includes(searchQuery);
-      }
-
+      // No subject, topic, or semester = too vague — return nothing
       return false;
-    }).slice(0, 6);
+    });
 
-    results.matchedCourses = matchedCourses;
-    console.log(`[AI Search Engine] Filtered Courses (${matchedCourses.length} matches):`, matchedCourses.map(c => c.title));
+    // Precision limit: specific subject/topic → max 2, semester-wide → max 5
+    const maxSyllabusResults = (subject || topicObj) ? 2 : 5;
+    results.matchedCourses = matchedCourses.slice(0, maxSyllabusResults);
+    console.log(`[AI Search Engine] Filtered Courses (${results.matchedCourses.length} matches):`, results.matchedCourses.map(c => c.title));
   }
 
   // --------------------------------------------------------------------------
@@ -1111,9 +1128,12 @@ async function searchWebsite(db, queryMeta, student = {}) {
       }
 
       return true;
-    }).slice(0, 8);
+    });
 
-    results.matchedRoutine = matchedRoutine.map(r => {
+    // Precision limit: specific subject → max 2, semester/general → max 5
+    const routineSlice = matchedRoutine.slice(0, subject ? 2 : 5);
+
+    results.matchedRoutine = routineSlice.map(r => {
       const rSem = normalizeSemester(r.semester);
       return {
         semester: rSem ? rSem.roman : (r.semester || 'General'),
@@ -1217,11 +1237,13 @@ TONE & COMMUNICATION STYLE:
 - Keep the same honesty standard: if you don't have real data to answer something, say so plainly and simply ("Don't see anything uploaded for that yet — want me to check something else?") rather than a formal apology.
 - Keep this appropriate for a shared class tool used by many students — friendly and warm, not overly familiar, flirtatious, or unpredictable. This is a reliable assistant students depend on, not a persona or companion character.
 
-CRITICAL RESOURCE RULES (follow strictly):
-- ONLY mention files, notes, syllabus, or exam routines when the GROUNDING CONTEXT shows actual matched results (files, courses, or routine entries above).
-- If the grounding context says "No files matched", "No syllabus courses matched", and "No routine matched" — do NOT suggest the student look for notes or files. Just answer the conceptual question directly.
-- If the student asks a knowledge question ("what is X", "tell me about Y", "explain Z"), provide a clear, accurate explanation. Do NOT push file cards, syllabus links, or routine links unless the student explicitly asked for them.
-- When matched results ARE shown below your response, briefly reference them naturally ("There are a few notes uploaded for that — check them out below!") rather than listing file details redundantly since the cards already show everything.
+CRITICAL RESOURCE RULES (follow strictly — NEVER break these):
+- ONLY mention files, notes, syllabus, or exam routines when the GROUNDING CONTEXT below shows actual matched results AND the student explicitly asked for them.
+- If the grounding context says "No files matched", "No syllabus courses matched", and "No routine matched" — do NOT suggest looking for notes, files, or checking pages. Just answer what was asked.
+- If the student asks a knowledge question ("what is X", "explain Y", "how does Z work"), provide a clear, accurate explanation. Do NOT mention notes, files, syllabus pages, routine links, or library resources AT ALL. Do NOT say things like "check the library" or "you can find this in the syllabus page". Just answer the question directly.
+- Do NOT volunteer extra resources the student didn't ask for. If they asked for routine, give ONLY the routine. If they asked for notes, give ONLY the notes. Do NOT add syllabus links when they asked for notes. Do NOT add file suggestions when they asked about exam dates. One type of resource per response.
+- When matched results ARE shown in the cards below your text, keep your text response SHORT and acknowledge them naturally ("Here's the exam date!" or "Found some notes for that!") — do NOT list file names or details since the cards already show everything.
+- Give precise, focused responses. Do NOT pad your answer with unrequested extra information or resource suggestions.
 ${isWebFallback ? `\nINTERNET FALLBACK INSTRUCTIONS:\n- This question has NO matching file, subject, syllabus entry, or routine in the Semester Library website.\n- Open your response directly with the brief natural acknowledgment: "I couldn't find this on the site, but here's what I found online:" followed by the clear, accurate web-grounded answer.\n- Do NOT pretend this information comes from Gandaki University or Semester Library.` : ''}
 
 CONVERSATIONAL DIALOGUE EXAMPLES (FEW-SHOT TONE BENCHMARK):
@@ -1376,8 +1398,7 @@ ${SITE_PAGES.map(p => `- ${p.name} (${p.url}): ${p.description}`).join('\n')}
         rawReply = data.choices?.[0]?.message?.content || '';
         if (isWebFallback) {
           isWebSearch = true;
-          // OpenRouter is ungrounded general knowledge: label with lower confidence note
-          sourceLabel = 'ℹ️ General Knowledge (Ungrounded) — not from Semester Library';
+          sourceLabel = 'General Knowledge (Ungrounded) — not from Semester Library';
         }
       }
     } catch (e) {

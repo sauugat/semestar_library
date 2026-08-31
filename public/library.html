@@ -1668,7 +1668,7 @@
             </svg>
           </div>
           <span class="dropzone-label" id="directDropLabel">Choose file(s) or drag & drop</span>
-          <span class="dropzone-hint">PDF, DOCX, ZIP, Images, PPTX up to 25MB each &middot; Select multiple files at
+          <span class="dropzone-hint">PDF, DOCX, ZIP, Images, PPTX up to 250MB each &middot; Select multiple files at
             once</span>
           <input type="file" id="directFileInput" multiple hidden>
         </label>
@@ -2670,7 +2670,7 @@
 
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        if (file.size > 25 * 1024 * 1024) {
+        if (file.size > 250 * 1024 * 1024) {
           oversized = true;
           continue;
         }
@@ -2682,7 +2682,7 @@
       }
 
       if (oversized) {
-        setModalStatus('Some files were ignored because they exceed the 25MB limit.', 'error');
+        setModalStatus('Some files were ignored because they exceed the 250MB limit.', 'error');
       } else {
         clearModalStatus();
       }
@@ -2901,30 +2901,107 @@
       clearModalStatus();
 
       try {
-        const res = await fetch('/api/files/upload', {
-          method: 'POST',
-          body: fd
-        });
+        let supaClient = null;
+        try {
+          if (window.supabase) {
+            const cfgRes = await fetch('/api/chat/config');
+            if (cfgRes.ok) {
+              const cfg = await cfgRes.json();
+              if (cfg.url && cfg.key) {
+                supaClient = window.supabase.createClient(cfg.url, cfg.key);
+              }
+            }
+          }
+        } catch (e) {}
 
-        if (res.status === 401) {
-          showAuthModal(true);
-          return;
-        }
+        if (supaClient) {
+          // Direct browser-to-Supabase Storage upload (bypasses Vercel 4.5MB limit completely)
+          const uploadedRecords = [];
+          for (let i = 0; i < SELECTED_FILES.length; i++) {
+            const file = SELECTED_FILES[i];
+            submitBtnText.textContent = `Uploading (${i + 1}/${SELECTED_FILES.length}) ${file.name.substring(0, 16)}…`;
+            const ext = file.name.includes('.') ? file.name.substring(file.name.lastIndexOf('.')) : '';
+            const cleanBase = file.name.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 40);
+            const storedName = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}_${cleanBase}${ext}`;
 
-        const ct = res.headers.get('content-type') || '';
-        let data = {};
-        if (ct.includes('application/json')) {
-          data = await res.json();
+            const { data: upData, error: upErr } = await supaClient.storage
+              .from('library_files')
+              .upload(storedName, file, { cacheControl: '3600', upsert: false });
+
+            if (upErr) {
+              throw new Error(`Supabase upload failed: ${upErr.message}. Make sure 'library_files' public bucket is created in Supabase.`);
+            }
+
+            const { data: pubData } = supaClient.storage.from('library_files').getPublicUrl(storedName);
+            uploadedRecords.push({
+              storedName,
+              originalName: file.name,
+              size: file.size,
+              mimeType: file.type || 'application/octet-stream',
+              publicUrl: pubData ? pubData.publicUrl : ''
+            });
+          }
+
+          submitBtnText.textContent = 'Saving details…';
+          const recRes = await fetch('/api/files/record-upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              files: uploadedRecords,
+              title: modalTitleInput.value.trim(),
+              semester: modalSemesterSelect.value,
+              subject: sub,
+              chapter: chap || ''
+            })
+          });
+
+          if (recRes.status === 401) {
+            showAuthModal(true);
+            return;
+          }
+
+          const recData = await recRes.json();
+          if (!recRes.ok) throw new Error(recData.message || 'Failed to save upload metadata.');
+
+          closeDirectUploadModal();
+          showToast(`🎉 ${uploadedRecords.length} file${uploadedRecords.length > 1 ? 's' : ''} uploaded successfully!`);
+          await refreshLibraryData();
         } else {
-          const text = await res.text();
-          throw new Error(`Server returned status ${res.status}. Please make sure you have restarted your server if changes were made.`);
+          // Standard server fallback upload
+          const fd = new FormData();
+          for (const file of SELECTED_FILES) {
+            fd.append('files', file);
+          }
+          fd.append('title', modalTitleInput.value.trim());
+          fd.append('semester', modalSemesterSelect.value);
+          fd.append('subject', sub);
+          fd.append('chapter', chap || '');
+
+          const res = await fetch('/api/files/upload', {
+            method: 'POST',
+            body: fd
+          });
+
+          if (res.status === 401) {
+            showAuthModal(true);
+            return;
+          }
+
+          const ct = res.headers.get('content-type') || '';
+          let data = {};
+          if (ct.includes('application/json')) {
+            data = await res.json();
+          } else {
+            const text = await res.text();
+            throw new Error(`Server returned status ${res.status}. Please make sure you have restarted your server if changes were made.`);
+          }
+
+          if (!res.ok) throw new Error(data.message || 'Upload failed');
+
+          closeDirectUploadModal();
+          showToast(`🎉 ${data.message || `${SELECTED_FILES.length} notes uploaded successfully!`}`);
+          await refreshLibraryData();
         }
-
-        if (!res.ok) throw new Error(data.message || 'Upload failed');
-
-        closeDirectUploadModal();
-        showToast(`🎉 ${data.message || `${SELECTED_FILES.length} notes uploaded successfully!`}`);
-        await refreshLibraryData();
       } catch (err) {
         console.error('Direct upload error:', err);
         setModalStatus(err.message || 'Upload error. Please try again.', 'error');
@@ -2967,6 +3044,7 @@
     });
   </script>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="chatbot.js"></script>
   <script src="auth-modal.js"></script>
   <!-- PWA Service Worker Registration -->

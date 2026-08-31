@@ -1214,8 +1214,66 @@ function buildDeterministicActions(queryMeta, searchResults) {
 // 6. GROUNDED AI ANSWER GENERATION (Gemini + OpenRouter Fallback)
 // ============================================================================
 
+/**
+ * HARD PRIVACY GUARD — Detects and blocks queries that ask to find or reveal
+ * personal information about a real individual (classmate, student, private person).
+ * This fires regardless of whether the question looks like a site query or a web query.
+ * Returns true if the query should be blocked.
+ */
+function isPrivacyViolationQuery(q) {
+  const text = (q || '').toLowerCase();
+
+  // Verbs that signal "look this person up"
+  const lookupVerbs = /\b(find|search|look\s*up|get|tell\s+me|what(?:'s|\s+is)|give\s+me|show\s+me|locate|track|fetch|reveal|share|send\s+me|do\s+you\s+have|what\s+do\s+you\s+know\s+about)\b/i;
+
+  // Personal info nouns people might try to extract
+  const privateInfoNouns = /\b(phone\s*(?:number|no|num)?|mobile\s*(?:number|no|num)?|contact(?:\s+(?:number|info|detail))?|social\s+media|facebook|instagram|snapchat|whatsapp|tiktok|twitter|email\s*(?:address)?|home\s*address|address|personal\s+(?:detail|info|data|profile)|private\s+(?:info|detail|data)|id\s*(?:number)?|student\s*id|account(?:\s+(?:name|link|detail))?)\b/i;
+
+  // Patterns like "find [Name]'s phone" or "get [Name]'s number"
+  // Matches possessives, "of [Name]", or "for [Name]"  
+  const possessiveOrOf = /\b(?:[A-Za-z][a-z]+'s|of\s+[A-Z][a-z]+|for\s+[A-Z][a-z]+|about\s+[A-Z][a-z]+)\b/;
+
+  // Standalone red-flag phrases that need no further analysis
+  const redFlagPhrases = [
+    /\bfind\s+(?:someone|a\s+classmate|my\s+classmate|a\s+student|student)\b/i,
+    /\b(?:classmate|student|person|friend|someone)\b.*\b(?:phone|number|contact|address|social|instagram|whatsapp)\b/i,
+    /\b(?:phone|number|contact|social|instagram|whatsapp)\b.*\b(?:classmate|student|person|friend|someone)\b/i,
+    /\bwho\s+is\s+[A-Z][a-z]+\b.*\b(?:phone|number|contact|social|real|person)\b/i,
+    /\btrack\s+(?:someone|a\s+(?:classmate|student|person))\b/i
+  ];
+
+  for (const pattern of redFlagPhrases) {
+    if (pattern.test(q)) return true;
+  }
+
+  // Combination match: lookup verb + private info noun (with or without name indicator)
+  if (lookupVerbs.test(text) && privateInfoNouns.test(text)) {
+    return true;
+  }
+
+  // Possessive + private info: "[Name]'s phone number"
+  if (possessiveOrOf.test(q) && privateInfoNouns.test(text)) {
+    return true;
+  }
+
+  return false;
+}
+
 async function callGroundedAI(userMessage, queryMeta, searchResults, conversationHistory = []) {
   const { intent, resourceType, semester, subject, topic } = queryMeta;
+
+  // ── HARD PRIVACY GUARD ─────────────────────────────────────────────────────
+  // Block ALL queries asking to look up personal info about a real person.
+  // This fires BEFORE any API call — no external model ever sees the query.
+  if (isPrivacyViolationQuery(userMessage)) {
+    console.log(`[AI Privacy Guard] Blocked personal-info query: "${userMessage.substring(0, 80)}"`);
+    return {
+      replyText: `That's not something I can help with. Looking up personal details — like someone's phone number, contact info, or social media — isn't what this tool is for, and it's not safe to do that for any student or person here.\n\nIf you need to reach a classmate, the best way is through the Group Chat or asking them directly. Is there anything study-related I can help you with?`,
+      isWebSearch: false,
+      webSources: [],
+      sourceLabel: ''
+    };
+  }
 
   const hasSiteData = (searchResults.matchedFiles && searchResults.matchedFiles.length > 0) ||
     (searchResults.matchedCourses && searchResults.matchedCourses.length > 0) ||
@@ -1244,7 +1302,7 @@ CRITICAL RESOURCE RULES (follow strictly — NEVER break these):
 - Do NOT volunteer extra resources the student didn't ask for. If they asked for routine, give ONLY the routine. If they asked for notes, give ONLY the notes. Do NOT add syllabus links when they asked for notes. Do NOT add file suggestions when they asked about exam dates. One type of resource per response.
 - When matched results ARE shown in the cards below your text, keep your text response SHORT and acknowledge them naturally ("Here's the exam date!" or "Found some notes for that!") — do NOT list file names or details since the cards already show everything.
 - Give precise, focused responses. Do NOT pad your answer with unrequested extra information or resource suggestions.
-${isWebFallback ? `\nINTERNET FALLBACK INSTRUCTIONS:\n- This question has NO matching file, subject, syllabus entry, or routine in the Semester Library website.\n- Open your response directly with the brief natural acknowledgment: "I couldn't find this on the site, but here's what I found online:" followed by the clear, accurate web-grounded answer.\n- Do NOT pretend this information comes from Gandaki University or Semester Library.` : ''}
+${isWebFallback ? `\nINTERNET SEARCH INSTRUCTIONS (MANDATORY — read carefully):\n- This question has NO matching file, subject, syllabus entry, or routine in the Semester Library website.\n- You MUST use the Google Search tool to retrieve a current, real answer. Do NOT answer from your training memory — always search first.\n- The answer MUST reflect what is actually true right now, not what was true during your training.\n- Open your response with the brief natural acknowledgment: "I couldn't find this on the site, but here's what I found online:" followed by the clear, current, search-grounded answer.\n- Cite your sources naturally in the text where you use information from them (e.g. "According to Reuters,..." or "Per the latest WHO report,...").\n- Do NOT pretend this information comes from Gandaki University or Semester Library — it's from the open web.\n- Do NOT say "As of my knowledge cutoff" or "As of [year]" — you must use the search tool to get current data, not rely on training memory.` : ''}
 
 CONVERSATIONAL DIALOGUE EXAMPLES (FEW-SHOT TONE BENCHMARK):
 - Student: "I literally cannot focus on studying today, my brain is completely fried"
@@ -1318,9 +1376,12 @@ ${SITE_PAGES.map(p => `- ${p.name} (${p.url}): ${p.description}`).join('\n')}
         generationConfig: { temperature: 0.7, maxOutputTokens: 1000 }
       };
 
-      // If no site data matched, enable Google Search Grounding
+      // Always enable Google Search Grounding for web-fallback questions.
+      // This ensures the answer comes from live search, not stale training data.
       if (isWebFallback) {
         requestBody.tools = [{ googleSearch: {} }];
+        // Lower temperature for factual web answers to reduce hallucination
+        requestBody.generationConfig.temperature = 0.3;
       }
 
       const res = await fetch(url, {
@@ -1362,7 +1423,16 @@ ${SITE_PAGES.map(p => `- ${p.name} (${p.url}): ${p.description}`).join('\n')}
 
           // Deduplicate web sources by URL
           webSources = Array.from(new Map(webSources.map(s => [s.url, s])).values()).slice(0, 5);
+
+          // Append a clean, server-formatted source block to the reply
+          if (webSources.length > 0 && rawReply) {
+            const sourceLines = webSources
+              .map(s => `• [${s.title || s.domain}](${s.url})`)
+              .join('\n');
+            rawReply = rawReply.trimEnd() + `\n\n🔗 **Sources:**\n${sourceLines}`;
+          }
         } else if (isWebFallback) {
+          // Gemini responded but without explicit grounding metadata — still mark as web
           isWebSearch = true;
           sourceLabel = '🌐 From the web — not from Semester Library';
         }
@@ -1395,10 +1465,17 @@ ${SITE_PAGES.map(p => `- ${p.name} (${p.url}): ${p.description}`).join('\n')}
 
       if (response.ok) {
         const data = await response.json();
-        rawReply = data.choices?.[0]?.message?.content || '';
-        if (isWebFallback) {
-          isWebSearch = true;
-          sourceLabel = 'General Knowledge (Ungrounded) — not from Semester Library';
+        const openRouterReply = data.choices?.[0]?.message?.content || '';
+        if (openRouterReply) {
+          if (isWebFallback) {
+            // OpenRouter cannot do live search — prepend an honest ungrounded disclaimer
+            // so students know this is training-data knowledge, not a real-time search result.
+            rawReply = `⚠️ I can't verify this with a live search right now — here's what I know from my training data, but please double-check before relying on it:\n\n${openRouterReply}`;
+            isWebSearch = true;
+            sourceLabel = '⚠️ Unverified — live search unavailable, answer from training data only';
+          } else {
+            rawReply = openRouterReply;
+          }
         }
       }
     } catch (e) {

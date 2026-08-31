@@ -787,11 +787,9 @@
         opts += '</optgroup>';
       }
       if (existingChapters.size > 0) {
-        opts += '<optgroup label="Custom Units / Chapters">';
         Array.from(existingChapters).sort().forEach(chapName => {
-          opts += `<option value="${escapeHtml(chapName)}">🔖 ${escapeHtml(chapName)}</option>`;
+          opts += `<option value="${escapeHtml(chapName)}">${escapeHtml(chapName)}</option>`;
         });
-        opts += '</optgroup>';
       }
       opts += '<option value="Lab / Practical">Lab / Practical Work</option><option value="__custom__">+ Custom Unit</option>';
 

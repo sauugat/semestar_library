@@ -151,11 +151,30 @@
     return courses;
   }
 
+  function normalizeSemester(val) {
+    if (!val) return 'I';
+    const str = String(val).trim().toUpperCase();
+    if (str === 'ELECTIVES' || str.includes('ELECTIVE')) return 'Electives';
+    if (str === 'GENERAL' || str.includes('GENERAL')) return 'General';
+    
+    if (str === 'VIII' || str.includes('VIII') || str === '8' || str.includes(' 8') || str.endsWith('_8') || str.endsWith('-8')) return 'VIII';
+    if (str === 'VII' || str.includes('VII') || str === '7' || str.includes(' 7') || str.endsWith('_7') || str.endsWith('-7')) return 'VII';
+    if (str === 'VI' || str.includes('VI') || str === '6' || str.includes(' 6') || str.endsWith('_6') || str.endsWith('-6')) return 'VI';
+    if (str === 'IV' || str.includes('IV') || str === '4' || str.includes(' 4') || str.endsWith('_4') || str.endsWith('-4')) return 'IV';
+    if (str === 'V' || str.includes('V') || str === '5' || str.includes(' 5') || str.endsWith('_5') || str.endsWith('-5')) return 'V';
+    if (str === 'III' || str.includes('III') || str === '3' || str.includes(' 3') || str.endsWith('_3') || str.endsWith('-3')) return 'III';
+    if (str === 'II' || str.includes('II') || str === '2' || str.includes(' 2') || str.endsWith('_2') || str.endsWith('-2')) return 'II';
+    if (str === 'I' || str.includes('I') || str === '1' || str.includes(' 1') || str.endsWith('_1') || str.endsWith('-1')) return 'I';
+    
+    return val;
+  }
+
   window.SyllabusHelper = {
     loadSyllabusData,
     parseCourseUnits,
     getFormattedSemesters,
     findCourse,
-    getAllCourses
+    getAllCourses,
+    normalizeSemester
   };
 })(window);

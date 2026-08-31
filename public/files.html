@@ -531,6 +531,8 @@
 
     let syllabusData = null;
     let semesterList = [];
+    let libraryStats = [];
+    let libraryFiles = [];
     let selectedFiles = [];
 
     function formatBytes(bytes) {
@@ -619,7 +621,14 @@
 
     async function init() {
       try {
-        syllabusData = await window.SyllabusHelper.loadSyllabusData();
+        const [sData, statsRes, filesRes] = await Promise.all([
+          window.SyllabusHelper.loadSyllabusData(),
+          fetch('/api/library/stats').then(r => r.ok ? r.json() : []).catch(() => []),
+          fetch('/api/files').then(r => r.ok ? r.json() : []).catch(() => [])
+        ]);
+        syllabusData = sData;
+        libraryStats = statsRes || [];
+        libraryFiles = filesRes || [];
         semesterList = window.SyllabusHelper.getFormattedSemesters(syllabusData);
 
         semesterSelect.innerHTML = '<option value="">Select Semester…</option>' + 
@@ -642,21 +651,35 @@
 
         if (sub) {
           setTimeout(() => {
+            let subFound = false;
             for (let opt of subjectSelect.options) {
               if (opt.value.toLowerCase() === sub.toLowerCase() || opt.value.toLowerCase().includes(sub.toLowerCase())) {
                 subjectSelect.value = opt.value;
                 subjectSelect.dispatchEvent(new Event('change'));
+                subFound = true;
                 break;
               }
             }
+            if (!subFound && sub) {
+              subjectSelect.value = '__custom__';
+              subjectSelect.dispatchEvent(new Event('change'));
+              customSubInput.value = sub;
+            }
             if (chap) {
               setTimeout(() => {
+                let chapFound = false;
                 for (let opt of chapterSelect.options) {
-                  if (opt.value.toLowerCase().includes(chap.toLowerCase())) {
+                  if (opt.value.toLowerCase().includes(chap.toLowerCase()) || opt.value.toLowerCase() === chap.toLowerCase()) {
                     chapterSelect.value = opt.value;
                     chapterSelect.dispatchEvent(new Event('change'));
+                    chapFound = true;
                     break;
                   }
+                }
+                if (!chapFound && chap) {
+                  chapterSelect.value = '__custom__';
+                  chapterSelect.dispatchEvent(new Event('change'));
+                  customChapterInput.value = chap;
                 }
               }, 40);
             }
@@ -682,18 +705,37 @@
 
       const sem = semesterList.find(s => s.shortName === val);
       const courses = sem ? sem.courses : [];
+      const normSem = window.SyllabusHelper.normalizeSemester(val);
+      const syllabusCourseNames = new Set((courses || []).map(c => c.title.toLowerCase().trim()));
 
-      if (!courses.length || val === 'General') {
-        subjectSelect.innerHTML = '<option value="">Select Subject…</option><option value="__custom__">+ Custom Subject</option>';
-        subjectSelect.disabled = false;
-        chapterSelect.innerHTML = '<option value="General">General / All Chapters</option><option value="__custom__">+ Custom Unit</option>';
-        chapterSelect.disabled = false;
-        return;
+      const customSubjects = new Set();
+      (libraryStats || []).concat(libraryFiles || []).forEach(item => {
+        if (item && item.subject && item.subject.trim()) {
+          const itemSem = window.SyllabusHelper.normalizeSemester(item.semester || '');
+          if (itemSem === normSem && !syllabusCourseNames.has(item.subject.toLowerCase().trim())) {
+            customSubjects.add(item.subject.trim());
+          }
+        }
+      });
+
+      let opts = '<option value="">Select Course / Subject…</option>';
+      if (courses.length) {
+        opts += '<optgroup label="Syllabus Courses">';
+        courses.forEach(c => {
+          opts += `<option value="${escapeHtml(c.title)}">${c.code ? c.code + ' — ' : ''}${escapeHtml(c.title)}</option>`;
+        });
+        opts += '</optgroup>';
       }
+      if (customSubjects.size > 0) {
+        opts += '<optgroup label="Custom Subjects">';
+        Array.from(customSubjects).sort().forEach(subName => {
+          opts += `<option value="${escapeHtml(subName)}">📘 ${escapeHtml(subName)}</option>`;
+        });
+        opts += '</optgroup>';
+      }
+      opts += '<option value="__custom__">+ Custom Subject</option>';
 
-      subjectSelect.innerHTML = '<option value="">Select Course…</option>' +
-        courses.map(c => `<option value="${escapeHtml(c.title)}">${c.code ? c.code + ' — ' : ''}${escapeHtml(c.title)}</option>`).join('') +
-        '<option value="__custom__">+ Custom Subject</option>';
+      subjectSelect.innerHTML = opts;
       subjectSelect.disabled = false;
 
       chapterSelect.innerHTML = '<option value="">Choose subject first</option>';
@@ -707,7 +749,7 @@
       if (val === '__custom__') {
         customSubInput.style.display = 'block';
         customSubInput.focus();
-        chapterSelect.innerHTML = '<option value="General">General Notes</option><option value="__custom__">+ Custom Unit</option>';
+        chapterSelect.innerHTML = '<option value="General">Complete Notes / General</option><option value="Lab / Practical">Lab / Practical Work</option><option value="__custom__">+ Custom Unit</option>';
         chapterSelect.disabled = false;
         return;
       }
@@ -722,10 +764,35 @@
       const course = window.SyllabusHelper.findCourse(syllabusData, val);
       const units = course && course.contents ? window.SyllabusHelper.parseCourseUnits(course.contents) : [];
 
-      let opts = '<option value="General">Complete Notes / General</option>';
-      units.forEach(u => {
-        opts += `<option value="Unit ${u.num}: ${escapeHtml(u.title)}">Unit ${u.num}: ${escapeHtml(u.title)}</option>`;
+      // Find existing custom chapters for this subject from libraryStats and libraryFiles
+      const existingChapters = new Set();
+      (libraryStats || []).concat(libraryFiles || []).forEach(item => {
+        if (item && item.subject && item.subject.toLowerCase().trim() === val.toLowerCase().trim() && item.chapter) {
+          const ch = item.chapter.trim();
+          const lower = ch.toLowerCase();
+          const isGenOrLab = lower === 'general' || lower === 'general notes' || lower === 'complete notes' || lower === 'complete notes / general' || lower.includes('lab') || lower.includes('practical');
+          const isSyllabus = units.some(u => ch.includes(`Unit ${u.num}`) || (u.title && u.title.length > 3 && ch.includes(u.title)));
+          if (!isGenOrLab && !isSyllabus) {
+            existingChapters.add(ch);
+          }
+        }
       });
+
+      let opts = '<option value="General">Complete Notes / General</option>';
+      if (units.length) {
+        opts += '<optgroup label="Syllabus Units">';
+        units.forEach(u => {
+          opts += `<option value="Unit ${u.num}: ${escapeHtml(u.title)}">Unit ${u.num}: ${escapeHtml(u.title)}</option>`;
+        });
+        opts += '</optgroup>';
+      }
+      if (existingChapters.size > 0) {
+        opts += '<optgroup label="Custom Units / Chapters">';
+        Array.from(existingChapters).sort().forEach(chapName => {
+          opts += `<option value="${escapeHtml(chapName)}">🔖 ${escapeHtml(chapName)}</option>`;
+        });
+        opts += '</optgroup>';
+      }
       opts += '<option value="Lab / Practical">Lab / Practical Work</option><option value="__custom__">+ Custom Unit</option>';
 
       chapterSelect.innerHTML = opts;

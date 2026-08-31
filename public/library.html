@@ -1869,7 +1869,8 @@
       'VI': 'Semester 6',
       'VII': 'Semester 7',
       'VIII': 'Semester 8',
-      'Electives': 'Electives'
+      'Electives': 'Electives',
+      'General': 'General'
     };
 
     let SYLLABUS_DATA = null;
@@ -1881,6 +1882,53 @@
     let SEMESTER_LIST = [];
     let SELECTED_FILES = [];
 
+    function syncCustomCourses() {
+      const baseCourses = window.SyllabusHelper.getAllCourses(SYLLABUS_DATA);
+      const courseMap = new Map();
+
+      baseCourses.forEach(c => {
+        const key = (c.title || '').toLowerCase().trim();
+        if (key) courseMap.set(key, c);
+      });
+
+      const candidateSubjects = [];
+      if (Array.isArray(FILE_STATS)) {
+        FILE_STATS.forEach(s => {
+          if (s.subject && s.subject.trim()) {
+            candidateSubjects.push({ subject: s.subject.trim(), semester: s.semester });
+          }
+        });
+      }
+      if (Array.isArray(ALL_FILES)) {
+        ALL_FILES.forEach(f => {
+          if (f.subject && f.subject.trim()) {
+            candidateSubjects.push({ subject: f.subject.trim(), semester: f.semester });
+          }
+        });
+      }
+
+      candidateSubjects.forEach(({ subject, semester }) => {
+        const key = subject.toLowerCase().trim();
+        if (!courseMap.has(key)) {
+          const rawSemester = window.SyllabusHelper.normalizeSemester(semester || ACTIVE_SEM || 'I');
+          const semLabel = SEM_MAP[rawSemester] || (rawSemester === 'General' ? 'General' : `Semester ${rawSemester}`);
+          courseMap.set(key, {
+            title: subject,
+            code: 'CUSTOM',
+            credit: '—',
+            contents: '',
+            rawSemester: rawSemester,
+            semester: semLabel,
+            year: rawSemester === 'Electives' ? 'Electives' : (rawSemester === 'General' ? 'General' : `Semester ${rawSemester}`),
+            semId: rawSemester === 'Electives' ? 'Electives' : `Sem_${rawSemester}`,
+            isCustom: true
+          });
+        }
+      });
+
+      ALL_COURSES = Array.from(courseMap.values());
+    }
+
     async function init() {
       try {
         const [sData, statsRes, filesRes] = await Promise.all([
@@ -1889,10 +1937,10 @@
           safeFetchJson('/api/files', [])
         ]);
         SYLLABUS_DATA = sData;
-        ALL_COURSES = window.SyllabusHelper.getAllCourses(sData);
         SEMESTER_LIST = window.SyllabusHelper.getFormattedSemesters(sData);
         FILE_STATS = statsRes || [];
         ALL_FILES = filesRes || [];
+        syncCustomCourses();
 
         setupSemSwitcher();
         setupUploadModalControls();
@@ -1911,6 +1959,8 @@
         ]);
         FILE_STATS = statsRes || [];
         ALL_FILES = filesRes || [];
+        syncCustomCourses();
+        setupUploadModalControls();
         renderView();
         if (CURRENT_DRAWER_COURSE && overlay.classList.contains('open')) {
           openDrawer(CURRENT_DRAWER_COURSE.title);
@@ -2283,6 +2333,7 @@
 
       // 2. Matching Chapters / Units
       const matchChapters = [];
+      const seenChapters = new Set();
       ALL_COURSES.forEach(c => {
         if (c.contents) {
           const units = window.SyllabusHelper.parseCourseUnits(c.contents);
@@ -2290,16 +2341,39 @@
             const uTitleMatch = u.title.toLowerCase().includes(q);
             const uTopicsMatch = u.topics && u.topics.some(t => t.toLowerCase().includes(q));
             if (uTitleMatch || uTopicsMatch) {
-              matchChapters.push({
-                courseTitle: c.title,
-                courseCode: c.code,
-                semLabel: SEM_MAP[c.rawSemester] || c.rawSemester,
-                unitNum: u.num,
-                unitTitle: u.title,
-                hrs: u.hrs
-              });
+              const key = `${c.title}::Unit ${u.num}`;
+              if (!seenChapters.has(key)) {
+                seenChapters.add(key);
+                matchChapters.push({
+                  courseTitle: c.title,
+                  courseCode: c.code,
+                  semLabel: SEM_MAP[c.rawSemester] || c.rawSemester,
+                  unitNum: u.num,
+                  unitTitle: u.title,
+                  hrs: u.hrs
+                });
+              }
             }
           });
+        }
+      });
+
+      // Also match any custom chapters from uploaded files
+      (ALL_FILES || []).forEach(f => {
+        if (f.chapter && f.chapter.toLowerCase().includes(q) && f.subject) {
+          const course = ALL_COURSES.find(c => c.title.toLowerCase() === f.subject.toLowerCase()) || { code: 'CUSTOM', rawSemester: f.semester || ACTIVE_SEM };
+          const key = `${f.subject}::${f.chapter}`;
+          if (!seenChapters.has(key)) {
+            seenChapters.add(key);
+            matchChapters.push({
+              courseTitle: f.subject,
+              courseCode: course.code || (course.isCustom ? 'CUSTOM' : 'COURSE'),
+              semLabel: SEM_MAP[course.rawSemester] || course.rawSemester || 'Semester',
+              unitNum: null,
+              unitTitle: f.chapter,
+              hrs: ''
+            });
+          }
         }
       });
 
@@ -2365,14 +2439,14 @@
             </h3>
             <div>
               ${matchChapters.slice(0, 12).map(ch => `
-                <div class="search-chapter-item" onclick="openDrawer('${escapeJs(ch.courseTitle)}', '${ch.unitNum}')">
+                <div class="search-chapter-item" onclick="openDrawer('${escapeJs(ch.courseTitle)}'${ch.unitNum ? `, '${ch.unitNum}'` : ''})">
                   <div style="min-width:0;">
                     <div style="display:flex; align-items:center; gap:8px; margin-bottom:3px;">
                       <span class="course-code-badge">${escapeHtml(ch.courseCode || 'COURSE')}</span>
                       <span style="font-size:12px; font-weight:600; color:var(--text-muted);">${escapeHtml(ch.courseTitle)} &middot; ${ch.semLabel}</span>
                     </div>
                     <p style="font-size:14.5px; font-weight:700; color:var(--text); margin:0;">
-                      Unit ${ch.unitNum}: ${escapeHtml(ch.unitTitle)} ${ch.hrs ? `<span style="font-size:12px; font-weight:500; color:var(--text-muted);">(${escapeHtml(ch.hrs)})</span>` : ''}
+                      ${ch.unitNum ? `Unit ${ch.unitNum}: ` : ''}${escapeHtml(ch.unitTitle)} ${ch.hrs ? `<span style="font-size:12px; font-weight:500; color:var(--text-muted);">(${escapeHtml(ch.hrs)})</span>` : ''}
                     </p>
                   </div>
                   <span class="open-label" style="font-size:12.5px; font-weight:700; color:var(--accent); white-space:nowrap;">Open Unit &rarr;</span>
@@ -2410,13 +2484,13 @@
         <div class="course-card-minimal" onclick="openDrawer('${escapeJs(c.title)}')">
           <div>
             <div class="course-card-head">
-              <span class="course-code-badge">${escapeHtml(c.code || 'COURSE')}</span>
+              <span class="course-code-badge">${escapeHtml(c.code || (c.isCustom ? 'CUSTOM' : 'COURSE'))}</span>
               <span class="course-files-pill ${fileCount ? 'has-files' : ''}">${fileCount ? `${fileCount} notes` : '0 notes'}</span>
             </div>
             <h3 class="course-name-clean">${escapeHtml(c.title)}</h3>
           </div>
           <div class="course-card-foot">
-            <span>${units.length} Units &middot; ${semLabel}</span>
+            <span>${c.isCustom ? 'Custom Subject' : `${units.length} Units`} &middot; ${semLabel}</span>
             <span class="open-label">Explore &rarr;</span>
           </div>
         </div>
@@ -2446,16 +2520,30 @@
     });
 
     async function openDrawer(title, autoOpenUnitNum = null) {
-      const course = window.SyllabusHelper.findCourse(SYLLABUS_DATA, title);
-      if (!course) return;
+      let course = window.SyllabusHelper.findCourse(SYLLABUS_DATA, title);
+      if (!course) {
+        course = ALL_COURSES.find(c => (c.title || '').toLowerCase() === title.toLowerCase());
+      }
+      if (!course) {
+        const rawSem = ACTIVE_SEM || 'I';
+        course = {
+          title: title,
+          code: 'CUSTOM',
+          semester: SEM_MAP[rawSem] || 'Semester',
+          rawSemester: rawSem,
+          credit: '—',
+          contents: '',
+          isCustom: true
+        };
+      }
 
       CURRENT_DRAWER_COURSE = course;
       location.hash = encodeURIComponent(course.title);
 
-      const semLabel = SEM_MAP[course.rawSemester] || course.semester;
+      const semLabel = SEM_MAP[course.rawSemester] || course.semester || course.rawSemester;
 
-      document.getElementById('dCourseCode').textContent = course.code || 'COURSE';
-      document.getElementById('dCourseMeta').textContent = `${semLabel} · ${course.credit} Credits`;
+      document.getElementById('dCourseCode').textContent = course.code || (course.isCustom ? 'CUSTOM' : 'COURSE');
+      document.getElementById('dCourseMeta').textContent = `${semLabel} · ${course.credit || '—'} Credits`;
       document.getElementById('dCourseTitle').textContent = course.title;
 
       const dUploadBtn = document.getElementById('dUploadBtn');
@@ -2485,8 +2573,19 @@
       }
 
       let html = '';
+      const allocatedIds = new Set();
+
+      // 1. Standard Syllabus Units (if any)
       units.forEach((u, i) => {
-        const uFiles = files.filter(f => f.chapter && (f.chapter.includes(`Unit ${u.num}`) || f.chapter.toLowerCase().includes(u.title.toLowerCase())));
+        const uFiles = files.filter(f => {
+          if (!f.chapter) return false;
+          const ch = f.chapter.toLowerCase().trim();
+          const matchUnitNum = ch.includes(`unit ${u.num}`) || ch === `unit ${u.num}` || ch.startsWith(`unit ${u.num}:`) || ch.startsWith(`unit ${u.num} `) || ch.startsWith(`unit ${u.num}-`);
+          const matchTitle = u.title && u.title.length > 3 && ch.includes(u.title.toLowerCase());
+          return matchUnitNum || matchTitle;
+        });
+        uFiles.forEach(f => allocatedIds.add(f.id));
+
         const deletableUFiles = uFiles.filter(f => f.canDelete);
         const isOpen = (autoOpenUnitNum && String(autoOpenUnitNum) === String(u.num)) || (!autoOpenUnitNum && (i === 0 || uFiles.length > 0));
 
@@ -2529,18 +2628,118 @@
         `;
       });
 
-      // General files
-      const general = files.filter(f => !f.chapter || f.chapter === 'General' || !units.some(u => f.chapter.includes(`Unit ${u.num}`)));
+      // 2. Custom Chapters / Units (files not matched to standard syllabus units and not General / Lab)
+      const isGeneralOrLabChapter = (ch) => {
+        if (!ch) return true;
+        const lower = ch.toLowerCase().trim();
+        return lower === 'general' || lower === 'general notes' || lower === 'complete notes' ||
+          lower === 'complete notes / general' || lower === 'general & labs' ||
+          lower === 'lab' || lower === 'labs' || lower === 'lab / practical' ||
+          lower === 'lab / practical work' || lower === 'practical';
+      };
+
+      const customChapterMap = new Map();
+      files.forEach(f => {
+        if (allocatedIds.has(f.id)) return;
+        if (!isGeneralOrLabChapter(f.chapter)) {
+          const chapName = (f.chapter || '').trim();
+          if (!customChapterMap.has(chapName)) {
+            customChapterMap.set(chapName, []);
+          }
+          customChapterMap.get(chapName).push(f);
+          allocatedIds.add(f.id);
+        }
+      });
+
+      customChapterMap.forEach((cFiles, chapName) => {
+        const deletableCFiles = cFiles.filter(f => f.canDelete);
+        html += `
+          <div class="clean-unit-row open">
+            <div class="clean-unit-head" onclick="this.parentElement.classList.toggle('open')">
+              <span style="display:flex; align-items:center; gap:6px;">
+                <span style="display:inline-block; font-size:10.5px; font-weight:700; background:rgba(0,113,227,0.1); color:var(--accent); padding:2px 7px; border-radius:6px; letter-spacing:0.02em;">Custom Unit</span>
+                <span>${escapeHtml(chapName)}</span>
+              </span>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="font-size:12px; color:var(--text-muted); font-weight:600;">${cFiles.length} file${cFiles.length === 1 ? '' : 's'}</span>
+                ${deletableCFiles.length > 0 ? `
+                  <button type="button" class="btn-unit-delete-all" onclick="deleteChapterFiles('${escapeJs(course.title)}', '${escapeJs(chapName)}', [${deletableCFiles.map(f => f.id).join(',')}], event)" title="Delete all ${deletableCFiles.length} note${deletableCFiles.length > 1 ? 's' : ''} in ${escapeHtml(chapName)}">
+                    <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    <span>Delete All (${deletableCFiles.length})</span>
+                  </button>
+                ` : ''}
+              </div>
+            </div>
+            <div class="clean-unit-body">
+              ${cFiles.map(f => `
+                <div class="clean-file-item">
+                  <div class="clean-file-left">
+                    <div class="clean-file-icon">${getFileBadge(f.originalName || f.title)}</div>
+                    <div style="min-width:0;">
+                      <p class="clean-file-title" title="${escapeHtml(f.title || f.originalName)}">${escapeHtml(f.title || f.originalName)}</p>
+                      <p class="clean-file-meta">By ${escapeHtml(f.uploaderName || 'Student')}</p>
+                    </div>
+                  </div>
+                  ${renderFileActions(f)}
+                </div>
+              `).join('')}
+              <div style="display:flex; align-items:center; justify-content:flex-end; padding-top:4px;">
+                <button type="button" onclick="openDirectUploadModal('${escapeJs(course.title)}', '${course.rawSemester}', '${escapeJs(chapName)}')" class="btn-file-action btn-file-view" style="font-size:11.5px; padding:4px 10px; cursor:pointer;">+ Add Note to ${escapeHtml(chapName)}</button>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+
+      // 3. Lab / Practical files
+      const labFiles = files.filter(f => !allocatedIds.has(f.id) && f.chapter && (f.chapter.toLowerCase().includes('lab') || f.chapter.toLowerCase().includes('practical')));
+      labFiles.forEach(f => allocatedIds.add(f.id));
+      const deletableLab = labFiles.filter(f => f.canDelete);
+      if (labFiles.length) {
+        html += `
+          <div class="clean-unit-row open">
+            <div class="clean-unit-head" onclick="this.parentElement.classList.toggle('open')">
+              <span>Lab / Practical Work</span>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="font-size:12px; color:var(--text-muted); font-weight:600;">${labFiles.length} files</span>
+                ${deletableLab.length > 0 ? `
+                  <button type="button" class="btn-unit-delete-all" onclick="deleteChapterFiles('${escapeJs(course.title)}', 'Lab / Practical', [${deletableLab.map(f => f.id).join(',')}], event)" title="Delete notes">
+                    <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    <span>Delete All (${deletableLab.length})</span>
+                  </button>
+                ` : ''}
+              </div>
+            </div>
+            <div class="clean-unit-body">
+              ${labFiles.map(f => `
+                <div class="clean-file-item">
+                  <div class="clean-file-left">
+                    <div class="clean-file-icon">${getFileBadge(f.originalName || f.title)}</div>
+                    <div style="min-width:0;">
+                      <p class="clean-file-title" title="${escapeHtml(f.title || f.originalName)}">${escapeHtml(f.title || f.originalName)}</p>
+                      <p class="clean-file-meta">By ${escapeHtml(f.uploaderName || 'Student')}</p>
+                    </div>
+                  </div>
+                  ${renderFileActions(f)}
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }
+
+      // 4. General / Complete Notes files (any remaining)
+      const general = files.filter(f => !allocatedIds.has(f.id));
       const deletableGeneral = general.filter(f => f.canDelete);
       if (general.length) {
         html += `
           <div class="clean-unit-row open">
             <div class="clean-unit-head" onclick="this.parentElement.classList.toggle('open')">
-              <span>General & Labs</span>
+              <span>Complete Notes / General</span>
               <div style="display:flex; align-items:center; gap:8px;">
                 <span style="font-size:12px; color:var(--text-muted); font-weight:600;">${general.length} files</span>
                 ${deletableGeneral.length > 0 ? `
-                  <button type="button" class="btn-unit-delete-all" onclick="deleteChapterFiles('${escapeJs(course.title)}', 'General', [${deletableGeneral.map(f => f.id).join(',')}], event)" title="Delete all ${deletableGeneral.length} note${deletableGeneral.length > 1 ? 's' : ''} in General & Labs">
+                  <button type="button" class="btn-unit-delete-all" onclick="deleteChapterFiles('${escapeJs(course.title)}', 'General', [${deletableGeneral.map(f => f.id).join(',')}], event)" title="Delete notes">
                     <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                     <span>Delete All (${deletableGeneral.length})</span>
                   </button>
@@ -2570,7 +2769,7 @@
 
     function checkUrl() {
       const h = decodeURIComponent(location.hash.replace(/^#/, '')).trim();
-      if (h && SYLLABUS_DATA) openDrawer(h);
+      if (h) openDrawer(h);
     }
     window.addEventListener('hashchange', checkUrl);
 
@@ -2752,18 +2951,28 @@
 
         const sem = SEMESTER_LIST.find(s => s.shortName === val);
         const courses = sem ? sem.courses : [];
+        const normSem = window.SyllabusHelper.normalizeSemester(val);
+        const syllabusCourseNames = new Set((courses || []).map(c => c.title.toLowerCase().trim()));
+        const customSubs = (ALL_COURSES || []).filter(c => c.isCustom && c.rawSemester === normSem && !syllabusCourseNames.has(c.title.toLowerCase().trim()));
 
-        if (!courses.length || val === 'General') {
-          modalSubjectSelect.innerHTML = '<option value="">Select Subject…</option><option value="__custom__">+ Custom Subject</option>';
-          modalSubjectSelect.disabled = false;
-          modalChapterSelect.innerHTML = '<option value="General">General / All Chapters</option><option value="__custom__">+ Custom Unit</option>';
-          modalChapterSelect.disabled = false;
-          return;
+        let opts = '<option value="">Select Course / Subject…</option>';
+        if (courses.length) {
+          opts += '<optgroup label="Syllabus Courses">';
+          courses.forEach(c => {
+            opts += `<option value="${escapeHtml(c.title)}">${c.code ? c.code + ' — ' : ''}${escapeHtml(c.title)}</option>`;
+          });
+          opts += '</optgroup>';
         }
+        if (customSubs.length) {
+          opts += '<optgroup label="Custom Subjects">';
+          customSubs.forEach(c => {
+            opts += `<option value="${escapeHtml(c.title)}">📘 ${escapeHtml(c.title)}</option>`;
+          });
+          opts += '</optgroup>';
+        }
+        opts += '<option value="__custom__">+ Custom Subject</option>';
 
-        modalSubjectSelect.innerHTML = '<option value="">Select Course…</option>' +
-          courses.map(c => `<option value="${escapeHtml(c.title)}">${c.code ? c.code + ' — ' : ''}${escapeHtml(c.title)}</option>`).join('') +
-          '<option value="__custom__">+ Custom Subject</option>';
+        modalSubjectSelect.innerHTML = opts;
         modalSubjectSelect.disabled = false;
 
         modalChapterSelect.innerHTML = '<option value="">Choose course first</option>';
@@ -2777,7 +2986,7 @@
         if (val === '__custom__') {
           modalCustomSubInput.style.display = 'block';
           modalCustomSubInput.focus();
-          modalChapterSelect.innerHTML = '<option value="General">General Notes</option><option value="__custom__">+ Custom Unit</option>';
+          modalChapterSelect.innerHTML = '<option value="General">Complete Notes / General</option><option value="Lab / Practical">Lab / Practical Work</option><option value="__custom__">+ Custom Unit</option>';
           modalChapterSelect.disabled = false;
           return;
         }
@@ -2789,13 +2998,38 @@
           return;
         }
 
-        const course = window.SyllabusHelper.findCourse(SYLLABUS_DATA, val);
+        const course = window.SyllabusHelper.findCourse(SYLLABUS_DATA, val) || (ALL_COURSES || []).find(c => (c.title || '').toLowerCase() === val.toLowerCase());
         const units = course && course.contents ? window.SyllabusHelper.parseCourseUnits(course.contents) : [];
 
-        let opts = '<option value="General">Complete Notes / General</option>';
-        units.forEach(u => {
-          opts += `<option value="Unit ${u.num}: ${escapeHtml(u.title)}">Unit ${u.num}: ${escapeHtml(u.title)}</option>`;
+        // Find existing custom chapters for this subject
+        const existingChapters = new Set();
+        (ALL_FILES || []).forEach(f => {
+          if (f.subject && f.subject.toLowerCase().trim() === val.toLowerCase().trim() && f.chapter) {
+            const ch = f.chapter.trim();
+            const lower = ch.toLowerCase();
+            const isGenOrLab = lower === 'general' || lower === 'general notes' || lower === 'complete notes' || lower === 'complete notes / general' || lower.includes('lab') || lower.includes('practical');
+            const isSyllabus = units.some(u => ch.includes(`Unit ${u.num}`) || (u.title && u.title.length > 3 && ch.includes(u.title)));
+            if (!isGenOrLab && !isSyllabus) {
+              existingChapters.add(ch);
+            }
+          }
         });
+
+        let opts = '<option value="General">Complete Notes / General</option>';
+        if (units.length) {
+          opts += '<optgroup label="Syllabus Units">';
+          units.forEach(u => {
+            opts += `<option value="Unit ${u.num}: ${escapeHtml(u.title)}">Unit ${u.num}: ${escapeHtml(u.title)}</option>`;
+          });
+          opts += '</optgroup>';
+        }
+        if (existingChapters.size > 0) {
+          opts += '<optgroup label="Custom Units / Chapters">';
+          Array.from(existingChapters).sort().forEach(chapName => {
+            opts += `<option value="${escapeHtml(chapName)}">🔖 ${escapeHtml(chapName)}</option>`;
+          });
+          opts += '</optgroup>';
+        }
         opts += '<option value="Lab / Practical">Lab / Practical Work</option><option value="__custom__">+ Custom Unit</option>';
 
         modalChapterSelect.innerHTML = opts;
@@ -2832,23 +3066,37 @@
       // Set subject
       if (prefillSubject) {
         setTimeout(() => {
+          let subFound = false;
           for (let opt of modalSubjectSelect.options) {
             if (opt.value.toLowerCase() === prefillSubject.toLowerCase() || opt.value.toLowerCase().includes(prefillSubject.toLowerCase())) {
               modalSubjectSelect.value = opt.value;
               modalSubjectSelect.dispatchEvent(new Event('change'));
+              subFound = true;
               break;
             }
+          }
+          if (!subFound) {
+            modalSubjectSelect.value = '__custom__';
+            modalSubjectSelect.dispatchEvent(new Event('change'));
+            modalCustomSubInput.value = prefillSubject;
           }
 
           // Set chapter
           if (prefillChapter) {
             setTimeout(() => {
+              let chapFound = false;
               for (let opt of modalChapterSelect.options) {
-                if (opt.value.toLowerCase().includes(prefillChapter.toLowerCase())) {
+                if (opt.value.toLowerCase().includes(prefillChapter.toLowerCase()) || opt.value.toLowerCase() === prefillChapter.toLowerCase()) {
                   modalChapterSelect.value = opt.value;
                   modalChapterSelect.dispatchEvent(new Event('change'));
+                  chapFound = true;
                   break;
                 }
+              }
+              if (!chapFound) {
+                modalChapterSelect.value = '__custom__';
+                modalChapterSelect.dispatchEvent(new Event('change'));
+                modalCustomChapterInput.value = prefillChapter;
               }
             }, 50);
           }

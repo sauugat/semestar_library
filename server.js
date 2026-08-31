@@ -1353,16 +1353,8 @@ app.get(['/api/files/:id/download', '/api/files/download/:id'], requireLogin, as
     return res.status(404).json({ message: 'File not found' });
   }
 
-  // Check if stored in Supabase Storage
-  if (supabaseUrl && file.storedName) {
-    if (file.storedName.startsWith('http://') || file.storedName.startsWith('https://')) {
-      return res.redirect(file.storedName);
-    }
-    const localPath = path.join(UPLOAD_DIR, path.basename(file.storedName));
-    if (!fs.existsSync(localPath)) {
-      const publicUrl = `${supabaseUrl}/storage/v1/object/public/library_files/${encodeURIComponent(file.storedName)}?download=${encodeURIComponent(file.originalName)}`;
-      return res.redirect(publicUrl);
-    }
+  if (file.storedName && (file.storedName.startsWith('http://') || file.storedName.startsWith('https://'))) {
+    return res.redirect(file.storedName);
   }
 
   const filePath = await ensureLocalFile(file.storedName);
@@ -1405,23 +1397,20 @@ app.get('/api/files/:id/view', requireLogin, async (req, res) => {
     }
   }
 
-  // Supabase direct URL handling if file is in Supabase storage
-  if (supabaseUrl && file.storedName) {
-    const localPath = path.join(UPLOAD_DIR, path.basename(file.storedName));
-    if (!fs.existsSync(localPath)) {
-      const ext = path.extname(file.originalName).toLowerCase();
-      if (['.pdf', '.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.txt'].includes(ext)) {
-        const publicUrl = file.storedName.startsWith('http')
-          ? file.storedName
-          : `${supabaseUrl}/storage/v1/object/public/library_files/${encodeURIComponent(file.storedName)}`;
-        return res.redirect(publicUrl);
-      }
-    }
+  if (file.storedName && (file.storedName.startsWith('http://') || file.storedName.startsWith('https://'))) {
+    return res.redirect(file.storedName);
   }
 
   const filePath = await ensureLocalFile(file.storedName);
 
   if (!filePath || !fs.existsSync(filePath)) {
+    if (supabaseUrl && file.storedName) {
+      const ext = path.extname(file.originalName).toLowerCase();
+      if (['.pdf', '.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.txt'].includes(ext)) {
+        const publicUrl = `${supabaseUrl}/storage/v1/object/public/library_files/${encodeURIComponent(file.storedName)}`;
+        return res.redirect(publicUrl);
+      }
+    }
     return res.status(404).json({ message: 'File missing from server' });
   }
 

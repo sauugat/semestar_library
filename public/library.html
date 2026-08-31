@@ -1914,7 +1914,7 @@
           const semLabel = SEM_MAP[rawSemester] || (rawSemester === 'General' ? 'General' : `Semester ${rawSemester}`);
           courseMap.set(key, {
             title: subject,
-            code: 'CUSTOM',
+            code: 'COURSE',
             credit: '—',
             contents: '',
             rawSemester: rawSemester,
@@ -2361,13 +2361,13 @@
       // Also match any custom chapters from uploaded files
       (ALL_FILES || []).forEach(f => {
         if (f.chapter && f.chapter.toLowerCase().includes(q) && f.subject) {
-          const course = ALL_COURSES.find(c => c.title.toLowerCase() === f.subject.toLowerCase()) || { code: 'CUSTOM', rawSemester: f.semester || ACTIVE_SEM };
+          const course = ALL_COURSES.find(c => c.title.toLowerCase() === f.subject.toLowerCase()) || { code: 'COURSE', rawSemester: f.semester || ACTIVE_SEM };
           const key = `${f.subject}::${f.chapter}`;
           if (!seenChapters.has(key)) {
             seenChapters.add(key);
             matchChapters.push({
               courseTitle: f.subject,
-              courseCode: course.code || (course.isCustom ? 'CUSTOM' : 'COURSE'),
+              courseCode: course.code || 'COURSE',
               semLabel: SEM_MAP[course.rawSemester] || course.rawSemester || 'Semester',
               unitNum: null,
               unitTitle: f.chapter,
@@ -2484,13 +2484,13 @@
         <div class="course-card-minimal" onclick="openDrawer('${escapeJs(c.title)}')">
           <div>
             <div class="course-card-head">
-              <span class="course-code-badge">${escapeHtml(c.code || (c.isCustom ? 'CUSTOM' : 'COURSE'))}</span>
+              <span class="course-code-badge">${escapeHtml(c.code || 'COURSE')}</span>
               <span class="course-files-pill ${fileCount ? 'has-files' : ''}">${fileCount ? `${fileCount} notes` : '0 notes'}</span>
             </div>
             <h3 class="course-name-clean">${escapeHtml(c.title)}</h3>
           </div>
           <div class="course-card-foot">
-            <span>${c.isCustom ? 'Custom Subject' : `${units.length} Units`} &middot; ${semLabel}</span>
+            <span>${units.length ? `${units.length} Units` : 'Course'} &middot; ${semLabel}</span>
             <span class="open-label">Explore &rarr;</span>
           </div>
         </div>
@@ -2528,7 +2528,7 @@
         const rawSem = ACTIVE_SEM || 'I';
         course = {
           title: title,
-          code: 'CUSTOM',
+          code: 'COURSE',
           semester: SEM_MAP[rawSem] || 'Semester',
           rawSemester: rawSem,
           credit: '—',
@@ -2542,7 +2542,7 @@
 
       const semLabel = SEM_MAP[course.rawSemester] || course.semester || course.rawSemester;
 
-      document.getElementById('dCourseCode').textContent = course.code || (course.isCustom ? 'CUSTOM' : 'COURSE');
+      document.getElementById('dCourseCode').textContent = course.code || 'COURSE';
       document.getElementById('dCourseMeta').textContent = `${semLabel} · ${course.credit || '—'} Credits`;
       document.getElementById('dCourseTitle').textContent = course.title;
 
@@ -2962,18 +2962,14 @@
 
         let opts = '<option value="">Select Course / Subject…</option>';
         if (courses.length) {
-          opts += '<optgroup label="Syllabus Courses">';
           courses.forEach(c => {
             opts += `<option value="${escapeHtml(c.title)}">${c.code ? c.code + ' — ' : ''}${escapeHtml(c.title)}</option>`;
           });
-          opts += '</optgroup>';
         }
         if (customSubs.length) {
-          opts += '<optgroup label="Custom Subjects">';
           customSubs.forEach(c => {
-            opts += `<option value="${escapeHtml(c.title)}">📘 ${escapeHtml(c.title)}</option>`;
+            opts += `<option value="${escapeHtml(c.title)}">${escapeHtml(c.title)}</option>`;
           });
-          opts += '</optgroup>';
         }
         opts += '<option value="__custom__">+ Custom Subject</option>';
 

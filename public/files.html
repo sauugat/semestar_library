@@ -720,18 +720,14 @@
 
       let opts = '<option value="">Select Course / Subject…</option>';
       if (courses.length) {
-        opts += '<optgroup label="Syllabus Courses">';
         courses.forEach(c => {
           opts += `<option value="${escapeHtml(c.title)}">${c.code ? c.code + ' — ' : ''}${escapeHtml(c.title)}</option>`;
         });
-        opts += '</optgroup>';
       }
       if (customSubjects.size > 0) {
-        opts += '<optgroup label="Custom Subjects">';
         Array.from(customSubjects).sort().forEach(subName => {
-          opts += `<option value="${escapeHtml(subName)}">📘 ${escapeHtml(subName)}</option>`;
+          opts += `<option value="${escapeHtml(subName)}">${escapeHtml(subName)}</option>`;
         });
-        opts += '</optgroup>';
       }
       opts += '<option value="__custom__">+ Custom Subject</option>';
 

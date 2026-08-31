@@ -1908,9 +1908,10 @@
       }
 
       candidateSubjects.forEach(({ subject, semester }) => {
+        if (!subject || !subject.trim() || !semester || !semester.trim()) return;
         const key = subject.toLowerCase().trim();
         if (!courseMap.has(key)) {
-          const rawSemester = window.SyllabusHelper.normalizeSemester(semester || ACTIVE_SEM || 'I');
+          const rawSemester = window.SyllabusHelper.normalizeSemester(semester);
           const semLabel = SEM_MAP[rawSemester] || (rawSemester === 'General' ? 'General' : `Semester ${rawSemester}`);
           courseMap.set(key, {
             title: subject,
@@ -3159,7 +3160,7 @@
               }
             }
           }
-        } catch (e) {}
+        } catch (e) { }
 
         if (supaClient) {
           // Direct browser-to-Supabase Storage upload (bypasses Vercel 4.5MB limit completely)

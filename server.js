@@ -1026,31 +1026,39 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
 
       if (insertedId) {
         // If Saugat Subedi (26020266) uploads, automatically add random natural likes from student accounts (17-44 likes)
-        if (req.session.studentId === '26020266') {
-          const targetLikes = Math.floor(Math.random() * (44 - 17 + 1)) + 17;
-          if (db.isPostgres) {
-            await db.run(`
-              INSERT INTO file_likes (fileId, studentId)
-              SELECT ?, studentId FROM (
-                SELECT studentId FROM students ORDER BY RANDOM() LIMIT ${targetLikes}
-              ) rand_students
-              ON CONFLICT (fileId, studentId) DO NOTHING RETURNING fileId
-            `, insertedId);
-          } else {
-            await db.run(`
-              INSERT OR IGNORE INTO file_likes (fileId, studentId)
-              SELECT ?, studentId FROM (
-                SELECT studentId FROM students ORDER BY RANDOM() LIMIT ${targetLikes}
-              )
-            `, insertedId);
+        try {
+          if (req.session.studentId === '26020266') {
+            const targetLikes = Math.floor(Math.random() * (44 - 17 + 1)) + 17;
+            if (db.isPostgres) {
+              await db.run(`
+                INSERT INTO file_likes (fileId, studentId)
+                SELECT ?, studentId FROM (
+                  SELECT studentId FROM students ORDER BY RANDOM() LIMIT ${targetLikes}
+                ) rand_students
+                ON CONFLICT (fileId, studentId) DO NOTHING RETURNING fileId
+              `, insertedId);
+            } else {
+              await db.run(`
+                INSERT OR IGNORE INTO file_likes (fileId, studentId)
+                SELECT ?, studentId FROM (
+                  SELECT studentId FROM students ORDER BY RANDOM() LIMIT ${targetLikes}
+                )
+              `, insertedId);
+            }
           }
+        } catch (likeErr) {
+          console.warn('[Like insert warning]:', likeErr.message);
         }
 
-        if (isAdmin) {
-          await db.run(`
-            INSERT INTO notifications (recipientStudentId, type, relatedFileId, message)
-            SELECT studentId, 'notice', ?, ? FROM students WHERE studentId != ?
-          `, insertedId, `New Official Notice: ${fileTitle || f.originalname}`, req.session.studentId);
+        try {
+          if (isAdmin) {
+            await db.run(`
+              INSERT INTO notifications (recipientStudentId, type, relatedFileId, message)
+              SELECT studentId, 'notice', ?, ? FROM students WHERE studentId != ?
+            `, insertedId, `New Official Notice: ${fileTitle || f.originalname}`, req.session.studentId);
+          }
+        } catch (notifErr) {
+          console.warn('[Notification insert warning]:', notifErr.message);
         }
       }
     }
@@ -1110,35 +1118,41 @@ app.post('/api/files/record-upload', requireLogin, async (req, res) => {
       });
 
       if (insertedId) {
-        if (req.session.studentId === '26020266') {
-          const targetLikes = Math.floor(Math.random() * (44 - 17 + 1)) + 17;
-          if (db.isPostgres) {
-            await db.run(`
-              INSERT INTO file_likes (fileId, studentId)
-              SELECT ?, studentId FROM (
-                SELECT studentId FROM students ORDER BY RANDOM() LIMIT ${targetLikes}
-              ) rand_students
-              ON CONFLICT (fileId, studentId) DO NOTHING RETURNING fileId
-            `, insertedId);
-          } else {
-            await db.run(`
-              INSERT OR IGNORE INTO file_likes (fileId, studentId)
-              SELECT ?, studentId FROM (
-                SELECT studentId FROM students ORDER BY RANDOM() LIMIT ${targetLikes}
-              )
-            `, insertedId);
+        // Auto-likes if applicable
+        try {
+          if (req.session.studentId === '26020266') {
+            const targetLikes = Math.floor(Math.random() * (44 - 17 + 1)) + 17;
+            if (db.isPostgres) {
+              await db.run(`
+                INSERT INTO file_likes (fileId, studentId)
+                SELECT ?, studentId FROM (
+                  SELECT studentId FROM students ORDER BY RANDOM() LIMIT ${targetLikes}
+                ) rand_students
+                ON CONFLICT (fileId, studentId) DO NOTHING RETURNING fileId
+              `, insertedId);
+            } else {
+              await db.run(`
+                INSERT OR IGNORE INTO file_likes (fileId, studentId)
+                SELECT ?, studentId FROM (
+                  SELECT studentId FROM students ORDER BY RANDOM() LIMIT ${targetLikes}
+                )
+              `, insertedId);
+            }
           }
+        } catch (likeErr) {
+          console.warn('[Like insert warning]:', likeErr.message);
         }
 
-        if (isAdmin) {
-          await db.run(`
-            INSERT INTO announcements (title, content, date, type, authorId)
-            VALUES (?, ?, ?, 'admin', ?)
-          `, `New Study Resource: ${fileTitle}`,
-             `Admin has published "${fileTitle}" for ${cleanSemester || 'All Semesters'} - ${cleanSubject || 'General'}. Check the Library to download.`,
-             new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-             req.session.studentId
-          );
+        // Send notification for official uploads
+        try {
+          if (isAdmin) {
+            await db.run(`
+              INSERT INTO notifications (recipientStudentId, type, relatedFileId, message)
+              SELECT studentId, 'notice', ?, ? FROM students WHERE studentId != ?
+            `, insertedId, `New Study Material: ${fileTitle}`, req.session.studentId);
+          }
+        } catch (notifErr) {
+          console.warn('[Notification insert warning]:', notifErr.message);
         }
       }
     }

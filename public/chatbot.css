@@ -924,7 +924,14 @@ body.sla-fullpage-mode .sla-welcome-hero {
   font-family: var(--sla-font-mono);
 }
 
-.sla-copy-code-btn {
+.sla-code-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sla-copy-code-btn,
+.sla-run-compiler-btn {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(168, 85, 247, 0.25);
   border-radius: 4px;
@@ -938,7 +945,8 @@ body.sla-fullpage-mode .sla-welcome-hero {
   transition: all 0.15s ease;
 }
 
-.sla-copy-code-btn:hover {
+.sla-copy-code-btn:hover,
+.sla-run-compiler-btn:hover {
   background: var(--sla-violet);
   color: #ffffff;
   border-color: var(--sla-violet);

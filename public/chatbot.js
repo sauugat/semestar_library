@@ -33,7 +33,7 @@
   }
 
   loadCSS('https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css');
-  
+
   Promise.all([
     loadScript('https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js'),
     loadScript('https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js'),
@@ -81,11 +81,11 @@
     for (let i = 0; i < starCount; i++) {
       const star = document.createElement('div');
       star.className = 'sla-star';
-      
+
       const size = Math.random() < 0.8 ? (Math.random() * 1.2 + 1.0) : (Math.random() * 1.5 + 2.0); // 1.0px - 3.5px
       const posX = (Math.random() * 96 + 2).toFixed(2); // 2% to 98%
       // Upper & mid sky only (top 65%), keeping bottom area clear
-      const posY = (Math.pow(Math.random(), 1.25) * 65 + 3).toFixed(2); 
+      const posY = (Math.pow(Math.random(), 1.25) * 65 + 3).toFixed(2);
       const duration = (Math.random() * 3 + 3.0).toFixed(2); // 3.0s - 6.0s
       const delay = (Math.random() * 4).toFixed(2);
       const opacity = (Math.random() * 0.45 + 0.3).toFixed(2); // 0.3 - 0.75
@@ -138,7 +138,7 @@
 
   function renderFormattedContent(element, rawMarkdown) {
     const normalized = normalizeLatexDelimiters(rawMarkdown);
-    
+
     let parsedHtml = normalized;
     if (window.marked && typeof window.marked.parse === 'function') {
       parsedHtml = window.marked.parse(normalized);
@@ -164,15 +164,25 @@
 
       const header = document.createElement('div');
       header.className = 'sla-code-header';
-      
+
       const langMatch = codeBlock.className.match(/language-(\w+)/);
       const langName = langMatch ? langMatch[1] : 'Code';
+      const langKey = langName.toLowerCase();
+      const compilerSupported = /^(java|c|html|css|javascript|js)$/.test(langKey);
+
       header.innerHTML = `
         <span>${langName}</span>
-        <button type="button" class="sla-copy-code-btn">
-          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-          <span>Copy</span>
-        </button>
+        <div class="sla-code-header-actions">
+          <button type="button" class="sla-copy-code-btn">
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <span>Copy</span>
+          </button>
+          ${compilerSupported ? `
+          <button type="button" class="sla-run-compiler-btn">
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><polygon points="6,3 20,12 6,21"/></svg>
+            <span>Run in Compiler</span>
+          </button>` : ''}
+        </div>
       `;
 
       const copyBtn = header.querySelector('.sla-copy-code-btn');
@@ -187,6 +197,17 @@
           }, 2000);
         });
       });
+
+      const runBtn = header.querySelector('.sla-run-compiler-btn');
+      if (runBtn) {
+        runBtn.addEventListener('click', () => {
+          sessionStorage.setItem('pendingCompilerCode', JSON.stringify({
+            code: codeBlock.innerText,
+            lang: langKey
+          }));
+          window.location.href = 'compiler.html';
+        });
+      }
 
       pre.parentNode.insertBefore(wrap, pre);
       wrap.appendChild(header);
@@ -236,7 +257,7 @@
 
     const row = document.createElement('div');
     row.className = 'sla-msg-row sla-ai';
-    
+
     const avatar = document.createElement('div');
     avatar.className = 'sla-msg-avatar';
     avatar.innerHTML = `
@@ -306,7 +327,7 @@
           <span>Library Files (${data.matchedFiles.length})</span>
         </div>
       `;
-      
+
       const list = document.createElement('div');
       list.className = 'sla-files-clean-list';
 
@@ -332,7 +353,7 @@
         const badge = getFileBadge(f.originalName || f.title);
         const fileName = f.title || f.originalName || 'Study Note';
         const metaText = `${f.subject || 'Library'}${f.chapter ? ' · ' + f.chapter : ''}${f.semester ? ' · ' + f.semester : ''}`;
-        
+
         item.innerHTML = `
           <div class="clean-file-left">
             <div class="clean-file-icon ${badge.toLowerCase()}">${badge}</div>
@@ -362,7 +383,7 @@
           <span>Curriculum & Syllabus (${data.matchedCourses.length})</span>
         </div>
       `;
-      
+
       const list = document.createElement('div');
       list.className = 'sla-syllabus-cards-list';
 
@@ -372,7 +393,7 @@
         const year = c.year || 'Year 1';
         const courseKey = c.code ? `${c.code}-${c.title}` : c.title;
         const syllabusLink = `syllabus.html#${encodeURIComponent(year)}/${encodeURIComponent(c.semester)}/${encodeURIComponent(courseKey)}`;
-        
+
         card.innerHTML = `
           <div class="sla-syllabus-card-header">
             <span class="sla-syllabus-code">${c.code || 'COURSE'}</span>
@@ -406,7 +427,7 @@
           <span>Examination Timetable (${data.matchedRoutine.length})</span>
         </div>
       `;
-      
+
       const list = document.createElement('div');
       list.className = 'sla-routine-exams-list';
 
@@ -474,7 +495,7 @@
     // Message Actions Bar (Copy Text Tool)
     const actionsBar = document.createElement('div');
     actionsBar.className = 'sla-msg-actions-bar';
-    
+
     let badgeHtml = '';
     if (data.isWebSearch) {
       const bText = (data.webSources && data.webSources.length > 0) ? 'Web Grounded' : 'Web Fallback';
@@ -570,7 +591,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: query,
-          history: conversationHistory.slice(-8)
+          history: conversationHistory.slice(-16)
         })
       });
 
@@ -679,9 +700,9 @@
 
   // Global delegate for suggestion chips, starter prompt cards, and topic buttons
   document.addEventListener('click', (e) => {
-    const trigger = e.target.closest('.sla-suggestion-chip') || 
-                    e.target.closest('.sla-topic-btn') || 
-                    e.target.closest('.sla-starter-card');
+    const trigger = e.target.closest('.sla-suggestion-chip') ||
+      e.target.closest('.sla-topic-btn') ||
+      e.target.closest('.sla-starter-card');
     if (trigger && trigger.dataset.q) {
       handleSend(trigger.dataset.q);
     }
@@ -694,7 +715,7 @@
   });
 
   // Global helper for external pages
-  window.askAiAssistant = function(query) {
+  window.askAiAssistant = function (query) {
     if (isFullPage) {
       handleSend(query);
     } else {
@@ -712,6 +733,6 @@
         handleSend(initialQ.trim());
       }, 350);
     }
-  } catch (err) {}
+  } catch (err) { }
 
 })();

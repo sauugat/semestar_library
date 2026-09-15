@@ -51,7 +51,7 @@ const SEMESTER_REGISTRY = {
 function normalizeSemester(str) {
   if (!str) return null;
   const s = String(str).toLowerCase().trim();
-  
+
   // 1. Explicit Semester mentions (e.g. "sem 2", "semester 3", "3rd sem", "semester ii")
   for (const meta of Object.values(SEMESTER_REGISTRY)) {
     const explicitPatterns = [
@@ -547,7 +547,7 @@ function escapeRegex(str) {
 
 function matchSubjectInText(text) {
   const t = text.toLowerCase();
-  
+
   // 0. High priority coding language patterns
   if (/\b(?:in\s+c|c\s+program|c\s+programming|c\s+code|c\s+language|wap\s+in\s+c)\b/i.test(t)) {
     return 'Computer Programming I (C)';
@@ -584,7 +584,7 @@ function matchSubjectInText(text) {
 
 function matchTopicInText(text) {
   const t = text.toLowerCase();
-  
+
   // 1. Exact / Boundary Synonym Match in TOPIC_DEFINITIONS (Full phrase matching)
   for (const item of TOPIC_DEFINITIONS) {
     for (const syn of item.synonyms) {
@@ -649,8 +649,8 @@ function parseSingleIntent(queryStr, ctxSem, ctxSubj, ctxTopic) {
     }
   }
 
-  // Handle follow-up pronouns ("what about its syllabus?", "show its notes")
-  const hasPronounRef = /\b(it|its|this|that|same)\b/i.test(q);
+  // Handle follow-up pronouns and time refs ("what about tomorrow", "show its notes")
+  const hasPronounRef = /\b(it|its|this|that|same|tomorrow|tonight|next(?:\s+one)?|the next one)\b/i.test(q);
   if (hasPronounRef) {
     if (!semester && ctxSem) semester = ctxSem;
     if (!subject && ctxSubj) subject = ctxSubj;
@@ -749,6 +749,199 @@ function parseSingleIntent(queryStr, ctxSem, ctxSubj, ctxTopic) {
 }
 
 // ============================================================================
+// 4.5 SEARCH-TOOL INTENT + TABLE CACHE
+// ============================================================================
+
+const HISTORY_TURNS = 16;
+const TABLE_CACHE_TTL_MS = 5 * 60 * 1000;
+const SITE_RESULT_CACHE_TTL_MS = 5 * 60 * 1000;
+const tableCache = new Map(); // cacheKey -> { at, rows }
+const siteResultCache = new Map(); // sessionId:query -> { at, results }
+
+async function cachedDbAll(db, cacheKey, sql) {
+  const hit = tableCache.get(cacheKey);
+  if (hit && (Date.now() - hit.at) < TABLE_CACHE_TTL_MS) {
+    return hit.rows;
+  }
+  const rows = await db.all(sql);
+  tableCache.set(cacheKey, { at: Date.now(), rows });
+  return rows;
+}
+
+const SITE_KEYWORD_RE = /routine|notice|syllabus|exam|schedule|timetable|file|upload|deadline|assignment date/i;
+const CODE_KEYWORD_RE = /error|code|function|bug|javascript|python|java|c\+\+|algorithm|debug|syntax|api|sql|query/i;
+const SITE_FOLLOWUP_RE = /^(what about|how about|and(?:\s+then)?|tomorrow|tonight|next|the next one|same|that one|it)\b/i;
+const SITE_RESOURCE_TYPES = new Set(['ROUTINE', 'SYLLABUS', 'NOTE', 'PYQ', 'NOTICE', 'ALL']);
+const SITE_PARSE_INTENTS = new Set(['WEBSITE_INFO', 'RESOURCE_SEARCH', 'NAVIGATE_RESOURCE']);
+
+/**
+ * Cheap keyword/regex pass — decides Gemini Google Search grounding.
+ * Returns: 'site' | 'code' | 'general' | 'smalltalk'
+ */
+function classifyIntent(message, conversationHistory = [], queryMeta = null) {
+  const text = String(message || '');
+
+  // Explicit site/resource intent wins over overlapping words such as "file" or "sql".
+  if (queryMeta) {
+    if (queryMeta.intent === 'CHITCHAT' || queryMeta.intent === 'SMALLTALK') return 'smalltalk';
+    if (SITE_PARSE_INTENTS.has(queryMeta.intent) || SITE_RESOURCE_TYPES.has(queryMeta.resourceType)) {
+      return 'site';
+    }
+  }
+
+  if (SITE_KEYWORD_RE.test(text)) return 'site';
+  if (CODE_KEYWORD_RE.test(text)) return 'code';
+
+  const histText = (conversationHistory || []).slice(-HISTORY_TURNS).map(m => m.content || '').join(' ');
+  if (SITE_KEYWORD_RE.test(histText) && (SITE_FOLLOWUP_RE.test(text.trim()) || /\b(tomorrow|tonight|next exam|same subject)\b/i.test(text))) {
+    return 'site';
+  }
+
+  return 'general';
+}
+
+function cacheKeyForSiteQuery(sessionId, query, student = {}) {
+  return `${sessionId || 'anonymous'}:${student.studentId || 'guest'}:${String(query || '').toLowerCase().trim()}`;
+}
+
+function cloneSearchResults(results) {
+  return {
+    matchedFiles: [...(results.matchedFiles || [])],
+    matchedCourses: [...(results.matchedCourses || [])],
+    matchedRoutine: [...(results.matchedRoutine || [])],
+    actions: [...(results.actions || [])],
+    debug: { ...(results.debug || {}) }
+  };
+}
+
+function forceSiteSearchMeta(queryMeta, message) {
+  if (!queryMeta) return queryMeta;
+  const q = message || queryMeta.searchQuery || '';
+  const alreadyTyped = queryMeta.resourceType && queryMeta.resourceType !== 'NONE';
+  if (alreadyTyped) return queryMeta;
+
+  const looksRoutine = /\b(routine|exam|schedule|timetable|deadline|assignment date)\b/i.test(q);
+  const looksSyllabus = /\b(syllabus|curriculum)\b/i.test(q);
+  const looksFiles = /\b(file|upload|notes?|pdf|pyq)\b/i.test(q);
+  const looksNotice = /\b(notice|announcement)\b/i.test(q);
+
+  if (looksRoutine) queryMeta.resourceType = 'ROUTINE';
+  else if (looksSyllabus) queryMeta.resourceType = 'SYLLABUS';
+  else if (looksFiles) queryMeta.resourceType = 'NOTE';
+  else if (looksNotice) queryMeta.resourceType = 'NOTICE';
+  else queryMeta.resourceType = 'ALL';
+
+  if (queryMeta.intent === 'KNOWLEDGE_QUESTION' || queryMeta.intent === 'CHITCHAT') {
+    queryMeta.intent = queryMeta.resourceType === 'NOTE' ? 'RESOURCE_SEARCH' : 'WEBSITE_INFO';
+  }
+  return queryMeta;
+}
+
+function hasSiteMatches(searchResults) {
+  return Boolean(
+    (searchResults.matchedFiles && searchResults.matchedFiles.length > 0) ||
+    (searchResults.matchedCourses && searchResults.matchedCourses.length > 0) ||
+    (searchResults.matchedRoutine && searchResults.matchedRoutine.length > 0)
+  );
+}
+
+function formatHistoryPlain(conversationHistory) {
+  if (!Array.isArray(conversationHistory) || conversationHistory.length === 0) return '(none)';
+  return conversationHistory.slice(-HISTORY_TURNS).map(msg => {
+    const role = msg.role === 'assistant' || msg.role === 'model' ? 'Kyana' : 'User';
+    return `${role}: ${msg.content || ''}`;
+  }).join('\n');
+}
+
+function buildSiteContext(searchResults) {
+  const files = searchResults.matchedFiles.length > 0
+    ? searchResults.matchedFiles.map(f => `- [File #${f.id}] "${f.title || f.originalName}" | Subject: ${f.subject} | Semester: ${f.semester || 'General'} | Chapter: ${f.chapter || 'All'}`).join('\n')
+    : 'No files matched.';
+  const courses = searchResults.matchedCourses.length > 0
+    ? searchResults.matchedCourses.map(c => `- ${c.title} (${c.code}) [Semester ${c.semester}, ${c.credit} Credits]: ${c.objectivesSummary}`).join('\n')
+    : 'No syllabus courses matched.';
+  const routine = searchResults.matchedRoutine.length > 0
+    ? searchResults.matchedRoutine.map(r => `- Semester ${r.semester}: ${r.subject} on ${r.date} (${r.day}) at ${r.time} [${r.type}]`).join('\n')
+    : 'No routine matched.';
+  const pages = SITE_PAGES.map(p => `- ${p.name} (${p.url}): ${p.description}`).join('\n');
+
+  return `=== MATCHED FILES IN LIBRARY ===
+${files}
+
+=== MATCHED SYLLABUS COURSES ===
+${courses}
+
+=== MATCHED EXAM ROUTINE ===
+${routine}
+
+=== PLATFORM PAGES ===
+${pages}`;
+}
+
+function buildKyanaSystemPrompt({ siteContext, historyText, userMessage, searchBucket, useSearch, hasSiteData }) {
+  const searchRuleNote = useSearch
+    ? `Live Google Search is ENABLED this turn. Use it for accuracy on programming, technical, or general questions — especially anything version-specific or likely outdated.`
+    : `Live Google Search is DISABLED this turn. Do NOT invent campus facts, exam dates, notices, or uploaded files. If SITE_CONTEXT is empty for a campus question, say you couldn't find it in the library yet.`;
+
+  return `You are Kyana, the AI assistant for Gandaki University's student portal (Semester Library / BIT). You're not a corporate chatbot — you're a smart, chill senior who knows the campus inside out and is always down to help. Think of yourself as a friend students text when they're stuck, not a helpdesk.
+
+## PERSONALITY & TONE
+- Talk like a real person texting a friend: casual, warm, a little playful. Use words like "ngl", "fr", "lowkey", "no cap" naturally — but don't force one into every single sentence, that reads try-hard.
+- Skip corporate phrases entirely: never say "I'd be happy to assist you", "Please let me know if you have further questions", "As an AI language model".
+- Keep responses tight. Don't pad with fluff — say what's useful, then stop.
+- If you don't know something, say so like a friend would: "hmm idk that one tbh, lemme check" — not a formal disclaimer.
+- Use emojis sparingly, only when they add something (not every message).
+- You can joke around, but never at the cost of being actually useful — humor is a bonus, not a substitute for a real answer.
+
+Example tone:
+User: "when's the DBMS exam"
+You: "DBMS final is on [date] at [time], room [X] — don't sleep on it 💀 want me to check what chapters are covered too?"
+
+User: "explain recursion in js"
+You: "ok so recursion is basically a function calling itself until it hits a stop condition (the 'base case'), otherwise it just loops forever and crashes your stack. quick example: [code]. wanna see it with an actual problem like factorial or fibonacci?"
+
+User: "do we have OS unit 2 notes?"
+You: "Found a couple — lecture slides for Process Scheduling plus a unit 2 summary. they're right below. ngl don't wait till the night before 💀"
+
+## WHAT YOU HAVE ACCESS TO
+1. SITE_CONTEXT — real data pulled from this university's own database: uploaded files, syllabus, exam routine, notices, static page info. This is passed to you as context below.
+2. Your own training knowledge — general concepts, programming, explanations.
+3. Live Google Search (only enabled for certain question types — see rules below).
+
+${searchRuleNote}
+
+Question bucket this turn: ${searchBucket}. Site matches present: ${hasSiteData ? 'yes' : 'no'}.
+
+## ANSWER PRIORITY RULES — FOLLOW STRICTLY
+1. **Routine, notices, syllabus, exam dates, deadlines, uploaded files** → ALWAYS answer from SITE_CONTEXT if it's present there. Never guess, never use outside knowledge, never use search for these — the source of truth is the university's own database. If SITE_CONTEXT doesn't have it, say honestly you couldn't find it in the library yet and suggest checking with faculty/admin — do NOT make something up.
+2. **Programming, technical, or general knowledge questions** (code, debugging, concepts, "how does X work", current events, etc.) → Use your knowledge, and live search is enabled for these — feel free to reference it for accuracy, especially anything that could be outdated or version-specific. Explain thoroughly and use markdown code blocks.
+3. **Ambiguous questions** → Check SITE_CONTEXT first. If nothing relevant is there, answer normally.
+
+Never blend an outside guess into a site-data answer (e.g. don't invent an exam date if it's not in SITE_CONTEXT — check first, then say if it's missing).
+
+If SITE_CONTEXT has a routine/notice/file match, quote from that. Don't hedge. The cards under your message already show files — keep the text short when cards are present.
+
+Do NOT volunteer extra resource types the student didn't ask for.
+
+## FORMATTING
+- Use markdown: code blocks for code, bold for key info like dates/times, short bullet lists when listing multiple things.
+- Keep paragraphs short — this is a chat widget, not an essay.
+- For code answers, always explain briefly what the code does, don't just dump code with zero context.
+
+## CONTEXT PROVIDED THIS TURN
+SITE_CONTEXT:
+${siteContext}
+
+CONVERSATION HISTORY (last ${HISTORY_TURNS} turns):
+${historyText}
+
+USER MESSAGE:
+${userMessage}
+
+Respond as Kyana now, following all rules above.`;
+}
+
+// ============================================================================
 // 5. CANONICAL CENTRAL SEARCH SERVICE (searchWebsite)
 // ============================================================================
 
@@ -770,7 +963,7 @@ async function searchWebsite(db, queryMeta, student = {}) {
   };
 
   // If user is just chatting or asking a general knowledge/identity question, do not search cards!
-  if (intent === 'CHITCHAT' || intent === 'KNOWLEDGE_QUESTION' || resourceType === 'NONE') {
+  if (intent === 'CHITCHAT' || intent === 'SMALLTALK' || intent === 'KNOWLEDGE_QUESTION' || resourceType === 'NONE') {
     console.log(`[AI Search Engine] Skipping card search for non-resource query (Intent: ${intent}, Type: ${resourceType})`);
     return results;
   }
@@ -778,16 +971,16 @@ async function searchWebsite(db, queryMeta, student = {}) {
   // --------------------------------------------------------------------------
   // Resource Search Flags — rely on intent classification, no re-scanning keywords
   // --------------------------------------------------------------------------
-  const isRoutineQuery = resourceType === 'ROUTINE';
-  const isSyllabusQuery = resourceType === 'SYLLABUS';
-  const wantsFiles = resourceType === 'NOTE' || resourceType === 'PYQ' || intent === 'RESOURCE_SEARCH';
+  const isRoutineQuery = resourceType === 'ROUTINE' || resourceType === 'ALL' || resourceType === 'NOTICE';
+  const isSyllabusQuery = resourceType === 'SYLLABUS' || resourceType === 'ALL';
+  const wantsFiles = resourceType === 'NOTE' || resourceType === 'PYQ' || resourceType === 'ALL' || intent === 'RESOURCE_SEARCH';
 
   // --------------------------------------------------------------------------
   // 1. Search Files in Library with Advanced BM25 + Multi-Tier Scoring & Strict Verification
   // --------------------------------------------------------------------------
   if (wantsFiles) {
     try {
-      const allFiles = await db.all(`
+      const allFiles = await cachedDbAll(db, 'files:all', `
         SELECT id, storedName, originalName, title, subject, chapter, semester, uploadedBy, sizeBytes, uploadedAt 
         FROM files 
         ORDER BY id DESC
@@ -819,7 +1012,7 @@ async function searchWebsite(db, queryMeta, student = {}) {
       const N = allFiles.length;
       const k1 = 1.2;
       const b = 0.75;
-      
+
       const docTokensList = allFiles.map(f => {
         const full = `${f.subject || ''} ${f.chapter || ''} ${f.title || ''} ${f.originalName || ''}`.toLowerCase();
         return full.replace(/[^\w\s]/g, ' ').split(/\s+/).filter(w => w.length >= 2);
@@ -883,7 +1076,7 @@ async function searchWebsite(db, queryMeta, student = {}) {
         if (subject) {
           const canonicalLower = subject.toLowerCase();
           const isExactSubj = fSubject.includes(canonicalLower) || fTitle.includes(canonicalLower);
-          
+
           let hasAliasMatch = false;
           const aliases = SUBJECT_ALIASES[subject] || [];
           for (const a of aliases) {
@@ -924,7 +1117,7 @@ async function searchWebsite(db, queryMeta, student = {}) {
           const df = dfMap.get(token) || 0;
           // Standard Lucene/BM25 IDF
           const idf = Math.log(1 + (N - df + 0.5) / (df + 0.5));
-          
+
           // Term frequency in document
           let tf = 0;
           docTokens.forEach(dt => { if (dt === token) tf++; });
@@ -1100,7 +1293,7 @@ async function searchWebsite(db, queryMeta, student = {}) {
   if (isRoutineQuery) {
     let allRoutines = [];
     try {
-      allRoutines = await db.all('SELECT * FROM exam_schedule ORDER BY id ASC');
+      allRoutines = await cachedDbAll(db, 'exam_schedule:all', 'SELECT * FROM exam_schedule ORDER BY id ASC');
     } catch (e) {
       allRoutines = DEFAULT_ROUTINE_SCHEDULE;
     }
@@ -1259,7 +1452,7 @@ function isPrivacyViolationQuery(q) {
   return false;
 }
 
-async function callGroundedAI(userMessage, queryMeta, searchResults, conversationHistory = []) {
+async function callGroundedAI(userMessage, queryMeta, searchResults, conversationHistory = [], intentBucket = 'general') {
   const { intent, resourceType, semester, subject, topic } = queryMeta;
 
   // ── HARD PRIVACY GUARD ─────────────────────────────────────────────────────
@@ -1275,75 +1468,40 @@ async function callGroundedAI(userMessage, queryMeta, searchResults, conversatio
     };
   }
 
-  const hasSiteData = (searchResults.matchedFiles && searchResults.matchedFiles.length > 0) ||
-    (searchResults.matchedCourses && searchResults.matchedCourses.length > 0) ||
-    (searchResults.matchedRoutine && searchResults.matchedRoutine.length > 0);
-
+  const hasSiteData = hasSiteMatches(searchResults);
   const isSmalltalkOrIdentity = /^(hi|hello|hey|who\s+(are\s+you|r\s+u|you)|what\s+is\s+your\s+name|your\s+name|what\s+can\s+you\s+do|how\s+are\s+you|thanks|thank\s+you|bye|good\s+(morning|afternoon|evening))\b/i.test(userMessage.trim()) ||
     /(who are you|what is your name|your name|introduce yourself)/i.test(userMessage);
+  const useSearch = intentBucket === 'code' || (intentBucket === 'general' && !hasSiteData);
+  const isWebFallback = useSearch && !isSmalltalkOrIdentity;
 
-  const isWebFallback = !hasSiteData && !isSmalltalkOrIdentity;
+  // Site-only misses must never reach a model that could fill in campus facts.
+  if (intentBucket === 'site' && !hasSiteData) {
+    return {
+      replyText: `Hmm, couldn't find that in the library yet. I'd check with faculty/admin for the latest info.`,
+      isWebSearch: false,
+      webSources: [],
+      sourceLabel: ''
+    };
+  }
 
-  // System Prompt for Grounded Language Generation with Natural Classmate Tone
-  const systemPrompt = `You are Kyana, the AI study assistant for Semester Library at Gandaki University (BIT).
+  const systemPrompt = buildKyanaSystemPrompt({
+    siteContext: buildSiteContext(searchResults),
+    historyText: formatHistoryPlain(conversationHistory),
+    userMessage,
+    searchBucket: intentBucket,
+    useSearch,
+    hasSiteData
+  });
 
-TONE & COMMUNICATION STYLE:
-- Talk like a helpful, friendly classmate — not a formal customer support bot.
-- Use natural, conversational language. It's fine to use contractions (I'll, you're, that's), start sentences casually, and show a little warmth or light enthusiasm when it fits (e.g. "Found a few good ones for Complex Numbers!" instead of "The following files have been located matching your query.").
-- Avoid stiff phrases like "I have located", "Please find below", "According to the available data" — just talk normally, the way a classmate explaining something would.
-- Stay concise and don't ramble — natural doesn't mean long-winded.
-- Keep the same honesty standard: if you don't have real data to answer something, say so plainly and simply ("Don't see anything uploaded for that yet — want me to check something else?") rather than a formal apology.
-- Keep this appropriate for a shared class tool used by many students — friendly and warm, not overly familiar, flirtatious, or unpredictable. This is a reliable assistant students depend on, not a persona or companion character.
-
-CRITICAL RESOURCE RULES (follow strictly — NEVER break these):
-- ONLY mention files, notes, syllabus, or exam routines when the GROUNDING CONTEXT below shows actual matched results AND the student explicitly asked for them.
-- If the grounding context says "No files matched", "No syllabus courses matched", and "No routine matched" — do NOT suggest looking for notes, files, or checking pages. Just answer what was asked.
-- If the student asks a knowledge question ("what is X", "explain Y", "how does Z work"), provide a clear, accurate explanation. Do NOT mention notes, files, syllabus pages, routine links, or library resources AT ALL. Do NOT say things like "check the library" or "you can find this in the syllabus page". Just answer the question directly.
-- Do NOT volunteer extra resources the student didn't ask for. If they asked for routine, give ONLY the routine. If they asked for notes, give ONLY the notes. Do NOT add syllabus links when they asked for notes. Do NOT add file suggestions when they asked about exam dates. One type of resource per response.
-- When matched results ARE shown in the cards below your text, keep your text response SHORT and acknowledge them naturally ("Here's the exam date!" or "Found some notes for that!") — do NOT list file names or details since the cards already show everything.
-- Give precise, focused responses. Do NOT pad your answer with unrequested extra information or resource suggestions.
-${isWebFallback ? `\nINTERNET SEARCH INSTRUCTIONS (MANDATORY — read carefully):\n- This question has NO matching file, subject, syllabus entry, or routine in the Semester Library website.\n- You MUST use the Google Search tool to retrieve a current, real answer. Do NOT answer from your training memory — always search first.\n- The answer MUST reflect what is actually true right now, not what was true during your training.\n- Open your response with the brief natural acknowledgment: "I couldn't find this on the site, but here's what I found online:" followed by the clear, current, search-grounded answer.\n- Cite your sources naturally in the text where you use information from them (e.g. "According to Reuters,..." or "Per the latest WHO report,...").\n- Do NOT pretend this information comes from Gandaki University or Semester Library — it's from the open web.\n- Do NOT say "As of my knowledge cutoff" or "As of [year]" — you must use the search tool to get current data, not rely on training memory.` : ''}
-
-CONVERSATIONAL DIALOGUE EXAMPLES (FEW-SHOT TONE BENCHMARK):
-- Student: "I literally cannot focus on studying today, my brain is completely fried"
-  Kyana: "Felt that. Take a quick 10-minute break — grab some water or step outside for a bit. When you're back, we can tackle just one small section at a time instead of the whole chapter. What subject are you trying to get through?"
-
-- Student: "do we have any notes for operating systems unit 2?"
-  Kyana: "Found a couple of good ones! There's lecture slides for Process Scheduling and a chapter summary from Unit 2 uploaded in our library. You can check them out right below."
-
-- Student: "how many credits is data structures?"
-  Kyana: "Data Structure and Algorithms (CIT214) is 3 credits in Semester 3 — covers theory and practical lab work."
-
-- Student: "when is the math 2 exam?"
-  Kyana: "Our Mathematics-II (BSM121) exam for Semester II is on 2083/06/02. You've got time to practice — let me know if you need any unit notes or formulas!"
-
-- Student: "got any notes on quantum machine learning for sem 1?"
-  Kyana: "Don't see anything uploaded for that in our library yet — want me to check something else for Semester 1?"
-
-GROUNDING CONTEXT:
-=== MATCHED FILES IN LIBRARY ===
-${searchResults.matchedFiles.length > 0 
-  ? searchResults.matchedFiles.map(f => `- [File #${f.id}] "${f.title || f.originalName}" | Subject: ${f.subject} | Semester: ${f.semester || 'General'} | Chapter: ${f.chapter || 'All'}`).join('\n')
-  : 'No files matched.'}
-
-=== MATCHED SYLLABUS COURSES ===
-${searchResults.matchedCourses.length > 0
-  ? searchResults.matchedCourses.map(c => `- ${c.title} (${c.code}) [Semester ${c.semester}, ${c.credit} Credits]: ${c.objectivesSummary}`).join('\n')
-  : 'No syllabus courses matched.'}
-
-=== MATCHED EXAM ROUTINE ===
-${searchResults.matchedRoutine.length > 0
-  ? searchResults.matchedRoutine.map(r => `- Semester ${r.semester}: ${r.subject} on ${r.date} (${r.day}) at ${r.time} [${r.type}]`).join('\n')
-  : 'No routine matched.'}
-
-=== PLATFORM PAGES ===
-${SITE_PAGES.map(p => `- ${p.name} (${p.url}): ${p.description}`).join('\n')}
-`;
-
+  /*
+   * The prompt above is shared by Gemini and OpenRouter. Keeping the policy in
+   * one place prevents fallback responses from losing Kyana's tone or source rules.
+   */
   const messages = [{ role: 'system', content: systemPrompt }];
 
+
   if (Array.isArray(conversationHistory)) {
-    conversationHistory.slice(-6).forEach(msg => {
+    conversationHistory.slice(-HISTORY_TURNS).forEach(msg => {
       messages.push({
         role: msg.role === 'assistant' || msg.role === 'model' ? 'assistant' : 'user',
         content: msg.content
@@ -1364,7 +1522,7 @@ ${SITE_PAGES.map(p => `- ${p.name} (${p.url}): ${p.description}`).join('\n')}
     try {
       const model = process.env.GEMINI_MODEL || 'gemini-3.7-flash';
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`;
-      
+
       const contents = messages.filter(m => m.role !== 'system').map(m => ({
         role: m.role === 'assistant' ? 'model' : 'user',
         parts: [{ text: m.content }]
@@ -1376,9 +1534,8 @@ ${SITE_PAGES.map(p => `- ${p.name} (${p.url}): ${p.description}`).join('\n')}
         generationConfig: { temperature: 0.7, maxOutputTokens: 1000 }
       };
 
-      // Always enable Google Search Grounding for web-fallback questions.
-      // This ensures the answer comes from live search, not stale training data.
-      if (isWebFallback) {
+      // Grounding is decided by the pre-model intent bucket.
+      if (useSearch) {
         requestBody.tools = [{ googleSearch: {} }];
         // Lower temperature for factual web answers to reduce hallucination
         requestBody.generationConfig.temperature = 0.3;
@@ -1518,7 +1675,7 @@ ${SITE_PAGES.map(p => `- ${p.name} (${p.url}): ${p.description}`).join('\n')}
 // 7. MAIN ASSISTANT DISPATCHER (handleChat)
 // ============================================================================
 
-async function handleChat(db, userMessage, studentInfo = {}, conversationHistory = []) {
+async function handleChat(db, userMessage, studentInfo = {}, conversationHistory = [], sessionId = 'anonymous') {
   const query = (userMessage || '').trim();
   if (!query) {
     return {
@@ -1533,8 +1690,11 @@ async function handleChat(db, userMessage, studentInfo = {}, conversationHistory
     };
   }
 
-  // 1. Query Understanding & Intent Decomposition
+  // 1. Query understanding happens before any model call.
   const queryMeta = parseQueryIntent(query, conversationHistory);
+  const intentBucket = classifyIntent(query, conversationHistory, queryMeta);
+  const cacheKey = cacheKeyForSiteQuery(sessionId, query, studentInfo);
+  console.log(`[AI Assistant] path=${intentBucket} query="${query.substring(0, 100)}"`);
 
   // 2. Smalltalk / Chitchat passes through to dynamic AI generation with zero extra cards
   // (Central search returns empty matched cards for chitchat)
@@ -1568,14 +1728,24 @@ async function handleChat(db, userMessage, studentInfo = {}, conversationHistory
       matchedRoutine: uniqueRoutine,
       actions: uniqueActions
     };
+  } else if (intentBucket === 'site' || intentBucket === 'general') {
+    const cached = siteResultCache.get(cacheKey);
+    if (cached && (Date.now() - cached.at) < SITE_RESULT_CACHE_TTL_MS) {
+      searchResults = cloneSearchResults(cached.results);
+      console.log(`[AI Assistant] path=${intentBucket} site-cache=hit`);
+    } else {
+      searchResults = await searchWebsite(db, queryMeta, studentInfo);
+      siteResultCache.set(cacheKey, { at: Date.now(), results: cloneSearchResults(searchResults) });
+      console.log(`[AI Assistant] path=${intentBucket} site-cache=miss`);
+    }
   } else {
-    searchResults = await searchWebsite(db, queryMeta, studentInfo);
+    searchResults = { matchedFiles: [], matchedCourses: [], matchedRoutine: [], actions: [], debug: {} };
   }
 
   // 4. Grounded AI Response Generation
   let aiOutput = { replyText: '', isWebSearch: false, webSources: [], sourceLabel: '' };
   try {
-    aiOutput = await callGroundedAI(query, queryMeta, searchResults, conversationHistory);
+    aiOutput = await callGroundedAI(query, queryMeta, searchResults, conversationHistory, intentBucket);
   } catch (err) {
     console.error('[AI Assistant] callGroundedAI error:', err.message);
     aiOutput.replyText = `I encountered a temporary issue processing your request. Please try again.`;
@@ -1597,6 +1767,7 @@ async function handleChat(db, userMessage, studentInfo = {}, conversationHistory
 
 module.exports = {
   handleChat,
+  classifyIntent,
   parseQueryIntent,
   searchWebsite,
   normalizeSemester,

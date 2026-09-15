@@ -4,3 +4,4 @@ node_modules/
 uploads/
 database.db
 .DS_Store
+scratch/

@@ -42,7 +42,7 @@ const UPLOAD_DIR = process.env.VERCEL ? path.join('/tmp', 'uploads') : path.join
 if (!fs.existsSync(UPLOAD_DIR)) {
   try {
     fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-  } catch (e) {}
+  } catch (e) { }
 }
 
 const storage = multer.diskStorage({
@@ -136,7 +136,7 @@ class CustomDbStore extends session.Store {
       const expireDate = sessionData.cookie && sessionData.cookie.expires ? new Date(sessionData.cookie.expires) : new Date(Date.now() + 86400000);
       const expire = expireDate.toISOString();
       const sessString = JSON.stringify(sessionData);
-      
+
       if (db.isPostgres) {
         await db.run(
           `INSERT INTO session (sid, sess, expire) VALUES ($1, $2::json, $3)
@@ -213,7 +213,7 @@ function chatRateLimiter(req, res, next) {
   const studentId = req.session.studentId;
   const now = Date.now();
   const record = chatRateLimits.get(studentId) || { count: 0, lastReset: now };
-  
+
   if (now - record.lastReset > 10000) { // 10 seconds window
     record.count = 1;
     record.lastReset = now;
@@ -221,7 +221,7 @@ function chatRateLimiter(req, res, next) {
     record.count += 1;
   }
   chatRateLimits.set(studentId, record);
-  
+
   if (record.count > 5) {
     return res.status(429).json({ message: 'Sending messages too fast. Please wait a moment.' });
   }
@@ -313,6 +313,10 @@ app.get(['/chatbot', '/assistant'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'chatbot.html'));
 });
 
+app.get('/compiler', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'compiler.html'));
+});
+
 app.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
@@ -393,7 +397,7 @@ app.get('/api/me', requireLogin, async (req, res) => {
   const student = await db.get('SELECT studentId, name, role FROM students WHERE studentId = ?', req.session.studentId);
 
   if (!student) {
-    req.session.destroy(() => {});
+    req.session.destroy(() => { });
     return res.status(401).json({ message: 'Authentication required' });
   }
 
@@ -881,7 +885,7 @@ function getLibreOfficeBinaryPath() {
   try {
     const which = require('child_process').execSync('which soffice', { stdio: 'pipe' }).toString().trim();
     if (which) return which;
-  } catch (e) {}
+  } catch (e) { }
   return null;
 }
 
@@ -1220,14 +1224,14 @@ app.delete('/api/files/:id', requireLogin, async (req, res) => {
   // Remove physical file and preview from uploads/ and persistent blob store
   const filePath = path.join(UPLOAD_DIR, path.basename(file.storedName));
   if (isSafeUploadPath(filePath) && fs.existsSync(filePath)) {
-    try { fs.unlinkSync(filePath); } catch (err) {}
+    try { fs.unlinkSync(filePath); } catch (err) { }
   }
   await db.deleteFileBlob(file.storedName);
 
   if (file.previewName) {
     const previewPath = path.join(UPLOAD_DIR, path.basename(file.previewName));
     if (isSafeUploadPath(previewPath) && fs.existsSync(previewPath)) {
-      try { fs.unlinkSync(previewPath); } catch (err) {}
+      try { fs.unlinkSync(previewPath); } catch (err) { }
     }
     await db.deleteFileBlob(file.previewName);
   }
@@ -1235,7 +1239,7 @@ app.delete('/api/files/:id', requireLogin, async (req, res) => {
   if (supabase && file.storedName) {
     try {
       await supabase.storage.from('library_files').remove([file.storedName]);
-    } catch (e) {}
+    } catch (e) { }
   }
 
   // Remove related likes, comments, and database row
@@ -1264,14 +1268,14 @@ app.post('/api/files/:id/delete', requireLogin, async (req, res) => {
 
   const filePath = path.join(UPLOAD_DIR, path.basename(file.storedName));
   if (isSafeUploadPath(filePath) && fs.existsSync(filePath)) {
-    try { fs.unlinkSync(filePath); } catch (err) {}
+    try { fs.unlinkSync(filePath); } catch (err) { }
   }
   await db.deleteFileBlob(file.storedName);
 
   if (file.previewName) {
     const previewPath = path.join(UPLOAD_DIR, path.basename(file.previewName));
     if (isSafeUploadPath(previewPath) && fs.existsSync(previewPath)) {
-      try { fs.unlinkSync(previewPath); } catch (err) {}
+      try { fs.unlinkSync(previewPath); } catch (err) { }
     }
     await db.deleteFileBlob(file.previewName);
   }
@@ -1279,7 +1283,7 @@ app.post('/api/files/:id/delete', requireLogin, async (req, res) => {
   if (supabase && file.storedName) {
     try {
       await supabase.storage.from('library_files').remove([file.storedName]);
-    } catch (e) {}
+    } catch (e) { }
   }
 
   await db.run('DELETE FROM file_likes WHERE fileId = ?', fileId);
@@ -1330,14 +1334,14 @@ app.post(['/api/library/chapters/delete-files', '/api/library/chapters/files/del
     for (const f of targetFiles) {
       const filePath = path.join(UPLOAD_DIR, path.basename(f.storedName));
       if (isSafeUploadPath(filePath) && fs.existsSync(filePath)) {
-        try { fs.unlinkSync(filePath); } catch (err) {}
+        try { fs.unlinkSync(filePath); } catch (err) { }
       }
       await db.deleteFileBlob(f.storedName);
 
       if (f.previewName) {
         const previewPath = path.join(UPLOAD_DIR, path.basename(f.previewName));
         if (isSafeUploadPath(previewPath) && fs.existsSync(previewPath)) {
-          try { fs.unlinkSync(previewPath); } catch (err) {}
+          try { fs.unlinkSync(previewPath); } catch (err) { }
         }
         await db.deleteFileBlob(f.previewName);
       }
@@ -1572,8 +1576,8 @@ app.post('/api/routine', requireLogin, async (req, res) => {
     if (!subject || !examDate || !semester) {
       return res.status(400).json({ error: 'Missing required fields: subject, examDate, semester' });
     }
-    
-    const timeStr = time || '11:30 AM'; 
+
+    const timeStr = time || '11:30 AM';
     const dayStr = day || '';
 
     await db.run(
@@ -1671,7 +1675,7 @@ app.get('/api/library/files', async (req, res) => {
 });
 
 // Search across files, subjects, and students (public for homepage & library search)
-app.get('/api/search', async (req, res) => {
+app.get('/api/search', requireLogin, async (req, res) => {
   const q = (req.query.q || '').trim();
   if (!q) {
     return res.json({ files: [], subjects: [], students: [] });
@@ -1740,7 +1744,7 @@ app.get('/api/chat/config', requireLogin, (req, res) => {
 
 app.get('/api/chat/messages', requireLogin, async (req, res) => {
   const since = parseInt(req.query.since) || 0;
-  
+
   const messages = await db.all(`
     SELECT chat_messages.id, chat_messages.text, chat_messages.attachmentName, chat_messages.attachmentOriginalName, chat_messages.attachmentMimeType, chat_messages.replyToId, chat_messages.createdAt,
       students.studentId, students.name, students.avatarUrl,
@@ -1753,7 +1757,7 @@ app.get('/api/chat/messages', requireLogin, async (req, res) => {
     ORDER BY chat_messages.id ASC
     LIMIT 200
   `, since);
-  
+
   const messageIds = messages.map(m => m.id);
   if (messageIds.length > 0) {
     const placeholders = messageIds.map(() => '?').join(',');
@@ -1778,7 +1782,7 @@ app.post('/api/chat/reactions', requireLogin, async (req, res) => {
   const { messageId, emoji } = req.body;
   const studentId = req.session.studentId;
   if (!messageId || !emoji) return res.status(400).json({ error: 'Missing data' });
-  
+
   try {
     const existing = await db.get(`SELECT * FROM chat_reactions WHERE messageId = ? AND studentId = ? AND emoji = ?`, messageId, studentId, emoji);
     if (existing) {
@@ -1786,9 +1790,9 @@ app.post('/api/chat/reactions', requireLogin, async (req, res) => {
     } else {
       await db.run(`INSERT INTO chat_reactions (messageId, studentId, emoji) VALUES (?, ?, ?)`, messageId, studentId, emoji);
     }
-    
+
     sendBroadcast('reaction_update', { messageId, studentId, emoji, action: existing ? 'remove' : 'add' });
-    
+
     res.json({ success: true });
   } catch (error) {
     console.error('Reaction error:', error);
@@ -1857,7 +1861,7 @@ app.post('/api/chat/messages', requireLogin, chatRateLimiter, handleChatUpload, 
   }
 
   if (text.length > 2000) {
-    if (file) fs.unlink(file.path, () => {});
+    if (file) fs.unlink(file.path, () => { });
     return res.status(400).json({ message: 'Message text is too long (max 2000 chars).' });
   }
 
@@ -2278,7 +2282,13 @@ app.post('/api/ai/chat', aiRateLimiter, async (req, res) => {
     if (req.session && req.session.studentId) {
       student = await db.get('SELECT studentId, name, department, semester FROM students WHERE studentId = ?', req.session.studentId);
     }
-    const result = await aiAssistant.handleChat(db, message, student || { studentId: 'guest', name: 'Student' }, history || []);
+    const result = await aiAssistant.handleChat(
+      db,
+      message,
+      student || { studentId: 'guest', name: 'Student' },
+      Array.isArray(history) ? history.slice(-16) : [],
+      req.sessionID || `${req.ip || 'guest'}:guest`
+    );
     res.json(result);
   } catch (err) {
     console.error('[API /api/ai/chat Error]:', err.message);
@@ -2295,6 +2305,242 @@ app.get('/api/ai/suggestions', (req, res) => {
   ]);
 });
 
+// --- Online Code Compiler (Local Execution via spawn) ---
+
+// Resource constants
+const COMPILE_TIMEOUT_MS = 10000;   // 10 s hard wall-clock limit
+const OUTPUT_LIMIT_BYTES = 524288;  // 512 KB max combined output per stream
+
+// Rate limiter: simple in-memory sliding-window (no external dep)
+const _compileRateMap = new Map();
+function isRateLimited(ip) {
+  const now = Date.now();
+  const WINDOW = 60 * 1000; // 1 minute
+  const MAX_REQS = 20;       // 20 runs/IP/minute
+  const timestamps = (_compileRateMap.get(ip) || []).filter(t => now - t < WINDOW);
+  if (timestamps.length >= MAX_REQS) return true;
+  timestamps.push(now);
+  _compileRateMap.set(ip, timestamps);
+  return false;
+}
+
+function truncate(str, label) {
+  if (Buffer.byteLength(str, 'utf8') <= OUTPUT_LIMIT_BYTES) return str;
+  const truncated = Buffer.from(str, 'utf8').slice(0, OUTPUT_LIMIT_BYTES).toString('utf8');
+  return truncated + `\n\n[${label} truncated — output exceeded ${OUTPUT_LIMIT_BYTES / 1024} KB]`;
+}
+
+function resolveStatus({ timedOut, isCompileError, success, hasNoPublicClass }) {
+  if (hasNoPublicClass) return 'Error';
+  if (timedOut) return 'Time Limit Exceeded';
+  if (isCompileError) return 'Compilation Error';
+  if (!success) return 'Runtime Error';
+  return 'Success';
+}
+
+app.post('/api/compile', async (req, res) => {
+  const clientIp = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+  if (isRateLimited(clientIp)) {
+    return res.status(429).json({
+      success: false, stdout: '', stderr: '',
+      error: 'Rate limit exceeded. Max 20 runs per minute per IP.',
+      status: 'Error', executionTime: 0
+    });
+  }
+
+  const { language, code, input } = req.body;
+
+  if (!language || !code) {
+    return res.status(400).json({
+      success: false, stdout: '', stderr: '',
+      error: 'Language and code are required.',
+      status: 'Error', executionTime: 0
+    });
+  }
+
+  const { spawn } = require('child_process');
+  const { randomUUID } = require('crypto');
+  const fs = require('fs');
+
+  const SUPPORTED = ['java', 'c', 'cpp', 'python'];
+  if (!SUPPORTED.includes(language)) {
+    return res.status(400).json({
+      success: false, stdout: '', stderr: '',
+      error: `Unsupported language: ${language}. Supported: ${SUPPORTED.join(', ')}.`,
+      status: 'Error', executionTime: 0
+    });
+  }
+
+  // Per-submission isolated temp directory
+  const scratchBase = path.join(__dirname, 'scratch');
+  if (!fs.existsSync(scratchBase)) fs.mkdirSync(scratchBase, { recursive: true });
+  const sessionDir = path.join(scratchBase, randomUUID());
+  fs.mkdirSync(sessionDir, { recursive: true });
+
+  const startTime = Date.now();
+
+  // Spawn helper — pipes stdin, collects stdout/stderr, enforces timeout + output cap
+  function runProcess(cmd, args, opts = {}) {
+    return new Promise((resolve) => {
+      let stdout = '';
+      let stderr = '';
+      let timedOut = false;
+      let outputCapped = false;
+
+      const proc = spawn(cmd, args, { cwd: sessionDir, ...opts });
+
+      const timer = setTimeout(() => {
+        timedOut = true;
+        proc.kill('SIGKILL');
+      }, COMPILE_TIMEOUT_MS);
+
+      proc.stdout.on('data', chunk => {
+        if (!outputCapped) {
+          stdout += chunk.toString();
+          if (Buffer.byteLength(stdout, 'utf8') > OUTPUT_LIMIT_BYTES) {
+            outputCapped = true;
+            proc.kill('SIGKILL');
+          }
+        }
+      });
+
+      proc.stderr.on('data', chunk => {
+        stderr += chunk.toString();
+      });
+
+      if (input) proc.stdin.write(input);
+      proc.stdin.end();
+
+      proc.on('close', code => {
+        clearTimeout(timer);
+        resolve({
+          code,
+          stdout: truncate(stdout, 'stdout'),
+          stderr: truncate(stderr, 'stderr'),
+          timedOut,
+          outputCapped
+        });
+      });
+
+      proc.on('error', err => {
+        clearTimeout(timer);
+        resolve({ code: -1, stdout, stderr: stderr + err.message, timedOut, outputCapped });
+      });
+    });
+  }
+
+  function cleanup() {
+    try { fs.rmSync(sessionDir, { recursive: true, force: true }); } catch (_) { }
+  }
+
+  try {
+    let runResult = null;
+
+    // ── Java ──────────────────────────────────────────────────
+    if (language === 'java') {
+      const classMatch = code.match(/public\s+class\s+(\w+)/);
+      if (!classMatch) {
+        cleanup();
+        return res.json({
+          success: false, stdout: '', stderr: '',
+          error: 'No public class found in your Java code. Java requires a public class declaration (e.g. public class Main).',
+          status: resolveStatus({ hasNoPublicClass: true }),
+          executionTime: 0
+        });
+      }
+      const className = classMatch[1];
+      fs.writeFileSync(path.join(sessionDir, `${className}.java`), code, 'utf8');
+
+      const compileResult = await runProcess('javac', [`${className}.java`]);
+      if (compileResult.code !== 0 || compileResult.timedOut) {
+        cleanup();
+        return res.json({
+          success: false,
+          stdout: compileResult.stdout,
+          stderr: compileResult.stderr || (compileResult.timedOut ? 'Compilation timed out.' : ''),
+          error: compileResult.timedOut ? 'Compilation timed out.' : 'Compilation failed.',
+          status: resolveStatus({ timedOut: compileResult.timedOut, isCompileError: true }),
+          executionTime: Date.now() - startTime
+        });
+      }
+
+      runResult = await runProcess('java', [className]);
+
+      // ── C ──────────────────────────────────────────────────────
+    } else if (language === 'c') {
+      fs.writeFileSync(path.join(sessionDir, 'file.c'), code, 'utf8');
+
+      const compileResult = await runProcess('gcc', ['file.c', '-o', 'out', '-lm']);
+      if (compileResult.code !== 0 || compileResult.timedOut) {
+        cleanup();
+        return res.json({
+          success: false,
+          stdout: compileResult.stdout,
+          stderr: compileResult.stderr || (compileResult.timedOut ? 'Compilation timed out.' : ''),
+          error: compileResult.timedOut ? 'Compilation timed out.' : 'Compilation failed.',
+          status: resolveStatus({ timedOut: compileResult.timedOut, isCompileError: true }),
+          executionTime: Date.now() - startTime
+        });
+      }
+
+      runResult = await runProcess('./out', []);
+
+      // ── C++ ────────────────────────────────────────────────────
+    } else if (language === 'cpp') {
+      fs.writeFileSync(path.join(sessionDir, 'file.cpp'), code, 'utf8');
+
+      const compileResult = await runProcess('g++', ['file.cpp', '-o', 'out', '-lm', '-std=c++17']);
+      if (compileResult.code !== 0 || compileResult.timedOut) {
+        cleanup();
+        return res.json({
+          success: false,
+          stdout: compileResult.stdout,
+          stderr: compileResult.stderr || (compileResult.timedOut ? 'Compilation timed out.' : ''),
+          error: compileResult.timedOut ? 'Compilation timed out.' : 'Compilation failed.',
+          status: resolveStatus({ timedOut: compileResult.timedOut, isCompileError: true }),
+          executionTime: Date.now() - startTime
+        });
+      }
+
+      runResult = await runProcess('./out', []);
+
+      // ── Python ────────────────────────────────────────────────
+    } else if (language === 'python') {
+      fs.writeFileSync(path.join(sessionDir, 'file.py'), code, 'utf8');
+      runResult = await runProcess('python3', ['file.py']);
+    }
+
+    cleanup();
+    const elapsed = Date.now() - startTime;
+    const timedOut = runResult.timedOut;
+    const outputCapped = runResult.outputCapped;
+    const success = runResult.code === 0 && !timedOut;
+
+    let error = null;
+    if (timedOut) error = 'Time limit exceeded (10s). Your program may have an infinite loop.';
+    else if (outputCapped) error = 'Output truncated — program printed more than 512 KB.';
+    else if (!success) error = 'Program exited with a non-zero status code.';
+
+    return res.json({
+      success,
+      stdout: runResult.stdout,
+      stderr: runResult.stderr,
+      error,
+      status: resolveStatus({ timedOut, success }),
+      executionTime: elapsed
+    });
+
+  } catch (err) {
+    cleanup();
+    console.error('[Compile API Error]:', err.message);
+    return res.json({
+      success: false, stdout: '', stderr: '',
+      error: 'Internal server error during code execution.',
+      status: 'Error', executionTime: 0
+    });
+  }
+});
+
 // --- Global API Error Handler (Ensures all /api routes return JSON, never HTML) ---
 app.use((err, req, res, next) => {
   console.error('[API Error]:', err);
@@ -2307,11 +2553,318 @@ app.use((err, req, res, next) => {
   next(err);
 });
 
+// --- Interactive Online Compiler Live WebSocket Server ---
+function setupCompilerWebSocket(server) {
+  const { WebSocketServer } = require('ws');
+  const { spawn } = require('child_process');
+  const { randomUUID } = require('crypto');
+  const fs = require('fs');
+  const path = require('path');
+
+  const wss = new WebSocketServer({ server, path: '/api/compiler/live' });
+  const activeSessionsByIp = new Map();
+
+  const SESSION_TIMEOUT_MS = 30000;  // 30s session timeout
+  const OUTPUT_LIMIT_BYTES = 524288; // 512 KB output cap
+
+  wss.on('connection', (ws, req) => {
+    const clientIp = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+
+    let sessions = activeSessionsByIp.get(clientIp);
+    if (!sessions) {
+      sessions = new Set();
+      activeSessionsByIp.set(clientIp, sessions);
+    }
+
+    if (sessions.size >= 2) {
+      ws.send(JSON.stringify({
+        type: 'stderr',
+        data: '\r\n\x1b[31m[Connection limit reached: Maximum 2 concurrent sessions allowed per IP.]\x1b[0m\r\n'
+      }));
+      ws.send(JSON.stringify({ type: 'exit', code: 1, error: 'Concurrent session limit exceeded' }));
+      ws.close(1008, 'Max concurrent sessions');
+      return;
+    }
+
+    sessions.add(ws);
+
+    let proc = null;
+    let sessionDir = null;
+    let sessionTimeoutTimer = null;
+    let totalOutputBytes = 0;
+    let isRunning = false;
+    let runStartTime = 0;
+
+    function cleanup() {
+      if (sessionTimeoutTimer) {
+        clearTimeout(sessionTimeoutTimer);
+        sessionTimeoutTimer = null;
+      }
+      if (proc) {
+        try {
+          if (!proc.killed) proc.kill('SIGKILL');
+        } catch (_) { }
+        proc = null;
+      }
+      if (sessionDir) {
+        try {
+          fs.rmSync(sessionDir, { recursive: true, force: true });
+        } catch (_) { }
+        sessionDir = null;
+      }
+      isRunning = false;
+    }
+
+    ws.on('message', async (rawMsg) => {
+      let msg;
+      try {
+        msg = JSON.parse(rawMsg.toString());
+      } catch (e) {
+        return ws.send(JSON.stringify({ type: 'stderr', data: 'Invalid JSON message payload.\r\n' }));
+      }
+
+      if (msg.type === 'run') {
+        if (isRunning) {
+          return ws.send(JSON.stringify({ type: 'stderr', data: 'A program is already running in this session.\r\n' }));
+        }
+
+        const { language, code } = msg;
+        const SUPPORTED = ['java', 'c', 'cpp', 'python'];
+        if (!SUPPORTED.includes(language)) {
+          ws.send(JSON.stringify({
+            type: 'stderr',
+            data: `Unsupported language: ${language}. Supported: ${SUPPORTED.join(', ')}.\r\n`
+          }));
+          ws.send(JSON.stringify({ type: 'exit', code: 1, error: 'Unsupported language' }));
+          return;
+        }
+
+        if (!code || !code.trim()) {
+          ws.send(JSON.stringify({ type: 'stderr', data: 'Code cannot be empty.\r\n' }));
+          ws.send(JSON.stringify({ type: 'exit', code: 1, error: 'Empty code' }));
+          return;
+        }
+
+        totalOutputBytes = 0;
+        runStartTime = Date.now();
+
+        const scratchBase = path.join(__dirname, 'scratch');
+        if (!fs.existsSync(scratchBase)) fs.mkdirSync(scratchBase, { recursive: true });
+        sessionDir = path.join(scratchBase, randomUUID());
+        fs.mkdirSync(sessionDir, { recursive: true });
+
+        const runCompile = (cmd, args) => {
+          return new Promise((resolve) => {
+            let stdout = '';
+            let stderr = '';
+            let timedOut = false;
+            const cProc = spawn(cmd, args, { cwd: sessionDir });
+            const cTimer = setTimeout(() => {
+              timedOut = true;
+              cProc.kill('SIGKILL');
+            }, 10000);
+
+            cProc.stdout.on('data', d => { stdout += d.toString(); });
+            cProc.stderr.on('data', d => { stderr += d.toString(); });
+            cProc.on('close', code => {
+              clearTimeout(cTimer);
+              resolve({ code, stdout, stderr, timedOut });
+            });
+            cProc.on('error', err => {
+              clearTimeout(cTimer);
+              resolve({ code: -1, stdout, stderr: err.message, timedOut });
+            });
+          });
+        };
+
+        let runCmd = '';
+        let runArgs = [];
+
+        // ── Java ──────────────────────────────────────────
+        if (language === 'java') {
+          let className = null;
+          const publicMatch = code.match(/public\s+class\s+([A-Za-z0-9_$]+)/);
+          if (publicMatch) {
+            className = publicMatch[1];
+          } else {
+            const anyClassMatch = code.match(/class\s+([A-Za-z0-9_$]+)/);
+            if (anyClassMatch) {
+              className = anyClassMatch[1];
+            } else {
+              className = 'Main';
+            }
+          }
+          fs.writeFileSync(path.join(sessionDir, `${className}.java`), code, 'utf8');
+
+          ws.send(JSON.stringify({ type: 'status', status: 'compiling', message: `Compiling ${className}.java...` }));
+          const comp = await runCompile('javac', [`${className}.java`]);
+          if (comp.code !== 0 || comp.timedOut) {
+            let errMsg = comp.timedOut ? 'Compilation timed out.\r\n' : (comp.stderr || comp.stdout || 'Compilation failed.\r\n');
+            if (errMsg.includes('Unable to locate a Java Runtime')) {
+              errMsg += '\r\n\x1b[33mTip: Java JDK is not installed on this system. You can test C, C++, and Python right away, or install Java with: brew install openjdk\x1b[0m\r\n';
+            }
+            ws.send(JSON.stringify({ type: 'stderr', data: errMsg }));
+            ws.send(JSON.stringify({ type: 'exit', code: comp.code || 1, isCompileError: true }));
+            cleanup();
+            return;
+          }
+          runCmd = 'java';
+          runArgs = [className];
+
+          // ── C ──────────────────────────────────────────────
+        } else if (language === 'c') {
+          fs.writeFileSync(path.join(sessionDir, 'file.c'), code, 'utf8');
+          // Inject unbuffered stdout/stderr constructor so printf flushes immediately to terminal
+          fs.writeFileSync(path.join(sessionDir, 'unbuffer.h'), `#include <stdio.h>\n__attribute__((constructor)) static void __init_unbuffered(void) { setvbuf(stdout, NULL, _IONBF, 0); setvbuf(stderr, NULL, _IONBF, 0); }\n`, 'utf8');
+
+          ws.send(JSON.stringify({ type: 'status', status: 'compiling', message: 'Compiling C program...' }));
+          const comp = await runCompile('gcc', ['-include', 'unbuffer.h', 'file.c', '-o', 'out', '-lm']);
+          if (comp.code !== 0 || comp.timedOut) {
+            const errMsg = comp.timedOut ? 'Compilation timed out.\r\n' : (comp.stderr || comp.stdout || 'Compilation failed.\r\n');
+            ws.send(JSON.stringify({ type: 'stderr', data: errMsg }));
+            ws.send(JSON.stringify({ type: 'exit', code: comp.code || 1, isCompileError: true }));
+            cleanup();
+            return;
+          }
+          runCmd = './out';
+          runArgs = [];
+
+          // ── C++ ────────────────────────────────────────────
+        } else if (language === 'cpp') {
+          fs.writeFileSync(path.join(sessionDir, 'file.cpp'), code, 'utf8');
+          // Inject unbuffered stdout/stderr constructor so cout and printf flush immediately to terminal
+          fs.writeFileSync(path.join(sessionDir, 'unbuffer.h'), `#include <stdio.h>\n#ifdef __cplusplus\nextern "C" {\n#endif\n__attribute__((constructor)) static void __init_unbuffered(void) { setvbuf(stdout, NULL, _IONBF, 0); setvbuf(stderr, NULL, _IONBF, 0); }\n#ifdef __cplusplus\n}\n#endif\n`, 'utf8');
+
+          ws.send(JSON.stringify({ type: 'status', status: 'compiling', message: 'Compiling C++ program...' }));
+          const comp = await runCompile('g++', ['-include', 'unbuffer.h', 'file.cpp', '-o', 'out', '-lm', '-std=c++17']);
+          if (comp.code !== 0 || comp.timedOut) {
+            const errMsg = comp.timedOut ? 'Compilation timed out.\r\n' : (comp.stderr || comp.stdout || 'Compilation failed.\r\n');
+            ws.send(JSON.stringify({ type: 'stderr', data: errMsg }));
+            ws.send(JSON.stringify({ type: 'exit', code: comp.code || 1, isCompileError: true }));
+            cleanup();
+            return;
+          }
+          runCmd = './out';
+          runArgs = [];
+
+          // ── Python ─────────────────────────────────────────
+        } else if (language === 'python') {
+          fs.writeFileSync(path.join(sessionDir, 'file.py'), code, 'utf8');
+          runCmd = 'python3';
+          runArgs = ['-u', 'file.py']; // -u for unbuffered live interactive I/O
+        }
+
+        // ── Live Interactive Run Phase ────────────────────
+        isRunning = true;
+        ws.send(JSON.stringify({ type: 'status', status: 'running', message: 'Running program...' }));
+
+        proc = spawn(runCmd, runArgs, {
+          cwd: sessionDir,
+          stdio: ['pipe', 'pipe', 'pipe']
+        });
+
+        sessionTimeoutTimer = setTimeout(() => {
+          if (isRunning && proc) {
+            ws.send(JSON.stringify({
+              type: 'stderr',
+              data: '\r\n\x1b[31m[Session timed out (30s limit exceeded). Process terminated.]\x1b[0m\r\n'
+            }));
+            try { proc.kill('SIGKILL'); } catch (_) { }
+          }
+        }, SESSION_TIMEOUT_MS);
+
+        proc.stdout.on('data', chunk => {
+          totalOutputBytes += chunk.length;
+          if (totalOutputBytes > OUTPUT_LIMIT_BYTES) {
+            ws.send(JSON.stringify({
+              type: 'stderr',
+              data: '\r\n\x1b[33m[Output limit (512 KB) exceeded — process terminated]\x1b[0m\r\n'
+            }));
+            try { proc.kill('SIGKILL'); } catch (_) { }
+            return;
+          }
+          ws.send(JSON.stringify({ type: 'stdout', data: chunk.toString() }));
+        });
+
+        proc.stderr.on('data', chunk => {
+          totalOutputBytes += chunk.length;
+          if (totalOutputBytes > OUTPUT_LIMIT_BYTES) {
+            ws.send(JSON.stringify({
+              type: 'stderr',
+              data: '\r\n\x1b[33m[Output limit (512 KB) exceeded — process terminated]\x1b[0m\r\n'
+            }));
+            try { proc.kill('SIGKILL'); } catch (_) { }
+            return;
+          }
+          ws.send(JSON.stringify({ type: 'stderr', data: chunk.toString() }));
+        });
+
+        proc.on('close', (code, signal) => {
+          const execTime = Date.now() - runStartTime;
+          ws.send(JSON.stringify({
+            type: 'exit',
+            code: signal ? 1 : (code === null ? 0 : code),
+            signal: signal || null,
+            executionTime: execTime
+          }));
+          cleanup();
+        });
+
+        proc.on('error', (err) => {
+          const execTime = Date.now() - runStartTime;
+          ws.send(JSON.stringify({
+            type: 'stderr',
+            data: `\r\n[Failed to run process: ${err.message}]\r\n`
+          }));
+          ws.send(JSON.stringify({
+            type: 'exit',
+            code: -1,
+            executionTime: execTime
+          }));
+          cleanup();
+        });
+
+      } else if (msg.type === 'stdin') {
+        if (isRunning && proc && proc.stdin && proc.stdin.writable) {
+          const raw = msg.data;
+          const normalized = typeof raw === 'string' ? raw.replace(/\r\n?/g, '\n') : raw;
+          proc.stdin.write(normalized);
+        }
+      } else if (msg.type === 'stop') {
+        if (isRunning && proc) {
+          ws.send(JSON.stringify({
+            type: 'stderr',
+            data: '\r\n\x1b[33m[Process stopped by user.]\x1b[0m\r\n'
+          }));
+          try { proc.kill('SIGKILL'); } catch (_) { }
+        }
+      }
+    });
+
+    ws.on('close', () => {
+      cleanup();
+      sessions.delete(ws);
+      if (sessions.size === 0) activeSessionsByIp.delete(clientIp);
+    });
+
+    ws.on('error', () => {
+      cleanup();
+      sessions.delete(ws);
+      if (sessions.size === 0) activeSessionsByIp.delete(clientIp);
+    });
+  });
+}
+
+const http = require('http');
+const server = http.createServer(app);
+setupCompilerWebSocket(server);
+
 if (require.main === module) {
   const PORT = process.env.PORT || 3000;
-  app.listen(PORT, () => {
+  server.listen(PORT, () => {
     console.log(`Semester Library server running at http://localhost:${PORT}`);
   });
 }
 
+app.server = server;
 module.exports = app;

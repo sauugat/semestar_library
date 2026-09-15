@@ -25,6 +25,8 @@
     rel="stylesheet">
   <link rel="stylesheet" href="style.v4.css">
   <link rel="stylesheet" href="chatbot.css">
+  <link rel="stylesheet" href="auth-modal.css">
+  <script src="auth-modal.js"></script>
   <script src="syllabus-helper.js"></script>
   <style>
     /* ==========================================================================
@@ -287,22 +289,43 @@
       box-shadow: var(--shadow-sm);
     }
 
-    /* Slide-Over Unit Explorer Drawer */
+    /* ==========================================================================
+       SPLIT WORKSPACE & IN-PAGE DOCUMENT READER (APPLE PRO / LINEAR DESIGN)
+       ========================================================================== */
+
+    html {
+      scroll-behavior: smooth;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    body.dash {
+      overflow-y: scroll;
+      scroll-behavior: smooth;
+    }
+
+    .course-card-minimal,
+    .clean-file-item,
+    .clean-unit-row {
+      contain: layout paint;
+      transform: translate3d(0, 0, 0);
+      backface-visibility: hidden;
+    }
+
+    /* Split-Workspace Overlay */
     .drawer-overlay {
       position: fixed;
       top: 0;
       left: 0;
       right: 0;
       bottom: 0;
-      background: rgba(0, 0, 0, 0.4);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
+      background: rgba(15, 23, 42, 0.45);
       z-index: 1000;
       display: flex;
-      justify-content: flex-end;
       opacity: 0;
       visibility: hidden;
-      transition: all 0.3s var(--ease-apple);
+      transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.25s ease;
+      overflow: hidden;
     }
 
     .drawer-overlay.open {
@@ -310,16 +333,312 @@
       visibility: visible;
     }
 
+    .drawer-workspace {
+      display: flex;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Left Pane: In-Page Document & Note Reader */
+    .drawer-preview-pane {
+      flex: 1;
+      min-width: 0;
+      height: 100%;
+      background: #0f172a;
+      display: flex;
+      flex-direction: column;
+      border-right: 1.5px solid rgba(255, 255, 255, 0.08);
+      position: relative;
+      z-index: 1;
+      transition: flex 0.28s var(--ease-apple), transform 0.28s var(--ease-apple);
+    }
+
+    .drawer-preview-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 14px 22px;
+      background: #0b0f19;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      flex-shrink: 0;
+      color: #f8fafc;
+      z-index: 5;
+    }
+
+    .preview-header-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .preview-mobile-back-btn {
+      display: none;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 12px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.12);
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .preview-mobile-back-btn:hover {
+      background: rgba(255, 255, 255, 0.22);
+    }
+
+    .preview-badge {
+      font-size: 11px;
+      font-weight: 800;
+      padding: 4px 8px;
+      border-radius: 6px;
+      background: #2563eb;
+      color: #ffffff;
+      letter-spacing: 0.03em;
+      flex-shrink: 0;
+    }
+
+    .preview-badge.pdf { background: #dc2626; }
+    .preview-badge.ppt { background: #d97706; }
+    .preview-badge.doc { background: #2563eb; }
+    .preview-badge.img { background: #059669; }
+    .preview-badge.zip { background: #7c3aed; }
+
+    .preview-title-wrap {
+      min-width: 0;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .preview-file-title {
+      font-size: 14.5px;
+      font-weight: 700;
+      color: #f8fafc;
+      margin: 0 0 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .preview-file-sub {
+      font-size: 11.5px;
+      color: #94a3b8;
+      margin: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .preview-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .preview-action-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #e2e8f0;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.18s ease;
+    }
+
+    .preview-action-btn:hover {
+      background: rgba(255, 255, 255, 0.16);
+      color: #ffffff;
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+
+    .preview-action-btn.primary {
+      background: #0071e3;
+      border-color: #0071e3;
+      color: #ffffff;
+    }
+
+    .preview-action-btn.primary:hover {
+      background: #0077ed;
+      box-shadow: 0 2px 10px rgba(0, 113, 227, 0.4);
+    }
+
+    .preview-action-btn.close-btn {
+      padding: 7px 9px;
+      color: #94a3b8;
+      background: transparent;
+      border: none;
+    }
+
+    .preview-action-btn.close-btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #ffffff;
+      border-radius: 50%;
+    }
+
+    /* Preview Body & Viewers */
+    .drawer-preview-body {
+      flex: 1;
+      height: 100%;
+      position: relative;
+      overflow: hidden;
+      background: #0f172a;
+      display: flex;
+      flex-direction: column;
+      overscroll-behavior-y: contain;
+      -webkit-overflow-scrolling: touch;
+      scroll-behavior: smooth;
+    }
+
+    .preview-empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      padding: 32px 24px;
+      text-align: center;
+      color: #94a3b8;
+    }
+
+    .empty-reader-icon {
+      width: 68px;
+      height: 68px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #60a5fa;
+      margin-bottom: 16px;
+    }
+
+    .empty-reader-title {
+      font-size: 18px;
+      font-weight: 800;
+      color: #f8fafc;
+      margin: 0 0 8px;
+    }
+
+    .empty-reader-desc {
+      font-size: 13px;
+      max-width: 360px;
+      line-height: 1.5;
+      color: #94a3b8;
+      margin: 0 0 20px;
+    }
+
+    .empty-reader-features {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      max-width: 440px;
+    }
+
+    .feature-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 12px;
+      border-radius: 980px;
+      background: rgba(255, 255, 255, 0.06);
+      font-size: 11.5px;
+      color: #cbd5e1;
+      font-weight: 500;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .preview-frame-wrap {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .preview-iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      flex: 1;
+      background: #ffffff;
+      display: block;
+    }
+
+    .preview-image-wrap {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: auto;
+      padding: 24px;
+      background: #0b0f19;
+      overscroll-behavior: contain;
+    }
+
+    .preview-image-wrap img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      border-radius: 8px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .preview-loading-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.9);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: #f8fafc;
+      font-size: 13.5px;
+      font-weight: 600;
+      z-index: 10;
+      transition: opacity 0.2s ease, visibility 0.2s ease;
+    }
+
+    .preview-loading-overlay.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    /* Right Pane: Course Notes Drawer Sheet */
     .drawer-sheet {
       background: #ffffff;
-      width: 100%;
-      max-width: 640px;
+      width: 480px;
+      max-width: 100%;
       height: 100%;
       display: flex;
       flex-direction: column;
-      box-shadow: -10px 0 40px rgba(0, 0, 0, 0.2);
+      flex-shrink: 0;
+      box-shadow: -8px 0 32px rgba(0, 0, 0, 0.14);
+      position: relative;
+      z-index: 2;
       transform: translateX(100%);
-      transition: transform 0.3s var(--ease-apple);
+      transition: transform 0.28s var(--ease-apple);
       border-left: 1.5px solid var(--border);
     }
 
@@ -327,16 +646,27 @@
       transform: translateX(0);
     }
 
+    /* Fullscreen reader mode */
+    .drawer-workspace.fullscreen-preview .drawer-sheet {
+      display: none !important;
+    }
+
+    .drawer-workspace.fullscreen-preview .drawer-preview-pane {
+      border-right: none;
+    }
+
     .drawer-header {
-      padding: 24px 28px 18px;
+      padding: 22px 24px 16px;
       border-bottom: 1.5px solid var(--border);
       position: relative;
+      flex-shrink: 0;
+      background: #ffffff;
     }
 
     .drawer-close {
       position: absolute;
-      top: 20px;
-      right: 20px;
+      top: 18px;
+      right: 18px;
       background: #f3f4f6;
       border: 1px solid var(--border);
       width: 32px;
@@ -357,10 +687,14 @@
     }
 
     .drawer-body {
-      padding: 20px 28px;
+      padding: 18px 22px;
       overflow-y: auto;
       flex: 1;
+      overscroll-behavior-y: contain;
       -webkit-overflow-scrolling: touch;
+      scroll-behavior: smooth;
+      transform: translate3d(0, 0, 0);
+      will-change: transform;
     }
 
     /* Minimal Clean Unit Accordion */
@@ -378,13 +712,13 @@
     }
 
     .clean-unit-head {
-      padding: 14px 18px;
+      padding: 13px 16px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       cursor: pointer;
       user-select: none;
-      font-size: 14px;
+      font-size: 13.5px;
       font-weight: 700;
       background: #ffffff;
     }
@@ -394,7 +728,7 @@
     }
 
     .clean-unit-body {
-      padding: 14px 18px;
+      padding: 12px 16px;
       background: #f9fafb;
       display: none;
       border-top: 1.5px solid var(--border);
@@ -408,16 +742,35 @@
       background: #ffffff;
       border: 1.5px solid var(--border);
       border-radius: 10px;
-      padding: 12px 14px;
+      padding: 11px 13px;
       margin-bottom: 8px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
+      gap: 10px;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
       min-width: 0;
       width: 100%;
       box-sizing: border-box;
+      cursor: pointer;
+      transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+    }
+
+    .clean-file-item:hover {
+      border-color: #0071e3;
+      transform: translateY(-1px);
+    }
+
+    .clean-file-item.active-viewing {
+      border-color: #0071e3;
+      background: #f0f7ff;
+      box-shadow: 0 0 0 2px rgba(0, 113, 227, 0.18);
+    }
+
+    .clean-file-item.active-viewing .btn-file-view {
+      background: #0071e3;
+      color: #ffffff;
+      border-color: #0071e3;
     }
 
     .clean-file-left {
@@ -437,34 +790,32 @@
     }
 
     .clean-file-icon {
-      width: 34px;
-      height: 34px;
+      width: 32px;
+      height: 32px;
       border-radius: 8px;
       background: #111827;
       color: #ffffff;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 10.5px;
+      font-size: 10px;
       font-weight: 800;
       flex-shrink: 0;
     }
 
     .clean-file-title {
-      font-size: 13.5px;
+      font-size: 13px;
       font-weight: 700;
       color: var(--text);
       margin: 0 0 2px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      word-break: break-word;
-      overflow-wrap: anywhere;
       max-width: 100%;
     }
 
     .clean-file-meta {
-      font-size: 11.5px;
+      font-size: 11px;
       color: var(--text-muted);
       margin: 0;
       white-space: nowrap;
@@ -476,30 +827,34 @@
     .clean-file-actions {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
       flex-shrink: 0;
     }
 
     .btn-file-action {
-      padding: 6px 12px;
-      border-radius: 8px;
-      font-size: 12px;
+      padding: 6px 11px;
+      border-radius: 7px;
+      font-size: 11.5px;
       font-weight: 700;
       text-decoration: none;
       display: inline-flex;
       align-items: center;
       gap: 4px;
-      transition: all 0.2s;
+      transition: all 0.18s ease;
+      cursor: pointer;
+      border: 1px solid transparent;
     }
 
     .btn-file-view {
       background: #f3f4f6;
       color: #111827;
-      border: 1px solid var(--border);
+      border-color: var(--border);
     }
 
     .btn-file-view:hover {
-      background: #e5e7eb;
+      background: #0071e3;
+      color: #ffffff;
+      border-color: #0071e3;
     }
 
     .btn-file-get {
@@ -516,7 +871,7 @@
       color: #e11d48;
       border: 1px solid #ffe4e6;
       cursor: pointer;
-      padding: 6px 9px;
+      padding: 6px 8px;
     }
 
     .btn-file-delete:hover {
@@ -539,6 +894,44 @@
       border-radius: 6px;
       cursor: pointer;
       transition: all 0.2s ease;
+    }
+
+    .btn-unit-delete-all:hover {
+      background: #ffe4e6;
+      color: #be123c;
+      border-color: #fecdd3;
+      transform: scale(1.02);
+    }
+
+    /* Responsive Mobile Split Adjustments */
+    @media (max-width: 900px) {
+      .drawer-sheet {
+        width: 100% !important;
+        max-width: 100% !important;
+      }
+
+      .drawer-preview-pane {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 20;
+        transform: translateX(-100%);
+        transition: transform 0.28s var(--ease-apple);
+        border-right: none;
+      }
+
+      .drawer-preview-pane.mobile-open {
+        transform: translateX(0);
+      }
+
+      .preview-mobile-back-btn {
+        display: inline-flex !important;
+      }
+
+      .btn-text-desktop {
+        display: none;
+      }
     }
 
     .btn-unit-delete-all:hover {
@@ -1608,32 +2001,96 @@
 
   </main>
 
-  <!-- Slide-Over Course Units Drawer -->
+  <!-- Split Workspace Course & In-Page Reader Overlay -->
   <div class="drawer-overlay" id="drawerOverlay">
-    <div class="drawer-sheet">
-      <div class="drawer-header">
-        <button class="drawer-close" id="drawerClose" title="Close">&times;</button>
-        <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
-          <span class="course-code-badge" id="dCourseCode">BIT101</span>
-          <span style="font-size:12px; font-weight:600; color:var(--text-muted);" id="dCourseMeta">Semester 1 &middot; 3
-            Credits</span>
+    <div class="drawer-workspace" id="drawerWorkspace">
+      <!-- Left In-Page Document Reader Pane -->
+      <div class="drawer-preview-pane" id="drawerPreviewPane">
+        <!-- Preview Top Bar -->
+        <div class="drawer-preview-header" id="previewHeader">
+          <div class="preview-header-info">
+            <button type="button" class="preview-mobile-back-btn" id="previewMobileBackBtn" onclick="closeInlineFilePreview(true)" title="Back to Course Notes">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+              <span>Notes</span>
+            </button>
+            <span class="preview-badge doc" id="previewFileBadge">READER</span>
+            <div class="preview-title-wrap">
+              <h3 class="preview-file-title" id="previewFileTitle">Select a note to preview</h3>
+              <p class="preview-file-sub" id="previewFileSub">Gandaki University Curriculum</p>
+            </div>
+          </div>
+          <div class="preview-header-actions">
+            <a href="#" id="previewExternalLink" target="_blank" class="preview-action-btn" title="Open in new tab" onclick="return handlePreviewExternalClick(event)">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              <span class="btn-text-desktop">New Tab</span>
+            </a>
+            <a href="#" id="previewDownloadLink" download class="preview-action-btn primary" title="Download File" onclick="return handlePreviewDownloadClick(event)">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <span>Download</span>
+            </a>
+            <button type="button" class="preview-action-btn" id="previewFullscreenBtn" onclick="togglePreviewFullscreen()" title="Toggle Fullscreen">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" id="previewFullscreenIcon"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+            </button>
+            <button type="button" class="preview-action-btn close-btn" onclick="closeInlineFilePreview()" title="Close Reader">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
         </div>
-        <h2 style="font-size:18px; font-weight:800; margin:0 0 12px; color:var(--text);" id="dCourseTitle">Course Title
-        </h2>
-        <div style="display:flex; gap:8px;">
-          <button type="button" id="dUploadBtn" class="upload-cta-btn" style="padding:6px 14px; font-size:12px;">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />
-            </svg>
-            <span>+ Upload Note</span>
-          </button>
+
+        <!-- Preview Body Container -->
+        <div class="drawer-preview-body" id="previewBody">
+          <!-- Empty / Guidance State -->
+          <div class="preview-empty-state" id="previewEmptyState">
+            <div class="empty-reader-icon">
+              <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+            </div>
+            <h4 class="empty-reader-title" id="emptyCourseTitle">Course Study Reader</h4>
+            <p class="empty-reader-desc" id="emptyCourseDesc">Select any study note or chapter file from the right panel to read it directly here.</p>
+            <div class="empty-reader-features">
+              <span class="feature-tag"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Instant In-Page Preview</span>
+              <span class="feature-tag"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> PDF & PPTX Slides</span>
+              <span class="feature-tag"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Fast Smooth Reading</span>
+            </div>
+          </div>
+
+          <!-- Document Viewer Wrap -->
+          <div class="preview-frame-wrap" id="previewFrameWrap" style="display:none;">
+            <div class="preview-loading-overlay" id="previewLoadingOverlay">
+              <div class="loading-spinner" style="width:30px; height:30px; border-width:2.5px;"></div>
+              <span>Opening document…</span>
+            </div>
+            <iframe id="previewIframe" class="preview-iframe" title="Document Viewer" src="about:blank"></iframe>
+            <div id="previewImageWrap" class="preview-image-wrap" style="display:none;">
+              <img id="previewImage" src="" alt="Study Material">
+            </div>
+          </div>
         </div>
       </div>
 
-      <div class="drawer-body" id="drawerBody">
-        <div class="loading-container" style="padding: 40px 10px;">
-          <div class="loading-spinner" style="width:28px; height:28px; border-width:2px; margin-bottom:12px;"></div>
-          <p>Loading chapters…</p>
+      <!-- Right Course Units & Notes Drawer Sheet -->
+      <div class="drawer-sheet" id="drawerSheet">
+        <div class="drawer-header">
+          <button class="drawer-close" id="drawerClose" title="Close Drawer">&times;</button>
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+            <span class="course-code-badge" id="dCourseCode">BIT101</span>
+            <span style="font-size:12px; font-weight:600; color:var(--text-muted);" id="dCourseMeta">Semester 1 &middot; 3 Credits</span>
+          </div>
+          <h2 style="font-size:18px; font-weight:800; margin:0 0 12px; color:var(--text);" id="dCourseTitle">Course Title</h2>
+          <div style="display:flex; gap:8px;">
+            <button type="button" id="dUploadBtn" class="upload-cta-btn" style="padding:6px 14px; font-size:12px;">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />
+              </svg>
+              <span>+ Upload Note</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="drawer-body" id="drawerBody">
+          <div class="loading-container" style="padding: 40px 10px;">
+            <div class="loading-spinner" style="width:28px; height:28px; border-width:2px; margin-bottom:12px;"></div>
+            <p>Loading chapters…</p>
+          </div>
         </div>
       </div>
     </div>
@@ -1801,7 +2258,7 @@
       <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
       <path d="M7 11V7a5 5 0 0110 0v4"></path>
     </svg>
-    <span>Login required to access this page. <a href="javascript:void(0)" onclick="showAuthModal()">Sign In</a></span>
+    <span>Login required to access this page. <a href="login.html">Sign In</a></span>
   </div>
 
   <script>
@@ -1842,18 +2299,26 @@
         // Replace profile chip with Sign In button
         const profileChip = document.querySelector('.dash-profile-chip');
         if (profileChip) {
-          profileChip.outerHTML = `<a href="javascript:void(0)" onclick="showAuthModal()" class="nav-cta-btn apple-nav-btn">Sign In</a>`;
+          profileChip.outerHTML = `<a href="login.html" class="nav-cta-btn apple-nav-btn">Sign In</a>`;
         }
       }
     }).catch(() => { });
 
     window.requireLoginForFile = function (e, fileId, action) {
       if (!window.IS_AUTHENTICATED) {
-        e.preventDefault();
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
         const toast = document.getElementById('minimalAuthToast');
         if (toast) {
           toast.classList.add('show');
           setTimeout(() => toast.classList.remove('show'), 4000);
+        }
+        if (typeof showAuthModal === 'function') {
+          showAuthModal(true);
+        } else {
+          window.location.href = `login.html?redirect=${encodeURIComponent(window.location.pathname + window.location.hash)}`;
         }
         return false;
       }
@@ -2015,18 +2480,27 @@
       return 'DOC';
     }
 
-    function renderFileActions(f) {
+    let CURRENT_PREVIEW_FILE = null;
+
+    function renderFileActions(f, isSearchResult = false) {
       const fileBadge = getFileBadge(f.originalName || f.title);
+      const viewClickFn = isSearchResult
+        ? `openFileFromSearchResult(${f.id}, '${escapeJs(f.subject || '')}', event)`
+        : `openInlineFilePreview(${f.id}, event)`;
+
       return `
-        <div class="clean-file-actions">
+        <div class="clean-file-actions" onclick="event.stopPropagation();">
           ${f.canDelete ? `
             <label class="file-checkbox-label" onclick="event.stopPropagation();" title="Select note">
               <input type="checkbox" class="file-select-checkbox" data-file-id="${f.id}" data-file-title="${escapeHtml(f.title || f.originalName)}" data-file-type="${fileBadge}" onchange="handleFileSelectionChange()">
               <span class="file-custom-check"></span>
             </label>
           ` : ''}
-          <a href="/api/files/${f.id}/view" target="_blank" class="btn-file-action btn-file-view" onclick="return requireLoginForFile(event, ${f.id}, 'view')">View</a>
-          <a href="/api/files/${f.id}/download" class="btn-file-action btn-file-get" download="${escapeHtml(f.originalName || 'file')}" target="_blank" onclick="return requireLoginForFile(event, ${f.id}, 'download')">Get</a>
+          <button type="button" class="btn-file-action btn-file-view" onclick="${viewClickFn}" title="Read in same page">
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            <span>View</span>
+          </button>
+          <a href="/api/files/${f.id}/download" class="btn-file-action btn-file-get" download="${escapeHtml(f.originalName || 'file')}" onclick="return requireLoginForFile(event, ${f.id}, 'download')" title="Download file">Get</a>
           ${f.canDelete ? `
             <button type="button" class="btn-file-action btn-file-delete" onclick="deleteLibraryFile(${f.id}, event)" title="Delete this note">
               <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
@@ -2035,6 +2509,221 @@
         </div>
       `;
     }
+
+    // =========================================================================
+    // IN-PAGE SPLIT VIEWER & DOCUMENT READER CONTROLS
+    // =========================================================================
+
+    window.openInlineFilePreview = async function (fileId, event) {
+      if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+      }
+
+      if (!window.IS_AUTHENTICATED) {
+        const toast = document.getElementById('minimalAuthToast');
+        if (toast) {
+          toast.classList.add('show');
+          setTimeout(() => toast.classList.remove('show'), 4000);
+        }
+        showAuthModal(true);
+        return;
+      }
+
+      const id = parseInt(fileId);
+      const f = (CURRENT_DRAWER_FILES && CURRENT_DRAWER_FILES.find(x => x.id === id)) ||
+        (ALL_FILES && ALL_FILES.find(x => x.id === id)) || null;
+
+      if (!f) return;
+      CURRENT_PREVIEW_FILE = f;
+
+      // Highlight active note item row
+      document.querySelectorAll('.clean-file-item').forEach(item => {
+        if (parseInt(item.dataset.fileId) === id) {
+          item.classList.add('active-viewing');
+        } else {
+          item.classList.remove('active-viewing');
+        }
+      });
+
+      // Update Reader Header
+      const badge = getFileBadge(f.originalName || f.title);
+      const badgeEl = document.getElementById('previewFileBadge');
+      if (badgeEl) {
+        badgeEl.textContent = badge;
+        badgeEl.className = `preview-badge ${badge.toLowerCase()}`;
+      }
+
+      const titleEl = document.getElementById('previewFileTitle');
+      if (titleEl) {
+        titleEl.textContent = f.title || f.originalName || 'Study Note';
+        titleEl.title = f.title || f.originalName || '';
+      }
+
+      const subEl = document.getElementById('previewFileSub');
+      if (subEl) {
+        const subjectPart = f.subject ? f.subject : (CURRENT_DRAWER_COURSE ? CURRENT_DRAWER_COURSE.title : '');
+        const chapterPart = f.chapter ? f.chapter : '';
+        const uploaderPart = f.uploaderName ? `By ${f.uploaderName}` : '';
+        subEl.textContent = [subjectPart, chapterPart, uploaderPart].filter(Boolean).join(' · ') || 'Gandaki University';
+      }
+
+      // External & Download links
+      const extLink = document.getElementById('previewExternalLink');
+      if (extLink) extLink.href = `/api/files/${f.id}/view`;
+
+      const dlLink = document.getElementById('previewDownloadLink');
+      if (dlLink) {
+        dlLink.href = `/api/files/${f.id}/download`;
+        dlLink.setAttribute('download', f.originalName || 'file');
+      }
+
+      // Body Viewers (Iframe for PDF/PPTX/DOC, Img for pictures)
+      const emptyState = document.getElementById('previewEmptyState');
+      const frameWrap = document.getElementById('previewFrameWrap');
+      const loadingOverlay = document.getElementById('previewLoadingOverlay');
+      const iframe = document.getElementById('previewIframe');
+      const imgWrap = document.getElementById('previewImageWrap');
+      const img = document.getElementById('previewImage');
+      const previewPane = document.getElementById('drawerPreviewPane');
+
+      if (emptyState) emptyState.style.display = 'none';
+      if (frameWrap) frameWrap.style.display = 'flex';
+      if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+
+      const isImage = ['IMG', 'PNG', 'JPG', 'JPEG', 'WEBP', 'SVG'].includes(badge);
+
+      if (isImage) {
+        if (iframe) {
+          iframe.style.display = 'none';
+          iframe.src = 'about:blank';
+        }
+        if (imgWrap) imgWrap.style.display = 'flex';
+        if (img) {
+          img.onload = () => {
+            if (loadingOverlay) loadingOverlay.classList.add('hidden');
+          };
+          img.onerror = () => {
+            if (loadingOverlay) loadingOverlay.classList.add('hidden');
+          };
+          img.src = `/api/files/${f.id}/view`;
+        }
+      } else {
+        if (imgWrap) imgWrap.style.display = 'none';
+        if (img) img.src = '';
+        if (iframe) {
+          iframe.style.display = 'block';
+          iframe.onload = () => {
+            if (loadingOverlay) loadingOverlay.classList.add('hidden');
+          };
+          iframe.onerror = () => {
+            if (loadingOverlay) loadingOverlay.classList.add('hidden');
+          };
+          iframe.src = `/api/files/${f.id}/view#toolbar=1&navpanes=0`;
+        }
+
+        // Safety fallback spinner timer
+        setTimeout(() => {
+          if (loadingOverlay) loadingOverlay.classList.add('hidden');
+        }, 1200);
+      }
+
+      // On mobile / narrow screens, open slide-over
+      if (window.innerWidth <= 900 && previewPane) {
+        previewPane.classList.add('mobile-open');
+      }
+    };
+
+    window.closeInlineFilePreview = function (fromMobileBack = false) {
+      const previewPane = document.getElementById('drawerPreviewPane');
+      const workspace = document.getElementById('drawerWorkspace');
+      if (workspace) workspace.classList.remove('fullscreen-preview');
+      updateFullscreenIcon(false);
+
+      if (fromMobileBack) {
+        if (previewPane) previewPane.classList.remove('mobile-open');
+        return;
+      }
+
+      CURRENT_PREVIEW_FILE = null;
+      document.querySelectorAll('.clean-file-item').forEach(item => {
+        item.classList.remove('active-viewing');
+      });
+
+      const emptyState = document.getElementById('previewEmptyState');
+      const frameWrap = document.getElementById('previewFrameWrap');
+      const iframe = document.getElementById('previewIframe');
+      const img = document.getElementById('previewImage');
+      const titleEl = document.getElementById('previewFileTitle');
+      const subEl = document.getElementById('previewFileSub');
+      const badgeEl = document.getElementById('previewFileBadge');
+
+      if (iframe) iframe.src = 'about:blank';
+      if (img) img.src = '';
+      if (frameWrap) frameWrap.style.display = 'none';
+      if (emptyState) emptyState.style.display = 'flex';
+
+      if (badgeEl) {
+        badgeEl.textContent = 'READER';
+        badgeEl.className = 'preview-badge doc';
+      }
+      if (titleEl) {
+        titleEl.textContent = CURRENT_DRAWER_COURSE ? CURRENT_DRAWER_COURSE.title : 'Course Notes Reader';
+      }
+      if (subEl) {
+        subEl.textContent = 'Select any note from the chapters on the right to preview';
+      }
+
+      if (previewPane) previewPane.classList.remove('mobile-open');
+    };
+
+    window.togglePreviewFullscreen = function () {
+      const workspace = document.getElementById('drawerWorkspace');
+      if (!workspace) return;
+      const isFull = workspace.classList.toggle('fullscreen-preview');
+      updateFullscreenIcon(isFull);
+    };
+
+    function updateFullscreenIcon(isFull) {
+      const icon = document.getElementById('previewFullscreenIcon');
+      if (!icon) return;
+      if (isFull) {
+        icon.innerHTML = `<polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/>`;
+      } else {
+        icon.innerHTML = `<polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>`;
+      }
+    }
+
+    window.openFileFromSearchResult = async function (fileId, subject, event) {
+      if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+      }
+      const courseTitle = subject || (ALL_FILES.find(x => x.id === fileId) || {}).subject || '';
+      if (courseTitle) {
+        await openDrawer(courseTitle, null, fileId);
+      } else {
+        const overlay = document.getElementById('drawerOverlay');
+        if (overlay) overlay.classList.add('open');
+        openInlineFilePreview(fileId);
+      }
+    };
+
+    window.handlePreviewExternalClick = function (e) {
+      if (!CURRENT_PREVIEW_FILE) {
+        e.preventDefault();
+        return false;
+      }
+      return requireLoginForFile(e, CURRENT_PREVIEW_FILE.id, 'view');
+    };
+
+    window.handlePreviewDownloadClick = function (e) {
+      if (!CURRENT_PREVIEW_FILE) {
+        e.preventDefault();
+        return false;
+      }
+      return requireLoginForFile(e, CURRENT_PREVIEW_FILE.id, 'download');
+    };
 
     function showCustomConfirmModal({
       title = 'Delete Study Note?',
@@ -2410,7 +3099,7 @@
             </h3>
             <div style="display:flex; flex-direction:column; gap:8px;">
               ${matchFiles.slice(0, 15).map(f => `
-                <div class="clean-file-item">
+                <div class="clean-file-item" data-file-id="${f.id}" onclick="openFileFromSearchResult(${f.id}, '${escapeJs(f.subject || '')}', event)">
                   <div class="clean-file-left">
                     <div class="clean-file-icon">${getFileBadge(f.originalName || f.title)}</div>
                     <div style="min-width:0;">
@@ -2422,7 +3111,7 @@
                       </p>
                     </div>
                   </div>
-                  ${renderFileActions(f)}
+                  ${renderFileActions(f, true)}
                 </div>
               `).join('')}
             </div>
@@ -2500,11 +3189,12 @@
 
     document.getElementById('libSearch').addEventListener('input', renderView);
 
-    // Slide-over Drawer
+    // Slide-over Drawer & Split Workspace Controls
     const overlay = document.getElementById('drawerOverlay');
     const drawerClose = document.getElementById('drawerClose');
 
     drawerClose.addEventListener('click', () => {
+      closeInlineFilePreview();
       overlay.classList.remove('open');
       CURRENT_DRAWER_COURSE = null;
       clearSelectedDrawerFiles();
@@ -2513,6 +3203,7 @@
 
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay) {
+        closeInlineFilePreview();
         overlay.classList.remove('open');
         CURRENT_DRAWER_COURSE = null;
         clearSelectedDrawerFiles();
@@ -2520,7 +3211,29 @@
       }
     });
 
-    async function openDrawer(title, autoOpenUnitNum = null) {
+    // Escape key closes preview first, then drawer
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const workspace = document.getElementById('drawerWorkspace');
+        if (workspace && workspace.classList.contains('fullscreen-preview')) {
+          togglePreviewFullscreen();
+          return;
+        }
+        if (CURRENT_PREVIEW_FILE && window.innerWidth <= 900) {
+          closeInlineFilePreview(true);
+          return;
+        }
+        if (overlay && overlay.classList.contains('open')) {
+          closeInlineFilePreview();
+          overlay.classList.remove('open');
+          CURRENT_DRAWER_COURSE = null;
+          clearSelectedDrawerFiles();
+          history.replaceState(null, null, ' ');
+        }
+      }
+    });
+
+    async function openDrawer(title, autoOpenUnitNum = null, autoOpenFileId = null) {
       let course = window.SyllabusHelper.findCourse(SYLLABUS_DATA, title);
       if (!course) {
         course = ALL_COURSES.find(c => (c.title || '').toLowerCase() === title.toLowerCase());
@@ -2547,6 +3260,11 @@
       document.getElementById('dCourseMeta').textContent = `${semLabel} · ${course.credit || '—'} Credits`;
       document.getElementById('dCourseTitle').textContent = course.title;
 
+      const emptyTitleEl = document.getElementById('emptyCourseTitle');
+      const emptyDescEl = document.getElementById('emptyCourseDesc');
+      if (emptyTitleEl) emptyTitleEl.textContent = `${course.title} Reader`;
+      if (emptyDescEl) emptyDescEl.textContent = `Select any study note or syllabus unit on the right to preview it directly in this page.`;
+
       const dUploadBtn = document.getElementById('dUploadBtn');
       dUploadBtn.onclick = () => openDirectUploadModal(course.title, course.rawSemester);
 
@@ -2562,6 +3280,12 @@
       const units = course.contents ? window.SyllabusHelper.parseCourseUnits(course.contents) : [];
       let files = await safeFetchJson(`/api/library/files?subject=${encodeURIComponent(course.title)}`, []);
       CURRENT_DRAWER_FILES = files || [];
+
+      if (autoOpenFileId) {
+        openInlineFilePreview(autoOpenFileId);
+      } else {
+        closeInlineFilePreview();
+      }
 
       if (!units.length && !files.length) {
         body.innerHTML = `
@@ -2606,7 +3330,7 @@
             </div>
             <div class="clean-unit-body">
               ${uFiles.length ? uFiles.map(f => `
-                <div class="clean-file-item">
+                <div class="clean-file-item ${CURRENT_PREVIEW_FILE && CURRENT_PREVIEW_FILE.id === f.id ? 'active-viewing' : ''}" data-file-id="${f.id}" onclick="openInlineFilePreview(${f.id}, event)">
                   <div class="clean-file-left">
                     <div class="clean-file-icon">${getFileBadge(f.originalName || f.title)}</div>
                     <div style="min-width:0;">
@@ -2672,7 +3396,7 @@
             </div>
             <div class="clean-unit-body">
               ${cFiles.map(f => `
-                <div class="clean-file-item">
+                <div class="clean-file-item ${CURRENT_PREVIEW_FILE && CURRENT_PREVIEW_FILE.id === f.id ? 'active-viewing' : ''}" data-file-id="${f.id}" onclick="openInlineFilePreview(${f.id}, event)">
                   <div class="clean-file-left">
                     <div class="clean-file-icon">${getFileBadge(f.originalName || f.title)}</div>
                     <div style="min-width:0;">
@@ -2712,7 +3436,7 @@
             </div>
             <div class="clean-unit-body">
               ${labFiles.map(f => `
-                <div class="clean-file-item">
+                <div class="clean-file-item ${CURRENT_PREVIEW_FILE && CURRENT_PREVIEW_FILE.id === f.id ? 'active-viewing' : ''}" data-file-id="${f.id}" onclick="openInlineFilePreview(${f.id}, event)">
                   <div class="clean-file-left">
                     <div class="clean-file-icon">${getFileBadge(f.originalName || f.title)}</div>
                     <div style="min-width:0;">
@@ -2751,7 +3475,7 @@
             </div>
             <div class="clean-unit-body">
               ${general.map(f => `
-                <div class="clean-file-item">
+                <div class="clean-file-item ${CURRENT_PREVIEW_FILE && CURRENT_PREVIEW_FILE.id === f.id ? 'active-viewing' : ''}" data-file-id="${f.id}" onclick="openInlineFilePreview(${f.id}, event)">
                   <div class="clean-file-left">
                     <div class="clean-file-icon">${getFileBadge(f.originalName || f.title)}</div>
                     <div style="min-width:0;">

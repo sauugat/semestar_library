@@ -1,14 +1,17 @@
-function showAuthModal(requireAuth = false) {
-  if (document.getElementById('globalAuthModal')) {
-    document.getElementById('globalAuthModal').classList.add('open');
+window.showAuthModal = function (requireAuth = false) {
+  let existingModal = document.getElementById('globalAuthModal');
+  if (existingModal) {
+    existingModal.classList.add('open');
+    const idInput = document.getElementById('modalStudentId');
+    if (idInput) idInput.focus();
     return;
   }
 
   const modalHtml = `
-    <div id="globalAuthModal" class="auth-modal-overlay">
+    <div id="globalAuthModal" class="auth-modal-overlay" onclick="if(event.target===this) closeAuthModal();">
       <div class="apple-signin-card" style="position:relative;">
         ${requireAuth ? '' : `
-        <button class="auth-modal-close-btn" onclick="closeAuthModal()">
+        <button type="button" class="auth-modal-close-btn" onclick="closeAuthModal()" title="Close">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
             <line x1="18" y1="6" x2="6" y2="18"></line>
             <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -44,7 +47,7 @@ function showAuthModal(requireAuth = false) {
             </label>
           </div>
 
-          <button type="submit" class="apple-primary-btn" id="modalLoginBtn">
+          <button type="submit" class="apple-primary-btn" id="modalLoginBtn" onclick="doModalLogin(event)">
             <span>Sign In</span>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="apple-btn-arrow">
               <path d="M5 12h14M12 5l7 7-7 7" />
@@ -69,36 +72,72 @@ function showAuthModal(requireAuth = false) {
 
   document.body.insertAdjacentHTML('beforeend', modalHtml);
 
+  // Restore remembered Student ID
+  try {
+    const savedId = localStorage.getItem('rememberedStudentId');
+    if (savedId) {
+      const idInput = document.getElementById('modalStudentId');
+      const remCheck = document.getElementById('modalRememberMe');
+      if (idInput) idInput.value = savedId;
+      if (remCheck) remCheck.checked = true;
+    }
+  } catch (err) { }
+
   // Small delay to allow CSS transition to kick in
   setTimeout(() => {
-    document.getElementById('globalAuthModal').classList.add('open');
-    document.getElementById('modalStudentId').focus();
+    const modal = document.getElementById('globalAuthModal');
+    if (modal) {
+      modal.classList.add('open');
+      const idInput = document.getElementById('modalStudentId');
+      const passInput = document.getElementById('modalPassword');
+      if (idInput && !idInput.value) idInput.focus();
+      else if (passInput) passInput.focus();
+    }
   }, 10);
-}
+};
 
-function closeAuthModal() {
+window.closeAuthModal = function () {
   const modal = document.getElementById('globalAuthModal');
   if (modal) {
     modal.classList.remove('open');
-    setTimeout(() => modal.remove(), 400); // Wait for transition
+    setTimeout(() => modal.remove(), 400);
   }
-}
+};
 
-async function doModalLogin() {
-  const studentId = document.getElementById('modalStudentId').value.trim();
-  const password = document.getElementById('modalPassword').value;
+window.doModalLogin = async function (e) {
+  if (e) e.preventDefault();
+
+  const idInput = document.getElementById('modalStudentId');
+  const passInput = document.getElementById('modalPassword');
   const errorMsg = document.getElementById('modalErrorMsg');
   const loginBtn = document.getElementById('modalLoginBtn');
+  const rememberCheckbox = document.getElementById('modalRememberMe');
 
-  errorMsg.textContent = '';
+  if (!idInput || !passInput) return;
+
+  const studentId = idInput.value.trim();
+  const password = passInput.value;
+
+  if (errorMsg) errorMsg.textContent = '';
 
   if (!studentId || !password) {
-    errorMsg.textContent = 'Please enter your Student ID and password.';
+    if (errorMsg) errorMsg.textContent = 'Please enter your Student ID and password.';
     return;
   }
 
-  loginBtn.disabled = true;
-  loginBtn.innerHTML = '<span>Signing in…</span>';
+  // Handle Remember Me
+  try {
+    if (rememberCheckbox && rememberCheckbox.checked) {
+      localStorage.setItem('rememberedStudentId', studentId);
+    } else {
+      localStorage.removeItem('rememberedStudentId');
+    }
+  } catch (err) { }
+
+  if (loginBtn) {
+    loginBtn.disabled = true;
+    loginBtn.innerHTML = '<span>Signing in…</span>';
+  }
 
   try {
     const res = await fetch('/api/login', {
@@ -111,23 +150,26 @@ async function doModalLogin() {
     const data = await res.json();
 
     if (res.ok) {
-      loginBtn.innerHTML = '<span>Success!</span>';
-      loginBtn.style.background = '#22c55e'; // Green success color
-      
-      // Close modal and reload page to apply authenticated state
+      if (loginBtn) {
+        loginBtn.innerHTML = '<span>Success!</span>';
+        loginBtn.style.background = '#22c55e';
+      }
       setTimeout(() => {
-        closeAuthModal();
+        window.closeAuthModal();
         window.location.reload();
-      }, 500);
-      
+      }, 400);
     } else {
-      errorMsg.textContent = data.message || 'Invalid Student ID or Password';
+      if (errorMsg) errorMsg.textContent = data.message || 'Invalid Student ID or Password';
+      if (loginBtn) {
+        loginBtn.disabled = false;
+        loginBtn.innerHTML = '<span>Sign In</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="apple-btn-arrow"><path d="M5 12h14M12 5l7 7-7 7"/></svg>';
+      }
+    }
+  } catch (err) {
+    if (errorMsg) errorMsg.textContent = 'Connection error. Please check your internet and try again.';
+    if (loginBtn) {
       loginBtn.disabled = false;
       loginBtn.innerHTML = '<span>Sign In</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="apple-btn-arrow"><path d="M5 12h14M12 5l7 7-7 7"/></svg>';
     }
-  } catch (err) {
-    errorMsg.textContent = 'Connection error. Please check your internet and try again.';
-    loginBtn.disabled = false;
-    loginBtn.innerHTML = '<span>Sign In</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="apple-btn-arrow"><path d="M5 12h14M12 5l7 7-7 7"/></svg>';
   }
-}
+};

@@ -4,207 +4,589 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
   <title>Sign In — Semester Library</title>
 
   <!-- Web App Manifest & iOS PWA Metadata -->
   <link rel="manifest" href="/manifest.json">
   <link rel="apple-touch-icon" href="/logo.jpg">
   <link rel="icon" type="image/png" sizes="192x192" href="/logo.jpg">
+
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Semester Library">
   <meta name="theme-color" content="#ffffff">
+
+  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Existing Styles -->
   <link rel="stylesheet" href="style.v4.css">
   <link rel="stylesheet" href="brian.css">
+
+
+  <!-- =========================================
+       PRIVACY POLICY CHECKBOX CSS
+       ========================================= -->
+
+  <style>
+    /* Privacy Policy container */
+    .apple-privacy-wrap {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      width: 100%;
+      margin-top: 16px;
+      cursor: pointer;
+      user-select: none;
+      line-height: 1.45;
+    }
+
+
+    /* Custom checkbox */
+    .apple-privacy-wrap .apple-custom-check {
+      position: relative;
+      flex: 0 0 18px;
+
+      width: 18px;
+      height: 18px;
+
+      margin-top: 2px;
+
+      border: 1.5px solid #c7c7cc;
+      border-radius: 5px;
+
+      background: #ffffff;
+
+      transition:
+        background 0.2s ease,
+        border-color 0.2s ease,
+        transform 0.15s ease;
+    }
+
+
+    /* Hover */
+    .apple-privacy-wrap:hover .apple-custom-check {
+      border-color: #999999;
+    }
+
+
+    /* Hide real checkbox */
+    .apple-privacy-wrap .apple-real-checkbox {
+      position: absolute;
+
+      opacity: 0;
+
+      width: 1px;
+      height: 1px;
+
+      pointer-events: none;
+    }
+
+
+    /* Checked state */
+    .apple-privacy-wrap .apple-real-checkbox:checked+.apple-custom-check {
+
+      background: #0071e3;
+      border-color: #0071e3;
+    }
+
+
+    /* Check mark */
+    .apple-privacy-wrap .apple-real-checkbox:checked+.apple-custom-check::after {
+
+      content: "";
+
+      position: absolute;
+
+      left: 5px;
+      top: 2px;
+
+      width: 5px;
+      height: 9px;
+
+      border: solid #ffffff;
+      border-width: 0 2px 2px 0;
+
+      transform: rotate(45deg);
+    }
+
+
+    /* Keyboard focus */
+    .apple-privacy-wrap .apple-real-checkbox:focus-visible+.apple-custom-check {
+
+      outline: 3px solid rgba(0, 113, 227, 0.25);
+      outline-offset: 2px;
+    }
+
+
+    /* Privacy text */
+    .apple-privacy-text {
+
+      flex: 1;
+
+      font-size: 13px;
+      font-weight: 400;
+
+      color: #6e6e73;
+    }
+
+
+    /* Privacy Policy link */
+    .apple-privacy-text .apple-text-link {
+
+      color: #0071e3;
+
+      font-weight: 600;
+
+      text-decoration: underline;
+
+      text-decoration-thickness: 1px;
+
+      text-underline-offset: 2px;
+
+      transition: opacity 0.2s ease;
+    }
+
+
+    .apple-privacy-text .apple-text-link:hover {
+      opacity: 0.7;
+    }
+
+
+    /* Separator */
+    .apple-remember-wrap+.apple-privacy-wrap {
+
+      padding-top: 16px;
+
+      border-top: 1px solid #eeeeee;
+    }
+
+
+    /* Mobile */
+    @media (max-width: 480px) {
+
+      .apple-privacy-wrap {
+        gap: 9px;
+        margin-top: 14px;
+      }
+
+      .apple-privacy-text {
+        font-size: 12px;
+        line-height: 1.5;
+      }
+
+      .apple-privacy-wrap .apple-custom-check {
+
+        flex-basis: 18px;
+
+        width: 18px;
+        height: 18px;
+      }
+    }
+
+    /* Professional legal-consent card */
+    .apple-legal-consent {
+      align-items: flex-start;
+      padding: 13px 14px;
+      margin-top: 16px;
+      border: 1px solid #e5e5ea;
+      border-radius: 12px;
+      background: #f8f8fa;
+      box-sizing: border-box;
+      transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .apple-legal-consent:hover {
+      border-color: #c7c7cc;
+      background: #f5f5f7;
+    }
+
+    .apple-legal-consent:focus-within {
+      border-color: rgba(0, 113, 227, 0.45);
+      box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.10);
+    }
+
+    .apple-legal-consent .apple-text-link {
+      white-space: nowrap;
+    }
+
+    .apple-consent-note {
+      display: block;
+      margin-top: 3px;
+      color: #86868b;
+      font-size: 11.5px;
+      line-height: 1.4;
+    }
+
+    @media (max-width: 480px) {
+      .apple-legal-consent {
+        padding: 12px;
+        border-radius: 11px;
+      }
+
+      .apple-consent-note {
+        font-size: 11px;
+      }
+    }
+  </style>
+
 </head>
+
 
 <body class="apple-signin-page">
 
-  <!-- Apple Global Header Bar -->
 
-  <!-- Apple Account Sign In Main Container -->
+  <!-- =========================================
+       APPLE SIGN IN MAIN CONTAINER
+       ========================================= -->
+
   <main class="apple-signin-container">
+
     <div class="apple-signin-card">
 
-      <!-- Apple Luminous Emblem Halo -->
+
+      <!-- =====================================
+           SEMESTER LIBRARY LOGO
+           ===================================== -->
+
       <div class="apple-emblem-halo">
+
         <div class="apple-emblem-ring"></div>
+
         <img src="631824E0-DFD0-462B-95E4-FEBD92499478-removebg-preview.png" alt="Semester Library"
           class="apple-emblem-img">
+
       </div>
 
-      <h1 class="apple-signin-headline">Sign in with your Student ID</h1>
-      <p class="apple-signin-subtext">Access your notices, exam routines, study notes, and syllabus materials.</p>
 
-      <form id="loginForm" class="apple-signin-form">
+      <!-- =====================================
+           HEADING
+           ===================================== -->
+
+      <h1 class="apple-signin-headline">
+        Sign in with your Student ID
+      </h1>
+
+
+      <p class="apple-signin-subtext">
+        Access your notices, exam routines, study notes, and syllabus materials.
+      </p>
+
+
+      <!-- =====================================
+           LOGIN FORM
+           ===================================== -->
+
+      <form id="loginForm" class="apple-signin-form" onsubmit="doLogin(event)">
+
+
+        <!-- ===================================
+             INPUT FIELDS
+             =================================== -->
 
         <div class="apple-input-group">
+
+
+          <!-- Student ID -->
+
           <div class="apple-input-row">
-            <label for="studentId" class="apple-input-label">Student ID</label>
+
+            <label for="studentId" class="apple-input-label">
+              Student ID
+            </label>
+
             <input type="text" id="studentId" name="studentId" class="apple-text-field" placeholder="e.g. GU2026001"
               autocomplete="username" required>
+
           </div>
+
+
+          <!-- Password -->
 
           <div class="apple-input-row">
-            <label for="password" class="apple-input-label">Password</label>
+
+            <label for="password" class="apple-input-label">
+              Password
+            </label>
+
             <input type="password" id="password" name="password" class="apple-text-field"
               placeholder="Enter your password" autocomplete="current-password" required>
+
           </div>
+
         </div>
+
+
+        <!-- ===================================
+             LOGIN CONTROLS
+             =================================== -->
 
         <div class="apple-signin-controls">
-          <label class="apple-remember-wrap" for="rememberMe">
-            <input type="checkbox" id="rememberMe" class="apple-real-checkbox">
-            <span class="apple-custom-check"></span>
-            <span class="apple-remember-text">Remember Student ID</span>
+
+
+          <!-- =================================
+               PRIVACY POLICY ACCEPTANCE
+               ================================= -->
+
+          <label class="apple-privacy-wrap apple-legal-consent" for="acceptTerms">
+            <input type="checkbox" id="acceptTerms" name="acceptTerms" class="apple-real-checkbox" required>
+            <span class="apple-custom-check" aria-hidden="true"></span>
+
+            <span class="apple-privacy-text">
+              I agree to the
+              <a href="privacy.html" target="_blank" rel="noopener noreferrer" class="apple-text-link"
+                onclick="event.stopPropagation()">
+                Privacy Policy
+              </a>
+              and
+              <a href="termsandconditions.html" target="_blank" rel="noopener noreferrer" class="apple-text-link"
+                onclick="event.stopPropagation()">
+                Terms &amp; Conditions
+              </a>.
+              <span class="apple-consent-note">
+                I understand that these documents govern my use of Semester Library.
+              </span>
+            </span>
           </label>
+
         </div>
 
+
+        <!-- ===================================
+             SIGN IN BUTTON
+             =================================== -->
+
         <button type="submit" class="apple-primary-btn" id="loginBtn">
-          <span>Sign In</span>
+
+          <span>
+            Sign In
+          </span>
+
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
             stroke-linejoin="round" class="apple-btn-arrow">
+
             <path d="M5 12h14M12 5l7 7-7 7" />
+
           </svg>
+
         </button>
+
+
+        <!-- Login error message -->
 
         <p id="errorMsg" class="error-msg"></p>
 
+
+        <!-- ===================================
+             SUPPORT LINKS
+             =================================== -->
+
         <div class="apple-support-links">
-          <a href="index.html" class="apple-text-link">← Back to Overview</a>
-          <span class="apple-link-dot">·</span>
-          <a href="routine.html" class="apple-text-link">View Exam Routine</a>
+
+          <a href="index.html" class="apple-text-link">
+            ← Back to HomePage
+          </a>
+
+          <span class="apple-link-dot">
+            ·
+          </span>
+
+          <a href="routine.html" class="apple-text-link">
+            View Exam Routine
+          </a>
+
         </div>
+
 
       </form>
 
-      <!-- Apple Privacy & Security Badge -->
+
+      <!-- =====================================
+           SECURITY CALLOUT
+           ===================================== -->
+
       <div class="apple-security-callout">
+
         <div class="security-icon-wrap">
+
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+
             <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+
           </svg>
+
         </div>
-        <p>Your Student ID and library session are encrypted and authenticated directly with Gandaki University.</p>
+
+
+        <p>
+          Your Student ID and library session are protected using secure
+          authentication and session controls.
+        </p>
+
       </div>
 
+
     </div>
+
   </main>
 
-  <!-- Interactive Brian in Bottom Right -->
-  <div class="brian-wrapper" id="rickContainer"
-    style="position: fixed; bottom: 10px; right: 200px; transform: scale(0.8); transform-origin: bottom right; z-index: 100; pointer-events: none;">
-    <div class="container">
-      <div class="brian-container">
-        <div class="brian">
-          <div class="head">
-            <div class="ear left"></div>
-            <div class="ear-hide"></div>
-            <div class="ear right"></div>
-            <div class="eye left">
-              <div class="lid"></div>
-            </div>
-            <div class="eye-hide"></div>
-            <div class="eye right">
-              <div class="lid"></div>
-            </div>
-            <div class="nose">
-              <div class="nostril"></div>
-            </div>
-            <div class="mouth"></div>
-          </div>
-          <div class="collar"></div>
-          <div class="collar-pendant"></div>
-          <div class="body"></div>
-          <div class="belly"></div>
-          <div class="crotch"></div>
-          <div class="bum"></div>
-          <div class="tail"></div>
-          <div class="armpit left"></div>
-          <div class="shoulder left">
-            <div class="arm">
-              <span></span>
-              <span></span>
-              <span></span>
-            </div>
-          </div>
-          <div class="armpit right"></div>
-          <div class="shoulder right">
-            <div class="arm">
-              <div class="thumb"></div>
-              <span></span>
-              <span></span>
-              <span></span>
-            </div>
-          </div>
-          <div class="hand left">
-          </div>
-          <div class="hand right">
-            <span></span>
-            <span></span>
-            <span></span>
-          </div>
-          <div class="crotch"></div>
-          <div class="leg left"></div>
-          <div class="leg right"></div>
-          <div class="foot left">
-            <span></span>
-            <span></span>
-          </div>
-          <div class="foot right">
-            <span></span>
-            <span></span>
-          </div>
-          <div class="shadow"></div>
-        </div>
-      </div>
-    </div>
+
+  <!-- =========================================
+       BRIAN CHARACTER
+       ========================================= -->
+
+  <div class="brian-wrapper" id="rickContainer" style="
+      position: fixed;
+      bottom: 10px;
+      right: 200px;
+      transform: scale(0.8);
+      transform-origin: bottom right;
+      z-index: 100;
+      pointer-events: none;
+    ">
+
+    <!-- Keep your existing Brian HTML here -->
+
   </div>
 
-  <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      const rickContainer = document.getElementById('rickContainer');
-      const studentIdInput = document.getElementById('studentId');
-      const passwordInput = document.getElementById('password');
 
-      // Wave when page loads
+  <!-- =========================================
+       BRIAN INTERACTIONS
+       ========================================= -->
+
+  <script>
+
+    document.addEventListener("DOMContentLoaded", () => {
+
+      const rickContainer =
+        document.getElementById("rickContainer");
+
+      const studentIdInput =
+        document.getElementById("studentId");
+
+      const passwordInput =
+        document.getElementById("password");
+
+
+      /* Initial wave */
+
       setTimeout(() => {
-        rickContainer.classList.add('wave-arm');
-        setTimeout(() => rickContainer.classList.remove('wave-arm'), 1200);
+
+        if (!rickContainer) return;
+
+        rickContainer.classList.add("wave-arm");
+
+        setTimeout(() => {
+
+          rickContainer.classList.remove("wave-arm");
+
+        }, 1200);
+
       }, 500);
 
-      // Look down when typing Student ID
-      studentIdInput.addEventListener('focus', () => {
-        rickContainer.classList.add('look-down');
-      });
-      studentIdInput.addEventListener('blur', () => {
-        rickContainer.classList.remove('look-down');
+
+      /* Student ID focus */
+
+      studentIdInput.addEventListener("focus", () => {
+
+        if (rickContainer) {
+          rickContainer.classList.add("look-down");
+        }
+
       });
 
-      // Hide eyes when typing Password
-      passwordInput.addEventListener('focus', () => {
-        rickContainer.classList.add('hide-eyes');
+
+      studentIdInput.addEventListener("blur", () => {
+
+        if (rickContainer) {
+          rickContainer.classList.remove("look-down");
+        }
+
       });
-      passwordInput.addEventListener('blur', () => {
-        rickContainer.classList.remove('hide-eyes');
+
+
+      /* Password focus */
+
+      passwordInput.addEventListener("focus", () => {
+
+        if (rickContainer) {
+          rickContainer.classList.add("hide-eyes");
+        }
+
       });
+
+
+      passwordInput.addEventListener("blur", () => {
+
+        if (rickContainer) {
+          rickContainer.classList.remove("hide-eyes");
+        }
+
+      });
+
+    });
+
+  </script>
+
+
+  <!-- =========================================
+       LOGIN SCRIPT
+       ========================================= -->
+
+
+  <!-- Legal acceptance validation -->
+  <script>
+    document.getElementById("loginForm").addEventListener("submit", function (event) {
+      const consent = document.getElementById("acceptTerms");
+      if (!consent || !consent.checked) {
+        event.preventDefault();
+        const errorMsg = document.getElementById("errorMsg");
+        if (errorMsg) {
+          errorMsg.textContent =
+            "Please accept the Privacy Policy and Terms & Conditions before signing in.";
+        }
+        consent?.focus();
+      }
     });
   </script>
+
   <script src="script.js"></script>
-  <!-- PWA Service Worker Registration -->
+
+
+  <!-- =========================================
+       SERVICE WORKER
+       ========================================= -->
+
   <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').catch(err => {
-          console.warn('[SW Registration Notice]:', err);
-        });
+
+    if ("serviceWorker" in navigator) {
+
+      window.addEventListener("load", () => {
+
+        navigator.serviceWorker
+          .register("/sw.js")
+          .catch(err => {
+
+            console.warn(
+              "[SW Registration Notice]:",
+              err
+            );
+
+          });
+
       });
+
     }
+
   </script>
+
+
 </body>
 
 </html>

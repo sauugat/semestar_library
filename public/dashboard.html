@@ -17,7 +17,15 @@
 
   <script src="auth-modal.js"></script>
   <script>
-    fetch('/api/me').then(r => { if (!r.ok && typeof showAuthModal === 'function') showAuthModal(true); }).catch(() => { if (typeof showAuthModal === 'function') showAuthModal(true); });
+    fetch('/api/me').then(r => {
+      if (!r.ok) {
+        if (typeof showAuthModal === 'function') showAuthModal(true);
+        else window.location.href = 'login.html?redirect=dashboard.html';
+      }
+    }).catch(() => {
+      if (typeof showAuthModal === 'function') showAuthModal(true);
+      else window.location.href = 'login.html?redirect=dashboard.html';
+    });
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -654,7 +662,7 @@
       <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
       <path d="M7 11V7a5 5 0 0110 0v4"></path>
     </svg>
-    <span>Login required to access this page. <a href="javascript:void(0)" onclick="showAuthModal()">Sign In</a></span>
+    <span>Login required to access this page. <a href="login.html">Sign In</a></span>
   </div>
   <!-- PWA Service Worker Registration -->
   <script>

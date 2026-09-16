@@ -6,6 +6,135 @@
 (function () {
   'use strict';
 
+  function escapeHtml(value) {
+    return String(value == null ? '' : value).replace(/[&<>"']/g, char => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[char]));
+  }
+
+  function safeLink(value, externalOnly = false) {
+    if (typeof value !== 'string' || !value.trim()) return null;
+    try {
+      const url = new URL(value, 'https://semester-library.local/');
+      if (!['https:', 'http:'].includes(url.protocol)) return null;
+      if (externalOnly && !/^https?:\/\//i.test(value)) return null;
+      return value;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // Keep code readable even if the optional Markdown/CDN dependencies fail.
+  // Every model-provided character is escaped before it reaches innerHTML.
+  function fallbackMarkdown(text) {
+    const output = [];
+    let fence = null;
+    let code = [];
+    const finishCode = () => {
+      output.push(`<pre><code${fence.language ? ` class="language-${escapeHtml(fence.language)}"` : ''}>${escapeHtml(code.join('\n'))}</code></pre>`);
+      code = [];
+      fence = null;
+    };
+    for (const line of String(text).split('\n')) {
+      if (fence) {
+        if (new RegExp(`^\\s*${fence.character}{${fence.length},}\\s*$`).test(line)) finishCode();
+        else code.push(line);
+        continue;
+      }
+      const match = line.match(/^\s*(`{3,}|~{3,})([\w+-]*)[^\n]*$/);
+      if (match) fence = { character: match[1][0], length: match[1].length, language: match[2] };
+      else output.push(escapeHtml(line) + '<br>');
+    }
+    if (fence) finishCode();
+    return output.join('');
+  }
+
+  // SSE lines may span arbitrary network chunks, including the middle of CRLF.
+  function createEventStreamParser(onEvent) {
+    let buffer = '';
+    let eventName = 'message';
+    let data = [];
+    let eventSize = 0;
+    function line(value) {
+      if (!value) {
+        if (data.length) onEvent(eventName, data.join('\n'));
+        eventName = 'message';
+        data = [];
+        eventSize = 0;
+        return;
+      }
+      if (value.startsWith(':')) return;
+      const separator = value.indexOf(':');
+      const field = separator < 0 ? value : value.slice(0, separator);
+      let content = separator < 0 ? '' : value.slice(separator + 1);
+      if (content.startsWith(' ')) content = content.slice(1);
+      if (field === 'event') eventName = content;
+      if (field === 'data') {
+        eventSize += content.length;
+        if (eventSize > 1024 * 1024) throw new Error('This response is too large. Try a shorter question.');
+        data.push(content);
+      }
+    }
+    return {
+      feed(chunk, final = false) {
+        buffer += chunk;
+        let index;
+        while ((index = buffer.search(/[\r\n]/)) >= 0) {
+          if (!final && buffer[index] === '\r' && index === buffer.length - 1) break;
+          const value = buffer.slice(0, index);
+          const length = buffer[index] === '\r' && buffer[index + 1] === '\n' ? 2 : 1;
+          buffer = buffer.slice(index + length);
+          line(value);
+        }
+        if (buffer.length > 1024 * 1024) throw new Error('This response is too large. Try a shorter question.');
+        // A partial last event is deliberately not dispatched: result is required.
+      }
+    };
+  }
+
+  async function readChatResponse(response, onDelta) {
+    if (!(response.headers.get('content-type') || '').includes('text/event-stream')) {
+      const result = await response.json();
+      if (!result || typeof result.reply !== 'string') throw new Error('The reply was incomplete. Please try again.');
+      return result;
+    }
+    if (!response.body) throw new Error('Streaming is unavailable. Please try again.');
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let result = null;
+    let terminal = false;
+    const parser = createEventStreamParser((event, raw) => {
+      if (terminal || !['delta', 'result', 'error'].includes(event)) return;
+      let data;
+      try { data = JSON.parse(raw); } catch (_) { throw new Error('The reply was interrupted. Please try again.'); }
+      if (event === 'error') throw new Error(typeof data.message === 'string' ? data.message : 'Could not finish the reply. Please try again.');
+      if (event === 'delta' && typeof data.text === 'string') onDelta(data.text);
+      if (event === 'result') {
+        if (!data || typeof data.reply !== 'string') throw new Error('The reply was incomplete. Please try again.');
+        result = data;
+        terminal = true;
+      }
+    });
+    try {
+      while (!terminal) {
+        const { value, done } = await reader.read();
+        parser.feed(done ? decoder.decode() : decoder.decode(value, { stream: true }), done);
+        if (done) break;
+      }
+      if (!terminal) throw new Error('The reply was interrupted. Please try again.');
+      return result;
+    } finally {
+      await reader.cancel().catch(() => {});
+      reader.releaseLock();
+    }
+  }
+
+  // Pure helpers are also exercised by Node tests, without booting a browser.
+  if (typeof module !== 'undefined' && module.exports && typeof window === 'undefined') {
+    module.exports = { createEventStreamParser, readChatResponse, escapeHtml, safeLink, fallbackMarkdown, normalizeLatexDelimiters };
+    return;
+  }
+
   // Prevent multiple initializations
   if (window.__SLA_CHATBOT_INITIALIZED__) return;
   window.__SLA_CHATBOT_INITIALIZED__ = true;
@@ -66,6 +195,7 @@
 
   let isOpen = true;
   let isSending = false;
+  let activeRequest = null;
   const conversationHistory = [];
 
   // --- 2.5 Starfield Generator (Gentle, Low-Density Stars in Upper Sky) ---
@@ -131,28 +261,33 @@
   // --- 4. LaTeX & Markdown Parser ---
   function normalizeLatexDelimiters(text) {
     if (!text) return '';
-    return text
-      .replace(/\\\[([\s\S]*?)\\\]/g, '$$$$1$$$')
-      .replace(/\\\(([\s\S]*?)\\\)/g, '$$$1$');
+    // Never rewrite escapes inside generated code (including an unfinished fence).
+    return String(text).replace(
+      /(^|\n)(`{3,}|~{3,})[^\n]*\n[\s\S]*?(?:\n\2[ \t]*(?=\n|$)|$)|(`+)[\s\S]*?\3|\\\[([\s\S]*?)\\\]|\\\(([\s\S]*?)\\\)/g,
+      (match, prefix, fence, ticks, displayMath, inlineMath) => {
+        if (displayMath !== undefined) return '$$' + displayMath + '$$';
+        if (inlineMath !== undefined) return '$' + inlineMath + '$';
+        return match;
+      }
+    );
   }
 
-  function renderFormattedContent(element, rawMarkdown) {
+  function renderFormattedContent(element, rawMarkdown, streaming = false) {
     const normalized = normalizeLatexDelimiters(rawMarkdown);
 
-    let parsedHtml = normalized;
-    if (window.marked && typeof window.marked.parse === 'function') {
-      parsedHtml = window.marked.parse(normalized);
-    } else {
-      parsedHtml = normalized.replace(/\n\n/g, '<br><br>').replace(/\n/g, '<br>');
-    }
-
-    if (window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') {
-      element.innerHTML = window.DOMPurify.sanitize(parsedHtml, {
-        ADD_ATTR: ['target', 'rel']
+    if (window.marked && typeof window.marked.parse === 'function' &&
+        window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') {
+      element.innerHTML = window.DOMPurify.sanitize(window.marked.parse(normalized), {
+        ADD_ATTR: ['target', 'rel'],
+        FORBID_TAGS: ['style', 'iframe', 'form', 'input', 'button'],
+        FORBID_ATTR: ['style']
       });
     } else {
-      element.innerHTML = parsedHtml;
+      element.innerHTML = fallbackMarkdown(normalized);
     }
+
+    element.querySelectorAll('a[target="_blank"]').forEach(link => { link.rel = 'noopener noreferrer'; });
+    if (streaming) return;
 
     // Enhance Code Blocks with Syntax Headers and Copy Buttons
     element.querySelectorAll('pre code').forEach((codeBlock) => {
@@ -252,12 +387,10 @@
     scrollToBottom();
   }
 
-  function appendAIMessage(data) {
+  function createAssistantRow() {
     if (welcomeHero) welcomeHero.style.display = 'none';
-
     const row = document.createElement('div');
     row.className = 'sla-msg-row sla-ai';
-
     const avatar = document.createElement('div');
     avatar.className = 'sla-msg-avatar';
     avatar.innerHTML = `
@@ -269,14 +402,25 @@
 
     const bubble = document.createElement('div');
     bubble.className = 'sla-msg-bubble';
+    row.appendChild(bubble);
+    messagesContainer.appendChild(row);
+    return row;
+  }
 
-    // 0. Internet Fallback Label / Badge (Visual Distinction from Site Results)
-    if (data.isWebSearch || data.sourceLabel) {
+  function appendAIMessage(data, existingRow) {
+    const row = existingRow || createAssistantRow();
+    const bubble = row.querySelector('.sla-msg-bubble');
+    bubble.innerHTML = '';
+    const webSources = Array.isArray(data.webSources)
+      ? data.webSources.filter(source => source && safeLink(source.url, true)) : [];
+
+    // Show provenance only when the server actually supplied sources.
+    if (webSources.length) {
       const webBadge = document.createElement('div');
       webBadge.className = 'sla-web-search-badge';
       webBadge.innerHTML = `
         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
-        <span>${data.sourceLabel || 'From the web — not from Semester Library'}</span>
+        <span>Web search</span>
       `;
       bubble.appendChild(webBadge);
     }
@@ -288,7 +432,7 @@
     bubble.appendChild(textContent);
 
     // Web Search Citations & Verification Links (if grounded search returned citations)
-    if (data.webSources && data.webSources.length > 0) {
+    if (webSources.length > 0) {
       const sourcesWrap = document.createElement('div');
       sourcesWrap.className = 'sla-web-sources-section';
       sourcesWrap.innerHTML = `
@@ -299,15 +443,15 @@
         <div class="sla-web-sources-list"></div>
       `;
       const listEl = sourcesWrap.querySelector('.sla-web-sources-list');
-      data.webSources.forEach(src => {
+      webSources.forEach(src => {
         const a = document.createElement('a');
         a.className = 'sla-web-source-pill';
         a.href = src.url;
         a.target = '_blank';
         a.rel = 'noopener noreferrer';
         a.innerHTML = `
-          <span class="sla-web-source-title">${src.title || src.domain || 'Source'}</span>
-          <span class="sla-web-source-domain">${src.domain || ''}</span>
+          <span class="sla-web-source-title">${escapeHtml(src.title || src.domain || 'Source')}</span>
+          <span class="sla-web-source-domain">${escapeHtml(src.domain || '')}</span>
           <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
         `;
         listEl.appendChild(a);
@@ -342,11 +486,6 @@
         return 'DOC';
       }
 
-      function escapeHtml(str) {
-        if (!str) return '';
-        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-      }
-
       data.matchedFiles.forEach(f => {
         const item = document.createElement('div');
         item.className = 'clean-file-item sla-clean-file-item';
@@ -363,8 +502,8 @@
             </div>
           </div>
           <div class="clean-file-actions">
-            <a href="/api/files/${f.id}/view" target="_blank" class="btn-file-action btn-file-view">View</a>
-            <a href="/api/files/${f.id}/download" download="${escapeHtml(f.originalName || 'file')}" target="_blank" class="btn-file-action btn-file-get">Get</a>
+            <a href="/api/files/${encodeURIComponent(f.id)}/view" target="_blank" rel="noopener noreferrer" class="btn-file-action btn-file-view">View</a>
+            <a href="/api/files/${encodeURIComponent(f.id)}/download" download="${escapeHtml(f.originalName || 'file')}" target="_blank" rel="noopener noreferrer" class="btn-file-action btn-file-get">Get</a>
           </div>
         `;
         list.appendChild(item);
@@ -396,13 +535,13 @@
 
         card.innerHTML = `
           <div class="sla-syllabus-card-header">
-            <span class="sla-syllabus-code">${c.code || 'COURSE'}</span>
-            <span class="sla-syllabus-sem">Semester ${c.semester}</span>
-            <span class="sla-syllabus-credits">${c.credit} Credits</span>
+            <span class="sla-syllabus-code">${escapeHtml(c.code || 'COURSE')}</span>
+            <span class="sla-syllabus-sem">Semester ${escapeHtml(c.semester)}</span>
+            <span class="sla-syllabus-credits">${escapeHtml(c.credit)} Credits</span>
           </div>
           <div class="sla-syllabus-card-body">
-            <h4 class="sla-syllabus-title">${c.title}</h4>
-            <p class="sla-syllabus-nature">${c.nature || 'Core Curriculum'}</p>
+            <h4 class="sla-syllabus-title">${escapeHtml(c.title)}</h4>
+            <p class="sla-syllabus-nature">${escapeHtml(c.nature || 'Core Curriculum')}</p>
           </div>
           <div class="sla-syllabus-card-footer">
             <a href="${syllabusLink}" class="sla-syllabus-link">
@@ -457,16 +596,16 @@
 
         item.innerHTML = `
           <div class="sla-routine-date-box">
-            <span class="sla-routine-day">${day}</span>
-            <span class="sla-routine-month">${monthYear}</span>
+            <span class="sla-routine-day">${escapeHtml(day)}</span>
+            <span class="sla-routine-month">${escapeHtml(monthYear)}</span>
           </div>
           <div class="sla-routine-info">
             <div class="sla-routine-tags">
-              <span class="sla-routine-sem-tag">Semester ${r.semester}</span>
-              ${codeOrTime.startsWith('CIT') || codeOrTime.startsWith('BSM') || codeOrTime.startsWith('ELX') || codeOrTime.startsWith('BCT') ? `<span class="sla-routine-code-tag">${codeOrTime}</span>` : ''}
+              <span class="sla-routine-sem-tag">Semester ${escapeHtml(r.semester)}</span>
+              ${codeOrTime.startsWith('CIT') || codeOrTime.startsWith('BSM') || codeOrTime.startsWith('ELX') || codeOrTime.startsWith('BCT') ? `<span class="sla-routine-code-tag">${escapeHtml(codeOrTime)}</span>` : ''}
             </div>
-            <h4 class="sla-routine-title">${r.subject}</h4>
-            <p class="sla-routine-time-sub">${r.type || 'Examination'}${r.day ? ' · ' + r.day : ''}</p>
+            <h4 class="sla-routine-title">${escapeHtml(r.subject)}</h4>
+            <p class="sla-routine-time-sub">${escapeHtml(r.type || 'Examination')}${r.day ? ' · ' + escapeHtml(r.day) : ''}</p>
           </div>
           <a href="${routineUrl}" class="sla-routine-open-btn" title="Open Routine Page">
             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
@@ -483,10 +622,11 @@
       const actionsRow = document.createElement('div');
       actionsRow.className = 'sla-actions-row';
       data.actions.forEach(act => {
+        if (!act || !safeLink(act.url)) return;
         const btn = document.createElement('a');
         btn.className = 'sla-action-pill';
         btn.href = act.url;
-        btn.innerHTML = `<span>${act.label}</span> &rarr;`;
+        btn.innerHTML = `<span>${escapeHtml(act.label)}</span> &rarr;`;
         actionsRow.appendChild(btn);
       });
       bubble.appendChild(actionsRow);
@@ -497,17 +637,18 @@
     actionsBar.className = 'sla-msg-actions-bar';
 
     let badgeHtml = '';
-    if (data.isWebSearch) {
-      const bText = (data.webSources && data.webSources.length > 0) ? 'Web Grounded' : 'Web Fallback';
+    if (webSources.length) {
       badgeHtml = `
         <div class="sla-citation-badge sla-badge-web">
-          <span>${bText}</span>
+          <span>Web Sources</span>
         </div>
       `;
-    } else {
+    } else if ((data.matchedFiles && data.matchedFiles.length) ||
+               (data.matchedCourses && data.matchedCourses.length) ||
+               (data.matchedRoutine && data.matchedRoutine.length)) {
       badgeHtml = `
         <div class="sla-citation-badge">
-          <span>Library Grounded</span>
+          <span>Library Sources</span>
         </div>
       `;
     }
@@ -534,9 +675,8 @@
     });
 
     bubble.appendChild(actionsBar);
-    row.appendChild(bubble);
-    messagesContainer.appendChild(row);
     scrollToBottom();
+    return row;
   }
 
   function showTypingIndicator() {
@@ -570,6 +710,17 @@
   }
 
   // --- 6. Message Submission Handler ---
+  function cancelActiveRequest() {
+    if (!activeRequest) return;
+    activeRequest.controller.abort();
+    if (activeRequest.frame != null) cancelAnimationFrame(activeRequest.frame);
+    clearTimeout(activeRequest.timeout);
+    activeRequest = null;
+    removeTypingIndicator();
+    isSending = false;
+    if (sendBtn) sendBtn.disabled = false;
+  }
+
   async function handleSend(textToSend) {
     const query = (textToSend || (chatInput ? chatInput.value : '')).trim();
     if (!query || isSending) return;
@@ -578,74 +729,100 @@
       chatInput.value = '';
       adjustTextareaHeight();
     }
-
     appendUserMessage(query);
-
     isSending = true;
     if (sendBtn) sendBtn.disabled = true;
     showTypingIndicator();
 
+    const request = { controller: new AbortController(), frame: null, row: null, partial: '', timedOut: false };
+    activeRequest = request;
+    request.timeout = setTimeout(() => {
+      request.timedOut = true;
+      request.controller.abort();
+    }, 90000);
+
+    function finish(data) {
+      if (activeRequest !== request) return;
+      if (request.frame != null) cancelAnimationFrame(request.frame);
+      request.frame = null;
+      removeTypingIndicator();
+      request.row = appendAIMessage(data, request.row);
+    }
+
     try {
       const response = await fetch('/api/ai/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
+        signal: request.controller.signal,
         body: JSON.stringify({
           message: query,
-          history: conversationHistory.slice(-16)
+          history: conversationHistory.slice(-12).map(item => ({ role: item.role, content: item.content.slice(0, 8000) })),
+          stream: true
         })
       });
-
-      removeTypingIndicator();
+      if (activeRequest !== request) return;
 
       if (response.status === 401) {
-        appendAIMessage({
-          reply: 'Your session has expired. Please [sign in again](login.html) to chat with the assistant.',
+        finish({
+          reply: 'Your session has expired. Please [sign in again](login.html) to chat.',
           actions: [{ label: 'Sign In', url: 'login.html' }]
         });
         return;
       }
-
-      if (response.status === 429) {
-        const data = await response.json().catch(() => ({}));
-        appendAIMessage({
-          reply: `⏳ **Hourly Limit Reached**\n\n${data.message || 'You have reached the maximum 20 requests per hour. Please wait a bit before asking again.'}`,
-          actions: [{ label: 'Browse Library', url: 'library.html' }]
-        });
-        return;
-      }
-
       if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        appendAIMessage({
-          reply: `⚠️ ${errData.message || 'Unable to process question. Please try asking in a different way.'}`,
-          actions: [{ label: 'View Syllabus', url: 'syllabus.html' }]
-        });
+        const errorData = await response.json().catch(() => ({}));
+        finish({ reply: errorData.message || (response.status === 429
+          ? 'You’ve reached the chat limit. Try again in a bit.'
+          : 'Couldn’t finish the reply. Please try again.') });
         return;
       }
 
-      const data = await response.json();
-      appendAIMessage(data);
-
-      // Record to multi-turn history
-      conversationHistory.push({ role: 'user', content: query });
-      if (data.reply) {
-        conversationHistory.push({ role: 'assistant', content: data.reply });
-      }
-    } catch (err) {
-      removeTypingIndicator();
-      appendAIMessage({
-        reply: '⚠️ Network connection issue. Please make sure the server is running and try again.',
-        actions: [{ label: 'Refresh Page', url: window.location.href }]
+      const data = await readChatResponse(response, text => {
+        if (activeRequest !== request) return;
+        request.partial += text;
+        if (!request.row) {
+          removeTypingIndicator();
+          request.row = createAssistantRow();
+          const content = document.createElement('div');
+          content.className = 'sla-msg-text';
+          request.row.querySelector('.sla-msg-bubble').appendChild(content);
+        }
+        if (request.frame == null) {
+          request.frame = requestAnimationFrame(() => {
+            request.frame = null;
+            if (activeRequest !== request) return;
+            renderFormattedContent(request.row.querySelector('.sla-msg-text'), request.partial, true);
+            scrollToBottom();
+          });
+        }
       });
+      if (activeRequest !== request) return;
+      finish(data);
+      conversationHistory.push({ role: 'user', content: query.slice(0, 8000) });
+      if (data.reply) conversationHistory.push({ role: 'assistant', content: data.reply.slice(0, 8000) });
+      if (conversationHistory.length > 12) conversationHistory.splice(0, conversationHistory.length - 12);
+    } catch (err) {
+      if (activeRequest !== request) return;
+      const message = request.timedOut ? 'That took too long. Please try again.'
+        : (err instanceof TypeError ? 'Connection lost. Please try again.' : err.message || 'Couldn’t finish the reply. Please try again.');
+      // Keep a partial answer and the failure in one bubble; do not record it as history.
+      finish({ reply: request.partial ? request.partial + '\n\n' + message : message });
     } finally {
-      isSending = false;
-      if (sendBtn) sendBtn.disabled = false;
-      if (chatInput) chatInput.focus();
+      clearTimeout(request.timeout);
+      if (activeRequest === request) {
+        if (request.frame != null) cancelAnimationFrame(request.frame);
+        activeRequest = null;
+        removeTypingIndicator();
+        isSending = false;
+        if (sendBtn) sendBtn.disabled = false;
+        if (chatInput) chatInput.focus();
+      }
     }
   }
 
   // --- 7. Event Listeners & Reset Actions ---
   function resetConversation() {
+    cancelActiveRequest();
     conversationHistory.length = 0;
     messagesContainer.innerHTML = '';
     if (welcomeHero) {
@@ -687,6 +864,8 @@
 
   if (fab) fab.addEventListener('click', () => togglePanel());
   if (closeBtn) closeBtn.addEventListener('click', () => togglePanel(false));
+
+  window.addEventListener('pagehide', cancelActiveRequest);
 
   if (clearBtn) clearBtn.addEventListener('click', resetConversation);
   if (newChatBtn) newChatBtn.addEventListener('click', resetConversation);

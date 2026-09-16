@@ -1,5 +1,5 @@
 // Semester Library Minimal Safe Service Worker for PWA Installation
-const CACHE_NAME = 'semester-library-static-v1';
+const CACHE_NAME = 'semester-library-static-v2';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
@@ -57,7 +57,22 @@ self.addEventListener('fetch', (event) => {
     return; // Pass directly to network
   }
 
-  // 3. For safe static assets (CSS, JS, images, icons, fonts): Stale-While-Revalidate / Network-First
+  // Load current pages and the chat protocol client before falling back offline.
+  // Otherwise a deployed HTML page can keep using an older streaming client.
+  if (req.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname === '/chatbot.js') {
+    event.respondWith(
+      fetch(req).then((response) => {
+        if (response.ok && response.type === 'basic') {
+          const copy = response.clone();
+          event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.put(req, copy)));
+        }
+        return response;
+      }).catch(async () => (await caches.match(req)) || Response.error())
+    );
+    return;
+  }
+
+  // 3. Other static assets can render from cache while refreshing in the background.
   event.respondWith(
     caches.match(req).then((cachedResponse) => {
       const fetchPromise = fetch(req).then((networkResponse) => {
@@ -70,7 +85,7 @@ self.addEventListener('fetch', (event) => {
         return networkResponse;
       }).catch(() => {
         // If offline and no network, return cached response if available
-        return cachedResponse;
+        return cachedResponse || Response.error();
       });
 
       return cachedResponse || fetchPromise;

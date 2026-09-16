@@ -42,7 +42,6 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <link rel="stylesheet" href="style.v4.css">
   <link rel="stylesheet" href="chatbot.css">
   <link rel="stylesheet" href="auth-modal.css">
@@ -105,7 +104,7 @@
             </svg>
           </div>
           <h2 id="slaHeroGreeting">Hi, I am Kyana</h2>
-          <p>Your BIT study companion. Ask me anything about your curriculum, notes, files, or pre-board routine.</p>
+          <p>Your BIT study companion. Ask about notes, code, concepts, or what’s new.</p>
         </div>
       </div>
 
@@ -113,7 +112,7 @@
       <div class="sla-panel-footer">
         <form class="sla-input-capsule" id="slaForm">
           <textarea id="slaInput" class="sla-input-textarea" placeholder="Ask Kyana AI a question…" rows="1"
-            autocomplete="off" maxlength="600"></textarea>
+            autocomplete="off" maxlength="4000"></textarea>
 
           <button type="submit" class="sla-send-btn" id="slaSendBtn" title="Send (Enter)">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"
@@ -125,7 +124,7 @@
         </form>
 
         <div class="sla-disclaimer-text">
-          Grounded in Gandaki University BIT curriculum and uploaded notes.
+          BIT notes, coding help, and live search in one place.
         </div>
       </div>
 

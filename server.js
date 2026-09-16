@@ -6,6 +6,19 @@ const fs = require('fs');
 const multer = require('multer');
 const crypto = require('crypto');
 const db = require('./db');
+const noteSearch = require('./lib/note-search');
+
+async function indexUploadedNote(file) {
+  try {
+    const status = await noteSearch.indexNote(db, file);
+    require('./ai-assistant').invalidateCache(db);
+    return status;
+  } catch (err) {
+    console.error('[Note indexing failed]', file.id, err.code || err.name);
+    return { status: 'failed' };
+  }
+}
+
 const { createClient } = require('@supabase/supabase-js');
 
 // Initialize Supabase Client
@@ -1020,8 +1033,10 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
       `, f.filename, f.originalname, fileTitle, semester, subject, chapter, req.session.studentId, f.size, new Date().toISOString(), previewFilename);
 
       const insertedId = result.lastInsertRowid;
+      const indexing = await indexUploadedNote({id: insertedId, storedName:f.filename, originalName:f.originalname, title:fileTitle, semester, subject, chapter, sizeBytes:f.size});
       results.push({
         id: insertedId,
+        indexing,
         storedName: f.filename,
         originalName: f.originalname,
         title: fileTitle,
@@ -1114,8 +1129,10 @@ app.post('/api/files/record-upload', requireLogin, async (req, res) => {
       `, storedName, originalName, fileTitle, cleanSemester, cleanSubject, cleanChapter, req.session.studentId, sizeBytes, new Date().toISOString(), null);
 
       const insertedId = result.lastInsertRowid;
+      const indexing = await indexUploadedNote({id: insertedId, storedName, originalName, title:fileTitle, semester:cleanSemester, subject:cleanSubject, chapter:cleanChapter, sizeBytes});
       results.push({
         id: insertedId,
+        indexing,
         storedName,
         originalName,
         title: fileTitle
@@ -1246,6 +1263,8 @@ app.delete('/api/files/:id', requireLogin, async (req, res) => {
   await db.run('DELETE FROM file_likes WHERE fileId = ?', fileId);
   await db.run('DELETE FROM file_comments WHERE fileId = ?', fileId);
   await db.run('DELETE FROM files WHERE id = ?', fileId);
+  await noteSearch.removeNoteIndex(db, fileId);
+  require('./ai-assistant').invalidateCache(db);
 
   res.json({ success: true, message: 'Post deleted successfully', fileId: parseInt(fileId) });
 });
@@ -1289,6 +1308,8 @@ app.post('/api/files/:id/delete', requireLogin, async (req, res) => {
   await db.run('DELETE FROM file_likes WHERE fileId = ?', fileId);
   await db.run('DELETE FROM file_comments WHERE fileId = ?', fileId);
   await db.run('DELETE FROM files WHERE id = ?', fileId);
+  await noteSearch.removeNoteIndex(db, fileId);
+  require('./ai-assistant').invalidateCache(db);
 
   res.json({ success: true, message: 'Post deleted successfully', fileId: parseInt(fileId) });
 });
@@ -1349,6 +1370,8 @@ app.post(['/api/library/chapters/delete-files', '/api/library/chapters/files/del
       await db.run('DELETE FROM file_likes WHERE fileId = ?', f.id);
       await db.run('DELETE FROM file_comments WHERE fileId = ?', f.id);
       await db.run('DELETE FROM files WHERE id = ?', f.id);
+      await noteSearch.removeNoteIndex(db, f.id);
+      require('./ai-assistant').invalidateCache(db);
       deletedCount++;
     }
   } catch (err) {
@@ -2271,30 +2294,7 @@ function aiRateLimiter(req, res, next) {
   next();
 }
 
-app.post('/api/ai/chat', aiRateLimiter, async (req, res) => {
-  try {
-    const { message, history } = req.body;
-    if (!message || typeof message !== 'string') {
-      return res.status(400).json({ message: 'Message is required.' });
-    }
-
-    let student = null;
-    if (req.session && req.session.studentId) {
-      student = await db.get('SELECT studentId, name, department, semester FROM students WHERE studentId = ?', req.session.studentId);
-    }
-    const result = await aiAssistant.handleChat(
-      db,
-      message,
-      student || { studentId: 'guest', name: 'Student' },
-      Array.isArray(history) ? history.slice(-16) : [],
-      req.sessionID || `${req.ip || 'guest'}:guest`
-    );
-    res.json(result);
-  } catch (err) {
-    console.error('[API /api/ai/chat Error]:', err.message);
-    res.status(500).json({ message: err.message || 'An error occurred while processing your request.' });
-  }
-});
+app.post('/api/ai/chat', aiRateLimiter, require('./lib/chat-http').createChatHandler(db, aiAssistant));
 
 app.get('/api/ai/suggestions', (req, res) => {
   res.json([

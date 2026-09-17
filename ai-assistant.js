@@ -27,11 +27,13 @@ function loadEnvSafely() {
 }
 loadEnvSafely();
 
+const { resolveChatMode } = require('./lib/chat-mode');
 const { generateReply } = require('./lib/chat-provider');
+const { PERSONALITY_PROMPT, toneInstructions, styleLookupReply } = require('./lib/chat-personality');
 const { TOOLS, createTools, formatToolResult, routeQuery, semesterNumber, SUBJECT_ALIASES, courses } = require('./lib/chat-tools');
 
-const SYSTEM_PROMPT = `You are Kyana, the Semester Library study buddy for BIT students.
-Answer only what the user asks. Be concise, clear, casual and naturally Gen Z; light slang is fine, forced slang is not. No greetings before substantive answers, unsolicited follow-up offers, generic search/training disclaimers, or irrelevant tips.
+const SYSTEM_PROMPT = `${PERSONALITY_PROMPT}
+Answer only what the user asks. Keep answers concise. No unsolicited follow-up offers, generic search/training disclaimers, or irrelevant tips.
 For general academic concepts and code, answer directly from knowledge. Use fenced markdown code blocks with a language tag and working complete examples. Do not over-explain unless asked.
 For uploaded notes, syllabus, routines and campus dates, use ONLY the provided tools. Never invent files, dates, courses or links. Use exact semester and subject filters. If a semester is missing, ask which one; never assume the user's profile semester. Search results are limited to the relevant top 1–3 files. Topic-based matches are related subject notes, not proof a document contains the topic.
 For current news, recent events, latest releases or other changing facts, call web_search before answering. If it fails, briefly say you couldn't check that specific fact; do not answer a current fact from memory or pretend a search happened. Ordinary programming and academic questions do not need live search.
@@ -64,14 +66,21 @@ function addToolResults(result, calls) {
 }
 
 async function handleChat(db, userMessage, studentInfo = {}, history = [], sessionId = 'anonymous', options = {}) {
-  const message = String(userMessage || '').trim().slice(0,8000);
+  const originalMessage = String(userMessage || '').trim().slice(0,8000);
+  const modeState = resolveChatMode(originalMessage, options.chatMode);
+  const chatMode = modeState.mode;
+  const message = modeState.query;
   const { onDelta = () => {}, signal } = options;
   signal?.throwIfAborted();
-  if (!message) return emptyResult('What would you like help with?');
+  if (!message) {
+    const reply = modeState.requested ? (chatMode === 'formal' ? 'Formal mode is on. I’ll keep responses professional until you switch back.' : 'Roast mode is back, bro — tutorial-level questions have been warned 💀') : 'What would you like help with?';
+    onDelta(reply);
+    return {...emptyResult(reply),chatMode};
+  }
   const cleanHistory = Array.isArray(history) ? history.filter(m=>m && ['user','assistant'].includes(m.role) && typeof m.content === 'string').slice(-12).map(m=>({role:m.role,content:m.content.slice(0,6000)})) : [];
   const route = routeQuery(message, cleanHistory);
   const cache = cacheFor(db);
-  const cacheKey = JSON.stringify([route.kind,message.toLowerCase(),route.filters,route.query]);
+  const cacheKey = JSON.stringify([chatMode,route.kind,message,route.filters,route.query]);
   const cacheable = !cleanHistory.length && ['notes','syllabus','routine','direct','web'].includes(route.kind);
   const cached = cacheable && cache.get(cacheKey);
   if (cached && cached.expires > Date.now()) {
@@ -80,7 +89,8 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
   }
   const result = emptyResult();
   result.intent = route.kind;
-  const toolkit = createTools(db, route, {signal, ...options.toolDependencies});
+  result.chatMode = chatMode;
+  const toolkit = createTools(db, route, {signal, chatMode, history:cleanHistory, ...options.toolDependencies});
   if (route.filters.subjects.length > 1 && route.kind !== 'direct' && route.kind !== 'web') {
     result.reply = `Which subject should I use: ${route.filters.subjects.join(' or ')}?`;
     onDelta(result.reply);
@@ -90,12 +100,15 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
   const directTool = {notes:'search_notes',syllabus:'get_syllabus',routine:'get_routine',web:'web_search'}[route.kind];
   if (directTool) {
     const data = await toolkit.executeTool(directTool, {query:route.kind === 'web' ? message : route.query, semester:route.filters.semester, subject:route.filters.subject});
-    result.reply = formatToolResult(directTool, data);
+    result.reply = styleLookupReply(formatToolResult(directTool, data), {
+      message:originalMessage, history:cleanHistory, kind:route.kind, chatMode,
+      successful:!data.error && !data.clarification && Boolean(data.files?.length || data.courses?.length || data.routine?.length)
+    });
     onDelta(result.reply);
   } else {
     const complex = /\b(complex|advanced|architecture|optimi[sz]e|debug|prove|proof|analy[sz]e)\b/i.test(message) || message.length > 1800;
     const generated = await (options.generateReply || generateReply)({
-      message, history:cleanHistory, systemPrompt:SYSTEM_PROMPT,
+      message, history:cleanHistory, systemPrompt:SYSTEM_PROMPT + toneInstructions(originalMessage,cleanHistory,chatMode),
       tools:route.kind === 'direct' ? [] : TOOLS,
       executeTool:toolkit.executeTool, onDelta, signal, complex
     });

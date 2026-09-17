@@ -1607,6 +1607,7 @@ app.post('/api/routine', requireLogin, async (req, res) => {
       'INSERT INTO exam_schedule (subject, examDate, day, time, semester, type) VALUES (?, ?, ?, ?, ?, ?)',
       subject, examDate, dayStr, timeStr, semester, type || 'Pre-board Examination'
     );
+    require('./ai-assistant').invalidateCache(db);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'Failed to add routine' });

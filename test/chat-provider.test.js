@@ -263,3 +263,19 @@ test('tool results are reused if the provider fails before final text and falls 
   assert.equal(executions, 1);
   assert.equal(requests, 4);
 });
+
+test('live search falls back after a Gemini error and requires actual OpenRouter citations', async()=>{
+  const calls=[];
+  const provider=createChatProvider({env:environment,fetchImpl:async(url,request)=>{
+    calls.push(url);
+    if(url.includes('googleapis')) return new Response('',{status:429});
+    const body=JSON.parse(request.body);
+    assert.equal(body.tools[0].type,'openrouter:web_search');
+    assert.equal(body.tools[0].parameters.max_uses,1);
+    return Response.json({choices:[{message:{content:'Current sourced answer.',annotations:[{type:'url_citation',url_citation:{url:'https://example.org/current',title:'Current',content:'Source excerpt'}}]}}],usage:{server_tool_use:{web_search_requests:1}}});
+  }});
+  const result=await provider.webSearch('latest news');
+  assert.equal(calls.length,2);assert.equal(result.provider,'openrouter_web_search');assert.equal(result.results[0].url,'https://example.org/current');
+  const ungrounded=createChatProvider({env:{OPENROUTER_API_KEY:'test'},fetchImpl:async()=>Response.json({choices:[{message:{content:'Unsourced claim.'}}]})});
+  await assert.rejects(ungrounded.webSearch('latest news'),{code:'SEARCH_UNAVAILABLE'});
+});

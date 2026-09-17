@@ -102,3 +102,34 @@ test('live queries search once and carry only actual returned citations',async()
   const failed=await handleChat({},'latest Java release',{},[],'test',{toolDependencies:{webSearch:async()=>{throw Error('offline');}}});
   assert.equal(failed.isWebSearch,false);assert.match(failed.reply,/Couldn’t check/);
 });
+
+test('explicit web requests and current event queries cannot bypass live search',()=>{
+  assert.equal(routeQuery('Search the web for Kubernetes releases').kind,'web');
+  assert.equal(routeQuery('Who won the 2026 World Cup?').kind,'web');
+  assert.equal(routeQuery("Write JavaScript code showing today's date").kind,'direct');
+  assert.equal(routeQuery('write a C program to print 2026').kind,'direct');
+});
+test('model cannot invent an omitted semester or subject in tool calls',async()=>{
+  const db={all:()=>{throw Error('No database query expected');}};
+  const toolkit=createTools(db,routeQuery('syllabus and routine'));
+  assert.match((await toolkit.executeTool('get_syllabus',{semester:3})).clarification,/Which semester/);
+  assert.match((await toolkit.executeTool('get_routine',{semester:4})).clarification,/Which semester/);
+});
+test('case-sensitive code is not reused from a different cache entry',async()=>{
+  const db={};let calls=0;
+  const generateReply=async({message})=>{calls++;return {reply:message};};
+  await handleChat(db,'write code to print Foo',{},[],'test',{generateReply});
+  await handleChat(db,'write code to print foo',{},[],'test',{generateReply});
+  assert.equal(calls,2);
+});
+test('provider cancellation reaches live search tools',async()=>{
+  const controller=new AbortController();let received;
+  const toolkit=createTools({},routeQuery('latest releases'),{webSearch:async(q,{signal})=>{received=signal;return {results:[],summary:''};}});
+  await toolkit.executeTool('web_search',{query:'latest releases'},{signal:controller.signal});
+  controller.abort();assert.equal(received.aborted,true);
+});
+test('syllabus links keep the correct academic year and semester route',async()=>{
+  const result=await handleChat({},'semester 5 syllabus');
+  assert.ok(result.matchedCourses.every(c=>c.year==='Year 3' && c.semester==='V'));
+  assert.match(result.reply,/syllabus\.html#Year%203\/V/);
+});

@@ -2416,7 +2416,7 @@ ${jsCode}
       term.clear();
       term.writeln(`\x1b[36m➜ Starting ${currentMode.toUpperCase()} interactive session...\x1b[0m\r\n`);
       setTimeout(() => { if (term) term.focus(); }, 100);
-      const wsUrl = `ws://129.225.199.106:3001/api/compiler/live`;
+      const wsUrl = `wss://slcompiler.duckdns.org/api/compiler/live`;
       if (liveWs) {
         try { liveWs.close(); } catch (_) { }
       }

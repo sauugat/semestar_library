@@ -5,7 +5,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Code Compiler — Semester Library</title>
-  <meta name="description" content="Minimalist Apple-inspired code compiler. Compile Java, C, or build HTML, CSS, and JS web projects live.">
+  <meta name="description"
+    content="Minimalist Apple-inspired code compiler. Compile Java, C, or build HTML, CSS, and JS web projects live.">
 
   <!-- Web App Manifest & iOS PWA Metadata -->
   <link rel="manifest" href="/manifest.json">
@@ -19,7 +20,9 @@
   <!-- Typography: Apple SF Pro System Stack + Plus Jakarta Sans + JetBrains Mono for Code -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet">
   <link rel="stylesheet" href="style.v4.css">
   <link rel="stylesheet" href="auth-modal.css">
 
@@ -48,18 +51,18 @@
     :root {
       --sf-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "SF Pro", "Inter", sans-serif;
       --mono-font: "JetBrains Mono", "SF Mono", Menlo, Monaco, Consolas, monospace;
-      
+
       --app-bg: #fafafc;
       --surface: #ffffff;
       --surface-subtle: #f5f5f7;
       --surface-hover: #ebebee;
       --border-subtle: rgba(0, 0, 0, 0.08);
       --border-medium: rgba(0, 0, 0, 0.14);
-      
+
       --text-main: #1d1d1f;
       --text-sub: #6e6e73;
       --text-muted: #86868b;
-      
+
       --color-black: #000000;
       --color-black-hover: #1c1c1e;
       --color-html: #ff5a5f;
@@ -67,19 +70,21 @@
       --color-js: #f5a623;
       --color-green: #34c759;
       --color-red: #ff3b30;
-      
+
       --shadow-apple-sm: 0 2px 8px rgba(0, 0, 0, 0.03), 0 1px 2px rgba(0, 0, 0, 0.02);
       --shadow-apple-card: 0 2px 10px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(0, 0, 0, 0.06);
-      
+
       --radius-sm: 8px;
       --radius-md: 12px;
       --radius-lg: 16px;
       --radius-pill: 980px;
-      
+
       --spring: cubic-bezier(0.25, 1, 0.5, 1);
     }
 
-    *, *::before, *::after {
+    *,
+    *::before,
+    *::after {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
@@ -274,6 +279,7 @@
         opacity: 0;
         transform: translateY(-6px) scale(0.98);
       }
+
       to {
         opacity: 1;
         transform: translateY(0) scale(1);
@@ -394,7 +400,9 @@
     }
 
     @keyframes spin {
-      to { transform: rotate(360deg); }
+      to {
+        transform: rotate(360deg);
+      }
     }
 
     /* Secondary Toggle Controls */
@@ -499,9 +507,17 @@
       opacity: 1;
     }
 
-    .pane-chip .dot-html { background: var(--color-html); }
-    .pane-chip .dot-css { background: var(--color-css); }
-    .pane-chip .dot-js { background: var(--color-js); }
+    .pane-chip .dot-html {
+      background: var(--color-html);
+    }
+
+    .pane-chip .dot-css {
+      background: var(--color-css);
+    }
+
+    .pane-chip .dot-js {
+      background: var(--color-js);
+    }
 
     .pane-quick-presets {
       display: flex;
@@ -606,11 +622,25 @@
       display: inline-block;
     }
 
-    .dot-html { background: var(--color-html); }
-    .dot-css { background: var(--color-css); }
-    .dot-js { background: var(--color-js); }
-    .dot-java { background: #e76f51; }
-    .dot-c { background: #457b9d; }
+    .dot-html {
+      background: var(--color-html);
+    }
+
+    .dot-css {
+      background: var(--color-css);
+    }
+
+    .dot-js {
+      background: var(--color-js);
+    }
+
+    .dot-java {
+      background: #e76f51;
+    }
+
+    .dot-c {
+      background: #457b9d;
+    }
 
     .pane-title {
       font-size: 12px;
@@ -676,20 +706,65 @@
     }
 
     /* Syntax Highlighting */
-    .cm-s-default .cm-keyword { color: #d73a49; font-weight: 600; }
-    .cm-s-default .cm-atom { color: #005cc5; }
-    .cm-s-default .cm-number { color: #005cc5; }
-    .cm-s-default .cm-def { color: #6f42c1; font-weight: 600; }
-    .cm-s-default .cm-variable { color: #24292e; }
-    .cm-s-default .cm-variable-2 { color: #005cc5; }
-    .cm-s-default .cm-property { color: #005cc5; }
-    .cm-s-default .cm-operator { color: #d73a49; }
-    .cm-s-default .cm-comment { color: #86868b; font-style: italic; }
-    .cm-s-default .cm-string { color: #032f62; }
-    .cm-s-default .cm-string-2 { color: #032f62; }
-    .cm-s-default .cm-meta { color: #6f42c1; }
-    .cm-s-default .cm-tag { color: #22863a; font-weight: 600; }
-    .cm-s-default .cm-attribute { color: #6f42c1; }
+    .cm-s-default .cm-keyword {
+      color: #d73a49;
+      font-weight: 600;
+    }
+
+    .cm-s-default .cm-atom {
+      color: #005cc5;
+    }
+
+    .cm-s-default .cm-number {
+      color: #005cc5;
+    }
+
+    .cm-s-default .cm-def {
+      color: #6f42c1;
+      font-weight: 600;
+    }
+
+    .cm-s-default .cm-variable {
+      color: #24292e;
+    }
+
+    .cm-s-default .cm-variable-2 {
+      color: #005cc5;
+    }
+
+    .cm-s-default .cm-property {
+      color: #005cc5;
+    }
+
+    .cm-s-default .cm-operator {
+      color: #d73a49;
+    }
+
+    .cm-s-default .cm-comment {
+      color: #86868b;
+      font-style: italic;
+    }
+
+    .cm-s-default .cm-string {
+      color: #032f62;
+    }
+
+    .cm-s-default .cm-string-2 {
+      color: #032f62;
+    }
+
+    .cm-s-default .cm-meta {
+      color: #6f42c1;
+    }
+
+    .cm-s-default .cm-tag {
+      color: #22863a;
+      font-weight: 600;
+    }
+
+    .cm-s-default .cm-attribute {
+      color: #6f42c1;
+    }
 
     /* ── Live Preview & Output Section ────────────────────── */
     .studio-preview-card {
@@ -821,9 +896,20 @@
       flex-shrink: 0;
     }
 
-    .console-level-badge.log { background: rgba(255, 255, 255, 0.15); color: #fff; }
-    .console-level-badge.warn { background: rgba(255, 149, 0, 0.25); color: #ff9f0a; }
-    .console-level-badge.error { background: rgba(255, 69, 58, 0.25); color: #ff453a; }
+    .console-level-badge.log {
+      background: rgba(255, 255, 255, 0.15);
+      color: #fff;
+    }
+
+    .console-level-badge.warn {
+      background: rgba(255, 149, 0, 0.25);
+      color: #ff9f0a;
+    }
+
+    .console-level-badge.error {
+      background: rgba(255, 69, 58, 0.25);
+      color: #ff453a;
+    }
 
     .console-msg {
       flex: 1;
@@ -924,12 +1010,35 @@
       text-transform: uppercase;
       transition: all 0.2s;
     }
-    .status-badge.hidden { display: none; }
-    .status-badge.success  { background: rgba(48, 209, 88,  0.18); color: #30d158; }
-    .status-badge.compile  { background: rgba(255, 214, 10, 0.18); color: #ffd60a; }
-    .status-badge.runtime  { background: rgba(255, 69,  58,  0.18); color: #ff453a; }
-    .status-badge.tle      { background: rgba(255, 159, 10, 0.18); color: #ff9f0a; }
-    .status-badge.error    { background: rgba(142, 142, 147, 0.18); color: #aeaeb2; }
+
+    .status-badge.hidden {
+      display: none;
+    }
+
+    .status-badge.success {
+      background: rgba(48, 209, 88, 0.18);
+      color: #30d158;
+    }
+
+    .status-badge.compile {
+      background: rgba(255, 214, 10, 0.18);
+      color: #ffd60a;
+    }
+
+    .status-badge.runtime {
+      background: rgba(255, 69, 58, 0.18);
+      color: #ff453a;
+    }
+
+    .status-badge.tle {
+      background: rgba(255, 159, 10, 0.18);
+      color: #ff9f0a;
+    }
+
+    .status-badge.error {
+      background: rgba(142, 142, 147, 0.18);
+      color: #aeaeb2;
+    }
 
     .terminal-header-right {
       display: flex;
@@ -992,9 +1101,17 @@
     }
 
     @keyframes stopPulse {
-      0% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.6); }
-      70% { box-shadow: 0 0 0 10px rgba(255, 59, 48, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0); }
+      0% {
+        box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.6);
+      }
+
+      70% {
+        box-shadow: 0 0 0 10px rgba(255, 59, 48, 0);
+      }
+
+      100% {
+        box-shadow: 0 0 0 0 rgba(255, 59, 48, 0);
+      }
     }
 
     /* Output panels */
@@ -1015,8 +1132,12 @@
       white-space: pre-wrap;
       word-break: break-word;
     }
-    .output-panel:empty { display: none; }
-    .output-panel + .output-panel {
+
+    .output-panel:empty {
+      display: none;
+    }
+
+    .output-panel+.output-panel {
       border-top: 1px solid rgba(255, 255, 255, 0.07);
     }
 
@@ -1033,33 +1154,73 @@
       margin-bottom: 8px;
     }
 
-    #outStdout { color: #e8e8ed; background: #111111; }
-    #outStdout .output-label { background: rgba(48,209,88,0.18); color: #30d158; }
+    #outStdout {
+      color: #e8e8ed;
+      background: #111111;
+    }
 
-    #outStderr { color: #ff6b6b; background: #1a0f0f; }
-    #outStderr .output-label { background: rgba(255,69,58,0.18); color: #ff453a; }
+    #outStdout .output-label {
+      background: rgba(48, 209, 88, 0.18);
+      color: #30d158;
+    }
 
-    #outError  { color: #ffd60a; background: #15110a; }
-    #outError  .output-label { background: rgba(255,214,10,0.18); color: #ffd60a; }
+    #outStderr {
+      color: #ff6b6b;
+      background: #1a0f0f;
+    }
 
-    #outIdle   { color: #636366; background: #111111; padding: 24px 16px; text-align: center;
-                 font-family: var(--sf-font); font-size: 12.5px; }
+    #outStderr .output-label {
+      background: rgba(255, 69, 58, 0.18);
+      color: #ff453a;
+    }
+
+    #outError {
+      color: #ffd60a;
+      background: #15110a;
+    }
+
+    #outError .output-label {
+      background: rgba(255, 214, 10, 0.18);
+      color: #ffd60a;
+    }
+
+    #outIdle {
+      color: #636366;
+      background: #111111;
+      padding: 24px 16px;
+      text-align: center;
+      font-family: var(--sf-font);
+      font-size: 12.5px;
+    }
 
     /* ── Responsive Adaptations ────────────────────────────── */
     @media (max-width: 860px) {
+
       .web-flexible-grid,
       .web-flexible-grid.cols-2,
       .web-flexible-grid.cols-3 {
         grid-template-columns: 1fr;
       }
-      .CodeMirror { height: 240px; }
-      .preview-viewport-wrap { height: 300px; }
+
+      .CodeMirror {
+        height: 240px;
+      }
+
+      .preview-viewport-wrap {
+        height: 300px;
+      }
+
       .studio-controls-bar,
       .pane-selector-bar,
-      .studio-workspace { padding-left: 16px; padding-right: 16px; }
+      .studio-workspace {
+        padding-left: 16px;
+        padding-right: 16px;
+      }
     }
 
-    #singleWorkspace .CodeMirror { height: 380px; }
+    #singleWorkspace .CodeMirror {
+      height: 380px;
+    }
 
     /* ── Dark Mode (data-theme='dark') ────────────────────── */
     [data-theme='dark'] {
@@ -1067,43 +1228,107 @@
       --surface: #1c1c1e;
       --surface-subtle: #2c2c2e;
       --surface-hover: #3a3a3c;
-      --border-subtle: rgba(255,255,255,0.09);
-      --border-medium: rgba(255,255,255,0.16);
+      --border-subtle: rgba(255, 255, 255, 0.09);
+      --border-medium: rgba(255, 255, 255, 0.16);
       --text-main: #f5f5f7;
       --text-sub: #98989d;
       --text-muted: #636366;
       --color-black: #f5f5f7;
       --color-black-hover: #e0e0e8;
-      --shadow-apple-sm: 0 2px 8px rgba(0,0,0,0.3);
-      --shadow-apple-card: 0 2px 10px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.06);
+      --shadow-apple-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+      --shadow-apple-card: 0 2px 10px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.06);
     }
-    [data-theme='dark'] body { color: #f5f5f7; }
+
+    [data-theme='dark'] body {
+      color: #f5f5f7;
+    }
+
     [data-theme='dark'] .dash-header {
-      background: rgba(28,28,30,0.92) !important;
-      border-color: rgba(255,255,255,0.09) !important;
+      background: rgba(28, 28, 30, 0.92) !important;
+      border-color: rgba(255, 255, 255, 0.09) !important;
     }
+
     [data-theme='dark'] .pane-header,
-    [data-theme='dark'] .lang-slidedown-menu { background: #2c2c2e; }
+    [data-theme='dark'] .lang-slidedown-menu {
+      background: #2c2c2e;
+    }
+
     [data-theme='dark'] .CodeMirror,
-    [data-theme='dark'] .CodeMirror-gutters { background: #1c1c1e !important; color: #dde1e9 !important; }
-    [data-theme='dark'] .CodeMirror-linenumber { color: #555 !important; }
-    [data-theme='dark'] .stdin-card textarea { color: #dde1e9; background: #1c1c1e; }
-    [data-theme='dark'] .lang-dropdown-trigger { background: #2c2c2e; color: #f5f5f7; }
-    [data-theme='dark'] .btn-run-black { background: #f5f5f7; color: #111113; }
-    [data-theme='dark'] .btn-run-black:hover { background: #e0e0e8; }
-    [data-theme='dark'] .btn-toggle-subtle { background: #2c2c2e; color: #98989d; border-color: rgba(255,255,255,0.1); }
-    [data-theme='dark'] .btn-toggle-subtle.active { background: #3a3a3c; color: #f5f5f7; }
+    [data-theme='dark'] .CodeMirror-gutters {
+      background: #1c1c1e !important;
+      color: #dde1e9 !important;
+    }
+
+    [data-theme='dark'] .CodeMirror-linenumber {
+      color: #555 !important;
+    }
+
+    [data-theme='dark'] .stdin-card textarea {
+      color: #dde1e9;
+      background: #1c1c1e;
+    }
+
+    [data-theme='dark'] .lang-dropdown-trigger {
+      background: #2c2c2e;
+      color: #f5f5f7;
+    }
+
+    [data-theme='dark'] .btn-run-black {
+      background: #f5f5f7;
+      color: #111113;
+    }
+
+    [data-theme='dark'] .btn-run-black:hover {
+      background: #e0e0e8;
+    }
+
+    [data-theme='dark'] .btn-toggle-subtle {
+      background: #2c2c2e;
+      color: #98989d;
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    [data-theme='dark'] .btn-toggle-subtle.active {
+      background: #3a3a3c;
+      color: #f5f5f7;
+    }
 
     /* Dark-mode: editor syntax colours */
-    [data-theme='dark'] .cm-s-default .cm-keyword   { color: #ff7b72; }
-    [data-theme='dark'] .cm-s-default .cm-number    { color: #79c0ff; }
-    [data-theme='dark'] .cm-s-default .cm-def       { color: #d2a8ff; }
-    [data-theme='dark'] .cm-s-default .cm-string    { color: #a5d6ff; }
-    [data-theme='dark'] .cm-s-default .cm-comment   { color: #8b949e; }
-    [data-theme='dark'] .cm-s-default .cm-operator  { color: #ff7b72; }
-    [data-theme='dark'] .cm-s-default .cm-variable  { color: #dde1e9; }
-    [data-theme='dark'] .cm-s-default .cm-variable-2 { color: #79c0ff; }
-    [data-theme='dark'] .cm-s-default .cm-atom      { color: #79c0ff; }
+    [data-theme='dark'] .cm-s-default .cm-keyword {
+      color: #ff7b72;
+    }
+
+    [data-theme='dark'] .cm-s-default .cm-number {
+      color: #79c0ff;
+    }
+
+    [data-theme='dark'] .cm-s-default .cm-def {
+      color: #d2a8ff;
+    }
+
+    [data-theme='dark'] .cm-s-default .cm-string {
+      color: #a5d6ff;
+    }
+
+    [data-theme='dark'] .cm-s-default .cm-comment {
+      color: #8b949e;
+    }
+
+    [data-theme='dark'] .cm-s-default .cm-operator {
+      color: #ff7b72;
+    }
+
+    [data-theme='dark'] .cm-s-default .cm-variable {
+      color: #dde1e9;
+    }
+
+    [data-theme='dark'] .cm-s-default .cm-variable-2 {
+      color: #79c0ff;
+    }
+
+    [data-theme='dark'] .cm-s-default .cm-atom {
+      color: #79c0ff;
+    }
 
     /* ── Minimalist Toast ──────────────────────────────────── */
     .studio-toast {
@@ -1123,9 +1348,13 @@
       pointer-events: none;
       transition: all 0.25s var(--spring);
       z-index: 999;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
     }
-    .studio-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    .studio-toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
   </style>
 </head>
 
@@ -1135,9 +1364,10 @@
   <header class="dash-header">
     <a href="compiler.html" class="lib-wordmark">
       <div class="compiler-brand-icon">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="16 18 22 12 16 6"/>
-          <polyline points="8 6 2 12 8 18"/>
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4"
+          stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="16 18 22 12 16 6" />
+          <polyline points="8 6 2 12 8 18" />
         </svg>
       </div>
       <span>Code Compiler</span>
@@ -1166,9 +1396,13 @@
     <!-- Language Slide-Down Selector -->
     <div class="lang-dropdown-wrapper" id="langDropdownWrapper">
       <div class="lang-label-prefix">Language:</div>
-      <button class="lang-dropdown-trigger" id="langDropdownTrigger" type="button" aria-haspopup="true" aria-expanded="false">
+      <button class="lang-dropdown-trigger" id="langDropdownTrigger" type="button" aria-haspopup="true"
+        aria-expanded="false">
         <span class="lang-trigger-text" id="triggerText">Java</span>
-        <svg class="lang-chevron" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="6 9 12 15 18 9"/></svg>
+        <svg class="lang-chevron" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor"
+          stroke-width="2.2">
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
       </button>
 
       <!-- Slide-down Menu (Java -> C -> HTML • CSS • JS) -->
@@ -1180,7 +1414,10 @@
               <span class="lang-item-desc">JDK 17 Compiler</span>
             </div>
           </div>
-          <svg class="lang-check-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          <svg class="lang-check-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+            stroke-width="2.5">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
         </div>
 
         <div class="lang-menu-item" data-mode="c" role="option">
@@ -1190,7 +1427,10 @@
               <span class="lang-item-desc">GCC — C17</span>
             </div>
           </div>
-          <svg class="lang-check-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          <svg class="lang-check-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+            stroke-width="2.5">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
         </div>
 
         <div class="lang-menu-item" data-mode="cpp" role="option">
@@ -1200,7 +1440,10 @@
               <span class="lang-item-desc">G++ — C++17</span>
             </div>
           </div>
-          <svg class="lang-check-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          <svg class="lang-check-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+            stroke-width="2.5">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
         </div>
 
         <div class="lang-menu-item" data-mode="python" role="option">
@@ -1210,7 +1453,10 @@
               <span class="lang-item-desc">Python 3 Interpreter</span>
             </div>
           </div>
-          <svg class="lang-check-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          <svg class="lang-check-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+            stroke-width="2.5">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
         </div>
 
         <div class="lang-menu-item" data-mode="web" role="option">
@@ -1220,7 +1466,10 @@
               <span class="lang-item-desc">Web Studio & Live Preview</span>
             </div>
           </div>
-          <svg class="lang-check-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          <svg class="lang-check-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+            stroke-width="2.5">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
         </div>
       </div>
     </div>
@@ -1229,38 +1478,66 @@
     <div class="studio-actions-group">
       <!-- Format Button -->
       <button class="btn-toggle-subtle" id="formatCodeBtn" title="Format code">
-        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h10M4 18h14"/></svg>
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M4 6h16M4 12h10M4 18h14" />
+        </svg>
         <span>Format</span>
       </button>
 
       <!-- Auto Run toggle (Web Mode) -->
-      <button class="btn-toggle-subtle active" id="autoRunBtn" style="display: none;" title="Automatically refresh preview when typing">
-        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+      <button class="btn-toggle-subtle active" id="autoRunBtn" style="display: none;"
+        title="Automatically refresh preview when typing">
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="23 4 23 10 17 10" />
+          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+        </svg>
         <span>Auto Run</span>
       </button>
 
       <!-- Stdin toggle (Java/C Mode) -->
       <button class="btn-toggle-subtle" id="stdinToggleBtn" title="Toggle standard input">
-        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h16M4 6h16M4 18h10"/></svg>
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M4 12h16M4 6h16M4 18h10" />
+        </svg>
         <span>Stdin</span>
       </button>
 
       <!-- Save Code -->
       <button class="btn-toggle-subtle" id="saveCodeBtn" title="Save code to browser">
-        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+          <polyline points="17 21 17 13 7 13 7 21" />
+          <polyline points="7 3 7 8 15 8" />
+        </svg>
         <span>Save</span>
       </button>
 
       <!-- Dark/Light Theme Toggle -->
       <button class="btn-toggle-subtle" id="themeToggleBtn" title="Toggle dark/light theme">
-        <svg id="themeIconMoon" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-        <svg id="themeIconSun" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        <svg id="themeIconMoon" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor"
+          stroke-width="2">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+        </svg>
+        <svg id="themeIconSun" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor"
+          stroke-width="2" style="display:none">
+          <circle cx="12" cy="12" r="5" />
+          <line x1="12" y1="1" x2="12" y2="3" />
+          <line x1="12" y1="21" x2="12" y2="23" />
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+          <line x1="1" y1="12" x2="3" y2="12" />
+          <line x1="21" y1="12" x2="23" y2="12" />
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+        </svg>
         <span id="themeLabel">Dark</span>
       </button>
 
       <!-- Black Apple Run Button -->
       <button class="btn-run-black" id="primaryRunBtn" title="Run Code (Cmd+Enter)">
-        <svg class="run-icon" viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><polygon points="6,3 20,12 6,21"/></svg>
+        <svg class="run-icon" viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
+          <polygon points="6,3 20,12 6,21" />
+        </svg>
         <span class="spinner"></span>
         <span>Run</span>
       </button>
@@ -1352,21 +1629,34 @@
         <div class="preview-header">
           <div class="preview-tabs">
             <button class="preview-tab-btn active" id="tabPreviewBtn" onclick="switchPreviewTab('preview')">
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10" />
+                <polygon points="10 8 16 12 10 16 10 8" />
+              </svg>
               Live Preview
             </button>
             <button class="preview-tab-btn" id="tabConsoleBtn" onclick="switchPreviewTab('console')">
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="4 17 10 11 4 5" />
+                <line x1="12" y1="19" x2="20" y2="19" />
+              </svg>
               Console
               <span class="log-count-chip" id="consoleCountChip">0</span>
             </button>
           </div>
           <div class="preview-actions">
             <button class="btn-icon-subtle" onclick="reloadPreview()" title="Reload Preview">
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="23 4 23 10 17 10" />
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+              </svg>
             </button>
             <button class="btn-icon-subtle" onclick="clearConsoleLogs()" title="Clear Console">
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="15" y1="9" x2="9" y2="15" />
+                <line x1="9" y1="9" x2="15" y2="15" />
+              </svg>
             </button>
           </div>
         </div>
@@ -1378,7 +1668,8 @@
 
         <!-- Integrated Console Drawer -->
         <div class="console-drawer" id="consoleDrawer">
-          <div class="console-empty-state" id="consoleEmptyState">Console is empty. Use console.log() to print outputs.</div>
+          <div class="console-empty-state" id="consoleEmptyState">Console is empty. Use console.log() to print outputs.
+          </div>
         </div>
       </div>
     </div>
@@ -1410,7 +1701,10 @@
         <div class="terminal-header">
           <div class="terminal-header-left">
             <div class="terminal-header-title">
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="4 17 10 11 4 5" />
+                <line x1="12" y1="19" x2="20" y2="19" />
+              </svg>
               <span>Interactive Terminal</span>
             </div>
             <!-- Status badge -->
@@ -1418,8 +1712,11 @@
           </div>
           <div class="terminal-header-right">
             <span style="font-size: 11px; color: #8e8e93;" id="execTimeBadge"></span>
-            <button class="terminal-action-btn terminal-stop-btn" id="stopTerminalBtn" style="display: none;" title="Terminate running program">
-              <svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+            <button class="terminal-action-btn terminal-stop-btn" id="stopTerminalBtn" style="display: none;"
+              title="Terminate running program">
+              <svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor">
+                <rect x="4" y="4" width="16" height="16" rx="2" />
+              </svg>
               <span>Stop</span>
             </button>
             <button class="terminal-action-btn" id="clearTerminalBtn" title="Clear terminal screen">Clear</button>
@@ -1465,41 +1762,41 @@
     let cmSingle, cmHtml, cmCss, cmJs;
 
     // Elements
-    const webWorkspace       = document.getElementById('webWorkspace');
-    const singleWorkspace    = document.getElementById('singleWorkspace');
+    const webWorkspace = document.getElementById('webWorkspace');
+    const singleWorkspace = document.getElementById('singleWorkspace');
     const webPaneSelectorBar = document.getElementById('webPaneSelectorBar');
-    const primaryRunBtn      = document.getElementById('primaryRunBtn');
-    const autoRunBtn         = document.getElementById('autoRunBtn');
-    const stdinToggleBtn     = document.getElementById('stdinToggleBtn');
-    const stdinContainer     = document.getElementById('stdinContainer');
-    const stdinInput         = document.getElementById('stdinInput');
-    const liveIframe         = document.getElementById('liveIframe');
-    const consoleDrawer      = document.getElementById('consoleDrawer');
-    const consoleEmptyState  = document.getElementById('consoleEmptyState');
-    const consoleCountChip   = document.getElementById('consoleCountChip');
-    const previewContainer   = document.getElementById('previewContainer');
-    const tabPreviewBtn      = document.getElementById('tabPreviewBtn');
-    const tabConsoleBtn      = document.getElementById('tabConsoleBtn');
-    const singleLangDot      = document.getElementById('singleLangDot');
-    const singleLangTitle    = document.getElementById('singleLangTitle');
-    const execTimeBadge      = document.getElementById('execTimeBadge');
-    const webGrid            = document.getElementById('webGrid');
-    const statusBadge        = document.getElementById('statusBadge');
-    const outIdle            = document.getElementById('outIdle');
-    const outStdout          = document.getElementById('outStdout');
-    const outStderr          = document.getElementById('outStderr');
-    const outError           = document.getElementById('outError');
+    const primaryRunBtn = document.getElementById('primaryRunBtn');
+    const autoRunBtn = document.getElementById('autoRunBtn');
+    const stdinToggleBtn = document.getElementById('stdinToggleBtn');
+    const stdinContainer = document.getElementById('stdinContainer');
+    const stdinInput = document.getElementById('stdinInput');
+    const liveIframe = document.getElementById('liveIframe');
+    const consoleDrawer = document.getElementById('consoleDrawer');
+    const consoleEmptyState = document.getElementById('consoleEmptyState');
+    const consoleCountChip = document.getElementById('consoleCountChip');
+    const previewContainer = document.getElementById('previewContainer');
+    const tabPreviewBtn = document.getElementById('tabPreviewBtn');
+    const tabConsoleBtn = document.getElementById('tabConsoleBtn');
+    const singleLangDot = document.getElementById('singleLangDot');
+    const singleLangTitle = document.getElementById('singleLangTitle');
+    const execTimeBadge = document.getElementById('execTimeBadge');
+    const webGrid = document.getElementById('webGrid');
+    const statusBadge = document.getElementById('statusBadge');
+    const outIdle = document.getElementById('outIdle');
+    const outStdout = document.getElementById('outStdout');
+    const outStderr = document.getElementById('outStderr');
+    const outError = document.getElementById('outError');
 
     // ── localStorage helpers ───────────────────────────────
     const LS_KEY = lang => `compiler-code-${lang}`;
     function saveCode(lang, code) {
-      try { localStorage.setItem(LS_KEY(lang), code); } catch(_) {}
+      try { localStorage.setItem(LS_KEY(lang), code); } catch (_) { }
     }
     function loadCode(lang) {
-      try { return localStorage.getItem(LS_KEY(lang)); } catch(_) { return null; }
+      try { return localStorage.getItem(LS_KEY(lang)); } catch (_) { return null; }
     }
     function clearSavedCode(lang) {
-      try { localStorage.removeItem(LS_KEY(lang)); } catch(_) {}
+      try { localStorage.removeItem(LS_KEY(lang)); } catch (_) { }
     }
 
     // ── CodeMirror Shared Options ──────────────────────────
@@ -1516,9 +1813,9 @@
 
     // ── Initialize Editors (restores saved code from localStorage) ──
     function initEditors() {
-      const savedJava   = loadCode('java');
-      const savedC      = loadCode('c');
-      const savedCpp    = loadCode('cpp');
+      const savedJava = loadCode('java');
+      const savedC = loadCode('c');
+      const savedCpp = loadCode('cpp');
       const savedPython = loadCode('python');
 
       cmSingle = CodeMirror.fromTextArea(document.getElementById('editorSingle'), {
@@ -1568,11 +1865,11 @@
     const langMenuItems = document.querySelectorAll('.lang-menu-item');
 
     const LANG_METADATA = {
-      java:   { label: 'Java' },
-      c:      { label: 'C' },
-      cpp:    { label: 'C++' },
+      java: { label: 'Java' },
+      c: { label: 'C' },
+      cpp: { label: 'C++' },
       python: { label: 'Python' },
-      web:    { label: 'HTML • CSS • JS' }
+      web: { label: 'HTML • CSS • JS' }
     };
 
     function toggleLangDropdown(forceState) {
@@ -1701,15 +1998,15 @@
     // ── Output Panel Helpers ───────────────────────────────
     function resetOutput() {
       if (statusBadge) {
-        statusBadge.className    = 'status-badge hidden';
-        statusBadge.textContent  = '';
+        statusBadge.className = 'status-badge hidden';
+        statusBadge.textContent = '';
       }
       if (execTimeBadge) execTimeBadge.textContent = '';
       if (outIdle) {
-        outIdle.style.display    = 'block';
-        if (outStdout) outStdout.textContent    = '';
-        if (outStderr) outStderr.textContent    = '';
-        if (outError) outError.textContent     = '';
+        outIdle.style.display = 'block';
+        if (outStdout) outStdout.textContent = '';
+        if (outStderr) outStderr.textContent = '';
+        if (outError) outError.textContent = '';
       }
     }
 
@@ -1721,11 +2018,11 @@
       if (statusBadge) {
         statusBadge.textContent = st;
         statusBadge.className = 'status-badge ' + ({
-          'Success':           'success',
+          'Success': 'success',
           'Compilation Error': 'compile',
-          'Runtime Error':     'runtime',
+          'Runtime Error': 'runtime',
           'Time Limit Exceeded': 'tle',
-          'Error':             'error'
+          'Error': 'error'
         }[st] || 'error');
       }
 
@@ -1762,7 +2059,7 @@
         if (stdinContainer) stdinContainer.classList.remove('active');
         setTimeout(() => {
           initTerminal();
-          if (fitAddon) { try { fitAddon.fit(); } catch (_) {} }
+          if (fitAddon) { try { fitAddon.fit(); } catch (_) { } }
         }, 50);
 
         // Restore saved code or fall back to template
@@ -1993,18 +2290,18 @@ ${jsCode}
 
     // ── Theme Toggle ───────────────────────────────────────
     const themeToggleBtn = document.getElementById('themeToggleBtn');
-    const themeIconMoon  = document.getElementById('themeIconMoon');
-    const themeIconSun   = document.getElementById('themeIconSun');
-    const themeLabel     = document.getElementById('themeLabel');
+    const themeIconMoon = document.getElementById('themeIconMoon');
+    const themeIconSun = document.getElementById('themeIconSun');
+    const themeLabel = document.getElementById('themeLabel');
 
     function applyTheme(dark) {
       isDark = dark;
       document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
       themeIconMoon.style.display = dark ? 'none' : 'inline';
-      themeIconSun.style.display  = dark ? 'inline' : 'none';
+      themeIconSun.style.display = dark ? 'inline' : 'none';
       themeLabel.textContent = dark ? 'Light' : 'Dark';
       themeToggleBtn.classList.toggle('active', dark);
-      try { localStorage.setItem('compiler-theme', dark ? 'dark' : 'light'); } catch(_) {}
+      try { localStorage.setItem('compiler-theme', dark ? 'dark' : 'light'); } catch (_) { }
     }
     // Init theme icons on load
     applyTheme(isDark);
@@ -2049,7 +2346,7 @@ ${jsCode}
       fitAddon = new FitAddon.FitAddon();
       term.loadAddon(fitAddon);
       term.open(container);
-      try { fitAddon.fit(); } catch (_) {}
+      try { fitAddon.fit(); } catch (_) { }
 
       container.addEventListener('click', () => {
         if (term) term.focus();
@@ -2077,7 +2374,7 @@ ${jsCode}
 
       window.addEventListener('resize', () => {
         if (term && fitAddon) {
-          try { fitAddon.fit(); } catch (_) {}
+          try { fitAddon.fit(); } catch (_) { }
         }
       });
     }
@@ -2119,12 +2416,9 @@ ${jsCode}
       term.clear();
       term.writeln(`\x1b[36m➜ Starting ${currentMode.toUpperCase()} interactive session...\x1b[0m\r\n`);
       setTimeout(() => { if (term) term.focus(); }, 100);
-
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.host}/api/compiler/live`;
-
+      const wsUrl = `ws://129.225.199.106:3001/api/compiler/live`;
       if (liveWs) {
-        try { liveWs.close(); } catch (_) {}
+        try { liveWs.close(); } catch (_) { }
       }
 
       liveWs = new WebSocket(wsUrl);
@@ -2200,7 +2494,7 @@ ${jsCode}
       const stopBtn = document.getElementById('stopTerminalBtn');
       if (stopBtn) stopBtn.style.display = 'none';
       if (liveWs) {
-        try { liveWs.close(); } catch (_) {}
+        try { liveWs.close(); } catch (_) { }
         liveWs = null;
       }
     }
@@ -2334,8 +2628,9 @@ ${jsCode}
             }
           }
         })
-        .catch(() => {});
+        .catch(() => { });
     });
   </script>
 </body>
+
 </html>

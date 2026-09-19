@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Code Lab — Semester Library</title>
+  <meta name="description" content="Write and run C code directly in your browser. Powered by Semester Library.">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://semestar-library.vercel.app/code-lab">
+
+  <!-- Web App Manifest & iOS PWA Metadata -->
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Semester Library">
+  <meta name="theme-color" content="#ffffff">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.v4.css">
+  <link rel="stylesheet" href="/auth-modal.css">
+
+  <style>
+    /* ─── Code Lab scoped styles ─── */
+    .codelab-editor-wrap {
+      position: relative;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid rgba(128, 128, 128, 0.18);
+      background: #1e1e2e;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.12);
+    }
+    .codelab-editor-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      background: rgba(255,255,255,0.04);
+      border-bottom: 1px solid rgba(128,128,128,0.12);
+      font-size: 12px;
+      font-weight: 600;
+      color: #a0a0b8;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-family: 'Inter', sans-serif;
+    }
+    .codelab-editor-label .dot { width: 8px; height: 8px; border-radius: 50%; background: #89b4fa; }
+    #codelab-monaco {
+      width: 100%;
+      height: 400px;
+    }
+
+    /* Stdin field */
+    .codelab-stdin-wrap {
+      margin-top: 16px;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid rgba(128, 128, 128, 0.18);
+      background: #1e1e2e;
+    }
+    .codelab-stdin-label {
+      padding: 8px 16px;
+      background: rgba(255,255,255,0.04);
+      border-bottom: 1px solid rgba(128,128,128,0.12);
+      font-size: 11px;
+      font-weight: 600;
+      color: #a0a0b8;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-family: 'Inter', sans-serif;
+    }
+    .codelab-stdin {
+      display: block;
+      width: 100%;
+      min-height: 52px;
+      padding: 12px 16px;
+      background: transparent;
+      color: #cdd6f4;
+      border: none;
+      outline: none;
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', 'Menlo', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      resize: vertical;
+      box-sizing: border-box;
+    }
+    .codelab-stdin::placeholder { color: #585b70; }
+
+    /* Run button */
+    .codelab-actions {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-top: 18px;
+    }
+    .codelab-run-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 28px;
+      border: none;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #89b4fa 0%, #74c7ec 100%);
+      color: #1e1e2e;
+      font-family: 'Inter', sans-serif;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+      box-shadow: 0 2px 10px rgba(137,180,250,0.25);
+    }
+    .codelab-run-btn:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 18px rgba(137,180,250,0.35);
+    }
+    .codelab-run-btn:active:not(:disabled) { transform: translateY(0); }
+    .codelab-run-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .codelab-run-btn .spinner {
+      display: none;
+      width: 16px; height: 16px;
+      border: 2px solid rgba(30,30,46,0.3);
+      border-top-color: #1e1e2e;
+      border-radius: 50%;
+      animation: codelab-spin 0.6s linear infinite;
+    }
+    .codelab-run-btn.loading .spinner { display: inline-block; }
+    .codelab-run-btn.loading .btn-label { display: none; }
+    @keyframes codelab-spin { to { transform: rotate(360deg); } }
+
+    /* Output area */
+    .codelab-output-wrap {
+      margin-top: 24px;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid rgba(128, 128, 128, 0.18);
+      background: #181825;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.10);
+    }
+    .codelab-output-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      background: rgba(255,255,255,0.03);
+      border-bottom: 1px solid rgba(128,128,128,0.10);
+      font-family: 'Inter', sans-serif;
+    }
+    .codelab-output-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #a0a0b8;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .codelab-exit-badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 10px;
+      border-radius: 6px;
+      font-family: 'SF Mono', monospace;
+    }
+    .codelab-exit-badge.success { background: rgba(166,227,161,0.15); color: #a6e3a1; }
+    .codelab-exit-badge.error   { background: rgba(243,139,168,0.15); color: #f38ba8; }
+    .codelab-output-body {
+      padding: 16px 20px;
+      min-height: 60px;
+      max-height: 400px;
+      overflow: auto;
+    }
+    .codelab-output-body pre {
+      margin: 0;
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', 'Menlo', monospace;
+      font-size: 13px;
+      line-height: 1.7;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: #cdd6f4;
+    }
+    .codelab-output-body pre.stderr {
+      color: #f38ba8;
+    }
+    .codelab-output-body .placeholder-msg {
+      color: #585b70;
+      font-style: italic;
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body class="dash syllabus-page-body">
+  <header class="dash-header">
+    <a href="/" class="lib-wordmark">Semester Library</a>
+    <nav class="dash-header-nav">
+      <a href="/about" class="header-nav-item">About</a>
+      <a href="/syllabus" class="header-nav-item">Syllabus</a>
+      <a href="/routine" class="header-nav-item">Routine</a>
+      <a href="/notices" class="header-nav-item">Notices</a>
+      <a href="/code-lab/" class="header-nav-item active">Code Lab</a>
+    </nav>
+    <div class="dash-header-actions">
+      <a href="login.html" class="nav-cta-btn apple-nav-btn">Sign In</a>
+    </div>
+  </header>
+
+  <main class="syllabus-container">
+    <header class="syllabus-header-section">
+      <div class="syllabus-heading-row">
+        <div>
+          <h1 class="syllabus-main-title">Code Lab</h1>
+          <p class="syllabus-sub-title">Write and run C code directly in your browser</p>
+        </div>
+      </div>
+    </header>
+
+    <section class="syllabus-content-area" style="max-width: 860px;">
+      <!-- Code editor -->
+      <div class="codelab-editor-wrap">
+        <div class="codelab-editor-label"><span class="dot"></span> main.c</div>
+        <div id="codelab-monaco"></div>
+      </div>
+
+      <!-- Stdin input -->
+      <div class="codelab-stdin-wrap">
+        <div class="codelab-stdin-label">Standard Input (stdin)</div>
+        <textarea id="codelab-stdin" class="codelab-stdin" placeholder="Enter program input here (optional)…" spellcheck="false"></textarea>
+      </div>
+
+      <!-- Run button -->
+      <div class="codelab-actions">
+        <button id="codelab-run" class="codelab-run-btn">
+          <span class="btn-label">▶ Run Code</span>
+          <span class="spinner"></span>
+        </button>
+      </div>
+
+      <!-- Output -->
+      <div id="codelab-output" class="codelab-output-wrap" style="display:none;">
+        <div class="codelab-output-header">
+          <span class="codelab-output-title">Output</span>
+          <span id="codelab-exit" class="codelab-exit-badge"></span>
+        </div>
+        <div class="codelab-output-body">
+          <pre id="codelab-stdout"></pre>
+          <pre id="codelab-stderr" class="stderr"></pre>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="app-global-footer">
+    <div class="app-footer-inner">
+      <div class="app-footer-brand">
+        <strong>Semester Library</strong>
+        <span>· Bachelor of Information Technology</span>
+      </div>
+      <div class="app-footer-meta">
+        <span>Gandaki University</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/auth-modal.js"></script>
+
+  <!-- Monaco Editor CDN loader -->
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
+
+  <script>
+    (function () {
+      const stdinEl  = document.getElementById('codelab-stdin');
+      const runBtn   = document.getElementById('codelab-run');
+      const outputEl = document.getElementById('codelab-output');
+      const stdoutEl = document.getElementById('codelab-stdout');
+      const stderrEl = document.getElementById('codelab-stderr');
+      const exitEl   = document.getElementById('codelab-exit');
+
+      // The Monaco editor instance — set once ready
+      let editor = null;
+
+      // ── Initialise Monaco ──────────────────────────────────────────────
+      require.config({
+        paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs' }
+      });
+
+      require(['vs/editor/editor.main'], function () {
+        editor = monaco.editor.create(document.getElementById('codelab-monaco'), {
+          value: '#include <stdio.h>\n\nint main() {\n    printf("Hello, World!\\n");\n    return 0;\n}\n',
+          language: 'c',
+          theme: 'vs-dark',
+          fontSize: 14,
+          lineHeight: 24,
+          fontFamily: "'SF Mono', 'Fira Code', Consolas, Menlo, monospace",
+          minimap: { enabled: false },
+          scrollBeyondLastLine: false,
+          automaticLayout: true,
+          padding: { top: 12, bottom: 12 },
+          renderLineHighlight: 'line',
+          tabSize: 4,
+          insertSpaces: true
+        });
+
+        // Ctrl/Cmd + Enter → Run
+        editor.addAction({
+          id: 'codelab-run-code',
+          label: 'Run Code',
+          keybindings: [
+            monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter
+          ],
+          run: function () {
+            runBtn.click();
+          }
+        });
+      });
+
+      // ── Helpers ────────────────────────────────────────────────────────
+      function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+      }
+
+      // ── Run handler (unchanged logic, reads from Monaco) ──────────────
+      runBtn.addEventListener('click', async function () {
+        if (!editor) return;                       // Monaco not ready yet
+        const code = editor.getValue();
+        if (!code.trim()) return;
+
+        // Set loading state
+        runBtn.disabled = true;
+        runBtn.classList.add('loading');
+
+        // Reset output
+        stdoutEl.innerHTML = '';
+        stderrEl.innerHTML = '';
+        exitEl.textContent = '';
+        exitEl.className = 'codelab-exit-badge';
+        outputEl.style.display = 'none';
+
+        try {
+          const res = await fetch('/api/code-lab/run', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: code, stdin: stdinEl.value })
+          });
+
+          const data = await res.json();
+
+          outputEl.style.display = '';
+
+          if (!res.ok) {
+            stderrEl.innerHTML = escapeHtml(data.error || 'An unexpected error occurred.');
+            exitEl.textContent = 'Error';
+            exitEl.classList.add('error');
+            return;
+          }
+
+          // Show stdout
+          if (data.stdout) {
+            stdoutEl.innerHTML = escapeHtml(data.stdout);
+          } else if (!data.stderr) {
+            stdoutEl.innerHTML = '<span class="placeholder-msg">No output</span>';
+          }
+
+          // Show stderr
+          if (data.stderr) {
+            stderrEl.innerHTML = escapeHtml(data.stderr);
+          }
+
+          // Exit code badge
+          if (typeof data.exitCode === 'number') {
+            exitEl.textContent = 'exit ' + data.exitCode;
+            exitEl.classList.add(data.exitCode === 0 ? 'success' : 'error');
+          }
+
+        } catch (err) {
+          outputEl.style.display = '';
+          stderrEl.innerHTML = escapeHtml('Network error — could not reach the server. Please check your connection.');
+          exitEl.textContent = 'Error';
+          exitEl.classList.add('error');
+        } finally {
+          runBtn.disabled = false;
+          runBtn.classList.remove('loading');
+        }
+      });
+    })();
+  </script>
+  <!-- PWA Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(err => {
+          console.warn('[SW Registration Notice]:', err);
+        });
+      });
+    }
+  </script>
+</body>
+</html>

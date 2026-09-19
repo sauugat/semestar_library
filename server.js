@@ -344,6 +344,9 @@ function requireLogin(req, res, next) {
   next();
 }
 
+// --- Code Lab (isolated module) ---
+app.use('/api/code-lab', require('./routes/code-lab/run'));
+
 // --- Routes ---
 
 app.post('/api/login', loginRateLimiter, async (req, res) => {

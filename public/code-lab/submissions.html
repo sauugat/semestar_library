@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Submissions — Code Lab</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 900px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+
+        h1 {
+            font-size: 20px;
+        }
+
+        .sub-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 14px;
+            margin-bottom: 12px;
+        }
+
+        .sub-header {
+            display: flex;
+            justify-content: space-between;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .sub-time {
+            color: #888;
+            font-weight: normal;
+            font-size: 12px;
+        }
+
+        pre {
+            background: #111;
+            color: #eee;
+            padding: 12px;
+            border-radius: 6px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            font-size: 13px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1 id="title">Loading submissions...</h1>
+    <div id="list"></div>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const assignmentId = params.get('id');
+
+        if (!assignmentId || !/^\d+$/.test(assignmentId)) {
+            document.getElementById('title').textContent = 'Invalid assignment link.';
+        } else fetch('/api/code-lab/assignments/' + assignmentId + '/submissions')
+            .then(async res => {
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || 'Failed to load submissions.');
+                return data;
+            })
+            .then(subs => {
+                document.getElementById('title').textContent = `Submissions (${subs.length})`;
+                const listEl = document.getElementById('list');
+
+                if (!subs.length) {
+                    listEl.textContent = 'No submissions yet.';
+                    return;
+                }
+
+                subs.forEach(s => {
+                    const card = document.createElement('div');
+                    card.className = 'sub-card';
+                    card.innerHTML = `
+            <div class="sub-header">
+              <span>${s.studentName} (${s.studentId})</span>
+              <span class="sub-time">${new Date(s.submittedAt).toLocaleString()}</span>
+            </div>
+            <pre>${s.code.replace(/</g, '&lt;')}</pre>
+            <a href="/code-lab/events.html?id=${assignmentId}&studentId=${s.studentId}" style="font-size:13px;">View activity log →</a>
+          `;
+                    listEl.appendChild(card);
+                });
+            })
+            .catch(error => {
+                document.getElementById('title').textContent = error.message;
+            });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Activity Log — Code Lab</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 800px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+
+        h1 {
+            font-size: 20px;
+            margin-bottom: 4px;
+        }
+
+        #subtitle {
+            color: #666;
+            font-size: 13px;
+            margin-bottom: 20px;
+        }
+
+        .summary-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .summary-chip {
+            background: #f5f5f5;
+            border-radius: 20px;
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .summary-chip.warn {
+            background: #fdeaea;
+            color: #b91c1c;
+        }
+
+        .timeline {
+            border-left: 2px solid #ddd;
+            padding-left: 20px;
+        }
+
+        .event-item {
+            position: relative;
+            padding-bottom: 16px;
+        }
+
+        .event-item::before {
+            content: '';
+            position: absolute;
+            left: -25px;
+            top: 4px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #999;
+        }
+
+        .event-item.paste_attempt::before {
+            background: #e11d48;
+        }
+
+        .event-item.large_change::before {
+            background: #f59e0b;
+        }
+
+        .event-item.tab_hidden::before,
+        .event-item.tab_visible::before {
+            background: #3b82f6;
+        }
+
+        .event-item.submit_clicked::before {
+            background: #16a34a;
+        }
+
+        .event-type {
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .event-time {
+            color: #888;
+            font-size: 12px;
+        }
+
+        .event-payload {
+            color: #555;
+            font-size: 12px;
+            margin-top: 2px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1 id="title">Loading activity log...</h1>
+    <div id="subtitle"></div>
+    <div id="summary" class="summary-row"></div>
+    <div id="timeline" class="timeline"></div>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const assignmentId = params.get('id');
+        const studentId = params.get('studentId');
+
+        const LABELS = {
+            paste_attempt: '📋 Attempted to paste',
+            large_change: '⚡ Large sudden text change',
+            tab_hidden: '↩️ Switched away from tab',
+            tab_visible: '↪️ Returned to tab',
+            submit_clicked: '✅ Clicked Submit'
+        };
+
+        if (!assignmentId || !studentId) {
+            document.getElementById('title').textContent = 'Missing assignment or student ID.';
+        } else {
+            fetch(`/api/code-lab/assignments/${assignmentId}/events/${studentId}`)
+                .then(async res => {
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.message || 'Failed to load events.');
+                    return data;
+                })
+                .then(events => {
+                    document.getElementById('title').textContent = 'Activity Log';
+                    document.getElementById('subtitle').textContent =
+                        `Assignment #${assignmentId} · Student ${studentId} · ${events.length} events recorded`;
+
+                    if (!events.length) {
+                        document.getElementById('timeline').textContent = 'No activity was recorded for this submission.';
+                        return;
+                    }
+
+                    // Summary chips
+                    const counts = {};
+                    events.forEach(e => { counts[e.eventType] = (counts[e.eventType] || 0) + 1; });
+
+                    const summaryEl = document.getElementById('summary');
+                    if (counts.paste_attempt) {
+                        summaryEl.innerHTML += `<div class="summary-chip warn">${counts.paste_attempt} paste attempt(s)</div>`;
+                    }
+                    if (counts.large_change) {
+                        summaryEl.innerHTML += `<div class="summary-chip warn">${counts.large_change} large text jump(s)</div>`;
+                    }
+                    if (counts.tab_hidden) {
+                        summaryEl.innerHTML += `<div class="summary-chip">${counts.tab_hidden} tab switch(es)</div>`;
+                    }
+                    if (!counts.paste_attempt && !counts.large_change) {
+                        summaryEl.innerHTML += `<div class="summary-chip">No suspicious activity flagged</div>`;
+                    }
+
+                    // Timeline
+                    const timelineEl = document.getElementById('timeline');
+                    timelineEl.innerHTML = '';
+                    events.forEach(e => {
+                        const item = document.createElement('div');
+                        item.className = 'event-item ' + e.eventType;
+
+                        let payloadText = '';
+                        try {
+                            const p = JSON.parse(e.payload || '{}');
+                            if (e.eventType === 'large_change' && typeof p.delta === 'number') {
+                                payloadText = `${p.delta > 0 ? '+' : ''}${p.delta} characters`;
+                            }
+                        } catch (err) { /* ignore malformed payload */ }
+
+                        const time = e.clientTime ? new Date(e.clientTime).toLocaleTimeString() : '';
+
+                        item.innerHTML = `
+              <div class="event-type">${LABELS[e.eventType] || e.eventType}</div>
+              <div class="event-time">${time}</div>
+              ${payloadText ? `<div class="event-payload">${payloadText}</div>` : ''}
+            `;
+                        timelineEl.appendChild(item);
+                    });
+                })
+                .catch(error => {
+                    document.getElementById('title').textContent = error.message;
+                });
+        }
+    </script>
+</body>
+
+</html>

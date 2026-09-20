@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>My Submissions — Code Lab</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+
+        h1 {
+            font-size: 22px;
+        }
+
+        .sub-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .sub-card:hover {
+            background: #f5f5f5;
+        }
+
+        .sub-title {
+            font-weight: 700;
+            font-size: 16px;
+        }
+
+        .sub-meta {
+            color: #666;
+            font-size: 13px;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>My Submissions</h1>
+    <div id="list">Loading...</div>
+
+    <script>
+        fetch('/api/code-lab/my-submissions')
+            .then(async res => {
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || 'Failed to load submissions.');
+                return data;
+            })
+            .then(subs => {
+                const listEl = document.getElementById('list');
+                if (!subs.length) {
+                    listEl.textContent = 'You have not submitted anything yet.';
+                    return;
+                }
+                listEl.innerHTML = '';
+                subs.forEach(s => {
+                    const card = document.createElement('div');
+                    card.className = 'sub-card';
+                    card.innerHTML = `
+            <div class="sub-title">${s.title}</div>
+            <div class="sub-meta">${s.subject ? s.subject + ' &middot; ' : ''}Language: ${s.language.toUpperCase()} &middot; Submitted ${new Date(s.submittedAt).toLocaleString()}</div>
+          `;
+                    card.addEventListener('click', () => {
+                        window.location.href = '/code-lab/assignment.html?id=' + s.assignmentId;
+                    });
+                    listEl.appendChild(card);
+                });
+            })
+            .catch(error => {
+                document.getElementById('list').textContent = error.message;
+            });
+    </script>
+</body>
+
+</html>

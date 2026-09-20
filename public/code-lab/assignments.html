@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Assignments — Code Lab</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 700px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+
+        h1 {
+            font-size: 22px;
+        }
+
+        .assignment-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .assignment-card:hover {
+            background: #f5f5f5;
+        }
+
+        .assignment-title {
+            font-weight: 700;
+            font-size: 16px;
+        }
+
+        .assignment-meta {
+            color: #666;
+            font-size: 13px;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Assignments</h1>
+    <div id="list">Loading...</div>
+
+    <script>
+        fetch('/api/code-lab/assignments')
+            .then(res => res.json())
+            .then(assignments => {
+                const listEl = document.getElementById('list');
+                if (!assignments.length) {
+                    listEl.textContent = 'No assignments yet.';
+                    return;
+                }
+                listEl.innerHTML = '';
+                assignments.forEach(a => {
+                    const card = document.createElement('div');
+                    card.className = 'assignment-card';
+                    card.innerHTML = `
+            <div class="assignment-title">${a.title}</div>
+            <div class="assignment-meta">Language: ${a.language.toUpperCase()}</div>
+          `;
+                    card.addEventListener('click', () => {
+                        window.location.href = '/code-lab/assignment.html?id=' + a.id;
+                    });
+                    listEl.appendChild(card);
+                });
+            })
+            .catch(() => {
+                document.getElementById('list').textContent = 'Failed to load assignments.';
+            });
+    </script>
+</body>
+
+</html>

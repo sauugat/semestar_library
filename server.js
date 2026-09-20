@@ -343,7 +343,7 @@ function requireLogin(req, res, next) {
   }
   next();
 }
-
+app.use('/api/code-lab', require('./routes/code-lab/assignments'));
 // --- Code Lab (isolated module) ---
 app.use('/api/code-lab', require('./routes/code-lab/run'));
 
@@ -1036,7 +1036,7 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
       `, f.filename, f.originalname, fileTitle, semester, subject, chapter, req.session.studentId, f.size, new Date().toISOString(), previewFilename);
 
       const insertedId = result.lastInsertRowid;
-      const indexing = await indexUploadedNote({id: insertedId, storedName:f.filename, originalName:f.originalname, title:fileTitle, semester, subject, chapter, sizeBytes:f.size});
+      const indexing = await indexUploadedNote({ id: insertedId, storedName: f.filename, originalName: f.originalname, title: fileTitle, semester, subject, chapter, sizeBytes: f.size });
       results.push({
         id: insertedId,
         indexing,
@@ -1132,7 +1132,7 @@ app.post('/api/files/record-upload', requireLogin, async (req, res) => {
       `, storedName, originalName, fileTitle, cleanSemester, cleanSubject, cleanChapter, req.session.studentId, sizeBytes, new Date().toISOString(), null);
 
       const insertedId = result.lastInsertRowid;
-      const indexing = await indexUploadedNote({id: insertedId, storedName, originalName, title:fileTitle, semester:cleanSemester, subject:cleanSubject, chapter:cleanChapter, sizeBytes});
+      const indexing = await indexUploadedNote({ id: insertedId, storedName, originalName, title: fileTitle, semester: cleanSemester, subject: cleanSubject, chapter: cleanChapter, sizeBytes });
       results.push({
         id: insertedId,
         indexing,

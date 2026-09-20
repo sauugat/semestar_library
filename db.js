@@ -19,7 +19,7 @@ try {
       }
     });
   }
-} catch (e) {}
+} catch (e) { }
 
 const isPostgres = !!(process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.PGHOST);
 const isTurso = !!(process.env.TURSO_DATABASE_URL || process.env.LIBSQL_URL);
@@ -41,7 +41,6 @@ if (isPostgres) {
     console.error('[DB Engine]: PostgreSQL init error:', err.message);
   }
 } else {
-  // Use @libsql/client (pure JS/Wasm SQLite engine - works everywhere with zero native binaries)
   const { createClient } = require('@libsql/client');
   let dbUrl;
   let authToken = process.env.TURSO_AUTH_TOKEN || undefined;
@@ -61,27 +60,24 @@ if (isPostgres) {
   });
 }
 
-// Convert SQLite '?' parameter placeholders to PostgreSQL '$1, $2, $3'
 function toPostgresSql(sql) {
   let idx = 1;
   return sql.replace(/\?/g, () => `$${idx++}`);
 }
 
-// Flatten parameters if passed as multiple arguments or single array
 function normalizeParams(params) {
   if (!params || params.length === 0) return [];
   if (params.length === 1 && Array.isArray(params[0])) return params[0];
   return params;
 }
 
-// Map PostgreSQL lowercase column names back to expected camelCase
 const camelMap = {
   studentid: 'studentId', passwordhash: 'passwordHash', avatarurl: 'avatarUrl',
   githuburl: 'githubUrl', linkedinurl: 'linkedinUrl', followerid: 'followerId',
   followingid: 'followingId', createdat: 'createdAt', storedname: 'storedName',
   originalname: 'originalName', previewname: 'previewName', uploadedby: 'uploadedBy',
   sizebytes: 'sizeBytes', uploadedat: 'uploadedAt', fileid: 'fileId',
-  commenttext: 'commentText', attachmentname: 'attachmentName', 
+  commenttext: 'commentText', attachmentname: 'attachmentName',
   attachmentoriginalname: 'attachmentOriginalName', attachmentmimetype: 'attachmentMimeType',
   recipientstudentid: 'recipientStudentId', relatedfileid: 'relatedFileId',
   isread: 'isRead', mimetype: 'mimeType', filedata: 'fileData',
@@ -93,7 +89,9 @@ const camelMap = {
   replytoid: 'replyToId', linktitle: 'linkTitle', linkdesc: 'linkDesc',
   linkimage: 'linkImage', linkurl: 'linkUrl', messageid: 'messageId',
   lastreadmessageid: 'lastReadMessageId', lasttypedat: 'lastTypedAt',
-  replytext: 'replyText', replysender: 'replySender'
+  replytext: 'replyText', replysender: 'replySender',
+  studentname: 'studentName', submittedat: 'submittedAt',
+  assignmentid: 'assignmentId', createdby: 'createdBy', teachername: 'teacherName', eventtype: 'eventType', clienttime: 'clientTime'
 };
 
 function formatRow(row) {
@@ -110,10 +108,8 @@ function formatRows(rows) {
   return rows.map(formatRow);
 }
 
-// Universal Query Executor
 async function query(sql, ...params) {
   const normParams = normalizeParams(params);
-
   if (isPostgres && pgPool) {
     const pgSql = toPostgresSql(sql);
     const res = await pgPool.query(pgSql, normParams);
@@ -125,10 +121,8 @@ async function query(sql, ...params) {
   throw new Error('Database client is not initialized.');
 }
 
-// Fetch single row
 async function get(sql, ...params) {
   const normParams = normalizeParams(params);
-
   if (isPostgres && pgPool) {
     const pgSql = toPostgresSql(sql);
     const res = await pgPool.query(pgSql, normParams);
@@ -140,10 +134,8 @@ async function get(sql, ...params) {
   throw new Error('Database client is not initialized.');
 }
 
-// Fetch multiple rows
 async function all(sql, ...params) {
   const normParams = normalizeParams(params);
-
   if (isPostgres && pgPool) {
     const pgSql = toPostgresSql(sql);
     const res = await pgPool.query(pgSql, normParams);
@@ -155,18 +147,15 @@ async function all(sql, ...params) {
   throw new Error('Database client is not initialized.');
 }
 
-// Execute write mutation (INSERT, UPDATE, DELETE)
 async function run(sql, ...params) {
   const normParams = normalizeParams(params);
-
   if (isPostgres && pgPool) {
     let pgSql = sql;
     const isInsert = /^\s*INSERT\s+INTO/i.test(sql);
     const hasReturning = /RETURNING/i.test(sql);
 
-    // Auto-append RETURNING id for inserts so lastInsertRowid is available, but only for tables with an id column
     if (isInsert && !hasReturning) {
-      const noIdTables = ['chat_read_receipts', 'chat_typing', 'file_likes', 'follows', 'chat_reactions', 'students'];
+      const noIdTables = ['chat_read_receipts', 'chat_typing', 'file_likes', 'follows', 'chat_reactions', 'students', 'submissions'];
       const isNoIdTable = noIdTables.some(tbl => new RegExp(`INSERT\\s+INTO\\s+${tbl}\\b`, 'i').test(sql));
       if (!isNoIdTable) {
         pgSql += ' RETURNING id';
@@ -191,7 +180,6 @@ async function run(sql, ...params) {
   throw new Error('Database client is not initialized.');
 }
 
-// Execute raw multi-statement DDL script
 async function exec(sql) {
   if (isPostgres && pgPool) {
     await pgPool.query(sql);
@@ -200,7 +188,6 @@ async function exec(sql) {
   }
 }
 
-// Backwards-compatible prepare() helper returning async methods
 function prepare(sql) {
   return {
     get: (...args) => get(sql, ...args),
@@ -209,7 +196,6 @@ function prepare(sql) {
   };
 }
 
-// Transaction wrapper
 function transaction(fn) {
   return async (...args) => {
     if (isPostgres && pgPool) {
@@ -226,15 +212,11 @@ function transaction(fn) {
         client.release();
       }
     } else {
-      // LibSQL / SQLite transaction
       return await fn(...args);
     }
   };
 }
 
-// ============================================================================
-// AUTOMATIC DATABASE SCHEMA INITIALIZATION & INITIAL SEEDING
-// ============================================================================
 const DEFAULT_STUDENTS = [
   { studentId: "26020230", name: "Aashrita Lamichhane", password: "aashrita230", role: "student" },
   { studentId: "26020231", name: "Anisha Gurung", password: "anisha231", role: "student" },
@@ -400,6 +382,37 @@ async function initSchema() {
             type TEXT
           );
 
+          CREATE TABLE IF NOT EXISTS assignments (
+            id SERIAL PRIMARY KEY,
+            title TEXT NOT NULL,
+            description TEXT NOT NULL,
+            language TEXT NOT NULL,
+            subject TEXT,
+            createdBy TEXT NOT NULL REFERENCES students(studentId) ON DELETE CASCADE,
+            createdAt TEXT NOT NULL
+          );
+
+          CREATE TABLE IF NOT EXISTS submissions (
+            id SERIAL PRIMARY KEY,
+            assignmentId INTEGER NOT NULL REFERENCES assignments(id) ON DELETE CASCADE,
+            studentId TEXT NOT NULL REFERENCES students(studentId) ON DELETE CASCADE,
+            code TEXT NOT NULL,
+            stdout TEXT,
+            stderr TEXT,
+            submittedAt TEXT NOT NULL,
+            UNIQUE(assignmentId, studentId)
+          );
+          CREATE TABLE IF NOT EXISTS submission_events (
+  id SERIAL PRIMARY KEY,
+  assignmentId INTEGER NOT NULL REFERENCES assignments(id) ON DELETE CASCADE,
+  studentId TEXT NOT NULL REFERENCES students(studentId) ON DELETE CASCADE,
+  eventType TEXT NOT NULL,
+  payload TEXT,
+  clientTime TEXT,
+  createdAt TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (assignmentId, studentId);
+
           CREATE TABLE IF NOT EXISTS "session" (
             "sid" varchar NOT NULL COLLATE "default",
             "sess" json NOT NULL,
@@ -526,10 +539,72 @@ async function initSchema() {
             semester TEXT NOT NULL,
             type TEXT
           );
+
+          CREATE TABLE IF NOT EXISTS assignments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            description TEXT NOT NULL,
+            language TEXT NOT NULL,
+            subject TEXT,
+            createdBy TEXT NOT NULL,
+            createdAt TEXT NOT NULL,
+            FOREIGN KEY (createdBy) REFERENCES students(studentId)
+          );
+
+          CREATE TABLE IF NOT EXISTS submissions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            assignmentId INTEGER NOT NULL,
+            studentId TEXT NOT NULL,
+            code TEXT NOT NULL,
+            stdout TEXT,
+            stderr TEXT,
+            submittedAt TEXT NOT NULL,
+            FOREIGN KEY (assignmentId) REFERENCES assignments(id),
+            FOREIGN KEY (studentId) REFERENCES students(studentId),
+            UNIQUE(assignmentId, studentId)
+          ); 
+          CREATE TABLE IF NOT EXISTS submission_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  assignmentId INTEGER NOT NULL,
+  studentId TEXT NOT NULL,
+  eventType TEXT NOT NULL,
+  payload TEXT,
+  clientTime TEXT,
+  createdAt TEXT NOT NULL,
+  FOREIGN KEY (assignmentId) REFERENCES assignments(id),
+  FOREIGN KEY (studentId) REFERENCES students(studentId)
+);
         `);
       }
 
-      // Auto-seed students if table is empty
+      // One-time migration for tables that existed before subject/stdout/stderr columns were added
+      try {
+        if (isPostgres) {
+          await exec(`ALTER TABLE assignments ADD COLUMN IF NOT EXISTS subject TEXT;`);
+          await exec(`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS stdout TEXT;`);
+          await exec(`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS stderr TEXT;`);
+
+          try {
+            await exec(`ALTER TABLE submissions ADD CONSTRAINT submissions_unique UNIQUE(assignmentId, studentId);`);
+          } catch (constraintErr) {
+            if (!constraintErr.message.includes('already exists')) {
+              console.error('[DB Engine]: Constraint add warning:', constraintErr.message);
+            }
+          }
+        } else {
+          const cols = await all(`PRAGMA table_info(submissions)`);
+          const colNames = cols.map(c => c.name);
+          if (!colNames.includes('stdout')) await exec(`ALTER TABLE submissions ADD COLUMN stdout TEXT;`);
+          if (!colNames.includes('stderr')) await exec(`ALTER TABLE submissions ADD COLUMN stderr TEXT;`);
+
+          const assignCols = await all(`PRAGMA table_info(assignments)`);
+          const assignColNames = assignCols.map(c => c.name);
+          if (!assignColNames.includes('subject')) await exec(`ALTER TABLE assignments ADD COLUMN subject TEXT;`);
+        }
+      } catch (alterErr) {
+        console.error('[DB Engine]: Column migration warning:', alterErr.message);
+      }
+
       const countRow = await get('SELECT COUNT(*) AS c FROM students');
       const studentCount = Number(countRow?.c || countRow?.count || 0);
 
@@ -554,35 +629,27 @@ async function initSchema() {
         console.log('[DB Engine]: Seeding complete!');
       }
 
-      // Auto-seed exams if table is empty
       const countExamsRow = await get('SELECT COUNT(*) AS c FROM exam_schedule');
       const examCount = Number(countExamsRow?.c || countExamsRow?.count || 0);
 
       if (examCount === 0) {
         console.log('[DB Engine]: Fresh database detected. Seeding exam schedules...');
         const routineExams = [
-          // Semester II
           { semester: 'II', semNum: 2, date: '2083/05/17', time: 'CIT121', subject: 'Discrete Mathematics', type: 'Examination' },
           { semester: 'II', semNum: 2, date: '2083/05/23', time: 'CIT122', subject: 'Computer Programming II (Java)', type: 'Examination' },
           { semester: 'II', semNum: 2, date: '2083/05/26', time: 'ELX121', subject: 'Digital Logic', type: 'Examination' },
           { semester: 'II', semNum: 2, date: '2083/05/30', time: 'CIT123', subject: 'Web Technology I', type: 'Examination' },
           { semester: 'II', semNum: 2, date: '2083/06/02', time: 'BSM121', subject: 'Mathematics-II', type: 'Examination' },
-
-          // Semester IV
           { semester: 'IV', semNum: 4, date: '2083/06/05', time: 'CIT222', subject: 'Management Information System', type: 'Examination' },
           { semester: 'IV', semNum: 4, date: '2083/06/09', time: 'CIT221', subject: 'Operating Systems', type: 'Examination' },
           { semester: 'IV', semNum: 4, date: '2083/06/13', time: 'CIT223', subject: 'Data Communication and Computer Networks', type: 'Examination' },
           { semester: 'IV', semNum: 4, date: '2083/06/16', time: 'BSM221', subject: 'Fundamentals of Probability and Statistics', type: 'Examination' },
           { semester: 'IV', semNum: 4, date: '2083/06/21', time: 'CIT224', subject: 'Computer Graphics Technology', type: 'Examination' },
-
-          // Semester VI
           { semester: 'VI', semNum: 6, date: '2083/05/22', time: 'CIT321', subject: 'Human Computer Interface and UI Design', type: 'Examination' },
           { semester: 'VI', semNum: 6, date: '2083/05/25', time: 'CIT323', subject: 'Artificial Intelligence', type: 'Examination' },
           { semester: 'VI', semNum: 6, date: '2083/05/31', time: 'BCT322', subject: 'Financial Accounting', type: 'Examination' },
           { semester: 'VI', semNum: 6, date: '2083/06/05', time: 'BCT321', subject: 'IT Project Management', type: 'Examination' },
           { semester: 'VI', semNum: 6, date: '2083/06/08', time: 'CIT322', subject: 'Digital Forensic Security Technologies', type: 'Examination' },
-
-          // Semester VIII
           { semester: 'VIII', semNum: 8, date: '2083/05/16', time: 'CIT421', subject: 'Big Data Technologies', type: 'Examination' },
           { semester: 'VIII', semNum: 8, date: '2083/05/18', time: 'BCT421', subject: 'Society, IT and Law', type: 'Examination' },
           { semester: 'VIII', semNum: 8, date: '2083/05/22', time: 'Elective', subject: 'IoT and Smart Technologies / E-Business and E-Commerce', type: 'Examination' }
@@ -604,7 +671,6 @@ async function initSchema() {
   return initPromise;
 }
 
-// Persistent File Blob Storage (Ensures uploaded notes, previews, avatars & chat attachments survive across serverless instances)
 async function saveFileBlob(filename, buffer, mimeType = 'application/octet-stream') {
   try {
     const baseName = path.basename(filename);
@@ -654,7 +720,6 @@ async function deleteFileBlob(filename) {
   }
 }
 
-// Auto-trigger schema initialization on load
 initSchema().catch(err => console.error('[DB Engine]: Schema init fatal error:', err));
 
 module.exports = {
@@ -672,4 +737,4 @@ module.exports = {
   isPostgres,
   isTurso,
   pgPool
-};
+}; 

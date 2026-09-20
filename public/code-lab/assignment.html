@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Assignment — Code Lab</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 900px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+
+        #question-box {
+            background: #f5f5f5;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        #assignment-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        #assignment-desc {
+            white-space: pre-wrap;
+            color: #333;
+        }
+
+        #editor {
+            width: 100%;
+            height: 350px;
+            border: 1px solid #ccc;
+            margin-top: 10px;
+        }
+
+        .btn-row {
+            margin-top: 12px;
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            padding: 8px 18px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        #output {
+            margin-top: 16px;
+            background: #111;
+            color: #eee;
+            padding: 12px;
+            border-radius: 6px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            min-height: 40px;
+        }
+
+        #stderr {
+            color: #ff8080;
+        }
+
+        #msg {
+            margin-top: 10px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="question-box">
+        <div id="assignment-title">Loading...</div>
+        <div id="assignment-desc"></div>
+    </div>
+
+    <div id="editor"></div>
+
+    <div class="btn-row">
+        <button id="runBtn">▶ Run</button>
+        <button id="submitBtn">✔ Submit</button>
+    </div>
+
+    <div id="output"></div>
+    <div id="msg"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const assignmentId = params.get('id');
+        let editor = null;
+        let assignmentLanguage = 'c';
+        let lastStdout = '';
+        let lastStderr = '';
+
+        // ── Event logging ──────────────────────────────────────────────
+        let eventQueue = [];
+        let lastTypedAt = 0;
+        let lastValueLength = 0;
+
+        function logEvent(type, payload) {
+            eventQueue.push({ type, payload: payload || {}, clientTime: new Date().toISOString() });
+        }
+
+        function flushEvents() {
+            if (!eventQueue.length || !assignmentId) return;
+            const batch = eventQueue;
+            eventQueue = [];
+            fetch('/api/code-lab/events', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ assignmentId, events: batch })
+            }).catch(() => {
+                // Best-effort — if it fails, we just drop this batch rather than blocking the student
+            });
+        }
+
+        // Flush every 10 seconds, and once more when the student leaves the page
+        setInterval(flushEvents, 10000);
+        window.addEventListener('beforeunload', flushEvents);
+
+        // Tab switch / focus loss — useful signal for "went to look something up"
+        document.addEventListener('visibilitychange', () => {
+            logEvent(document.hidden ? 'tab_hidden' : 'tab_visible', {});
+        });
+
+        // Load the assignment details
+        if (!assignmentId || !/^\d+$/.test(assignmentId)) {
+            document.getElementById('assignment-title').textContent = 'Invalid assignment link.';
+            document.getElementById('assignment-desc').textContent = 'Please open this assignment from the assignments page.';
+            document.getElementById('runBtn').disabled = true;
+            document.getElementById('submitBtn').disabled = true;
+        } else fetch('/api/code-lab/assignments/' + assignmentId)
+            .then(async res => {
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || 'Failed to load assignment.');
+                return data;
+            })
+            .then(a => {
+                document.getElementById('assignment-title').textContent = a.title;
+                document.getElementById('assignment-desc').textContent = a.description;
+                assignmentLanguage = a.language;
+                initEditor();
+            })
+            .catch(error => {
+                document.getElementById('assignment-title').textContent = error.message;
+            });
+
+        function initEditor() {
+            require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs' } });
+            require(['vs/editor/editor.main'], function () {
+                editor = monaco.editor.create(document.getElementById('editor'), {
+                    value: '// Write your code here\n',
+                    language: assignmentLanguage,
+                    theme: 'vs-dark',
+                    fontSize: 14,
+                    minimap: { enabled: false }
+                });
+
+                // Block paste
+                editor.onDidPaste(() => {
+                    // Undo the paste immediately
+                    editor.trigger('source', 'undo', null);
+                    showMsg('Paste is disabled for this assignment.', 'red');
+                    logEvent('paste_attempt', {});
+                });
+
+                // Track typing bursts (large sudden jumps in length = likely paste-around or external copy)
+                lastValueLength = editor.getValue().length;
+                editor.onDidChangeModelContent((e) => {
+                    const now = Date.now();
+                    const newLength = editor.getValue().length;
+                    const delta = newLength - lastValueLength;
+                    lastValueLength = newLength;
+
+                    if (Math.abs(delta) >= 30) {
+                        // A big jump in one change event — flag it, don't block it
+                        logEvent('large_change', { delta });
+                    }
+                    lastTypedAt = now;
+                });
+            });
+        }
+
+        function showMsg(text, color) {
+            const msgEl = document.getElementById('msg');
+            msgEl.textContent = text;
+            msgEl.style.color = color;
+            setTimeout(() => { msgEl.textContent = ''; }, 3000);
+        }
+
+        document.getElementById('runBtn').addEventListener('click', async () => {
+            if (!editor) return;
+            const code = editor.getValue();
+            const outputEl = document.getElementById('output');
+            outputEl.textContent = 'Running...';
+
+            try {
+                const res = await fetch('/api/code-lab/run', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ language: assignmentLanguage, code, stdin: '' })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Code could not be executed.');
+
+                lastStdout = data.stdout || '';
+                lastStderr = data.stderr || '';
+
+                const output = [data.stdout, data.stderr].filter(Boolean).join('\n');
+                outputEl.textContent = output || 'Program finished with no output.';
+            } catch (err) {
+                lastStdout = '';
+                lastStderr = '';
+                outputEl.textContent = err.message || 'Network error — could not reach compiler.';
+            }
+        });
+
+        document.getElementById('submitBtn').addEventListener('click', async () => {
+            if (!editor) return;
+            const code = editor.getValue();
+            logEvent('submit_clicked', {});
+            flushEvents();
+
+            try {
+                const res = await fetch('/api/code-lab/submissions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ assignmentId, code, stdout: lastStdout, stderr: lastStderr })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showMsg('Submitted successfully!', 'green');
+                } else {
+                    showMsg(data.message || 'Submission failed.', 'red');
+                }
+            } catch (err) {
+                showMsg('Network error — could not submit.', 'red');
+            }
+        });
+    </script>
+</body>
+
+</html>

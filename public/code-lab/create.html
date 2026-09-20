@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Create Assignment — Code Lab</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 600px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+
+        h1 {
+            font-size: 22px;
+        }
+
+        label {
+            display: block;
+            margin-top: 16px;
+            font-weight: 600;
+        }
+
+        input,
+        textarea,
+        select {
+            width: 100%;
+            padding: 8px;
+            margin-top: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        textarea {
+            min-height: 120px;
+        }
+
+        button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 15px;
+            cursor: pointer;
+        }
+
+        #msg {
+            margin-top: 16px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Create New Assignment</h1>
+
+    <label>Title</label>
+    <input id="title" type="text" placeholder="e.g. Reverse a String">
+
+    <label>Description / Question</label>
+    <textarea id="description"
+        placeholder="e.g. Write a C program that takes a string and prints it reversed."></textarea>
+
+    <label>Language</label>
+    <select id="language">
+        <option value="c">C</option>
+        <option value="cpp">C++</option>
+        <option value="java">Java</option>
+        <option value="python">Python</option>
+    </select>
+
+    <label>Subject</label>
+    <input id="subject" type="text" placeholder="e.g. Web Technology I">
+
+    <button id="createBtn">Create Assignment</button>
+    <div id="msg"></div>
+
+    <script>
+        document.getElementById('createBtn').addEventListener('click', async () => {
+            const title = document.getElementById('title').value.trim();
+            const description = document.getElementById('description').value.trim();
+            const language = document.getElementById('language').value;
+            const subject = document.getElementById('subject').value.trim();
+            const msgEl = document.getElementById('msg');
+
+            if (!title || !description) {
+                msgEl.textContent = 'Please fill in both title and description.';
+                msgEl.style.color = 'red';
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/code-lab/assignments', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title, description, language, subject })
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    msgEl.textContent = 'Assignment created successfully! ID: ' + data.id;
+                    msgEl.style.color = 'green';
+                    document.getElementById('title').value = '';
+                    document.getElementById('description').value = '';
+                    document.getElementById('subject').value = '';
+                } else {
+                    msgEl.textContent = data.message || 'Something went wrong.';
+                    msgEl.style.color = 'red';
+                }
+            } catch (err) {
+                msgEl.textContent = 'Network error — could not reach the server.';
+                msgEl.style.color = 'red';
+            }
+        });
+    </script>
+</body>
+
+</html>

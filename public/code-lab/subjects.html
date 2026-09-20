@@ -1,0 +1,1852 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Assignments — Semester Library</title>
+  <meta name="description" content="Browse uploaded programming assignments and curriculum subjects for Gandaki University.">
+
+  <!-- Apple & PWA Metadata -->
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <meta name="theme-color" content="#ffffff">
+
+  <!-- Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="/style.v4.css">
+  <link rel="stylesheet" href="/auth-modal.css">
+
+  <style>
+    :root {
+      --apple-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "SF Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      font-family: var(--apple-font);
+      background-color: #f5f5f7;
+      color: #1d1d1f;
+      -webkit-font-smoothing: antialiased;
+      margin: 0;
+      padding: 0;
+    }
+
+    .cl-page-wrap {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 28px 6vw 80px;
+      margin: 0;
+    }
+
+    @media (max-width: 768px) {
+      .cl-page-wrap {
+        padding: 20px 4vw 80px;
+      }
+    }
+
+    /* ── Apple Obsidian Hero Island ── */
+    body.dash .dash-hero.cl-animated-hero {
+      position: relative;
+      margin: 28px 6vw 0;
+      padding: 34px 40px;
+      min-height: 148px;
+      background: #0d0d0f;
+      border: 1.5px solid rgba(255, 255, 255, 0.14);
+      border-radius: var(--ap-radius-hero, 26px);
+      box-shadow: none !important;
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 28px;
+      overflow: hidden;
+      transform: none !important;
+      transition: border-color 0.35s ease;
+      cursor: default;
+    }
+
+    body.dash .dash-hero.cl-animated-hero:hover {
+      transform: none !important;
+      border-color: rgba(255, 255, 255, 0.32);
+      box-shadow: none !important;
+    }
+
+    /* Disable default CSS before/after */
+    body.dash .dash-hero::before,
+    body.dash .dash-hero::after {
+      display: none !important;
+      content: none !important;
+    }
+
+    /* Typography & Content Layout with Semester Library Brand Font */
+    .dash-hero-content {
+      position: relative;
+      z-index: 3;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 5px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .cl-hero-kicker {
+      font-family: 'Plus Jakarta Sans', 'Outfit', -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+      font-size: 13.5px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.82);
+      line-height: 1.2;
+      margin: 0;
+    }
+
+    .cl-hero-title {
+      font-family: 'Plus Jakarta Sans', 'Outfit', -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+      font-size: clamp(30px, 3.8vw, 48px);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: #ffffff;
+      margin: 0;
+      line-height: 1.05;
+    }
+
+    /* Actions Styling & Micro-animations */
+    .dash-hero-actions {
+      position: relative;
+      z-index: 3;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+      flex-wrap: wrap;
+    }
+
+    .dash-hero-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 18px;
+      border-radius: var(--ap-radius-pill, 980px);
+      font-size: 12.5px;
+      font-weight: 600;
+      text-decoration: none;
+      font-family: var(--apple-font);
+      cursor: pointer;
+    }
+
+    .cl-btn-pro {
+      position: relative;
+      overflow: hidden;
+      background: #ffffff !important;
+      color: #09090b !important;
+      border: 1.5px solid #ffffff !important;
+      box-shadow: 0 4px 18px rgba(255, 255, 255, 0.25), 0 2px 6px rgba(0,0,0,0.3) !important;
+      transition: all 0.25s cubic-bezier(0.25, 1, 0.5, 1) !important;
+    }
+    .cl-btn-pro::after {
+      content: '';
+      position: absolute;
+      inset: -50%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent);
+      transform: rotate(25deg) translateX(-100%);
+      animation: buttonLightSweep 4s ease-in-out infinite;
+    }
+    .cl-btn-pro:hover {
+      transform: translateY(-2px) scale(1.03) !important;
+      box-shadow: 0 8px 24px rgba(255, 255, 255, 0.45), 0 4px 12px rgba(0,0,0,0.4) !important;
+    }
+    .cl-btn-pro:hover .cl-btn-icon {
+      transform: rotate(90deg) scale(1.15);
+    }
+    .cl-btn-icon {
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .cl-btn-glass {
+      background: rgba(18, 18, 22, 0.75) !important;
+      color: #ffffff !important;
+      border: 1.5px solid rgba(255, 255, 255, 0.28) !important;
+      backdrop-filter: blur(12px) !important;
+      -webkit-backdrop-filter: blur(12px) !important;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35) !important;
+      transition: all 0.25s cubic-bezier(0.25, 1, 0.5, 1) !important;
+    }
+    .cl-btn-glass:hover {
+      background: rgba(30, 30, 38, 0.9) !important;
+      border-color: rgba(255, 255, 255, 0.6) !important;
+      transform: translateY(-2px) scale(1.02) !important;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45) !important;
+    }
+    .cl-btn-glass:hover .cl-btn-icon {
+      transform: scale(1.2);
+    }
+
+    /* Keyframes */
+    @keyframes auroraOrbit1 {
+      0% { transform: translate3d(0, 0, 0) scale(1) rotate(0deg); }
+      50% { transform: translate3d(-40px, 30px, 0) scale(1.2) rotate(45deg); }
+      100% { transform: translate3d(30px, -20px, 0) scale(0.95) rotate(-30deg); }
+    }
+
+    @keyframes auroraOrbit2 {
+      0% { transform: translate3d(0, 0, 0) scale(1); }
+      50% { transform: translate3d(50px, -30px, 0) scale(1.25); }
+      100% { transform: translate3d(-30px, 20px, 0) scale(0.9); }
+    }
+
+    @keyframes auroraOrbit3 {
+      0% { transform: translate3d(0, 0, 0) scale(1); }
+      50% { transform: translate3d(-35px, 25px, 0) scale(1.15); }
+      100% { transform: translate3d(40px, -15px, 0) scale(1.05); }
+    }
+
+    @keyframes beamRotate {
+      0% { transform: translate(-50%, -50%) rotate(0deg); }
+      100% { transform: translate(-50%, -50%) rotate(360deg); }
+    }
+
+    @keyframes gridDrift {
+      0% { background-position: 0 0; }
+      100% { background-position: 56px 56px; }
+    }
+
+    @keyframes textFlowShimmer {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    @keyframes beaconPulse {
+      0% { transform: scale(1); opacity: 0.8; }
+      100% { transform: scale(2.4); opacity: 0; }
+    }
+
+    @keyframes buttonLightSweep {
+      0%, 65% { transform: rotate(25deg) translateX(-150%); }
+      100% { transform: rotate(25deg) translateX(250%); }
+    }
+
+    @media (max-width: 768px) {
+      body.dash .dash-hero.cl-animated-hero {
+        margin: 20px 4vw 0;
+        padding: 24px 20px;
+        min-height: 120px;
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .cl-page-wrap {
+        padding: 20px 4vw 80px;
+      }
+      .dash-hero-actions {
+        width: 100%;
+        margin-left: 0;
+        justify-content: flex-start;
+      }
+    }
+
+    .cl-top-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .cl-cta-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 13px;
+      border-radius: 8px;
+      background: #111827;
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.15s ease;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+      border: 1px solid #111827;
+    }
+
+    .cl-cta-btn:hover {
+      background: #000000;
+      transform: translateY(-1px);
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.14);
+    }
+
+    .cl-sub-link-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 13px;
+      border-radius: 8px;
+      background: #ffffff;
+      color: #111827;
+      font-size: 12px;
+      font-weight: 600;
+      text-decoration: none;
+      border: 1px solid rgba(0, 0, 0, 0.14);
+      transition: all 0.15s ease;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+    }
+
+    .cl-sub-link-btn:hover {
+      background: #f5f5f7;
+      border-color: rgba(0, 0, 0, 0.28);
+      transform: translateY(-1px);
+    }
+
+    /* ── Apple Segmented Control (View Switcher) ── */
+    .cl-view-switcher {
+      display: inline-flex;
+      background: #e9e9ed;
+      padding: 3px;
+      border-radius: 9px;
+      margin-bottom: 16px;
+      gap: 3px;
+      border: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .cl-view-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 13px;
+      border-radius: 7px;
+      font-size: 12px;
+      font-weight: 500;
+      border: none;
+      background: transparent;
+      color: #6e6e73;
+      cursor: pointer;
+      font-family: var(--apple-font);
+      transition: all 0.15s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+
+    .cl-view-btn:hover {
+      color: #111827;
+    }
+
+    .cl-view-btn.active {
+      background: #ffffff;
+      color: #111827;
+      font-weight: 600;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+
+    .cl-count-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1px 5px;
+      border-radius: 4px;
+      background: rgba(0, 0, 0, 0.07);
+      font-size: 10.5px;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    .cl-view-btn.active .cl-count-pill {
+      background: #111827;
+      color: #ffffff;
+    }
+
+    /* ── Filter Bar for Assignments ── */
+    .cl-filter-toolbar {
+      display: flex;
+      align-items: center;
+      margin-bottom: 18px;
+      background: #ffffff;
+      border: 1px solid rgba(0, 0, 0, 0.09);
+      border-radius: 14px;
+      padding: 10px 14px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02);
+    }
+
+    .cl-search-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      width: 100%;
+      flex-wrap: wrap;
+    }
+
+    .cl-search-wrap {
+      position: relative;
+      flex: 1;
+      min-width: 220px;
+    }
+
+    .cl-search-input {
+      width: 100%;
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      background: #fbfbfd;
+      font-size: 12.5px;
+      font-family: var(--apple-font);
+      outline: none;
+      box-sizing: border-box;
+      transition: all 0.15s ease;
+    }
+
+    .cl-search-input:focus {
+      background: #ffffff;
+      border-color: #0071e3;
+      box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.12);
+    }
+
+    /* ── Slide-Down Semester Dropdown ── */
+    .cl-dropdown-wrap {
+      position: relative;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+
+    .cl-dropdown-trigger {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      background: #fbfbfd;
+      color: #1d1d1f;
+      font-size: 12.5px;
+      font-weight: 500;
+      font-family: var(--apple-font);
+      cursor: pointer;
+      transition: all 0.18s ease;
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    .cl-dropdown-trigger:hover {
+      background: #ffffff;
+      border-color: rgba(0, 0, 0, 0.25);
+    }
+
+    .cl-dropdown-wrap.open .cl-dropdown-trigger {
+      background: #ffffff;
+      border-color: #0071e3;
+      box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.12);
+    }
+
+    .cl-dropdown-chevron {
+      transition: transform 0.2s ease;
+      color: #86868b;
+    }
+
+    .cl-dropdown-wrap.open .cl-dropdown-chevron {
+      transform: rotate(180deg);
+    }
+
+    .cl-dropdown-menu {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      min-width: 175px;
+      background: #ffffff;
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      border-radius: 11px;
+      padding: 5px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.06);
+      opacity: 0;
+      transform: translateY(-8px) scale(0.98);
+      pointer-events: none;
+      transition: opacity 0.18s ease, transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 120;
+    }
+
+    .cl-dropdown-wrap.open .cl-dropdown-menu {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      pointer-events: auto;
+    }
+
+    .cl-dropdown-item {
+      padding: 7px 11px;
+      border-radius: 6px;
+      font-size: 12.5px;
+      font-weight: 500;
+      color: #374151;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: background 0.12s ease, color 0.12s ease;
+      user-select: none;
+      font-family: var(--apple-font);
+    }
+
+    .cl-dropdown-item:hover {
+      background: #f3f4f6;
+      color: #111827;
+    }
+
+    .cl-dropdown-item.active {
+      background: #111827;
+      color: #ffffff;
+      font-weight: 600;
+    }
+
+    body.dark-mode .cl-filter-toolbar {
+      background: #161617;
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    body.dark-mode .cl-search-input {
+      background: #1c1c1e;
+      border-color: rgba(255, 255, 255, 0.12);
+      color: #f5f5f7;
+    }
+
+    body.dark-mode .cl-dropdown-trigger {
+      background: #1c1c1e;
+      border-color: rgba(255, 255, 255, 0.12);
+      color: #f5f5f7;
+    }
+
+    body.dark-mode .cl-dropdown-wrap.open .cl-dropdown-trigger {
+      border-color: #2997ff;
+      box-shadow: 0 0 0 3px rgba(41, 151, 255, 0.2);
+    }
+
+    body.dark-mode .cl-dropdown-menu {
+      background: #1c1c1e;
+      border-color: rgba(255, 255, 255, 0.14);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+    }
+
+    body.dark-mode .cl-dropdown-item {
+      color: #d1d5db;
+    }
+
+    body.dark-mode .cl-dropdown-item:hover {
+      background: #2c2c2e;
+      color: #ffffff;
+    }
+
+    body.dark-mode .cl-dropdown-item.active {
+      background: #ffffff;
+      color: #111827;
+    }
+
+    .cl-status-pills-row {
+      display: flex;
+      gap: 5px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .cl-status-pill {
+      padding: 3.5px 10px;
+      border-radius: 6px;
+      font-size: 11.5px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      background: #fbfbfd;
+      color: #6e6e73;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+      font-family: var(--apple-font);
+    }
+
+    .cl-status-pill:hover {
+      color: #111827;
+      border-color: rgba(0, 0, 0, 0.2);
+    }
+
+    .cl-status-pill.active {
+      background: #111827;
+      color: #ffffff;
+      border-color: #111827;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    body.dark-mode .cl-status-pill {
+      background: #1c1c1e;
+      color: #86868b;
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    body.dark-mode .cl-status-pill.active {
+      background: #ffffff;
+      color: #111827;
+      border-color: #ffffff;
+    }
+
+    /* ── Subject Filter Pills Bar (Below Search Row) ── */
+    .cl-subject-pills-bar {
+      margin-bottom: 20px;
+      position: relative;
+    }
+
+    .cl-subject-pills-scroll {
+      display: flex;
+      gap: 7px;
+      overflow-x: auto;
+      padding: 2px 2px 6px;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .cl-subject-pills-scroll::-webkit-scrollbar {
+      display: none;
+    }
+
+    .cl-subject-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 13px;
+      border-radius: 980px;
+      font-size: 12px;
+      font-weight: 500;
+      font-family: var(--apple-font);
+      border: 1px solid rgba(0, 0, 0, 0.09);
+      background: #ffffff;
+      color: #4b5563;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+      transition: all 0.16s cubic-bezier(0.25, 1, 0.5, 1);
+      user-select: none;
+    }
+
+    .cl-subject-pill:hover {
+      background: #f3f4f6;
+      color: #111827;
+      border-color: rgba(0, 0, 0, 0.18);
+    }
+
+    .cl-subject-pill.active {
+      background: #111827;
+      color: #ffffff;
+      border-color: #111827;
+      font-weight: 600;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    }
+
+    .cl-subject-pill .pill-count {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1px 5px;
+      border-radius: 980px;
+      background: rgba(0, 0, 0, 0.06);
+      font-size: 10px;
+      font-weight: 700;
+      color: #6b7280;
+    }
+
+    .cl-subject-pill.active .pill-count {
+      background: rgba(255, 255, 255, 0.22);
+      color: #ffffff;
+    }
+
+    body.dark-mode .cl-subject-pill {
+      background: #1c1c1e;
+      color: #9ca3af;
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    body.dark-mode .cl-subject-pill:hover {
+      background: #2c2c2e;
+      color: #ffffff;
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    body.dark-mode .cl-subject-pill.active {
+      background: #ffffff;
+      color: #111827;
+      border-color: #ffffff;
+    }
+
+    body.dark-mode .cl-subject-pill.active .pill-count {
+      background: rgba(0, 0, 0, 0.15);
+      color: #111827;
+    }
+
+    /* ── Dashboard File Box Assignment Card ── */
+    .assignment-post-card {
+      background: #ffffff;
+      border: 1.5px solid var(--ap-border-post, #6e6e73);
+      border-radius: var(--ap-radius-card, 20px);
+      padding: 24px 26px 22px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04), 0 12px 32px -4px rgba(0, 0, 0, 0.06);
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease;
+      position: relative;
+    }
+
+    .assignment-post-card:hover {
+      transform: translateY(-4px) scale(1.004);
+      border-color: #000000;
+      box-shadow: 0 10px 32px rgba(0, 0, 0, 0.1);
+    }
+
+    .post-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .post-avatar.assignment-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #111827;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 15px;
+      flex-shrink: 0;
+    }
+
+    .post-user-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .post-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .assignment-header-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 7px;
+      background: #f2f2f7;
+      color: #1d1d1f;
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      font-size: 11.5px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+    }
+
+    .assignment-header-badge svg {
+      color: #0071e3;
+    }
+
+    body.dark-mode .assignment-header-badge {
+      background: #2c2c2e;
+      color: #f5f5f7;
+      border-color: rgba(255, 255, 255, 0.16);
+    }
+
+    .post-author-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .post-author-name {
+      font-size: 15px;
+      font-weight: 700;
+      color: #111827;
+      letter-spacing: -0.01em;
+    }
+
+    .verified-badge {
+      display: inline-flex;
+      align-items: center;
+      color: #0071e3;
+    }
+
+    .post-meta-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: #6e6e73;
+      margin-top: 1px;
+    }
+
+    .post-meta-sep {
+      color: #aeaeb2;
+    }
+
+    .post-content {
+      margin-bottom: 14px;
+    }
+
+    .post-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: #111827;
+      margin: 0 0 8px 0;
+      line-height: 1.35;
+      letter-spacing: -0.015em;
+    }
+
+    .post-tags-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .post-pill-tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 10px;
+      border-radius: 6px;
+      font-size: 11.5px;
+      font-weight: 600;
+    }
+
+    .post-pill-tag.subject-tag {
+      background: rgba(0, 113, 227, 0.08);
+      color: #0071e3;
+    }
+
+    .post-pill-tag.chapter-tag {
+      background: rgba(0, 0, 0, 0.05);
+      color: #1d1d1f;
+    }
+
+    .post-pill-tag.q-count-tag {
+      background: rgba(52, 199, 89, 0.1);
+      color: #1b7a37;
+    }
+
+    .post-caption {
+      font-size: 14.5px;
+      color: #1d1d1f;
+      line-height: 1.5;
+      margin: 0 0 10px 0;
+    }
+
+    /* Dashboard File Attachment Card Replica */
+    .post-attachment-card {
+      background: #ffffff;
+      border: 1.5px solid rgba(0, 0, 0, 0.25);
+      border-radius: 12px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+      transition: box-shadow 0.2s, transform 0.2s, border-color 0.2s;
+    }
+
+    .post-attachment-card:hover {
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.09);
+      border-color: rgba(0, 0, 0, 0.55);
+    }
+
+    .attachment-file-badge {
+      width: 40px;
+      height: 40px;
+      border-radius: 9px;
+      background: #111827 !important;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 800;
+      flex-shrink: 0;
+      letter-spacing: 0.04em;
+    }
+
+    .attachment-details {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 3px;
+      flex: 1;
+    }
+
+    .attachment-name {
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1.35;
+      color: #111827;
+      margin: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      letter-spacing: -0.01em;
+    }
+
+    .attachment-meta {
+      font-size: 12px;
+      color: #6b7280;
+      margin: 0;
+    }
+
+    .attachment-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .attach-action-btn {
+      padding: 8px 15px;
+      border-radius: 8px;
+      font-size: 12.5px;
+      font-weight: 700;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.2s ease;
+      border: none;
+      cursor: pointer;
+    }
+
+    .attach-action-btn.attach-btn-download {
+      background: #111827;
+      color: #ffffff;
+    }
+
+    .attach-action-btn.attach-btn-download:hover {
+      background: #000000;
+      transform: translateY(-1px);
+    }
+
+    .attach-action-btn.attach-btn-view {
+      background: #f3f4f6;
+      color: #111827;
+      border: 1px solid rgba(0, 0, 0, 0.12);
+    }
+
+    .attach-action-btn.attach-btn-view:hover {
+      background: #e5e7eb;
+      transform: translateY(-1px);
+    }
+
+    /* ── Student Assignment Status Button (Submitted vs Remaining) ── */
+    .post-action-btn.status-btn {
+      text-decoration: none;
+      margin-left: auto;
+      font-weight: 600;
+      font-size: 12px;
+      padding: 5px 12px;
+      border-radius: var(--ap-radius-pill, 980px);
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .post-action-btn.status-btn.submitted {
+      background: rgba(52, 199, 89, 0.12);
+      color: #1b7a37;
+      border: 1.5px solid rgba(52, 199, 89, 0.35);
+    }
+
+    .post-action-btn.status-btn.submitted:hover {
+      background: rgba(52, 199, 89, 0.22);
+      border-color: #34c759;
+      transform: translateY(-1px);
+    }
+
+    .post-action-btn.status-btn.not-submitted {
+      background: rgba(255, 149, 0, 0.1);
+      color: #b45309;
+      border: 1.5px solid rgba(255, 149, 0, 0.35);
+    }
+
+    .post-action-btn.status-btn.not-submitted:hover {
+      background: rgba(255, 149, 0, 0.2);
+      border-color: #ff9500;
+      transform: translateY(-1px);
+    }
+
+    .post-action-btn.status-btn.partial {
+      background: rgba(0, 113, 227, 0.1);
+      color: #0071e3;
+      border: 1.5px solid rgba(0, 113, 227, 0.35);
+    }
+
+    .post-action-btn.status-btn.partial:hover {
+      background: rgba(0, 113, 227, 0.2);
+      border-color: #0071e3;
+      transform: translateY(-1px);
+    }
+
+    body.dark-mode .post-action-btn.status-btn.submitted {
+      background: rgba(52, 199, 89, 0.2);
+      color: #30d158;
+      border-color: rgba(52, 199, 89, 0.4);
+    }
+
+    body.dark-mode .post-action-btn.status-btn.not-submitted {
+      background: rgba(255, 159, 10, 0.2);
+      color: #ff9f0a;
+      border-color: rgba(255, 159, 10, 0.4);
+    }
+
+    body.dark-mode .post-action-btn.status-btn.partial {
+      background: rgba(10, 132, 255, 0.2);
+      color: #0a84ff;
+      border-color: rgba(10, 132, 255, 0.4);
+    }
+
+    /* ── Subject Grid Section ── */
+    .cl-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+      gap: 18px;
+    }
+
+    .cl-subject-card {
+      background: #ffffff;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 18px;
+      padding: 24px;
+      text-decoration: none;
+      color: inherit;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 140px;
+      transition: all 0.22s cubic-bezier(0.25, 1, 0.5, 1);
+      box-shadow: 0 4px 18px rgba(0, 0, 0, 0.03);
+      position: relative;
+      cursor: pointer;
+    }
+
+    .cl-subject-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
+      border-color: rgba(0, 113, 227, 0.3);
+    }
+
+    .cl-sub-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .cl-code-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 9px;
+      border-radius: 6px;
+      background: rgba(0, 113, 227, 0.08);
+      color: #0071e3;
+      font-size: 11.5px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .cl-card-arrow {
+      color: #aeaeb2;
+      transition: transform 0.2s ease, color 0.2s ease;
+    }
+
+    .cl-subject-card:hover .cl-card-arrow {
+      color: #0071e3;
+      transform: translateX(3px);
+    }
+
+    .cl-subject-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1d1d1f;
+      line-height: 1.4;
+      margin: 0 0 12px 0;
+      letter-spacing: -0.01em;
+    }
+
+    .cl-subject-meta {
+      font-size: 12.5px;
+      color: #86868b;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .cl-empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      background: #ffffff;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 18px;
+      color: #86868b;
+      font-size: 14.5px;
+      grid-column: 1 / -1;
+    }
+  </style>
+</head>
+
+<body class="dash syllabus-page-body">
+
+  <header class="dash-header">
+    <a href="/" class="lib-wordmark">Semester Library</a>
+    <nav class="dash-header-nav">
+      <a href="/about" class="header-nav-item">About</a>
+      <a href="/code-lab/subjects.html" class="header-nav-item active">Assignments</a>
+      <a href="/routine" class="header-nav-item">Routine</a>
+      <a href="/notices" class="header-nav-item">Notices</a>
+    </nav>
+    <div class="dash-header-actions">
+      <a href="/login.html" class="nav-cta-btn apple-nav-btn">Sign In</a>
+    </div>
+  </header>
+
+  <!-- Apple Obsidian Hero Island -->
+  <section class="dash-hero cl-animated-hero" id="clHeroBanner">
+    <div class="dash-hero-content">
+      <span class="cl-hero-kicker">LAB REPORTS</span>
+      <h1 class="cl-hero-title">Assignments</h1>
+    </div>
+
+    <div class="dash-hero-actions">
+      <a href="/code-lab/create.html" class="dash-hero-btn primary cl-btn-pro" title="Create a new programming assignment">
+        <svg class="cl-btn-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        <span>Create Assignment</span>
+      </a>
+      <a href="/code-lab/my-submissions.html" class="dash-hero-btn secondary cl-btn-glass" title="View your submitted code and execution outputs">
+        <svg class="cl-btn-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        <span>My Submissions</span>
+      </a>
+    </div>
+  </section>
+
+  <main class="cl-page-wrap">
+
+    <!-- ── View 1: All Assignments (Dashboard File Box Cards) ── -->
+    <section id="viewAssignments">
+      
+      <!-- Filter Toolbar -->
+      <div class="cl-filter-toolbar">
+        <div class="cl-search-row">
+          <div class="cl-search-wrap">
+            <input type="search" id="searchInput" class="cl-search-input" placeholder="Search assignments by title, topic, or instructor…">
+          </div>
+
+          <!-- Slide-Down Semester Dropdown -->
+          <div class="cl-dropdown-wrap" id="semDropdownWrap">
+            <button type="button" class="cl-dropdown-trigger" id="semDropdownTrigger" aria-haspopup="listbox" aria-expanded="false" title="Filter by semester">
+              <span id="semDropdownLabel">All Semesters</span>
+              <svg class="cl-dropdown-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div class="cl-dropdown-menu" id="semDropdownMenu" role="listbox">
+              <div class="cl-dropdown-item active" data-sem="">All Semesters</div>
+              <div class="cl-dropdown-item" data-sem="1">Semester 1 (I)</div>
+              <div class="cl-dropdown-item" data-sem="2">Semester 2 (II)</div>
+              <div class="cl-dropdown-item" data-sem="3">Semester 3 (III)</div>
+              <div class="cl-dropdown-item" data-sem="4">Semester 4 (IV)</div>
+              <div class="cl-dropdown-item" data-sem="5">Semester 5 (V)</div>
+              <div class="cl-dropdown-item" data-sem="6">Semester 6 (VI)</div>
+              <div class="cl-dropdown-item" data-sem="7">Semester 7 (VII)</div>
+              <div class="cl-dropdown-item" data-sem="8">Semester 8 (VIII)</div>
+            </div>
+          </div>
+
+          <!-- Status Filter Pills -->
+          <div class="cl-status-pills-row" id="feedStatusPills">
+            <button class="cl-status-pill active" data-status="">All</button>
+            <button class="cl-status-pill" data-status="remaining">Remaining</button>
+            <button class="cl-status-pill" data-status="submitted">Submitted</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Subject Filter Pills (Dynamically shows subjects when a specific semester is chosen) -->
+      <div class="cl-subject-pills-bar" id="subjectPillsBar" style="display: none;">
+        <div class="cl-subject-pills-scroll" id="subjectPillsScroll"></div>
+      </div>
+
+      <!-- Assignments Feed -->
+      <div id="assignmentsFeed">
+        <div class="cl-empty-state">Loading uploaded assignments…</div>
+      </div>
+
+    </section>
+
+    <!-- ── View 2: Browse by Subject ── -->
+    <section id="viewSubjects" style="display: none;">
+      
+      <!-- Semester Selector for Subjects -->
+      <div class="cl-sem-tabs" id="semTabs" role="tablist" style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 24px;"></div>
+
+      <!-- Subjects Grid -->
+      <div class="cl-grid" id="subjectGrid">
+        <div class="cl-empty-state">Loading curriculum subjects…</div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <footer class="app-global-footer">
+    <div class="app-footer-inner">
+      <div class="app-footer-brand">
+        <strong>Semester Library</strong>
+        <span>· Bachelor of Information Technology</span>
+      </div>
+      <div class="app-footer-meta">
+        <span>Gandaki University</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/auth-modal.js"></script>
+  <script src="/syllabus-helper.js"></script>
+  <script>
+    let allAssignments = [];
+    let syllabusData = null;
+    let currentSemesterFilter = '';
+    let currentSubjectFilter = '';
+    let currentStatusFilter = '';
+    let activeView = 'assignments';
+
+    const ROMAN_MAP = { '1': 'I', '2': 'II', '3': 'III', '4': 'IV', '5': 'V', '6': 'VI', '7': 'VII', '8': 'VIII' };
+    const NUM_MAP = { 'I': '1', 'II': '2', 'III': '3', 'IV': '4', 'V': '5', 'VI': '6', 'VII': '7', 'VIII': '8' };
+
+    function semMatches(a, b) {
+      if (!a || !b) return false;
+      const sa = String(a).trim().toUpperCase();
+      const sb = String(b).trim().toUpperCase();
+      if (sa === sb) return true;
+      return (ROMAN_MAP[sa] === sb) || (NUM_MAP[sa] === sb);
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text || '';
+      return div.innerHTML;
+    }
+
+    function getInitials(name) {
+      if (!name) return 'GU';
+      const parts = name.trim().split(/\s+/);
+      if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+      return name.slice(0, 2).toUpperCase();
+    }
+
+    function formatDate(dateStr) {
+      if (!dateStr) return 'Recently';
+      try {
+        const d = new Date(dateStr);
+        const now = new Date();
+        const diffDays = Math.round((now - d) / (1000 * 60 * 60 * 24));
+        if (diffDays === 0) return 'Today';
+        if (diffDays === 1) return 'Yesterday';
+        if (diffDays < 7) return `${diffDays} days ago`;
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      } catch (e) {
+        return 'Recently';
+      }
+    }
+
+    // ── Tab Switching ──
+    function switchView(viewName) {
+      activeView = viewName;
+      const tabAssign = document.getElementById('tabAssignments');
+      const tabSubj = document.getElementById('tabSubjects');
+      const viewAssign = document.getElementById('viewAssignments');
+      const viewSubj = document.getElementById('viewSubjects');
+      if (viewName === 'subjects') {
+        if (tabAssign) tabAssign.classList.remove('active');
+        if (tabSubj) tabSubj.classList.add('active');
+        if (viewAssign) viewAssign.style.display = 'none';
+        if (viewSubj) viewSubj.style.display = 'block';
+      } else {
+        if (tabSubj) tabSubj.classList.remove('active');
+        if (tabAssign) tabAssign.classList.add('active');
+        if (viewSubj) viewSubj.style.display = 'none';
+        if (viewAssign) viewAssign.style.display = 'block';
+      }
+    }
+
+    const tabAssignEl = document.getElementById('tabAssignments');
+    if (tabAssignEl) tabAssignEl.addEventListener('click', () => switchView('assignments'));
+    const tabSubjEl = document.getElementById('tabSubjects');
+    if (tabSubjEl) tabSubjEl.addEventListener('click', () => switchView('subjects'));
+
+    // ── Fetch & Render Uploaded Assignments ──
+    async function loadAssignments() {
+      const feedEl = document.getElementById('assignmentsFeed');
+      try {
+        const res = await fetch('/api/code-lab/assignments');
+        if (!res.ok) throw new Error('Could not load assignments.');
+        allAssignments = await res.json();
+        const counterEl = document.getElementById('assignCounter');
+        if (counterEl) counterEl.textContent = allAssignments.length;
+        const heroCountEl = document.getElementById('heroAssignCount');
+        if (heroCountEl) {
+          heroCountEl.textContent = `${allAssignments.length} Assignment${allAssignments.length !== 1 ? 's' : ''}`;
+        }
+        renderSubjectFilterPills();
+        renderAssignmentsFeed();
+      } catch (err) {
+        feedEl.innerHTML = `<div class="cl-empty-state">Unable to load assignments: ${escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    function renderAssignmentsFeed() {
+      const feedEl = document.getElementById('assignmentsFeed');
+      const query = document.getElementById('searchInput').value.trim().toLowerCase();
+
+      const filtered = allAssignments.filter(a => {
+        // Semester match
+        if (currentSemesterFilter) {
+          if (!semMatches(a.semester, currentSemesterFilter)) return false;
+        }
+        // Subject match
+        if (currentSubjectFilter) {
+          if ((a.subject || '').toLowerCase() !== currentSubjectFilter.toLowerCase()) return false;
+        }
+        // Status match (Remaining vs Submitted)
+        if (currentStatusFilter) {
+          const qCount = Number(a.questionCount || 0);
+          const mySub = Number(a.mySubmissionCount || a.mysubmissioncount || 0);
+          const isFullySubmitted = (mySub > 0 && mySub >= qCount && qCount > 0);
+          if (currentStatusFilter === 'remaining' && isFullySubmitted) {
+            return false;
+          }
+          if (currentStatusFilter === 'submitted' && !isFullySubmitted) {
+            return false;
+          }
+        }
+        // Text query match
+        if (query) {
+          const matchTitle = (a.title || '').toLowerCase().includes(query);
+          const matchSubject = (a.subject || '').toLowerCase().includes(query);
+          const matchTeacher = (a.teacherName || '').toLowerCase().includes(query);
+          if (!matchTitle && !matchSubject && !matchTeacher) return false;
+        }
+        return true;
+      });
+
+      if (!filtered.length) {
+        feedEl.innerHTML = `
+          <div class="cl-empty-state">
+            <p style="margin: 0 0 10px 0; font-weight: 600; color: #1d1d1f; font-size: 16px;">No assignments found</p>
+            <p style="margin: 0 0 18px 0;">No assignments match your current search or semester filters.</p>
+            <button type="button" class="cl-cta-btn" onclick="resetFilters()" style="margin: 0 auto;">Reset Filters</button>
+          </div>
+        `;
+        return;
+      }
+
+      feedEl.innerHTML = '';
+      filtered.forEach(a => {
+        const qCount = Number(a.questionCount || 0);
+        const subCount = Number(a.submissionCount || a.submissioncount || 0);
+        const mySubCount = Number(a.mySubmissionCount || a.mysubmissioncount || 0);
+        const initials = getInitials(a.teacherName);
+        const semLabel = a.semester ? `Semester ${a.semester}` : '';
+
+        const likeKey = 'liked_assign_' + a.id;
+        const isLiked = localStorage.getItem(likeKey) === 'true';
+        const likeCountKey = 'like_count_assign_' + a.id;
+        const initialLikeCount = parseInt(localStorage.getItem(likeCountKey) || '0', 10);
+
+        // Determine student completion status (Submitted vs Remaining)
+        let statusBadgeHtml = '';
+        if (mySubCount > 0 && mySubCount >= qCount && qCount > 0) {
+          statusBadgeHtml = `
+            <a href="/code-lab/my-submissions.html" class="post-action-btn status-btn submitted" title="You have submitted this assignment. Click to view submission.">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              <span>Submitted</span>
+            </a>
+          `;
+        } else if (mySubCount > 0 && mySubCount < qCount) {
+          statusBadgeHtml = `
+            <a href="/code-lab/assignment.html?id=${a.id}" class="post-action-btn status-btn partial" title="${mySubCount} of ${qCount} questions completed. Click to complete remaining.">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              <span>${mySubCount}/${qCount} Submitted</span>
+            </a>
+          `;
+        } else {
+          statusBadgeHtml = `
+            <a href="/code-lab/assignment.html?id=${a.id}" class="post-action-btn status-btn not-submitted" title="Remaining to be completed. Click to solve assignment.">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+              <span>Not Submitted</span>
+            </a>
+          `;
+        }
+
+        const card = document.createElement('article');
+        card.className = 'feed-card social-post-card assignment-post-card';
+        card.innerHTML = `
+          <header class="post-header">
+            <div class="post-avatar assignment-avatar">
+              <span>${escapeHtml(initials)}</span>
+            </div>
+            <div class="post-user-info">
+              <div class="post-author-row">
+                <span class="post-author-name">${escapeHtml(a.teacherName || 'Faculty Member')}</span>
+                <span class="verified-badge" title="Faculty / Admin">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="#0071e3"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                </span>
+              </div>
+              <div class="post-meta-row">
+                <span class="post-student-handle">@${escapeHtml(a.createdBy || 'faculty')}</span>
+                <span class="post-meta-sep">&middot;</span>
+                <time class="post-timestamp">${formatDate(a.createdAt)}</time>
+                <span class="post-meta-sep">&middot;</span>
+                <span class="post-visibility" title="Academic Laboratory Assignment">
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                </span>
+              </div>
+            </div>
+            <div class="post-header-actions">
+              <span class="assignment-header-badge" title="Official Academic Assignment">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                <span>Assignment</span>
+              </span>
+            </div>
+          </header>
+
+          <div class="post-content">
+            <div class="post-tags-row">
+              ${a.subject ? `<span class="post-pill-tag subject-tag">${escapeHtml(a.subject)}</span>` : ''}
+              ${semLabel ? `<span class="post-pill-tag chapter-tag">${escapeHtml(semLabel)}</span>` : ''}
+              <span class="post-pill-tag q-count-tag">${qCount} Problem${qCount !== 1 ? 's' : ''}</span>
+            </div>
+          </div>
+
+          <!-- Dashboard File Attachment Card Replica -->
+          <div class="post-attachment-card">
+            <div class="attachment-file-badge">
+              <span>LAB</span>
+            </div>
+            <div class="attachment-details">
+              <p class="attachment-name" title="${escapeHtml(a.title)}">${escapeHtml(a.title)}</p>
+              <span class="attachment-meta">${qCount} Problem${qCount !== 1 ? 's' : ''} &middot; ${escapeHtml(a.subject || 'Curriculum')} ${a.semester ? `&middot; Sem ${escapeHtml(a.semester)}` : ''}</span>
+            </div>
+            <div class="attachment-actions">
+              <a href="/code-lab/assignment.html?id=${a.id}" class="attach-action-btn attach-btn-download" title="Open and solve assignment">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                <span>Open</span>
+              </a>
+            </div>
+          </div>
+
+          <!-- Dashboard Social Engagement Bar -->
+          <footer class="post-engage-bar">
+            <button class="post-action-btn like-btn ${isLiked ? 'liked' : ''}" data-liked="${isLiked ? 'true' : 'false'}" onclick="toggleAssignmentLike(${a.id}, this)" title="Like assignment">
+              <svg viewBox="0 0 24 24" fill="${isLiked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/>
+              </svg>
+              <span class="like-count">${initialLikeCount}</span>
+            </button>
+
+            <button class="post-action-btn comment-btn" onclick="openAssignmentComments(${a.id})" title="Comments">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 8.4 8.4 0 0 1-3.5-.75L3 21l1.8-5.4A8.4 8.4 0 0 1 4 12.5 8.5 8.5 0 1 1 21 11.5z"/>
+              </svg>
+              <span class="comment-count">0</span>
+            </button>
+
+            <a href="/code-lab/submissions.html?id=${a.id}" class="post-action-btn submission-btn" title="View class submissions">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+              <span>${subCount} Submitted</span>
+            </a>
+
+            ${statusBadgeHtml}
+          </footer>
+        `;
+        feedEl.appendChild(card);
+      });
+    }
+
+    function toggleAssignmentLike(id, btn) {
+      const isLiked = btn.dataset.liked === 'true';
+      const countEl = btn.querySelector('.like-count');
+      const currentCount = parseInt(countEl.textContent || '0', 10);
+      const newLiked = !isLiked;
+      const newCount = newLiked ? currentCount + 1 : Math.max(0, currentCount - 1);
+      btn.dataset.liked = newLiked ? 'true' : 'false';
+      btn.classList.toggle('liked', newLiked);
+      countEl.textContent = newCount;
+      const svg = btn.querySelector('svg');
+      if (svg) svg.setAttribute('fill', newLiked ? 'currentColor' : 'none');
+      localStorage.setItem('liked_assign_' + id, newLiked ? 'true' : 'false');
+      localStorage.setItem('like_count_assign_' + id, String(newCount));
+    }
+
+    function openAssignmentComments(id) {
+      window.location.href = `/code-lab/assignment.html?id=${id}`;
+    }
+
+    function copyAssignmentLink(id) {
+      const url = `${window.location.origin}/code-lab/assignment.html?id=${id}`;
+      navigator.clipboard.writeText(url).then(() => {
+        showToast('Assignment link copied to clipboard!');
+      }).catch(() => {
+        prompt('Copy link:', url);
+      });
+    }
+
+    function showToast(message) {
+      let toast = document.getElementById('socialToast');
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'socialToast';
+        toast.className = 'social-toast';
+        document.body.appendChild(toast);
+      }
+      toast.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6L9 17l-5-5"/></svg><span>${message}</span>`;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2400);
+    }
+
+    function renderSubjectFilterPills() {
+      const bar = document.getElementById('subjectPillsBar');
+      const container = document.getElementById('subjectPillsScroll');
+      if (!container || !bar) return;
+
+      const num = NUM_MAP[currentSemesterFilter] || currentSemesterFilter;
+
+      // Do NOT show subject pills when "All Semesters" is selected
+      if (!num) {
+        bar.style.display = 'none';
+        container.innerHTML = '';
+        currentSubjectFilter = '';
+        return;
+      }
+
+      bar.style.display = 'block';
+      let subjectsToShow = [];
+
+      if (syllabusData && syllabusData.semesters) {
+        const matchedSem = syllabusData.semesters.find(s => String(s.semester) === String(num));
+        if (matchedSem && matchedSem.courses) {
+          matchedSem.courses.forEach(c => {
+            const name = c.title || c.name || '';
+            if (name) subjectsToShow.push({ code: c.code || '', name });
+          });
+        }
+      }
+
+      // Also ensure any subjects from actual uploaded assignments in this semester are included
+      allAssignments.forEach(a => {
+        const aSem = a.semester ? (NUM_MAP[a.semester] || a.semester) : '';
+        if (String(aSem) === String(num)) {
+          if (a.subject) {
+            const exists = subjectsToShow.some(s => s.name.toLowerCase() === a.subject.toLowerCase());
+            if (!exists) {
+              subjectsToShow.push({ code: a.subjectCode || '', name: a.subject });
+            }
+          }
+        }
+      });
+
+      // Filter assignments count for this semester
+      const semAssignments = allAssignments.filter(a => {
+        const aSem = a.semester ? (NUM_MAP[a.semester] || a.semester) : '';
+        return String(aSem) === String(num);
+      });
+
+      container.innerHTML = '';
+
+      // 1. "All Subjects" pill for this semester
+      const allPill = document.createElement('button');
+      allPill.type = 'button';
+      allPill.className = 'cl-subject-pill' + (!currentSubjectFilter ? ' active' : '');
+      allPill.innerHTML = `
+        <span>All Subjects</span>
+        <span class="pill-count">${semAssignments.length}</span>
+      `;
+      allPill.addEventListener('click', () => {
+        currentSubjectFilter = '';
+        renderSubjectFilterPills();
+        renderAssignmentsFeed();
+      });
+      container.appendChild(allPill);
+
+      // 2. Individual Subject pills (Displays all curriculum subjects for the selected semester)
+      subjectsToShow.forEach(subj => {
+        const count = semAssignments.filter(a => (a.subject || '').toLowerCase() === subj.name.toLowerCase()).length;
+        const isSelected = currentSubjectFilter && currentSubjectFilter.toLowerCase() === subj.name.toLowerCase();
+
+        const pill = document.createElement('button');
+        pill.type = 'button';
+        pill.className = 'cl-subject-pill' + (isSelected ? ' active' : '');
+        pill.innerHTML = `
+          <span>${escapeHtml(subj.name)}</span>
+          ${count > 0 ? `<span class="pill-count">${count}</span>` : ''}
+        `;
+        pill.addEventListener('click', () => {
+          if (isSelected) {
+            currentSubjectFilter = ''; // Toggle off
+          } else {
+            currentSubjectFilter = subj.name;
+          }
+          renderSubjectFilterPills();
+          renderAssignmentsFeed();
+        });
+        container.appendChild(pill);
+      });
+    }
+
+    function setSemesterFilter(sem) {
+      currentSemesterFilter = sem ? String(sem).trim() : '';
+      const num = NUM_MAP[currentSemesterFilter] || currentSemesterFilter;
+
+      const dropdownLabel = document.getElementById('semDropdownLabel');
+      const items = document.querySelectorAll('#semDropdownMenu .cl-dropdown-item');
+      let matchedLabel = '';
+      items.forEach(item => {
+        const itemSem = item.dataset.sem;
+        const isMatch = (itemSem === '' && !num) || (itemSem === String(num));
+        item.classList.toggle('active', isMatch);
+        if (isMatch) {
+          matchedLabel = item.textContent;
+        }
+      });
+      if (dropdownLabel) {
+        dropdownLabel.textContent = matchedLabel || (currentSemesterFilter ? `Sem ${currentSemesterFilter}` : 'All Semesters');
+      }
+
+      // Re-render subject filter pills dynamically for this semester
+      renderSubjectFilterPills();
+    }
+
+    function resetFilters() {
+      setSemesterFilter('');
+      currentSubjectFilter = '';
+      currentStatusFilter = '';
+      document.getElementById('searchInput').value = '';
+      document.querySelectorAll('#feedStatusPills .cl-status-pill').forEach(p => p.classList.remove('active'));
+      const defaultStatusPill = document.querySelector('#feedStatusPills [data-status=""]');
+      if (defaultStatusPill) defaultStatusPill.classList.add('active');
+      renderSubjectFilterPills();
+      renderAssignmentsFeed();
+    }
+
+    // ── Filter Controls ──
+    document.getElementById('searchInput').addEventListener('input', renderAssignmentsFeed);
+
+    // Slide-down Semester Dropdown Handlers
+    const semDropdownWrap = document.getElementById('semDropdownWrap');
+    const semDropdownTrigger = document.getElementById('semDropdownTrigger');
+    const semDropdownMenu = document.getElementById('semDropdownMenu');
+
+    if (semDropdownTrigger && semDropdownWrap) {
+      semDropdownTrigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = semDropdownWrap.classList.toggle('open');
+        semDropdownTrigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      });
+
+      document.querySelectorAll('#semDropdownMenu .cl-dropdown-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+          e.stopPropagation();
+          setSemesterFilter(item.dataset.sem);
+          semDropdownWrap.classList.remove('open');
+          semDropdownTrigger.setAttribute('aria-expanded', 'false');
+          renderAssignmentsFeed();
+        });
+      });
+
+      document.addEventListener('click', (e) => {
+        if (!semDropdownWrap.contains(e.target)) {
+          semDropdownWrap.classList.remove('open');
+          semDropdownTrigger.setAttribute('aria-expanded', 'false');
+        }
+      });
+
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && semDropdownWrap.classList.contains('open')) {
+          semDropdownWrap.classList.remove('open');
+          semDropdownTrigger.setAttribute('aria-expanded', 'false');
+        }
+      });
+    }
+
+    document.querySelectorAll('#feedStatusPills .cl-status-pill').forEach(pill => {
+      pill.addEventListener('click', () => {
+        document.querySelectorAll('#feedStatusPills .cl-status-pill').forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+        currentStatusFilter = pill.dataset.status;
+        renderAssignmentsFeed();
+      });
+    });
+
+    // ── Ingest & Render Curriculum Subjects ──
+    async function initSubjects() {
+      let semesters = [];
+      try {
+        syllabusData = await SyllabusHelper.loadSyllabusData();
+        semesters = SyllabusHelper.getFormattedSemesters(syllabusData);
+      } catch (e) {
+        console.warn('SyllabusHelper fallback:', e);
+      }
+
+      if (!semesters || semesters.length === 0) {
+        try {
+          const res = await fetch('/api/code-lab/subjects');
+          const data = await res.json();
+          if (data && data.semesters) {
+            semesters = data.semesters.map(s => ({
+              rawSemester: String(s.semester),
+              displayPill: `Sem ${s.semester}`,
+              fullLabel: `Semester ${s.semester}`,
+              courses: s.courses || []
+            }));
+          }
+        } catch (e) {
+          console.error('Failed to load from API:', e);
+        }
+      }
+
+      renderSubjectFilterPills();
+
+      const tabsEl = document.getElementById('semTabs');
+      if (tabsEl) {
+        tabsEl.innerHTML = '';
+        semesters.forEach((s, i) => {
+          if (s.rawSemester === 'Electives') return;
+
+          const pill = document.createElement('button');
+          pill.className = 'cl-sem-pill' + (i === 0 ? ' active' : '');
+          pill.textContent = s.displayPill || `Sem ${s.rawSemester}`;
+          pill.dataset.semester = s.rawSemester;
+          pill.setAttribute('role', 'tab');
+          pill.addEventListener('click', () => {
+            document.querySelectorAll('#semTabs .cl-sem-pill').forEach(p => p.classList.remove('active'));
+            pill.classList.add('active');
+            renderSubjectsGrid(s.rawSemester, s.courses);
+          });
+          tabsEl.appendChild(pill);
+        });
+
+        if (semesters.length > 0) {
+          const first = semesters[0];
+          renderSubjectsGrid(first.rawSemester, first.courses);
+        }
+      }
+    }
+
+    function renderSubjectsGrid(semester, courses) {
+      const grid = document.getElementById('subjectGrid');
+      if (!courses || courses.length === 0) {
+        grid.innerHTML = '<div class="cl-empty-state">No subjects found for this semester.</div>';
+        return;
+      }
+
+      grid.innerHTML = '';
+      courses.forEach(c => {
+        const card = document.createElement('div');
+        card.className = 'cl-subject-card';
+        card.innerHTML = `
+          <div>
+            <div class="cl-sub-top">
+              <span class="cl-code-badge">${escapeHtml(c.code || 'CS')}</span>
+              <svg class="cl-card-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+            </div>
+            <h3 class="cl-subject-title">${escapeHtml(c.title || c.name || '')}</h3>
+            <div class="cl-subject-meta">
+              <span>${escapeHtml(c.credit ? `${c.credit} Credits` : '')}</span>
+              ${c.credit ? '&middot;' : ''}
+              <span>Sem ${semester}</span>
+            </div>
+          </div>
+          <div style="margin-top: 14px; font-size: 12.5px; font-weight: 600; color: #0071e3; display: flex; align-items: center; gap: 4px;">
+            <span>View Assignments</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          </div>
+        `;
+        card.addEventListener('click', () => {
+          currentSemesterFilter = String(semester);
+          currentSubjectFilter = c.title || c.name;
+          setSemesterFilter(currentSemesterFilter);
+          switchView('assignments');
+          renderSubjectFilterPills();
+          renderAssignmentsFeed();
+        });
+        grid.appendChild(card);
+      });
+    }
+
+    // ── User Profile for Greeting ──
+    async function loadUserProfile() {
+      try {
+        const res = await fetch('/api/user');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data || !data.authenticated) return;
+
+        const greetingEl = document.getElementById('greetingLine');
+        const idLineEl = document.getElementById('idLine');
+        const avatarEl = document.getElementById('avatarInitial');
+        if (greetingEl) greetingEl.textContent = `${getGreeting()}, ${data.name || 'Student'}`;
+        if (idLineEl) idLineEl.textContent = data.studentId ? `Student ID: ${data.studentId}` : (data.email || 'Gandaki University');
+        if (avatarEl) avatarEl.textContent = (data.name || 'S').charAt(0).toUpperCase();
+
+        try {
+          const profRes = await fetch('/api/profile');
+          if (profRes.ok) {
+            const p = await profRes.json();
+            if (p && p.avatarUrl && avatarEl) {
+              avatarEl.innerHTML = `<img src="${p.avatarUrl}" alt="${p.name || 'Avatar'}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+            }
+          }
+        } catch (_) {}
+      } catch (e) {
+        const greetingEl = document.getElementById('greetingLine');
+        const idLineEl = document.getElementById('idLine');
+        const avatarEl = document.getElementById('avatarInitial');
+        if (greetingEl) greetingEl.textContent = `${getGreeting()}, Student`;
+        if (idLineEl) idLineEl.textContent = 'Assignments & Labs';
+        if (avatarEl) avatarEl.textContent = 'GU';
+      }
+    }
+
+    // ── Initial Boot ──
+    async function init() {
+      const params = new URLSearchParams(window.location.search);
+      const qView = params.get('view');
+      const qSubject = params.get('subject');
+      const qSemester = params.get('semester');
+
+      if (qSemester) {
+        currentSemesterFilter = qSemester;
+      }
+      if (qSubject) {
+        currentSubjectFilter = qSubject;
+      }
+
+      loadUserProfile();
+      await initSubjects();
+      await loadAssignments();
+
+      if (currentSemesterFilter) {
+        setSemesterFilter(currentSemesterFilter);
+      }
+
+      if (qView === 'subjects') {
+        switchView('subjects');
+      }
+    }
+
+    init();
+  </script>
+</body>
+
+</html>

@@ -307,6 +307,15 @@ app.get('/notices', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'notices.html'));
 });
 
+// Assignments / Code Lab — show subjects directly
+app.get(['/assignments', '/code-lab', '/code-lab/'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'code-lab', 'subjects.html'));
+});
+
+app.get('/code-lab/compiler', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'code-lab', 'index.html'));
+});
+
 app.get('/semester/:id', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'semester.html'));
 });

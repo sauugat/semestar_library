@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Submission Report — Assignments</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "SF Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
+            max-width: 880px;
+            margin: 36px auto;
+            padding: 0 24px 60px;
+            color: #1d1d1f;
+            background-color: #f5f5f7;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        #toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #6e6e73;
+            text-decoration: none;
+            padding: 8px 18px;
+            border-radius: 980px;
+            background: #ffffff;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+        }
+
+        .back-link:hover {
+            color: #1d1d1f;
+            border-color: rgba(0, 0, 0, 0.2);
+            transform: translateY(-1px);
+        }
+
+        #downloadBtn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 24px;
+            font-size: 13.5px;
+            font-weight: 600;
+            cursor: pointer;
+            background: #0071e3;
+            color: #ffffff;
+            border: none;
+            border-radius: 980px;
+            box-shadow: 0 4px 14px rgba(0, 113, 227, 0.25);
+            font-family: inherit;
+            transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        #downloadBtn:hover:not(:disabled) {
+            background: #0077ed;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(0, 113, 227, 0.35);
+        }
+
+        #downloadBtn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        #report {
+            background: #ffffff;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            padding: 38px 42px;
+            border-radius: 20px;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
+        }
+
+        .report-header {
+            border-bottom: 2px solid #1d1d1f;
+            padding-bottom: 16px;
+            margin-bottom: 24px;
+        }
+
+        .report-header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin: 0 0 6px 0;
+            color: #1d1d1f;
+        }
+
+        .report-header .meta {
+            color: #6e6e73;
+            font-size: 13.5px;
+            line-height: 1.5;
+        }
+
+        .section-title {
+            font-size: 13.5px;
+            font-weight: 700;
+            margin: 28px 0 12px 0;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #6e6e73;
+        }
+
+        .question-section {
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-radius: 14px;
+            padding: 22px;
+            margin-bottom: 18px;
+            background: #fbfbfd;
+            page-break-inside: avoid;
+        }
+
+        .question-section h3 {
+            font-size: 17px;
+            font-weight: 700;
+            margin: 0 0 14px 0;
+            color: #1d1d1f;
+            letter-spacing: -0.01em;
+        }
+
+        .stats-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .stat-box {
+            flex: 1;
+            min-width: 120px;
+            background: #ffffff;
+            border: 1px solid rgba(0, 0, 0, 0.06);
+            border-radius: 12px;
+            padding: 14px 16px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02);
+        }
+
+        .stat-box .value {
+            font-size: 22px;
+            font-weight: 700;
+            color: #1d1d1f;
+            letter-spacing: -0.02em;
+        }
+
+        .stat-box .label {
+            font-size: 11px;
+            color: #86868b;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-top: 2px;
+        }
+
+        .stat-box.warn {
+            background: rgba(255, 59, 48, 0.06);
+            border-color: rgba(255, 59, 48, 0.2);
+        }
+
+        .stat-box.warn .value {
+            color: #ff3b30;
+        }
+
+        pre {
+            background: #181825;
+            color: #cdd6f4;
+            padding: 16px;
+            border-radius: 12px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            font-family: ui-monospace, "SF Mono", Monaco, Consolas, monospace;
+            font-size: 12.5px;
+            line-height: 1.65;
+            border: 1px solid rgba(0, 0, 0, 0.15);
+        }
+
+        pre.stderr {
+            color: #f38ba8;
+        }
+
+        canvas {
+            max-width: 100%;
+        }
+
+        .event-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+            font-size: 13px;
+        }
+
+        .event-row .type {
+            font-weight: 600;
+            color: #1d1d1f;
+        }
+
+        .event-row .time {
+            color: #86868b;
+            font-size: 12px;
+        }
+
+        @media print {
+            body {
+                background: #ffffff;
+                padding: 0;
+                margin: 0;
+            }
+
+            #toolbar {
+                display: none;
+            }
+
+            #report {
+                border: none;
+                box-shadow: none;
+                padding: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="toolbar">
+        <a href="javascript:history.back()" class="back-link">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            Back to Submissions
+        </a>
+        <button id="downloadBtn" disabled>Preparing report…</button>
+    </div>
+
+    <div id="report">
+        <div id="loadingMsg">Loading report…</div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const assignmentId = params.get('id');
+        const studentId = params.get('studentId');
+
+        const EVENT_LABELS = {
+            paste_attempt: 'Paste attempt',
+            large_change: 'Large text jump',
+            tab_hidden: 'Left tab',
+            tab_visible: 'Returned to tab',
+            submit_clicked: 'Clicked Submit'
+        };
+
+        const SESSION_GAP_MS = 5 * 60 * 1000;
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text || '';
+            return div.innerHTML;
+        }
+
+        function fmtDuration(ms) {
+            if (ms < 0 || !isFinite(ms)) return '—';
+            const totalSec = Math.round(ms / 1000);
+            const min = Math.floor(totalSec / 60);
+            const sec = totalSec % 60;
+            return min > 0 ? `${min}m ${sec}s` : `${sec}s`;
+        }
+
+        function computeSessionStats(events) {
+            const sorted = (events || [])
+                .filter(e => e.clientTime)
+                .map(e => ({ ...e, ts: new Date(e.clientTime).getTime() }))
+                .sort((a, b) => a.ts - b.ts);
+
+            let totalSpanMs = 0, hiddenMs = 0, sessionCount = 0;
+
+            if (sorted.length >= 2) {
+                const sessions = [[sorted[0]]];
+                for (let i = 1; i < sorted.length; i++) {
+                    const gap = sorted[i].ts - sorted[i - 1].ts;
+                    if (gap > SESSION_GAP_MS) {
+                        sessions.push([sorted[i]]);
+                    } else {
+                        sessions[sessions.length - 1].push(sorted[i]);
+                    }
+                }
+
+                sessions.forEach(session => {
+                    if (session.length < 2) return;
+                    sessionCount++;
+                    totalSpanMs += session[session.length - 1].ts - session[0].ts;
+
+                    let hideStart = null;
+                    session.forEach(e => {
+                        if (e.eventType === 'tab_hidden') hideStart = e.ts;
+                        if (e.eventType === 'tab_visible' && hideStart !== null) {
+                            hiddenMs += (e.ts - hideStart);
+                            hideStart = null;
+                        }
+                    });
+                });
+            }
+
+            const counts = {};
+            (events || []).forEach(e => { counts[e.eventType] = (counts[e.eventType] || 0) + 1; });
+
+            return { sorted, totalSpanMs, hiddenMs, activeMs: Math.max(totalSpanMs - hiddenMs, 0), sessionCount, counts };
+        }
+
+        async function loadReport() {
+            const reportEl = document.getElementById('report');
+            const downloadBtn = document.getElementById('downloadBtn');
+
+            if (!assignmentId || !studentId) {
+                reportEl.innerHTML = '<p>Missing assignment or student ID in the link.</p>';
+                return;
+            }
+
+            try {
+                // Fetch assignment with questions
+                const assignment = await fetch(`/api/code-lab/assignments/${assignmentId}`).then(r => r.json());
+                const questions = assignment.questions || [];
+
+                // Fetch grouped submissions
+                const allSubmissions = await fetch(`/api/code-lab/assignments/${assignmentId}/submissions`).then(r => r.json());
+                const studentList = Array.isArray(allSubmissions) ? allSubmissions : (allSubmissions && allSubmissions.students ? allSubmissions.students : []);
+                const studentData = studentList.find(s => String(s.studentId) === String(studentId));
+
+                if (!studentData || !studentData.submissions || studentData.submissions.length === 0) {
+                    reportEl.innerHTML = '<p>No submission found for this student on this assignment.</p>';
+                    return;
+                }
+
+                // Fetch events for ALL questions (for this student)
+                const allEvents = await fetch(`/api/code-lab/assignments/${assignmentId}/events/${studentId}`).then(r => r.json());
+
+                // Split events by questionId
+                const eventsByQuestion = {};
+                (allEvents || []).forEach(e => {
+                    const qId = e.questionId || 'unknown';
+                    if (!eventsByQuestion[qId]) eventsByQuestion[qId] = [];
+                    eventsByQuestion[qId].push(e);
+                });
+
+                // Compute combined stats from ALL events
+                const combinedStats = computeSessionStats(allEvents);
+
+                // Build student name
+                const studentName = studentData.studentName || studentId;
+
+                // ── Render header + combined summary ──────────────────────
+                let html = `
+                    <div class="report-header">
+                        <h1>${escapeHtml(studentName)} — ${escapeHtml(assignment.title)}</h1>
+                        <div class="meta">
+                            ${assignment.subject ? escapeHtml(assignment.subject) + ' · ' : ''}
+                            ${assignment.semester ? 'Semester ' + escapeHtml(assignment.semester) + ' · ' : ''}
+                            ${questions.length} question${questions.length !== 1 ? 's' : ''} ·
+                            Student ID: ${escapeHtml(studentId)}
+                        </div>
+                    </div>
+
+                    <div class="section-title">Combined Summary (All Questions)</div>
+                    <div class="stats-row">
+                        <div class="stat-box">
+                            <div class="value">${combinedStats.sessionCount}</div>
+                            <div class="label">Coding session(s)</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="value">${fmtDuration(combinedStats.totalSpanMs)}</div>
+                            <div class="label">Total session time</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="value">${fmtDuration(combinedStats.activeMs)}</div>
+                            <div class="label">Active time</div>
+                        </div>
+                        <div class="stat-box ${combinedStats.counts.paste_attempt ? 'warn' : ''}">
+                            <div class="value">${combinedStats.counts.paste_attempt || 0}</div>
+                            <div class="label">Paste attempts</div>
+                        </div>
+                        <div class="stat-box ${combinedStats.counts.large_change ? 'warn' : ''}">
+                            <div class="value">${combinedStats.counts.large_change || 0}</div>
+                            <div class="label">Large text jumps</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="value">${combinedStats.counts.tab_hidden || 0}</div>
+                            <div class="label">Tab switches</div>
+                        </div>
+                    </div>
+
+                    <div class="section-title">Combined Activity Breakdown</div>
+                    <canvas id="combinedEventChart" height="90"></canvas>
+                `;
+
+                // ── Per-question sections ─────────────────────────────────
+                for (const q of questions) {
+                    const sub = studentData.submissions.find(s => Number(s.questionId) === q.id);
+                    const qEvents = eventsByQuestion[q.id] || [];
+                    const qStats = computeSessionStats(qEvents);
+
+                    html += `
+                        <div class="question-section">
+                            <h3>Q${q.questionNumber}: ${escapeHtml(q.title)}</h3>
+                            <div style="font-size:12px;color:#888;margin-bottom:10px;">
+                                Language: ${escapeHtml(q.language.toUpperCase())}
+                                ${sub ? ' · Submitted: ' + new Date(sub.submittedAt).toLocaleString() : ' · Not submitted'}
+                                · Sessions: ${qStats.sessionCount} · Active: ${fmtDuration(qStats.activeMs)}
+                                · Pastes: ${qStats.counts.paste_attempt || 0}
+                            </div>
+                    `;
+
+                    if (sub) {
+                        html += `
+                            <div class="section-title" style="margin-top:8px;">Code</div>
+                            <pre>${escapeHtml(sub.code)}</pre>
+                        `;
+                        if (sub.stdout) {
+                            html += `
+                                <div class="section-title">Output</div>
+                                <pre>${escapeHtml(sub.stdout)}</pre>
+                            `;
+                        }
+                        if (sub.stderr) {
+                            html += `<pre class="stderr">${escapeHtml(sub.stderr)}</pre>`;
+                        }
+                    } else {
+                        html += `<p style="color:#888;font-size:13px;">No code submitted for this question.</p>`;
+                    }
+
+                    html += `
+                            <div class="section-title">Code Growth</div>
+                            <canvas id="growthChart-${q.id}" height="70"></canvas>
+                        </div>
+                    `;
+                }
+
+                // ── Event timeline ────────────────────────────────────────
+                html += `
+                    <div class="section-title">Event Timeline (All Questions)</div>
+                    <div id="eventList"></div>
+                `;
+
+                reportEl.innerHTML = html;
+
+                // ── Render combined event chart ────────────────────────────
+                const labels = Object.keys(combinedStats.counts).map(k => EVENT_LABELS[k] || k);
+                const values = Object.values(combinedStats.counts);
+                new Chart(document.getElementById('combinedEventChart'), {
+                    type: 'bar',
+                    data: {
+                        labels,
+                        datasets: [{ label: 'Count', data: values, backgroundColor: '#2563eb' }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+                    }
+                });
+
+                // ── Per-question growth charts ────────────────────────────
+                for (const q of questions) {
+                    const qEvents = eventsByQuestion[q.id] || [];
+                    const snapshots = qEvents
+                        .filter(e => e.eventType === 'code_snapshot' && e.clientTime)
+                        .map(e => {
+                            let code = '';
+                            try { code = JSON.parse(e.payload || '{}').code || ''; } catch (err) { }
+                            return { ts: new Date(e.clientTime).getTime(), length: code.length };
+                        })
+                        .sort((a, b) => a.ts - b.ts);
+
+                    const canvas = document.getElementById(`growthChart-${q.id}`);
+                    if (snapshots.length && canvas) {
+                        new Chart(canvas, {
+                            type: 'line',
+                            data: {
+                                labels: snapshots.map(s => new Date(s.ts).toLocaleTimeString()),
+                                datasets: [{
+                                    label: 'Code length',
+                                    data: snapshots.map(s => s.length),
+                                    borderColor: '#16a34a',
+                                    backgroundColor: 'rgba(22,163,74,0.1)',
+                                    tension: 0.2,
+                                    fill: true,
+                                    pointRadius: 2
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                plugins: { legend: { display: false } },
+                                scales: { y: { beginAtZero: true }, x: { ticks: { maxTicksLimit: 6 } } }
+                            }
+                        });
+                    } else if (canvas) {
+                        canvas.outerHTML = '<p style="color:#888;font-size:12px;">No code snapshots recorded.</p>';
+                    }
+                }
+
+                // ── Event timeline list ───────────────────────────────────
+                const eventListEl = document.getElementById('eventList');
+                const visibleEvents = combinedStats.sorted.filter(e =>
+                    e.eventType !== 'heartbeat' && e.eventType !== 'session_start' && e.eventType !== 'code_snapshot'
+                );
+                if (!visibleEvents.length) {
+                    eventListEl.innerHTML = '<p style="color:#888;font-size:13px;">No notable activity events recorded.</p>';
+                } else {
+                    visibleEvents.forEach(e => {
+                        const row = document.createElement('div');
+                        row.className = 'event-row';
+
+                        let detail = '';
+                        try {
+                            const p = JSON.parse(e.payload || '{}');
+                            if (e.eventType === 'large_change' && typeof p.delta === 'number') {
+                                detail = ` — +${p.delta} chars`;
+                                if (p.charsPerSec) detail += ` at ~${p.charsPerSec} chars/sec`;
+                            }
+                        } catch (err) { }
+
+                        row.innerHTML = `
+                            <span class="type">${(EVENT_LABELS[e.eventType] || e.eventType)}${detail}</span>
+                            <span class="time">${new Date(e.ts).toLocaleTimeString()}</span>
+                        `;
+                        eventListEl.appendChild(row);
+                    });
+                }
+
+                // ── Enable download ───────────────────────────────────────
+                downloadBtn.disabled = false;
+                downloadBtn.textContent = '⬇ Download PDF';
+                downloadBtn.addEventListener('click', () => {
+                    downloadBtn.disabled = true;
+                    downloadBtn.textContent = 'Generating PDF…';
+                    const filename = `report_${studentId}_assignment${assignmentId}.pdf`;
+                    html2pdf()
+                        .set({
+                            margin: 10,
+                            filename,
+                            image: { type: 'jpeg', quality: 0.98 },
+                            html2canvas: { scale: 2 },
+                            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                            pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+                        })
+                        .from(document.getElementById('report'))
+                        .save()
+                        .then(() => {
+                            downloadBtn.disabled = false;
+                            downloadBtn.textContent = '⬇ Download PDF';
+                        });
+                });
+
+            } catch (err) {
+                reportEl.innerHTML = `<p>Failed to load report: ${escapeHtml(err.message)}</p>`;
+            }
+        }
+
+        loadReport();
+    </script>
+</body>
+
+</html>

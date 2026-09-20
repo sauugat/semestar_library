@@ -2,95 +2,507 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <title>Submissions — Code Lab</title>
-    <style>
-        body {
-            font-family: sans-serif;
-            max-width: 900px;
-            margin: 30px auto;
-            padding: 0 20px;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Submissions — Assignments</title>
+  <meta name="description" content="View and evaluate multi-question submissions and anti-cheat analytics.">
 
-        h1 {
-            font-size: 20px;
-        }
+  <!-- Apple & PWA Metadata -->
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <meta name="theme-color" content="#ffffff">
 
-        .sub-card {
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            padding: 14px;
-            margin-bottom: 12px;
-        }
+  <!-- Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="/style.v4.css">
+  <link rel="stylesheet" href="/auth-modal.css">
 
-        .sub-header {
-            display: flex;
-            justify-content: space-between;
-            font-weight: 600;
-            margin-bottom: 8px;
-        }
+  <style>
+    :root {
+      --apple-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "SF Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    }
 
-        .sub-time {
-            color: #888;
-            font-weight: normal;
-            font-size: 12px;
-        }
+    body {
+      font-family: var(--apple-font);
+      background-color: #f5f5f7;
+      color: #1d1d1f;
+      -webkit-font-smoothing: antialiased;
+      margin: 0;
+      padding: 0;
+    }
 
-        pre {
-            background: #111;
-            color: #eee;
-            padding: 12px;
-            border-radius: 6px;
-            overflow-x: auto;
-            white-space: pre-wrap;
-            font-size: 13px;
-        }
-    </style>
+    .cl-page-wrap {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 28px 6vw 80px;
+      margin: 0;
+    }
+
+    @media (max-width: 768px) {
+      .cl-page-wrap {
+        padding: 20px 4vw 80px;
+      }
+    }
+
+    .cl-breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+
+    .cl-crumb-link {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 14px;
+      background: #ffffff;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 980px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #6e6e73;
+      text-decoration: none;
+      transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    }
+
+    .cl-crumb-link:hover {
+      color: #1d1d1f;
+      border-color: rgba(0, 0, 0, 0.18);
+      transform: translateY(-1px);
+    }
+
+    .cl-crumb-current {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 14px;
+      background: #1d1d1f;
+      color: #ffffff;
+      border-radius: 980px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .cl-crumb-sep {
+      color: #aeaeb2;
+      font-size: 12px;
+    }
+
+    .cl-header-row {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+    }
+
+    .cl-title {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      color: #1d1d1f;
+      margin: 0 0 6px 0;
+      font-family: "Plus Jakarta Sans", var(--apple-font);
+    }
+
+    .cl-subtitle {
+      font-size: 14.5px;
+      color: #6e6e73;
+      margin: 0;
+      font-weight: 400;
+    }
+
+    /* Students Accordion / Card */
+    .cl-student-card {
+      background: #ffffff;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 18px;
+      margin-bottom: 16px;
+      overflow: hidden;
+      box-shadow: 0 3px 14px rgba(0, 0, 0, 0.03);
+      transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+
+    .cl-student-card:hover {
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+      border-color: rgba(0, 0, 0, 0.14);
+    }
+
+    .cl-student-header {
+      padding: 20px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      cursor: pointer;
+      user-select: none;
+      background: #ffffff;
+      transition: background 0.15s ease;
+    }
+
+    .cl-student-header:hover {
+      background: #fafafc;
+    }
+
+    .cl-student-info {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .cl-student-avatar {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: #1d1d1f;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .cl-student-name {
+      font-size: 16.5px;
+      font-weight: 600;
+      color: #1d1d1f;
+      margin: 0 0 4px 0;
+    }
+
+    .cl-student-meta {
+      font-size: 12.5px;
+      color: #86868b;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .cl-student-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .cl-badge-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 980px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .cl-badge-status.complete {
+      background: rgba(52, 199, 89, 0.1);
+      color: #1b7a37;
+    }
+
+    .cl-badge-status.partial {
+      background: rgba(255, 149, 0, 0.12);
+      color: #b25000;
+    }
+
+    .cl-chevron {
+      color: #aeaeb2;
+      transition: transform 0.25s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+
+    .cl-student-card.open .cl-chevron {
+      transform: rotate(180deg);
+    }
+
+    .cl-student-body {
+      display: none;
+      padding: 0 24px 24px 24px;
+      border-top: 1px solid rgba(0, 0, 0, 0.05);
+      background: #fafafc;
+    }
+
+    .cl-student-card.open .cl-student-body {
+      display: block;
+    }
+
+    .cl-question-sub-item {
+      background: #ffffff;
+      border: 1px solid rgba(0, 0, 0, 0.07);
+      border-radius: 14px;
+      padding: 16px 20px;
+      margin-top: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .cl-q-sub-title {
+      font-size: 14.5px;
+      font-weight: 600;
+      color: #1d1d1f;
+      margin: 0 0 4px 0;
+    }
+
+    .cl-q-sub-meta {
+      font-size: 12.5px;
+      color: #86868b;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .cl-tool-links {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .cl-tool-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 12px;
+      border-radius: 980px;
+      background: #f5f5f7;
+      color: #1d1d1f;
+      font-size: 12px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.18s ease;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+    }
+
+    .cl-tool-link:hover {
+      background: #1d1d1f;
+      color: #ffffff;
+      border-color: #1d1d1f;
+    }
+
+    .cl-report-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 980px;
+      background: #0071e3;
+      color: #ffffff;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+      box-shadow: 0 2px 8px rgba(0, 113, 227, 0.25);
+    }
+
+    .cl-report-pill:hover {
+      background: #0077ed;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 113, 227, 0.35);
+    }
+
+    .cl-overall-footer {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 18px;
+      padding-top: 16px;
+      border-top: 1px dashed rgba(0, 0, 0, 0.1);
+    }
+
+    .cl-empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      background: #ffffff;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 18px;
+      color: #86868b;
+      font-size: 14.5px;
+    }
+  </style>
 </head>
 
-<body>
-    <h1 id="title">Loading submissions...</h1>
-    <div id="list"></div>
+<body class="dash syllabus-page-body">
 
-    <script>
-        const params = new URLSearchParams(window.location.search);
-        const assignmentId = params.get('id');
+  <header class="dash-header">
+    <a href="/" class="lib-wordmark">Semester Library</a>
+    <nav class="dash-header-nav">
+      <a href="/about" class="header-nav-item">About</a>
+      <a href="/code-lab/subjects.html" class="header-nav-item active">Assignments</a>
+      <a href="/routine" class="header-nav-item">Routine</a>
+      <a href="/notices" class="header-nav-item">Notices</a>
+    </nav>
+    <div class="dash-header-actions">
+      <a href="/login.html" class="nav-cta-btn apple-nav-btn">Sign In</a>
+    </div>
+  </header>
 
-        if (!assignmentId || !/^\d+$/.test(assignmentId)) {
-            document.getElementById('title').textContent = 'Invalid assignment link.';
-        } else fetch('/api/code-lab/assignments/' + assignmentId + '/submissions')
-            .then(async res => {
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.message || 'Failed to load submissions.');
-                return data;
-            })
-            .then(subs => {
-                document.getElementById('title').textContent = `Submissions (${subs.length})`;
-                const listEl = document.getElementById('list');
+  <main class="cl-page-wrap">
+    
+    <nav class="cl-breadcrumb" id="breadcrumb" aria-label="Breadcrumb">
+      <a href="/code-lab/subjects.html" class="cl-crumb-link">Assignments</a>
+      <span class="cl-crumb-sep">/</span>
+      <a href="/code-lab/subjects.html" class="cl-crumb-link">Subjects</a>
+      <span class="cl-crumb-sep">/</span>
+      <span class="cl-crumb-current" id="crumbAssignment">Submissions</span>
+    </nav>
 
-                if (!subs.length) {
-                    listEl.textContent = 'No submissions yet.';
-                    return;
-                }
+    <div class="cl-header-row">
+      <div>
+        <h1 class="cl-title" id="title">Student Submissions</h1>
+        <div id="metaBadges" style="display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap;">
+          <p class="cl-subtitle" id="subtitle">Loading submissions…</p>
+        </div>
+      </div>
+    </div>
 
-                subs.forEach(s => {
-                    const card = document.createElement('div');
-                    card.className = 'sub-card';
-                    card.innerHTML = `
-            <div class="sub-header">
-              <span>${s.studentName} (${s.studentId})</span>
-              <span class="sub-time">${new Date(s.submittedAt).toLocaleString()}</span>
-            </div>
-            <pre>${s.code.replace(/</g, '&lt;')}</pre>
-            <a href="/code-lab/events.html?id=${assignmentId}&studentId=${s.studentId}" style="font-size:13px;">View activity log →</a>
-          `;
-                    listEl.appendChild(card);
-                });
-            })
-            .catch(error => {
-                document.getElementById('title').textContent = error.message;
+    <div id="list">
+      <div class="cl-empty-state">Loading submissions…</div>
+    </div>
+
+  </main>
+
+  <footer class="app-global-footer">
+    <div class="app-footer-inner">
+      <div class="app-footer-brand">
+        <strong>Semester Library</strong>
+        <span>· Bachelor of Information Technology</span>
+      </div>
+      <div class="app-footer-meta">
+        <span>Gandaki University</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/auth-modal.js"></script>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const assignmentId = params.get('id');
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text || '';
+      return div.innerHTML;
+    }
+
+    if (!assignmentId || !/^\d+$/.test(assignmentId)) {
+      document.getElementById('title').textContent = 'Invalid assignment link.';
+      document.getElementById('list').innerHTML = '<div class="cl-empty-state">Please provide a valid assignment ID.</div>';
+    } else {
+      fetch('/api/code-lab/assignments/' + assignmentId + '/submissions')
+        .then(async res => {
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || 'Failed to load submissions.');
+          return data;
+        })
+        .then(result => {
+          const assignment = result.assignment || null;
+          const students = Array.isArray(result) ? result : (result.students || []);
+
+          if (assignment) {
+            document.getElementById('title').textContent = `${assignment.title} — Submissions`;
+            document.getElementById('crumbAssignment').textContent = assignment.title;
+
+            // Build breadcrumb
+            const breadcrumbEl = document.getElementById('breadcrumb');
+            let crumbsHtml = `
+              <a href="/code-lab/subjects.html" class="cl-crumb-link">Assignments</a>
+              <span class="cl-crumb-sep">/</span>
+              <a href="/code-lab/subjects.html" class="cl-crumb-link">Subjects</a>
+            `;
+            if (assignment.subject) {
+              crumbsHtml += `
+                <span class="cl-crumb-sep">/</span>
+                <a href="/code-lab/assignments.html?subject=${encodeURIComponent(assignment.subject)}&semester=${encodeURIComponent(assignment.semester || '')}" class="cl-crumb-link">${escapeHtml(assignment.subject)}</a>
+              `;
+            }
+            crumbsHtml += `
+              <span class="cl-crumb-sep">/</span>
+              <a href="/code-lab/assignment.html?id=${assignment.id}" class="cl-crumb-link">${escapeHtml(assignment.title)}</a>
+              <span class="cl-crumb-sep">/</span>
+              <span class="cl-crumb-current">Submissions</span>
+            `;
+            breadcrumbEl.innerHTML = crumbsHtml;
+
+            // Meta badges showing Subject & Semester
+            const metaBadges = document.getElementById('metaBadges');
+            metaBadges.innerHTML = `
+              ${assignment.subject ? `<span style="background: rgba(0, 113, 227, 0.08); color: #0071e3; font-weight: 600; padding: 4px 12px; border-radius: 980px; font-size: 12.5px;">Subject: ${escapeHtml(assignment.subject)}</span>` : ''}
+              ${assignment.semester ? `<span style="background: rgba(0, 0, 0, 0.06); color: #1d1d1f; font-weight: 600; padding: 4px 12px; border-radius: 980px; font-size: 12.5px;">Semester: ${escapeHtml(assignment.semester)}</span>` : ''}
+              <span style="font-size: 13px; color: #86868b; margin-left: 4px;">${students.length} student${students.length !== 1 ? 's' : ''} submitted</span>
+            `;
+          } else {
+            document.getElementById('title').textContent = `Submissions (${students.length} student${students.length !== 1 ? 's' : ''})`;
+            document.getElementById('subtitle').textContent = `Review question attempts, event timelapses, and full student PDF reports.`;
+          }
+
+          const listEl = document.getElementById('list');
+
+          if (!students.length) {
+            listEl.innerHTML = '<div class="cl-empty-state">No submissions yet for this assignment.</div>';
+            return;
+          }
+
+          listEl.innerHTML = '';
+          students.forEach(s => {
+            const card = document.createElement('div');
+            card.className = 'cl-student-card';
+
+            const initials = (s.studentName || 'Student').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+
+            let questionsHtml = '';
+            (s.submissions || []).forEach(sub => {
+              questionsHtml += `
+                <div class="cl-q-row">
+                  <span class="cl-q-info">
+                    <span class="cl-q-num-badge">Q${sub.questionNumber}</span>
+                    <span>${escapeHtml(sub.questionTitle)}</span>
+                  </span>
+                  <span class="cl-q-meta">
+                    <span>${new Date(sub.submittedAt).toLocaleDateString()} ${new Date(sub.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    <a class="cl-tool-link" href="/code-lab/timelapse.html?questionId=${sub.questionId}&studentId=${s.studentId}">Timelapse</a>
+                    <a class="cl-tool-link" href="/code-lab/events.html?questionId=${sub.questionId}&studentId=${s.studentId}">Activity Log</a>
+                  </span>
+                </div>
+              `;
             });
-    </script>
+
+            card.innerHTML = `
+              <div class="cl-student-header">
+                <div class="cl-student-profile">
+                  <div class="cl-student-avatar">${initials}</div>
+                  <div>
+                    <h3 class="cl-student-name">${escapeHtml(s.studentName)}</h3>
+                    <div class="cl-student-id">Student ID: ${s.studentId}</div>
+                  </div>
+                </div>
+                <div>
+                  <a class="cl-report-pill" href="/code-lab/report.html?id=${assignmentId}&studentId=${s.studentId}">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                    Full Report (PDF)
+                  </a>
+                </div>
+              </div>
+              <div class="cl-q-list">
+                ${questionsHtml}
+              </div>
+            `;
+            listEl.appendChild(card);
+          });
+        })
+        .catch(err => {
+          document.getElementById('title').textContent = 'Error loading submissions';
+          document.getElementById('list').innerHTML = `<div class="cl-empty-state">${escapeHtml(err.message)}</div>`;
+        });
+    }
+  </script>
 </body>
 
 </html>

@@ -8,7 +8,7 @@
   async function loadSyllabusData() {
     if (_syllabusCache) return _syllabusCache;
     try {
-      const res = await fetch('syllabus-data.json');
+      const res = await fetch('/syllabus-data.json');
       if (!res.ok) throw new Error('Failed to load syllabus-data.json');
       _syllabusCache = await res.json();
       return _syllabusCache;

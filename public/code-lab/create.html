@@ -2,116 +2,768 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <title>Create Assignment — Code Lab</title>
-    <style>
-        body {
-            font-family: sans-serif;
-            max-width: 600px;
-            margin: 40px auto;
-            padding: 0 20px;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Create Assignment — Assignments</title>
+  <meta name="description" content="Create a new multi-question programming assignment in Code Lab.">
 
-        h1 {
-            font-size: 22px;
-        }
+  <!-- Apple & PWA Metadata -->
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <meta name="theme-color" content="#ffffff">
 
-        label {
-            display: block;
-            margin-top: 16px;
-            font-weight: 600;
-        }
+  <!-- Typography: Apple SF Pro System Fonts + Brand -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="/style.v4.css">
+  <link rel="stylesheet" href="/auth-modal.css">
 
-        input,
-        textarea,
-        select {
-            width: 100%;
-            padding: 8px;
-            margin-top: 4px;
-            font-size: 14px;
-            box-sizing: border-box;
-        }
+  <style>
+    :root {
+      --apple-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "SF Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
+      --apple-mono: ui-monospace, "SF Mono", Monaco, Consolas, monospace;
+    }
 
-        textarea {
-            min-height: 120px;
-        }
+    body {
+      font-family: var(--apple-font);
+      background-color: #f5f5f7;
+      color: #1d1d1f;
+      -webkit-font-smoothing: antialiased;
+      margin: 0;
+      padding: 0;
+    }
 
-        button {
-            margin-top: 20px;
-            padding: 10px 20px;
-            font-size: 15px;
-            cursor: pointer;
-        }
+    .cl-page-wrap {
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 32px 24px 80px;
+    }
 
-        #msg {
-            margin-top: 16px;
-            font-weight: 600;
-        }
-    </style>
+    /* Apple Minimalist Header & Breadcrumbs */
+    .cl-breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+
+    .cl-crumb-link {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 14px;
+      background: #ffffff;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 980px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #6e6e73;
+      text-decoration: none;
+      transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    }
+
+    .cl-crumb-link:hover {
+      color: #1d1d1f;
+      border-color: rgba(0, 0, 0, 0.18);
+      transform: translateY(-1px);
+    }
+
+    .cl-crumb-current {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 14px;
+      background: #1d1d1f;
+      color: #ffffff;
+      border-radius: 980px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .cl-crumb-sep {
+      color: #aeaeb2;
+      font-size: 12px;
+    }
+
+    .cl-title-section {
+      margin-bottom: 32px;
+    }
+
+    .cl-title {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      color: #1d1d1f;
+      margin: 0 0 6px 0;
+      font-family: "Plus Jakarta Sans", var(--apple-font);
+    }
+
+    .cl-subtitle {
+      font-size: 14.5px;
+      color: #6e6e73;
+      margin: 0;
+      font-weight: 400;
+    }
+
+    /* Main Apple Card Container */
+    .cl-card {
+      background: #ffffff;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 20px;
+      padding: 32px;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.03), 0 1px 2px rgba(0, 0, 0, 0.02);
+      margin-bottom: 24px;
+    }
+
+    .cl-section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .cl-section-title {
+      font-size: 14px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #86868b;
+      margin: 0;
+    }
+
+    /* Form Fields */
+    .cl-form-group {
+      margin-bottom: 22px;
+    }
+
+    .cl-form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 22px;
+    }
+
+    @media (max-width: 600px) {
+      .cl-form-row {
+        grid-template-columns: 1fr;
+      }
+      .cl-card {
+        padding: 22px 18px;
+      }
+    }
+
+    .cl-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #1d1d1f;
+      margin-bottom: 8px;
+      letter-spacing: -0.01em;
+    }
+
+    .cl-label span.req {
+      color: #ff3b30;
+      margin-left: 2px;
+    }
+
+    .cl-input,
+    .cl-select,
+    .cl-textarea {
+      width: 100%;
+      padding: 12px 16px;
+      background: #fbfbfd;
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      border-radius: 12px;
+      font-size: 14.5px;
+      color: #1d1d1f;
+      font-family: var(--apple-font);
+      outline: none;
+      transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+      box-sizing: border-box;
+    }
+
+    .cl-input::placeholder,
+    .cl-textarea::placeholder {
+      color: #aeaeb2;
+    }
+
+    .cl-input:focus,
+    .cl-select:focus,
+    .cl-textarea:focus {
+      background: #ffffff;
+      border-color: #0071e3;
+      box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.14);
+    }
+
+    .cl-select {
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236e6e73' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      padding-right: 38px;
+      cursor: pointer;
+    }
+
+    .cl-textarea {
+      min-height: 110px;
+      resize: vertical;
+      line-height: 1.55;
+    }
+
+    /* Question Cards List */
+    .cl-question-block {
+      background: #fbfbfd;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 18px;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .cl-question-block:hover {
+      border-color: rgba(0, 0, 0, 0.14);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.02);
+    }
+
+    .cl-q-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .cl-q-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 980px;
+      background: #0071e3;
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+
+    .cl-remove-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 12px;
+      border-radius: 980px;
+      border: 1px solid rgba(255, 59, 48, 0.2);
+      background: rgba(255, 59, 48, 0.05);
+      color: #ff3b30;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: var(--apple-font);
+      transition: all 0.2s ease;
+    }
+
+    .cl-remove-btn:hover {
+      background: #ff3b30;
+      color: #ffffff;
+      border-color: #ff3b30;
+    }
+
+    /* Add Question Button */
+    .cl-add-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 14px 20px;
+      background: #ffffff;
+      border: 1.5px dashed rgba(0, 0, 0, 0.18);
+      border-radius: 14px;
+      color: #0071e3;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: var(--apple-font);
+      transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+      margin-bottom: 28px;
+    }
+
+    .cl-add-btn:hover {
+      background: rgba(0, 113, 227, 0.04);
+      border-color: #0071e3;
+      transform: translateY(-1px);
+    }
+
+    /* Submit Action & Buttons */
+    .cl-actions-bar {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .cl-submit-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 13px 32px;
+      background: #1d1d1f;
+      color: #ffffff;
+      border: 1px solid #1d1d1f;
+      border-radius: 980px;
+      font-size: 14.5px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      cursor: pointer;
+      font-family: var(--apple-font);
+      transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+    }
+
+    .cl-submit-btn:hover {
+      background: #000000;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+    }
+
+    .cl-submit-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .cl-cancel-btn {
+      display: inline-flex;
+      align-items: center;
+      padding: 13px 24px;
+      background: #ffffff;
+      color: #6e6e73;
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      border-radius: 980px;
+      font-size: 14px;
+      font-weight: 500;
+      text-decoration: none;
+      font-family: var(--apple-font);
+      transition: all 0.2s ease;
+    }
+
+    .cl-cancel-btn:hover {
+      color: #1d1d1f;
+      border-color: rgba(0, 0, 0, 0.24);
+    }
+
+    /* Alert Banner */
+    .cl-alert {
+      margin-top: 20px;
+      padding: 12px 18px;
+      border-radius: 12px;
+      font-size: 13.5px;
+      font-weight: 500;
+      display: none;
+      animation: fadeIn 0.25s ease;
+    }
+
+    .cl-alert.success {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(52, 199, 89, 0.1);
+      border: 1px solid rgba(52, 199, 89, 0.3);
+      color: #1b7a37;
+    }
+
+    .cl-alert.error {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255, 59, 48, 0.08);
+      border: 1px solid rgba(255, 59, 48, 0.25);
+      color: #d70015;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
 </head>
 
-<body>
-    <h1>Create New Assignment</h1>
+<body class="dash syllabus-page-body">
 
-    <label>Title</label>
-    <input id="title" type="text" placeholder="e.g. Reverse a String">
+  <!-- Top Apple Pro Header -->
+  <header class="dash-header">
+    <a href="/" class="lib-wordmark">Semester Library</a>
+    <nav class="dash-header-nav">
+      <a href="/about" class="header-nav-item">About</a>
+      <a href="/code-lab/subjects.html" class="header-nav-item active">Assignments</a>
+      <a href="/routine" class="header-nav-item">Routine</a>
+      <a href="/notices" class="header-nav-item">Notices</a>
+    </nav>
+    <div class="dash-header-actions">
+      <a href="/login.html" class="nav-cta-btn apple-nav-btn">Sign In</a>
+    </div>
+  </header>
 
-    <label>Description / Question</label>
-    <textarea id="description"
-        placeholder="e.g. Write a C program that takes a string and prints it reversed."></textarea>
+  <!-- Main Container -->
+  <main class="cl-page-wrap">
+    
+    <!-- Apple Breadcrumb Navigation -->
+    <nav class="cl-breadcrumb" aria-label="Breadcrumb">
+      <a href="/code-lab/subjects.html" class="cl-crumb-link">Assignments</a>
+      <span class="cl-crumb-sep">/</span>
+      <span class="cl-crumb-current">Create Assignment</span>
+    </nav>
 
-    <label>Language</label>
-    <select id="language">
-        <option value="c">C</option>
-        <option value="cpp">C++</option>
-        <option value="java">Java</option>
-        <option value="python">Python</option>
-    </select>
+    <div class="cl-title-section">
+      <h1 class="cl-title">Create Assignment</h1>
+      <p class="cl-subtitle">Define assignment details, select curriculum subject, and add multiple questions.</p>
+    </div>
 
-    <label>Subject</label>
-    <input id="subject" type="text" placeholder="e.g. Web Technology I">
+    <!-- Assignment Meta Card -->
+    <section class="cl-card">
+      <div class="cl-section-header">
+        <h2 class="cl-section-title">Assignment Overview</h2>
+      </div>
 
-    <button id="createBtn">Create Assignment</button>
-    <div id="msg"></div>
+      <div class="cl-form-group">
+        <label class="cl-label" for="title">Assignment Title <span class="req">*</span></label>
+        <input id="title" class="cl-input" type="text" placeholder="e.g. Lab Sheet 1 — Control Structures & Functions">
+      </div>
 
-    <script>
-        document.getElementById('createBtn').addEventListener('click', async () => {
-            const title = document.getElementById('title').value.trim();
-            const description = document.getElementById('description').value.trim();
-            const language = document.getElementById('language').value;
-            const subject = document.getElementById('subject').value.trim();
-            const msgEl = document.getElementById('msg');
+      <div class="cl-form-row">
+        <div>
+          <label class="cl-label" for="semester">Semester <span class="req">*</span></label>
+          <select id="semester" class="cl-select">
+            <option value="">Select semester...</option>
+          </select>
+        </div>
+        <div>
+          <label class="cl-label" for="subject">Subject / Course <span class="req">*</span></label>
+          <select id="subject" class="cl-select">
+            <option value="">Select subject...</option>
+          </select>
+        </div>
+      </div>
+    </section>
 
-            if (!title || !description) {
-                msgEl.textContent = 'Please fill in both title and description.';
-                msgEl.style.color = 'red';
-                return;
-            }
+    <!-- Questions Container -->
+    <section class="cl-card">
+      <div class="cl-section-header">
+        <h2 class="cl-section-title">Assignment Questions</h2>
+        <span style="font-size: 12px; color: #86868b; font-weight: 500;" id="q-counter">1 Question</span>
+      </div>
 
-            try {
-                const res = await fetch('/api/code-lab/assignments', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ title, description, language, subject })
-                });
-                const data = await res.json();
+      <div id="questions-container"></div>
 
-                if (res.ok) {
-                    msgEl.textContent = 'Assignment created successfully! ID: ' + data.id;
-                    msgEl.style.color = 'green';
-                    document.getElementById('title').value = '';
-                    document.getElementById('description').value = '';
-                    document.getElementById('subject').value = '';
-                } else {
-                    msgEl.textContent = data.message || 'Something went wrong.';
-                    msgEl.style.color = 'red';
-                }
-            } catch (err) {
-                msgEl.textContent = 'Network error — could not reach the server.';
-                msgEl.style.color = 'red';
-            }
+      <button type="button" class="cl-add-btn" id="addQuestionBtn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        Add Another Question
+      </button>
+
+      <div class="cl-actions-bar">
+        <button type="button" class="cl-submit-btn" id="createBtn">
+          Create Assignment
+        </button>
+        <a href="/code-lab/subjects.html" class="cl-cancel-btn">Cancel</a>
+      </div>
+
+      <div id="msg" class="cl-alert" role="alert"></div>
+    </section>
+
+  </main>
+
+  <footer class="app-global-footer">
+    <div class="app-footer-inner">
+      <div class="app-footer-brand">
+        <strong>Semester Library</strong>
+        <span>· Bachelor of Information Technology</span>
+      </div>
+      <div class="app-footer-meta">
+        <span>Gandaki University</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/auth-modal.js"></script>
+  <script src="/syllabus-helper.js"></script>
+  <script>
+    let syllabusData = null;
+    let allSemestersList = [];
+    let questionCount = 0;
+
+    const ROMAN_MAP = { '1': 'I', '2': 'II', '3': 'III', '4': 'IV', '5': 'V', '6': 'VI', '7': 'VII', '8': 'VIII' };
+    const NUM_MAP = { 'I': '1', 'II': '2', 'III': '3', 'IV': '4', 'V': '5', 'VI': '6', 'VII': '7', 'VIII': '8' };
+
+    function semMatches(a, b) {
+      if (!a || !b) return false;
+      const sa = String(a).trim().toUpperCase();
+      const sb = String(b).trim().toUpperCase();
+      if (sa === sb) return true;
+      return (ROMAN_MAP[sa] === sb) || (NUM_MAP[sa] === sb);
+    }
+
+    async function init() {
+      let semesters = [];
+      try {
+        syllabusData = await SyllabusHelper.loadSyllabusData();
+        semesters = SyllabusHelper.getFormattedSemesters(syllabusData);
+      } catch (e) {
+        console.warn('SyllabusHelper load failed:', e);
+      }
+
+      // Robust fallback from backend API if empty
+      if (!semesters || semesters.length === 0) {
+        try {
+          const res = await fetch('/api/code-lab/subjects');
+          const data = await res.json();
+          if (data && data.semesters) {
+            semesters = data.semesters.map(s => ({
+              rawSemester: String(s.semester),
+              year: s.year || '',
+              fullLabel: `Semester ${s.semester}`,
+              courses: s.courses || []
+            }));
+          }
+        } catch (e) {
+          console.error('Failed to load subjects from API:', e);
+        }
+      }
+
+      allSemestersList = semesters || [];
+
+      const semSelect = document.getElementById('semester');
+      semSelect.innerHTML = '<option value="">Select semester...</option>';
+      allSemestersList.forEach(s => {
+        if (s.rawSemester === 'Electives') return;
+        const opt = document.createElement('option');
+        opt.value = s.rawSemester;
+        const num = NUM_MAP[s.rawSemester] || s.rawSemester;
+        const roman = ROMAN_MAP[s.rawSemester] || s.rawSemester;
+        const yr = s.year ? ` · ${s.year}` : '';
+        opt.textContent = `Semester ${num} (${roman})${yr}`;
+        semSelect.appendChild(opt);
+      });
+
+      semSelect.addEventListener('change', () => {
+        const val = semSelect.value;
+        if (!val) {
+          populateAllSubjects();
+          return;
+        }
+        const sem = allSemestersList.find(s => semMatches(s.rawSemester, val));
+        populateSubjects(sem ? sem.courses : []);
+      });
+
+      // Populate all courses initially so subject dropdown is never empty
+      populateAllSubjects();
+
+      // Check query parameters (e.g. ?semester=II&subject=...)
+      const params = new URLSearchParams(window.location.search);
+      const qSem = params.get('semester');
+      const qSub = params.get('subject');
+
+      if (qSem) {
+        for (let opt of semSelect.options) {
+          if (semMatches(opt.value, qSem)) {
+            semSelect.value = opt.value;
+            const sem = allSemestersList.find(s => semMatches(s.rawSemester, opt.value));
+            populateSubjects(sem ? sem.courses : []);
+            break;
+          }
+        }
+      }
+
+      if (qSub) {
+        const subSelect = document.getElementById('subject');
+        for (let opt of subSelect.options) {
+          if (opt.value.toLowerCase() === qSub.toLowerCase() || opt.textContent.toLowerCase().includes(qSub.toLowerCase())) {
+            subSelect.value = opt.value;
+            break;
+          }
+        }
+      }
+
+      // Add first question by default
+      addQuestion();
+    }
+
+    function populateSubjects(courses) {
+      const subjectSelect = document.getElementById('subject');
+      const currentVal = subjectSelect.value;
+      subjectSelect.innerHTML = '<option value="">Select subject / course...</option>';
+      courses.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.title;
+        opt.textContent = `${c.code ? c.code + ' — ' : ''}${c.title}`;
+        subjectSelect.appendChild(opt);
+      });
+      if (currentVal) subjectSelect.value = currentVal;
+    }
+
+    function populateAllSubjects() {
+      const subjectSelect = document.getElementById('subject');
+      subjectSelect.innerHTML = '<option value="">Select subject / course...</option>';
+      allSemestersList.forEach(s => {
+        if (s.rawSemester === 'Electives') return;
+        const grp = document.createElement('optgroup');
+        const num = NUM_MAP[s.rawSemester] || s.rawSemester;
+        grp.label = `Semester ${num} (${s.rawSemester})`;
+        (s.courses || []).forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c.title;
+          opt.textContent = `${c.code ? c.code + ' — ' : ''}${c.title}`;
+          opt.dataset.semester = s.rawSemester;
+          grp.appendChild(opt);
         });
-    </script>
+        subjectSelect.appendChild(grp);
+      });
+
+      // When selecting a subject from the full list, auto-fill semester if empty
+      subjectSelect.addEventListener('change', () => {
+        const selectedOpt = subjectSelect.options[subjectSelect.selectedIndex];
+        const semSelect = document.getElementById('semester');
+        if (selectedOpt && selectedOpt.dataset.semester && !semSelect.value) {
+          semSelect.value = selectedOpt.dataset.semester;
+        }
+      });
+    }
+
+    function addQuestion() {
+      questionCount++;
+      const num = questionCount;
+      const container = document.getElementById('questions-container');
+
+      const block = document.createElement('div');
+      block.className = 'cl-question-block';
+      block.id = `q-block-${num}`;
+      block.innerHTML = `
+        <div class="cl-q-header">
+          <span class="cl-q-badge">Question ${num}</span>
+          ${num > 1 ? `<button type="button" class="cl-remove-btn" onclick="removeQuestion(${num})"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg> Remove</button>` : ''}
+        </div>
+        <div class="cl-form-group">
+          <label class="cl-label">Question Title <span class="req">*</span></label>
+          <input class="cl-input q-title" type="text" placeholder="e.g. Reverse a String using Pointers">
+        </div>
+        <div class="cl-form-group">
+          <label class="cl-label">Problem Statement / Instructions <span style="font-weight: 400; color: #86868b; text-transform: none;">(Optional)</span></label>
+          <textarea class="cl-textarea q-desc" placeholder="Write instructions, constraints, or sample test cases (optional)..."></textarea>
+        </div>
+        <div class="cl-form-group" style="margin-bottom: 0;">
+          <label class="cl-label">Programming Language</label>
+          <select class="cl-select q-lang" style="max-width: 240px;">
+            <option value="c" selected>C (GCC)</option>
+            <option value="cpp">C++ (G++)</option>
+            <option value="java">Java</option>
+            <option value="python">Python 3</option>
+          </select>
+        </div>
+      `;
+      container.appendChild(block);
+      renumberQuestions();
+    }
+
+    function removeQuestion(num) {
+      const block = document.getElementById(`q-block-${num}`);
+      if (block) block.remove();
+      renumberQuestions();
+    }
+
+    function renumberQuestions() {
+      const blocks = document.querySelectorAll('.cl-question-block');
+      blocks.forEach((block, i) => {
+        const badge = block.querySelector('.cl-q-badge');
+        if (badge) badge.textContent = `Question ${i + 1}`;
+      });
+      const counter = document.getElementById('q-counter');
+      if (counter) {
+        counter.textContent = `${blocks.length} Question${blocks.length === 1 ? '' : 's'}`;
+      }
+    }
+
+    function showMessage(text, isError = false) {
+      const msgEl = document.getElementById('msg');
+      msgEl.textContent = text;
+      msgEl.className = isError ? 'cl-alert error' : 'cl-alert success';
+      msgEl.style.display = 'flex';
+      msgEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    document.getElementById('addQuestionBtn').addEventListener('click', addQuestion);
+
+    document.getElementById('createBtn').addEventListener('click', async () => {
+      const title = document.getElementById('title').value.trim();
+      const semester = document.getElementById('semester').value;
+      const subject = document.getElementById('subject').value;
+      const btn = document.getElementById('createBtn');
+
+      const blocks = document.querySelectorAll('.cl-question-block');
+      const questions = [];
+      for (const block of blocks) {
+        const qTitle = block.querySelector('.q-title').value.trim();
+        const qDesc = block.querySelector('.q-desc').value.trim();
+        const qLang = block.querySelector('.q-lang').value;
+        if (!qTitle) {
+          showMessage('Question Title is compulsory for every question.', true);
+          return;
+        }
+        questions.push({ title: qTitle, description: qDesc || '', language: qLang || 'c' });
+      }
+
+      if (!title) {
+        showMessage('Please enter an Assignment Title.', true);
+        return;
+      }
+      if (!semester || !subject) {
+        showMessage('Please select both a Semester and a Subject.', true);
+        return;
+      }
+      if (questions.length === 0) {
+        showMessage('At least one question is required.', true);
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Creating Assignment...';
+
+      try {
+        const res = await fetch('/api/code-lab/assignments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, subject, semester, questions })
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          showMessage(`Assignment "${title}" created successfully with ${questions.length} question${questions.length > 1 ? 's' : ''}!`, false);
+          // Reset form
+          document.getElementById('title').value = '';
+          document.getElementById('questions-container').innerHTML = '';
+          questionCount = 0;
+          addQuestion();
+        } else {
+          showMessage(data.message || 'Something went wrong on the server.', true);
+        }
+      } catch (err) {
+        showMessage('Network error — could not reach the server.', true);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Create Assignment';
+      }
+    });
+
+    init();
+  </script>
 </body>
 
 </html>

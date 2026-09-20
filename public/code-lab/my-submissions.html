@@ -2,81 +2,514 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <title>My Submissions — Code Lab</title>
-    <style>
-        body {
-            font-family: sans-serif;
-            max-width: 800px;
-            margin: 40px auto;
-            padding: 0 20px;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>My Submissions — Assignments</title>
+  <meta name="description" content="View your completed programming assignment submissions, code, and results.">
 
-        h1 {
-            font-size: 22px;
-        }
+  <!-- Apple & PWA Metadata -->
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <meta name="theme-color" content="#ffffff">
 
-        .sub-card {
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            padding: 16px;
-            margin-bottom: 12px;
-            cursor: pointer;
-            transition: background 0.15s;
-        }
+  <!-- Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="/style.v4.css">
+  <link rel="stylesheet" href="/auth-modal.css">
 
-        .sub-card:hover {
-            background: #f5f5f5;
-        }
+  <style>
+    :root {
+      --apple-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "SF Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
+      --code-font: "JetBrains Mono", "SF Mono", Menlo, Consolas, Monaco, monospace;
+    }
 
-        .sub-title {
-            font-weight: 700;
-            font-size: 16px;
-        }
+    body {
+      font-family: var(--apple-font);
+      background-color: #f5f5f7;
+      color: #1d1d1f;
+      -webkit-font-smoothing: antialiased;
+      margin: 0;
+      padding: 0;
+    }
 
-        .sub-meta {
-            color: #666;
-            font-size: 13px;
-            margin-top: 4px;
-        }
-    </style>
+    .cl-page-wrap {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 28px 6vw 80px;
+      margin: 0;
+    }
+
+    @media (max-width: 768px) {
+      .cl-page-wrap {
+        padding: 20px 4vw 80px;
+      }
+    }
+
+    .cl-breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+
+    .cl-crumb-link {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 14px;
+      background: #ffffff;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 980px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #6e6e73;
+      text-decoration: none;
+      transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    }
+
+    .cl-crumb-link:hover {
+      color: #1d1d1f;
+      border-color: rgba(0, 0, 0, 0.18);
+      transform: translateY(-1px);
+    }
+
+    .cl-crumb-current {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 14px;
+      background: #1d1d1f;
+      color: #ffffff;
+      border-radius: 980px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .cl-crumb-sep {
+      color: #aeaeb2;
+      font-size: 12px;
+    }
+
+    .cl-header-row {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+    }
+
+    .cl-title {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      color: #1d1d1f;
+      margin: 0 0 6px 0;
+      font-family: "Plus Jakarta Sans", var(--apple-font);
+    }
+
+    .cl-subtitle {
+      font-size: 14.5px;
+      color: #6e6e73;
+      margin: 0;
+      font-weight: 400;
+    }
+
+    /* Submissions list */
+    .cl-list {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .cl-sub-card {
+      background: #ffffff;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 18px;
+      padding: 24px;
+      color: inherit;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      transition: all 0.22s cubic-bezier(0.25, 1, 0.5, 1);
+      box-shadow: 0 3px 14px rgba(0, 0, 0, 0.03);
+    }
+
+    .cl-sub-card:hover {
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+      border-color: rgba(0, 113, 227, 0.25);
+    }
+
+    .cl-card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .cl-sub-title {
+      font-size: 17.5px;
+      font-weight: 600;
+      color: #1d1d1f;
+      margin: 0 0 8px 0;
+      letter-spacing: -0.015em;
+    }
+
+    .cl-sub-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #86868b;
+      font-size: 13px;
+      flex-wrap: wrap;
+    }
+
+    .cl-meta-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 9px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .cl-meta-sub {
+      background: rgba(0, 113, 227, 0.08);
+      color: #0071e3;
+    }
+
+    .cl-meta-sem {
+      background: rgba(0, 0, 0, 0.05);
+      color: #1d1d1f;
+    }
+
+    .cl-lang-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 9px;
+      border-radius: 6px;
+      background: rgba(52, 199, 89, 0.1);
+      color: #1b7a37;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .cl-open-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 15px;
+      border-radius: 980px;
+      background: #f5f5f7;
+      color: #1d1d1f;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .cl-open-link:hover {
+      background: #0071e3;
+      color: #ffffff;
+    }
+
+    /* macOS Code Window */
+    .cl-code-box {
+      background: #1e1e24;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid rgba(0, 0, 0, 0.15);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    }
+
+    .cl-code-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      background: #18181c;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .cl-window-dots {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .cl-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .cl-dot.red { background: #ff5f56; }
+    .cl-dot.yellow { background: #ffbd2e; }
+    .cl-dot.green { background: #27c93f; }
+
+    .cl-code-filename {
+      font-family: var(--code-font);
+      font-size: 12px;
+      color: #8e8e93;
+      font-weight: 500;
+    }
+
+    .cl-copy-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      background: rgba(255, 255, 255, 0.08);
+      color: #d1d1d6;
+      border: none;
+      border-radius: 6px;
+      font-size: 11.5px;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: var(--apple-font);
+      transition: all 0.18s ease;
+    }
+
+    .cl-copy-btn:hover {
+      background: rgba(255, 255, 255, 0.18);
+      color: #ffffff;
+    }
+
+    .cl-code-pre {
+      margin: 0;
+      padding: 16px 18px;
+      max-height: 380px;
+      overflow: auto;
+      font-family: var(--code-font);
+      font-size: 13px;
+      line-height: 1.6;
+      color: #f3f3f6;
+      background: transparent;
+      white-space: pre;
+      tab-size: 2;
+    }
+
+    /* Output Console */
+    .cl-output-box {
+      margin-top: 10px;
+      background: #fbfbfd;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-family: var(--code-font);
+      font-size: 12px;
+      color: #1d1d1f;
+    }
+
+    .cl-output-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #6e6e73;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .cl-output-content {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 1.5;
+    }
+
+    .cl-output-content.err {
+      color: #d70015;
+    }
+
+    .cl-empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      background: #ffffff;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 18px;
+      color: #86868b;
+      font-size: 14.5px;
+    }
+  </style>
 </head>
 
-<body>
-    <h1>My Submissions</h1>
-    <div id="list">Loading...</div>
+<body class="dash syllabus-page-body">
 
-    <script>
-        fetch('/api/code-lab/my-submissions')
-            .then(async res => {
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.message || 'Failed to load submissions.');
-                return data;
-            })
-            .then(subs => {
-                const listEl = document.getElementById('list');
-                if (!subs.length) {
-                    listEl.textContent = 'You have not submitted anything yet.';
-                    return;
-                }
-                listEl.innerHTML = '';
-                subs.forEach(s => {
-                    const card = document.createElement('div');
-                    card.className = 'sub-card';
-                    card.innerHTML = `
-            <div class="sub-title">${s.title}</div>
-            <div class="sub-meta">${s.subject ? s.subject + ' &middot; ' : ''}Language: ${s.language.toUpperCase()} &middot; Submitted ${new Date(s.submittedAt).toLocaleString()}</div>
+  <header class="dash-header">
+    <a href="/" class="lib-wordmark">Semester Library</a>
+    <nav class="dash-header-nav">
+      <a href="/about" class="header-nav-item">About</a>
+      <a href="/code-lab/subjects.html" class="header-nav-item active">Assignments</a>
+      <a href="/routine" class="header-nav-item">Routine</a>
+      <a href="/notices" class="header-nav-item">Notices</a>
+    </nav>
+    <div class="dash-header-actions">
+      <a href="/login.html" class="nav-cta-btn apple-nav-btn">Sign In</a>
+    </div>
+  </header>
+
+  <main class="cl-page-wrap">
+    
+    <nav class="cl-breadcrumb" aria-label="Breadcrumb">
+      <a href="/code-lab/subjects.html" class="cl-crumb-link">Assignments</a>
+      <span class="cl-crumb-sep">/</span>
+      <span class="cl-crumb-current">My Submissions</span>
+    </nav>
+
+    <div class="cl-header-row">
+      <div>
+        <h1 class="cl-title">My Submissions</h1>
+        <p class="cl-subtitle">Your completed programming assignment submissions, code snippets, and execution outputs.</p>
+      </div>
+      <div>
+        <a href="/code-lab/subjects.html" class="cl-open-link" style="background: #1d1d1f; color: #ffffff; padding: 10px 20px; border-radius: 980px;">
+          Explore Assignments
+        </a>
+      </div>
+    </div>
+
+    <div class="cl-list" id="list">
+      <div class="cl-empty-state">Loading your submissions…</div>
+    </div>
+
+  </main>
+
+  <footer class="app-global-footer">
+    <div class="app-footer-inner">
+      <div class="app-footer-brand">
+        <strong>Semester Library</strong>
+        <span>· Bachelor of Information Technology</span>
+      </div>
+      <div class="app-footer-meta">
+        <span>Gandaki University</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/auth-modal.js"></script>
+  <script>
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text || '';
+      return div.innerHTML;
+    }
+
+    function getFileName(lang) {
+      const map = {
+        c: 'solution.c',
+        cpp: 'solution.cpp',
+        java: 'Main.java',
+        python: 'solution.py'
+      };
+      return map[(lang || 'c').toLowerCase()] || 'code.txt';
+    }
+
+    function copyCode(btn, code) {
+      navigator.clipboard.writeText(code).then(() => {
+        const orig = btn.innerHTML;
+        btn.innerHTML = `
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          Copied!
+        `;
+        setTimeout(() => {
+          btn.innerHTML = orig;
+        }, 1800);
+      });
+    }
+
+    fetch('/api/code-lab/my-submissions')
+      .then(async res => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Failed to load submissions.');
+        return data;
+      })
+      .then(subs => {
+        const listEl = document.getElementById('list');
+        if (!subs.length) {
+          listEl.innerHTML = '<div class="cl-empty-state">You have not submitted any assignments yet.</div>';
+          return;
+        }
+        listEl.innerHTML = '';
+        subs.forEach((s, idx) => {
+          const card = document.createElement('div');
+          card.className = 'cl-sub-card';
+          
+          const filename = getFileName(s.language);
+          const rawCode = s.code || '// No code recorded for this submission';
+          const hasOutput = Boolean(s.stdout || s.stderr);
+
+          card.innerHTML = `
+            <div class="cl-card-top">
+              <div>
+                <h3 class="cl-sub-title">${escapeHtml(s.assignmentTitle || 'Assignment')}</h3>
+                <div class="cl-sub-meta">
+                  ${s.questionTitle ? `<span style="font-weight: 600; color: #1d1d1f;">Q${s.questionNumber || 1}: ${escapeHtml(s.questionTitle)}</span> · ` : ''}
+                  ${s.subject ? `<span class="cl-meta-pill cl-meta-sub">${escapeHtml(s.subject)}</span> · ` : ''}
+                  ${s.semester ? `<span class="cl-meta-pill cl-meta-sem">Sem ${escapeHtml(s.semester)}</span> · ` : ''}
+                  ${s.language ? `<span class="cl-lang-badge">${escapeHtml(s.language.toUpperCase())}</span> · ` : ''}
+                  <span>Submitted ${new Date(s.submittedAt).toLocaleDateString()} at ${new Date(s.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
+              </div>
+              <a href="/code-lab/assignment.html?id=${s.assignmentId}" class="cl-open-link">
+                Open in Editor
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+              </a>
+            </div>
+
+            <!-- macOS-Style Code Window Container -->
+            <div class="cl-code-box">
+              <div class="cl-code-header">
+                <div class="cl-window-dots">
+                  <span class="cl-dot red"></span>
+                  <span class="cl-dot yellow"></span>
+                  <span class="cl-dot green"></span>
+                </div>
+                <div class="cl-code-filename">${escapeHtml(filename)}</div>
+                <button type="button" class="cl-copy-btn" id="copy-btn-${idx}">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                  Copy Code
+                </button>
+              </div>
+              <pre class="cl-code-pre"><code>${escapeHtml(rawCode)}</code></pre>
+            </div>
+
+            ${hasOutput ? `
+              <div class="cl-output-box">
+                <div class="cl-output-title">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                  Execution Output
+                </div>
+                ${s.stdout ? `<pre class="cl-output-content">${escapeHtml(s.stdout)}</pre>` : ''}
+                ${s.stderr ? `<pre class="cl-output-content err">${escapeHtml(s.stderr)}</pre>` : ''}
+              </div>
+            ` : ''}
           `;
-                    card.addEventListener('click', () => {
-                        window.location.href = '/code-lab/assignment.html?id=' + s.assignmentId;
-                    });
-                    listEl.appendChild(card);
-                });
-            })
-            .catch(error => {
-                document.getElementById('list').textContent = error.message;
-            });
-    </script>
+
+          listEl.appendChild(card);
+
+          const copyBtn = card.querySelector(`#copy-btn-${idx}`);
+          if (copyBtn) {
+            copyBtn.addEventListener('click', () => copyCode(copyBtn, rawCode));
+          }
+        });
+      })
+      .catch(error => {
+        document.getElementById('list').innerHTML =
+          `<div class="cl-empty-state">${escapeHtml(error.message)}</div>`;
+      });
+  </script>
 </body>
 
 </html>

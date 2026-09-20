@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Code Timelapse — Assignments</title>
+  <meta name="description" content="Replay student code keystrokes, snapshots, and growth analytics in Code Lab.">
+
+  <!-- Apple & PWA Metadata -->
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <meta name="theme-color" content="#ffffff">
+
+  <!-- Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="/style.v4.css">
+  <link rel="stylesheet" href="/auth-modal.css">
+
+  <style>
+    :root {
+      --apple-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "SF Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
+      --apple-mono: ui-monospace, "SF Mono", Monaco, Consolas, monospace;
+    }
+
+    body {
+      font-family: var(--apple-font);
+      background-color: #f5f5f7;
+      color: #1d1d1f;
+      -webkit-font-smoothing: antialiased;
+      margin: 0;
+      padding: 0;
+    }
+
+    .cl-page-wrap {
+      max-width: 940px;
+      margin: 0 auto;
+      padding: 32px 24px 80px;
+    }
+
+    .cl-breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+
+    .cl-crumb-link {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 14px;
+      background: #ffffff;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 980px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #6e6e73;
+      text-decoration: none;
+      transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    }
+
+    .cl-crumb-link:hover {
+      color: #1d1d1f;
+      border-color: rgba(0, 0, 0, 0.18);
+      transform: translateY(-1px);
+    }
+
+    .cl-crumb-current {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 14px;
+      background: #1d1d1f;
+      color: #ffffff;
+      border-radius: 980px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .cl-crumb-sep {
+      color: #aeaeb2;
+      font-size: 12px;
+    }
+
+    .cl-header-row {
+      margin-bottom: 24px;
+    }
+
+    .cl-title {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      color: #1d1d1f;
+      margin: 0 0 6px 0;
+      font-family: "Plus Jakarta Sans", var(--apple-font);
+    }
+
+    .cl-subtitle {
+      font-size: 14.5px;
+      color: #6e6e73;
+      margin: 0;
+      font-weight: 400;
+    }
+
+    /* Growth Chart Card */
+    .cl-card {
+      background: #ffffff;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 20px;
+      padding: 24px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+      margin-bottom: 20px;
+    }
+
+    .cl-card-label {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #86868b;
+      margin-bottom: 12px;
+      display: block;
+    }
+
+    /* Player Controls Bar */
+    .cl-player-card {
+      background: #ffffff;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 18px;
+      padding: 16px 22px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .cl-play-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 20px;
+      border-radius: 980px;
+      background: #1d1d1f;
+      color: #ffffff;
+      border: 1px solid #1d1d1f;
+      font-size: 13.5px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: var(--apple-font);
+      transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    }
+
+    .cl-play-btn:hover {
+      background: #000000;
+      transform: translateY(-1px);
+    }
+
+    .cl-scrubber {
+      flex: 1;
+      min-width: 180px;
+      accent-color: #0071e3;
+      cursor: pointer;
+      height: 6px;
+    }
+
+    .cl-time-badge {
+      display: inline-flex;
+      align-items: center;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: #1d1d1f;
+      background: #f5f5f7;
+      border-radius: 980px;
+      padding: 5px 12px;
+      font-family: var(--apple-mono);
+      white-space: nowrap;
+    }
+
+    /* Code Window */
+    .cl-code-window {
+      background: #181825;
+      border: 1px solid rgba(0, 0, 0, 0.2);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.16);
+    }
+
+    .cl-window-titlebar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 11px 18px;
+      background: #11111b;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .cl-traffic-dots {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .cl-dot {
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+    }
+
+    .cl-dot-red { background: #ff5f56; }
+    .cl-dot-yellow { background: #ffbd2e; }
+    .cl-dot-green { background: #27c93f; }
+
+    .cl-window-title {
+      font-size: 12px;
+      color: #a6adc8;
+      font-family: var(--apple-mono);
+      font-weight: 500;
+    }
+
+    .cl-code-view {
+      margin: 0;
+      padding: 20px 24px;
+      background: transparent;
+      color: #cdd6f4;
+      font-family: var(--apple-mono);
+      font-size: 13.5px;
+      line-height: 1.65;
+      white-space: pre-wrap;
+      word-break: break-word;
+      min-height: 320px;
+      max-height: 540px;
+      overflow-y: auto;
+    }
+
+    .cl-snapshot-meta {
+      padding: 10px 20px;
+      background: rgba(255, 255, 255, 0.03);
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      font-size: 12px;
+      color: #6c7086;
+      font-family: var(--apple-font);
+      display: flex;
+      justify-content: space-between;
+    }
+  </style>
+</head>
+
+<body class="dash syllabus-page-body">
+
+  <header class="dash-header">
+    <a href="/" class="lib-wordmark">Semester Library</a>
+    <nav class="dash-header-nav">
+      <a href="/about" class="header-nav-item">About</a>
+      <a href="/code-lab/subjects.html" class="header-nav-item active">Assignments</a>
+      <a href="/routine" class="header-nav-item">Routine</a>
+      <a href="/notices" class="header-nav-item">Notices</a>
+    </nav>
+    <div class="dash-header-actions">
+      <a href="/login.html" class="nav-cta-btn apple-nav-btn">Sign In</a>
+    </div>
+  </header>
+
+  <main class="cl-page-wrap">
+    
+    <nav class="cl-breadcrumb" aria-label="Breadcrumb">
+      <a href="/code-lab/subjects.html" class="cl-crumb-link">Assignments</a>
+      <span class="cl-crumb-sep">/</span>
+      <a href="javascript:history.back()" class="cl-crumb-link">Submissions</a>
+      <span class="cl-crumb-sep">/</span>
+      <span class="cl-crumb-current">Code Timelapse</span>
+    </nav>
+
+    <div class="cl-header-row">
+      <h1 class="cl-title" id="title">Loading Timelapse…</h1>
+      <p class="cl-subtitle" id="subtitle"></p>
+    </div>
+
+    <!-- Code Growth Line Chart -->
+    <div class="cl-card">
+      <span class="cl-card-label">Code Length Growth Timeline (Characters vs Time)</span>
+      <div style="height: 140px; position: relative;">
+        <canvas id="growthChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Player Controls -->
+    <div class="cl-player-card">
+      <button type="button" class="cl-play-btn" id="playBtn">▶ Play</button>
+      <input id="scrubber" class="cl-scrubber" type="range" min="0" max="0" value="0" step="1">
+      <span id="timeLabel" class="cl-time-badge">—</span>
+    </div>
+
+    <!-- macOS Code Window -->
+    <div class="cl-code-window">
+      <div class="cl-window-titlebar">
+        <div class="cl-traffic-dots">
+          <span class="cl-dot cl-dot-red"></span>
+          <span class="cl-dot cl-dot-yellow"></span>
+          <span class="cl-dot cl-dot-green"></span>
+        </div>
+        <div class="cl-window-title">solution_snapshot.c</div>
+        <div style="width: 50px;"></div>
+      </div>
+      <pre class="cl-code-view" id="codeView">Loading snapshots…</pre>
+      <div class="cl-snapshot-meta" id="snapshotMeta">
+        <span>0 characters</span>
+        <span>Keystroke telemetry</span>
+      </div>
+    </div>
+
+  </main>
+
+  <footer class="app-global-footer">
+    <div class="app-footer-inner">
+      <div class="app-footer-brand">
+        <strong>Semester Library</strong>
+        <span>· Bachelor of Information Technology</span>
+      </div>
+      <div class="app-footer-meta">
+        <span>Gandaki University</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/auth-modal.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const questionId = params.get('questionId');
+    const assignmentId = params.get('id');
+    const studentId = params.get('studentId');
+
+    let snapshots = [];
+    let playTimer = null;
+
+    function renderSnapshot(index) {
+      const snap = snapshots[index];
+      if (!snap) return;
+      document.getElementById('codeView').textContent = snap.code || '// Empty snapshot';
+      document.getElementById('timeLabel').textContent =
+        new Date(snap.ts).toLocaleTimeString() + ` (${index + 1}/${snapshots.length})`;
+      document.getElementById('snapshotMeta').innerHTML = `
+        <span>${snap.code.length} characters written</span>
+        <span>Snapshot ${index + 1} of ${snapshots.length}</span>
+      `;
+    }
+
+    function loadTimelapse() {
+      if ((!questionId && !assignmentId) || !studentId) {
+        document.getElementById('title').textContent = 'Missing Question or Student ID.';
+        return;
+      }
+
+      const url = questionId
+        ? `/api/code-lab/questions/${questionId}/events/${studentId}`
+        : `/api/code-lab/assignments/${assignmentId}/events/${studentId}`;
+
+      fetch(url)
+        .then(async res => {
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || 'Failed to load events.');
+          return data;
+        })
+        .then(events => {
+          document.getElementById('title').textContent = 'Code Timelapse Replay';
+          document.getElementById('subtitle').textContent =
+            (questionId ? `Question #${questionId}` : `Assignment #${assignmentId}`) +
+            ` · Student: ${studentId}`;
+
+          snapshots = (events || [])
+            .filter(e => e.eventType === 'code_snapshot' && e.clientTime)
+            .map(e => {
+              let code = '';
+              try { code = JSON.parse(e.payload || '{}').code || ''; } catch (err) { }
+              return { ts: new Date(e.clientTime).getTime(), code };
+            })
+            .sort((a, b) => a.ts - b.ts);
+
+          if (!snapshots.length) {
+            document.getElementById('codeView').textContent =
+              'No code snapshots were recorded for this submission.';
+            return;
+          }
+
+          const scrubber = document.getElementById('scrubber');
+          scrubber.max = snapshots.length - 1;
+          scrubber.value = 0;
+          scrubber.addEventListener('input', () => renderSnapshot(Number(scrubber.value)));
+          renderSnapshot(0);
+
+          // Growth chart with Apple styling
+          const labels = snapshots.map(s => new Date(s.ts).toLocaleTimeString());
+          const lengths = snapshots.map(s => s.code.length);
+          new Chart(document.getElementById('growthChart'), {
+            type: 'line',
+            data: {
+              labels,
+              datasets: [{
+                label: 'Characters',
+                data: lengths,
+                borderColor: '#0071e3',
+                backgroundColor: 'rgba(0, 113, 227, 0.08)',
+                borderWidth: 2,
+                tension: 0.3,
+                fill: true,
+                pointRadius: 3,
+                pointHoverRadius: 5,
+                pointBackgroundColor: '#0071e3'
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false },
+                tooltip: {
+                  backgroundColor: '#1d1d1f',
+                  titleFont: { family: '-apple-system, sans-serif' },
+                  bodyFont: { family: '-apple-system, sans-serif' }
+                }
+              },
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  grid: { color: 'rgba(0,0,0,0.05)' },
+                  ticks: { font: { size: 11 } }
+                },
+                x: {
+                  grid: { display: false },
+                  ticks: { maxTicksLimit: 8, font: { size: 11 } }
+                }
+              },
+              onClick: (evt, elements) => {
+                if (elements.length) {
+                  scrubber.value = elements[0].index;
+                  renderSnapshot(elements[0].index);
+                }
+              }
+            }
+          });
+
+          // Play/Pause button
+          const playBtn = document.getElementById('playBtn');
+          playBtn.addEventListener('click', () => {
+            if (playTimer) {
+              clearInterval(playTimer);
+              playTimer = null;
+              playBtn.textContent = '▶ Play';
+              return;
+            }
+            playBtn.textContent = '⏸ Pause';
+            playTimer = setInterval(() => {
+              let next = Number(scrubber.value) + 1;
+              if (next > snapshots.length - 1) {
+                clearInterval(playTimer);
+                playTimer = null;
+                playBtn.textContent = '▶ Play';
+                return;
+              }
+              scrubber.value = next;
+              renderSnapshot(next);
+            }, 600);
+          });
+        })
+        .catch(error => {
+          document.getElementById('title').textContent = 'Error Loading Timelapse';
+          document.getElementById('codeView').textContent = error.message;
+        });
+    }
+
+    loadTimelapse();
+  </script>
+</body>
+
+</html>

@@ -91,7 +91,8 @@ const camelMap = {
   lastreadmessageid: 'lastReadMessageId', lasttypedat: 'lastTypedAt',
   replytext: 'replyText', replysender: 'replySender',
   studentname: 'studentName', submittedat: 'submittedAt',
-  assignmentid: 'assignmentId', createdby: 'createdBy', teachername: 'teacherName', eventtype: 'eventType', clienttime: 'clientTime'
+  assignmentid: 'assignmentId', createdby: 'createdBy', teachername: 'teacherName', eventtype: 'eventType', clienttime: 'clientTime',
+  questionid: 'questionId', questionnumber: 'questionNumber', questioncount: 'questionCount'
 };
 
 function formatRow(row) {
@@ -155,7 +156,7 @@ async function run(sql, ...params) {
     const hasReturning = /RETURNING/i.test(sql);
 
     if (isInsert && !hasReturning) {
-      const noIdTables = ['chat_read_receipts', 'chat_typing', 'file_likes', 'follows', 'chat_reactions', 'students', 'submissions'];
+      const noIdTables = ['chat_read_receipts', 'chat_typing', 'file_likes', 'follows', 'chat_reactions', 'students', 'submissions', 'submission_events'];
       const isNoIdTable = noIdTables.some(tbl => new RegExp(`INSERT\\s+INTO\\s+${tbl}\\b`, 'i').test(sql));
       if (!isNoIdTable) {
         pgSql += ' RETURNING id';
@@ -388,13 +389,26 @@ async function initSchema() {
             description TEXT NOT NULL,
             language TEXT NOT NULL,
             subject TEXT,
+            semester TEXT,
             createdBy TEXT NOT NULL REFERENCES students(studentId) ON DELETE CASCADE,
             createdAt TEXT NOT NULL
+          );
+
+          CREATE TABLE IF NOT EXISTS assignment_questions (
+            id SERIAL PRIMARY KEY,
+            assignmentId INTEGER NOT NULL REFERENCES assignments(id) ON DELETE CASCADE,
+            questionNumber INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            description TEXT NOT NULL,
+            language TEXT NOT NULL,
+            createdAt TEXT NOT NULL,
+            UNIQUE(assignmentId, questionNumber)
           );
 
           CREATE TABLE IF NOT EXISTS submissions (
             id SERIAL PRIMARY KEY,
             assignmentId INTEGER NOT NULL REFERENCES assignments(id) ON DELETE CASCADE,
+            questionId INTEGER REFERENCES assignment_questions(id) ON DELETE CASCADE,
             studentId TEXT NOT NULL REFERENCES students(studentId) ON DELETE CASCADE,
             code TEXT NOT NULL,
             stdout TEXT,
@@ -405,6 +419,7 @@ async function initSchema() {
           CREATE TABLE IF NOT EXISTS submission_events (
   id SERIAL PRIMARY KEY,
   assignmentId INTEGER NOT NULL REFERENCES assignments(id) ON DELETE CASCADE,
+  questionId INTEGER REFERENCES assignment_questions(id) ON DELETE CASCADE,
   studentId TEXT NOT NULL REFERENCES students(studentId) ON DELETE CASCADE,
   eventType TEXT NOT NULL,
   payload TEXT,
@@ -546,32 +561,49 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
             description TEXT NOT NULL,
             language TEXT NOT NULL,
             subject TEXT,
+            semester TEXT,
             createdBy TEXT NOT NULL,
             createdAt TEXT NOT NULL,
             FOREIGN KEY (createdBy) REFERENCES students(studentId)
           );
 
+          CREATE TABLE IF NOT EXISTS assignment_questions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            assignmentId INTEGER NOT NULL,
+            questionNumber INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            description TEXT NOT NULL,
+            language TEXT NOT NULL,
+            createdAt TEXT NOT NULL,
+            FOREIGN KEY (assignmentId) REFERENCES assignments(id),
+            UNIQUE(assignmentId, questionNumber)
+          );
+
           CREATE TABLE IF NOT EXISTS submissions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             assignmentId INTEGER NOT NULL,
+            questionId INTEGER,
             studentId TEXT NOT NULL,
             code TEXT NOT NULL,
             stdout TEXT,
             stderr TEXT,
             submittedAt TEXT NOT NULL,
             FOREIGN KEY (assignmentId) REFERENCES assignments(id),
+            FOREIGN KEY (questionId) REFERENCES assignment_questions(id),
             FOREIGN KEY (studentId) REFERENCES students(studentId),
             UNIQUE(assignmentId, studentId)
           ); 
           CREATE TABLE IF NOT EXISTS submission_events (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   assignmentId INTEGER NOT NULL,
+  questionId INTEGER,
   studentId TEXT NOT NULL,
   eventType TEXT NOT NULL,
   payload TEXT,
   clientTime TEXT,
   createdAt TEXT NOT NULL,
   FOREIGN KEY (assignmentId) REFERENCES assignments(id),
+  FOREIGN KEY (questionId) REFERENCES assignment_questions(id),
   FOREIGN KEY (studentId) REFERENCES students(studentId)
 );
         `);
@@ -581,28 +613,87 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
       try {
         if (isPostgres) {
           await exec(`ALTER TABLE assignments ADD COLUMN IF NOT EXISTS subject TEXT;`);
+          await exec(`ALTER TABLE assignments ADD COLUMN IF NOT EXISTS semester TEXT;`);
           await exec(`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS stdout TEXT;`);
           await exec(`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS stderr TEXT;`);
+          await exec(`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS questionId INTEGER REFERENCES assignment_questions(id) ON DELETE CASCADE;`);
+          await exec(`ALTER TABLE submission_events ADD COLUMN IF NOT EXISTS questionId INTEGER REFERENCES assignment_questions(id) ON DELETE CASCADE;`);
 
           try {
-            await exec(`ALTER TABLE submissions ADD CONSTRAINT submissions_unique UNIQUE(assignmentId, studentId);`);
+            await exec(`ALTER TABLE submissions DROP CONSTRAINT IF EXISTS submissions_unique;`);
+            await exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_submissions_q_student ON submissions(questionId, studentId) WHERE questionId IS NOT NULL;`);
           } catch (constraintErr) {
-            if (!constraintErr.message.includes('already exists')) {
-              console.error('[DB Engine]: Constraint add warning:', constraintErr.message);
-            }
+            console.error('[DB Engine]: Constraint migration warning:', constraintErr.message);
           }
         } else {
           const cols = await all(`PRAGMA table_info(submissions)`);
           const colNames = cols.map(c => c.name);
           if (!colNames.includes('stdout')) await exec(`ALTER TABLE submissions ADD COLUMN stdout TEXT;`);
           if (!colNames.includes('stderr')) await exec(`ALTER TABLE submissions ADD COLUMN stderr TEXT;`);
+          if (!colNames.includes('questionId')) await exec(`ALTER TABLE submissions ADD COLUMN questionId INTEGER REFERENCES assignment_questions(id);`);
 
           const assignCols = await all(`PRAGMA table_info(assignments)`);
           const assignColNames = assignCols.map(c => c.name);
           if (!assignColNames.includes('subject')) await exec(`ALTER TABLE assignments ADD COLUMN subject TEXT;`);
+          if (!assignColNames.includes('semester')) await exec(`ALTER TABLE assignments ADD COLUMN semester TEXT;`);
+
+          const eventCols = await all(`PRAGMA table_info(submission_events)`);
+          const eventColNames = eventCols.map(c => c.name);
+          if (!eventColNames.includes('questionId')) await exec(`ALTER TABLE submission_events ADD COLUMN questionId INTEGER REFERENCES assignment_questions(id);`);
         }
       } catch (alterErr) {
         console.error('[DB Engine]: Column migration warning:', alterErr.message);
+      }
+
+      // Create question-level index (after column is ensured to exist)
+      try {
+        if (isPostgres) {
+          await exec(`CREATE INDEX IF NOT EXISTS idx_submission_events_question ON submission_events (questionId, studentId);`);
+        }
+      } catch (idxErr) {
+        // Index may already exist
+      }
+
+      // ── One-time migration: Convert existing single-question assignments ──
+      // Creates one assignment_questions row per existing assignment, then
+      // backfills questionId on submissions and submission_events.
+      try {
+        const questionCount = await get('SELECT COUNT(*) AS c FROM assignment_questions');
+        const assignmentCount = await get('SELECT COUNT(*) AS c FROM assignments');
+        const qCount = Number(questionCount?.c || 0);
+        const aCount = Number(assignmentCount?.c || 0);
+
+        if (aCount > 0 && qCount === 0) {
+          console.log(`[DB Engine]: Migrating ${aCount} existing assignments to multi-question schema...`);
+          const existingAssignments = await all('SELECT id, title, description, language, createdAt FROM assignments');
+
+          for (const a of existingAssignments) {
+            const result = await run(
+              'INSERT INTO assignment_questions (assignmentId, questionNumber, title, description, language, createdAt) VALUES (?, ?, ?, ?, ?, ?)',
+              a.id, 1, a.title, a.description, a.language, a.createdAt
+            );
+            const newQuestionId = result.lastInsertRowid;
+
+            if (newQuestionId) {
+              // Backfill submissions
+              await run(
+                'UPDATE submissions SET questionId = ? WHERE assignmentId = ? AND questionId IS NULL',
+                newQuestionId, a.id
+              );
+              // Backfill submission_events
+              await run(
+                'UPDATE submission_events SET questionId = ? WHERE assignmentId = ? AND questionId IS NULL',
+                newQuestionId, a.id
+              );
+            }
+          }
+
+          // Verify
+          const newQCount = await get('SELECT COUNT(*) AS c FROM assignment_questions');
+          console.log(`[DB Engine]: Migration complete! Created ${Number(newQCount?.c || 0)} question rows for ${aCount} assignments.`);
+        }
+      } catch (migErr) {
+        console.error('[DB Engine]: Multi-question migration error:', migErr.message);
       }
 
       const countRow = await get('SELECT COUNT(*) AS c FROM students');

@@ -352,9 +352,41 @@ function requireLogin(req, res, next) {
   }
   next();
 }
+// --- Code Lab Rate Limiting ---
+const rateLimit = require('express-rate-limit');
+
+const eventsLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 30,              // generous — normal flushing is every 10s, so ~6/min expected
+  message: { message: 'Too many requests, please slow down.' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+app.use('/api/code-lab/events', eventsLimiter);
+
+const submitLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10, // a student submitting more than 10 times a minute is not normal use
+  message: { message: 'Too many submission attempts, please slow down.' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+app.use('/api/code-lab/submissions', submitLimiter);
+app.use('/api/code-lab/questions/:questionId/submissions', submitLimiter);
+
+const explainLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10, // prevent spam-clicking the AI explain button
+  message: { message: 'Too many explain requests, please slow down.' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+app.use('/api/code-lab/explain-error', explainLimiter);
+
 app.use('/api/code-lab', require('./routes/code-lab/assignments'));
 // --- Code Lab (isolated module) ---
 app.use('/api/code-lab', require('./routes/code-lab/run'));
+app.use('/api/code-lab', require('./routes/code-lab/explain'));
 
 // --- Routes ---
 

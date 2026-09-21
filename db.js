@@ -91,9 +91,13 @@ const camelMap = {
   lastreadmessageid: 'lastReadMessageId', lasttypedat: 'lastTypedAt',
   replytext: 'replyText', replysender: 'replySender',
   studentname: 'studentName', submittedat: 'submittedAt',
-  assignmentid: 'assignmentId', createdby: 'createdBy', teachername: 'teacherName', eventtype: 'eventType', clienttime: 'clientTime',
+  assignmentid: 'assignmentId', assignmenttitle: 'assignmentTitle', createdby: 'createdBy', teachername: 'teacherName', eventtype: 'eventType', clienttime: 'clientTime',
   serverreceivedat: 'serverReceivedAt',
-  questionid: 'questionId', questionnumber: 'questionNumber', questioncount: 'questionCount'
+  questionid: 'questionId', questionnumber: 'questionNumber', questioncount: 'questionCount',
+  questiontitle: 'questionTitle', questionlanguage: 'questionLanguage', testcasecount: 'testCaseCount',
+  expectedoutput: 'expectedOutput', testresults: 'testResults',
+  maxpoints: 'maxPoints', marksobtained: 'marksObtained',
+  gradedby: 'gradedBy', gradedat: 'gradedAt', updatedat: 'updatedAt'
 };
 
 function formatRow(row) {
@@ -404,6 +408,7 @@ async function initSchema() {
             title TEXT NOT NULL,
             description TEXT NOT NULL,
             language TEXT NOT NULL,
+            maxPoints INTEGER DEFAULT 10,
             createdAt TIMESTAMPTZ NOT NULL,
             UNIQUE(assignmentId, questionNumber)
           );
@@ -416,6 +421,7 @@ async function initSchema() {
             code TEXT NOT NULL,
             stdout TEXT,
             stderr TEXT,
+            testResults TEXT,
             submittedAt TIMESTAMPTZ NOT NULL,
             UNIQUE(assignmentId, studentId)
           );
@@ -431,6 +437,15 @@ async function initSchema() {
   createdAt TIMESTAMPTZ NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (assignmentId, studentId);
+
+          CREATE TABLE IF NOT EXISTS question_test_cases (
+            id SERIAL PRIMARY KEY,
+            questionId INTEGER NOT NULL REFERENCES assignment_questions(id) ON DELETE CASCADE,
+            input TEXT,
+            expectedOutput TEXT NOT NULL,
+            createdAt TIMESTAMPTZ NOT NULL
+          );
+          CREATE INDEX IF NOT EXISTS idx_test_cases_question ON question_test_cases (questionId);
 
           CREATE TABLE IF NOT EXISTS "session" (
             "sid" varchar NOT NULL COLLATE "default",
@@ -579,6 +594,7 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
             title TEXT NOT NULL,
             description TEXT NOT NULL,
             language TEXT NOT NULL,
+            maxPoints INTEGER DEFAULT 10,
             createdAt TEXT NOT NULL,
             FOREIGN KEY (assignmentId) REFERENCES assignments(id),
             UNIQUE(assignmentId, questionNumber)
@@ -592,6 +608,7 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
             code TEXT NOT NULL,
             stdout TEXT,
             stderr TEXT,
+            testResults TEXT,
             submittedAt TEXT NOT NULL,
             FOREIGN KEY (assignmentId) REFERENCES assignments(id),
             FOREIGN KEY (questionId) REFERENCES assignment_questions(id),
@@ -612,6 +629,16 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
   FOREIGN KEY (questionId) REFERENCES assignment_questions(id),
   FOREIGN KEY (studentId) REFERENCES students(studentId)
 );
+
+          CREATE TABLE IF NOT EXISTS question_test_cases (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            questionId INTEGER NOT NULL,
+            input TEXT,
+            expectedOutput TEXT NOT NULL,
+            createdAt TEXT NOT NULL,
+            FOREIGN KEY (questionId) REFERENCES assignment_questions(id) ON DELETE CASCADE
+          );
+          CREATE INDEX IF NOT EXISTS idx_test_cases_question ON question_test_cases (questionId);
         `);
       }
 
@@ -623,9 +650,35 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
           await exec(`ALTER TABLE assignments ADD COLUMN IF NOT EXISTS deadline TEXT;`);
           await exec(`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS stdout TEXT;`);
           await exec(`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS stderr TEXT;`);
+          await exec(`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS testResults TEXT;`);
           await exec(`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS questionId INTEGER REFERENCES assignment_questions(id) ON DELETE CASCADE;`);
           await exec(`ALTER TABLE submission_events ADD COLUMN IF NOT EXISTS questionId INTEGER REFERENCES assignment_questions(id) ON DELETE CASCADE;`);
           await exec(`ALTER TABLE submission_events ADD COLUMN IF NOT EXISTS serverReceivedAt TEXT;`);
+          await exec(`ALTER TABLE assignment_questions ADD COLUMN IF NOT EXISTS maxPoints INTEGER DEFAULT 10;`);
+
+          await exec(`CREATE TABLE IF NOT EXISTS question_test_cases (
+            id SERIAL PRIMARY KEY,
+            questionId INTEGER NOT NULL REFERENCES assignment_questions(id) ON DELETE CASCADE,
+            input TEXT,
+            expectedOutput TEXT NOT NULL,
+            createdAt TIMESTAMPTZ NOT NULL
+          );`);
+          await exec(`CREATE INDEX IF NOT EXISTS idx_test_cases_question ON question_test_cases (questionId);`);
+
+          await exec(`CREATE TABLE IF NOT EXISTS submission_grades (
+            id SERIAL PRIMARY KEY,
+            questionId INTEGER NOT NULL REFERENCES assignment_questions(id) ON DELETE CASCADE,
+            studentId TEXT NOT NULL REFERENCES students(studentId) ON DELETE CASCADE,
+            marksObtained INTEGER,
+            remarks TEXT,
+            checked BOOLEAN DEFAULT FALSE,
+            released BOOLEAN DEFAULT FALSE,
+            gradedBy TEXT REFERENCES students(studentId),
+            gradedAt TIMESTAMPTZ,
+            updatedAt TIMESTAMPTZ NOT NULL,
+            UNIQUE(questionId, studentId)
+          );`);
+          await exec(`CREATE INDEX IF NOT EXISTS idx_submission_grades_lookup ON submission_grades(questionId, studentId);`);
 
           try {
             await exec(`ALTER TABLE submissions DROP CONSTRAINT IF EXISTS submissions_unique;`);
@@ -638,6 +691,7 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
           const colNames = cols.map(c => c.name);
           if (!colNames.includes('stdout')) await exec(`ALTER TABLE submissions ADD COLUMN stdout TEXT;`);
           if (!colNames.includes('stderr')) await exec(`ALTER TABLE submissions ADD COLUMN stderr TEXT;`);
+          if (!colNames.includes('testResults')) await exec(`ALTER TABLE submissions ADD COLUMN testResults TEXT;`);
           if (!colNames.includes('questionId')) await exec(`ALTER TABLE submissions ADD COLUMN questionId INTEGER REFERENCES assignment_questions(id);`);
 
           const assignCols = await all(`PRAGMA table_info(assignments)`);
@@ -650,6 +704,38 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
           const eventColNames = eventCols.map(c => c.name);
           if (!eventColNames.includes('questionId')) await exec(`ALTER TABLE submission_events ADD COLUMN questionId INTEGER REFERENCES assignment_questions(id);`);
           if (!eventColNames.includes('serverReceivedAt')) await exec(`ALTER TABLE submission_events ADD COLUMN serverReceivedAt TEXT;`);
+
+          const qCols = await all(`PRAGMA table_info(assignment_questions)`);
+          const qColNames = qCols.map(c => c.name);
+          if (!qColNames.includes('maxPoints')) await exec(`ALTER TABLE assignment_questions ADD COLUMN maxPoints INTEGER DEFAULT 10;`);
+
+          await exec(`CREATE TABLE IF NOT EXISTS question_test_cases (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            questionId INTEGER NOT NULL,
+            input TEXT,
+            expectedOutput TEXT NOT NULL,
+            createdAt TEXT NOT NULL,
+            FOREIGN KEY (questionId) REFERENCES assignment_questions(id) ON DELETE CASCADE
+          );`);
+          await exec(`CREATE INDEX IF NOT EXISTS idx_test_cases_question ON question_test_cases (questionId);`);
+
+          await exec(`CREATE TABLE IF NOT EXISTS submission_grades (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            questionId INTEGER NOT NULL,
+            studentId TEXT NOT NULL,
+            marksObtained INTEGER,
+            remarks TEXT,
+            checked INTEGER DEFAULT 0,
+            released INTEGER DEFAULT 0,
+            gradedBy TEXT,
+            gradedAt TEXT,
+            updatedAt TEXT NOT NULL,
+            FOREIGN KEY (questionId) REFERENCES assignment_questions(id) ON DELETE CASCADE,
+            FOREIGN KEY (studentId) REFERENCES students(studentId) ON DELETE CASCADE,
+            FOREIGN KEY (gradedBy) REFERENCES students(studentId),
+            UNIQUE(questionId, studentId)
+          );`);
+          await exec(`CREATE INDEX IF NOT EXISTS idx_submission_grades_lookup ON submission_grades(questionId, studentId);`);
         }
       } catch (alterErr) {
         console.error('[DB Engine]: Column migration warning:', alterErr.message);

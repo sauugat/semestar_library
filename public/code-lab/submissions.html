@@ -182,25 +182,25 @@
         .cl-breadcrumb {
             display: flex;
             align-items: center;
-            gap: 8px;
-            margin-bottom: 22px;
+            gap: 6px;
+            margin-bottom: 12px;
             flex-wrap: wrap;
         }
 
         .cl-crumb-link {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
-            padding: 6px 14px;
+            gap: 5px;
+            padding: 3px 9px;
             background: #ffffff;
             border: 1px solid rgba(0, 0, 0, 0.12);
             border-radius: 980px;
-            font-size: 12.5px;
+            font-size: 11.5px;
             font-weight: 600;
-            color: #1d1d1f;
+            color: #4b5563;
             text-decoration: none;
             transition: all 0.18s ease;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
             letter-spacing: -0.01em;
         }
 
@@ -208,24 +208,23 @@
             color: #000000;
             border-color: #000000;
             background: #fbfbfd;
-            transform: translateY(-1px);
         }
 
         .cl-crumb-current {
             display: inline-flex;
             align-items: center;
-            padding: 6px 14px;
+            padding: 3px 9px;
             background: #111827;
             color: #ffffff;
             border-radius: 980px;
-            font-size: 12.5px;
+            font-size: 11.5px;
             font-weight: 600;
             letter-spacing: -0.01em;
         }
 
         .cl-crumb-sep {
-            color: #86868b;
-            font-size: 12px;
+            color: #9ca3af;
+            font-size: 11px;
             user-select: none;
         }
 
@@ -569,14 +568,52 @@
             background: #ffffff;
             border: 1.5px solid #111827;
             border-radius: 18px;
-            padding: 22px 26px;
+            padding: 22px 28px;
             margin-bottom: 24px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 16px;
+            gap: 20px;
             flex-wrap: wrap;
+        }
+
+        .cl-banner-main {
+            flex: 1;
+            min-width: 280px;
+        }
+
+        .cl-banner-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+
+        .cl-zip-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: #111827;
+            color: #ffffff;
+            border: 1.5px solid #111827;
+            border-radius: 980px;
+            font-size: 13px;
+            font-weight: 700;
+            font-family: var(--apple-font);
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+            letter-spacing: -0.01em;
+            white-space: nowrap;
+        }
+
+        .cl-zip-btn:hover {
+            background: #000000;
+            border-color: #000000;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
         }
 
         .cl-banner-title {
@@ -615,117 +652,175 @@
             border-color: #111827;
         }
 
-        /* ── Similarity Warnings Section ── */
+        /* ── Similarity Warnings Section (Neutral Monochrome except Red Match Pill) ── */
         .cl-similarity-banner {
             background: #ffffff;
-            border: 1.5px solid rgba(245, 158, 11, 0.4);
-            border-radius: 18px;
-            padding: 20px 24px;
-            margin-bottom: 24px;
-            box-shadow: 0 4px 16px rgba(245, 158, 11, 0.08);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-radius: 10px;
+            padding: 8px 12px;
+            margin-bottom: 12px;
+            box-shadow: none;
             position: relative;
-            overflow: hidden;
         }
 
         .cl-similarity-banner::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            bottom: 0;
-            width: 5px;
-            background: #f59e0b;
+            display: none;
         }
 
         .cl-similarity-top {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 12px;
-            margin-bottom: 14px;
+            gap: 6px;
+            margin-bottom: 6px;
             flex-wrap: wrap;
         }
 
         .cl-similarity-title-group {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 5px;
         }
 
         .cl-similarity-badge {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
-            padding: 4px 10px;
-            background: rgba(245, 158, 11, 0.15);
-            color: #b45309;
-            font-size: 12.5px;
-            font-weight: 700;
+            gap: 3px;
+            padding: 1.5px 6px;
+            background: #f3f4f6;
+            color: #1f2937;
+            font-size: 10.5px;
+            font-weight: 600;
             border-radius: 980px;
+            border: 1px solid #e5e7eb;
+            letter-spacing: -0.01em;
+        }
+
+        .cl-similarity-count-tag {
+            font-size: 10.5px;
+            font-weight: 600;
+            color: #4b5563;
+            background: #f3f4f6;
+            padding: 1.5px 6px;
+            border-radius: 980px;
+            border: 1px solid #e5e7eb;
         }
 
         .cl-similarity-threshold {
-            font-size: 12px;
-            color: #6e6e73;
+            font-size: 10.5px;
+            color: #6b7280;
             font-weight: 500;
         }
 
         .cl-similarity-list {
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 4px;
         }
 
         .cl-similarity-item {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 11px 16px;
-            background: #fafafc;
-            border: 1px solid rgba(0, 0, 0, 0.06);
-            border-radius: 10px;
+            padding: 4px 10px;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
             cursor: pointer;
-            transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
-            gap: 12px;
+            transition: all 0.15s ease;
+            gap: 8px;
+            flex-wrap: nowrap;
         }
 
         .cl-similarity-item:hover {
             background: #ffffff;
-            border-color: rgba(245, 158, 11, 0.6);
-            box-shadow: 0 2px 8px rgba(245, 158, 11, 0.12);
-            transform: translateY(-1px);
+            border-color: #9ca3af;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
         }
 
-        .cl-similarity-item-text {
-            font-size: 13.5px;
-            color: #1d1d1f;
-            font-weight: 500;
+        .cl-similarity-item-left {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: nowrap;
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
         }
 
-        .cl-similarity-item-text strong {
-            color: #b45309;
+        .cl-sim-q-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 1px 5px;
+            background: #111827;
+            color: #ffffff;
+            font-size: 9.5px;
             font-weight: 700;
+            border-radius: 3px;
+            letter-spacing: 0.01em;
+            flex-shrink: 0;
+        }
+
+        .cl-sim-text {
+            font-size: 11px;
+            color: #1f2937;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .cl-sim-text strong {
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .cl-sim-text .cl-sim-subtext {
+            color: #6b7280;
+        }
+
+        .cl-similarity-item-right {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+            margin-left: auto;
         }
 
         .cl-similarity-score-pill {
             display: inline-flex;
             align-items: center;
-            gap: 5px;
-            padding: 4px 12px;
+            gap: 2px;
+            padding: 1.5px 6px;
             border-radius: 980px;
-            font-size: 12px;
+            font-size: 10px;
             font-weight: 700;
-            background: rgba(239, 68, 68, 0.1);
+            background: #fee2e2;
             color: #dc2626;
-            border: 1px solid rgba(239, 68, 68, 0.2);
-            flex-shrink: 0;
+            border: 1px solid #fca5a5;
+            letter-spacing: -0.01em;
             transition: all 0.15s ease;
+            white-space: nowrap;
         }
 
         .cl-similarity-item:hover .cl-similarity-score-pill {
             background: #dc2626;
             color: #ffffff;
             border-color: #dc2626;
+        }
+
+        .cl-sim-cta {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            font-size: 10.5px;
+            font-weight: 500;
+            color: #6b7280;
+            transition: all 0.15s ease;
+            white-space: nowrap;
+        }
+
+        .cl-similarity-item:hover .cl-sim-cta {
+            color: #111827;
         }
 
         /* ── Side-by-Side Comparison Modal ── */
@@ -1017,6 +1112,249 @@
             border-color: #111827;
             transform: translateY(-1px);
             box-shadow: 0 3px 8px rgba(0, 0, 0, 0.14);
+        }
+
+        /* ── Teacher Grading Panel Styles ── */
+        .cl-q-item-wrap {
+            margin-top: 14px;
+            background: #ffffff;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-radius: 14px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+            transition: all 0.2s ease;
+        }
+
+        .cl-q-item-wrap:hover {
+            border-color: rgba(0, 0, 0, 0.14);
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.04);
+        }
+
+        .cl-q-item-wrap .cl-q-row {
+            margin-top: 0;
+            border: none;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+            border-radius: 0;
+            box-shadow: none;
+            background: #ffffff;
+        }
+
+        .cl-max-points-tag {
+            font-size: 12px;
+            font-weight: 600;
+            color: #6b7280;
+            margin-left: 2px;
+        }
+
+        .cl-status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2.5px 9px;
+            border-radius: 980px;
+            font-size: 11.5px;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+        }
+
+        .cl-status-pill.not-reviewed {
+            background: #f3f4f6;
+            color: #4b5563;
+            border: 1px solid #e5e7eb;
+        }
+
+        .cl-status-pill.reviewed {
+            background: #fef3c7;
+            color: #b45309;
+            border: 1px solid #fde68a;
+        }
+
+        .cl-status-pill.released {
+            background: #dcfce7;
+            color: #15803d;
+            border: 1px solid #bbf7d0;
+        }
+
+        .cl-grading-strip {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 11px 18px;
+            background: #fbfbfd;
+            flex-wrap: wrap;
+        }
+
+        .cl-grade-field {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .cl-field-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #4b5563;
+            white-space: nowrap;
+        }
+
+        .cl-field-opt {
+            font-weight: 400;
+            color: #9ca3af;
+        }
+
+        .cl-marks-wrap {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .cl-input-marks {
+            width: 58px;
+            padding: 5px 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            font-family: var(--apple-mono);
+            color: #111827;
+            text-align: center;
+            outline: none;
+            background: #ffffff;
+            transition: border-color 0.15s;
+        }
+
+        .cl-input-marks:focus {
+            border-color: #0071e3;
+            box-shadow: 0 0 0 2px rgba(0, 113, 227, 0.15);
+        }
+
+        .cl-marks-max {
+            font-size: 12.5px;
+            font-weight: 600;
+            color: #6b7280;
+            font-family: var(--apple-mono);
+        }
+
+        .cl-grade-remarks {
+            flex: 1;
+            min-width: 220px;
+        }
+
+        .cl-input-remarks {
+            width: 100%;
+            padding: 5px 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 12.5px;
+            color: #1f2937;
+            outline: none;
+            background: #ffffff;
+            font-family: var(--apple-font);
+            box-sizing: border-box;
+            transition: border-color 0.15s;
+        }
+
+        .cl-input-remarks:focus {
+            border-color: #0071e3;
+            box-shadow: 0 0 0 2px rgba(0, 113, 227, 0.15);
+        }
+
+        .cl-check-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12.5px;
+            font-weight: 600;
+            color: #374151;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .cl-check-reviewed {
+            accent-color: #0071e3;
+            width: 15px;
+            height: 15px;
+            cursor: pointer;
+        }
+
+        .cl-grade-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: auto;
+        }
+
+        .cl-btn-save-grade {
+            padding: 6px 14px;
+            background: #ffffff;
+            color: #374151;
+            border: 1px solid #d1d5db;
+            border-radius: 980px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .cl-btn-save-grade:hover:not(:disabled) {
+            background: #f3f4f6;
+            color: #111827;
+            border-color: #9ca3af;
+        }
+
+        .cl-btn-release-grade {
+            padding: 6px 14px;
+            background: #111827;
+            color: #ffffff;
+            border: 1px solid #111827;
+            border-radius: 980px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            white-space: nowrap;
+        }
+
+        .cl-btn-release-grade:hover:not(:disabled) {
+            background: #000000;
+            border-color: #000000;
+            transform: translateY(-1px);
+        }
+
+        .cl-btn-release-grade:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .cl-grade-notice {
+            padding: 5px 18px 8px 18px;
+            font-size: 12px;
+            font-weight: 600;
+            background: #fbfbfd;
+            border-top: 1px dashed rgba(0, 0, 0, 0.06);
+        }
+
+        .cl-btn-bulk-release {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: 980px;
+            font-size: 12.5px;
+            font-weight: 600;
+            background: #ffffff;
+            color: #111827;
+            border: 1px solid rgba(0, 0, 0, 0.15);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+        }
+
+        .cl-btn-bulk-release:hover:not(:disabled) {
+            background: #f9fafb;
+            border-color: rgba(0, 0, 0, 0.3);
+            transform: translateY(-1px);
         }
 
         .cl-empty-state {
@@ -1352,7 +1690,7 @@
 
             <nav class="cl-breadcrumb" id="breadcrumb" aria-label="Breadcrumb">
                 <a href="javascript:void(0)" onclick="showAllAssignmentsView()" class="cl-crumb-link">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                         stroke-width="2.5">
                         <polyline points="15 18 9 12 15 6"></polyline>
                     </svg>
@@ -1363,23 +1701,30 @@
             </nav>
 
             <div class="cl-assignment-banner" id="assignmentBanner">
-                <div>
+                <div class="cl-banner-main">
                     <h2 class="cl-banner-title" id="singleAssignTitle">Loading Assignment…</h2>
                     <div class="cl-assign-meta-row" id="singleAssignMetaRow"></div>
                 </div>
-                <div>
-                    <a href="javascript:void(0)" onclick="showAllAssignmentsView()" class="cl-crumb-link">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2.5">
-                            <polyline points="15 18 9 12 15 6"></polyline>
+                <div class="cl-banner-actions">
+                    <button type="button" id="releaseAllReviewedBtn" class="cl-btn-bulk-release" onclick="releaseAllReviewedGrades()" style="display: none;" title="Release all reviewed grades for this assignment to students">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="20 6 9 17 4 12"></polyline>
                         </svg>
-                        <span>Back to All Assignments</span>
-                    </a>
+                        <span>Release All Reviewed Grades</span>
+                    </button>
+                    <button type="button" id="downloadAllReportsBtn" class="cl-zip-btn" onclick="downloadAllReportsZip()" style="display: none;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        <span>Download All Reports (ZIP)</span>
+                    </button>
                 </div>
             </div>
 
             <!-- Similarity Warnings Section (populated dynamically) -->
-            <div id="similarityWarningsContainer" style="display: none; margin-bottom: 24px;"></div>
+            <div id="similarityWarningsContainer" style="display: none; margin-bottom: 14px;"></div>
 
             <!-- Filter Controls for Student Submissions: All / On-time / Late -->
             <div class="cl-sub-filter-row" id="subFilterRow" style="display: none;">
@@ -1411,6 +1756,19 @@
 
     </main>
 
+    <!-- Bulk ZIP Export Modal -->
+    <div id="bulkZipModal" class="cl-modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); z-index: 9999; align-items: center; justify-content: center;">
+        <div style="background: #ffffff; border-radius: 20px; padding: 32px 36px; max-width: 440px; width: 90%; box-shadow: 0 24px 48px rgba(0,0,0,0.2); text-align: center;">
+            <div class="app-spinner spinner-lg" style="margin: 0 auto 16px;"></div>
+            <h3 style="font-size: 18px; font-weight: 700; margin: 0 0 8px 0; color: #111827;">Exporting Reports (ZIP)</h3>
+            <div id="bulkZipStatus" style="font-size: 13.5px; color: #4b5563; margin-bottom: 16px;">Preparing reports…</div>
+            <div style="width: 100%; background: #e5e7eb; border-radius: 980px; height: 8px; overflow: hidden; margin-bottom: 14px;">
+                <div id="bulkZipProgressBar" style="width: 0%; height: 100%; background: #0071e3; border-radius: 980px; transition: width 0.2s ease;"></div>
+            </div>
+            <div style="font-size: 12px; color: #9ca3af;">Please keep this tab open while PDFs are rendered.</div>
+        </div>
+    </div>
+
     <footer class="app-global-footer">
         <div class="app-footer-inner">
             <div class="app-footer-brand">
@@ -1423,6 +1781,11 @@
         </div>
     </footer>
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="/code-lab/utils.js"></script>
+    <script src="/code-lab/report-generator.js"></script>
     <script src="/auth-modal.js"></script>
     <script>
         let allAssignmentsList = [];
@@ -1440,8 +1803,9 @@
         }
 
         function escapeHtml(text) {
+            if (text == null) return '';
             const div = document.createElement('div');
-            div.textContent = text || '';
+            div.textContent = String(text);
             return div.innerHTML;
         }
 
@@ -1637,16 +2001,24 @@
                 window._currentAssignment = assignment;
                 window._currentStudents = students;
 
-                document.getElementById('crumbAssignmentTitle').textContent = assignment.title || `Assignment #${id}`;
+                document.getElementById('crumbAssignmentTitle').textContent = 'Submissions';
                 document.getElementById('singleAssignTitle').textContent = assignment.title || 'Assignment Submissions';
 
                 const metaRow = document.getElementById('singleAssignMetaRow');
                 metaRow.innerHTML = `
           ${assignment.subject ? `<span class="cl-meta-pill">${escapeHtml(assignment.subject)}</span>` : ''}
           ${assignment.semester ? `<span class="cl-meta-pill">Sem ${escapeHtml(assignment.semester)}</span>` : ''}
+          ${assignment.questionCount ? `<span class="cl-meta-pill">${assignment.questionCount} Question${assignment.questionCount !== 1 ? 's' : ''}</span>` : ''}
           ${assignment.deadline ? `<span class="cl-meta-pill deadline-pill">Due: ${fmtTime(assignment.deadline)}</span>` : ''}
           <span class="cl-meta-pill sub-count-pill">${students.length} Student${students.length !== 1 ? 's' : ''} Submitted</span>
         `;
+
+                const dlBtn = document.getElementById('downloadAllReportsBtn');
+                if (dlBtn) dlBtn.style.display = students.length > 0 ? 'inline-flex' : 'none';
+
+                const bulkReleaseBtn = document.getElementById('releaseAllReviewedBtn');
+                const hasReviewedUnreleased = students.some(s => (s.submissions || []).some(sub => sub.checked && !sub.released));
+                if (bulkReleaseBtn) bulkReleaseBtn.style.display = hasReviewedUnreleased ? 'inline-flex' : 'none';
 
                 const filterRow = document.getElementById('subFilterRow');
                 if (!students.length) {
@@ -1726,6 +2098,7 @@
             const listEl = document.getElementById('studentSubmissionsList');
             const assignment = window._currentAssignment || {};
             const id = assignment.id;
+            const totalQuestions = Number(assignment.questionCount || 0);
 
             if (!studentsToRender.length) {
                 listEl.innerHTML = '<div class="cl-empty-state">No student submissions match this filter.</div>';
@@ -1738,29 +2111,74 @@
                 card.className = 'cl-student-card';
 
                 const initials = getInitials(s.studentName || 'Student');
+                const submittedCount = (s.submissions || []).length;
+                const totalForCalc = totalQuestions > 0 ? totalQuestions : submittedCount;
+                const isPartial = totalForCalc > 0 && submittedCount < totalForCalc;
+
+                let subCountBadge = '';
+                if (totalForCalc > 0) {
+                    subCountBadge = `
+                        <span class="cl-sub-count-badge ${isPartial ? 'partial' : 'complete'}" 
+                              style="display:inline-flex; align-items:center; gap:4px; font-size:11.5px; font-weight:700; padding:2px 8px; border-radius:980px; ${isPartial ? 'background:#fee2e2; color:#dc2626; border:1px solid #fca5a5;' : 'background:#dcfce7; color:#15803d; border:1px solid #bbf7d0;'}">
+                            <span>${submittedCount}/${totalForCalc} submitted</span>
+                        </span>
+                    `;
+                }
 
                 let questionsHtml = '';
                 (s.submissions || []).forEach(sub => {
                     const timeStr = sub.submittedAt ? fmtTime(sub.submittedAt) : 'Submitted';
                     const badgeHtml = deadlineBadge(assignment.deadline, sub.submittedAt);
+
+                    // Automated Test Cases badge (Item 4)
+                    let testCasesBadge = '';
+                    const totalCases = Number(sub.testCaseCount || (sub.testResults ? sub.testResults.length : 0));
+                    if (totalCases > 0) {
+                        const passedCount = sub.testResults ? sub.testResults.filter(t => t.passed).length : 0;
+                        const allPassed = passedCount === totalCases;
+                        testCasesBadge = `
+                            <span class="cl-tc-badge" style="display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700; padding:2px 8px; border-radius:980px; background:${allPassed ? '#dcfce7' : '#fef3c7'}; color:${allPassed ? '#15803d' : '#b45309'}; border:1px solid ${allPassed ? '#bbf7d0' : '#fde68a'};">
+                                <span style="font-size:10px;">${allPassed ? '✓' : '⚠️'}</span>
+                                <span>Passed ${passedCount}/${totalCases} test case${totalCases === 1 ? '' : 's'}</span>
+                            </span>
+                        `;
+                    }
+
+                    const maxPts = sub.maxPoints != null ? sub.maxPoints : 10;
+                    let statusPill = '';
+                    if (sub.released) {
+                        const marksStr = sub.marksObtained != null ? `${sub.marksObtained}/${maxPts}` : 'Released';
+                        statusPill = `<span class="cl-status-pill released" id="statusPill-${sub.questionId}-${s.studentId}">Released (${marksStr})</span>`;
+                    } else if (sub.checked) {
+                        const marksStr = sub.marksObtained != null ? ` (${sub.marksObtained}/${maxPts})` : '';
+                        statusPill = `<span class="cl-status-pill reviewed" id="statusPill-${sub.questionId}-${s.studentId}">Reviewed — Draft${marksStr}</span>`;
+                    } else {
+                        statusPill = `<span class="cl-status-pill not-reviewed" id="statusPill-${sub.questionId}-${s.studentId}">Not reviewed</span>`;
+                    }
+
                     questionsHtml += `
-          <div class="cl-q-row">
-            <span class="cl-q-info">
-              <span class="cl-q-num-badge">Task ${sub.questionNumber}</span>
-              <span>${escapeHtml(sub.questionTitle)}</span>
-            </span>
-            <span class="cl-q-meta">
-              <span>${timeStr}</span>
-              ${badgeHtml}
-              <a class="cl-tool-link" href="/code-lab/timelapse.html?questionId=${sub.questionId}&studentId=${s.studentId}" title="Step-by-step code animation playback">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-                <span>Timelapse</span>
-              </a>
-              <a class="cl-tool-link" href="/code-lab/events.html?questionId=${sub.questionId}&studentId=${s.studentId}" title="Real-time activity log">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
-                <span>Activity Log</span>
-              </a>
-            </span>
+          <div class="cl-q-item-wrap" id="qWrap-${sub.questionId}-${s.studentId}">
+            <div class="cl-q-row">
+              <span class="cl-q-info">
+                <span class="cl-q-num-badge">Task ${sub.questionNumber}</span>
+                <span>${escapeHtml(sub.questionTitle)}</span>
+                <span class="cl-max-points-tag">(${maxPts} pts)</span>
+              </span>
+              <span class="cl-q-meta">
+                ${testCasesBadge}
+                <span>${timeStr}</span>
+                ${badgeHtml}
+                ${statusPill}
+                <a class="cl-tool-link" href="/code-lab/timelapse.html?questionId=${sub.questionId}&studentId=${s.studentId}" title="Step-by-step code animation playback">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                  <span>Timelapse</span>
+                </a>
+                <a class="cl-tool-link" href="/code-lab/events.html?questionId=${sub.questionId}&studentId=${s.studentId}" title="Real-time activity log">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                  <span>Activity Log</span>
+                </a>
+              </span>
+            </div>
           </div>
         `;
                 });
@@ -1770,14 +2188,17 @@
           <div class="cl-student-profile">
             <div class="cl-student-avatar">${escapeHtml(initials)}</div>
             <div>
-              <h3 class="cl-student-name">${escapeHtml(s.studentName)}</h3>
+              <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <h3 class="cl-student-name">${escapeHtml(s.studentName)}</h3>
+                ${subCountBadge}
+              </div>
               <div class="cl-student-id">Student ID: ${escapeHtml(String(s.studentId))}</div>
             </div>
           </div>
           <div class="cl-student-actions">
-            <a class="cl-report-pill" href="/code-lab/report.html?id=${id}&studentId=${s.studentId}" title="Download and view full PDF student evaluation report">
+            <a class="cl-report-pill" href="/code-lab/report.html?id=${id}&studentId=${s.studentId}" title="Open student report to review and grade">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
-              <span>Full Report (PDF)</span>
+              <span>View Report & Grade</span>
             </a>
           </div>
         </div>
@@ -1822,17 +2243,29 @@
 
             let listHtml = '';
             warnings.forEach((w, index) => {
+                const sAName = w.studentAName || `Student ${w.studentA}`;
+                const sBName = w.studentBName || `Student ${w.studentB}`;
+                const score = Math.round(Number(w.similarityPercent) || 0);
+
                 listHtml += `
                     <div class="cl-similarity-item" onclick="openSimilarityModal(${index})" title="Click to view side-by-side code comparison">
-                        <div class="cl-similarity-item-text">
-                            <strong>Q${w.questionNumber}:</strong>
-                            ${escapeHtml(String(w.studentA))} ${w.studentAName ? `(${escapeHtml(w.studentAName)})` : ''} and 
-                            ${escapeHtml(String(w.studentB))} ${w.studentBName ? `(${escapeHtml(w.studentBName)})` : ''} 
-                            are <strong>${w.similarityPercent}% similar</strong>.
+                        <div class="cl-similarity-item-left">
+                            <span class="cl-sim-q-badge">Q${w.questionNumber || 1}</span>
+                            <span class="cl-sim-text">
+                                <strong>${escapeHtml(String(w.studentA))}</strong> ${w.studentAName ? `<span class="cl-sim-subtext">(${escapeHtml(w.studentAName)})</span>` : ''}
+                                and
+                                <strong>${escapeHtml(String(w.studentB))}</strong> ${w.studentBName ? `<span class="cl-sim-subtext">(${escapeHtml(w.studentBName)})</span>` : ''}
+                                <span class="cl-sim-subtext">are ${score}% similar.</span>
+                            </span>
                         </div>
-                        <div class="cl-similarity-score-pill">
-                            <span>⚠ ${w.similarityPercent}% match</span>
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                        <div class="cl-similarity-item-right">
+                            <div class="cl-similarity-score-pill">
+                                <span>⚠ ${score}% match</span>
+                            </div>
+                            <span class="cl-sim-cta">
+                                <span>Compare</span>
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                            </span>
                         </div>
                     </div>
                 `;
@@ -1843,7 +2276,7 @@
                     <div class="cl-similarity-top">
                         <div class="cl-similarity-title-group">
                             <span class="cl-similarity-badge">⚠ Similarity Warnings</span>
-                            <span style="font-size:13px;font-weight:600;color:#1d1d1f;">${warnings.length} Flagged Pair${warnings.length === 1 ? '' : 's'}</span>
+                            <span class="cl-similarity-count-tag">${warnings.length} Flagged Pair${warnings.length === 1 ? '' : 's'}</span>
                         </div>
                         <span class="cl-similarity-threshold">Threshold: ≥85% code match · Click any pair to compare side-by-side</span>
                     </div>
@@ -1859,8 +2292,8 @@
             const w = (window._similarityWarnings || [])[index];
             if (!w) return;
 
-            document.getElementById('simModalTitle').textContent = `Q${w.questionNumber}: ${w.questionTitle || 'Task'} — Code Comparison (${w.similarityPercent}% Match)`;
-            document.getElementById('simModalSubtitle').textContent = `Comparing student ${w.studentA} (${w.studentAName || 'Student'}) against student ${w.studentB} (${w.studentBName || 'Student'})`;
+            document.getElementById('simModalTitle').textContent = `Task ${w.questionNumber}: ${w.questionTitle || 'Question'} — Code Comparison (${w.similarityPercent}% Match)`;
+            document.getElementById('simModalSubtitle').textContent = `Comparing ${w.studentAName || 'Student'} (${w.studentA}) against ${w.studentBName || 'Student'} (${w.studentB})`;
             document.getElementById('simPaneAHeader').textContent = `${w.studentAName || 'Student'} (${w.studentA})`;
             document.getElementById('simPaneBHeader').textContent = `${w.studentBName || 'Student'} (${w.studentB})`;
             document.getElementById('simCodeA').textContent = w.codeA || '// No code submitted';
@@ -1884,6 +2317,158 @@
             if (modal && e.target === modal) closeSimilarityModal();
         });
 
+        function onReviewedToggle(qId, studentId) {
+            const checkEl = document.getElementById(`checked-${qId}-${studentId}`);
+            const releaseBtn = document.getElementById(`releaseBtn-${qId}-${studentId}`);
+            if (releaseBtn && checkEl) {
+                releaseBtn.disabled = !checkEl.checked;
+            }
+        }
+
+        async function saveSubmissionGrade(qId, studentId, isRelease) {
+            const marksEl = document.getElementById(`marks-${qId}-${studentId}`);
+            const remarksEl = document.getElementById(`remarks-${qId}-${studentId}`);
+            const checkEl = document.getElementById(`checked-${qId}-${studentId}`);
+            const saveBtn = document.getElementById(`saveBtn-${qId}-${studentId}`);
+            const releaseBtn = document.getElementById(`releaseBtn-${qId}-${studentId}`);
+            const noticeEl = document.getElementById(`notice-${qId}-${studentId}`);
+
+            if (isRelease && checkEl) {
+                checkEl.checked = true;
+                if (releaseBtn) releaseBtn.disabled = false;
+            }
+
+            const rawMarks = marksEl ? marksEl.value.trim() : '';
+            const remarks = remarksEl ? remarksEl.value.trim() : '';
+            const isChecked = checkEl ? checkEl.checked : false;
+
+            let parsedMarks = null;
+            if (rawMarks !== '') {
+                parsedMarks = Number(rawMarks);
+                const max = Number(marksEl.max || 10);
+                if (isNaN(parsedMarks) || parsedMarks < 0 || parsedMarks > max) {
+                    if (noticeEl) {
+                        noticeEl.style.display = 'block';
+                        noticeEl.innerHTML = `<span style="color:#dc2626;">Marks must be between 0 and ${max}.</span>`;
+                    }
+                    return;
+                }
+            }
+
+            const activeBtn = isRelease ? releaseBtn : saveBtn;
+            const originalText = activeBtn ? activeBtn.textContent : '';
+            if (activeBtn) {
+                activeBtn.disabled = true;
+                activeBtn.textContent = isRelease ? 'Releasing…' : 'Saving…';
+            }
+
+            try {
+                const res = await fetch(`/api/code-lab/questions/${qId}/grade/${studentId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        marksObtained: parsedMarks,
+                        remarks: remarks || null,
+                        checked: isChecked,
+                        released: isRelease
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || 'Failed to save grade.');
+
+                // Update in-memory state
+                const students = window._currentStudents || [];
+                const s = students.find(st => String(st.studentId) === String(studentId));
+                if (s) {
+                    const sub = (s.submissions || []).find(sb => sb.questionId === qId);
+                    if (sub) {
+                        sub.marksObtained = parsedMarks;
+                        sub.remarks = remarks || null;
+                        sub.checked = isChecked;
+                        sub.released = isRelease;
+                    }
+                }
+
+                // Update status pill
+                const pillEl = document.getElementById(`statusPill-${qId}-${studentId}`);
+                if (pillEl) {
+                    if (isRelease) {
+                        pillEl.className = 'cl-status-pill released';
+                        pillEl.textContent = 'Released';
+                    } else if (isChecked) {
+                        pillEl.className = 'cl-status-pill reviewed';
+                        pillEl.textContent = 'Reviewed — not released';
+                    } else {
+                        pillEl.className = 'cl-status-pill not-reviewed';
+                        pillEl.textContent = 'Not reviewed';
+                    }
+                }
+
+                if (releaseBtn) {
+                    releaseBtn.disabled = !isChecked;
+                    releaseBtn.textContent = isRelease ? 'Re-release' : 'Release to student';
+                }
+
+                // Update bulk release button visibility
+                const hasReviewedUnreleased = students.some(st => (st.submissions || []).some(sb => sb.checked && !sb.released));
+                const bulkReleaseBtn = document.getElementById('releaseAllReviewedBtn');
+                if (bulkReleaseBtn) bulkReleaseBtn.style.display = hasReviewedUnreleased ? 'inline-flex' : 'none';
+
+                if (noticeEl) {
+                    noticeEl.style.display = 'block';
+                    noticeEl.innerHTML = `<span style="color:#15803d;">✓ ${isRelease ? 'Grade released to student!' : 'Grade saved.'}</span>`;
+                    setTimeout(() => {
+                        noticeEl.style.display = 'none';
+                    }, 3500);
+                }
+            } catch (err) {
+                if (noticeEl) {
+                    noticeEl.style.display = 'block';
+                    noticeEl.innerHTML = `<span style="color:#dc2626;">Error: ${escapeHtml(err.message)}</span>`;
+                }
+            } finally {
+                if (activeBtn) {
+                    activeBtn.disabled = false;
+                    activeBtn.textContent = originalText;
+                }
+            }
+        }
+
+        async function releaseAllReviewedGrades() {
+            const assignment = window._currentAssignment || {};
+            if (!assignment.id) return;
+            if (!confirm('Are you sure you want to release all reviewed grades for this assignment to students?')) {
+                return;
+            }
+            const btn = document.getElementById('releaseAllReviewedBtn');
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = 'Releasing…';
+            }
+            try {
+                const res = await fetch(`/api/code-lab/assignments/${assignment.id}/release-grades`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || 'Failed to release grades.');
+                alert(data.message || 'All reviewed grades have been released to students.');
+                loadSingleAssignment(assignment.id);
+            } catch (err) {
+                alert(err.message || 'Failed to release grades.');
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = `
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        <span>Release All Reviewed Grades</span>
+                    `;
+                }
+            }
+        }
+
         function showAllAssignmentsView(pushUrl = true) {
             if (pushUrl) {
                 history.pushState({}, '', '/code-lab/submissions.html');
@@ -1893,6 +2478,11 @@
                 simContainer.style.display = 'none';
                 simContainer.innerHTML = '';
             }
+            const dlBtn = document.getElementById('downloadAllReportsBtn');
+            if (dlBtn) dlBtn.style.display = 'none';
+            const bulkReleaseBtn = document.getElementById('releaseAllReviewedBtn');
+            if (bulkReleaseBtn) bulkReleaseBtn.style.display = 'none';
+
             document.getElementById('viewSingleAssignment').style.display = 'none';
             document.getElementById('viewAllAssignments').style.display = 'block';
             document.getElementById('heroTitle').textContent = 'Submissions';
@@ -1900,6 +2490,76 @@
                 loadAllAssignments();
             } else {
                 renderAllAssignments();
+            }
+        }
+
+        // ── Bulk PDF Export (ZIP) (Item 5) ──
+        async function downloadAllReportsZip() {
+            const assignment = window._currentAssignment;
+            const students = (window._currentStudents || []).filter(s => s.submissions && s.submissions.length > 0);
+            if (!assignment || !students.length) {
+                alert('No student submissions found to export.');
+                return;
+            }
+
+            const modal = document.getElementById('bulkZipModal');
+            const statusEl = document.getElementById('bulkZipStatus');
+            const barEl = document.getElementById('bulkZipProgressBar');
+            modal.style.display = 'flex';
+
+            const zip = new JSZip();
+            const total = students.length;
+
+            let offscreenEl = document.getElementById('bulkReportContainer');
+            if (!offscreenEl) {
+                offscreenEl = document.createElement('div');
+                offscreenEl.id = 'bulkReportContainer';
+                offscreenEl.style.cssText = 'position: absolute; left: -9999px; top: 0; width: 850px; background: #ffffff; padding: 24px;';
+                document.body.appendChild(offscreenEl);
+            }
+
+            try {
+                for (let i = 0; i < total; i++) {
+                    const s = students[i];
+                    const progressPct = Math.round(((i) / total) * 100);
+                    statusEl.textContent = `Generating report ${i + 1} of ${total} (${s.studentName || s.studentId})…`;
+                    barEl.style.width = `${progressPct}%`;
+
+                    // Fetch report data and render into offscreen container
+                    const reportData = await ReportGenerator.fetchReportData(assignment.id, s.studentId);
+                    ReportGenerator.renderReportDOM(offscreenEl, reportData, { isBulk: true, uid: `bulk_${i}` });
+
+                    // Generate PDF blob
+                    const blob = await html2pdf()
+                        .set({
+                            margin: 10,
+                            image: { type: 'jpeg', quality: 0.95 },
+                            html2canvas: { scale: 1.5, useCORS: true },
+                            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                            pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+                        })
+                        .from(offscreenEl)
+                        .outputPdf('blob');
+
+                    const safeName = (s.studentName || 'Student').replace(/[^a-zA-Z0-9_-]/g, '_');
+                    zip.file(`report_${s.studentId}_${safeName}.pdf`, blob);
+                    offscreenEl.innerHTML = '';
+                }
+
+                statusEl.textContent = 'Compressing and downloading ZIP archive…';
+                barEl.style.width = '100%';
+
+                const content = await zip.generateAsync({ type: 'blob' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(content);
+                link.download = `assignment_${assignment.id}_all_reports.zip`;
+                link.click();
+            } catch (err) {
+                console.error('Bulk ZIP export failed:', err);
+                alert('Bulk export failed: ' + err.message);
+            } finally {
+                modal.style.display = 'none';
+                if (offscreenEl) offscreenEl.innerHTML = '';
             }
         }
 

@@ -327,6 +327,7 @@
     </div>
   </footer>
 
+  <script src="/code-lab/utils.js"></script>
   <script src="/auth-modal.js"></script>
 
   <!-- Monaco Editor CDN loader -->
@@ -397,8 +398,8 @@
         runBtn.classList.add('loading');
 
         // Reset output
-        stdoutEl.innerHTML = '';
-        stderrEl.innerHTML = '';
+        stdoutEl.textContent = '';
+        stderrEl.textContent = '';
         exitEl.textContent = '';
         exitEl.className = 'codelab-exit-badge';
         outputEl.style.display = 'none';
@@ -415,7 +416,7 @@
           outputEl.style.display = '';
 
           if (!data.success && data.error && !data.stdout && !data.stderr) {
-            stderrEl.innerHTML = escapeHtml(data.error);
+            stderrEl.textContent = data.error;
             exitEl.textContent = 'Error';
             exitEl.classList.add('error');
             return;
@@ -423,14 +424,14 @@
 
           // Show stdout
           if (data.stdout) {
-            stdoutEl.innerHTML = escapeHtml(data.stdout);
+            stdoutEl.textContent = data.stdout;
           } else if (!data.stderr) {
             stdoutEl.innerHTML = '<span class="placeholder-msg">No output</span>';
           }
 
           // Show stderr
           if (data.stderr) {
-            stderrEl.innerHTML = escapeHtml(data.stderr);
+            stderrEl.textContent = data.stderr;
           }
 
           // Status badge (replaces old exit code)
@@ -440,7 +441,7 @@
           }
         } catch (err) {
           outputEl.style.display = '';
-          stderrEl.innerHTML = escapeHtml('Network error — could not reach the server. Please check your connection.');
+          stderrEl.textContent = 'Network error — could not reach the server. Please check your connection.';
           exitEl.textContent = 'Error';
           exitEl.classList.add('error');
         } finally {

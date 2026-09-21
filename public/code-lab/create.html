@@ -508,6 +508,7 @@
 
   <script src="/auth-modal.js"></script>
   <script src="/syllabus-helper.js"></script>
+  <script src="/code-lab/utils.js"></script>
   <script>
     let syllabusData = null;
     let allSemestersList = [];
@@ -671,18 +672,78 @@
           <label class="cl-label">Problem Statement / Instructions <span style="font-weight: 400; color: #86868b; text-transform: none;">(Optional)</span></label>
           <textarea class="cl-textarea q-desc" placeholder="Write instructions, constraints, or sample test cases (optional)..."></textarea>
         </div>
-        <div class="cl-form-group" style="margin-bottom: 0;">
-          <label class="cl-label">Programming Language</label>
-          <select class="cl-select q-lang" style="max-width: 240px;">
-            <option value="c" selected>C (GCC)</option>
-            <option value="cpp">C++ (G++)</option>
-            <option value="java">Java</option>
-            <option value="python">Python 3</option>
-          </select>
+        <div style="display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap;">
+          <div class="cl-form-group" style="margin-bottom: 0; flex: 1; min-width: 200px;">
+            <label class="cl-label">Programming Language</label>
+            <select class="cl-select q-lang" style="width: 100%;">
+              <option value="c" selected>C (GCC)</option>
+              <option value="cpp">C++ (G++)</option>
+              <option value="java">Java</option>
+              <option value="python">Python 3</option>
+            </select>
+          </div>
+          <div class="cl-form-group" style="margin-bottom: 0; width: 140px;">
+            <label class="cl-label">Max Points</label>
+            <input class="cl-input q-points" type="number" min="1" max="100" value="10" placeholder="10">
+          </div>
+        </div>
+        <div class="cl-testcases-wrapper" style="margin-top: 18px; padding-top: 16px; border-top: 1px dashed rgba(0,0,0,0.1);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+            <div>
+              <span style="font-size: 13px; font-weight: 600; color: #1d1d1f;">Automated Test Cases</span>
+              <span style="font-size: 12px; color: #86868b; margin-left: 6px;">(Optional — student submissions will be automatically tested)</span>
+            </div>
+            <button type="button" class="cl-add-tc-btn" onclick="addTestCase(${num})" style="display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; font-size: 12px; font-weight: 600; color: #0071e3; background: rgba(0,113,227,0.08); border: 1px solid rgba(0,113,227,0.2); border-radius: 980px; cursor: pointer; transition: all 0.2s;">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              Add Test Case
+            </button>
+          </div>
+          <div class="cl-tc-list" id="tc-list-${num}"></div>
         </div>
       `;
       container.appendChild(block);
       renumberQuestions();
+    }
+
+    function addTestCase(qNum, initialInput = '', initialExpected = '') {
+      const list = document.getElementById(`tc-list-${qNum}`);
+      if (!list) return;
+      const count = list.querySelectorAll('.cl-tc-item').length + 1;
+
+      const item = document.createElement('div');
+      item.className = 'cl-tc-item';
+      item.style.cssText = 'background: #fbfbfd; border: 1px solid rgba(0,0,0,0.08); border-radius: 12px; padding: 14px; margin-bottom: 10px; position: relative;';
+      item.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 11.5px; font-weight: 700; color: #6e6e73; text-transform: uppercase; letter-spacing: 0.05em;" class="tc-label">Test Case ${count}</span>
+          <button type="button" onclick="removeTestCase(this, ${qNum})" style="background: none; border: none; color: #ff3b30; font-size: 11.5px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 3px;">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg> Remove
+          </button>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div>
+            <label style="display: block; font-size: 11.5px; font-weight: 600; color: #1d1d1f; margin-bottom: 4px;">Input (stdin) <span style="font-weight: 400; color: #86868b;">(Optional)</span></label>
+            <textarea class="cl-textarea tc-input" style="min-height: 52px; padding: 8px 10px; font-family: ui-monospace, monospace; font-size: 12px;" placeholder="Stdin to feed program">${escapeHtml(initialInput)}</textarea>
+          </div>
+          <div>
+            <label style="display: block; font-size: 11.5px; font-weight: 600; color: #1d1d1f; margin-bottom: 4px;">Expected Output <span style="color: #ff3b30;">*</span></label>
+            <textarea class="cl-textarea tc-expected" style="min-height: 52px; padding: 8px 10px; font-family: ui-monospace, monospace; font-size: 12px;" placeholder="Exact expected stdout (trailing whitespace ignored)">${escapeHtml(initialExpected)}</textarea>
+          </div>
+        </div>
+      `;
+      list.appendChild(item);
+    }
+
+    function removeTestCase(btn, qNum) {
+      const item = btn.closest('.cl-tc-item');
+      if (item) item.remove();
+      const list = document.getElementById(`tc-list-${qNum}`);
+      if (list) {
+        list.querySelectorAll('.cl-tc-item').forEach((it, idx) => {
+          const lbl = it.querySelector('.tc-label');
+          if (lbl) lbl.textContent = `Test Case ${idx + 1}`;
+        });
+      }
     }
 
     function removeQuestion(num) {
@@ -731,7 +792,21 @@
           showMessage('Question Title is compulsory for every question.', true);
           return;
         }
-        questions.push({ title: qTitle, description: qDesc || '', language: qLang || 'c' });
+
+        const tcItems = block.querySelectorAll('.cl-tc-item');
+        const testCases = [];
+        for (const item of tcItems) {
+          const inp = item.querySelector('.tc-input').value;
+          const exp = item.querySelector('.tc-expected').value;
+          if (!exp.trim()) {
+            showMessage(`Question "${qTitle}": Expected output is required for all added test cases (or remove the empty test case).`, true);
+            return;
+          }
+          testCases.push({ input: inp, expectedOutput: exp });
+        }
+
+        const qPoints = parseInt(block.querySelector('.q-points')?.value, 10) || 10;
+        questions.push({ title: qTitle, description: qDesc || '', language: qLang || 'c', maxPoints: qPoints, testCases });
       }
 
       if (!title) {

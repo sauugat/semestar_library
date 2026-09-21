@@ -1280,6 +1280,7 @@
     </div>
   </footer>
 
+  <script src="/code-lab/utils.js"></script>
   <script src="/auth-modal.js"></script>
   <script src="/syllabus-helper.js"></script>
   <script>
@@ -1302,8 +1303,9 @@
     }
 
     function escapeHtml(text) {
+      if (text == null) return '';
       const div = document.createElement('div');
-      div.textContent = text || '';
+      div.textContent = String(text);
       return div.innerHTML;
     }
 
@@ -1728,7 +1730,7 @@
         toast.className = 'social-toast';
         document.body.appendChild(toast);
       }
-      toast.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6L9 17l-5-5"/></svg><span>${message}</span>`;
+      toast.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6L9 17l-5-5"/></svg><span>${escapeHtml(message)}</span>`;
       toast.classList.add('show');
       setTimeout(() => toast.classList.remove('show'), 2400);
     }
@@ -2024,7 +2026,7 @@
           if (profRes.ok) {
             const p = await profRes.json();
             if (p && p.avatarUrl && avatarEl) {
-              avatarEl.innerHTML = `<img src="${p.avatarUrl}" alt="${p.name || 'Avatar'}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+              avatarEl.innerHTML = `<img src="${escapeHtml(p.avatarUrl)}" alt="${escapeHtml(p.name || 'Avatar')}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
             }
           }
         } catch (_) {}

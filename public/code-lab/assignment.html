@@ -22,6 +22,7 @@
         rel="stylesheet">
     <link rel="stylesheet" href="/style.v4.css">
     <link rel="stylesheet" href="/auth-modal.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
 
     <style>
         :root {
@@ -35,10 +36,10 @@
             --cl-text-primary: #1d1d1f;
             --cl-text-secondary: #6e6e73;
             --cl-text-muted: #86868b;
-            --cl-accent: #0071e3;
-            --cl-accent-glow: rgba(0, 113, 227, 0.18);
-            --cl-success: #34c759;
-            --cl-danger: #ff3b30;
+            --cl-accent: #1d1d1f;
+            --cl-accent-glow: rgba(0, 0, 0, 0.08);
+            --cl-success: #1d1d1f;
+            --cl-danger: #1d1d1f;
             --cl-radius-lg: 20px;
             --cl-radius-md: 14px;
             --cl-radius-sm: 10px;
@@ -126,9 +127,9 @@
 
         .cl-meta-tag.cl-meta-progress {
             margin-left: auto;
-            background: rgba(52, 199, 89, 0.08);
-            border-color: rgba(52, 199, 89, 0.2);
-            color: #248a3d;
+            background: #ffffff;
+            border-color: rgba(0, 0, 0, 0.14);
+            color: #1d1d1f;
             font-weight: 700;
         }
 
@@ -205,7 +206,7 @@
             width: 14px;
             height: 14px;
             border-radius: 50%;
-            background: #34c759;
+            background: #1d1d1f;
             color: #ffffff;
             font-size: 9px;
             font-weight: 800;
@@ -291,9 +292,9 @@
             gap: 5px;
             padding: 4px 12px;
             border-radius: 980px;
-            background: rgba(0, 113, 227, 0.08);
-            border: 1px solid rgba(0, 113, 227, 0.18);
-            color: var(--cl-accent);
+            background: #f5f5f7;
+            border: 1px solid rgba(0, 0, 0, 0.12);
+            color: #1d1d1f;
             font-size: 12px;
             font-weight: 700;
             text-transform: uppercase;
@@ -384,8 +385,8 @@
 
         .cl-window-file:focus-within {
             background: rgba(17, 17, 27, 0.95);
-            border-color: #89b4fa;
-            box-shadow: 0 0 0 2px rgba(137, 180, 250, 0.2);
+            border-color: rgba(255, 255, 255, 0.4);
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
         }
 
         .cl-filename-input {
@@ -419,20 +420,73 @@
             color: #cdd6f4;
         }
 
-        .cl-window-tools {
+        .cl-window-actions {
             display: flex;
             align-items: center;
             gap: 8px;
+            z-index: 2;
         }
 
-        .cl-window-meta {
-            font-size: 11.5px;
-            color: #89b4fa;
-            font-family: var(--apple-font);
-            font-weight: 600;
-            display: flex;
+        .cl-window-run-btn {
+            display: inline-flex;
             align-items: center;
-            gap: 5px;
+            gap: 6px;
+            padding: 5px 14px;
+            background: #ffffff;
+            color: #111113;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 980px;
+            font-size: 12px;
+            font-weight: 700;
+            font-family: var(--apple-font);
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+            user-select: none;
+            letter-spacing: -0.01em;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+        }
+
+        .cl-window-run-btn:hover:not(:disabled) {
+            background: #f4f4f6;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+        }
+
+        .cl-window-run-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .cl-window-run-btn .key-shortcut {
+            font-size: 10px;
+            padding: 1px 5px;
+            border-radius: 4px;
+            background: rgba(0, 0, 0, 0.08);
+            color: #555558;
+            font-weight: 600;
+            font-family: var(--apple-mono);
+        }
+
+        @media (max-width: 640px) {
+            .cl-window-titlebar {
+                padding: 10px 14px;
+            }
+
+            .cl-window-file {
+                position: static;
+                transform: none;
+                max-width: 140px;
+            }
+
+            .cl-filename-input {
+                min-width: 60px;
+                width: 80px;
+            }
+
+            .cl-traffic-dots {
+                display: none;
+            }
         }
 
         .monaco-slot {
@@ -488,39 +542,41 @@
         }
 
         .cl-btn-run {
-            background: #1d1d1f;
-            color: #ffffff;
-            border-color: #1d1d1f;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+            background: #ffffff;
+            color: #1d1d1f;
+            border: 1.5px solid rgba(0, 0, 0, 0.18);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
         }
 
         .cl-btn-run:hover:not(:disabled) {
-            background: #000000;
+            background: #f5f5f7;
+            border-color: rgba(0, 0, 0, 0.35);
             transform: translateY(-1px);
-            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
         }
 
         .cl-btn-run .key-shortcut {
             font-size: 11px;
             padding: 2px 6px;
             border-radius: 4px;
-            background: rgba(255, 255, 255, 0.2);
-            color: rgba(255, 255, 255, 0.9);
+            background: rgba(0, 0, 0, 0.06);
+            color: #6e6e73;
             font-weight: 600;
             font-family: var(--apple-mono);
         }
 
         .cl-btn-submit {
-            background: #34c759;
+            background: #1d1d1f;
             color: #ffffff;
-            border-color: #34c759;
-            box-shadow: 0 2px 10px rgba(52, 199, 89, 0.28);
+            border: 1.5px solid #1d1d1f;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
         }
 
         .cl-btn-submit:hover:not(:disabled) {
-            background: #28a745;
+            background: #000000;
+            border-color: #000000;
             transform: translateY(-1px);
-            box-shadow: 0 4px 16px rgba(52, 199, 89, 0.38);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
         }
 
         .cl-badge-secure {
@@ -562,18 +618,21 @@
             font-size: 11px;
             padding: 3px 9px;
             border-radius: 980px;
-            background: rgba(255, 255, 255, 0.06);
-            color: #cdd6f4;
+            background: rgba(255, 255, 255, 0.08);
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.12);
         }
 
         .cl-output-status-pill.success {
-            background: rgba(52, 199, 89, 0.15);
-            color: #a6e3a1;
+            background: rgba(255, 255, 255, 0.12);
+            color: #ffffff;
+            border-color: rgba(255, 255, 255, 0.22);
         }
 
         .cl-output-status-pill.error {
-            background: rgba(255, 59, 48, 0.15);
-            color: #f38ba8;
+            background: rgba(255, 255, 255, 0.12);
+            color: #ffffff;
+            border-color: rgba(255, 255, 255, 0.22);
         }
 
         .cl-output-content {
@@ -594,8 +653,118 @@
         }
 
         .cl-output-content pre.stderr {
-            color: #f38ba8;
+            color: #e4e4e7;
             margin-top: 6px;
+        }
+
+        /* ── AI Explain Error ── */
+        .cl-explain-wrap {
+            margin-bottom: 20px;
+        }
+
+        .cl-explain-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 8px 18px;
+            border-radius: 980px;
+            font-size: 13px;
+            font-weight: 600;
+            font-family: var(--apple-font);
+            background: #ffffff;
+            color: #1d1d1f;
+            border: 1.5px solid rgba(0, 0, 0, 0.15);
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+            transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+            box-sizing: border-box;
+        }
+
+        .cl-explain-btn:hover:not(:disabled) {
+            background: #f5f5f7;
+            border-color: rgba(0, 0, 0, 0.3);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .cl-explain-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .cl-explanation-box {
+            margin-top: 12px;
+            padding: 16px 20px;
+            background: #ffffff;
+            border: 1.5px solid rgba(0, 0, 0, 0.14);
+            border-left: 4px solid #1d1d1f;
+            border-radius: var(--cl-radius-md);
+            font-size: 13.5px;
+            line-height: 1.65;
+            color: #2c2c2e;
+            font-family: var(--apple-font);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+            box-sizing: border-box;
+        }
+
+        .cl-explanation-box .cl-explain-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #1d1d1f;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 8px;
+        }
+
+        .cl-explanation-text {
+            font-size: 13.5px;
+            line-height: 1.65;
+            color: #2c2c2e;
+            word-break: break-word;
+            margin: 0;
+        }
+
+        .cl-explanation-text p {
+            margin: 0 0 8px 0;
+        }
+
+        .cl-explanation-text p:last-child {
+            margin-bottom: 0;
+        }
+
+        .cl-explanation-text strong {
+            color: #111827;
+            font-weight: 700;
+        }
+
+        .cl-explanation-text code {
+            background: rgba(0, 0, 0, 0.06);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: var(--apple-mono);
+            font-size: 12.5px;
+            color: #111827;
+        }
+
+        .cl-explanation-text pre {
+            background: #181825;
+            color: #cdd6f4;
+            padding: 10px 14px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 8px 0;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .cl-explanation-text pre code {
+            background: none;
+            padding: 0;
+            color: inherit;
+            font-size: 13px;
         }
 
         /* ── Toast / Notification Pill ── */
@@ -603,11 +772,15 @@
             display: none;
             align-items: center;
             gap: 8px;
-            padding: 10px 18px;
+            padding: 10px 20px;
             border-radius: 980px;
             font-size: 13.5px;
-            font-weight: 700;
-            margin-top: 12px;
+            font-weight: 600;
+            margin-top: 14px;
+            background: #1d1d1f;
+            color: #ffffff;
+            border: 1px solid rgba(0, 0, 0, 0.15);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
             transition: all 0.25s cubic-bezier(0.25, 1, 0.5, 1);
         }
 
@@ -616,15 +789,15 @@
         }
 
         .cl-toast-msg.success {
-            background: rgba(52, 199, 89, 0.12);
-            border: 1px solid rgba(52, 199, 89, 0.25);
-            color: #1e7e34;
+            background: #1d1d1f;
+            color: #ffffff;
+            border-color: #1d1d1f;
         }
 
         .cl-toast-msg.error {
-            background: rgba(255, 59, 48, 0.1);
-            border: 1px solid rgba(255, 59, 48, 0.25);
-            color: #d70015;
+            background: #1d1d1f;
+            color: #ffffff;
+            border-color: #1d1d1f;
         }
 
         /* ── Submit All Floating Wrap ── */
@@ -684,6 +857,171 @@
             to {
                 transform: rotate(360deg);
             }
+        }
+
+        /* ── Submit All Confirmation Modal ── */
+        .cl-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.45);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
+            animation: fadeIn 0.18s ease;
+        }
+
+        .cl-modal-card {
+            background: #ffffff;
+            border-radius: 16px;
+            max-width: 480px;
+            width: 100%;
+            padding: 24px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            box-sizing: border-box;
+        }
+
+        .cl-modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .cl-modal-title {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 700;
+            color: #111827;
+            font-family: var(--apple-heading);
+            letter-spacing: -0.015em;
+            line-height: 1.3;
+        }
+
+        .cl-modal-close-btn {
+            background: transparent;
+            border: none;
+            padding: 4px;
+            color: #6b7280;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+        }
+
+        .cl-modal-close-btn:hover {
+            background: #f3f4f6;
+            color: #111827;
+        }
+
+        .cl-modal-body {
+            font-size: 13.5px;
+            color: #4b5563;
+            line-height: 1.55;
+            margin: 0 0 16px 0;
+        }
+
+        .cl-modal-actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        .cl-modal-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 8px 18px;
+            border-radius: 980px;
+            font-size: 12.5px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            font-family: var(--apple-font);
+        }
+
+        .cl-modal-btn.cancel {
+            background: #ffffff;
+            color: #374151;
+            border: 1px solid #d1d5db;
+        }
+
+        .cl-modal-btn.cancel:hover {
+            background: #f9fafb;
+            color: #111827;
+            border-color: #9ca3af;
+        }
+
+        .cl-modal-btn.confirm {
+            background: #111827;
+            color: #ffffff;
+            border: 1px solid #111827;
+        }
+
+        .cl-modal-btn.confirm:hover {
+            background: #000000;
+            border-color: #000000;
+        }
+
+        /* ── Error Alert Modal (Red State) ── */
+        .cl-modal-card.error-modal .cl-modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+        }
+
+        .cl-modal-card.error-modal .cl-modal-title-wrap {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .cl-modal-card.error-modal .cl-modal-title {
+            color: #dc2626;
+            font-size: 17px;
+            font-weight: 700;
+        }
+
+        .cl-modal-card.error-modal .cl-modal-error-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #fef2f2;
+            border: 1px solid #fee2e2;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #dc2626;
+            flex-shrink: 0;
+        }
+
+        .cl-modal-card.error-modal .cl-modal-body {
+            color: #374151;
+            font-size: 13.5px;
+            line-height: 1.55;
+            margin: 0 0 20px 0;
+        }
+
+        .cl-modal-btn.error-btn {
+            background: #dc2626;
+            color: #ffffff;
+            border: 1px solid #dc2626;
+        }
+
+        .cl-modal-btn.error-btn:hover {
+            background: #b91c1c;
+            border-color: #b91c1c;
         }
     </style>
 </head>
@@ -752,6 +1090,7 @@
         </div>
     </footer>
 
+    <script src="/code-lab/utils.js"></script>
     <script src="/auth-modal.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
     <script>
@@ -762,8 +1101,9 @@
         const questionState = {};
 
         function escapeHtml(text) {
+            if (text == null) return '';
             const div = document.createElement('div');
-            div.textContent = text || '';
+            div.textContent = String(text);
             return div.innerHTML;
         }
 
@@ -887,7 +1227,7 @@
                 tags.push(`
           <span class="cl-meta-tag">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-            Semester ${assignment.semester}
+            Semester ${escapeHtml(assignment.semester)}
           </span>
         `);
             }
@@ -956,7 +1296,7 @@
               </div>
               <span class="cl-lang-pill">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
-                ${q.language.toUpperCase()}
+                ${escapeHtml((q.language || '').toUpperCase())}
               </span>
             </div>
             ${q.description ? `<p class="cl-desc-text">${escapeHtml(q.description)}</p>` : ''}
@@ -975,29 +1315,14 @@
                 <input type="text" class="cl-filename-input" id="filename-${q.id}" value="solution.${fileExt}" spellcheck="false" autocomplete="off" />
                 <svg class="cl-filename-edit-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
               </div>
+              <div class="cl-window-actions">
+                <button type="button" class="cl-window-run-btn" id="runBtn-${q.id}" title="Shortcut: Cmd/Ctrl + Enter">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                  <span>Run Code</span>
+                </button>
+              </div>
             </div>
             <div class="monaco-slot" id="editor-${q.id}"></div>
-          </div>
-
-          <!-- Pro Action Buttons Bar -->
-          <div class="cl-action-row">
-            <div class="cl-action-left">
-              <button type="button" class="cl-btn cl-btn-run" id="runBtn-${q.id}" title="Shortcut: Cmd/Ctrl + Enter">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-                <span>Run Code</span>
-                <span class="key-shortcut">⌘⏎</span>
-              </button>
-              <button type="button" class="cl-btn cl-btn-submit" id="submitBtn-${q.id}">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                <span>Submit Q${q.questionNumber}</span>
-              </button>
-            </div>
-            <div class="cl-action-right">
-              <span class="cl-badge-secure">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-                Real-time Sandbox
-              </span>
-            </div>
           </div>
 
           <!-- Terminal Output Box -->
@@ -1012,6 +1337,37 @@
             <div class="cl-output-content">
               <pre id="stdout-${q.id}"></pre>
               <pre id="stderr-${q.id}" class="stderr"></pre>
+            </div>
+          </div>
+
+          <!-- AI Explain Error -->
+          <div class="cl-explain-wrap" id="explainWrap-${q.id}" style="display:none;">
+            <button type="button" class="cl-explain-btn" id="explainBtn-${q.id}" onclick="explainError('${q.id}')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+              <span>Help me understand this error</span>
+            </button>
+            <div class="cl-explanation-box" id="explanationBox-${q.id}" style="display:none;">
+              <div class="cl-explain-label">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                <span>AI Explanation</span>
+              </div>
+              <div id="explanationText-${q.id}" class="cl-explanation-text"></div>
+            </div>
+          </div>
+
+          <!-- Pro Action Buttons Bar (Below Terminal) -->
+          <div class="cl-action-row">
+            <div class="cl-action-left">
+              <button type="button" class="cl-btn cl-btn-submit" id="submitBtn-${q.id}">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span>Submit Q${q.questionNumber}</span>
+              </button>
+            </div>
+            <div class="cl-action-right">
+              <span class="cl-badge-secure">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                Real-time Sandbox
+              </span>
             </div>
           </div>
 
@@ -1031,7 +1387,11 @@
                     lastValueLength: 0,
                     lastChangeAt: Date.now(),
                     lastSnapshotCode: '',
-                    questionObj: q
+                    questionObj: q,
+                    hasRun: false,
+                    lastRunCode: null,
+                    lastRunSuccess: false,
+                    lastRunError: null
                 };
             });
 
@@ -1107,6 +1467,13 @@
 
             // Restore previous terminal output if already submitted
             if (q.userSubmission) {
+                state.hasRun = true;
+                state.lastRunCode = q.userSubmission.code || '';
+                state.lastRunSuccess = !q.userSubmission.stderr;
+                state.lastRunError = q.userSubmission.stderr || null;
+                state.stdout = q.userSubmission.stdout || '';
+                state.stderr = q.userSubmission.stderr || '';
+
                 if (q.userSubmission.stdout || q.userSubmission.stderr) {
                     const outputEl = document.getElementById(`output-${q.id}`);
                     const stdoutEl = document.getElementById(`stdout-${q.id}`);
@@ -1120,7 +1487,7 @@
                         pill.textContent = 'Submitted Output';
                     }
                 }
-                showMsg(q.id, `✓ Saved solution restored (${fmtTime(q.userSubmission.submittedAt)})`, 'success');
+                // (saved solution restored silently — no toast)
             }
 
             // Filename input handling
@@ -1169,7 +1536,7 @@
             // Anti-cheat: Paste block
             state.editor.onDidPaste(() => {
                 state.editor.trigger('source', 'undo', null);
-                showMsg(q.id, '⚠ Direct pasting is disabled for this assignment.', 'error');
+                showErrorAlert('Direct pasting is disabled for this assignment.', 'Pasting Disabled');
                 logEvent(q.id, 'paste_attempt', {});
             });
 
@@ -1292,7 +1659,7 @@
             runBtn.disabled = true;
             const originalBtnHTML = runBtn.innerHTML;
             runBtn.innerHTML = `
-        <span class="cl-loading-spinner"></span>
+        <span class="cl-loading-spinner" style="border-color: rgba(0, 0, 0, 0.2); border-top-color: #000000; width: 11px; height: 11px;"></span>
         <span>Running…</span>
       `;
 
@@ -1305,8 +1672,15 @@
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || 'Execution failed.');
 
+                const exitCode = Number(data.exitCode ?? (data.stderr ? 1 : 0));
+                const isSuccess = !data.stderr && !data.error && exitCode === 0;
+
                 state.stdout = data.stdout || '';
                 state.stderr = data.stderr || '';
+                state.hasRun = true;
+                state.lastRunCode = code;
+                state.lastRunSuccess = isSuccess;
+                state.lastRunError = !isSuccess ? (data.stderr || data.error || `Process exited with code ${exitCode}`) : null;
 
                 stdoutEl.textContent = data.stdout || '';
                 stderrEl.textContent = data.stderr || '';
@@ -1316,9 +1690,9 @@
                 }
 
                 if (statusPill) {
-                    if (data.stderr) {
+                    if (!isSuccess) {
                         statusPill.className = 'cl-output-status-pill error';
-                        statusPill.textContent = 'Runtime / Error';
+                        statusPill.textContent = data.stderr ? 'Runtime / Error' : `Exit Code: ${exitCode}`;
                     } else {
                         statusPill.className = 'cl-output-status-pill success';
                         statusPill.textContent = 'Exit Code: 0 (Success)';
@@ -1326,12 +1700,25 @@
                 }
 
                 // Log run event with compiler status
-                const isSuccess = !data.stderr && !data.error;
-                const exitStatus = data.status || (data.stderr ? 'error' : 'success');
+                const exitStatus = data.status || (isSuccess ? 'success' : 'error');
                 logEvent(q.id, 'run_clicked', { questionId: q.id, success: isSuccess, exitStatus });
+
+                // Show/hide AI explain button based on stderr
+                const explainWrap = document.getElementById(`explainWrap-${q.id}`);
+                const explanationBox = document.getElementById(`explanationBox-${q.id}`);
+                if (data.stderr && !isSuccess) {
+                    if (explainWrap) explainWrap.style.display = 'block';
+                    if (explanationBox) { explanationBox.style.display = 'none'; }
+                } else {
+                    if (explainWrap) explainWrap.style.display = 'none';
+                }
             } catch (err) {
                 state.stdout = '';
-                state.stderr = '';
+                state.stderr = err.message;
+                state.hasRun = true;
+                state.lastRunCode = code;
+                state.lastRunSuccess = false;
+                state.lastRunError = err.message;
                 stdoutEl.textContent = '';
                 stderrEl.textContent = err.message;
                 if (statusPill) {
@@ -1339,15 +1726,103 @@
                     statusPill.textContent = 'Failed';
                 }
                 logEvent(q.id, 'run_clicked', { questionId: q.id, success: false, exitStatus: 'failed', error: err.message });
+
+                // Show AI explain button on failure
+                const explainWrapErr = document.getElementById(`explainWrap-${q.id}`);
+                const explanationBoxErr = document.getElementById(`explanationBox-${q.id}`);
+                if (explainWrapErr) explainWrapErr.style.display = 'block';
+                if (explanationBoxErr) explanationBoxErr.style.display = 'none';
             } finally {
                 runBtn.disabled = false;
                 runBtn.innerHTML = originalBtnHTML;
             }
         }
 
+        async function explainError(qId) {
+            const state = questionState[qId];
+            if (!state) return;
+
+            const btn = document.getElementById(`explainBtn-${qId}`);
+            const explanationBox = document.getElementById(`explanationBox-${qId}`);
+            const explanationText = document.getElementById(`explanationText-${qId}`);
+            if (!btn || !explanationBox || !explanationText) return;
+
+            // Log usage
+            logEvent(qId, 'ai_explain_used', { questionId: qId });
+
+            btn.disabled = true;
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = `
+              <span class="cl-loading-spinner" style="border-color: rgba(0,0,0,0.15); border-top-color: #374151; width: 12px; height: 12px;"></span>
+              <span>Thinking...</span>
+            `;
+            explanationBox.style.display = 'block';
+            explanationText.innerHTML = '';
+
+            try {
+                const res = await fetch('/api/code-lab/explain-error', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        code: state.editor ? state.editor.getValue() : '',
+                        stderr: state.stderr || '',
+                        language: state.language || 'code'
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || 'Could not get an explanation.');
+                if (window.marked && typeof window.marked.parse === 'function') {
+                    explanationText.innerHTML = marked.parse(data.explanation);
+                } else {
+                    explanationText.textContent = data.explanation;
+                }
+            } catch (err) {
+                explanationText.textContent = err.message || 'Something went wrong getting the explanation.';
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+            }
+        }
+
+        function validateQuestionForSubmission(q) {
+            const state = questionState[q.id];
+            if (!state || !state.editor) {
+                return { valid: false, reason: 'uninitialized', message: 'Editor not initialized.' };
+            }
+
+            const code = state.editor.getValue().trim();
+            if (!code || code === '// Write your code here') {
+                return { valid: false, reason: 'unanswered', message: 'Please write your code before submitting.' };
+            }
+
+            // If the code matches a previously accepted submission and has not changed
+            if (q.userSubmission && q.userSubmission.code && q.userSubmission.code.trim() === code && !q.userSubmission.stderr) {
+                return { valid: true };
+            }
+
+            // Check if code has been run for the current editor contents
+            const codeRunForCurrent = state.hasRun && state.lastRunCode && state.lastRunCode.trim() === code;
+            if (!codeRunForCurrent) {
+                return { valid: false, reason: 'not_run', message: 'Please run your code before submitting.' };
+            }
+
+            // Check if code run produced an error
+            if (!state.lastRunSuccess || state.lastRunError || state.stderr) {
+                return { valid: false, reason: 'has_error', message: 'Cannot submit code with errors. Please fix all errors and run successfully.' };
+            }
+
+            return { valid: true };
+        }
+
         async function submitQuestion(q) {
             const state = questionState[q.id];
-            if (!state || !state.editor) return;
+            if (!state || !state.editor) return false;
+
+            const validation = validateQuestionForSubmission(q);
+            if (!validation.valid) {
+                showErrorAlert(validation.message, 'Cannot Submit');
+                return false;
+            }
 
             const submitBtn = document.getElementById(`submitBtn-${q.id}`);
             submitBtn.disabled = true;
@@ -1376,8 +1851,8 @@
                 });
                 const data = await res.json();
                 if (res.ok) {
-                    showMsg(q.id, `✓ Q${q.questionNumber} submitted successfully!`, 'success');
-                    q.userSubmission = { code, submittedAt: new Date().toISOString() };
+                    showMsg(q.id, `Q${q.questionNumber} submitted successfully!`, 'success');
+                    q.userSubmission = { code, stdout: state.stdout, stderr: state.stderr, submittedAt: new Date().toISOString() };
 
                     // Update tab checkmark
                     const tabBtn = document.getElementById(`tab-btn-${q.id}`);
@@ -1388,34 +1863,64 @@
                     // Update progress badge in header
                     const allQuestions = Object.values(questionState).map(s => s.questionObj).filter(Boolean);
                     if (allQuestions.length) updateProgressBadge(allQuestions);
+                    return true;
                 } else {
-                    showMsg(q.id, data.message || 'Submission failed.', 'error');
+                    showErrorAlert(data.message || 'Submission failed. Please try again.', 'Submission Failed');
+                    return false;
                 }
             } catch (err) {
-                showMsg(q.id, 'Network error — could not reach server.', 'error');
+                showErrorAlert('Network error — could not reach server.', 'Connection Error');
+                return false;
             } finally {
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = originalSubmitHTML;
             }
         }
 
-        async function submitAll(questions) {
+        function submitAll(questions) {
+            const readyQuestions = [];
+            const unreadyQuestions = [];
+
+            questions.forEach(q => {
+                const v = validateQuestionForSubmission(q);
+                if (v.valid) {
+                    readyQuestions.push(q);
+                } else {
+                    unreadyQuestions.push({ q, reason: v.reason, message: v.message });
+                }
+            });
+
+            if (readyQuestions.length === 0) {
+                showErrorAlert('None of the questions are ready to submit. Please write and run your code successfully first.', 'Cannot Submit');
+                return;
+            }
+
+            if (unreadyQuestions.length > 0) {
+                openSubmitConfirmModal(readyQuestions, unreadyQuestions, questions.length);
+                return;
+            }
+
+        }
+
+        async function executeSubmitAll(readyQuestions, totalCount) {
             const btn = document.getElementById('globalSubmitAllBtn');
             if (btn) {
                 btn.disabled = true;
                 btn.innerHTML = `
           <span class="cl-loading-spinner"></span>
-          <span>Submitting all questions…</span>
+          <span>Submitting ${readyQuestions.length} of ${totalCount} questions…</span>
         `;
             }
-            for (const q of questions) {
-                await submitQuestion(q);
+            let successCount = 0;
+            for (const q of readyQuestions) {
+                const ok = await submitQuestion(q);
+                if (ok) successCount++;
             }
             if (btn) {
                 btn.disabled = false;
                 btn.innerHTML = `
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-          <span>All Questions Submitted</span>
+          <span>${successCount}/${totalCount} Questions Submitted</span>
         `;
                 setTimeout(() => {
                     btn.innerHTML = `
@@ -1426,7 +1931,96 @@
             }
         }
 
+        function openSubmitConfirmModal(readyQuestions, unreadyQuestions, totalCount) {
+            const modal = document.getElementById('submitConfirmModal');
+            const summaryText = document.getElementById('submitConfirmSummary');
+            const detailsList = document.getElementById('submitConfirmDetails');
+            const confirmBtn = document.getElementById('submitConfirmAnywayBtn');
+
+            if (!modal) return;
+
+            if (summaryText) {
+                summaryText.style.display = 'none';
+                summaryText.innerHTML = '';
+            }
+
+            let unreadyHtml = '';
+            unreadyQuestions.forEach(item => {
+                const reasonLabel = item.reason === 'unanswered' ? 'Not answered' : item.reason === 'not_run' ? 'Code not run' : 'Execution had errors';
+                unreadyHtml += `
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 6px; font-size: 13px;">
+                        <div style="display: flex; flex-direction: column; gap: 2px; overflow: hidden; margin-right: 12px;">
+                            <span style="font-weight: 600; color: #111827; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Task ${item.q.questionNumber}: ${escapeHtml(item.q.title)}</span>
+                            <span style="font-size: 11.5px; color: #6b7280;">${reasonLabel}</span>
+                        </div>
+                        <span style="color: #dc2626; font-weight: 600; font-size: 12.5px; white-space: nowrap;">Not submitted</span>
+                    </div>
+                `;
+            });
+            detailsList.innerHTML = unreadyHtml;
+
+            confirmBtn.onclick = () => {
+                closeSubmitConfirmModal();
+                executeSubmitAll(readyQuestions, totalCount);
+            };
+
+            modal.style.display = 'flex';
+        }
+
+        function closeSubmitConfirmModal() {
+            const modal = document.getElementById('submitConfirmModal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function showErrorAlert(message, title = 'Cannot Submit') {
+            const modal = document.getElementById('errorAlertModal');
+            const titleEl = document.getElementById('errorAlertTitle');
+            const msgEl = document.getElementById('errorAlertMessage');
+            const okBtn = document.getElementById('errorAlertOkBtn');
+            if (!modal || !msgEl) return;
+
+            // Strip any emojis from message or title
+            const cleanMsg = String(message || '').replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '').trim();
+            const cleanTitle = String(title || 'Cannot Submit').replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '').trim();
+
+            if (titleEl) titleEl.textContent = cleanTitle;
+            msgEl.textContent = cleanMsg;
+
+            modal.style.display = 'flex';
+            if (okBtn) okBtn.focus();
+        }
+
+        function closeErrorAlertModal() {
+            const modal = document.getElementById('errorAlertModal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeSubmitConfirmModal();
+                closeErrorAlertModal();
+            }
+            if (e.key === 'Enter') {
+                const errorModal = document.getElementById('errorAlertModal');
+                if (errorModal && errorModal.style.display === 'flex') {
+                    e.preventDefault();
+                    closeErrorAlertModal();
+                }
+            }
+        });
+        document.addEventListener('click', (e) => {
+            const submitModal = document.getElementById('submitConfirmModal');
+            if (submitModal && e.target === submitModal) closeSubmitConfirmModal();
+
+            const errorModal = document.getElementById('errorAlertModal');
+            if (errorModal && e.target === errorModal) closeErrorAlertModal();
+        });
+
         function showMsg(qId, text, type) {
+            if (type === 'error') {
+                showErrorAlert(text, 'Cannot Submit');
+                return;
+            }
             const el = document.getElementById(`msg-${qId}`);
             if (!el) return;
             el.textContent = text;
@@ -1437,6 +2031,55 @@
             }, 4500);
         }
     </script>
+
+    <!-- Submit All Confirmation Modal -->
+    <div id="submitConfirmModal" class="cl-modal-overlay" style="display: none;">
+        <div class="cl-modal-card">
+            <div class="cl-modal-header">
+                <h3 class="cl-modal-title">Incomplete Assignment</h3>
+                <button type="button" class="cl-modal-close-btn" onclick="closeSubmitConfirmModal()" aria-label="Close modal">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="cl-modal-body" id="submitConfirmSummary" style="display: none;"></div>
+            <div id="submitConfirmDetails" style="max-height: 220px; overflow-y: auto; margin-bottom: 16px;"></div>
+            <div class="cl-modal-actions">
+                <button type="button" class="cl-modal-btn cancel" onclick="closeSubmitConfirmModal()">Cancel</button>
+                <button type="button" class="cl-modal-btn confirm" id="submitConfirmAnywayBtn">Submit Anyway</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Alert Popup Modal -->
+    <div id="errorAlertModal" class="cl-modal-overlay" style="display: none;">
+        <div class="cl-modal-card error-modal" style="max-width: 440px;">
+            <div class="cl-modal-header">
+                <div class="cl-modal-title-wrap">
+                    <div class="cl-modal-error-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                        </svg>
+                    </div>
+                    <h3 class="cl-modal-title" id="errorAlertTitle">Cannot Submit</h3>
+                </div>
+                <button type="button" class="cl-modal-close-btn" onclick="closeErrorAlertModal()" aria-label="Close error modal">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="cl-modal-body" id="errorAlertMessage"></div>
+            <div class="cl-modal-actions">
+                <button type="button" class="cl-modal-btn error-btn" id="errorAlertOkBtn" onclick="closeErrorAlertModal()" style="min-width: 80px;">OK</button>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>

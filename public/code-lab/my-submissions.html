@@ -42,11 +42,179 @@
 
         body {
             font-family: var(--apple-font);
-            background-color: #f1f5f9;
+            background-color: #f5f5f7;
             color: var(--cl-primary);
             -webkit-font-smoothing: antialiased;
             margin: 0;
             padding: 0;
+        }
+
+        /* ── Apple Obsidian Hero Island (Matches subjects.html) ── */
+        body.dash .dash-hero.cl-animated-hero {
+            position: relative;
+            margin: 28px 6vw 0;
+            padding: 34px 40px;
+            min-height: 148px;
+            background: #0d0d0f;
+            border: 1.5px solid rgba(255, 255, 255, 0.14);
+            border-radius: 26px;
+            box-shadow: none !important;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 28px;
+            overflow: hidden;
+            transform: none !important;
+            transition: border-color 0.35s ease;
+            cursor: default;
+        }
+
+        body.dash .dash-hero.cl-animated-hero:hover {
+            transform: none !important;
+            border-color: rgba(255, 255, 255, 0.32);
+            box-shadow: none !important;
+        }
+
+        body.dash .dash-hero::before,
+        body.dash .dash-hero::after {
+            display: none !important;
+            content: none !important;
+        }
+
+        .dash-hero-content {
+            position: relative;
+            z-index: 3;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 5px;
+            min-width: 0;
+            flex: 1;
+        }
+
+        .cl-hero-kicker {
+            font-family: 'Plus Jakarta Sans', var(--apple-font);
+            font-size: 13.5px;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.82);
+            line-height: 1.2;
+            margin: 0;
+        }
+
+        .cl-hero-title {
+            font-family: 'Plus Jakarta Sans', var(--apple-font);
+            font-size: clamp(28px, 3.5vw, 44px);
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            color: #ffffff;
+            margin: 0;
+            line-height: 1.05;
+        }
+
+        .dash-hero-actions {
+            position: relative;
+            z-index: 3;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+            flex-wrap: wrap;
+        }
+
+        .dash-hero-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 9px 18px;
+            border-radius: 980px;
+            font-size: 12.5px;
+            font-weight: 600;
+            text-decoration: none;
+            font-family: var(--apple-font);
+            cursor: pointer;
+        }
+
+        .cl-btn-pro {
+            position: relative;
+            overflow: hidden;
+            background: #ffffff !important;
+            color: #09090b !important;
+            border: 1.5px solid #ffffff !important;
+            box-shadow: 0 4px 18px rgba(255, 255, 255, 0.25), 0 2px 6px rgba(0,0,0,0.3) !important;
+            transition: all 0.25s cubic-bezier(0.25, 1, 0.5, 1) !important;
+        }
+        .cl-btn-pro::after {
+            content: '';
+            position: absolute;
+            inset: -50%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.8), transparent);
+            transform: rotate(25deg) translateX(-100%);
+            animation: buttonLightSweep 4s ease-in-out infinite;
+        }
+        .cl-btn-pro:hover {
+            transform: translateY(-2px) scale(1.03) !important;
+        }
+        .cl-btn-icon {
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .cl-btn-glass {
+            background: rgba(18, 18, 22, 0.75) !important;
+            color: #ffffff !important;
+            border: 1.5px solid rgba(255, 255, 255, 0.28) !important;
+            backdrop-filter: blur(12px) !important;
+            -webkit-backdrop-filter: blur(12px) !important;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35) !important;
+            transition: all 0.25s cubic-bezier(0.25, 1, 0.5, 1) !important;
+        }
+        .cl-btn-glass:hover {
+            background: rgba(30, 30, 38, 0.9) !important;
+            border-color: rgba(255, 255, 255, 0.6) !important;
+            transform: translateY(-2px) scale(1.02) !important;
+        }
+
+        @keyframes buttonLightSweep {
+            0%, 65% { transform: rotate(25deg) translateX(-150%); }
+            100% { transform: rotate(25deg) translateX(250%); }
+        }
+
+        /* ── Feed Heading Divider ── */
+        .cl-feed-heading-controls {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin: 30px 0 0;
+            padding: 0 6vw 12px;
+            border-bottom: 1.5px solid rgba(0, 0, 0, 0.14) !important;
+        }
+
+        body.dark-mode .cl-feed-heading-controls {
+            border-bottom: 1.5px solid rgba(255, 255, 255, 0.15) !important;
+        }
+
+        .cl-feed-heading-right {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .cl-feed-heading-controls h2 {
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            color: #6e6e73;
+            text-transform: uppercase;
+            margin: 0;
+        }
+
+        body.dark-mode .cl-feed-heading-controls h2 {
+            color: #86868b;
         }
 
         .cl-page-wrap {
@@ -60,80 +228,24 @@
         }
 
         @media (max-width: 768px) {
+            body.dash .dash-hero.cl-animated-hero {
+                margin: 20px 4vw 0;
+                padding: 24px 20px;
+                min-height: 120px;
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .dash-hero-actions {
+                width: 100%;
+                margin-left: 0;
+                justify-content: flex-start;
+            }
             .cl-page-wrap {
                 padding: 20px 4vw 80px;
             }
-        }
-
-        .cl-breadcrumb {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            margin-bottom: 24px;
-            flex-wrap: wrap;
-        }
-
-        .cl-crumb-link {
-            display: inline-flex;
-            align-items: center;
-            padding: 6px 14px;
-            background: var(--cl-white);
-            border: 1.5px solid var(--cl-border-strong);
-            border-radius: 980px;
-            font-size: 13px;
-            font-weight: 500;
-            color: var(--cl-gray-dark);
-            text-decoration: none;
-            transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
-        }
-
-        .cl-crumb-link:hover {
-            color: var(--cl-primary);
-            border-color: #94a3b8;
-            transform: translateY(-1px);
-        }
-
-        .cl-crumb-current {
-            display: inline-flex;
-            align-items: center;
-            padding: 6px 14px;
-            background: var(--cl-primary);
-            color: var(--cl-white);
-            border: 1.5px solid var(--cl-primary);
-            border-radius: 980px;
-            font-size: 13px;
-            font-weight: 600;
-        }
-
-        .cl-crumb-sep {
-            color: #94a3b8;
-            font-size: 12px;
-        }
-
-        .cl-header-row {
-            display: flex;
-            align-items: flex-end;
-            justify-content: space-between;
-            gap: 16px;
-            margin-bottom: 24px;
-            flex-wrap: wrap;
-        }
-
-        .cl-title {
-            font-size: 28px;
-            font-weight: 800;
-            letter-spacing: -0.025em;
-            color: var(--cl-primary);
-            margin: 0 0 6px 0;
-            font-family: "Plus Jakarta Sans", var(--apple-font);
-        }
-
-        .cl-subtitle {
-            font-size: 14.5px;
-            color: var(--cl-gray);
-            margin: 0;
-            font-weight: 400;
+            .cl-feed-heading-controls {
+                padding: 12px 4vw;
+            }
         }
 
         /* ── Defined Filter Tabs (Compact & Modern) ── */
@@ -148,10 +260,10 @@
         .cl-filter-tab {
             display: inline-flex;
             align-items: center;
-            gap: 5px;
-            padding: 4px 11px;
+            gap: 4.5px;
+            padding: 3px 9px;
             border-radius: 980px;
-            font-size: 11.5px;
+            font-size: 11px;
             font-weight: 600;
             cursor: pointer;
             border: 1px solid var(--cl-border-subtle);
@@ -179,11 +291,11 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            min-width: 16px;
-            height: 16px;
-            padding: 0 4px;
+            min-width: 14px;
+            height: 14px;
+            padding: 0 3.5px;
             border-radius: 980px;
-            font-size: 10px;
+            font-size: 9.5px;
             font-weight: 700;
             background: rgba(0, 0, 0, 0.07);
             color: inherit;
@@ -879,49 +991,65 @@
         </div>
     </header>
 
+    <!-- Apple Obsidian Hero Island (Matches subjects.html) -->
+    <section class="dash-hero cl-animated-hero" id="clHeroBanner">
+        <div class="dash-hero-content">
+            <span class="cl-hero-kicker">LAB REPORTS</span>
+            <h1 class="cl-hero-title">My Submissions</h1>
+        </div>
+
+        <div class="dash-hero-actions">
+            <a href="/code-lab/subjects.html" class="dash-hero-btn secondary cl-btn-glass"
+                title="View all programming assignments">
+                <svg class="cl-btn-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="19" y1="12" x2="5" y2="12"></line>
+                    <polyline points="12 19 5 12 12 5"></polyline>
+                </svg>
+                <span>Assignments Feed</span>
+            </a>
+            <a href="/code-lab/subjects.html" class="dash-hero-btn primary cl-btn-pro"
+                title="Explore available assignments">
+                <svg class="cl-btn-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon>
+                </svg>
+                <span>Explore Assignments</span>
+            </a>
+        </div>
+    </section>
+
+    <!-- Divider line with Submissions Feed heading and filter tabs -->
+    <div class="feed-heading cl-feed-heading-controls">
+        <h2>Submissions Feed</h2>
+        <div class="cl-feed-heading-right">
+            <!-- Filter tabs -->
+            <div class="cl-filter-bar" id="filterBar" style="display:flex; margin-bottom:0;">
+                <button type="button" class="cl-filter-tab active" data-filter="all">
+                    <span>All Assignments</span>
+                    <span class="cl-tab-badge" id="badgeAll">0</span>
+                </button>
+                <button type="button" class="cl-filter-tab" data-filter="checked">
+                    <span>Checked &amp; Graded</span>
+                    <span class="cl-tab-badge" id="badgeChecked">0</span>
+                </button>
+                <button type="button" class="cl-filter-tab" data-filter="pending">
+                    <span>Pending Review</span>
+                    <span class="cl-tab-badge" id="badgePending">0</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <main class="cl-page-wrap">
-
-        <nav class="cl-breadcrumb" aria-label="Breadcrumb">
-            <a href="/code-lab/subjects.html" class="cl-crumb-link">Assignments</a>
-            <span class="cl-crumb-sep">/</span>
-            <span class="cl-crumb-current">My Submissions &amp; Reports</span>
-        </nav>
-
-        <div class="cl-header-row">
-            <div>
-                <h1 class="cl-title">My Submissions &amp; Reports</h1>
-                <p class="cl-subtitle">Review your completed programming assignments, official instructor evaluations, marks, and verified PDF reports.</p>
-            </div>
-            <div>
-                <a href="/code-lab/subjects.html" class="cl-editor-btn"
-                    style="background: var(--cl-primary); color: var(--cl-white); padding: 9px 20px; border-radius: 980px; border: 1.5px solid var(--cl-primary); box-shadow: 0 2px 8px rgba(15,23,42,0.18);">
-                    Explore Assignments
-                </a>
-            </div>
-        </div>
-
-        <!-- Filter tabs -->
-        <div class="cl-filter-bar" id="filterBar" style="display:none;">
-            <button type="button" class="cl-filter-tab active" data-filter="all">
-                <span>All Assignments</span>
-                <span class="cl-tab-badge" id="badgeAll">0</span>
-            </button>
-            <button type="button" class="cl-filter-tab" data-filter="checked">
-                <span>Checked &amp; Graded</span>
-                <span class="cl-tab-badge" id="badgeChecked">0</span>
-            </button>
-            <button type="button" class="cl-filter-tab" data-filter="pending">
-                <span>Pending Review</span>
-                <span class="cl-tab-badge" id="badgePending">0</span>
-            </button>
-        </div>
 
         <div class="cl-list" id="list">
             <div class="app-loading-state"
                 style="padding: 70px 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;">
                 <div class="app-spinner spinner-lg"></div>
                 <span style="font-size: 14.5px; font-weight: 600; color: #6e6e73; letter-spacing: -0.01em;">Loading your
-                    submissions & reports…</span>
+                    submissions &amp; reports…</span>
             </div>
         </div>
 

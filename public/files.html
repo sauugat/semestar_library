@@ -834,7 +834,7 @@
       fd.append('chapter', chap || '');
 
       submitBtn.disabled = true;
-      submitBtnLabel.textContent = `Publishing ${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''}…`;
+      submitBtn.innerHTML = `<span class="app-spinner spinner-sm spinner-light" style="margin-right:8px; display:inline-block; vertical-align:middle;"></span><span id="submitBtnLabel">Publishing ${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''}…</span>`;
       statusMsg.textContent = '';
 
       try {

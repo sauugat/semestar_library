@@ -33,7 +33,7 @@ window.doLogin = async function (e) {
   // Show loading state
   if (loginBtn) {
     loginBtn.disabled = true;
-    loginBtn.innerHTML = '<span>Signing in…</span>';
+    loginBtn.innerHTML = '<span class="app-spinner spinner-sm spinner-light" style="margin-right:8px; display:inline-block; vertical-align:middle;"></span><span>Signing in…</span>';
   }
 
   try {

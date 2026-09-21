@@ -2,881 +2,951 @@
 <html lang="en">
 
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Assignment Workspace — Code Lab</title>
-  <meta name="description" content="Interactive multi-question code workspace with real-time compilation, execution, and submission.">
-
-  <!-- Apple & PWA Metadata -->
-  <link rel="manifest" href="/manifest.json">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
-  <meta name="theme-color" content="#ffffff">
-
-  <!-- Typography -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link
-    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Fira+Code:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap"
-    rel="stylesheet">
-  <link rel="stylesheet" href="/style.v4.css">
-  <link rel="stylesheet" href="/auth-modal.css">
-
-  <style>
-    :root {
-      --apple-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "SF Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
-      --apple-heading: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
-      --apple-mono: Menlo, Monaco, Consolas, "SF Mono", "Courier New", monospace;
-      --cl-border: rgba(0, 0, 0, 0.09);
-      --cl-border-hover: rgba(0, 0, 0, 0.18);
-      --cl-card-bg: #ffffff;
-      --cl-subtle-bg: #f5f5f7;
-      --cl-text-primary: #1d1d1f;
-      --cl-text-secondary: #6e6e73;
-      --cl-text-muted: #86868b;
-      --cl-accent: #0071e3;
-      --cl-accent-glow: rgba(0, 113, 227, 0.18);
-      --cl-success: #34c759;
-      --cl-danger: #ff3b30;
-      --cl-radius-lg: 20px;
-      --cl-radius-md: 14px;
-      --cl-radius-sm: 10px;
-    }
-
-    body {
-      font-family: var(--apple-font);
-      background-color: #f5f5f7;
-      color: var(--cl-text-primary);
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
-      margin: 0;
-      padding: 0;
-      min-height: 100vh;
-    }
-
-    /* Page Container */
-    .cl-page-wrap {
-      max-width: 1120px;
-      margin: 0 auto;
-      padding: 32px 24px 96px;
-      box-sizing: border-box;
-    }
-
-    @media (max-width: 768px) {
-      .cl-page-wrap {
-        padding: 16px 16px 80px;
-      }
-    }
-
-    /* ── Header Card (Obsidian & Crisp Pro Style) ── */
-    .cl-assignment-header {
-      background: var(--cl-card-bg);
-      border: 1.5px solid rgba(0, 0, 0, 0.18);
-      border-radius: var(--cl-radius-lg);
-      padding: 24px 28px;
-      margin-bottom: 22px;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
-      position: relative;
-      overflow: hidden;
-      transition: border-color 0.2s ease, box-shadow 0.2s ease;
-    }
-
-    .cl-title {
-      font-size: clamp(22px, 2.6vw, 28px);
-      font-weight: 800;
-      letter-spacing: -0.025em;
-      color: #111113;
-      margin: 0 0 14px 0;
-      font-family: var(--apple-heading);
-      line-height: 1.28;
-    }
-
-    .cl-meta-strip {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
-    .cl-meta-tag {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 12px;
-      background: #fbfbfd;
-      border: 1px solid rgba(0, 0, 0, 0.08);
-      border-radius: 980px;
-      font-size: 13px;
-      font-weight: 600;
-      color: #48484a;
-      transition: all 0.2s ease;
-    }
-
-    .cl-meta-tag svg {
-      color: var(--cl-text-muted);
-    }
-
-    .cl-meta-tag.cl-meta-subject {
-      color: #1d1d1f;
-      background: #ffffff;
-      border-color: rgba(0, 0, 0, 0.14);
-      font-weight: 700;
-    }
-
-    .cl-meta-tag.cl-meta-progress {
-      margin-left: auto;
-      background: rgba(52, 199, 89, 0.08);
-      border-color: rgba(52, 199, 89, 0.2);
-      color: #248a3d;
-      font-weight: 700;
-    }
-
-    @media (max-width: 640px) {
-      .cl-assignment-header {
-        padding: 20px 20px;
-      }
-      .cl-meta-tag.cl-meta-progress {
-        margin-left: 0;
-      }
-    }
-
-    /* ── Question Segmented Navigation ── */
-    .cl-tab-bar-container {
-      margin-bottom: 20px;
-      position: sticky;
-      top: 68px;
-      z-index: 20;
-    }
-
-    .cl-tab-bar {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      background: rgba(255, 255, 255, 0.88);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      padding: 4px 6px;
-      border: 1px solid rgba(0, 0, 0, 0.08);
-      border-radius: 980px;
-      box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04);
-      overflow-x: auto;
-      scrollbar-width: none;
-      -webkit-overflow-scrolling: touch;
-    }
-
-    .cl-tab-bar::-webkit-scrollbar {
-      display: none;
-    }
-
-    .cl-tab-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 14px;
-      border-radius: 980px;
-      border: 1px solid transparent;
-      background: transparent;
-      color: #6e6e73;
-      font-size: 12px;
-      font-weight: 600;
-      cursor: pointer;
-      white-space: nowrap;
-      font-family: var(--apple-font);
-      transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
-    }
-
-    .cl-tab-btn:hover {
-      color: #1d1d1f;
-      background: rgba(0, 0, 0, 0.04);
-    }
-
-    .cl-tab-btn.active {
-      background: #1d1d1f;
-      color: #ffffff;
-      border-color: #1d1d1f;
-      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.14);
-    }
-
-    .cl-tab-check {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 14px;
-      height: 14px;
-      border-radius: 50%;
-      background: #34c759;
-      color: #ffffff;
-      font-size: 9px;
-      font-weight: 800;
-    }
-
-    .cl-tab-btn.active .cl-tab-check {
-      background: #ffffff;
-      color: #1d1d1f;
-    }
-
-    /* ── Question Panel ── */
-    .question-panel {
-      display: none;
-      animation: fadeIn 0.25s cubic-bezier(0.25, 1, 0.5, 1);
-    }
-
-    .question-panel.active {
-      display: block;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(6px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    /* ── Problem Description Card ── */
-    .cl-desc-card {
-      background: #ffffff;
-      border: 1.5px solid rgba(0, 0, 0, 0.18);
-      border-radius: var(--cl-radius-md);
-      padding: 22px 26px;
-      margin-bottom: 20px;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
-    }
-
-    .cl-desc-top {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 14px;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-
-    .cl-desc-title-wrap {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
-    .cl-qnum-badge {
-      display: inline-flex;
-      align-items: center;
-      padding: 4px 10px;
-      border-radius: 8px;
-      background: #1d1d1f;
-      color: #ffffff;
-      font-size: 12px;
-      font-weight: 700;
-      font-family: var(--apple-heading);
-    }
-
-    .cl-desc-title {
-      font-size: 18px;
-      font-weight: 700;
-      color: #1d1d1f;
-      margin: 0;
-      letter-spacing: -0.015em;
-      font-family: var(--apple-heading);
-    }
-
-    .cl-lang-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      padding: 4px 12px;
-      border-radius: 980px;
-      background: rgba(0, 113, 227, 0.08);
-      border: 1px solid rgba(0, 113, 227, 0.18);
-      color: var(--cl-accent);
-      font-size: 12px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-
-    .cl-desc-text {
-      font-size: 15px;
-      line-height: 1.65;
-      color: #2c2c2e;
-      white-space: pre-wrap;
-      margin: 0;
-      font-weight: 450;
-    }
-
-    /* ── macOS Window Code Editor Container ── */
-    .cl-editor-window {
-      background: #1e1e2e;
-      border: 1.5px solid rgba(0, 0, 0, 0.18);
-      border-radius: 18px;
-      overflow: hidden;
-      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.14);
-      margin-bottom: 20px;
-      transition: box-shadow 0.2s ease, border-color 0.2s ease;
-    }
-
-    .cl-window-titlebar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 12px 18px;
-      background: #181825;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-    }
-
-    .cl-traffic-dots {
-      display: flex;
-      align-items: center;
-      gap: 7px;
-    }
-
-    .cl-dot {
-      width: 11.5px;
-      height: 11.5px;
-      border-radius: 50%;
-      transition: opacity 0.2s;
-    }
-
-    .cl-dot-red { background: #ff5f56; box-shadow: 0 0 4px rgba(255, 95, 86, 0.4); }
-    .cl-dot-yellow { background: #ffbd2e; box-shadow: 0 0 4px rgba(255, 189, 46, 0.4); }
-    .cl-dot-green { background: #27c93f; box-shadow: 0 0 4px rgba(39, 201, 63, 0.4); }
-
-    .cl-window-file {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 3px 10px;
-      background: rgba(255, 255, 255, 0.06);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 6px;
-      transition: all 0.2s ease;
-      color: #cdd6f4;
-      cursor: text;
-    }
-
-    .cl-window-file:hover {
-      background: rgba(255, 255, 255, 0.1);
-      border-color: rgba(255, 255, 255, 0.22);
-    }
-
-    .cl-window-file:focus-within {
-      background: rgba(17, 17, 27, 0.95);
-      border-color: #89b4fa;
-      box-shadow: 0 0 0 2px rgba(137, 180, 250, 0.2);
-    }
-
-    .cl-filename-input {
-      background: transparent;
-      border: none;
-      outline: none;
-      color: #cdd6f4;
-      font-family: var(--apple-mono);
-      font-size: 12.5px;
-      font-weight: 600;
-      padding: 0;
-      margin: 0;
-      min-width: 80px;
-      width: 105px;
-      transition: width 0.1s ease;
-    }
-
-    .cl-filename-input:focus {
-      color: #ffffff;
-    }
-
-    .cl-filename-edit-icon {
-      color: #6c7086;
-      opacity: 0.6;
-      transition: opacity 0.2s;
-    }
-
-    .cl-window-file:hover .cl-filename-edit-icon {
-      opacity: 1;
-      color: #cdd6f4;
-    }
-
-    .cl-window-tools {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .cl-window-meta {
-      font-size: 11.5px;
-      color: #89b4fa;
-      font-family: var(--apple-font);
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 5px;
-    }
-
-    .monaco-slot {
-      width: 100%;
-      height: 420px;
-      background: #1e1e2e;
-    }
-
-    /* ── Action Control Bar ── */
-    .cl-action-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 14px;
-      margin-bottom: 20px;
-      flex-wrap: wrap;
-    }
-
-    .cl-action-left {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
-    .cl-action-right {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .cl-btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      padding: 11px 24px;
-      border-radius: 980px;
-      font-size: 13.5px;
-      font-weight: 700;
-      cursor: pointer;
-      font-family: var(--apple-font);
-      transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
-      border: 1px solid transparent;
-      outline: none;
-      user-select: none;
-    }
-
-    .cl-btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-      transform: none !important;
-    }
-
-    .cl-btn-run {
-      background: #1d1d1f;
-      color: #ffffff;
-      border-color: #1d1d1f;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-    }
-
-    .cl-btn-run:hover:not(:disabled) {
-      background: #000000;
-      transform: translateY(-1px);
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
-    }
-
-    .cl-btn-run .key-shortcut {
-      font-size: 11px;
-      padding: 2px 6px;
-      border-radius: 4px;
-      background: rgba(255, 255, 255, 0.2);
-      color: rgba(255, 255, 255, 0.9);
-      font-weight: 600;
-      font-family: var(--apple-mono);
-    }
-
-    .cl-btn-submit {
-      background: #34c759;
-      color: #ffffff;
-      border-color: #34c759;
-      box-shadow: 0 2px 10px rgba(52, 199, 89, 0.28);
-    }
-
-    .cl-btn-submit:hover:not(:disabled) {
-      background: #28a745;
-      transform: translateY(-1px);
-      box-shadow: 0 4px 16px rgba(52, 199, 89, 0.38);
-    }
-
-    .cl-badge-secure {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--cl-text-muted);
-    }
-
-    /* ── Terminal Output Box (Pro macOS Drawer) ── */
-    .cl-output-box {
-      background: #181825;
-      border: 1.5px solid rgba(0, 0, 0, 0.18);
-      border-radius: 16px;
-      overflow: hidden;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-      margin-bottom: 20px;
-    }
-
-    .cl-output-bar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 10px 18px;
-      background: #11111b;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-      font-size: 12px;
-      font-weight: 700;
-      color: #a6adc8;
-      letter-spacing: 0.03em;
-    }
-
-    .cl-output-status-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 11px;
-      padding: 3px 9px;
-      border-radius: 980px;
-      background: rgba(255, 255, 255, 0.06);
-      color: #cdd6f4;
-    }
-
-    .cl-output-status-pill.success {
-      background: rgba(52, 199, 89, 0.15);
-      color: #a6e3a1;
-    }
-
-    .cl-output-status-pill.error {
-      background: rgba(255, 59, 48, 0.15);
-      color: #f38ba8;
-    }
-
-    .cl-output-content {
-      padding: 18px 22px;
-      min-height: 54px;
-      max-height: 300px;
-      overflow-y: auto;
-    }
-
-    .cl-output-content pre {
-      margin: 0;
-      font-family: var(--apple-mono);
-      font-size: 13.5px;
-      line-height: 1.65;
-      white-space: pre-wrap;
-      word-break: break-word;
-      color: #cdd6f4;
-    }
-
-    .cl-output-content pre.stderr {
-      color: #f38ba8;
-      margin-top: 6px;
-    }
-
-    /* ── Toast / Notification Pill ── */
-    .cl-toast-msg {
-      display: none;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 18px;
-      border-radius: 980px;
-      font-size: 13.5px;
-      font-weight: 700;
-      margin-top: 12px;
-      transition: all 0.25s cubic-bezier(0.25, 1, 0.5, 1);
-    }
-
-    .cl-toast-msg.show {
-      display: inline-flex;
-    }
-
-    .cl-toast-msg.success {
-      background: rgba(52, 199, 89, 0.12);
-      border: 1px solid rgba(52, 199, 89, 0.25);
-      color: #1e7e34;
-    }
-
-    .cl-toast-msg.error {
-      background: rgba(255, 59, 48, 0.1);
-      border: 1px solid rgba(255, 59, 48, 0.25);
-      color: #d70015;
-    }
-
-    /* ── Submit All Floating Wrap ── */
-    .cl-submit-all-wrap {
-      text-align: center;
-      margin-top: 32px;
-      padding-top: 24px;
-      border-top: 1px solid rgba(0, 0, 0, 0.08);
-    }
-
-    .cl-btn-submit-all {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      padding: 14px 36px;
-      background: var(--cl-accent);
-      color: #ffffff;
-      border: 1px solid var(--cl-accent);
-      border-radius: 980px;
-      font-size: 15px;
-      font-weight: 700;
-      cursor: pointer;
-      font-family: var(--apple-font);
-      transition: all 0.25s cubic-bezier(0.25, 1, 0.5, 1);
-      box-shadow: 0 4px 18px rgba(0, 113, 227, 0.28);
-    }
-
-    .cl-btn-submit-all:hover {
-      background: #0077ed;
-      transform: translateY(-2px);
-      box-shadow: 0 8px 26px rgba(0, 113, 227, 0.38);
-    }
-
-    .cl-empty-state {
-      text-align: center;
-      padding: 60px 24px;
-      background: #ffffff;
-      border: 1.5px solid rgba(0, 0, 0, 0.1);
-      border-radius: var(--cl-radius-lg);
-      color: var(--cl-text-muted);
-      font-size: 15px;
-      font-weight: 600;
-    }
-
-    .cl-loading-spinner {
-      display: inline-block;
-      width: 14px;
-      height: 14px;
-      border: 2px solid rgba(255, 255, 255, 0.3);
-      border-top-color: #ffffff;
-      border-radius: 50%;
-      animation: spin 0.6s linear infinite;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Assignment Workspace — Code Lab</title>
+    <meta name="description"
+        content="Interactive multi-question code workspace with real-time compilation, execution, and submission.">
+
+    <!-- Apple & PWA Metadata -->
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+    <meta name="theme-color" content="#ffffff">
+
+    <!-- Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Fira+Code:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/style.v4.css">
+    <link rel="stylesheet" href="/auth-modal.css">
+
+    <style>
+        :root {
+            --apple-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "SF Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
+            --apple-heading: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+            --apple-mono: Menlo, Monaco, Consolas, "SF Mono", "Courier New", monospace;
+            --cl-border: rgba(0, 0, 0, 0.09);
+            --cl-border-hover: rgba(0, 0, 0, 0.18);
+            --cl-card-bg: #ffffff;
+            --cl-subtle-bg: #f5f5f7;
+            --cl-text-primary: #1d1d1f;
+            --cl-text-secondary: #6e6e73;
+            --cl-text-muted: #86868b;
+            --cl-accent: #0071e3;
+            --cl-accent-glow: rgba(0, 113, 227, 0.18);
+            --cl-success: #34c759;
+            --cl-danger: #ff3b30;
+            --cl-radius-lg: 20px;
+            --cl-radius-md: 14px;
+            --cl-radius-sm: 10px;
+        }
+
+        body {
+            font-family: var(--apple-font);
+            background-color: #f5f5f7;
+            color: var(--cl-text-primary);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+        }
+
+        /* Page Container */
+        .cl-page-wrap {
+            max-width: 1120px;
+            margin: 0 auto;
+            padding: 32px 24px 96px;
+            box-sizing: border-box;
+        }
+
+        @media (max-width: 768px) {
+            .cl-page-wrap {
+                padding: 16px 16px 80px;
+            }
+        }
+
+        /* ── Header Card (Obsidian & Crisp Pro Style) ── */
+        .cl-assignment-header {
+            background: var(--cl-card-bg);
+            border: 1.5px solid rgba(0, 0, 0, 0.18);
+            border-radius: var(--cl-radius-lg);
+            padding: 24px 28px;
+            margin-bottom: 22px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .cl-title {
+            font-size: clamp(22px, 2.6vw, 28px);
+            font-weight: 800;
+            letter-spacing: -0.025em;
+            color: #111113;
+            margin: 0 0 14px 0;
+            font-family: var(--apple-heading);
+            line-height: 1.28;
+        }
+
+        .cl-meta-strip {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .cl-meta-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: #fbfbfd;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-radius: 980px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #48484a;
+            transition: all 0.2s ease;
+        }
+
+        .cl-meta-tag svg {
+            color: var(--cl-text-muted);
+        }
+
+        .cl-meta-tag.cl-meta-subject {
+            color: #1d1d1f;
+            background: #ffffff;
+            border-color: rgba(0, 0, 0, 0.14);
+            font-weight: 700;
+        }
+
+        .cl-meta-tag.cl-meta-progress {
+            margin-left: auto;
+            background: rgba(52, 199, 89, 0.08);
+            border-color: rgba(52, 199, 89, 0.2);
+            color: #248a3d;
+            font-weight: 700;
+        }
+
+        @media (max-width: 640px) {
+            .cl-assignment-header {
+                padding: 20px 20px;
+            }
+
+            .cl-meta-tag.cl-meta-progress {
+                margin-left: 0;
+            }
+        }
+
+        /* ── Question Segmented Navigation ── */
+        .cl-tab-bar-container {
+            margin-bottom: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .cl-tab-bar {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255, 255, 255, 0.88);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 4px 6px;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-radius: 980px;
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04);
+            overflow-x: auto;
+            scrollbar-width: none;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .cl-tab-bar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .cl-tab-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 980px;
+            border: 1px solid transparent;
+            background: transparent;
+            color: #6e6e73;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            font-family: var(--apple-font);
+            transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        .cl-tab-btn:hover {
+            color: #1d1d1f;
+            background: rgba(0, 0, 0, 0.04);
+        }
+
+        .cl-tab-btn.active {
+            background: #1d1d1f;
+            color: #ffffff;
+            border-color: #1d1d1f;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.14);
+        }
+
+        .cl-tab-check {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #34c759;
+            color: #ffffff;
+            font-size: 9px;
+            font-weight: 800;
+        }
+
+        .cl-tab-btn.active .cl-tab-check {
+            background: #ffffff;
+            color: #1d1d1f;
+        }
+
+        /* ── Question Panel ── */
+        .question-panel {
+            display: none;
+            animation: fadeIn 0.25s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        .question-panel.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(6px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ── Problem Description Card ── */
+        .cl-desc-card {
+            background: #ffffff;
+            border: 1.5px solid rgba(0, 0, 0, 0.18);
+            border-radius: var(--cl-radius-md);
+            padding: 22px 26px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+        }
+
+        .cl-desc-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .cl-desc-title-wrap {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .cl-qnum-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: 8px;
+            background: #1d1d1f;
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: 700;
+            font-family: var(--apple-heading);
+        }
+
+        .cl-desc-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1d1d1f;
+            margin: 0;
+            letter-spacing: -0.015em;
+            font-family: var(--apple-heading);
+        }
+
+        .cl-lang-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 12px;
+            border-radius: 980px;
+            background: rgba(0, 113, 227, 0.08);
+            border: 1px solid rgba(0, 113, 227, 0.18);
+            color: var(--cl-accent);
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .cl-desc-text {
+            font-size: 15px;
+            line-height: 1.65;
+            color: #2c2c2e;
+            white-space: pre-wrap;
+            margin: 0;
+            font-weight: 450;
+        }
+
+        /* ── macOS Window Code Editor Container ── */
+        .cl-editor-window {
+            background: #1e1e2e;
+            border: 1.5px solid rgba(0, 0, 0, 0.18);
+            border-radius: 18px;
+            overflow: hidden;
+            box-shadow: 0 14px 40px rgba(0, 0, 0, 0.14);
+            margin-bottom: 20px;
+            transition: box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+
+        .cl-window-titlebar {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 18px;
+            background: #181825;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        .cl-traffic-dots {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            z-index: 2;
+        }
+
+        .cl-dot {
+            width: 11.5px;
+            height: 11.5px;
+            border-radius: 50%;
+            transition: opacity 0.2s;
+        }
+
+        .cl-dot-red {
+            background: #ff5f56;
+            box-shadow: 0 0 4px rgba(255, 95, 86, 0.4);
+        }
+
+        .cl-dot-yellow {
+            background: #ffbd2e;
+            box-shadow: 0 0 4px rgba(255, 189, 46, 0.4);
+        }
+
+        .cl-dot-green {
+            background: #27c93f;
+            box-shadow: 0 0 4px rgba(39, 201, 63, 0.4);
+        }
+
+        .cl-window-file {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 12px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            transition: all 0.2s ease;
+            color: #cdd6f4;
+            cursor: text;
+            z-index: 1;
+        }
+
+        .cl-window-file:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.22);
+        }
+
+        .cl-window-file:focus-within {
+            background: rgba(17, 17, 27, 0.95);
+            border-color: #89b4fa;
+            box-shadow: 0 0 0 2px rgba(137, 180, 250, 0.2);
+        }
+
+        .cl-filename-input {
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #cdd6f4;
+            font-family: var(--apple-mono);
+            font-size: 12.5px;
+            font-weight: 600;
+            padding: 0;
+            margin: 0;
+            min-width: 80px;
+            width: 105px;
+            text-align: center;
+            transition: width 0.1s ease;
+        }
+
+        .cl-filename-input:focus {
+            color: #ffffff;
+        }
+
+        .cl-filename-edit-icon {
+            color: #6c7086;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+        }
+
+        .cl-window-file:hover .cl-filename-edit-icon {
+            opacity: 1;
+            color: #cdd6f4;
+        }
+
+        .cl-window-tools {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .cl-window-meta {
+            font-size: 11.5px;
+            color: #89b4fa;
+            font-family: var(--apple-font);
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .monaco-slot {
+            width: 100%;
+            height: 420px;
+            background: #1e1e2e;
+        }
+
+        /* ── Action Control Bar ── */
+        .cl-action-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .cl-action-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .cl-action-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .cl-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 11px 24px;
+            border-radius: 980px;
+            font-size: 13.5px;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: var(--apple-font);
+            transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+            border: 1px solid transparent;
+            outline: none;
+            user-select: none;
+        }
+
+        .cl-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .cl-btn-run {
+            background: #1d1d1f;
+            color: #ffffff;
+            border-color: #1d1d1f;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+        }
+
+        .cl-btn-run:hover:not(:disabled) {
+            background: #000000;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+        }
+
+        .cl-btn-run .key-shortcut {
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.9);
+            font-weight: 600;
+            font-family: var(--apple-mono);
+        }
+
+        .cl-btn-submit {
+            background: #34c759;
+            color: #ffffff;
+            border-color: #34c759;
+            box-shadow: 0 2px 10px rgba(52, 199, 89, 0.28);
+        }
+
+        .cl-btn-submit:hover:not(:disabled) {
+            background: #28a745;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px rgba(52, 199, 89, 0.38);
+        }
+
+        .cl-badge-secure {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--cl-text-muted);
+        }
+
+        /* ── Terminal Output Box (Pro macOS Drawer) ── */
+        .cl-output-box {
+            background: #181825;
+            border: 1.5px solid rgba(0, 0, 0, 0.18);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            margin-bottom: 20px;
+        }
+
+        .cl-output-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 18px;
+            background: #11111b;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            font-size: 12px;
+            font-weight: 700;
+            color: #a6adc8;
+            letter-spacing: 0.03em;
+        }
+
+        .cl-output-status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            padding: 3px 9px;
+            border-radius: 980px;
+            background: rgba(255, 255, 255, 0.06);
+            color: #cdd6f4;
+        }
+
+        .cl-output-status-pill.success {
+            background: rgba(52, 199, 89, 0.15);
+            color: #a6e3a1;
+        }
+
+        .cl-output-status-pill.error {
+            background: rgba(255, 59, 48, 0.15);
+            color: #f38ba8;
+        }
+
+        .cl-output-content {
+            padding: 18px 22px;
+            min-height: 54px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .cl-output-content pre {
+            margin: 0;
+            font-family: var(--apple-mono);
+            font-size: 13.5px;
+            line-height: 1.65;
+            white-space: pre-wrap;
+            word-break: break-word;
+            color: #cdd6f4;
+        }
+
+        .cl-output-content pre.stderr {
+            color: #f38ba8;
+            margin-top: 6px;
+        }
+
+        /* ── Toast / Notification Pill ── */
+        .cl-toast-msg {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 18px;
+            border-radius: 980px;
+            font-size: 13.5px;
+            font-weight: 700;
+            margin-top: 12px;
+            transition: all 0.25s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        .cl-toast-msg.show {
+            display: inline-flex;
+        }
+
+        .cl-toast-msg.success {
+            background: rgba(52, 199, 89, 0.12);
+            border: 1px solid rgba(52, 199, 89, 0.25);
+            color: #1e7e34;
+        }
+
+        .cl-toast-msg.error {
+            background: rgba(255, 59, 48, 0.1);
+            border: 1px solid rgba(255, 59, 48, 0.25);
+            color: #d70015;
+        }
+
+        /* ── Submit All Floating Wrap ── */
+        .cl-submit-all-wrap {
+            text-align: center;
+            margin-top: 32px;
+            padding-top: 24px;
+            border-top: 1px solid rgba(0, 0, 0, 0.08);
+        }
+
+        .cl-btn-submit-all {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 36px;
+            background: #000000;
+            color: #ffffff;
+            border: 1.5px solid #000000;
+            border-radius: 980px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: var(--apple-font);
+            transition: all 0.25s cubic-bezier(0.25, 1, 0.5, 1);
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
+        }
+
+        .cl-btn-submit-all:hover {
+            background: #1f2937;
+            border-color: #1f2937;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 26px rgba(0, 0, 0, 0.35);
+        }
+
+        .cl-empty-state {
+            text-align: center;
+            padding: 60px 24px;
+            background: #ffffff;
+            border: 1.5px solid rgba(0, 0, 0, 0.1);
+            border-radius: var(--cl-radius-lg);
+            color: var(--cl-text-muted);
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .cl-loading-spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #ffffff;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
 </head>
 
 <body class="dash syllabus-page-body">
 
-  <header class="dash-header">
-    <a href="/" class="lib-wordmark">Semester Library</a>
-    <nav class="dash-header-nav">
-      <a href="/about" class="header-nav-item">About</a>
-      <a href="/code-lab/subjects.html" class="header-nav-item active">Assignments</a>
-      <a href="/routine" class="header-nav-item">Routine</a>
-      <a href="/notices" class="header-nav-item">Notices</a>
-    </nav>
-    <div class="dash-header-actions">
-      <a href="/login.html" class="nav-cta-btn apple-nav-btn">Sign In</a>
-    </div>
-  </header>
+    <header class="dash-header">
+        <a href="/dashboard.html" class="lib-wordmark">Semester Library</a>
 
-  <main class="cl-page-wrap">
-    
-    <!-- Assignment Header Card -->
-    <div class="cl-assignment-header">
-      <h1 class="cl-title" id="assignment-title">Loading Assignment…</h1>
-      <div class="cl-meta-strip" id="assignment-meta-strip">
-        <!-- Injected via JavaScript -->
-      </div>
-    </div>
+        <nav class="dash-header-nav">
+            <a href="/dashboard.html" class="header-nav-item">Feed</a>
+            <a href="/library.html" class="header-nav-item">Library</a>
+            <a href="/code-lab/subjects.html" class="header-nav-item active">Assignments</a>
+            <a href="/routine.html" class="header-nav-item">Routine</a>
+            <a href="/chat.html" class="header-nav-item">Chat</a>
+            <a href="/chatbot.html" class="header-nav-item">Kyana AI</a>
+        </nav>
 
-    <div id="loading-msg"></div>
+        <div class="dash-header-actions">
+            <a href="/profile.html" class="dash-profile-chip" title="View Profile">
+                <div class="dash-profile-avatar" id="headerAvatar">·</div>
+                <span class="dash-profile-label" id="headerProfileName">Profile</span>
+            </a>
+        </div>
+    </header>
 
-    <!-- Question Segmented Tabs Container -->
-    <div class="cl-tab-bar-container" id="tabContainer" style="display:none;">
-      <div class="cl-tab-bar" id="tabBar" role="tablist"></div>
-    </div>
+    <main class="cl-page-wrap">
 
-    <!-- Question Workspace Panels -->
-    <div id="panels"></div>
+        <!-- Assignment Header Card -->
+        <div class="cl-assignment-header">
+            <h1 class="cl-title" id="assignment-title">Loading Assignment…</h1>
+            <div class="cl-meta-strip" id="assignment-meta-strip">
+                <!-- Injected via JavaScript -->
+            </div>
+        </div>
 
-    <!-- Global Submit All -->
-    <div id="submitAllWrap" class="cl-submit-all-wrap" style="display:none;"></div>
+        <div id="loading-msg">
+            <div class="app-loading-state" style="padding: 60px 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;">
+                <div class="app-spinner spinner-lg"></div>
+                <span style="font-size: 14.5px; font-weight: 600; color: #6e6e73; letter-spacing: -0.01em;">Loading assignment workspace…</span>
+            </div>
+        </div>
 
-  </main>
+        <!-- Question Segmented Tabs Container -->
+        <div class="cl-tab-bar-container" id="tabContainer" style="display:none;">
+            <div class="cl-tab-bar" id="tabBar" role="tablist"></div>
+        </div>
 
-  <footer class="app-global-footer">
-    <div class="app-footer-inner">
-      <div class="app-footer-brand">
-        <strong>Semester Library</strong>
-        <span>· Bachelor of Information Technology</span>
-      </div>
-      <div class="app-footer-meta">
-        <span>Gandaki University</span>
-      </div>
-    </div>
-  </footer>
+        <!-- Question Workspace Panels -->
+        <div id="panels"></div>
 
-  <script src="/auth-modal.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
-  <script>
-    const params = new URLSearchParams(window.location.search);
-    const assignmentId = params.get('id');
+        <!-- Global Submit All -->
+        <div id="submitAllWrap" class="cl-submit-all-wrap" style="display:none;"></div>
 
-    // Per-question state
-    const questionState = {};
+    </main>
 
-    function escapeHtml(text) {
-      const div = document.createElement('div');
-      div.textContent = text || '';
-      return div.innerHTML;
-    }
+    <footer class="app-global-footer">
+        <div class="app-footer-inner">
+            <div class="app-footer-brand">
+                <strong>Semester Library</strong>
+                <span>· Bachelor of Information Technology</span>
+            </div>
+            <div class="app-footer-meta">
+                <span>Gandaki University</span>
+            </div>
+        </div>
+    </footer>
 
-    // ── Event logging (per-question) ──────────────────────────────
-    function logEvent(questionId, type, payload) {
-      const state = questionState[questionId];
-      if (!state) return;
-      state.eventQueue.push({ type, payload: payload || {}, clientTime: new Date().toISOString() });
-    }
+    <script src="/auth-modal.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const assignmentId = params.get('id');
 
-    function flushEvents(questionId) {
-      const state = questionState[questionId];
-      if (!state || !state.eventQueue.length) return;
-      const batch = state.eventQueue;
-      state.eventQueue = [];
-      fetch('/api/code-lab/events', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assignmentId: Number(assignmentId), questionId, events: batch })
-      }).catch(() => { });
-    }
+        // Per-question state
+        const questionState = {};
 
-    function flushAllEvents() {
-      Object.keys(questionState).forEach(qId => flushEvents(Number(qId)));
-    }
-
-    // Flush every 10s and on page leave
-    setInterval(() => flushAllEvents(), 10000);
-    window.addEventListener('beforeunload', flushAllEvents);
-
-    // Tab switch tracking (global — applies to current active question)
-    let activeQuestionId = null;
-    document.addEventListener('visibilitychange', () => {
-      if (activeQuestionId) {
-        logEvent(activeQuestionId, document.hidden ? 'tab_hidden' : 'tab_visible', {});
-      }
-    });
-
-    // ── Global Keyboard Shortcut: Cmd/Ctrl + Enter to Run Code ────
-    window.addEventListener('keydown', (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-        if (activeQuestionId) {
-          e.preventDefault();
-          const state = questionState[activeQuestionId];
-          if (state && state.questionObj) {
-            runCode(state.questionObj);
-          }
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text || '';
+            return div.innerHTML;
         }
-      }
-    });
 
-    // ── Load assignment ──────────────────────────────────────────
-    if (!assignmentId || !/^\d+$/.test(assignmentId)) {
-      document.getElementById('assignment-title').textContent = 'Invalid assignment link.';
-    } else {
-      fetch('/api/code-lab/assignments/' + assignmentId)
-        .then(async res => {
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.message || 'Failed to load assignment.');
-          return data;
-        })
-        .then(renderAssignment)
-        .catch(err => {
-          document.getElementById('assignment-title').textContent = err.message;
+        function fmtTime(iso) {
+            if (!iso) return '—';
+            try {
+                return new Date(iso).toLocaleString('en-US', {
+                    timeZone: 'Asia/Kathmandu',
+                    dateStyle: 'medium',
+                    timeStyle: 'short'
+                }) + ' NPT';
+            } catch (e) {
+                return String(iso);
+            }
+        }
+
+        // ── Event logging (per-question) ──────────────────────────────
+        function logEvent(questionId, type, payload) {
+            const state = questionState[questionId];
+            if (!state) return;
+            state.eventQueue.push({ type, payload: payload || {}, clientTime: new Date().toISOString() });
+        }
+
+        function flushEvents(questionId) {
+            const state = questionState[questionId];
+            if (!state || !state.eventQueue.length) return;
+            const batch = state.eventQueue;
+            state.eventQueue = [];
+            fetch('/api/code-lab/events', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ assignmentId: Number(assignmentId), questionId, events: batch })
+            }).catch(() => { });
+        }
+
+        function flushAllEvents() {
+            Object.keys(questionState).forEach(qId => flushEvents(Number(qId)));
+        }
+
+        // Flush every 10s and on page leave
+        setInterval(() => flushAllEvents(), 10000);
+        window.addEventListener('beforeunload', flushAllEvents);
+
+        // Tab switch tracking (global — applies to current active question)
+        let activeQuestionId = null;
+        document.addEventListener('visibilitychange', () => {
+            if (activeQuestionId) {
+                logEvent(activeQuestionId, document.hidden ? 'tab_hidden' : 'tab_visible', {});
+            }
         });
-    }
 
-    function updateProgressBadge(questions) {
-      const submittedCount = questions.filter(q => q.userSubmission).length;
-      const progressEl = document.getElementById('progressMetaTag');
-      if (progressEl) {
-        progressEl.innerHTML = `
+        // ── Global Keyboard Shortcut: Cmd/Ctrl + Enter to Run Code ────
+        window.addEventListener('keydown', (e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                if (activeQuestionId) {
+                    e.preventDefault();
+                    const state = questionState[activeQuestionId];
+                    if (state && state.questionObj) {
+                        runCode(state.questionObj);
+                    }
+                }
+            }
+        });
+
+        // ── Load assignment ──────────────────────────────────────────
+        if (!assignmentId || !/^\d+$/.test(assignmentId)) {
+            document.getElementById('assignment-title').textContent = 'Invalid assignment link.';
+            const loadEl = document.getElementById('loading-msg');
+            if (loadEl) {
+                loadEl.innerHTML = '<div class="cl-empty-state">Please select a valid assignment from the assignments list.<br><br><a href="/code-lab/subjects.html" class="cl-crumb-link" style="display:inline-flex; margin-top:8px;">← Browse Assignments</a></div>';
+            }
+        } else {
+            fetch('/api/code-lab/assignments/' + assignmentId)
+                .then(async res => {
+                    const data = await res.json();
+                    if (!res.ok) {
+                        if (res.status === 401 && window.showAuthModal) {
+                            window.showAuthModal(true);
+                        }
+                        throw new Error(data.message || 'Failed to load assignment.');
+                    }
+                    return data;
+                })
+                .then(renderAssignment)
+                .catch(err => {
+                    document.getElementById('assignment-title').textContent = 'Unable to Load Assignment';
+                    const loadEl = document.getElementById('loading-msg');
+                    if (loadEl) {
+                        loadEl.innerHTML = `<div class="cl-empty-state">${escapeHtml(err.message)}<br><br><a href="/code-lab/subjects.html" class="cl-crumb-link" style="display:inline-flex; margin-top:8px;">← Return to Assignments</a></div>`;
+                    }
+                });
+        }
+
+        function updateProgressBadge(questions) {
+            const submittedCount = questions.filter(q => q.userSubmission).length;
+            const progressEl = document.getElementById('progressMetaTag');
+            if (progressEl) {
+                progressEl.innerHTML = `
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
           ${submittedCount}/${questions.length} Solved
         `;
-      }
-    }
+            }
+        }
 
-    function renderAssignment(assignment) {
-      document.getElementById('assignment-title').textContent = assignment.title;
+        function renderAssignment(assignment) {
+            window._currentStudentId = assignment.currentStudentId || null;
+            document.getElementById('assignment-title').textContent = assignment.title;
 
-      const metaStrip = document.getElementById('assignment-meta-strip');
-      const tags = [];
+            const metaStrip = document.getElementById('assignment-meta-strip');
+            const tags = [];
 
-      if (assignment.subject) {
-        tags.push(`
+            if (assignment.subject) {
+                tags.push(`
           <span class="cl-meta-tag cl-meta-subject">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
             ${escapeHtml(assignment.subject)}
           </span>
         `);
-      }
-      if (assignment.semester) {
-        tags.push(`
+            }
+            if (assignment.semester) {
+                tags.push(`
           <span class="cl-meta-tag">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
             Semester ${assignment.semester}
           </span>
         `);
-      }
-      if (assignment.teacherName) {
-        tags.push(`
+            }
+            if (assignment.teacherName) {
+                tags.push(`
           <span class="cl-meta-tag">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
             Faculty: ${escapeHtml(assignment.teacherName)}
           </span>
         `);
-      }
+            }
 
-      const questions = assignment.questions || [];
-      if (questions.length > 0) {
-        const submittedCount = questions.filter(q => q.userSubmission).length;
-        tags.push(`
+            const questions = assignment.questions || [];
+            if (questions.length > 0) {
+                const submittedCount = questions.filter(q => q.userSubmission).length;
+                tags.push(`
           <span class="cl-meta-tag cl-meta-progress" id="progressMetaTag">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
             ${submittedCount}/${questions.length} Solved
           </span>
         `);
-      }
+            }
 
-      metaStrip.innerHTML = tags.join('');
+            metaStrip.innerHTML = tags.join('');
 
-      if (questions.length === 0) {
-        document.getElementById('loading-msg').innerHTML = '<div class="cl-empty-state">This assignment has no questions yet.</div>';
-        return;
-      }
+            if (questions.length === 0) {
+                document.getElementById('loading-msg').innerHTML = '<div class="cl-empty-state">This assignment has no questions yet.</div>';
+                return;
+            }
 
-      const tabContainer = document.getElementById('tabContainer');
-      const tabBar = document.getElementById('tabBar');
-      const panels = document.getElementById('panels');
-      tabContainer.style.display = 'block';
+            document.getElementById('loading-msg').innerHTML = '';
+            const tabContainer = document.getElementById('tabContainer');
+            const tabBar = document.getElementById('tabBar');
+            const panels = document.getElementById('panels');
+            tabContainer.style.display = 'block';
 
-      // Create tabs and panels
-      questions.forEach((q, i) => {
-        // Tab button
-        const tab = document.createElement('button');
-        tab.className = 'cl-tab-btn' + (i === 0 ? ' active' : '');
-        tab.id = `tab-btn-${q.id}`;
-        tab.innerHTML = `
+            // Create tabs and panels
+            questions.forEach((q, i) => {
+                // Tab button
+                const tab = document.createElement('button');
+                tab.className = 'cl-tab-btn' + (i === 0 ? ' active' : '');
+                tab.id = `tab-btn-${q.id}`;
+                tab.innerHTML = `
           ${q.userSubmission ? '<span class="cl-tab-check">✓</span>' : ''}
           <span>Q${q.questionNumber}: ${escapeHtml(q.title)}</span>
         `;
-        tab.dataset.qid = q.id;
-        tab.setAttribute('role', 'tab');
-        tab.addEventListener('click', () => switchTab(q.id));
-        tabBar.appendChild(tab);
+                tab.dataset.qid = q.id;
+                tab.setAttribute('role', 'tab');
+                tab.addEventListener('click', () => switchTab(q.id));
+                tabBar.appendChild(tab);
 
-        // Language file extension helper
-        const fileExt = q.language === 'c' ? 'c' : q.language === 'cpp' ? 'cpp' : q.language === 'java' ? 'java' : 'py';
+                // Language file extension helper
+                const fileExt = q.language === 'c' ? 'c' : q.language === 'cpp' ? 'cpp' : q.language === 'java' ? 'java' : 'py';
 
-        // Panel
-        const panel = document.createElement('div');
-        panel.className = 'question-panel' + (i === 0 ? ' active' : '');
-        panel.id = `panel-${q.id}`;
-        panel.innerHTML = `
+                // Panel
+                const panel = document.createElement('div');
+                panel.className = 'question-panel' + (i === 0 ? ' active' : '');
+                panel.id = `panel-${q.id}`;
+                panel.innerHTML = `
           <!-- Problem Briefing Card -->
           <div class="cl-desc-card">
             <div class="cl-desc-top">
@@ -904,12 +974,6 @@
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
                 <input type="text" class="cl-filename-input" id="filename-${q.id}" value="solution.${fileExt}" spellcheck="false" autocomplete="off" />
                 <svg class="cl-filename-edit-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
-              </div>
-              <div class="cl-window-tools">
-                <div class="cl-window-meta">
-                  <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:#a6e3a1;"></span>
-                  Ready
-                </div>
               </div>
             </div>
             <div class="monaco-slot" id="editor-${q.id}"></div>
@@ -953,340 +1017,426 @@
 
           <div class="cl-toast-msg" id="msg-${q.id}"></div>
         `;
-        panels.appendChild(panel);
+                panels.appendChild(panel);
 
-        // Init state
-        questionState[q.id] = {
-          editor: null,
-          stdout: '',
-          stderr: '',
-          eventQueue: [],
-          language: q.language,
-          questionNumber: q.questionNumber,
-          title: q.title,
-          lastValueLength: 0,
-          lastChangeAt: Date.now(),
-          lastSnapshotCode: '',
-          questionObj: q
-        };
-      });
+                // Init state
+                questionState[q.id] = {
+                    editor: null,
+                    stdout: '',
+                    stderr: '',
+                    eventQueue: [],
+                    language: q.language,
+                    questionNumber: q.questionNumber,
+                    title: q.title,
+                    lastValueLength: 0,
+                    lastChangeAt: Date.now(),
+                    lastSnapshotCode: '',
+                    questionObj: q
+                };
+            });
 
-      // Submit All button if multiple questions
-      if (questions.length > 1) {
-        const wrap = document.getElementById('submitAllWrap');
-        wrap.style.display = 'block';
-        wrap.innerHTML = `
+            // Submit All button if multiple questions
+            if (questions.length > 1) {
+                const wrap = document.getElementById('submitAllWrap');
+                wrap.style.display = 'block';
+                wrap.innerHTML = `
           <button type="button" class="cl-btn-submit-all" id="globalSubmitAllBtn">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
             <span>Submit All Questions</span>
           </button>
         `;
-        document.getElementById('globalSubmitAllBtn').addEventListener('click', () => submitAll(questions));
-      }
+                document.getElementById('globalSubmitAllBtn').addEventListener('click', () => submitAll(questions));
+            }
 
-      activeQuestionId = questions[0].id;
+            activeQuestionId = questions[0].id;
 
-      // Init Monaco for all questions
-      require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs' } });
-      require(['vs/editor/editor.main'], function () {
-        questions.forEach(q => initEditor(q));
-        if (document.fonts && document.fonts.ready) {
-          document.fonts.ready.then(() => {
-            try { monaco.editor.remeasureFonts(); } catch(e) {}
-          });
+            // Init Monaco for all questions
+            require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs' } });
+            require(['vs/editor/editor.main'], function () {
+                questions.forEach(q => initEditor(q));
+                if (document.fonts && document.fonts.ready) {
+                    document.fonts.ready.then(() => {
+                        try { monaco.editor.remeasureFonts(); } catch (e) { }
+                    });
+                }
+            });
         }
-      });
-    }
 
-    function switchTab(questionId) {
-      if (activeQuestionId) flushEvents(activeQuestionId);
-      activeQuestionId = questionId;
+        function switchTab(questionId) {
+            if (activeQuestionId) flushEvents(activeQuestionId);
+            activeQuestionId = questionId;
 
-      document.querySelectorAll('.cl-tab-btn').forEach(t => {
-        t.classList.toggle('active', Number(t.dataset.qid) === questionId);
-      });
-      document.querySelectorAll('.question-panel').forEach(p => {
-        p.classList.toggle('active', p.id === `panel-${questionId}`);
-      });
+            document.querySelectorAll('.cl-tab-btn').forEach(t => {
+                t.classList.toggle('active', Number(t.dataset.qid) === questionId);
+            });
+            document.querySelectorAll('.question-panel').forEach(p => {
+                p.classList.toggle('active', p.id === `panel-${questionId}`);
+            });
 
-      const state = questionState[questionId];
-      if (state && state.editor) {
-        setTimeout(() => state.editor.layout(), 60);
-      }
-    }
-
-    function initEditor(q) {
-      const state = questionState[q.id];
-      const monacoLang = q.language === 'cpp' ? 'cpp' : q.language;
-      const initialCode = (q.userSubmission && q.userSubmission.code) ? q.userSubmission.code : '// Write your code here\n';
-
-      state.editor = monaco.editor.create(document.getElementById(`editor-${q.id}`), {
-        value: initialCode,
-        language: monacoLang,
-        theme: 'vs-dark',
-        fontSize: 13.5,
-        lineHeight: 22,
-        letterSpacing: 0.25,
-        fontWeight: "500",
-        fontLigatures: true,
-        minimap: { enabled: false },
-        scrollBeyondLastLine: false,
-        automaticLayout: true,
-        padding: { top: 14, bottom: 14 },
-        fontFamily: "Menlo, Monaco, Consolas, 'SF Mono', 'Courier New', monospace",
-        roundedSelection: true,
-        cursorBlinking: 'smooth',
-        cursorSmoothCaretAnimation: "on",
-        smoothScrolling: true,
-        lineNumbersMinChars: 3
-      });
-
-      // Restore previous terminal output if already submitted
-      if (q.userSubmission) {
-        if (q.userSubmission.stdout || q.userSubmission.stderr) {
-          const outputEl = document.getElementById(`output-${q.id}`);
-          const stdoutEl = document.getElementById(`stdout-${q.id}`);
-          const stderrEl = document.getElementById(`stderr-${q.id}`);
-          outputEl.style.display = 'block';
-          stdoutEl.textContent = q.userSubmission.stdout || '';
-          stderrEl.textContent = q.userSubmission.stderr || '';
-          const pill = document.getElementById(`statusPill-${q.id}`);
-          if (pill) {
-            pill.className = 'cl-output-status-pill success';
-            pill.textContent = 'Submitted Output';
-          }
+            const state = questionState[questionId];
+            if (state && state.editor) {
+                setTimeout(() => state.editor.layout(), 60);
+            }
         }
-        showMsg(q.id, `✓ Saved solution restored (${new Date(q.userSubmission.submittedAt).toLocaleDateString()})`, 'success');
-      }
 
-      // Filename input handling
-      const fileExt = q.language === 'c' ? 'c' : q.language === 'cpp' ? 'cpp' : q.language === 'java' ? 'java' : 'py';
-      const filenameInput = document.getElementById(`filename-${q.id}`);
-      if (filenameInput) {
-        const resizeInput = () => {
-          filenameInput.style.width = Math.max(80, Math.min(220, (filenameInput.value.length + 1) * 8.5)) + 'px';
-        };
-        resizeInput();
-        filenameInput.addEventListener('input', resizeInput);
-        filenameInput.addEventListener('blur', () => {
-          let val = filenameInput.value.trim();
-          if (!val) val = `solution.${fileExt}`;
-          if (!val.includes('.')) val += `.${fileExt}`;
-          filenameInput.value = val;
-          state.filename = val;
-          resizeInput();
-          showMsg(q.id, `File renamed to ${val}`, 'success');
-        });
-        filenameInput.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter') {
-            filenameInput.blur();
-          }
-        });
-      }
+        function initEditor(q) {
+            const state = questionState[q.id];
+            const monacoLang = q.language === 'cpp' ? 'cpp' : q.language;
+            const initialCode = (q.userSubmission && q.userSubmission.code) ? q.userSubmission.code : '// Write your code here\n';
 
-      logEvent(q.id, 'session_start', {});
+            state.editor = monaco.editor.create(document.getElementById(`editor-${q.id}`), {
+                value: initialCode,
+                language: monacoLang,
+                theme: 'vs-dark',
+                fontSize: 13.5,
+                lineHeight: 22,
+                letterSpacing: 0.25,
+                fontWeight: "500",
+                fontLigatures: true,
+                minimap: { enabled: false },
+                scrollBeyondLastLine: false,
+                automaticLayout: true,
+                padding: { top: 14, bottom: 14 },
+                fontFamily: "Menlo, Monaco, Consolas, 'SF Mono', 'Courier New', monospace",
+                roundedSelection: true,
+                cursorBlinking: 'smooth',
+                cursorSmoothCaretAnimation: "on",
+                smoothScrolling: true,
+                lineNumbersMinChars: 3
+            });
 
-      // Anti-cheat: Paste block
-      state.editor.onDidPaste(() => {
-        state.editor.trigger('source', 'undo', null);
-        showMsg(q.id, '⚠ Direct pasting is disabled for this assignment.', 'error');
-        logEvent(q.id, 'paste_attempt', {});
-      });
+            // Restore previous terminal output if already submitted
+            if (q.userSubmission) {
+                if (q.userSubmission.stdout || q.userSubmission.stderr) {
+                    const outputEl = document.getElementById(`output-${q.id}`);
+                    const stdoutEl = document.getElementById(`stdout-${q.id}`);
+                    const stderrEl = document.getElementById(`stderr-${q.id}`);
+                    outputEl.style.display = 'block';
+                    stdoutEl.textContent = q.userSubmission.stdout || '';
+                    stderrEl.textContent = q.userSubmission.stderr || '';
+                    const pill = document.getElementById(`statusPill-${q.id}`);
+                    if (pill) {
+                        pill.className = 'cl-output-status-pill success';
+                        pill.textContent = 'Submitted Output';
+                    }
+                }
+                showMsg(q.id, `✓ Saved solution restored (${fmtTime(q.userSubmission.submittedAt)})`, 'success');
+            }
 
-      // Typing speed / large-change detection
-      state.lastValueLength = state.editor.getValue().length;
-      state.lastChangeAt = Date.now();
-      state.editor.onDidChangeModelContent(() => {
-        const now = Date.now();
-        const newLength = state.editor.getValue().length;
-        const delta = newLength - state.lastValueLength;
-        const elapsedMs = now - state.lastChangeAt;
-        state.lastValueLength = newLength;
-        state.lastChangeAt = now;
+            // Filename input handling
+            const fileExt = q.language === 'c' ? 'c' : q.language === 'cpp' ? 'cpp' : q.language === 'java' ? 'java' : 'py';
+            const filenameInput = document.getElementById(`filename-${q.id}`);
+            if (filenameInput) {
+                const resizeInput = () => {
+                    filenameInput.style.width = Math.max(80, Math.min(220, (filenameInput.value.length + 1) * 8.5)) + 'px';
+                };
+                resizeInput();
+                filenameInput.addEventListener('input', resizeInput);
+                filenameInput.addEventListener('blur', () => {
+                    let val = filenameInput.value.trim();
+                    if (!val) val = `solution.${fileExt}`;
+                    if (!val.includes('.')) val += `.${fileExt}`;
+                    filenameInput.value = val;
+                    state.filename = val;
+                    resizeInput();
+                    showMsg(q.id, `File renamed to ${val}`, 'success');
+                });
+                filenameInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        filenameInput.blur();
+                    }
+                });
+            }
 
-        if (delta >= 15) {
-          const charsPerSec = delta / Math.max(elapsedMs, 1) * 1000;
-          if (charsPerSec > 40) {
-            logEvent(q.id, 'large_change', { delta, elapsedMs, charsPerSec: Math.round(charsPerSec) });
-          }
+            // Check if this is genuinely first-ever open for this student on this question
+            const currentStudentId = window._currentStudentId;
+            if (currentStudentId) {
+                fetch(`/api/code-lab/questions/${q.id}/events/${currentStudentId}`)
+                    .then(r => r.ok ? r.json() : [])
+                    .then(pastEvs => {
+                        if (Array.isArray(pastEvs) && pastEvs.length === 0) {
+                            logEvent(q.id, 'first_open', { questionId: q.id });
+                        }
+                    })
+                    .catch(e => console.warn('Could not check first open:', e))
+                    .finally(() => {
+                        logEvent(q.id, 'session_start', {});
+                    });
+            } else {
+                logEvent(q.id, 'session_start', {});
+            }
+
+            // Anti-cheat: Paste block
+            state.editor.onDidPaste(() => {
+                state.editor.trigger('source', 'undo', null);
+                showMsg(q.id, '⚠ Direct pasting is disabled for this assignment.', 'error');
+                logEvent(q.id, 'paste_attempt', {});
+            });
+
+            // Typing speed / large-change & idle detection
+            state.lastValueLength = state.editor.getValue().length;
+            state.lastChangeAt = Date.now();
+            state.lastKeystrokeAt = Date.now();
+            state.hasLoggedFirstKeystroke = false;
+            state.hasLoggedIdleStretch = false;
+            state.keystrokeGaps = [];
+
+            state.editor.onDidChangeModelContent(() => {
+                const now = Date.now();
+                if (!state.hasLoggedFirstKeystroke) {
+                    state.hasLoggedFirstKeystroke = true;
+                    logEvent(q.id, 'first_keystroke', { questionId: q.id });
+                }
+                if (state.hasLoggedIdleStretch) {
+                    const idleMs = now - state.lastKeystrokeAt;
+                    logEvent(q.id, 'idle_ended', { questionId: q.id, idleMs });
+                    state.hasLoggedIdleStretch = false;
+                }
+
+                // Inter-keystroke gaps for typing rhythm (exclude long pauses > 8s)
+                if (state.lastKeystrokeAt) {
+                    const gap = now - state.lastKeystrokeAt;
+                    if (gap > 0 && gap < 8000) {
+                        state.keystrokeGaps.push(gap);
+                    }
+                }
+                state.lastKeystrokeAt = now;
+
+                const newLength = state.editor.getValue().length;
+                const delta = newLength - state.lastValueLength;
+                const elapsedMs = now - state.lastChangeAt;
+                state.lastValueLength = newLength;
+                state.lastChangeAt = now;
+
+                if (delta >= 15) {
+                    const charsPerSec = delta / Math.max(elapsedMs, 1) * 1000;
+                    if (charsPerSec > 40) {
+                        logEvent(q.id, 'large_change', { delta, elapsedMs, charsPerSec: Math.round(charsPerSec) });
+                    }
+                }
+            });
+
+            // Periodic code snapshots
+            state.lastSnapshotCode = state.editor.getValue();
+            setInterval(() => {
+                const current = state.editor.getValue();
+                if (current !== state.lastSnapshotCode) {
+                    state.lastSnapshotCode = current;
+                    logEvent(q.id, 'code_snapshot', { code: current.slice(0, 6000) });
+                }
+            }, 15000);
+
+            // Heartbeat & Idle-on-tab detection (every 15s)
+            setInterval(() => {
+                logEvent(q.id, 'heartbeat', {});
+
+                const now = Date.now();
+                if (!document.hidden && (now - state.lastKeystrokeAt > 3 * 60 * 1000) && !state.hasLoggedIdleStretch) {
+                    state.hasLoggedIdleStretch = true;
+                    logEvent(q.id, 'idle_on_tab', { questionId: q.id, idleMs: now - state.lastKeystrokeAt });
+                }
+            }, 15000);
+
+            // Typing rhythm aggregation (every ~10s)
+            setInterval(() => {
+                flushTypingRhythm(q.id);
+            }, 10000);
+
+            // Run button
+            document.getElementById(`runBtn-${q.id}`).addEventListener('click', () => runCode(q));
+
+            // Submit button
+            document.getElementById(`submitBtn-${q.id}`).addEventListener('click', () => submitQuestion(q));
         }
-      });
 
-      // Periodic code snapshots
-      state.lastSnapshotCode = state.editor.getValue();
-      setInterval(() => {
-        const current = state.editor.getValue();
-        if (current !== state.lastSnapshotCode) {
-          state.lastSnapshotCode = current;
-          logEvent(q.id, 'code_snapshot', { code: current.slice(0, 6000) });
+        function flushTypingRhythm(qId) {
+            const state = questionState[qId];
+            if (!state || !state.keystrokeGaps || state.keystrokeGaps.length < 5) return;
+
+            const samples = state.keystrokeGaps;
+            state.keystrokeGaps = [];
+
+            const count = samples.length;
+            const sum = samples.reduce((acc, val) => acc + val, 0);
+            const avgGapMs = sum / count;
+            const variance = samples.reduce((acc, val) => acc + Math.pow(val - avgGapMs, 2), 0) / count;
+            const stdDevMs = Math.sqrt(variance);
+
+            logEvent(qId, 'typing_rhythm', {
+                questionId: qId,
+                avgGapMs: Math.round(avgGapMs),
+                stdDevMs: Math.round(stdDevMs),
+                sampleCount: count
+            });
         }
-      }, 15000);
 
-      // Heartbeat
-      setInterval(() => { logEvent(q.id, 'heartbeat', {}); }, 20000);
+        async function runCode(q) {
+            const state = questionState[q.id];
+            if (!state || !state.editor) return;
 
-      // Run button
-      document.getElementById(`runBtn-${q.id}`).addEventListener('click', () => runCode(q));
+            const code = state.editor.getValue();
+            const outputEl = document.getElementById(`output-${q.id}`);
+            const stdoutEl = document.getElementById(`stdout-${q.id}`);
+            const stderrEl = document.getElementById(`stderr-${q.id}`);
+            const runBtn = document.getElementById(`runBtn-${q.id}`);
+            const statusPill = document.getElementById(`statusPill-${q.id}`);
 
-      // Submit button
-      document.getElementById(`submitBtn-${q.id}`).addEventListener('click', () => submitQuestion(q));
-    }
+            outputEl.style.display = 'block';
+            stdoutEl.textContent = 'Compiling and executing…';
+            stderrEl.textContent = '';
+            if (statusPill) {
+                statusPill.className = 'cl-output-status-pill';
+                statusPill.textContent = 'Running…';
+            }
 
-    async function runCode(q) {
-      const state = questionState[q.id];
-      if (!state || !state.editor) return;
-
-      const code = state.editor.getValue();
-      const outputEl = document.getElementById(`output-${q.id}`);
-      const stdoutEl = document.getElementById(`stdout-${q.id}`);
-      const stderrEl = document.getElementById(`stderr-${q.id}`);
-      const runBtn = document.getElementById(`runBtn-${q.id}`);
-      const statusPill = document.getElementById(`statusPill-${q.id}`);
-
-      outputEl.style.display = 'block';
-      stdoutEl.textContent = 'Compiling and executing…';
-      stderrEl.textContent = '';
-      if (statusPill) {
-        statusPill.className = 'cl-output-status-pill';
-        statusPill.textContent = 'Running…';
-      }
-
-      runBtn.disabled = true;
-      const originalBtnHTML = runBtn.innerHTML;
-      runBtn.innerHTML = `
+            runBtn.disabled = true;
+            const originalBtnHTML = runBtn.innerHTML;
+            runBtn.innerHTML = `
         <span class="cl-loading-spinner"></span>
         <span>Running…</span>
       `;
 
-      try {
-        const res = await fetch('/api/code-lab/run', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ language: state.language, code, stdin: '' })
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Execution failed.');
+            try {
+                const res = await fetch('/api/code-lab/run', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ language: state.language, code, stdin: '' })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Execution failed.');
 
-        state.stdout = data.stdout || '';
-        state.stderr = data.stderr || '';
+                state.stdout = data.stdout || '';
+                state.stderr = data.stderr || '';
 
-        stdoutEl.textContent = data.stdout || '';
-        stderrEl.textContent = data.stderr || '';
+                stdoutEl.textContent = data.stdout || '';
+                stderrEl.textContent = data.stderr || '';
 
-        if (!data.stdout && !data.stderr) {
-          stdoutEl.textContent = 'Program finished execution with no output.';
+                if (!data.stdout && !data.stderr) {
+                    stdoutEl.textContent = 'Program finished execution with no output.';
+                }
+
+                if (statusPill) {
+                    if (data.stderr) {
+                        statusPill.className = 'cl-output-status-pill error';
+                        statusPill.textContent = 'Runtime / Error';
+                    } else {
+                        statusPill.className = 'cl-output-status-pill success';
+                        statusPill.textContent = 'Exit Code: 0 (Success)';
+                    }
+                }
+
+                // Log run event with compiler status
+                const isSuccess = !data.stderr && !data.error;
+                const exitStatus = data.status || (data.stderr ? 'error' : 'success');
+                logEvent(q.id, 'run_clicked', { questionId: q.id, success: isSuccess, exitStatus });
+            } catch (err) {
+                state.stdout = '';
+                state.stderr = '';
+                stdoutEl.textContent = '';
+                stderrEl.textContent = err.message;
+                if (statusPill) {
+                    statusPill.className = 'cl-output-status-pill error';
+                    statusPill.textContent = 'Failed';
+                }
+                logEvent(q.id, 'run_clicked', { questionId: q.id, success: false, exitStatus: 'failed', error: err.message });
+            } finally {
+                runBtn.disabled = false;
+                runBtn.innerHTML = originalBtnHTML;
+            }
         }
 
-        if (statusPill) {
-          if (data.stderr) {
-            statusPill.className = 'cl-output-status-pill error';
-            statusPill.textContent = 'Runtime / Error';
-          } else {
-            statusPill.className = 'cl-output-status-pill success';
-            statusPill.textContent = 'Exit Code: 0 (Success)';
-          }
-        }
-      } catch (err) {
-        state.stdout = '';
-        state.stderr = '';
-        stdoutEl.textContent = '';
-        stderrEl.textContent = err.message;
-        if (statusPill) {
-          statusPill.className = 'cl-output-status-pill error';
-          statusPill.textContent = 'Failed';
-        }
-      } finally {
-        runBtn.disabled = false;
-        runBtn.innerHTML = originalBtnHTML;
-      }
-    }
+        async function submitQuestion(q) {
+            const state = questionState[q.id];
+            if (!state || !state.editor) return;
 
-    async function submitQuestion(q) {
-      const state = questionState[q.id];
-      if (!state || !state.editor) return;
-
-      const submitBtn = document.getElementById(`submitBtn-${q.id}`);
-      submitBtn.disabled = true;
-      const originalSubmitHTML = submitBtn.innerHTML;
-      submitBtn.innerHTML = `
+            const submitBtn = document.getElementById(`submitBtn-${q.id}`);
+            submitBtn.disabled = true;
+            const originalSubmitHTML = submitBtn.innerHTML;
+            submitBtn.innerHTML = `
         <span class="cl-loading-spinner"></span>
         <span>Submitting…</span>
       `;
 
-      const code = state.editor.getValue();
-      logEvent(q.id, 'code_snapshot', { code: code.slice(0, 6000) });
-      logEvent(q.id, 'submit_clicked', {});
-      flushEvents(q.id);
+            const code = state.editor.getValue();
+            if (state.hasLoggedIdleStretch) {
+                const idleMs = Date.now() - state.lastKeystrokeAt;
+                logEvent(q.id, 'idle_ended', { questionId: q.id, idleMs });
+                state.hasLoggedIdleStretch = false;
+            }
+            flushTypingRhythm(q.id);
+            logEvent(q.id, 'code_snapshot', { code: code.slice(0, 6000) });
+            logEvent(q.id, 'submit_clicked', {});
+            flushEvents(q.id);
 
-      try {
-        const res = await fetch(`/api/code-lab/questions/${q.id}/submissions`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code, stdout: state.stdout, stderr: state.stderr })
-        });
-        const data = await res.json();
-        if (res.ok) {
-          showMsg(q.id, `✓ Q${q.questionNumber} submitted successfully!`, 'success');
-          q.userSubmission = { code, submittedAt: new Date().toISOString() };
-          
-          // Update tab checkmark
-          const tabBtn = document.getElementById(`tab-btn-${q.id}`);
-          if (tabBtn && !tabBtn.querySelector('.cl-tab-check')) {
-            tabBtn.insertAdjacentHTML('afterbegin', '<span class="cl-tab-check">✓</span>');
-          }
+            try {
+                const res = await fetch(`/api/code-lab/questions/${q.id}/submissions`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code, stdout: state.stdout, stderr: state.stderr })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showMsg(q.id, `✓ Q${q.questionNumber} submitted successfully!`, 'success');
+                    q.userSubmission = { code, submittedAt: new Date().toISOString() };
 
-          // Update progress badge in header
-          const allQuestions = Object.values(questionState).map(s => s.questionObj).filter(Boolean);
-          if (allQuestions.length) updateProgressBadge(allQuestions);
-        } else {
-          showMsg(q.id, data.message || 'Submission failed.', 'error');
+                    // Update tab checkmark
+                    const tabBtn = document.getElementById(`tab-btn-${q.id}`);
+                    if (tabBtn && !tabBtn.querySelector('.cl-tab-check')) {
+                        tabBtn.insertAdjacentHTML('afterbegin', '<span class="cl-tab-check">✓</span>');
+                    }
+
+                    // Update progress badge in header
+                    const allQuestions = Object.values(questionState).map(s => s.questionObj).filter(Boolean);
+                    if (allQuestions.length) updateProgressBadge(allQuestions);
+                } else {
+                    showMsg(q.id, data.message || 'Submission failed.', 'error');
+                }
+            } catch (err) {
+                showMsg(q.id, 'Network error — could not reach server.', 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalSubmitHTML;
+            }
         }
-      } catch (err) {
-        showMsg(q.id, 'Network error — could not reach server.', 'error');
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = originalSubmitHTML;
-      }
-    }
 
-    async function submitAll(questions) {
-      const btn = document.getElementById('globalSubmitAllBtn');
-      if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = `
+        async function submitAll(questions) {
+            const btn = document.getElementById('globalSubmitAllBtn');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = `
           <span class="cl-loading-spinner"></span>
           <span>Submitting all questions…</span>
         `;
-      }
-      for (const q of questions) {
-        await submitQuestion(q);
-      }
-      if (btn) {
-        btn.disabled = false;
-        btn.innerHTML = `
+            }
+            for (const q of questions) {
+                await submitQuestion(q);
+            }
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = `
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
           <span>All Questions Submitted</span>
         `;
-        setTimeout(() => {
-          btn.innerHTML = `
+                setTimeout(() => {
+                    btn.innerHTML = `
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
             <span>Submit All Questions</span>
           `;
-        }, 3500);
-      }
-    }
+                }, 3500);
+            }
+        }
 
-    function showMsg(qId, text, type) {
-      const el = document.getElementById(`msg-${qId}`);
-      if (!el) return;
-      el.textContent = text;
-      el.className = `cl-toast-msg show ${type || 'success'}`;
-      setTimeout(() => {
-        el.className = 'cl-toast-msg';
-        el.textContent = '';
-      }, 4500);
-    }
-  </script>
+        function showMsg(qId, text, type) {
+            const el = document.getElementById(`msg-${qId}`);
+            if (!el) return;
+            el.textContent = text;
+            el.className = `cl-toast-msg show ${type || 'success'}`;
+            setTimeout(() => {
+                el.className = 'cl-toast-msg';
+                el.textContent = '';
+            }, 4500);
+        }
+    </script>
 </body>
 
 </html>

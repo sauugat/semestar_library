@@ -92,6 +92,7 @@ const camelMap = {
   replytext: 'replyText', replysender: 'replySender',
   studentname: 'studentName', submittedat: 'submittedAt',
   assignmentid: 'assignmentId', createdby: 'createdBy', teachername: 'teacherName', eventtype: 'eventType', clienttime: 'clientTime',
+  serverreceivedat: 'serverReceivedAt',
   questionid: 'questionId', questionnumber: 'questionNumber', questioncount: 'questionCount'
 };
 
@@ -99,7 +100,8 @@ function formatRow(row) {
   if (!row) return row;
   const formatted = {};
   for (const [key, value] of Object.entries(row)) {
-    formatted[camelMap[key] || key] = value;
+    const camelKey = camelMap[key] || key;
+    formatted[camelKey] = (value instanceof Date) ? value.toISOString() : value;
   }
   return formatted;
 }
@@ -291,7 +293,7 @@ async function initSchema() {
           CREATE TABLE IF NOT EXISTS follows (
             followerId TEXT NOT NULL REFERENCES students(studentId) ON DELETE CASCADE,
             followingId TEXT NOT NULL REFERENCES students(studentId) ON DELETE CASCADE,
-            createdAt TEXT NOT NULL,
+            createdAt TIMESTAMPTZ NOT NULL,
             PRIMARY KEY (followerId, followingId)
           );
 
@@ -306,7 +308,7 @@ async function initSchema() {
             previewName TEXT,
             uploadedBy TEXT NOT NULL REFERENCES students(studentId) ON DELETE CASCADE,
             sizeBytes BIGINT NOT NULL,
-            uploadedAt TEXT NOT NULL
+            uploadedAt TIMESTAMPTZ NOT NULL
           );
 
           CREATE TABLE IF NOT EXISTS file_likes (
@@ -320,7 +322,7 @@ async function initSchema() {
             fileId INTEGER NOT NULL,
             studentId TEXT NOT NULL,
             commentText TEXT NOT NULL,
-            createdAt TEXT NOT NULL
+            createdAt TIMESTAMPTZ NOT NULL
           );
 
           CREATE TABLE IF NOT EXISTS chat_messages (
@@ -335,7 +337,7 @@ async function initSchema() {
             linkTitle TEXT,
             linkDesc TEXT,
             linkImage TEXT,
-            createdAt TEXT NOT NULL
+            createdAt TIMESTAMPTZ NOT NULL
           );
 
           CREATE TABLE IF NOT EXISTS chat_reactions (
@@ -352,7 +354,7 @@ async function initSchema() {
 
           CREATE TABLE IF NOT EXISTS chat_typing (
             studentId TEXT PRIMARY KEY REFERENCES students(studentId) ON DELETE CASCADE,
-            lastTypedAt TEXT NOT NULL
+            lastTypedAt TIMESTAMPTZ NOT NULL
           );
 
           CREATE TABLE IF NOT EXISTS notifications (
@@ -362,7 +364,7 @@ async function initSchema() {
             relatedFileId INTEGER,
             message TEXT NOT NULL,
             isRead INTEGER DEFAULT 0,
-            createdAt TEXT DEFAULT CURRENT_TIMESTAMP
+            createdAt TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
           );
 
           CREATE TABLE IF NOT EXISTS file_blobs (
@@ -370,7 +372,7 @@ async function initSchema() {
             filename TEXT UNIQUE NOT NULL,
             mimeType TEXT,
             fileData BYTEA NOT NULL,
-            createdAt TEXT NOT NULL
+            createdAt TIMESTAMPTZ NOT NULL
           );
 
           CREATE TABLE IF NOT EXISTS exam_schedule (
@@ -390,8 +392,9 @@ async function initSchema() {
             language TEXT NOT NULL,
             subject TEXT,
             semester TEXT,
+            deadline TIMESTAMPTZ,
             createdBy TEXT NOT NULL REFERENCES students(studentId) ON DELETE CASCADE,
-            createdAt TEXT NOT NULL
+            createdAt TIMESTAMPTZ NOT NULL
           );
 
           CREATE TABLE IF NOT EXISTS assignment_questions (
@@ -401,7 +404,7 @@ async function initSchema() {
             title TEXT NOT NULL,
             description TEXT NOT NULL,
             language TEXT NOT NULL,
-            createdAt TEXT NOT NULL,
+            createdAt TIMESTAMPTZ NOT NULL,
             UNIQUE(assignmentId, questionNumber)
           );
 
@@ -413,7 +416,7 @@ async function initSchema() {
             code TEXT NOT NULL,
             stdout TEXT,
             stderr TEXT,
-            submittedAt TEXT NOT NULL,
+            submittedAt TIMESTAMPTZ NOT NULL,
             UNIQUE(assignmentId, studentId)
           );
           CREATE TABLE IF NOT EXISTS submission_events (
@@ -423,8 +426,9 @@ async function initSchema() {
   studentId TEXT NOT NULL REFERENCES students(studentId) ON DELETE CASCADE,
   eventType TEXT NOT NULL,
   payload TEXT,
-  clientTime TEXT,
-  createdAt TEXT NOT NULL
+  clientTime TIMESTAMPTZ,
+  serverReceivedAt TIMESTAMPTZ,
+  createdAt TIMESTAMPTZ NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (assignmentId, studentId);
 
@@ -562,6 +566,7 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
             language TEXT NOT NULL,
             subject TEXT,
             semester TEXT,
+            deadline TEXT,
             createdBy TEXT NOT NULL,
             createdAt TEXT NOT NULL,
             FOREIGN KEY (createdBy) REFERENCES students(studentId)
@@ -601,6 +606,7 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
   eventType TEXT NOT NULL,
   payload TEXT,
   clientTime TEXT,
+  serverReceivedAt TEXT,
   createdAt TEXT NOT NULL,
   FOREIGN KEY (assignmentId) REFERENCES assignments(id),
   FOREIGN KEY (questionId) REFERENCES assignment_questions(id),
@@ -614,10 +620,12 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
         if (isPostgres) {
           await exec(`ALTER TABLE assignments ADD COLUMN IF NOT EXISTS subject TEXT;`);
           await exec(`ALTER TABLE assignments ADD COLUMN IF NOT EXISTS semester TEXT;`);
+          await exec(`ALTER TABLE assignments ADD COLUMN IF NOT EXISTS deadline TEXT;`);
           await exec(`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS stdout TEXT;`);
           await exec(`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS stderr TEXT;`);
           await exec(`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS questionId INTEGER REFERENCES assignment_questions(id) ON DELETE CASCADE;`);
           await exec(`ALTER TABLE submission_events ADD COLUMN IF NOT EXISTS questionId INTEGER REFERENCES assignment_questions(id) ON DELETE CASCADE;`);
+          await exec(`ALTER TABLE submission_events ADD COLUMN IF NOT EXISTS serverReceivedAt TEXT;`);
 
           try {
             await exec(`ALTER TABLE submissions DROP CONSTRAINT IF EXISTS submissions_unique;`);
@@ -636,10 +644,12 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
           const assignColNames = assignCols.map(c => c.name);
           if (!assignColNames.includes('subject')) await exec(`ALTER TABLE assignments ADD COLUMN subject TEXT;`);
           if (!assignColNames.includes('semester')) await exec(`ALTER TABLE assignments ADD COLUMN semester TEXT;`);
+          if (!assignColNames.includes('deadline')) await exec(`ALTER TABLE assignments ADD COLUMN deadline TEXT;`);
 
           const eventCols = await all(`PRAGMA table_info(submission_events)`);
           const eventColNames = eventCols.map(c => c.name);
           if (!eventColNames.includes('questionId')) await exec(`ALTER TABLE submission_events ADD COLUMN questionId INTEGER REFERENCES assignment_questions(id);`);
+          if (!eventColNames.includes('serverReceivedAt')) await exec(`ALTER TABLE submission_events ADD COLUMN serverReceivedAt TEXT;`);
         }
       } catch (alterErr) {
         console.error('[DB Engine]: Column migration warning:', alterErr.message);

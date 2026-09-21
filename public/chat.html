@@ -247,16 +247,17 @@
     }
 
     .im-loading-spinner {
-      width: 32px;
-      height: 32px;
+      width: 28px;
+      height: 28px;
       border: 2.5px solid rgba(0, 0, 0, 0.08);
-      border-top-color: var(--apple-primary, #111111);
+      border-top-color: #000000;
+      border-right-color: rgba(0, 0, 0, 0.35);
       border-radius: 50%;
-      animation: imSpin 0.75s linear infinite;
-      margin-bottom: 16px;
+      animation: appleSpin 0.75s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+      margin-bottom: 14px;
     }
 
-    @keyframes imSpin {
+    @keyframes appleSpin {
       to { transform: rotate(360deg); }
     }
 

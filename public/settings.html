@@ -25,25 +25,22 @@
 <body class="dash profile-body">
 
   <header class="dash-header">
-    <a href="dashboard.html" class="lib-wordmark">Semester Library</a>
+    <a href="/dashboard.html" class="lib-wordmark">Semester Library</a>
+
+    <nav class="dash-header-nav">
+      <a href="/dashboard.html" class="header-nav-item">Feed</a>
+      <a href="/library.html" class="header-nav-item">Library</a>
+      <a href="/code-lab/subjects.html" class="header-nav-item">Assignments</a>
+      <a href="/routine.html" class="header-nav-item">Routine</a>
+      <a href="/chat.html" class="header-nav-item">Chat</a>
+      <a href="/chatbot.html" class="header-nav-item">Kyana AI</a>
+    </nav>
+
     <div class="dash-header-actions">
-      <a href="profile.html" class="dash-profile-chip" title="My Profile" style="text-decoration: none;">
-        <span class="dash-profile-label">Profile</span>
+      <a href="/profile.html" class="dash-profile-chip" title="View Profile">
+        <div class="dash-profile-avatar" id="headerAvatar">·</div>
+        <span class="dash-profile-label" id="headerProfileName">Profile</span>
       </a>
-      <button class="dash-logout" onclick="location.href='dashboard.html'">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
-          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-          <polyline points="9 22 9 12 15 12 15 22"/>
-        </svg>
-        Feed
-      </button>
-      <button id="logoutBtn" class="dash-logout">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
-          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-          <path d="M16 17l5-5-5-5"/><path d="M21 12H9"/>
-        </svg>
-        Sign Out
-      </button>
     </div>
   </header>
 
@@ -105,7 +102,7 @@
         return;
       }
       
-      btn.textContent = 'Updating...';
+      btn.innerHTML = '<span class="app-spinner spinner-sm spinner-light" style="margin-right:8px; display:inline-block; vertical-align:middle;"></span><span>Updating…</span>';
       btn.style.opacity = '0.7';
       btn.disabled = true;
       
@@ -129,7 +126,7 @@
         errEl.textContent = 'Failed to connect to server.';
         errEl.style.display = 'block';
       } finally {
-        btn.textContent = 'Update Password';
+        btn.innerHTML = 'Update Password';
         btn.style.opacity = '1';
         btn.disabled = false;
       }

@@ -1767,7 +1767,26 @@ app.get('/api/search', requireLogin, async (req, res) => {
   `;
   const students = await db.all(studentsQuery, cleanLikeQuery, cleanLikeQuery);
 
-  res.json({ files: processedFiles, subjects, students });
+  // Search assignments (by title, subject, semester, createdBy, teacher name)
+  let assignments = [];
+  try {
+    const assignmentsQuery = `
+      SELECT a.*, s.name AS teacherName,
+        (SELECT COUNT(*) FROM assignment_questions aq WHERE aq.assignmentId = a.id) AS questionCount,
+        (SELECT COUNT(DISTINCT studentId) FROM submissions sub WHERE sub.assignmentId = a.id) AS submissionCount,
+        ${currentStudentId ? `(SELECT COUNT(DISTINCT COALESCE(sub.questionId, sub.id)) FROM submissions sub WHERE sub.assignmentId = a.id AND sub.studentId = '${currentStudentId}')` : '0'} AS mySubmissionCount
+      FROM assignments a
+      JOIN students s ON s.studentId = a.createdBy
+      WHERE LOWER(a.title) LIKE LOWER(?) OR LOWER(a.subject) LIKE LOWER(?) OR LOWER(a.semester) LIKE LOWER(?) OR LOWER(a.createdBy) LIKE LOWER(?) OR LOWER(s.name) LIKE LOWER(?)
+      ORDER BY a.createdAt DESC
+      LIMIT 15
+    `;
+    assignments = await db.all(assignmentsQuery, likeQuery, likeQuery, likeQuery, cleanLikeQuery, cleanLikeQuery);
+  } catch (err) {
+    console.error('Assignment search error:', err);
+  }
+
+  res.json({ files: processedFiles, subjects, students, assignments });
 });
 
 // ============================================================

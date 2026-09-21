@@ -130,7 +130,10 @@
       <div class="notification-dropdown" id="notificationDropdown" style="display: none;">
         <div class="notif-header">Notifications</div>
         <div class="notif-list" id="notificationList">
-          <div class="notif-empty">Loading...</div>
+          <div class="notif-empty" style="display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 24px 12px; color: var(--text-muted, #86868b); font-size: 13px;">
+            <span class="app-spinner spinner-sm"></span>
+            <span>Loading notifications…</span>
+          </div>
         </div>
       </div>
     `;

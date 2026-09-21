@@ -233,14 +233,20 @@
     <!-- Tab 1: Uploaded Resources Feed -->
     <section id="tabContentUploads" class="profile-tab-content">
       <div id="userFilesList" class="profile-files-feed">
-        <p class="empty-state">Loading shared resources…</p>
+        <div class="app-loading-state">
+          <span class="app-spinner"></span>
+          <span>Loading shared resources…</span>
+        </div>
       </div>
     </section>
 
     <!-- Tab 2: Classmates to Follow -->
     <section id="tabContentClassmates" class="profile-tab-content" style="display:none;">
       <div id="classmatesGrid" class="classmates-grid">
-        <p class="empty-state">Loading classmates…</p>
+        <div class="app-loading-state">
+          <span class="app-spinner"></span>
+          <span>Loading classmates…</span>
+        </div>
       </div>
     </section>
 
@@ -334,7 +340,10 @@
         <button class="modal-close" onclick="closeFollowModal()">&times;</button>
       </div>
       <div id="followModalList" class="follow-users-list">
-        <p class="empty-state">Loading…</p>
+        <div class="app-loading-state" style="padding: 24px;">
+          <span class="app-spinner"></span>
+          <span>Loading…</span>
+        </div>
       </div>
     </div>
   </div>
@@ -624,8 +633,94 @@
       document.getElementById('tabContentClassmates').style.display = tab === 'classmates' ? 'block' : 'none';
     }
 
+    function showAppleConfirmModal({
+      title = 'Delete Item?',
+      message = 'Are you sure you want to delete this item? This action cannot be undone.',
+      confirmText = 'Delete',
+      cancelText = 'Cancel',
+      isDanger = true
+    } = {}) {
+      return new Promise((resolve) => {
+        let overlay = document.getElementById('appleConfirmModalOverlay');
+        if (!overlay) {
+          overlay = document.createElement('div');
+          overlay.id = 'appleConfirmModalOverlay';
+          overlay.className = 'apple-confirm-overlay';
+          overlay.innerHTML = `
+            <div class="apple-confirm-card" onclick="event.stopPropagation()">
+              <div class="apple-confirm-icon-wrap" id="appleConfirmIcon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  <line x1="10" y1="11" x2="10" y2="17"></line>
+                  <line x1="14" y1="11" x2="14" y2="17"></line>
+                </svg>
+              </div>
+              <h3 class="apple-confirm-title" id="appleConfirmTitle"></h3>
+              <p class="apple-confirm-desc" id="appleConfirmDesc"></p>
+              <div class="apple-confirm-actions">
+                <button type="button" class="apple-confirm-btn cancel" id="appleConfirmCancelBtn">Cancel</button>
+                <button type="button" class="apple-confirm-btn danger" id="appleConfirmActionBtn">Delete</button>
+              </div>
+            </div>
+          `;
+          document.body.appendChild(overlay);
+        }
+
+        const titleEl = document.getElementById('appleConfirmTitle');
+        const descEl = document.getElementById('appleConfirmDesc');
+        const cancelBtn = document.getElementById('appleConfirmCancelBtn');
+        const actionBtn = document.getElementById('appleConfirmActionBtn');
+
+        titleEl.textContent = title;
+        descEl.textContent = message;
+        cancelBtn.textContent = cancelText;
+        actionBtn.textContent = confirmText;
+
+        if (isDanger) {
+          actionBtn.className = 'apple-confirm-btn danger';
+        } else {
+          actionBtn.className = 'apple-confirm-btn';
+          actionBtn.style.background = '#1d1d1f';
+          actionBtn.style.color = '#ffffff';
+        }
+
+        function cleanup(result) {
+          overlay.classList.remove('open');
+          overlay.removeEventListener('click', onOverlayClick);
+          cancelBtn.removeEventListener('click', onCancel);
+          actionBtn.removeEventListener('click', onConfirm);
+          document.removeEventListener('keydown', onKeyDown);
+          resolve(result);
+        }
+
+        function onOverlayClick() { cleanup(false); }
+        function onCancel() { cleanup(false); }
+        function onConfirm() { cleanup(true); }
+        function onKeyDown(e) {
+          if (e.key === 'Escape') cleanup(false);
+        }
+
+        overlay.addEventListener('click', onOverlayClick);
+        cancelBtn.addEventListener('click', onCancel);
+        actionBtn.addEventListener('click', onConfirm);
+        document.addEventListener('keydown', onKeyDown);
+
+        requestAnimationFrame(() => {
+          overlay.classList.add('open');
+        });
+      });
+    }
+
     async function deletePost(fileId, btn) {
-      if (!confirm('Are you sure you want to delete this resource? This action cannot be undone.')) return;
+      const confirmed = await showAppleConfirmModal({
+        title: 'Delete Resource?',
+        message: 'Are you sure you want to delete this resource? This action cannot be undone.',
+        confirmText: 'Delete Resource',
+        cancelText: 'Cancel',
+        isDanger: true
+      });
+      if (!confirmed) return;
+
       try {
         const res = await fetch(`/api/files/${fileId}`, { method: 'DELETE' });
         const data = await res.json();
@@ -639,10 +734,10 @@
             setTimeout(() => card.remove(), 300);
           }
         } else {
-          alert(data.message || 'Failed to delete post');
+          showToast(data.message || 'Failed to delete post');
         }
       } catch (err) {
-        alert('Network error while deleting post');
+        showToast('Network error while deleting post');
       }
     }
 

@@ -37,7 +37,7 @@ router.post('/assignments', requireLogin, async (req, res) => {
         return res.status(403).json({ message: 'Only admins can create assignments.' });
     }
 
-    const { title, subject, semester, questions } = req.body;
+    const { title, subject, semester, deadline, questions } = req.body;
     if (!title) {
         return res.status(400).json({ message: 'Assignment title is required.' });
     }
@@ -57,12 +57,13 @@ router.post('/assignments', requireLogin, async (req, res) => {
 
     // Use first question's description/language as fallback for the legacy columns
     const result = await db.run(
-        'INSERT INTO assignments (title, description, language, subject, semester, createdBy, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO assignments (title, description, language, subject, semester, deadline, createdBy, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
         title,
         questions[0].description ? questions[0].description.trim() : '',
         questions[0].language || 'c',
         subject || null,
         semester || null,
+        deadline || null,
         req.session.studentId,
         now
     );
@@ -144,7 +145,15 @@ router.get('/assignments', async (req, res) => {
     }
 
     const assignments = await db.all(sql, ...params);
-    res.json(assignments);
+    let adminUser = false;
+    if (currentStudentId) {
+        adminUser = await isAdmin(currentStudentId);
+    }
+    const enriched = assignments.map(a => ({
+        ...a,
+        canDelete: !!(currentStudentId && (a.createdBy === currentStudentId || adminUser))
+    }));
+    res.json(enriched);
 });
 
 // ── GET /my-assignments — admin's own assignments ──────────────────────────
@@ -162,11 +171,42 @@ router.get('/my-assignments', requireLogin, async (req, res) => {
          ORDER BY a.createdAt DESC`,
         req.session.studentId
     );
-    res.json(assignments);
+    res.json(assignments.map(a => ({ ...a, canDelete: true })));
+});
+
+// ── DELETE /assignments/:id — delete assignment and associated records ────────
+router.delete('/assignments/:id', requireLogin, async (req, res) => {
+    try {
+        const assignmentId = Number(req.params.id);
+        if (!Number.isInteger(assignmentId) || assignmentId <= 0) {
+            return res.status(400).json({ message: 'Invalid assignment ID.' });
+        }
+
+        const assignment = await db.get('SELECT * FROM assignments WHERE id = ?', assignmentId);
+        if (!assignment) {
+            return res.status(404).json({ message: 'Assignment not found.' });
+        }
+
+        const admin = await isAdmin(req.session.studentId);
+        if (assignment.createdBy !== req.session.studentId && !admin) {
+            return res.status(403).json({ message: 'You are not authorized to delete this assignment.' });
+        }
+
+        // Delete associated records in cascade order
+        await db.run('DELETE FROM submission_events WHERE assignmentId = ?', assignmentId);
+        await db.run('DELETE FROM submissions WHERE assignmentId = ?', assignmentId);
+        await db.run('DELETE FROM assignment_questions WHERE assignmentId = ?', assignmentId);
+        await db.run('DELETE FROM assignments WHERE id = ?', assignmentId);
+
+        res.json({ message: 'Assignment deleted successfully.', id: assignmentId });
+    } catch (err) {
+        console.error('[Code Lab] Delete assignment error:', err);
+        res.status(500).json({ message: 'Failed to delete assignment.' });
+    }
 });
 
 // ── GET /assignments/:id — single assignment with nested questions ──────────
-router.get('/assignments/:id', requireLogin, async (req, res) => {
+router.get('/assignments/:id', async (req, res) => {
     const assignmentId = Number(req.params.id);
     if (!Number.isInteger(assignmentId) || assignmentId <= 0) {
         return res.status(400).json({ message: 'Invalid assignment ID.' });
@@ -186,11 +226,17 @@ router.get('/assignments/:id', requireLogin, async (req, res) => {
         assignmentId
     );
 
-    // Fetch student's existing submissions for this assignment so their code is restored in editor
-    const userSubmissions = await db.all(
-        'SELECT * FROM submissions WHERE assignmentId = ? AND studentId = ?',
-        assignmentId, req.session.studentId
-    );
+    // Fetch student's existing submissions if logged in so their code is restored in editor
+    const currentStudentId = req.session && req.session.studentId;
+    let userSubmissions = [];
+    let adminUser = false;
+    if (currentStudentId) {
+        userSubmissions = await db.all(
+            'SELECT * FROM submissions WHERE assignmentId = ? AND studentId = ?',
+            assignmentId, currentStudentId
+        );
+        adminUser = await isAdmin(currentStudentId);
+    }
     const subMap = {};
     (userSubmissions || []).forEach(sub => {
         if (sub.questionId) subMap[sub.questionId] = sub;
@@ -207,7 +253,12 @@ router.get('/assignments/:id', requireLogin, async (req, res) => {
         } : null
     }));
 
-    res.json({ ...assignment, questions: questionsWithSub });
+    res.json({
+        ...assignment,
+        canDelete: !!(currentStudentId && (assignment.createdBy === currentStudentId || adminUser)),
+        currentStudentId: currentStudentId || null,
+        questions: questionsWithSub
+    });
 });
 
 // ── POST /questions/:questionId/submissions — student submits for ONE question
@@ -308,12 +359,8 @@ router.get('/assignments/:id/submissions', requireLogin, async (req, res) => {
     }
 
     const admin = await isAdmin(req.session.studentId);
-    if (!admin) {
-        return res.status(403).json({ message: 'Only admins can view submissions.' });
-    }
-
     const assignment = await db.get(
-        `SELECT a.id, a.title, a.subject, a.semester, a.createdBy, s.name AS teacherName
+        `SELECT a.id, a.title, a.subject, a.semester, a.deadline, a.createdBy, s.name AS teacherName
          FROM assignments a
          LEFT JOIN students s ON s.studentId = a.createdBy
          WHERE a.id = ?`,
@@ -323,8 +370,8 @@ router.get('/assignments/:id/submissions', requireLogin, async (req, res) => {
         return res.status(404).json({ message: 'Assignment not found.' });
     }
 
-    if (assignment.createdBy !== req.session.studentId) {
-        return res.status(403).json({ message: 'You can only view submissions for your own assignments.' });
+    if (!admin && assignment.createdBy !== req.session.studentId) {
+        return res.status(403).json({ message: 'Only admins or the assignment creator can view submissions.' });
     }
 
     // Fetch all submissions with question info, grouped by student
@@ -369,16 +416,133 @@ router.get('/assignments/:id/submissions', requireLogin, async (req, res) => {
             title: assignment.title,
             subject: assignment.subject,
             semester: assignment.semester,
+            deadline: assignment.deadline,
             teacherName: assignment.teacherName
         },
         students: Object.values(grouped)
     });
 });
 
+// ── Code Similarity Helper Functions ─────────────────────────────────────────
+function normalizeCode(code) {
+    if (!code || typeof code !== 'string') return '';
+    // Strip multi-line comments /* ... */ and single-line comments // ... or # ...
+    const stripped = code
+        .replace(/\/\*[\s\S]*?\*\//g, ' ')
+        .replace(/\/\/.*/g, ' ')
+        .replace(/#.*/g, ' ');
+    // Normalize whitespace to single spaces and lowercase
+    return stripped.replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+function computeSimilarity(codeA, codeB) {
+    const cleanA = normalizeCode(codeA);
+    const cleanB = normalizeCode(codeB);
+    if (!cleanA || !cleanB) return 0;
+    if (cleanA === cleanB) return 1.0;
+
+    const tokensA = cleanA.match(/[\w$]+|[^\s\w]/g) || [];
+    const tokensB = cleanB.match(/[\w$]+|[^\s\w]/g) || [];
+    if (!tokensA.length || !tokensB.length) return 0;
+
+    // Use token bigrams for structure-preserving Jaccard similarity
+    if (tokensA.length >= 3 && tokensB.length >= 3) {
+        const setA = new Set();
+        for (let i = 0; i < tokensA.length - 1; i++) {
+            setA.add(tokensA[i] + ' ' + tokensA[i + 1]);
+        }
+        const setB = new Set();
+        for (let i = 0; i < tokensB.length - 1; i++) {
+            setB.add(tokensB[i] + ' ' + tokensB[i + 1]);
+        }
+        let intersection = 0;
+        setA.forEach(item => {
+            if (setB.has(item)) intersection++;
+        });
+        const union = setA.size + setB.size - intersection;
+        return union > 0 ? (intersection / union) : 0;
+    } else {
+        // Fallback to unigram Jaccard for very short snippets
+        const setA = new Set(tokensA);
+        const setB = new Set(tokensB);
+        let intersection = 0;
+        setA.forEach(item => {
+            if (setB.has(item)) intersection++;
+        });
+        const union = setA.size + setB.size - intersection;
+        return union > 0 ? (intersection / union) : 0;
+    }
+}
+
+// ── GET /questions/:questionId/similarity — admin or assignment creator only ─
+router.get('/questions/:questionId/similarity', requireLogin, async (req, res) => {
+    const questionId = Number(req.params.questionId);
+    if (!Number.isInteger(questionId) || questionId <= 0) {
+        return res.status(400).json({ message: 'Invalid question ID.' });
+    }
+
+    const question = await db.get(
+        `SELECT aq.id, aq.assignmentId, aq.questionNumber, aq.title, a.createdBy
+         FROM assignment_questions aq
+         JOIN assignments a ON a.id = aq.assignmentId
+         WHERE aq.id = ?`,
+        questionId
+    );
+    if (!question) {
+        return res.status(404).json({ message: 'Question not found.' });
+    }
+
+    const admin = await isAdmin(req.session.studentId);
+    if (!admin && question.createdBy !== req.session.studentId) {
+        return res.status(403).json({ message: 'Only admins or the assignment creator can view similarity.' });
+    }
+
+    // Threshold can be provided in query (default 0.85 = 85%)
+    const rawThreshold = parseFloat(req.query.threshold);
+    const threshold = (!isNaN(rawThreshold) && rawThreshold > 0 && rawThreshold <= 1) ? rawThreshold : 0.85;
+
+    // Fetch all submissions for this question
+    const submissions = await db.all(
+        `SELECT sub.studentId, sub.code, st.name AS studentName
+         FROM submissions sub
+         JOIN students st ON st.studentId = sub.studentId
+         WHERE sub.questionId = ? AND sub.code IS NOT NULL AND TRIM(sub.code) != ''
+         ORDER BY st.name ASC`,
+        questionId
+    );
+
+    const warnings = [];
+    for (let i = 0; i < submissions.length; i++) {
+        for (let j = i + 1; j < submissions.length; j++) {
+            const subA = submissions[i];
+            const subB = submissions[j];
+            const score = computeSimilarity(subA.code, subB.code);
+            if (score >= threshold) {
+                warnings.push({
+                    questionId: question.id,
+                    questionNumber: question.questionNumber,
+                    questionTitle: question.title,
+                    studentA: subA.studentId,
+                    studentAName: subA.studentName,
+                    studentB: subB.studentId,
+                    studentBName: subB.studentName,
+                    similarity: Math.round(score * 100) / 100,
+                    similarityPercent: Math.round(score * 100),
+                    codeA: subA.code,
+                    codeB: subB.code
+                });
+            }
+        }
+    }
+
+    warnings.sort((a, b) => b.similarity - a.similarity);
+    res.json(warnings);
+});
+
 // ── GET /my-submissions — student's own submissions with question info ──────
 router.get('/my-submissions', requireLogin, async (req, res) => {
     const submissions = await db.all(`
-    SELECT sub.*, a.title AS assignmentTitle, a.subject, a.semester,
+    SELECT sub.*, a.title AS assignmentTitle, a.subject, a.semester, a.deadline,
            aq.title AS questionTitle, aq.questionNumber, aq.language
     FROM submissions sub
     JOIN assignments a ON a.id = sub.assignmentId
@@ -425,9 +589,9 @@ router.post('/events', requireLogin, async (req, res) => {
             const clientTime = ev.clientTime ? String(ev.clientTime).slice(0, 40) : null;
 
             await db.run(
-                `INSERT INTO submission_events (assignmentId, questionId, studentId, eventType, payload, clientTime, createdAt)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-                resolvedAssignmentId, questionId || null, studentId, eventType, payload, clientTime, now
+                `INSERT INTO submission_events (assignmentId, questionId, studentId, eventType, payload, clientTime, serverReceivedAt, createdAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                resolvedAssignmentId, questionId || null, studentId, eventType, payload, clientTime, now, now
             );
         }
 
@@ -441,13 +605,16 @@ router.post('/events', requireLogin, async (req, res) => {
 // ── GET /questions/:questionId/events/:studentId — per-question event log ───
 router.get('/questions/:questionId/events/:studentId', requireLogin, async (req, res) => {
     try {
-        const admin = await isAdmin(req.session.studentId);
-        if (!admin) {
-            return res.status(403).json({ message: 'Only teachers can view event logs.' });
-        }
-
         const questionId = Number(req.params.questionId);
         const studentId = req.params.studentId;
+        const currentStudentId = req.session.studentId;
+
+        const isSelf = String(currentStudentId) === String(studentId);
+        const admin = await isAdmin(currentStudentId);
+
+        if (!isSelf && !admin) {
+            return res.status(403).json({ message: 'Only teachers or the student themselves can view event logs.' });
+        }
 
         const question = await db.get(
             'SELECT aq.*, a.createdBy FROM assignment_questions aq JOIN assignments a ON a.id = aq.assignmentId WHERE aq.id = ?',
@@ -456,7 +623,7 @@ router.get('/questions/:questionId/events/:studentId', requireLogin, async (req,
         if (!question) {
             return res.status(404).json({ message: 'Question not found.' });
         }
-        if (question.createdBy !== req.session.studentId) {
+        if (!isSelf && question.createdBy !== currentStudentId) {
             return res.status(403).json({ message: 'You can only view events for your own assignments.' });
         }
 

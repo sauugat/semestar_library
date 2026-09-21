@@ -2,352 +2,414 @@
 <html lang="en">
 
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Assignments — Semester Library</title>
-  <meta name="description" content="Browse and solve programming assignments in Code Lab.">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Assignments — Semester Library</title>
+    <meta name="description" content="Browse and solve programming assignments in Code Lab.">
 
-  <!-- Apple & PWA Metadata -->
-  <link rel="manifest" href="/manifest.json">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
-  <meta name="theme-color" content="#ffffff">
+    <!-- Apple & PWA Metadata -->
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+    <meta name="theme-color" content="#ffffff">
 
-  <!-- Typography -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap"
-    rel="stylesheet">
-  <link rel="stylesheet" href="/style.v4.css">
-  <link rel="stylesheet" href="/auth-modal.css">
+    <!-- Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/style.v4.css">
+    <link rel="stylesheet" href="/auth-modal.css">
 
-  <style>
-    :root {
-      --apple-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "SF Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
-    }
+    <style>
+        :root {
+            --apple-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "SF Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
+        }
 
-    body {
-      font-family: var(--apple-font);
-      background-color: #f5f5f7;
-      color: #1d1d1f;
-      -webkit-font-smoothing: antialiased;
-      margin: 0;
-      padding: 0;
-    }
+        body {
+            font-family: var(--apple-font);
+            background-color: #f5f5f7;
+            color: #1d1d1f;
+            -webkit-font-smoothing: antialiased;
+            margin: 0;
+            padding: 0;
+        }
 
-    .cl-page-wrap {
-      max-width: 860px;
-      margin: 0 auto;
-      padding: 32px 24px 80px;
-    }
+        .cl-page-wrap {
+            max-width: 860px;
+            margin: 0 auto;
+            padding: 32px 24px 80px;
+        }
 
-    .cl-breadcrumb {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      margin-bottom: 24px;
-      flex-wrap: wrap;
-    }
+        .cl-breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
 
-    .cl-crumb-link {
-      display: inline-flex;
-      align-items: center;
-      padding: 6px 14px;
-      background: #ffffff;
-      border: 1px solid rgba(0, 0, 0, 0.08);
-      border-radius: 980px;
-      font-size: 13px;
-      font-weight: 500;
-      color: #6e6e73;
-      text-decoration: none;
-      transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
-    }
+        .cl-crumb-link {
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 14px;
+            background: #ffffff;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-radius: 980px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #6e6e73;
+            text-decoration: none;
+            transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+        }
 
-    .cl-crumb-link:hover {
-      color: #1d1d1f;
-      border-color: rgba(0, 0, 0, 0.18);
-      transform: translateY(-1px);
-    }
+        .cl-crumb-link:hover {
+            color: #1d1d1f;
+            border-color: rgba(0, 0, 0, 0.18);
+            transform: translateY(-1px);
+        }
 
-    .cl-crumb-current {
-      display: inline-flex;
-      align-items: center;
-      padding: 6px 14px;
-      background: #1d1d1f;
-      color: #ffffff;
-      border-radius: 980px;
-      font-size: 13px;
-      font-weight: 600;
-    }
+        .cl-crumb-current {
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 14px;
+            background: #1d1d1f;
+            color: #ffffff;
+            border-radius: 980px;
+            font-size: 13px;
+            font-weight: 600;
+        }
 
-    .cl-crumb-sep {
-      color: #aeaeb2;
-      font-size: 12px;
-    }
+        .cl-crumb-sep {
+            color: #aeaeb2;
+            font-size: 12px;
+        }
 
-    .cl-header-row {
-      display: flex;
-      align-items: flex-end;
-      justify-content: space-between;
-      gap: 16px;
-      margin-bottom: 28px;
-      flex-wrap: wrap;
-    }
+        .cl-header-row {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 28px;
+            flex-wrap: wrap;
+        }
 
-    .cl-title {
-      font-size: 28px;
-      font-weight: 700;
-      letter-spacing: -0.025em;
-      color: #1d1d1f;
-      margin: 0 0 6px 0;
-      font-family: "Plus Jakarta Sans", var(--apple-font);
-    }
+        .cl-title {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -0.025em;
+            color: #1d1d1f;
+            margin: 0 0 6px 0;
+            font-family: "Plus Jakarta Sans", var(--apple-font);
+        }
 
-    .cl-subtitle {
-      font-size: 14.5px;
-      color: #6e6e73;
-      margin: 0;
-      font-weight: 400;
-    }
+        .cl-subtitle {
+            font-size: 14.5px;
+            color: #6e6e73;
+            margin: 0;
+            font-weight: 400;
+        }
 
-    .cl-cta-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-      padding: 10px 20px;
-      border-radius: 980px;
-      background: #1d1d1f;
-      color: #ffffff;
-      font-size: 13.5px;
-      font-weight: 600;
-      text-decoration: none;
-      transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
-      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
-    }
+        .cl-cta-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 10px 20px;
+            border-radius: 980px;
+            background: #1d1d1f;
+            color: #ffffff;
+            font-size: 13.5px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
+        }
 
-    .cl-cta-btn:hover {
-      background: #000000;
-      transform: translateY(-1px);
-      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.16);
-    }
+        .cl-cta-btn:hover {
+            background: #000000;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.16);
+        }
 
-    /* Assignment Cards List */
-    .cl-list {
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
+        /* Assignment Cards List */
+        .cl-list {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
 
-    .cl-assignment-card {
-      background: #ffffff;
-      border: 1px solid rgba(0, 0, 0, 0.08);
-      border-radius: 18px;
-      padding: 22px 26px;
-      text-decoration: none;
-      color: inherit;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 18px;
-      transition: all 0.22s cubic-bezier(0.25, 1, 0.5, 1);
-      box-shadow: 0 3px 14px rgba(0, 0, 0, 0.03);
-    }
+        .cl-assignment-card {
+            background: #ffffff;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-radius: 18px;
+            padding: 22px 26px;
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 18px;
+            transition: all 0.22s cubic-bezier(0.25, 1, 0.5, 1);
+            box-shadow: 0 3px 14px rgba(0, 0, 0, 0.03);
+        }
 
-    .cl-assignment-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.07);
-      border-color: rgba(0, 113, 227, 0.3);
-    }
+        .cl-assignment-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.07);
+            border-color: rgba(0, 113, 227, 0.3);
+        }
 
-    .cl-card-info {
-      flex: 1;
-    }
+        .cl-card-info {
+            flex: 1;
+        }
 
-    .cl-card-header-line {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 8px;
-      flex-wrap: wrap;
-    }
+        .cl-card-header-line {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
 
-    .cl-card-title {
-      font-size: 17px;
-      font-weight: 600;
-      color: #1d1d1f;
-      margin: 0;
-      letter-spacing: -0.015em;
-    }
+        .cl-card-title {
+            font-size: 17px;
+            font-weight: 600;
+            color: #1d1d1f;
+            margin: 0;
+            letter-spacing: -0.015em;
+        }
 
-    .cl-q-badge {
-      display: inline-flex;
-      align-items: center;
-      padding: 3px 10px;
-      border-radius: 980px;
-      background: rgba(0, 113, 227, 0.08);
-      color: #0071e3;
-      font-size: 11.5px;
-      font-weight: 600;
-      white-space: nowrap;
-    }
+        .cl-q-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 10px;
+            border-radius: 980px;
+            background: rgba(0, 113, 227, 0.08);
+            color: #0071e3;
+            font-size: 11.5px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
 
-    .cl-card-meta {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      color: #86868b;
-      font-size: 13px;
-      flex-wrap: wrap;
-    }
+        .cl-card-meta {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            color: #86868b;
+            font-size: 13px;
+            flex-wrap: wrap;
+        }
 
-    .cl-card-meta span {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-    }
+        .cl-card-meta span {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
 
-    .cl-card-right {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
+        .cl-card-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
 
-    .cl-open-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      padding: 6px 14px;
-      border-radius: 980px;
-      background: #f5f5f7;
-      color: #1d1d1f;
-      font-size: 12.5px;
-      font-weight: 600;
-      transition: all 0.2s ease;
-    }
+        .cl-open-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 6px 14px;
+            border-radius: 980px;
+            background: #f5f5f7;
+            color: #1d1d1f;
+            font-size: 12.5px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
 
-    .cl-assignment-card:hover .cl-open-pill {
-      background: #0071e3;
-      color: #ffffff;
-    }
+        .cl-assignment-card:hover .cl-open-pill {
+            background: #0071e3;
+            color: #ffffff;
+        }
 
-    .cl-empty-state {
-      text-align: center;
-      padding: 60px 20px;
-      background: #ffffff;
-      border: 1px solid rgba(0, 0, 0, 0.08);
-      border-radius: 18px;
-      color: #86868b;
-      font-size: 14.5px;
-    }
-  </style>
+        .cl-overdue-tag {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            border-radius: 980px;
+            background: rgba(239, 68, 68, 0.12);
+            color: #dc2626;
+            font-size: 11px;
+            font-weight: 700;
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            letter-spacing: -0.01em;
+            margin-left: 4px;
+            vertical-align: middle;
+        }
+
+        .cl-empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            background: #ffffff;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-radius: 18px;
+            color: #86868b;
+            font-size: 14.5px;
+        }
+    </style>
 </head>
 
 <body class="dash syllabus-page-body">
 
-  <header class="dash-header">
-    <a href="/" class="lib-wordmark">Semester Library</a>
-    <nav class="dash-header-nav">
-      <a href="/about" class="header-nav-item">About</a>
-      <a href="/code-lab/subjects.html" class="header-nav-item active">Assignments</a>
-      <a href="/routine" class="header-nav-item">Routine</a>
-      <a href="/notices" class="header-nav-item">Notices</a>
-    </nav>
-    <div class="dash-header-actions">
-      <a href="/login.html" class="nav-cta-btn apple-nav-btn">Sign In</a>
-    </div>
-  </header>
+    <header class="dash-header">
+        <a href="/dashboard.html" class="lib-wordmark">Semester Library</a>
 
-  <main class="cl-page-wrap">
-    
-    <nav class="cl-breadcrumb" id="breadcrumb" aria-label="Breadcrumb">
-      <a href="/code-lab/subjects.html" class="cl-crumb-link">Assignments</a>
-      <span class="cl-crumb-sep">/</span>
-      <span class="cl-crumb-current" id="crumbSubject">Subject Assignments</span>
-    </nav>
+        <nav class="dash-header-nav">
+            <a href="/dashboard.html" class="header-nav-item">Feed</a>
+            <a href="/library.html" class="header-nav-item">Library</a>
+            <a href="/code-lab/subjects.html" class="header-nav-item active">Assignments</a>
+            <a href="/routine.html" class="header-nav-item">Routine</a>
+            <a href="/chat.html" class="header-nav-item">Chat</a>
+            <a href="/chatbot.html" class="header-nav-item">Kyana AI</a>
+        </nav>
 
-    <div class="cl-header-row">
-      <div>
-        <h1 class="cl-title" id="pageTitle">Assignments</h1>
-        <p class="cl-subtitle" id="pageSubtitle">Loading assignments…</p>
-      </div>
-      <div>
-        <a href="/code-lab/create.html" class="cl-cta-btn">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-          Create Assignment
-        </a>
-      </div>
-    </div>
+        <div class="dash-header-actions">
+            <a href="/profile.html" class="dash-profile-chip" title="View Profile">
+                <div class="dash-profile-avatar" id="headerAvatar">·</div>
+                <span class="dash-profile-label" id="headerProfileName">Profile</span>
+            </a>
+        </div>
+    </header>
 
-    <!-- Assignment List -->
-    <div class="cl-list" id="list">
-      <div class="cl-empty-state">Loading assignments…</div>
-    </div>
+    <main class="cl-page-wrap">
 
-  </main>
+        <nav class="cl-breadcrumb" id="breadcrumb" aria-label="Breadcrumb">
+            <a href="/code-lab/subjects.html" class="cl-crumb-link">Assignments</a>
+            <span class="cl-crumb-sep">/</span>
+            <span class="cl-crumb-current" id="crumbSubject">Subject Assignments</span>
+        </nav>
 
-  <footer class="app-global-footer">
-    <div class="app-footer-inner">
-      <div class="app-footer-brand">
-        <strong>Semester Library</strong>
-        <span>· Bachelor of Information Technology</span>
-      </div>
-      <div class="app-footer-meta">
-        <span>Gandaki University</span>
-      </div>
-    </div>
-  </footer>
+        <div class="cl-header-row">
+            <div>
+                <h1 class="cl-title" id="pageTitle">Assignments</h1>
+                <p class="cl-subtitle" id="pageSubtitle">Loading assignments…</p>
+            </div>
+            <div>
+                <a href="/code-lab/create.html" class="cl-cta-btn">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    Create Assignment
+                </a>
+            </div>
+        </div>
 
-  <script src="/auth-modal.js"></script>
-  <script>
-    const params = new URLSearchParams(window.location.search);
-    const subject = params.get('subject');
-    const semester = params.get('semester');
+        <!-- Assignment List Skeleton Placeholders -->
+        <div class="cl-list" id="list">
+            <div class="cl-assignment-card" style="pointer-events:none;">
+                <div class="cl-card-info" style="width:100%;">
+                    <div class="skeleton-box" style="height:20px; width:55%; border-radius:6px; margin-bottom:10px;"></div>
+                    <div class="skeleton-box" style="height:14px; width:38%; border-radius:4px;"></div>
+                </div>
+                <div class="cl-card-right">
+                    <div class="skeleton-box" style="height:32px; width:72px; border-radius:980px;"></div>
+                </div>
+            </div>
+            <div class="cl-assignment-card" style="pointer-events:none;">
+                <div class="cl-card-info" style="width:100%;">
+                    <div class="skeleton-box" style="height:20px; width:45%; border-radius:6px; margin-bottom:10px;"></div>
+                    <div class="skeleton-box" style="height:14px; width:32%; border-radius:4px;"></div>
+                </div>
+                <div class="cl-card-right">
+                    <div class="skeleton-box" style="height:32px; width:72px; border-radius:980px;"></div>
+                </div>
+            </div>
+            <div class="cl-assignment-card" style="pointer-events:none;">
+                <div class="cl-card-info" style="width:100%;">
+                    <div class="skeleton-box" style="height:20px; width:65%; border-radius:6px; margin-bottom:10px;"></div>
+                    <div class="skeleton-box" style="height:14px; width:40%; border-radius:4px;"></div>
+                </div>
+                <div class="cl-card-right">
+                    <div class="skeleton-box" style="height:32px; width:72px; border-radius:980px;"></div>
+                </div>
+            </div>
+        </div>
 
-    const titleEl = document.getElementById('pageTitle');
-    const subtitleEl = document.getElementById('pageSubtitle');
-    const crumbSubject = document.getElementById('crumbSubject');
+    </main>
 
-    if (subject) {
-      titleEl.textContent = subject;
-      crumbSubject.textContent = subject;
-      subtitleEl.textContent = semester ? `Semester ${semester} · Gandaki University` : 'All semesters';
-    } else {
-      titleEl.textContent = 'All Assignments';
-      subtitleEl.textContent = 'Showing all laboratory assignments across subjects';
-      crumbSubject.textContent = 'All';
-    }
+    <footer class="app-global-footer">
+        <div class="app-footer-inner">
+            <div class="app-footer-brand">
+                <strong>Semester Library</strong>
+                <span>· Bachelor of Information Technology</span>
+            </div>
+            <div class="app-footer-meta">
+                <span>Gandaki University</span>
+            </div>
+        </div>
+    </footer>
 
-    let url = '/api/code-lab/assignments';
-    const qp = [];
-    if (subject) qp.push('subject=' + encodeURIComponent(subject));
-    if (semester) qp.push('semester=' + encodeURIComponent(semester));
-    if (qp.length) url += '?' + qp.join('&');
+    <script src="/auth-modal.js"></script>
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const subject = params.get('subject');
+        const semester = params.get('semester');
 
-    fetch(url)
-      .then(async res => {
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || 'Failed to load.');
-        return data;
-      })
-      .then(assignments => {
-        const listEl = document.getElementById('list');
-        subtitleEl.textContent = `${assignments.length} assignment${assignments.length !== 1 ? 's' : ''}` +
-          (semester ? ` · Semester ${semester}` : '');
+        const titleEl = document.getElementById('pageTitle');
+        const subtitleEl = document.getElementById('pageSubtitle');
+        const crumbSubject = document.getElementById('crumbSubject');
 
-        if (!assignments.length) {
-          listEl.innerHTML = '<div class="cl-empty-state">No assignments available yet for this subject.</div>';
-          return;
+        if (subject) {
+            titleEl.textContent = subject;
+            crumbSubject.textContent = subject;
+            subtitleEl.textContent = semester ? `Semester ${semester} · Gandaki University` : 'All semesters';
+        } else {
+            titleEl.textContent = 'All Assignments';
+            subtitleEl.textContent = 'Showing all laboratory assignments across subjects';
+            crumbSubject.textContent = 'All';
         }
 
-        listEl.innerHTML = '';
-        assignments.forEach(a => {
-          const qCount = Number(a.questionCount || 0);
-          const card = document.createElement('a');
-          card.className = 'cl-assignment-card';
-          card.href = '/code-lab/assignment.html?id=' + a.id;
-          card.innerHTML = `
+        let url = '/api/code-lab/assignments';
+        const qp = [];
+        if (subject) qp.push('subject=' + encodeURIComponent(subject));
+        if (semester) qp.push('semester=' + encodeURIComponent(semester));
+        if (qp.length) url += '?' + qp.join('&');
+
+        fetch(url)
+            .then(async res => {
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || 'Failed to load.');
+                return data;
+            })
+            .then(assignments => {
+                const listEl = document.getElementById('list');
+                subtitleEl.textContent = `${assignments.length} assignment${assignments.length !== 1 ? 's' : ''}` +
+                    (semester ? ` · Semester ${semester}` : '');
+
+                if (!assignments.length) {
+                    listEl.innerHTML = '<div class="cl-empty-state">No assignments available yet for this subject.</div>';
+                    return;
+                }
+
+                listEl.innerHTML = '';
+                assignments.forEach(a => {
+                    const qCount = Number(a.questionCount || 0);
+                    let deadlineHtml = '';
+                    if (a.deadline) {
+                        const dueDate = new Date(a.deadline);
+                        const isOverdue = dueDate.getTime() < Date.now();
+                        deadlineHtml = `<span>· Due: ${fmtTime(dueDate)}</span>`;
+                        if (isOverdue) {
+                            deadlineHtml += `<span class="cl-overdue-tag">Overdue</span>`;
+                        }
+                    }
+
+                    const card = document.createElement('a');
+                    card.className = 'cl-assignment-card';
+                    card.href = '/code-lab/assignment.html?id=' + a.id;
+                    card.innerHTML = `
             <div class="cl-card-info">
               <div class="cl-card-header-line">
                 <h3 class="cl-card-title">${escapeHtml(a.title)}</h3>
@@ -356,7 +418,8 @@
               <div class="cl-card-meta">
                 <span>By ${escapeHtml(a.teacherName || 'Faculty')}</span>
                 ${a.subject ? `<span>· ${escapeHtml(a.subject)}</span>` : ''}
-                <span>· Created ${new Date(a.createdAt).toLocaleDateString()}</span>
+                <span>· Created ${fmtTime(a.createdAt)}</span>
+                ${deadlineHtml}
               </div>
             </div>
             <div class="cl-card-right">
@@ -366,20 +429,33 @@
               </span>
             </div>
           `;
-          listEl.appendChild(card);
-        });
-      })
-      .catch(err => {
-        document.getElementById('list').innerHTML =
-          `<div class="cl-empty-state">${escapeHtml(err.message)}</div>`;
-      });
+                    listEl.appendChild(card);
+                });
+            })
+            .catch(err => {
+                document.getElementById('list').innerHTML =
+                    `<div class="cl-empty-state">${escapeHtml(err.message)}</div>`;
+            });
 
-    function escapeHtml(text) {
-      const div = document.createElement('div');
-      div.textContent = text || '';
-      return div.innerHTML;
-    }
-  </script>
+        function fmtTime(iso) {
+            if (!iso) return '—';
+            try {
+                return new Date(iso).toLocaleString('en-US', {
+                    timeZone: 'Asia/Kathmandu',
+                    dateStyle: 'medium',
+                    timeStyle: 'short'
+                }) + ' NPT';
+            } catch (e) {
+                return String(iso);
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text || '';
+            return div.innerHTML;
+        }
+    </script>
 </body>
 
 </html>

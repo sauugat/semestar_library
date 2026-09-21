@@ -103,6 +103,182 @@
             line-height: 1.5;
         }
 
+        /* ── Flagged for Review Banner ── */
+        .flagged-banner {
+            background: #fff5f5;
+            border: 1.5px solid #feb2b2;
+            border-radius: 14px;
+            padding: 16px 20px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            page-break-inside: avoid;
+        }
+
+        .flagged-banner-icon {
+            font-size: 22px;
+            line-height: 1;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .flagged-banner-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #c53030;
+            margin-bottom: 4px;
+            letter-spacing: -0.01em;
+        }
+
+        .flagged-banner-text {
+            font-size: 13px;
+            color: #742a2a;
+            line-height: 1.5;
+        }
+
+        .flagged-reasons-list {
+            margin: 6px 0 0 0;
+            padding-left: 20px;
+            font-size: 12.5px;
+            color: #9b2c2c;
+            line-height: 1.55;
+        }
+
+        /* ── Clock Mismatch Warning Banner ── */
+        .clock-warning-banner {
+            background: #fffbeb;
+            border: 1.5px solid #fde68a;
+            border-radius: 14px;
+            padding: 14px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #92400e;
+            font-size: 13.5px;
+            font-weight: 500;
+            line-height: 1.5;
+            page-break-inside: avoid;
+        }
+
+        .clock-warning-icon {
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        /* ── Cover & Grading Scorecard ── */
+        .cover-section {
+            background: #ffffff;
+            border: 1.5px solid rgba(0, 0, 0, 0.1);
+            border-radius: 16px;
+            padding: 24px 28px;
+            margin-bottom: 28px;
+            page-break-inside: avoid;
+        }
+
+        .cover-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 14px 20px;
+            margin-bottom: 20px;
+            padding-bottom: 18px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+        }
+
+        .cover-item {
+            font-size: 13px;
+            color: #1d1d1f;
+        }
+
+        .cover-label {
+            color: #6e6e73;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            font-weight: 700;
+            display: block;
+            margin-bottom: 3px;
+        }
+
+        .cover-val {
+            font-size: 14.5px;
+            font-weight: 700;
+            color: #1d1d1f;
+        }
+
+        .grading-box {
+            background: #fbfbfd;
+            border: 1.5px dashed rgba(0, 0, 0, 0.18);
+            border-radius: 12px;
+            padding: 18px 22px;
+        }
+
+        .grading-title {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #1d1d1f;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .grading-marks-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 10px 18px;
+        }
+
+        .grading-q-row {
+            font-size: 13px;
+            color: #1d1d1f;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+            gap: 12px;
+        }
+
+        .grading-q-line {
+            font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+            font-weight: 600;
+            color: #4b5563;
+            letter-spacing: 0.04em;
+            white-space: nowrap;
+        }
+
+        .grading-footer-row {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 12px;
+            margin-top: 8px;
+            border-top: 1.5px solid rgba(0, 0, 0, 0.14);
+            font-size: 13.5px;
+            flex-wrap: wrap;
+            gap: 14px;
+        }
+
+        /* ── Problem Statement / Description ── */
+        .question-description {
+            font-size: 13.5px;
+            line-height: 1.6;
+            color: #374151;
+            background: #ffffff;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 14px;
+            white-space: pre-wrap;
+        }
+
         .section-title {
             font-size: 13.5px;
             font-weight: 700;
@@ -209,11 +385,37 @@
             font-size: 12px;
         }
 
+        .deadline-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11.5px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 980px;
+            margin-left: 6px;
+            vertical-align: middle;
+        }
+
+        .deadline-badge.on-time {
+            background: rgba(16, 185, 129, 0.12);
+            color: #047857;
+            border: 1px solid rgba(16, 185, 129, 0.28);
+        }
+
+        .deadline-badge.late {
+            background: rgba(239, 68, 68, 0.12);
+            color: #b91c1c;
+            border: 1px solid rgba(239, 68, 68, 0.28);
+        }
+
         @media print {
             body {
                 background: #ffffff;
                 padding: 0;
                 margin: 0;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
             }
 
             #toolbar {
@@ -225,6 +427,11 @@
                 box-shadow: none;
                 padding: 0;
             }
+
+            .deadline-badge {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
         }
     </style>
 </head>
@@ -232,7 +439,10 @@
 <body>
     <div id="toolbar">
         <a href="javascript:history.back()" class="back-link">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
             Back to Submissions
         </a>
         <button id="downloadBtn" disabled>Preparing report…</button>
@@ -250,6 +460,10 @@
         const studentId = params.get('studentId');
 
         const EVENT_LABELS = {
+            run_clicked: 'Ran code',
+            first_keystroke: 'First keystroke',
+            idle_on_tab: 'Idle on tab',
+            idle_ended: 'Resumed typing after idle',
             paste_attempt: 'Paste attempt',
             large_change: 'Large text jump',
             tab_hidden: 'Left tab',
@@ -265,12 +479,93 @@
             return div.innerHTML;
         }
 
+        function fmtTime(iso) {
+            if (!iso) return '—';
+            try {
+                return new Date(iso).toLocaleString('en-US', {
+                    timeZone: 'Asia/Kathmandu',
+                    dateStyle: 'medium',
+                    timeStyle: 'short'
+                }) + ' NPT';
+            } catch (e) {
+                return String(iso);
+            }
+        }
+
         function fmtDuration(ms) {
             if (ms < 0 || !isFinite(ms)) return '—';
             const totalSec = Math.round(ms / 1000);
-            const min = Math.floor(totalSec / 60);
+            const days = Math.floor(totalSec / 86400);
+            const hours = Math.floor((totalSec % 86400) / 3600);
+            const min = Math.floor((totalSec % 3600) / 60);
             const sec = totalSec % 60;
+            if (days > 0) return `${days}d ${hours}h`;
+            if (hours > 0) return `${hours}h ${min}m`;
             return min > 0 ? `${min}m ${sec}s` : `${sec}s`;
+        }
+
+        function fmtCalendarDuration(ms) {
+            if (ms < 0 || !isFinite(ms)) return '—';
+            const totalSec = Math.round(ms / 1000);
+            const days = Math.floor(totalSec / 86400);
+            const hours = Math.floor((totalSec % 86400) / 3600);
+            const min = Math.floor((totalSec % 3600) / 60);
+            if (days > 0) {
+                return `${days} day${days !== 1 ? 's' : ''}, ${hours} hour${hours !== 1 ? 's' : ''}`;
+            }
+            if (hours > 0) {
+                return `${hours} hour${hours !== 1 ? 's' : ''}, ${min} min${min !== 1 ? 's' : ''}`;
+            }
+            return `${min} min${min !== 1 ? 's' : ''}`;
+        }
+
+        function deadlineBadge(deadline, submittedAt) {
+            if (!deadline || !submittedAt) return '';
+            const diffMs = new Date(deadline).getTime() - new Date(submittedAt).getTime();
+            if (diffMs >= 0) {
+                return `<span class="deadline-badge on-time">✅ Submitted ${fmtDuration(diffMs)} before deadline</span>`;
+            } else {
+                return `<span class="deadline-badge late">⚠️ Submitted ${fmtDuration(Math.abs(diffMs))} late</span>`;
+            }
+        }
+
+        function computeIdleMs(events) {
+            const sorted = (events || [])
+                .filter(e => e.clientTime)
+                .map(e => {
+                    let p = {};
+                    try { p = typeof e.payload === 'string' ? JSON.parse(e.payload || '{}') : (e.payload || {}); } catch(err){}
+                    return { ...e, payloadObj: p, ts: new Date(e.clientTime).getTime() };
+                })
+                .sort((a, b) => a.ts - b.ts);
+
+            let totalIdleMs = 0;
+            for (let i = 0; i < sorted.length; i++) {
+                const ev = sorted[i];
+                if (ev.eventType === 'idle_on_tab') {
+                    const initialIdleMs = Number(ev.payloadObj.idleMs) || (3 * 60 * 1000);
+                    let endedEv = null;
+                    let nextActiveEv = null;
+                    for (let j = i + 1; j < sorted.length; j++) {
+                        if (sorted[j].eventType === 'idle_ended') {
+                            endedEv = sorted[j];
+                            break;
+                        }
+                        if (sorted[j].eventType !== 'heartbeat' && sorted[j].eventType !== 'idle_on_tab') {
+                            if (!nextActiveEv) nextActiveEv = sorted[j];
+                        }
+                    }
+                    if (endedEv && endedEv.payloadObj.idleMs) {
+                        totalIdleMs += Number(endedEv.payloadObj.idleMs);
+                    } else if (nextActiveEv) {
+                        const stretch = (nextActiveEv.ts - ev.ts) + initialIdleMs;
+                        totalIdleMs += Math.max(stretch, initialIdleMs);
+                    } else {
+                        totalIdleMs += initialIdleMs;
+                    }
+                }
+            }
+            return totalIdleMs;
         }
 
         function computeSessionStats(events) {
@@ -308,10 +603,13 @@
                 });
             }
 
+            const idleMs = computeIdleMs(events);
+            const activeMs = Math.max(totalSpanMs - hiddenMs - idleMs, 0);
+
             const counts = {};
             (events || []).forEach(e => { counts[e.eventType] = (counts[e.eventType] || 0) + 1; });
 
-            return { sorted, totalSpanMs, hiddenMs, activeMs: Math.max(totalSpanMs - hiddenMs, 0), sessionCount, counts };
+            return { sorted, totalSpanMs, hiddenMs, idleMs, activeMs, sessionCount, counts };
         }
 
         async function loadReport() {
@@ -352,11 +650,158 @@
                 // Compute combined stats from ALL events
                 const combinedStats = computeSessionStats(allEvents);
 
+                // Clock manipulation / drift validation
+                const DRIFT_THRESHOLD_MS = 2 * 60 * 1000;
+                let maxDriftMs = 0;
+                const batches = {};
+                (allEvents || []).forEach(e => {
+                    if (!e.serverReceivedAt) return;
+                    (batches[e.serverReceivedAt] = batches[e.serverReceivedAt] || []).push(e);
+                });
+                Object.entries(batches).forEach(([serverTime, batchEvents]) => {
+                    const serverTs = new Date(serverTime).getTime();
+                    batchEvents.forEach(e => {
+                        if (!e.clientTime) return;
+                        const drift = Math.abs(new Date(e.clientTime).getTime() - serverTs);
+                        if (drift > maxDriftMs) maxDriftMs = drift;
+                    });
+                });
+                const clockMismatchDetected = maxDriftMs > DRIFT_THRESHOLD_MS;
+
+                // Fetch similarity warnings across questions for this assignment
+                let studentSimWarnings = [];
+                try {
+                    const simResults = await Promise.all(
+                        questions.map(q =>
+                            fetch(`/api/code-lab/questions/${q.id}/similarity`)
+                                .then(r => r.ok ? r.json() : [])
+                                .catch(() => [])
+                        )
+                    );
+                    studentSimWarnings = simResults.flat().filter(w =>
+                        String(w.studentA) === String(studentId) || String(w.studentB) === String(studentId)
+                    );
+                } catch (err) {
+                    console.error('Failed to fetch similarity in report:', err);
+                }
+
+                const pasteCount = combinedStats.counts.paste_attempt || 0;
+                const largeChangeCount = combinedStats.counts.large_change || 0;
+                const hasFlags = (pasteCount > 0) || (largeChangeCount > 0) || (studentSimWarnings.length > 0);
+
+                const flagReasons = [];
+                if (pasteCount > 0) {
+                    flagReasons.push(`${pasteCount} direct paste attempt${pasteCount === 1 ? '' : 's'} recorded during session.`);
+                }
+                if (largeChangeCount > 0) {
+                    flagReasons.push(`${largeChangeCount} sudden large text jump${largeChangeCount === 1 ? '' : 's'} detected.`);
+                }
+                if (studentSimWarnings.length > 0) {
+                    studentSimWarnings.forEach(w => {
+                        const otherStudent = String(w.studentA) === String(studentId)
+                            ? (w.studentBName ? `${w.studentBName} (${w.studentB})` : `student ${w.studentB}`)
+                            : (w.studentAName ? `${w.studentAName} (${w.studentA})` : `student ${w.studentA}`);
+                        flagReasons.push(`High code similarity (${w.similarityPercent}%) detected with ${otherStudent} on Q${w.questionNumber}.`);
+                    });
+                }
+
                 // Build student name
                 const studentName = studentData.studentName || studentId;
+                const genDateStr = fmtTime(new Date());
 
-                // ── Render header + combined summary ──────────────────────
-                let html = `
+                // ── Render header, flagged banner, cover & combined summary ──
+                let html = '';
+
+                // 1. Clock Mismatch Warning (if detected)
+                if (clockMismatchDetected) {
+                    const driftMins = Math.round(maxDriftMs / 60000);
+                    html += `
+                        <div class="clock-warning-banner">
+                            <div class="clock-warning-icon">⚠️</div>
+                            <div>
+                                <strong>Clock mismatch detected</strong> — this student's device clock differs from the server by more than 2 minutes${driftMins > 0 ? ` (~${driftMins}m drift)` : ''}. Duration figures below may be unreliable.
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // 2. Flagged for review banner (if any flags present)
+                if (hasFlags) {
+                    html += `
+                        <div class="flagged-banner">
+                            <div class="flagged-banner-icon">🚩</div>
+                            <div style="flex:1;">
+                                <div class="flagged-banner-title">Flagged for Review</div>
+                                <div class="flagged-banner-text">This submission has flagged activity — see details below:</div>
+                                <ul class="flagged-reasons-list">
+                                    ${flagReasons.map(r => `<li>${escapeHtml(r)}</li>`).join('')}
+                                </ul>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // 2. Cover Section & Grading Scorecard
+                html += `
+                    <div class="cover-section">
+                        <div class="cover-grid">
+                            <div class="cover-item">
+                                <span class="cover-label">Student Name</span>
+                                <span class="cover-val">${escapeHtml(studentName)}</span>
+                            </div>
+                            <div class="cover-item">
+                                <span class="cover-label">Student ID</span>
+                                <span class="cover-val">${escapeHtml(String(studentId))}</span>
+                            </div>
+                            <div class="cover-item">
+                                <span class="cover-label">Assignment Title</span>
+                                <span class="cover-val">${escapeHtml(assignment.title)}</span>
+                            </div>
+                            <div class="cover-item">
+                                <span class="cover-label">Subject & Semester</span>
+                                <span class="cover-val">${escapeHtml(assignment.subject || 'Curriculum')}${assignment.semester ? ' · Sem ' + escapeHtml(assignment.semester) : ''}</span>
+                            </div>
+                            <div class="cover-item">
+                                <span class="cover-label">Date Generated</span>
+                                <span class="cover-val">${genDateStr}</span>
+                            </div>
+                            ${assignment.deadline ? `
+                            <div class="cover-item">
+                                <span class="cover-label">Assignment Deadline</span>
+                                <span class="cover-val">${fmtTime(assignment.deadline)}</span>
+                            </div>
+                            ` : ''}
+                            <div class="cover-item">
+                                <span class="cover-label">Total Questions</span>
+                                <span class="cover-val">${questions.length} Question${questions.length !== 1 ? 's' : ''}</span>
+                            </div>
+                        </div>
+
+                        <div class="grading-box">
+                            <div class="grading-title">
+                                <span>Instructor Evaluation & Marks</span>
+                                <span style="font-weight:500; font-size:11px; color:#6e6e73; text-transform:none;">Official grading rubric</span>
+                            </div>
+                            <div class="grading-marks-grid">
+                                ${questions.map(q => `
+                                    <div class="grading-q-row">
+                                        <span><strong>Q${q.questionNumber}:</strong> ${escapeHtml(q.title)}</span>
+                                        <span class="grading-q-line">Marks: ______ / 10</span>
+                                    </div>
+                                `).join('')}
+                                <div class="grading-footer-row">
+                                    <div>
+                                        <span><strong>Total Score:</strong></span>
+                                        <span class="grading-q-line" style="margin-left:8px;">______ / ${questions.length * 10}</span>
+                                    </div>
+                                    <div>
+                                        <span>Instructor Signature: _______________________</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="report-header">
                         <h1>${escapeHtml(studentName)} — ${escapeHtml(assignment.title)}</h1>
                         <div class="meta">
@@ -379,7 +824,19 @@
                         </div>
                         <div class="stat-box">
                             <div class="value">${fmtDuration(combinedStats.activeMs)}</div>
-                            <div class="label">Active time</div>
+                            <div class="label">Actually working</div>
+                        </div>
+                        <div class="stat-box ${combinedStats.idleMs > 0 ? 'warn' : ''}">
+                            <div class="value">${fmtDuration(combinedStats.idleMs)}</div>
+                            <div class="label">Idle on tab</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="value">${fmtDuration(combinedStats.hiddenMs)}</div>
+                            <div class="label">Hidden (tab away)</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="value">${combinedStats.counts.run_clicked || 0}</div>
+                            <div class="label">Code runs</div>
                         </div>
                         <div class="stat-box ${combinedStats.counts.paste_attempt ? 'warn' : ''}">
                             <div class="value">${combinedStats.counts.paste_attempt || 0}</div>
@@ -405,20 +862,154 @@
                     const qEvents = eventsByQuestion[q.id] || [];
                     const qStats = computeSessionStats(qEvents);
 
+                    // 1. Run count vs Submit ratio calculation
+                    const runEvents = qEvents.filter(e => e.eventType === 'run_clicked');
+                    const totalRuns = runEvents.length;
+                    let passedRuns = 0;
+                    let failedRuns = 0;
+                    runEvents.forEach(e => {
+                        let p = {};
+                        try { p = typeof e.payload === 'string' ? JSON.parse(e.payload || '{}') : (e.payload || {}); } catch(err){}
+                        if (p.success === true || p.exitStatus === 'success') {
+                            passedRuns++;
+                        } else {
+                            failedRuns++;
+                        }
+                    });
+
+                    let runStatText = '';
+                    if (totalRuns === 0) {
+                        runStatText = 'Ran 0 times before submitting.';
+                    } else if (totalRuns === 1) {
+                        runStatText = `Ran 1 time (${passedRuns === 1 ? 'passed' : 'failed'}) before submitting.`;
+                    } else {
+                        runStatText = `Ran ${totalRuns} times (${passedRuns} passed, ${failedRuns} failed) before submitting.`;
+                    }
+
+                    // 2. Time-to-first-keystroke calculation
+                    const sessionStartEvent = qEvents.find(e => e.eventType === 'session_start');
+                    const firstKeystrokeEvent = qEvents.find(e => e.eventType === 'first_keystroke');
+
+                    let firstKeystrokeStatText = '';
+                    let tabSwitchBeforeTypingText = '';
+
+                    if (sessionStartEvent && firstKeystrokeEvent) {
+                        const startTs = new Date(sessionStartEvent.clientTime || sessionStartEvent.createdAt).getTime();
+                        const keystrokeTs = new Date(firstKeystrokeEvent.clientTime || firstKeystrokeEvent.createdAt).getTime();
+                        const gapMs = Math.max(keystrokeTs - startTs, 0);
+
+                        firstKeystrokeStatText = `Started typing ${fmtDuration(gapMs)} after opening this question.`;
+
+                        // Check tab_hidden / tab_visible pairs that fall within that gap
+                        const windowEvents = qEvents
+                            .filter(e => {
+                                const ts = new Date(e.clientTime || e.createdAt).getTime();
+                                return ts >= startTs && ts <= keystrokeTs;
+                            })
+                            .sort((a, b) => new Date(a.clientTime || a.createdAt).getTime() - new Date(b.clientTime || b.createdAt).getTime());
+
+                        let tabSwitchesInGap = 0;
+                        let pendingHide = false;
+                        for (const we of windowEvents) {
+                            if (we.eventType === 'tab_hidden') {
+                                pendingHide = true;
+                            } else if (we.eventType === 'tab_visible' && pendingHide) {
+                                tabSwitchesInGap++;
+                                pendingHide = false;
+                            }
+                        }
+
+                        if (tabSwitchesInGap === 1) {
+                            tabSwitchBeforeTypingText = 'Switched tabs once before starting to type.';
+                        } else if (tabSwitchesInGap > 1) {
+                            tabSwitchBeforeTypingText = `Switched tabs ${tabSwitchesInGap} times before starting to type.`;
+                        }
+                    }
+
+                    // Mild flag check: submitted after <= 1 run attempt with minimal active coding time
+                    let showMildFlag = false;
+                    if (sub && totalRuns <= 1) {
+                        if (qStats.activeMs < 2.5 * 60 * 1000) {
+                            showMildFlag = true;
+                        }
+                    }
+
+                    // Item 4: First-open vs final-submit calendar gap
+                    const sortedQEvents = (qStats.sorted && qStats.sorted.length > 0)
+                        ? qStats.sorted
+                        : qEvents.map(e => ({ ...e, ts: new Date(e.clientTime || e.createdAt).getTime() })).sort((a, b) => a.ts - b.ts);
+
+                    const firstOpenEv = sortedQEvents.find(e => e.eventType === 'first_open')
+                        || sortedQEvents.find(e => e.eventType === 'session_start')
+                        || (sortedQEvents.length > 0 ? sortedQEvents[0] : null);
+
+                    let calendarGapHtml = '';
+                    if (firstOpenEv && sub && sub.submittedAt) {
+                        const openTs = firstOpenEv.ts;
+                        const submitTs = new Date(sub.submittedAt).getTime();
+                        const calendarDiffMs = Math.max(submitTs - openTs, 0);
+                        const calendarDurationStr = fmtCalendarDuration(calendarDiffMs);
+                        calendarGapHtml = `
+                            <div style="margin-top:6px; padding:7px 11px; background:rgba(0,0,0,0.03); border:1px solid rgba(0,0,0,0.07); border-radius:6px; font-size:12px; color:#4b5563; line-height:1.5;">
+                                <span style="font-weight:600; color:#111827;">Wall-Clock Timeline:</span>
+                                First opened: <strong style="color:#1f2937;">${fmtTime(openTs)}</strong>
+                                · Final submission: <strong style="color:#1f2937;">${fmtTime(sub.submittedAt)}</strong>
+                                · Calendar time to completion: <strong style="color:#2563eb;">${calendarDurationStr}</strong>
+                                <span style="font-size:11px; color:#6b7280; margin-left:4px;">(wall-clock time, distinct from active working time)</span>
+                            </div>
+                        `;
+                    } else if (firstOpenEv) {
+                        calendarGapHtml = `
+                            <div style="margin-top:6px; padding:7px 11px; background:rgba(0,0,0,0.03); border:1px solid rgba(0,0,0,0.07); border-radius:6px; font-size:12px; color:#4b5563; line-height:1.5;">
+                                <span style="font-weight:600; color:#111827;">Wall-Clock Timeline:</span>
+                                First opened: <strong style="color:#1f2937;">${fmtTime(firstOpenEv.ts)}</strong>
+                                · Final submission: <span style="color:#9ca3af;">Not submitted</span>
+                            </div>
+                        `;
+                    }
+
                     html += `
                         <div class="question-section">
                             <h3>Q${q.questionNumber}: ${escapeHtml(q.title)}</h3>
-                            <div style="font-size:12px;color:#888;margin-bottom:10px;">
-                                Language: ${escapeHtml(q.language.toUpperCase())}
-                                ${sub ? ' · Submitted: ' + new Date(sub.submittedAt).toLocaleString() : ' · Not submitted'}
-                                · Sessions: ${qStats.sessionCount} · Active: ${fmtDuration(qStats.activeMs)}
+                            <div style="font-size:12.5px;color:#6e6e73;margin-bottom:12px;line-height:1.6;">
+                                <span>Language: <strong style="color:#1d1d1f;">${escapeHtml(q.language.toUpperCase())}</strong></span>
+                                ${sub ? ' · Submitted: ' + fmtTime(sub.submittedAt) + (assignment.deadline ? ' ' + deadlineBadge(assignment.deadline, sub.submittedAt) : '') : ' · Not submitted'}
+                                · Sessions: ${qStats.sessionCount} · Actually working: ${fmtDuration(qStats.activeMs)}
+                                · Idle on tab: ${fmtDuration(qStats.idleMs)} · Hidden: ${fmtDuration(qStats.hiddenMs)}
                                 · Pastes: ${qStats.counts.paste_attempt || 0}
+                                ${calendarGapHtml}
+                                <br>
+                                <span style="display:inline-block; margin-top:4px; color:#1d1d1f; font-weight:500;">
+                                    <strong>Run vs Submit Ratio:</strong> ${escapeHtml(runStatText)}
+                                </span>
+                                <br>
+                                <span style="display:inline-block; margin-top:3px; color:#1d1d1f; font-weight:500;">
+                                    <strong>Idle on tab (no typing):</strong> ${fmtDuration(qStats.idleMs)}
+                                </span>
+                                ${firstKeystrokeStatText ? `
+                                    <br>
+                                    <span style="display:inline-block; margin-top:3px; color:#1d1d1f; font-weight:500;">
+                                        <strong>First Keystroke:</strong> ${escapeHtml(firstKeystrokeStatText)}
+                                        ${tabSwitchBeforeTypingText ? `<span style="color:#b45309; font-weight:600; margin-left:6px;">(${escapeHtml(tabSwitchBeforeTypingText)})</span>` : ''}
+                                    </span>
+                                ` : ''}
+                                ${showMildFlag ? `
+                                    <div style="margin-top:6px; display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:600; color:#b45309; background:rgba(245, 158, 11, 0.12); padding:3px 9px; border-radius:6px; border:1px solid rgba(245, 158, 11, 0.25);">
+                                        ⚠️ Submitted after ≤1 run attempt.
+                                    </div>` : ''}
                             </div>
                     `;
 
+                    if (q.description) {
+                        html += `
+                            <div class="section-title" style="margin-top:14px;">Problem Statement</div>
+                            <div class="question-description">${escapeHtml(q.description)}</div>
+                        `;
+                    }
+
                     if (sub) {
                         html += `
-                            <div class="section-title" style="margin-top:8px;">Code</div>
+                            <div class="section-title" style="margin-top:8px;">Submitted Code</div>
                             <pre>${escapeHtml(sub.code)}</pre>
                         `;
                         if (sub.stdout) {
@@ -437,6 +1028,10 @@
                     html += `
                             <div class="section-title">Code Growth</div>
                             <canvas id="growthChart-${q.id}" height="70"></canvas>
+
+                            <div class="section-title" style="margin-top:16px;">Typing Consistency & Rhythm</div>
+                            <div id="rhythmNote-${q.id}"></div>
+                            <canvas id="rhythmChart-${q.id}" height="70"></canvas>
                         </div>
                     `;
                 }
@@ -482,7 +1077,7 @@
                         new Chart(canvas, {
                             type: 'line',
                             data: {
-                                labels: snapshots.map(s => new Date(s.ts).toLocaleTimeString()),
+                                labels: snapshots.map(s => new Date(s.ts).toLocaleTimeString('en-US', { timeZone: 'Asia/Kathmandu', hour: '2-digit', minute: '2-digit', second: '2-digit' })),
                                 datasets: [{
                                     label: 'Code length',
                                     data: snapshots.map(s => s.length),
@@ -504,10 +1099,103 @@
                     }
                 }
 
+                // ── Per-question typing rhythm charts ─────────────────────
+                for (const q of questions) {
+                    const qEvents = eventsByQuestion[q.id] || [];
+                    const rhythmEvents = qEvents
+                        .filter(e => e.eventType === 'typing_rhythm' && e.clientTime)
+                        .map(e => {
+                            let p = {};
+                            try { p = typeof e.payload === 'string' ? JSON.parse(e.payload || '{}') : (e.payload || {}); } catch(err){}
+                            return {
+                                ts: new Date(e.clientTime).getTime(),
+                                avgGapMs: Number(p.avgGapMs) || 0,
+                                stdDevMs: Number(p.stdDevMs) || 0,
+                                sampleCount: Number(p.sampleCount) || 0
+                            };
+                        })
+                        .sort((a, b) => a.ts - b.ts);
+
+                    const canvas = document.getElementById(`rhythmChart-${q.id}`);
+                    const noteEl = document.getElementById(`rhythmNote-${q.id}`);
+
+                    if (rhythmEvents.length && canvas) {
+                        // Detect suspiciously constant rhythm: very low stdDev relative to avgGapMs across 3+ consecutive windows
+                        let uniformStreak = [];
+                        let maxUniformStreak = [];
+
+                        for (let i = 0; i < rhythmEvents.length; i++) {
+                            const item = rhythmEvents[i];
+                            const cv = item.avgGapMs > 0 ? (item.stdDevMs / item.avgGapMs) : 1;
+                            const isSuspiciouslyUniform = (item.sampleCount >= 5) && ((cv < 0.20 && item.stdDevMs < 45) || item.stdDevMs <= 18);
+
+                            if (isSuspiciouslyUniform) {
+                                uniformStreak.push(item);
+                                if (uniformStreak.length > maxUniformStreak.length) {
+                                    maxUniformStreak = [...uniformStreak];
+                                }
+                            } else {
+                                uniformStreak = [];
+                            }
+                        }
+
+                        if (maxUniformStreak.length >= 3 && noteEl) {
+                            const startStr = new Date(maxUniformStreak[0].ts).toLocaleTimeString('en-US', { timeZone: 'Asia/Kathmandu', hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' NPT';
+                            const endStr = new Date(maxUniformStreak[maxUniformStreak.length - 1].ts).toLocaleTimeString('en-US', { timeZone: 'Asia/Kathmandu', hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' NPT';
+                            noteEl.innerHTML = `
+                                <div style="margin-bottom:10px; padding:7px 12px; background:rgba(99, 102, 241, 0.08); border:1px solid rgba(99, 102, 241, 0.22); border-radius:8px; font-size:12px; color:#3730a3; display:inline-flex; align-items:center; gap:6px;">
+                                    <span>ℹ️</span>
+                                    <span>Typing rhythm was unusually consistent during this period (${startStr} – ${endStr}).</span>
+                                </div>
+                            `;
+                        }
+
+                        new Chart(canvas, {
+                            type: 'line',
+                            data: {
+                                labels: rhythmEvents.map(r => new Date(r.ts).toLocaleTimeString('en-US', { timeZone: 'Asia/Kathmandu', hour: '2-digit', minute: '2-digit', second: '2-digit' })),
+                                datasets: [{
+                                    label: 'Avg Keystroke Gap (ms)',
+                                    data: rhythmEvents.map(r => r.avgGapMs),
+                                    borderColor: '#6366f1',
+                                    backgroundColor: 'rgba(99, 102, 241, 0.08)',
+                                    tension: 0.2,
+                                    fill: true,
+                                    pointRadius: 3,
+                                    pointHoverRadius: 5
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                plugins: {
+                                    legend: { display: false },
+                                    tooltip: {
+                                        callbacks: {
+                                            label: (context) => {
+                                                const item = rhythmEvents[context.dataIndex];
+                                                return `Avg gap: ${item.avgGapMs}ms (std dev: ±${item.stdDevMs}ms, ${item.sampleCount} keys)`;
+                                            }
+                                        }
+                                    }
+                                },
+                                scales: {
+                                    y: {
+                                        beginAtZero: true,
+                                        ticks: { callback: v => v + 'ms' }
+                                    },
+                                    x: { ticks: { maxTicksLimit: 6 } }
+                                }
+                            }
+                        });
+                    } else if (canvas) {
+                        canvas.outerHTML = '<p style="color:#888;font-size:12px;">No typing rhythm data recorded (requires continuous typing).</p>';
+                    }
+                }
+
                 // ── Event timeline list ───────────────────────────────────
                 const eventListEl = document.getElementById('eventList');
                 const visibleEvents = combinedStats.sorted.filter(e =>
-                    e.eventType !== 'heartbeat' && e.eventType !== 'session_start' && e.eventType !== 'code_snapshot'
+                    e.eventType !== 'heartbeat' && e.eventType !== 'session_start' && e.eventType !== 'code_snapshot' && e.eventType !== 'typing_rhythm'
                 );
                 if (!visibleEvents.length) {
                     eventListEl.innerHTML = '<p style="color:#888;font-size:13px;">No notable activity events recorded.</p>';
@@ -522,12 +1210,18 @@
                             if (e.eventType === 'large_change' && typeof p.delta === 'number') {
                                 detail = ` — +${p.delta} chars`;
                                 if (p.charsPerSec) detail += ` at ~${p.charsPerSec} chars/sec`;
+                            } else if (e.eventType === 'run_clicked') {
+                                detail = p.success ? ' — Passed (Exit 0)' : ` — ${p.exitStatus || 'Failed'}`;
+                            } else if (e.eventType === 'idle_on_tab') {
+                                detail = ` — no typing for ${fmtDuration(p.idleMs || 180000)}`;
+                            } else if (e.eventType === 'idle_ended') {
+                                detail = ` — idle ended after ${fmtDuration(p.idleMs || 0)}`;
                             }
                         } catch (err) { }
 
                         row.innerHTML = `
                             <span class="type">${(EVENT_LABELS[e.eventType] || e.eventType)}${detail}</span>
-                            <span class="time">${new Date(e.ts).toLocaleTimeString()}</span>
+                            <span class="time">${new Date(e.ts).toLocaleTimeString('en-US', { timeZone: 'Asia/Kathmandu', hour: '2-digit', minute: '2-digit', second: '2-digit' })} NPT</span>
                         `;
                         eventListEl.appendChild(row);
                     });

@@ -136,7 +136,7 @@ window.doModalLogin = async function (e) {
 
   if (loginBtn) {
     loginBtn.disabled = true;
-    loginBtn.innerHTML = '<span>Signing in…</span>';
+    loginBtn.innerHTML = '<span class="app-spinner spinner-sm spinner-light" style="margin-right:8px; display:inline-block; vertical-align:middle;"></span><span>Signing in…</span>';
   }
 
   try {
@@ -166,10 +166,39 @@ window.doModalLogin = async function (e) {
       }
     }
   } catch (err) {
-    if (errorMsg) errorMsg.textContent = 'Connection error. Please check your internet and try again.';
-    if (loginBtn) {
-      loginBtn.disabled = false;
-      loginBtn.innerHTML = '<span>Sign In</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="apple-btn-arrow"><path d="M5 12h14M12 5l7 7-7 7"/></svg>';
-    }
   }
 };
+
+// Automatically sync profile chip across all pages
+function syncHeaderProfile() {
+  const profileChip = document.querySelector('.dash-profile-chip');
+  if (!profileChip) return;
+  fetch('/api/profile')
+    .then(res => res.ok ? res.json() : null)
+    .then(p => {
+      if (p) {
+        const headerAvatar = document.getElementById('headerAvatar');
+        const headerName = document.getElementById('headerProfileName');
+        if (headerName) headerName.textContent = p.name ? p.name.split(' ')[0] : 'Profile';
+        if (headerAvatar) {
+          if (p.avatarUrl) {
+            headerAvatar.innerHTML = `<img src="${p.avatarUrl}" alt="${p.name}">`;
+          } else {
+            headerAvatar.textContent = p.name ? p.name.charAt(0).toUpperCase() : 'S';
+          }
+        }
+      } else {
+        profileChip.outerHTML = `<a href="/login.html" class="nav-cta-btn apple-nav-btn">Sign In</a>`;
+      }
+    })
+    .catch(() => {
+      profileChip.outerHTML = `<a href="/login.html" class="nav-cta-btn apple-nav-btn">Sign In</a>`;
+    });
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', syncHeaderProfile);
+} else {
+  syncHeaderProfile();
+}
+

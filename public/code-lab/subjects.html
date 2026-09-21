@@ -356,6 +356,22 @@
       color: #ffffff;
     }
 
+    /* ── Feed Heading with Controls ── */
+    .cl-feed-heading-controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .cl-feed-heading-right {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
     /* ── Filter Bar for Assignments ── */
     .cl-filter-toolbar {
       display: flex;
@@ -397,8 +413,8 @@
 
     .cl-search-input:focus {
       background: #ffffff;
-      border-color: #0071e3;
-      box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.12);
+      border-color: #000000;
+      box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.08);
     }
 
     /* ── Slide-Down Semester Dropdown ── */
@@ -433,8 +449,8 @@
 
     .cl-dropdown-wrap.open .cl-dropdown-trigger {
       background: #ffffff;
-      border-color: #0071e3;
-      box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.12);
+      border-color: #000000;
+      box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.08);
     }
 
     .cl-dropdown-chevron {
@@ -513,8 +529,8 @@
     }
 
     body.dark-mode .cl-dropdown-wrap.open .cl-dropdown-trigger {
-      border-color: #2997ff;
-      box-shadow: 0 0 0 3px rgba(41, 151, 255, 0.2);
+      border-color: #ffffff;
+      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.15);
     }
 
     body.dark-mode .cl-dropdown-menu {
@@ -680,7 +696,7 @@
     /* ── Dashboard File Box Assignment Card ── */
     .assignment-post-card {
       background: #ffffff;
-      border: 1.5px solid var(--ap-border-post, #6e6e73);
+      border: 1px solid var(--ap-border-post, rgba(0, 0, 0, 0.55));
       border-radius: var(--ap-radius-card, 20px);
       padding: 24px 26px 22px;
       margin-bottom: 20px;
@@ -744,7 +760,7 @@
     }
 
     .assignment-header-badge svg {
-      color: #0071e3;
+      color: #111827;
     }
 
     body.dark-mode .assignment-header-badge {
@@ -769,7 +785,7 @@
     .verified-badge {
       display: inline-flex;
       align-items: center;
-      color: #0071e3;
+      color: #111827;
     }
 
     .post-meta-row {
@@ -815,18 +831,20 @@
     }
 
     .post-pill-tag.subject-tag {
-      background: rgba(0, 113, 227, 0.08);
-      color: #0071e3;
+      background: #f3f4f6;
+      color: #111827;
+      border: 1px solid rgba(0, 0, 0, 0.08);
     }
 
     .post-pill-tag.chapter-tag {
-      background: rgba(0, 0, 0, 0.05);
-      color: #1d1d1f;
+      background: #f3f4f6;
+      color: #374151;
+      border: 1px solid rgba(0, 0, 0, 0.08);
     }
 
     .post-pill-tag.q-count-tag {
-      background: rgba(52, 199, 89, 0.1);
-      color: #1b7a37;
+      background: #111827;
+      color: #ffffff;
     }
 
     .post-caption {
@@ -838,21 +856,22 @@
 
     /* Dashboard File Attachment Card Replica */
     .post-attachment-card {
-      background: #ffffff;
-      border: 1.5px solid rgba(0, 0, 0, 0.25);
+      background: #fafafa;
+      border: 1px solid rgba(0, 0, 0, 0.45);
       border-radius: 12px;
-      padding: 14px 16px;
+      padding: 15px 18px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 14px;
-      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
       transition: box-shadow 0.2s, transform 0.2s, border-color 0.2s;
     }
 
     .post-attachment-card:hover {
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.09);
-      border-color: rgba(0, 0, 0, 0.55);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+      border-color: #000000;
+      transform: translateY(-1px);
     }
 
     .attachment-file-badge {
@@ -880,7 +899,7 @@
     }
 
     .attachment-name {
-      font-size: 14px;
+      font-size: 14.5px;
       font-weight: 700;
       line-height: 1.35;
       color: #111827;
@@ -892,9 +911,52 @@
     }
 
     .attachment-meta {
-      font-size: 12px;
-      color: #6b7280;
-      margin: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 9px;
+      border-radius: 6px;
+      border: 1px solid rgba(0, 0, 0, 0.16);
+      background: #f3f4f6;
+      font-size: 11.5px;
+      color: #1f2937;
+      margin-top: 4px;
+      font-weight: 600;
+      width: fit-content;
+      letter-spacing: -0.01em;
+    }
+
+    .cl-overdue-tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 1px 7px;
+      border-radius: 980px;
+      background: rgba(239, 68, 68, 0.12);
+      color: #dc2626;
+      font-size: 10.5px;
+      font-weight: 700;
+      border: 1px solid rgba(239, 68, 68, 0.25);
+      letter-spacing: -0.01em;
+      margin-left: 4px;
+      vertical-align: middle;
+    }
+
+    body.dark-mode .post-attachment-card {
+      background: #18181b;
+      border-color: rgba(255, 255, 255, 0.28);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    }
+
+    body.dark-mode .post-attachment-card:hover {
+      border-color: #ffffff;
+    }
+
+    body.dark-mode .attachment-name {
+      color: #ffffff;
+    }
+
+    body.dark-mode .attachment-meta {
+      color: #9ca3af;
     }
 
     .attachment-actions {
@@ -954,57 +1016,57 @@
     }
 
     .post-action-btn.status-btn.submitted {
-      background: rgba(52, 199, 89, 0.12);
-      color: #1b7a37;
-      border: 1.5px solid rgba(52, 199, 89, 0.35);
+      background: #111827;
+      color: #ffffff;
+      border: 1.5px solid #111827;
     }
 
     .post-action-btn.status-btn.submitted:hover {
-      background: rgba(52, 199, 89, 0.22);
-      border-color: #34c759;
+      background: #000000;
+      border-color: #000000;
       transform: translateY(-1px);
     }
 
     .post-action-btn.status-btn.not-submitted {
-      background: rgba(255, 149, 0, 0.1);
-      color: #b45309;
-      border: 1.5px solid rgba(255, 149, 0, 0.35);
+      background: rgba(239, 68, 68, 0.08);
+      color: #dc2626;
+      border: 1.5px solid rgba(220, 38, 38, 0.35);
     }
 
     .post-action-btn.status-btn.not-submitted:hover {
-      background: rgba(255, 149, 0, 0.2);
-      border-color: #ff9500;
+      background: rgba(239, 68, 68, 0.16);
+      border-color: #dc2626;
       transform: translateY(-1px);
     }
 
     .post-action-btn.status-btn.partial {
-      background: rgba(0, 113, 227, 0.1);
-      color: #0071e3;
-      border: 1.5px solid rgba(0, 113, 227, 0.35);
+      background: #f3f4f6;
+      color: #111827;
+      border: 1.5px solid rgba(0, 0, 0, 0.35);
     }
 
     .post-action-btn.status-btn.partial:hover {
-      background: rgba(0, 113, 227, 0.2);
-      border-color: #0071e3;
+      background: #e5e7eb;
+      border-color: #000000;
       transform: translateY(-1px);
     }
 
     body.dark-mode .post-action-btn.status-btn.submitted {
-      background: rgba(52, 199, 89, 0.2);
-      color: #30d158;
-      border-color: rgba(52, 199, 89, 0.4);
+      background: #ffffff;
+      color: #111827;
+      border-color: #ffffff;
     }
 
     body.dark-mode .post-action-btn.status-btn.not-submitted {
-      background: rgba(255, 159, 10, 0.2);
-      color: #ff9f0a;
-      border-color: rgba(255, 159, 10, 0.4);
+      background: rgba(239, 68, 68, 0.18);
+      color: #f87171;
+      border-color: rgba(239, 68, 68, 0.45);
     }
 
     body.dark-mode .post-action-btn.status-btn.partial {
-      background: rgba(10, 132, 255, 0.2);
-      color: #0a84ff;
-      border-color: rgba(10, 132, 255, 0.4);
+      background: #2c2c2e;
+      color: #ffffff;
+      border-color: rgba(255, 255, 255, 0.35);
     }
 
     /* ── Subject Grid Section ── */
@@ -1034,7 +1096,7 @@
     .cl-subject-card:hover {
       transform: translateY(-2px);
       box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
-      border-color: rgba(0, 113, 227, 0.3);
+      border-color: #000000;
     }
 
     .cl-sub-top {
@@ -1049,8 +1111,8 @@
       align-items: center;
       padding: 3px 9px;
       border-radius: 6px;
-      background: rgba(0, 113, 227, 0.08);
-      color: #0071e3;
+      background: #111827;
+      color: #ffffff;
       font-size: 11.5px;
       font-weight: 700;
       letter-spacing: 0.02em;
@@ -1062,7 +1124,7 @@
     }
 
     .cl-subject-card:hover .cl-card-arrow {
-      color: #0071e3;
+      color: #000000;
       transform: translateX(3px);
     }
 
@@ -1099,15 +1161,22 @@
 <body class="dash syllabus-page-body">
 
   <header class="dash-header">
-    <a href="/" class="lib-wordmark">Semester Library</a>
+    <a href="/dashboard.html" class="lib-wordmark">Semester Library</a>
+
     <nav class="dash-header-nav">
-      <a href="/about" class="header-nav-item">About</a>
+      <a href="/dashboard.html" class="header-nav-item">Feed</a>
+      <a href="/library.html" class="header-nav-item">Library</a>
       <a href="/code-lab/subjects.html" class="header-nav-item active">Assignments</a>
-      <a href="/routine" class="header-nav-item">Routine</a>
-      <a href="/notices" class="header-nav-item">Notices</a>
+      <a href="/routine.html" class="header-nav-item">Routine</a>
+      <a href="/chat.html" class="header-nav-item">Chat</a>
+      <a href="/chatbot.html" class="header-nav-item">Kyana AI</a>
     </nav>
+
     <div class="dash-header-actions">
-      <a href="/login.html" class="nav-cta-btn apple-nav-btn">Sign In</a>
+      <a href="/profile.html" class="dash-profile-chip" title="View Profile">
+        <div class="dash-profile-avatar" id="headerAvatar">·</div>
+        <span class="dash-profile-label" id="headerProfileName">Profile</span>
+      </a>
     </div>
   </header>
 
@@ -1130,45 +1199,41 @@
     </div>
   </section>
 
+  <div class="feed-heading cl-feed-heading-controls">
+    <h2>Assignments Feed</h2>
+    <div class="cl-feed-heading-right">
+      <!-- Slide-Down Semester Dropdown -->
+      <div class="cl-dropdown-wrap" id="semDropdownWrap">
+        <button type="button" class="cl-dropdown-trigger" id="semDropdownTrigger" aria-haspopup="listbox" aria-expanded="false" title="Filter by semester">
+          <span id="semDropdownLabel">All Semesters</span>
+          <svg class="cl-dropdown-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </button>
+        <div class="cl-dropdown-menu" id="semDropdownMenu" role="listbox">
+          <div class="cl-dropdown-item active" data-sem="">All Semesters</div>
+          <div class="cl-dropdown-item" data-sem="1">Semester 1 (I)</div>
+          <div class="cl-dropdown-item" data-sem="2">Semester 2 (II)</div>
+          <div class="cl-dropdown-item" data-sem="3">Semester 3 (III)</div>
+          <div class="cl-dropdown-item" data-sem="4">Semester 4 (IV)</div>
+          <div class="cl-dropdown-item" data-sem="5">Semester 5 (V)</div>
+          <div class="cl-dropdown-item" data-sem="6">Semester 6 (VI)</div>
+          <div class="cl-dropdown-item" data-sem="7">Semester 7 (VII)</div>
+          <div class="cl-dropdown-item" data-sem="8">Semester 8 (VIII)</div>
+        </div>
+      </div>
+
+      <!-- Status Filter Pills -->
+      <div class="cl-status-pills-row" id="feedStatusPills">
+        <button class="cl-status-pill active" data-status="">All</button>
+        <button class="cl-status-pill" data-status="remaining">Remaining</button>
+        <button class="cl-status-pill" data-status="submitted">Submitted</button>
+      </div>
+    </div>
+  </div>
+
   <main class="cl-page-wrap">
 
     <!-- ── View 1: All Assignments (Dashboard File Box Cards) ── -->
     <section id="viewAssignments">
-      
-      <!-- Filter Toolbar -->
-      <div class="cl-filter-toolbar">
-        <div class="cl-search-row">
-          <div class="cl-search-wrap">
-            <input type="search" id="searchInput" class="cl-search-input" placeholder="Search assignments by title, topic, or instructor…">
-          </div>
-
-          <!-- Slide-Down Semester Dropdown -->
-          <div class="cl-dropdown-wrap" id="semDropdownWrap">
-            <button type="button" class="cl-dropdown-trigger" id="semDropdownTrigger" aria-haspopup="listbox" aria-expanded="false" title="Filter by semester">
-              <span id="semDropdownLabel">All Semesters</span>
-              <svg class="cl-dropdown-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
-            </button>
-            <div class="cl-dropdown-menu" id="semDropdownMenu" role="listbox">
-              <div class="cl-dropdown-item active" data-sem="">All Semesters</div>
-              <div class="cl-dropdown-item" data-sem="1">Semester 1 (I)</div>
-              <div class="cl-dropdown-item" data-sem="2">Semester 2 (II)</div>
-              <div class="cl-dropdown-item" data-sem="3">Semester 3 (III)</div>
-              <div class="cl-dropdown-item" data-sem="4">Semester 4 (IV)</div>
-              <div class="cl-dropdown-item" data-sem="5">Semester 5 (V)</div>
-              <div class="cl-dropdown-item" data-sem="6">Semester 6 (VI)</div>
-              <div class="cl-dropdown-item" data-sem="7">Semester 7 (VII)</div>
-              <div class="cl-dropdown-item" data-sem="8">Semester 8 (VIII)</div>
-            </div>
-          </div>
-
-          <!-- Status Filter Pills -->
-          <div class="cl-status-pills-row" id="feedStatusPills">
-            <button class="cl-status-pill active" data-status="">All</button>
-            <button class="cl-status-pill" data-status="remaining">Remaining</button>
-            <button class="cl-status-pill" data-status="submitted">Submitted</button>
-          </div>
-        </div>
-      </div>
 
       <!-- Subject Filter Pills (Dynamically shows subjects when a specific semester is chosen) -->
       <div class="cl-subject-pills-bar" id="subjectPillsBar" style="display: none;">
@@ -1177,7 +1242,10 @@
 
       <!-- Assignments Feed -->
       <div id="assignmentsFeed">
-        <div class="cl-empty-state">Loading uploaded assignments…</div>
+        <div class="app-loading-state" style="padding: 70px 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;">
+          <div class="app-spinner spinner-lg"></div>
+          <span style="font-size: 14.5px; font-weight: 600; color: #6e6e73; letter-spacing: -0.01em;">Loading uploaded assignments…</span>
+        </div>
       </div>
 
     </section>
@@ -1190,7 +1258,10 @@
 
       <!-- Subjects Grid -->
       <div class="cl-grid" id="subjectGrid">
-        <div class="cl-empty-state">Loading curriculum subjects…</div>
+        <div class="app-loading-state" style="padding: 70px 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;">
+          <div class="app-spinner spinner-lg"></div>
+          <span style="font-size: 14.5px; font-weight: 600; color: #6e6e73; letter-spacing: -0.01em;">Loading curriculum subjects…</span>
+        </div>
       </div>
 
     </section>
@@ -1252,9 +1323,22 @@
         if (diffDays === 0) return 'Today';
         if (diffDays === 1) return 'Yesterday';
         if (diffDays < 7) return `${diffDays} days ago`;
-        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        return d.toLocaleDateString('en-US', { timeZone: 'Asia/Kathmandu', month: 'short', day: 'numeric', year: 'numeric' });
       } catch (e) {
         return 'Recently';
+      }
+    }
+
+    function fmtTime(iso) {
+      if (!iso) return '—';
+      try {
+        return new Date(iso).toLocaleString('en-US', {
+          timeZone: 'Asia/Kathmandu',
+          dateStyle: 'medium',
+          timeStyle: 'short'
+        }) + ' NPT';
+      } catch (e) {
+        return String(iso);
       }
     }
 
@@ -1305,7 +1389,8 @@
 
     function renderAssignmentsFeed() {
       const feedEl = document.getElementById('assignmentsFeed');
-      const query = document.getElementById('searchInput').value.trim().toLowerCase();
+      const searchInputEl = document.getElementById('searchInput');
+      const query = searchInputEl ? searchInputEl.value.trim().toLowerCase() : '';
 
       const filtered = allAssignments.filter(a => {
         // Semester match
@@ -1363,8 +1448,19 @@
         const initialLikeCount = parseInt(localStorage.getItem(likeCountKey) || '0', 10);
 
         // Determine student completion status (Submitted vs Remaining)
+        const isFullySubmitted = (mySubCount > 0 && mySubCount >= qCount && qCount > 0);
+        let deadlineMetaHtml = '';
+        if (a.deadline) {
+          const dueDate = new Date(a.deadline);
+          const isOverdue = dueDate.getTime() < Date.now() && !isFullySubmitted;
+          deadlineMetaHtml = ` &middot; Due: ${fmtTime(dueDate)}`;
+          if (isOverdue) {
+            deadlineMetaHtml += ` <span class="cl-overdue-tag">Overdue</span>`;
+          }
+        }
+
         let statusBadgeHtml = '';
-        if (mySubCount > 0 && mySubCount >= qCount && qCount > 0) {
+        if (isFullySubmitted) {
           statusBadgeHtml = `
             <a href="/code-lab/my-submissions.html" class="post-action-btn status-btn submitted" title="You have submitted this assignment. Click to view submission.">
               <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
@@ -1387,6 +1483,14 @@
           `;
         }
 
+        const deleteBtnHtml = a.canDelete
+          ? `<button class="post-delete-btn" onclick="deleteAssignment(${a.id}, this, event)" title="Delete assignment">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+              </svg>
+            </button>`
+          : '';
+
         const card = document.createElement('article');
         card.className = 'feed-card social-post-card assignment-post-card';
         card.innerHTML = `
@@ -1398,7 +1502,7 @@
               <div class="post-author-row">
                 <span class="post-author-name">${escapeHtml(a.teacherName || 'Faculty Member')}</span>
                 <span class="verified-badge" title="Faculty / Admin">
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="#0071e3"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="#111827"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
                 </span>
               </div>
               <div class="post-meta-row">
@@ -1416,16 +1520,9 @@
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
                 <span>Assignment</span>
               </span>
+              ${deleteBtnHtml}
             </div>
           </header>
-
-          <div class="post-content">
-            <div class="post-tags-row">
-              ${a.subject ? `<span class="post-pill-tag subject-tag">${escapeHtml(a.subject)}</span>` : ''}
-              ${semLabel ? `<span class="post-pill-tag chapter-tag">${escapeHtml(semLabel)}</span>` : ''}
-              <span class="post-pill-tag q-count-tag">${qCount} Problem${qCount !== 1 ? 's' : ''}</span>
-            </div>
-          </div>
 
           <!-- Dashboard File Attachment Card Replica -->
           <div class="post-attachment-card">
@@ -1434,7 +1531,7 @@
             </div>
             <div class="attachment-details">
               <p class="attachment-name" title="${escapeHtml(a.title)}">${escapeHtml(a.title)}</p>
-              <span class="attachment-meta">${qCount} Problem${qCount !== 1 ? 's' : ''} &middot; ${escapeHtml(a.subject || 'Curriculum')} ${a.semester ? `&middot; Sem ${escapeHtml(a.semester)}` : ''}</span>
+              <span class="attachment-meta">${qCount > 0 ? `${qCount} Problem${qCount !== 1 ? 's' : ''} &middot; ` : ''}${escapeHtml(a.subject || 'Curriculum')}${a.semester ? ` &middot; Sem ${escapeHtml(a.semester)}` : ''}${deadlineMetaHtml}</span>
             </div>
             <div class="attachment-actions">
               <a href="/code-lab/assignment.html?id=${a.id}" class="attach-action-btn attach-btn-download" title="Open and solve assignment">
@@ -1472,6 +1569,127 @@
         `;
         feedEl.appendChild(card);
       });
+    }
+
+    function showAppleConfirmModal({
+      title = 'Delete Assignment?',
+      message = 'Are you sure you want to delete this assignment post? All associated questions, student submissions, and execution logs will be permanently deleted.',
+      confirmText = 'Delete Post',
+      cancelText = 'Cancel',
+      isDanger = true
+    } = {}) {
+      return new Promise((resolve) => {
+        let overlay = document.getElementById('appleConfirmModalOverlay');
+        if (!overlay) {
+          overlay = document.createElement('div');
+          overlay.id = 'appleConfirmModalOverlay';
+          overlay.className = 'apple-confirm-overlay';
+          overlay.innerHTML = `
+            <div class="apple-confirm-card" onclick="event.stopPropagation()">
+              <div class="apple-confirm-icon-wrap" id="appleConfirmIcon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  <line x1="10" y1="11" x2="10" y2="17"></line>
+                  <line x1="14" y1="11" x2="14" y2="17"></line>
+                </svg>
+              </div>
+              <h3 class="apple-confirm-title" id="appleConfirmTitle"></h3>
+              <p class="apple-confirm-desc" id="appleConfirmDesc"></p>
+              <div class="apple-confirm-actions">
+                <button type="button" class="apple-confirm-btn cancel" id="appleConfirmCancelBtn">Cancel</button>
+                <button type="button" class="apple-confirm-btn danger" id="appleConfirmActionBtn">Delete</button>
+              </div>
+            </div>
+          `;
+          document.body.appendChild(overlay);
+        }
+
+        const titleEl = document.getElementById('appleConfirmTitle');
+        const descEl = document.getElementById('appleConfirmDesc');
+        const cancelBtn = document.getElementById('appleConfirmCancelBtn');
+        const actionBtn = document.getElementById('appleConfirmActionBtn');
+
+        titleEl.textContent = title;
+        descEl.textContent = message;
+        cancelBtn.textContent = cancelText;
+        actionBtn.textContent = confirmText;
+
+        if (isDanger) {
+          actionBtn.className = 'apple-confirm-btn danger';
+        } else {
+          actionBtn.className = 'apple-confirm-btn';
+          actionBtn.style.background = '#1d1d1f';
+          actionBtn.style.color = '#ffffff';
+        }
+
+        function cleanup(result) {
+          overlay.classList.remove('open');
+          overlay.removeEventListener('click', onOverlayClick);
+          cancelBtn.removeEventListener('click', onCancel);
+          actionBtn.removeEventListener('click', onConfirm);
+          document.removeEventListener('keydown', onKeyDown);
+          resolve(result);
+        }
+
+        function onOverlayClick() { cleanup(false); }
+        function onCancel() { cleanup(false); }
+        function onConfirm() { cleanup(true); }
+        function onKeyDown(e) {
+          if (e.key === 'Escape') cleanup(false);
+        }
+
+        overlay.addEventListener('click', onOverlayClick);
+        cancelBtn.addEventListener('click', onCancel);
+        actionBtn.addEventListener('click', onConfirm);
+        document.addEventListener('keydown', onKeyDown);
+
+        requestAnimationFrame(() => {
+          overlay.classList.add('open');
+        });
+      });
+    }
+
+    async function deleteAssignment(id, btn, event) {
+      if (event) event.stopPropagation();
+      const confirmed = await showAppleConfirmModal({
+        title: 'Delete Assignment?',
+        message: 'Are you sure you want to delete this assignment post? All associated questions, student submissions, and logs will be permanently deleted.',
+        confirmText: 'Delete Post',
+        cancelText: 'Cancel',
+        isDanger: true
+      });
+      if (!confirmed) return;
+
+      try {
+        const res = await fetch(`/api/code-lab/assignments/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (res.ok) {
+          showToast('Assignment deleted successfully');
+          const card = btn.closest('.feed-card');
+          if (card) {
+            card.style.transition = 'all 0.3s cubic-bezier(0.25, 1, 0.5, 1)';
+            card.style.opacity = '0';
+            card.style.transform = 'scale(0.96)';
+            setTimeout(() => {
+              card.remove();
+              allAssignments = allAssignments.filter(x => x.id !== id);
+              const counterEl = document.getElementById('assignCounter');
+              if (counterEl) counterEl.textContent = allAssignments.length;
+              const heroCountEl = document.getElementById('heroAssignCount');
+              if (heroCountEl) {
+                heroCountEl.textContent = `${allAssignments.length} Assignment${allAssignments.length !== 1 ? 's' : ''}`;
+              }
+              if (allAssignments.length === 0) {
+                renderAssignmentsFeed();
+              }
+            }, 300);
+          }
+        } else {
+          showToast(data.message || 'Failed to delete assignment');
+        }
+      } catch (err) {
+        showToast('Network error while deleting assignment');
+      }
     }
 
     function toggleAssignmentLike(id, btn) {
@@ -1631,7 +1849,8 @@
       setSemesterFilter('');
       currentSubjectFilter = '';
       currentStatusFilter = '';
-      document.getElementById('searchInput').value = '';
+      const searchInputEl = document.getElementById('searchInput');
+      if (searchInputEl) searchInputEl.value = '';
       document.querySelectorAll('#feedStatusPills .cl-status-pill').forEach(p => p.classList.remove('active'));
       const defaultStatusPill = document.querySelector('#feedStatusPills [data-status=""]');
       if (defaultStatusPill) defaultStatusPill.classList.add('active');
@@ -1640,7 +1859,8 @@
     }
 
     // ── Filter Controls ──
-    document.getElementById('searchInput').addEventListener('input', renderAssignmentsFeed);
+    const searchInputEl = document.getElementById('searchInput');
+    if (searchInputEl) searchInputEl.addEventListener('input', renderAssignmentsFeed);
 
     // Slide-down Semester Dropdown Handlers
     const semDropdownWrap = document.getElementById('semDropdownWrap');
@@ -1767,7 +1987,7 @@
               <span>Sem ${semester}</span>
             </div>
           </div>
-          <div style="margin-top: 14px; font-size: 12.5px; font-weight: 600; color: #0071e3; display: flex; align-items: center; gap: 4px;">
+          <div style="margin-top: 14px; font-size: 12.5px; font-weight: 600; color: #111827; display: flex; align-items: center; gap: 4px;">
             <span>View Assignments</span>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
           </div>

@@ -996,7 +996,11 @@
     }
 
     [data-theme="dark"] .btn-file-get,
-    body.dark-mode .btn-file-get {
+    body.dark-mode .btn-file-get,
+    [data-theme="dark"] a.btn-file-get,
+    body.dark-mode a.btn-file-get,
+    [data-theme="dark"] .btn-file-action.btn-file-get,
+    body.dark-mode .btn-file-action.btn-file-get {
       background: var(--fill-active, #f5f5f5) !important;
       color: var(--fill-active-text, #0a0a0a) !important;
       border: 1px solid var(--fill-active, #f5f5f5) !important;
@@ -1004,20 +1008,32 @@
     }
 
     [data-theme="dark"] .btn-file-get *,
-    body.dark-mode .btn-file-get * {
+    body.dark-mode .btn-file-get *,
+    [data-theme="dark"] a.btn-file-get *,
+    body.dark-mode a.btn-file-get *,
+    [data-theme="dark"] .btn-file-action.btn-file-get *,
+    body.dark-mode .btn-file-action.btn-file-get * {
       color: var(--fill-active-text, #0a0a0a) !important;
       stroke: var(--fill-active-text, #0a0a0a) !important;
     }
 
     [data-theme="dark"] .btn-file-get:hover,
-    body.dark-mode .btn-file-get:hover {
+    body.dark-mode .btn-file-get:hover,
+    [data-theme="dark"] a.btn-file-get:hover,
+    body.dark-mode a.btn-file-get:hover,
+    [data-theme="dark"] .btn-file-action.btn-file-get:hover,
+    body.dark-mode .btn-file-action.btn-file-get:hover {
       background: #ffffff !important;
       color: #000000 !important;
       border-color: #ffffff !important;
     }
 
     [data-theme="dark"] .btn-file-get:hover *,
-    body.dark-mode .btn-file-get:hover * {
+    body.dark-mode .btn-file-get:hover *,
+    [data-theme="dark"] a.btn-file-get:hover *,
+    body.dark-mode a.btn-file-get:hover *,
+    [data-theme="dark"] .btn-file-action.btn-file-get:hover *,
+    body.dark-mode .btn-file-action.btn-file-get:hover * {
       color: #000000 !important;
       stroke: #000000 !important;
     }
@@ -1916,6 +1932,184 @@
       background: #dcfce7;
       color: #15803d;
       border: 1px solid #bbf7d0;
+    }
+
+    /* Upload Study Materials Modal (Dark Mode Overhaul) */
+    [data-theme="dark"] #uploadModalOverlay,
+    body.dark-mode #uploadModalOverlay {
+      background: rgba(0, 0, 0, 0.45) !important;
+      backdrop-filter: blur(6px) !important;
+      -webkit-backdrop-filter: blur(6px) !important;
+    }
+
+    [data-theme="dark"] #uploadModalOverlay .modal-card,
+    body.dark-mode #uploadModalOverlay .modal-card {
+      background: var(--bg-surface, #161616) !important;
+      border: 1px solid var(--border-strong, #4a4a4a) !important;
+      box-shadow: 0 20px 48px rgba(0, 0, 0, 0.6) !important;
+      color: var(--text-primary, #f5f5f5) !important;
+    }
+
+    [data-theme="dark"] #uploadModalOverlay .modal-header,
+    body.dark-mode #uploadModalOverlay .modal-header {
+      background: var(--bg-surface, #161616) !important;
+      border-bottom: 1px solid var(--border, #333333) !important;
+    }
+
+    [data-theme="dark"] #uploadModalOverlay .modal-title,
+    body.dark-mode #uploadModalOverlay .modal-title {
+      color: var(--text-primary, #f5f5f5) !important;
+    }
+
+    [data-theme="dark"] #uploadModalOverlay .modal-subtitle,
+    body.dark-mode #uploadModalOverlay .modal-subtitle {
+      color: var(--text-secondary, #a3a3a3) !important;
+    }
+
+    [data-theme="dark"] #uploadModalOverlay .modal-header-icon,
+    body.dark-mode #uploadModalOverlay .modal-header-icon {
+      background: var(--bg-surface-raised, #202020) !important;
+      border: 1px solid var(--border, #333333) !important;
+      color: var(--text-primary, #f5f5f5) !important;
+    }
+
+    [data-theme="dark"] #uploadModalOverlay .modal-close-btn,
+    body.dark-mode #uploadModalOverlay .modal-close-btn {
+      background: var(--bg-surface-raised, #202020) !important;
+      border: 1px solid var(--border, #333333) !important;
+      color: var(--text-primary, #f5f5f5) !important;
+    }
+
+    [data-theme="dark"] #uploadModalOverlay .modal-close-btn:hover,
+    body.dark-mode #uploadModalOverlay .modal-close-btn:hover {
+      background: #2a2a2a !important;
+      color: #ffffff !important;
+    }
+
+    [data-theme="dark"] #uploadModalOverlay .clean-dropzone,
+    body.dark-mode #uploadModalOverlay .clean-dropzone {
+      background: var(--bg-surface-raised, #202020) !important;
+      border: 2px dashed var(--border-strong, #4a4a4a) !important;
+    }
+
+    [data-theme="dark"] #uploadModalOverlay .clean-dropzone:hover,
+    body.dark-mode #uploadModalOverlay .clean-dropzone:hover,
+    [data-theme="dark"] #uploadModalOverlay .clean-dropzone.dragover,
+    body.dark-mode #uploadModalOverlay .clean-dropzone.dragover {
+      border-color: var(--text-primary, #f5f5f5) !important;
+      background: #262626 !important;
+    }
+
+    [data-theme="dark"] #uploadModalOverlay .dropzone-icon-circle,
+    body.dark-mode #uploadModalOverlay .dropzone-icon-circle {
+      background: var(--fill-active, #f5f5f5) !important;
+      color: var(--fill-active-text, #0a0a0a) !important;
+    }
+
+    [data-theme="dark"] #uploadModalOverlay .dropzone-icon-circle svg,
+    body.dark-mode #uploadModalOverlay .dropzone-icon-circle svg {
+      color: #0a0a0a !important;
+      stroke: #0a0a0a !important;
+    }
+
+    [data-theme="dark"] #uploadModalOverlay .dropzone-label,
+    body.dark-mode #uploadModalOverlay .dropzone-label {
+      color: var(--text-primary, #f5f5f5) !important;
+    }
+
+    [data-theme="dark"] #uploadModalOverlay .dropzone-hint,
+    body.dark-mode #uploadModalOverlay .dropzone-hint {
+      color: var(--text-secondary, #a3a3a3) !important;
+    }
+
+    [data-theme="dark"] #uploadModalOverlay .file-queue-section,
+    body.dark-mode #uploadModalOverlay .file-queue-section {
+      background: var(--bg-surface-raised, #202020) !important;
+      border: 1px solid var(--border, #333333) !important;
+    }
+
+    [data-theme="dark"] #uploadModalOverlay .file-queue-title,
+    body.dark-mode #uploadModalOverlay .file-queue-title {
+      color: var(--text-primary, #f5f5f5) !important;
+    }
+
+    [data-theme="dark"] #uploadModalOverlay .file-queue-item,
+    body.dark-mode #uploadModalOverlay .file-queue-item {
+      background: var(--bg-surface, #161616) !important;
+      border: 1px solid var(--border, #333333) !important;
+      color: var(--text-primary, #f5f5f5) !important;
+    }
+
+    [data-theme="dark"] #uploadModalOverlay .file-queue-name,
+    body.dark-mode #uploadModalOverlay .file-queue-name {
+      color: var(--text-primary, #f5f5f5) !important;
+    }
+
+    [data-theme="dark"] #uploadModalOverlay .file-queue-size,
+    body.dark-mode #uploadModalOverlay .file-queue-size {
+      color: var(--text-secondary, #a3a3a3) !important;
+    }
+
+    [data-theme="dark"] #uploadModalOverlay .clean-label,
+    body.dark-mode #uploadModalOverlay .clean-label {
+      color: var(--text-primary, #f5f5f5) !important;
+    }
+
+    [data-theme="dark"] #uploadModalOverlay .clean-input,
+    body.dark-mode #uploadModalOverlay .clean-input,
+    [data-theme="dark"] #uploadModalOverlay .clean-select,
+    body.dark-mode #uploadModalOverlay .clean-select {
+      background: var(--bg-input, #1c1c1c) !important;
+      border: 1.5px solid var(--border, #333333) !important;
+      color: var(--text-primary, #f5f5f5) !important;
+    }
+
+    [data-theme="dark"] #uploadModalOverlay .clean-select:disabled,
+    body.dark-mode #uploadModalOverlay .clean-select:disabled {
+      background: #141414 !important;
+      color: #666666 !important;
+      border-color: #262626 !important;
+    }
+
+    [data-theme="dark"] #uploadModalOverlay .clean-input:focus,
+    body.dark-mode #uploadModalOverlay .clean-input:focus,
+    [data-theme="dark"] #uploadModalOverlay .clean-select:focus,
+    body.dark-mode #uploadModalOverlay .clean-select:focus {
+      border-color: var(--border-strong, #4a4a4a) !important;
+      box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.12) !important;
+    }
+
+    [data-theme="dark"] #uploadModalOverlay .modal-actions,
+    body.dark-mode #uploadModalOverlay .modal-actions {
+      border-top: 1px solid var(--border, #333333) !important;
+    }
+
+    [data-theme="dark"] #uploadModalOverlay .btn-modal-cancel,
+    body.dark-mode #uploadModalOverlay .btn-modal-cancel {
+      background: var(--bg-surface-raised, #202020) !important;
+      border: 1px solid var(--border, #333333) !important;
+      color: var(--text-primary, #f5f5f5) !important;
+    }
+
+    [data-theme="dark"] #uploadModalOverlay .btn-modal-cancel:hover,
+    body.dark-mode #uploadModalOverlay .btn-modal-cancel:hover {
+      background: #2a2a2a !important;
+    }
+
+    [data-theme="dark"] #uploadModalOverlay .btn-modal-submit,
+    body.dark-mode #uploadModalOverlay .btn-modal-submit {
+      background: var(--fill-active, #f5f5f5) !important;
+      color: var(--fill-active-text, #0a0a0a) !important;
+      border: 1px solid var(--fill-active, #f5f5f5) !important;
+      font-weight: 700 !important;
+    }
+
+    [data-theme="dark"] #uploadModalOverlay .btn-modal-submit svg,
+    body.dark-mode #uploadModalOverlay .btn-modal-submit svg,
+    [data-theme="dark"] #uploadModalOverlay .btn-modal-submit span,
+    body.dark-mode #uploadModalOverlay .btn-modal-submit span {
+      color: var(--fill-active-text, #0a0a0a) !important;
+      stroke: var(--fill-active-text, #0a0a0a) !important;
     }
 
     /* Toast Notification */

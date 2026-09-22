@@ -541,6 +541,12 @@ body.dark-mode #primaryRunBtn,
 body.dark-mode .btn-run-black,
 [data-theme="dark"] .cl-create-btn,
 body.dark-mode .cl-create-btn,
+[data-theme="dark"] .btn-file-get,
+body.dark-mode .btn-file-get,
+[data-theme="dark"] a.btn-file-get,
+body.dark-mode a.btn-file-get,
+[data-theme="dark"] .btn-file-action.btn-file-get,
+body.dark-mode .btn-file-action.btn-file-get,
 [data-theme="dark"] .attach-action-btn.attach-btn-download,
 body.dark-mode .attach-action-btn.attach-btn-download {
   background: var(--fill-active) !important;
@@ -578,6 +584,10 @@ body.dark-mode .cl-btn-pro,
 body.dark-mode .cl-view-report-btn,
 [data-theme="dark"] .btn-file-get,
 body.dark-mode .btn-file-get,
+[data-theme="dark"] a.btn-file-get,
+body.dark-mode a.btn-file-get,
+[data-theme="dark"] .btn-file-action.btn-file-get,
+body.dark-mode .btn-file-action.btn-file-get,
 [data-theme="dark"] .btn-run-black,
 body.dark-mode .btn-run-black,
 [data-theme="dark"] #primaryRunBtn,
@@ -601,6 +611,10 @@ body.dark-mode .cl-btn-pro *,
 body.dark-mode .cl-view-report-btn *,
 [data-theme="dark"] .btn-file-get *,
 body.dark-mode .btn-file-get *,
+[data-theme="dark"] a.btn-file-get *,
+body.dark-mode a.btn-file-get *,
+[data-theme="dark"] .btn-file-action.btn-file-get *,
+body.dark-mode .btn-file-action.btn-file-get *,
 [data-theme="dark"] .btn-run-black *,
 body.dark-mode .btn-run-black *,
 [data-theme="dark"] #primaryRunBtn *,
@@ -1618,6 +1632,54 @@ body.dark-mode .cl-mode-tab-btn.active {
   font-weight: 600 !important;
 }
 
+/* Question Segmented Tab Bar (Assignment Pages) */
+.cl-tab-bar {
+  display: flex !important;
+  align-items: center !important;
+  overflow-x: auto !important;
+  flex-wrap: nowrap !important;
+  scrollbar-width: none !important;
+  -webkit-overflow-scrolling: touch !important;
+  max-width: 100% !important;
+}
+.cl-tab-bar::-webkit-scrollbar {
+  display: none !important;
+}
+.cl-tab-bar .cl-tab-btn,
+.cl-tab-bar .cl-tab-add-btn {
+  flex-shrink: 0 !important;
+  white-space: nowrap !important;
+}
+
+[data-theme="dark"] .cl-tab-bar .cl-tab-btn,
+body.dark-mode .cl-tab-bar .cl-tab-btn {
+  background: var(--bg-surface-raised, #202020) !important;
+  border: 1px solid var(--border, #333333) !important;
+  color: var(--text-primary, #f5f5f5) !important;
+  border-radius: 980px !important;
+}
+
+[data-theme="dark"] .cl-tab-bar .cl-tab-btn.active,
+body.dark-mode .cl-tab-bar .cl-tab-btn.active {
+  background: var(--fill-active, #f5f5f5) !important;
+  color: var(--fill-active-text, #0a0a0a) !important;
+  border: 1px solid var(--fill-active, #f5f5f5) !important;
+  border-radius: 980px !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="dark"] .cl-tab-bar .cl-tab-btn.active .cl-tab-check,
+body.dark-mode .cl-tab-bar .cl-tab-btn.active .cl-tab-check {
+  background: #0a0a0a !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .cl-tab-bar .cl-tab-btn:not(.active) .cl-tab-check,
+body.dark-mode .cl-tab-bar .cl-tab-btn:not(.active) .cl-tab-check {
+  background: #ffffff !important;
+  color: #0a0a0a !important;
+}
+
 /* ─── TABLES & EXAM ROUTINE (ZEBRA STRIPING) ─── */
 [data-theme="dark"] .cl-submissions-table,
 body.dark-mode .cl-submissions-table,
@@ -1762,6 +1824,8 @@ body.dark-mode .im-input-field {
 body.dark-mode .cl-create-modal-overlay,
 [data-theme="dark"] .cl-modal-overlay,
 body.dark-mode .cl-modal-overlay,
+[data-theme="dark"] #uploadModalOverlay,
+body.dark-mode #uploadModalOverlay,
 [data-theme="dark"] .modal-backdrop,
 body.dark-mode .modal-backdrop,
 [data-theme="dark"] .apple-confirm-overlay,
@@ -1770,9 +1834,9 @@ body.dark-mode .apple-confirm-overlay,
 body.dark-mode #deviceNoticeOverlay,
 [data-theme="dark"] .drawer-overlay,
 body.dark-mode .drawer-overlay {
-  background: rgba(0, 0, 0, 0.78) !important;
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
+  background: rgba(0, 0, 0, 0.45) !important;
+  backdrop-filter: blur(6px) !important;
+  -webkit-backdrop-filter: blur(6px) !important;
 }
 
 [data-theme="dark"] .gallery-modal,
@@ -1789,6 +1853,8 @@ body.dark-mode .cl-create-modal-header,
 body.dark-mode .cl-create-modal-footer,
 [data-theme="dark"] .cl-modal-card,
 body.dark-mode .cl-modal-card,
+[data-theme="dark"] #uploadModalOverlay .modal-card,
+body.dark-mode #uploadModalOverlay .modal-card,
 [data-theme="dark"] .device-notice-card,
 body.dark-mode .device-notice-card,
 [data-theme="dark"] #deviceNoticeOverlay .device-notice-card,
@@ -1803,10 +1869,48 @@ body.dark-mode .drawer-header,
 body.dark-mode .drawer-preview-pane {
   background: var(--bg-surface) !important;
   background-color: var(--bg-surface) !important;
-  border: 1px solid var(--border) !important;
+  border: 1px solid var(--border-strong, #4a4a4a) !important;
   color: var(--text-primary) !important;
   border-radius: 8px !important;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6) !important;
+}
+
+/* Modal Error Card & Body Contrast */
+[data-theme="dark"] .cl-modal-card.error-modal,
+body.dark-mode .cl-modal-card.error-modal {
+  background: var(--bg-surface, #161616) !important;
+  border: 1px solid var(--border-strong, #4a4a4a) !important;
+}
+
+[data-theme="dark"] .cl-modal-card .cl-modal-title,
+body.dark-mode .cl-modal-card .cl-modal-title {
+  color: var(--text-primary, #f5f5f5) !important;
+}
+
+[data-theme="dark"] .cl-modal-card .cl-modal-body,
+body.dark-mode .cl-modal-card .cl-modal-body,
+[data-theme="dark"] .cl-modal-card.error-modal .cl-modal-body,
+body.dark-mode .cl-modal-card.error-modal .cl-modal-body {
+  color: var(--text-primary, #f5f5f5) !important;
+}
+
+[data-theme="dark"] .cl-modal-card.error-modal .cl-modal-title,
+body.dark-mode .cl-modal-card.error-modal .cl-modal-title {
+  color: #ef4444 !important;
+}
+
+[data-theme="dark"] .cl-modal-card.error-modal .cl-modal-error-icon,
+body.dark-mode .cl-modal-card.error-modal .cl-modal-error-icon {
+  background: rgba(239, 68, 68, 0.15) !important;
+  border: 1px solid rgba(239, 68, 68, 0.3) !important;
+  color: #ef4444 !important;
+}
+
+[data-theme="dark"] .cl-modal-btn.error-btn,
+body.dark-mode .cl-modal-btn.error-btn {
+  background: #ef4444 !important;
+  color: #ffffff !important;
+  border-color: #ef4444 !important;
 }
 
 /* Modal Form Inputs & Semester/Subject Dropdowns */
@@ -1854,6 +1958,139 @@ body.dark-mode .cl-window-file {
 [data-theme="dark"] .cl-filename-input,
 body.dark-mode .cl-filename-input {
   color: var(--text-primary) !important;
+}
+
+/* Authentic macOS Window Traffic-Light Dots (Preserved across all themes & dark mode) */
+.cl-dot.red,
+.cl-dot-red,
+[data-theme="dark"] .cl-dot.red,
+body.dark-mode .cl-dot.red,
+[data-theme="dark"] .cl-dot-red,
+body.dark-mode .cl-dot-red {
+  background: #ff5f56 !important;
+}
+
+.cl-dot.yellow,
+.cl-dot-yellow,
+[data-theme="dark"] .cl-dot.yellow,
+body.dark-mode .cl-dot.yellow,
+[data-theme="dark"] .cl-dot-yellow,
+body.dark-mode .cl-dot-yellow {
+  background: #ffbd2e !important;
+}
+
+.cl-dot.green,
+.cl-dot-green,
+[data-theme="dark"] .cl-dot.green,
+body.dark-mode .cl-dot.green,
+[data-theme="dark"] .cl-dot-green,
+body.dark-mode .cl-dot-green {
+  background: #27c93f !important;
+}
+
+/* IDE Code Box Syntax Highlighting Tokens (Vibrant colors like standard IDE) */
+.token.keyword,
+.syn-kwd,
+[data-theme="dark"] .token.keyword,
+body.dark-mode .token.keyword,
+[data-theme="dark"] .syn-kwd,
+body.dark-mode .syn-kwd {
+  color: #f43f5e !important;
+  font-weight: 600 !important;
+}
+
+.token.string,
+.syn-str,
+[data-theme="dark"] .token.string,
+body.dark-mode .token.string,
+[data-theme="dark"] .syn-str,
+body.dark-mode .syn-str {
+  color: #7ee787 !important;
+}
+
+.token.comment,
+.syn-com,
+[data-theme="dark"] .token.comment,
+body.dark-mode .token.comment,
+[data-theme="dark"] .syn-com,
+body.dark-mode .syn-com {
+  color: #8b949e !important;
+  font-style: italic !important;
+}
+
+.token.number,
+.syn-num,
+[data-theme="dark"] .token.number,
+body.dark-mode .token.number,
+[data-theme="dark"] .syn-num,
+body.dark-mode .syn-num {
+  color: #79c0ff !important;
+}
+
+.token.type,
+.token.class-name,
+.syn-type,
+[data-theme="dark"] .token.type,
+body.dark-mode .token.type,
+[data-theme="dark"] .token.class-name,
+body.dark-mode .token.class-name,
+[data-theme="dark"] .syn-type,
+body.dark-mode .syn-type {
+  color: #ffa657 !important;
+  font-weight: 600 !important;
+}
+
+.token.function,
+.syn-fn,
+[data-theme="dark"] .token.function,
+body.dark-mode .token.function,
+[data-theme="dark"] .syn-fn,
+body.dark-mode .syn-fn {
+  color: #d2a8ff !important;
+}
+
+.token.operator,
+[data-theme="dark"] .token.operator,
+body.dark-mode .token.operator {
+  color: #ff7b72 !important;
+}
+
+.token.punctuation,
+[data-theme="dark"] .token.punctuation,
+body.dark-mode .token.punctuation {
+  color: #c9d1d9 !important;
+}
+
+.token.boolean,
+[data-theme="dark"] .token.boolean,
+body.dark-mode .token.boolean {
+  color: #ff7b72 !important;
+}
+
+/* Empty States (Reskinned for Dark Mode) */
+[data-theme="dark"] .cl-empty-state,
+body.dark-mode .cl-empty-state,
+[data-theme="dark"] .empty-state,
+body.dark-mode .empty-state,
+[data-theme="dark"] .preview-empty-state,
+body.dark-mode .preview-empty-state,
+[data-theme="dark"] .console-empty-state,
+body.dark-mode .console-empty-state {
+  background: var(--bg-surface, #161616) !important;
+  border: 1px solid var(--border, #333333) !important;
+  color: var(--text-secondary, #a3a3a3) !important;
+}
+
+[data-theme="dark"] .cl-empty-state p,
+body.dark-mode .cl-empty-state p,
+[data-theme="dark"] .empty-state p,
+body.dark-mode .empty-state p {
+  color: var(--text-primary, #f5f5f5) !important;
+}
+
+[data-theme="dark"] .cl-empty-state p:last-of-type,
+body.dark-mode .cl-empty-state p:last-of-type {
+  color: var(--text-secondary, #a3a3a3) !important;
 }
 
 /* ─── SIDEBAR ICON RAIL ─── */

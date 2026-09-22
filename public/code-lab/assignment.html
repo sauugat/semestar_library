@@ -195,6 +195,7 @@
             font-weight: 600;
             cursor: pointer;
             white-space: nowrap;
+            flex-shrink: 0;
             font-family: var(--apple-font);
             transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
         }
@@ -358,17 +359,17 @@
         }
 
         .cl-dot-red {
-            background: #ff5f56;
+            background: #ff5f56 !important;
             box-shadow: 0 0 4px rgba(255, 95, 86, 0.4);
         }
 
         .cl-dot-yellow {
-            background: #ffbd2e;
+            background: #ffbd2e !important;
             box-shadow: 0 0 4px rgba(255, 189, 46, 0.4);
         }
 
         .cl-dot-green {
-            background: #27c93f;
+            background: #27c93f !important;
             box-shadow: 0 0 4px rgba(39, 201, 63, 0.4);
         }
 
@@ -809,6 +810,43 @@
             font-size: 13px;
         }
 
+        /* Dark Mode AI Explanation Panel */
+        [data-theme="dark"] .cl-explanation-box,
+        body.dark-mode .cl-explanation-box {
+            background: var(--bg-surface-raised, #202020) !important;
+            border: 1px solid var(--border-strong, #4a4a4a) !important;
+            border-left: 4px solid var(--fill-active, #f5f5f5) !important;
+            color: var(--text-primary, #f5f5f5) !important;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+        }
+
+        [data-theme="dark"] .cl-explanation-box .cl-explain-label,
+        body.dark-mode .cl-explanation-box .cl-explain-label {
+            color: var(--text-primary, #f5f5f5) !important;
+        }
+
+        [data-theme="dark"] .cl-explanation-text,
+        body.dark-mode .cl-explanation-text,
+        [data-theme="dark"] .cl-explanation-text p,
+        body.dark-mode .cl-explanation-text p {
+            color: var(--text-primary, #f5f5f5) !important;
+            opacity: 1 !important;
+        }
+
+        [data-theme="dark"] .cl-explanation-text strong,
+        body.dark-mode .cl-explanation-text strong {
+            color: #ffffff !important;
+            font-weight: 800 !important;
+            opacity: 1 !important;
+        }
+
+        [data-theme="dark"] .cl-explanation-text code,
+        body.dark-mode .cl-explanation-text code {
+            background: #121212 !important;
+            color: #79c0ff !important;
+            border: 1px solid var(--border, #333333) !important;
+        }
+
         /* ── Toast / Notification Pill ── */
         .cl-toast-msg {
             display: none;
@@ -1064,6 +1102,29 @@
         .cl-modal-btn.error-btn:hover {
             background: #b91c1c;
             border-color: #b91c1c;
+        }
+
+        [data-theme="dark"] .cl-modal-card.error-modal,
+        body.dark-mode .cl-modal-card.error-modal {
+            background: var(--bg-surface, #161616) !important;
+            border: 1px solid var(--border-strong, #4a4a4a) !important;
+        }
+
+        [data-theme="dark"] .cl-modal-card.error-modal .cl-modal-body,
+        body.dark-mode .cl-modal-card.error-modal .cl-modal-body {
+            color: var(--text-primary, #f5f5f5) !important;
+        }
+
+        [data-theme="dark"] .cl-modal-card.error-modal .cl-modal-title,
+        body.dark-mode .cl-modal-card.error-modal .cl-modal-title {
+            color: #ef4444 !important;
+        }
+
+        [data-theme="dark"] .cl-modal-card.error-modal .cl-modal-error-icon,
+        body.dark-mode .cl-modal-card.error-modal .cl-modal-error-icon {
+            background: rgba(239, 68, 68, 0.15) !important;
+            border: 1px solid rgba(239, 68, 68, 0.3) !important;
+            color: #ef4444 !important;
         }
 
         /* ── Split Layout & PDF Side Pane ── */

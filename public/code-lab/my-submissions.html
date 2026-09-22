@@ -316,10 +316,6 @@
             background: #161616 !important;
             border-bottom: 1px solid var(--border, #333333) !important;
         }
-        [data-theme="dark"] .cl-dot,
-        body.dark-mode .cl-dot {
-            background: #4a4a4a !important;
-        }
         [data-theme="dark"] .cl-code-coder-tag,
         body.dark-mode .cl-code-coder-tag {
             background: var(--bg-surface-raised, #202020) !important;
@@ -1028,6 +1024,7 @@
         .cl-q-pending-sign {
             display: inline-flex;
             align-items: center;
+            gap: 4px;
             background: #ffffff;
             color: var(--cl-gray);
             border: 1px solid var(--cl-border-subtle);
@@ -1106,15 +1103,15 @@
         }
 
         .cl-dot.red {
-            background: #ff5f56;
+            background: #ff5f56 !important;
         }
 
         .cl-dot.yellow {
-            background: #ffbd2e;
+            background: #ffbd2e !important;
         }
 
         .cl-dot.green {
-            background: #27c93f;
+            background: #27c93f !important;
         }
 
         .cl-code-header-info {
@@ -1183,26 +1180,26 @@
 
         /* Syntax Highlighting Tokens */
         .syn-kwd {
-            color: #f43f5e;
-            font-weight: 600;
+            color: #f43f5e !important;
+            font-weight: 600 !important;
         }
 
         .syn-str {
-            color: #34d399;
+            color: #34d399 !important;
         }
 
         .syn-com {
-            color: #94a3b8;
-            font-style: italic;
+            color: #94a3b8 !important;
+            font-style: italic !important;
         }
 
         .syn-num {
-            color: #fbbf24;
+            color: #fbbf24 !important;
         }
 
         .syn-type {
-            color: #60a5fa;
-            font-weight: 600;
+            color: #60a5fa !important;
+            font-weight: 600 !important;
         }
 
         /* Output Console */
@@ -1632,6 +1629,7 @@
                              <span>Checked</span>
                            </span>`
                         : `<span class="cl-q-pending-sign" title="Awaiting review">
+                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                              <span>Pending</span>
                            </span>`;
 

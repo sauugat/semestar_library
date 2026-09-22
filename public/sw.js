@@ -1,5 +1,5 @@
 // Semester Library Minimal Safe Service Worker for PWA Installation
-const CACHE_NAME = 'semester-library-static-v2';
+const CACHE_NAME = 'semester-library-static-v3';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
@@ -59,7 +59,7 @@ self.addEventListener('fetch', (event) => {
 
   // Load current pages and the chat protocol client before falling back offline.
   // Otherwise a deployed HTML page can keep using an older streaming client.
-  if (req.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname === '/chatbot.js') {
+  if (req.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname === '/chatbot.js' || url.pathname.endsWith('.css')) {
     event.respondWith(
       fetch(req).then((response) => {
         if (response.ok && response.type === 'basic') {

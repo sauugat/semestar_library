@@ -32,10 +32,41 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="/style.v4.css">
+    <link rel="stylesheet" href="/style.v4.css?v=4.2">
     <link rel="stylesheet" href="/auth-modal.css">
 
     <style>
+        /* Explicitly disable all shine, sheen, sweep, and laser animations */
+        .social-post-card::after,
+        .feed-card::after,
+        .fb-card::after,
+        .assignment-post-card::after,
+        .post-attachment-card::after,
+        .cl-btn-pro::after {
+            display: none !important;
+            content: none !important;
+            animation: none !important;
+            opacity: 0 !important;
+            visibility: hidden !important;
+            width: 0 !important;
+            height: 0 !important;
+        }
+
+        .social-post-card:hover::after,
+        .feed-card:hover::after,
+        .fb-card:hover::after,
+        .assignment-post-card:hover::after,
+        .post-attachment-card:hover::after,
+        .cl-btn-pro:hover::after {
+            display: none !important;
+            content: none !important;
+            animation: none !important;
+            opacity: 0 !important;
+            visibility: hidden !important;
+            width: 0 !important;
+            height: 0 !important;
+        }
+
         :root {
             --apple-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "SF Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
             --apple-heading: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Plus Jakarta Sans", "Helvetica Neue", sans-serif;

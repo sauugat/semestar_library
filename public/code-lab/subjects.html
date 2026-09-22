@@ -31,10 +31,43 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap"
     rel="stylesheet">
-  <link rel="stylesheet" href="/style.v4.css">
+  <link rel="stylesheet" href="/style.v4.css?v=4.2">
   <link rel="stylesheet" href="/auth-modal.css">
 
   <style>
+    /* Explicitly disable all shine, sheen, sweep, and laser animations on posts, assignments, cards and buttons */
+    .social-post-card::after,
+    .feed-card::after,
+    .fb-card::after,
+    .assignment-post-card::after,
+    .post-attachment-card::after,
+    .cl-subject-card::after,
+    .cl-btn-pro::after {
+      display: none !important;
+      content: none !important;
+      animation: none !important;
+      opacity: 0 !important;
+      visibility: hidden !important;
+      width: 0 !important;
+      height: 0 !important;
+    }
+
+    .social-post-card:hover::after,
+    .feed-card:hover::after,
+    .fb-card:hover::after,
+    .assignment-post-card:hover::after,
+    .post-attachment-card:hover::after,
+    .cl-subject-card:hover::after,
+    .cl-btn-pro:hover::after {
+      display: none !important;
+      content: none !important;
+      animation: none !important;
+      opacity: 0 !important;
+      visibility: hidden !important;
+      width: 0 !important;
+      height: 0 !important;
+    }
+
     :root {
       --apple-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "SF Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
     }
@@ -161,14 +194,6 @@
       box-shadow: 0 4px 18px rgba(255, 255, 255, 0.25), 0 2px 6px rgba(0,0,0,0.3) !important;
       transition: all 0.25s cubic-bezier(0.25, 1, 0.5, 1) !important;
     }
-    .cl-btn-pro::after {
-      content: '';
-      position: absolute;
-      inset: -50%;
-      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent);
-      transform: rotate(25deg) translateX(-100%);
-      animation: buttonLightSweep 4s ease-in-out infinite;
-    }
     .cl-btn-pro:hover {
       transform: translateY(-2px) scale(1.03) !important;
       box-shadow: 0 8px 24px rgba(255, 255, 255, 0.45), 0 4px 12px rgba(0,0,0,0.4) !important;
@@ -237,11 +262,6 @@
     @keyframes beaconPulse {
       0% { transform: scale(1); opacity: 0.8; }
       100% { transform: scale(2.4); opacity: 0; }
-    }
-
-    @keyframes buttonLightSweep {
-      0%, 65% { transform: rotate(25deg) translateX(-150%); }
-      100% { transform: rotate(25deg) translateX(250%); }
     }
 
     @media (max-width: 768px) {

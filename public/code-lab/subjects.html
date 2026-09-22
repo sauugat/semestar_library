@@ -631,7 +631,8 @@
       display: none;
     }
 
-    .cl-subject-pill {
+    .cl-subject-pill,
+    .cl-sem-pill {
       display: inline-flex;
       align-items: center;
       gap: 6px;
@@ -651,13 +652,15 @@
       user-select: none;
     }
 
-    .cl-subject-pill:hover {
+    .cl-subject-pill:hover,
+    .cl-sem-pill:hover {
       background: #f3f4f6;
       color: #111827;
       border-color: rgba(0, 0, 0, 0.18);
     }
 
-    .cl-subject-pill.active {
+    .cl-subject-pill.active,
+    .cl-sem-pill.active {
       background: #111827;
       color: #ffffff;
       border-color: #111827;
@@ -682,25 +685,42 @@
       color: #ffffff;
     }
 
-    body.dark-mode .cl-subject-pill {
+    body.dark-mode .cl-subject-pill,
+    body.dark-mode .cl-sem-pill,
+    [data-theme="dark"] .cl-subject-pill,
+    [data-theme="dark"] .cl-sem-pill {
       background: #1c1c1e;
       color: #9ca3af;
       border-color: rgba(255, 255, 255, 0.1);
     }
 
-    body.dark-mode .cl-subject-pill:hover {
+    body.dark-mode .cl-subject-pill:hover,
+    body.dark-mode .cl-sem-pill:hover,
+    [data-theme="dark"] .cl-subject-pill:hover,
+    [data-theme="dark"] .cl-sem-pill:hover {
       background: #2c2c2e;
       color: #ffffff;
       border-color: rgba(255, 255, 255, 0.2);
     }
 
-    body.dark-mode .cl-subject-pill.active {
+    body.dark-mode .cl-subject-pill.active,
+    body.dark-mode .cl-sem-pill.active,
+    [data-theme="dark"] .cl-subject-pill.active,
+    [data-theme="dark"] .cl-sem-pill.active {
       background: #ffffff;
       color: #111827;
       border-color: #ffffff;
     }
 
-    body.dark-mode .cl-subject-pill.active .pill-count {
+    body.dark-mode .cl-subject-pill.active *,
+    body.dark-mode .cl-sem-pill.active *,
+    [data-theme="dark"] .cl-subject-pill.active *,
+    [data-theme="dark"] .cl-sem-pill.active * {
+      color: #111827 !important;
+    }
+
+    body.dark-mode .cl-subject-pill.active .pill-count,
+    [data-theme="dark"] .cl-subject-pill.active .pill-count {
       background: rgba(0, 0, 0, 0.15);
       color: #111827;
     }
@@ -1151,28 +1171,39 @@
       transform: translateY(-1px);
     }
 
+    [data-theme="dark"] .post-action-btn.status-btn,
+    body.dark-mode .post-action-btn.status-btn {
+      border-radius: 980px !important;
+    }
+
     [data-theme="dark"] .post-action-btn.status-btn.submitted,
     body.dark-mode .post-action-btn.status-btn.submitted {
-      background: var(--bg-tertiary) !important;
-      color: var(--success) !important;
-      border: 1px solid var(--success) !important;
-      border-radius: 6px !important;
+      background: var(--bg-surface-raised, #202020) !important;
+      color: var(--text-primary, #f5f5f5) !important;
+      border: 1.5px solid var(--border-strong, #4a4a4a) !important;
+      border-radius: 980px !important;
     }
 
     [data-theme="dark"] .post-action-btn.status-btn.not-submitted,
     body.dark-mode .post-action-btn.status-btn.not-submitted {
-      background: var(--bg-tertiary) !important;
-      color: var(--danger) !important;
-      border: 1px solid var(--danger) !important;
-      border-radius: 6px !important;
+      background: var(--bg-surface-raised, #202020) !important;
+      color: var(--text-secondary, #a0a0a0) !important;
+      border: 1.5px solid var(--border, #333333) !important;
+      border-radius: 980px !important;
     }
 
     [data-theme="dark"] .post-action-btn.status-btn.partial,
     body.dark-mode .post-action-btn.status-btn.partial {
-      background: var(--bg-tertiary) !important;
-      color: var(--warning) !important;
-      border: 1px solid var(--warning) !important;
-      border-radius: 6px !important;
+      background: var(--bg-surface-raised, #202020) !important;
+      color: var(--text-primary, #f5f5f5) !important;
+      border: 1.5px solid var(--border-strong, #4a4a4a) !important;
+      border-radius: 980px !important;
+    }
+
+    [data-theme="dark"] .post-action-btn.status-btn *,
+    body.dark-mode .post-action-btn.status-btn * {
+      color: inherit !important;
+      stroke: currentColor !important;
     }
 
     /* ── Subject Grid Section ── */

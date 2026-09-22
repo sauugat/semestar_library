@@ -2365,6 +2365,53 @@
         body.dark-mode .cl-assign-card-arrow {
             color: var(--text-primary) !important;
         }
+
+        [data-theme="dark"] .cl-eval-pill,
+        body.dark-mode .cl-eval-pill,
+        [data-theme="dark"] .cl-eval-pill.checked,
+        body.dark-mode .cl-eval-pill.checked,
+        [data-theme="dark"] .cl-eval-pill.draft,
+        body.dark-mode .cl-eval-pill.draft,
+        [data-theme="dark"] .cl-sub-fraction-badge,
+        body.dark-mode .cl-sub-fraction-badge,
+        [data-theme="dark"] .cl-sub-fraction-badge.full,
+        body.dark-mode .cl-sub-fraction-badge.full,
+        [data-theme="dark"] .cl-sub-count-chip,
+        body.dark-mode .cl-sub-count-chip,
+        [data-theme="dark"] .cl-meta-pill.sub-count-pill,
+        body.dark-mode .cl-meta-pill.sub-count-pill,
+        [data-theme="dark"] .cl-subject-pill,
+        body.dark-mode .cl-subject-pill,
+        [data-theme="dark"] .cl-sem-pill,
+        body.dark-mode .cl-sem-pill {
+            background: var(--bg-surface-raised, #202020) !important;
+            border: 1px solid var(--border-strong, #4a4a4a) !important;
+            color: var(--text-primary, #f5f5f5) !important;
+        }
+
+        [data-theme="dark"] .cl-eval-pill *,
+        body.dark-mode .cl-eval-pill *,
+        [data-theme="dark"] .cl-sub-fraction-badge *,
+        body.dark-mode .cl-sub-fraction-badge *,
+        [data-theme="dark"] .cl-sub-count-chip *,
+        body.dark-mode .cl-sub-count-chip * {
+            color: var(--text-primary, #f5f5f5) !important;
+            stroke: var(--text-primary, #f5f5f5) !important;
+        }
+
+        [data-theme="dark"] .cl-eval-pill.pending,
+        body.dark-mode .cl-eval-pill.pending,
+        [data-theme="dark"] .cl-sub-fraction-badge.partial,
+        body.dark-mode .cl-sub-fraction-badge.partial {
+            background: var(--bg-surface-raised, #202020) !important;
+            border: 1px solid var(--border, #333333) !important;
+            color: var(--text-secondary, #a0a0a0) !important;
+        }
+
+        [data-theme="dark"] .cl-header-expand-hint,
+        body.dark-mode .cl-header-expand-hint {
+            color: var(--text-secondary, #a0a0a0) !important;
+        }
     </style>
 </head>
 

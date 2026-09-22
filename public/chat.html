@@ -123,15 +123,23 @@
     body.dark-mode .im-back-btn,
     [data-theme="dark"] .im-profile-link,
     body.dark-mode .im-profile-link {
+      background: var(--bg-surface-raised, #202020) !important;
+      border-color: var(--border-strong, #4a4a4a) !important;
       color: var(--text-primary) !important;
       stroke: var(--text-primary) !important;
+    }
+
+    [data-theme="dark"] .im-profile-link *,
+    body.dark-mode .im-profile-link * {
+      color: var(--text-primary) !important;
     }
 
     [data-theme="dark"] .im-back-btn:hover,
     body.dark-mode .im-back-btn:hover,
     [data-theme="dark"] .im-profile-link:hover,
     body.dark-mode .im-profile-link:hover {
-      background: var(--bg-surface-raised) !important;
+      background: var(--bg-surface, #2a2a2a) !important;
+      border-color: var(--border-hover, #666666) !important;
     }
 
     [data-theme="dark"] .im-row.other .im-bubble,

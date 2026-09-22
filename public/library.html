@@ -997,16 +997,29 @@
 
     [data-theme="dark"] .btn-file-get,
     body.dark-mode .btn-file-get {
-      background: var(--text) !important;
-      color: var(--bg) !important;
-      border: 1px solid var(--text) !important;
+      background: var(--fill-active, #f5f5f5) !important;
+      color: var(--fill-active-text, #0a0a0a) !important;
+      border: 1px solid var(--fill-active, #f5f5f5) !important;
       font-weight: 700 !important;
+    }
+
+    [data-theme="dark"] .btn-file-get *,
+    body.dark-mode .btn-file-get * {
+      color: var(--fill-active-text, #0a0a0a) !important;
+      stroke: var(--fill-active-text, #0a0a0a) !important;
     }
 
     [data-theme="dark"] .btn-file-get:hover,
     body.dark-mode .btn-file-get:hover {
       background: #ffffff !important;
       color: #000000 !important;
+      border-color: #ffffff !important;
+    }
+
+    [data-theme="dark"] .btn-file-get:hover *,
+    body.dark-mode .btn-file-get:hover * {
+      color: #000000 !important;
+      stroke: #000000 !important;
     }
 
     .btn-file-delete {
@@ -1044,6 +1057,38 @@
       color: #be123c;
       border-color: #fecdd3;
       transform: scale(1.02);
+    }
+
+    [data-theme="dark"] .btn-file-delete,
+    body.dark-mode .btn-file-delete,
+    [data-theme="dark"] .btn-unit-delete-all,
+    body.dark-mode .btn-unit-delete-all {
+      background: var(--bg-surface-raised, #202020) !important;
+      color: var(--text-primary, #f5f5f5) !important;
+      border: 1px solid var(--border-strong, #4a4a4a) !important;
+    }
+
+    [data-theme="dark"] .btn-file-delete svg,
+    body.dark-mode .btn-file-delete svg,
+    [data-theme="dark"] .btn-unit-delete-all svg,
+    body.dark-mode .btn-unit-delete-all svg {
+      stroke: var(--text-primary, #f5f5f5) !important;
+    }
+
+    [data-theme="dark"] .btn-file-delete:hover,
+    body.dark-mode .btn-file-delete:hover,
+    [data-theme="dark"] .btn-unit-delete-all:hover,
+    body.dark-mode .btn-unit-delete-all:hover {
+      background: var(--fill-active, #f5f5f5) !important;
+      color: var(--fill-active-text, #0a0a0a) !important;
+      border-color: var(--fill-active, #f5f5f5) !important;
+    }
+
+    [data-theme="dark"] .btn-file-delete:hover svg,
+    body.dark-mode .btn-file-delete:hover svg,
+    [data-theme="dark"] .btn-unit-delete-all:hover svg,
+    body.dark-mode .btn-unit-delete-all:hover svg {
+      stroke: var(--fill-active-text, #0a0a0a) !important;
     }
 
     /* Responsive Mobile Split Adjustments */

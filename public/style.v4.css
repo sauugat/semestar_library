@@ -339,10 +339,12 @@ html.dark {
   letter-spacing: -0.015em;
 }
 
-[data-theme="dark"] p, body.dark-mode p,
-[data-theme="dark"] span:not(.theme-toggle-track):not([class*="badge"]):not([class*="meta"]):not([class*="secondary"]),
-body.dark-mode span:not(.theme-toggle-track):not([class*="badge"]):not([class*="meta"]):not([class*="secondary"]) {
+[data-theme="dark"] p, body.dark-mode p {
   color: var(--text-primary);
+}
+
+[data-theme="dark"] span, body.dark-mode span {
+  color: inherit;
 }
 
 [data-theme="dark"] label, body.dark-mode label,
@@ -539,12 +541,8 @@ body.dark-mode #primaryRunBtn,
 body.dark-mode .btn-run-black,
 [data-theme="dark"] .cl-create-btn,
 body.dark-mode .cl-create-btn,
-[data-theme="dark"] .cl-btn-pro,
-body.dark-mode .cl-btn-pro,
 [data-theme="dark"] .attach-action-btn.attach-btn-download,
-body.dark-mode .attach-action-btn.attach-btn-download,
-[data-theme="dark"] .dash-hero-btn:not(.secondary),
-body.dark-mode .dash-hero-btn:not(.secondary) {
+body.dark-mode .attach-action-btn.attach-btn-download {
   background: var(--fill-active) !important;
   color: var(--fill-active-text) !important;
   border: 1px solid var(--fill-active) !important;
@@ -552,6 +550,72 @@ body.dark-mode .dash-hero-btn:not(.secondary) {
   border-radius: 6px !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4) !important;
   transition: background 0.15s ease, border-color 0.15s ease, filter 0.15s ease;
+}
+
+[data-theme="dark"] .dash-hero-btn:not(.secondary),
+body.dark-mode .dash-hero-btn:not(.secondary),
+[data-theme="dark"] .cl-btn-pro,
+body.dark-mode .cl-btn-pro,
+[data-theme="dark"] .cl-view-report-btn,
+body.dark-mode .cl-view-report-btn {
+  background: var(--fill-active) !important;
+  color: var(--fill-active-text) !important;
+  border: 1px solid var(--fill-active) !important;
+  font-weight: 700 !important;
+  border-radius: 980px !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4) !important;
+  transition: background 0.15s ease, border-color 0.15s ease, filter 0.15s ease;
+}
+
+/* Inverted CTA Children (Dark mode): force dark text and icons on white/light fill */
+[data-theme="dark"] .dash-hero-btn.primary,
+body.dark-mode .dash-hero-btn.primary,
+[data-theme="dark"] .dash-hero-btn:not(.secondary),
+body.dark-mode .dash-hero-btn:not(.secondary),
+[data-theme="dark"] .cl-btn-pro,
+body.dark-mode .cl-btn-pro,
+[data-theme="dark"] .cl-view-report-btn,
+body.dark-mode .cl-view-report-btn,
+[data-theme="dark"] .btn-file-get,
+body.dark-mode .btn-file-get,
+[data-theme="dark"] .btn-run-black,
+body.dark-mode .btn-run-black,
+[data-theme="dark"] #primaryRunBtn,
+body.dark-mode #primaryRunBtn,
+[data-theme="dark"] .cl-window-run-btn,
+body.dark-mode .cl-window-run-btn,
+[data-theme="dark"] .cl-create-btn,
+body.dark-mode .cl-create-btn,
+[data-theme="dark"] .cl-filter-tab.active,
+body.dark-mode .cl-filter-tab.active {
+  color: var(--fill-active-text, #0a0a0a) !important;
+}
+
+[data-theme="dark"] .dash-hero-btn.primary *,
+body.dark-mode .dash-hero-btn.primary *,
+[data-theme="dark"] .dash-hero-btn:not(.secondary) *,
+body.dark-mode .dash-hero-btn:not(.secondary) *,
+[data-theme="dark"] .cl-btn-pro *,
+body.dark-mode .cl-btn-pro *,
+[data-theme="dark"] .cl-view-report-btn *,
+body.dark-mode .cl-view-report-btn *,
+[data-theme="dark"] .btn-file-get *,
+body.dark-mode .btn-file-get *,
+[data-theme="dark"] .btn-run-black *,
+body.dark-mode .btn-run-black *,
+[data-theme="dark"] #primaryRunBtn *,
+body.dark-mode #primaryRunBtn *,
+[data-theme="dark"] .cl-window-run-btn *,
+body.dark-mode .cl-window-run-btn *,
+[data-theme="dark"] .cl-create-btn *,
+body.dark-mode .cl-create-btn * {
+  color: var(--fill-active-text, #0a0a0a) !important;
+  stroke: var(--fill-active-text, #0a0a0a) !important;
+}
+
+[data-theme="dark"] .cl-btn-pro::after,
+body.dark-mode .cl-btn-pro::after {
+  display: none !important;
 }
 
 [data-theme="dark"] .apple-nav-btn:hover,
@@ -1094,14 +1158,38 @@ body.dark-mode .apple-spec-pill,
 body.dark-mode .vault-chip,
 [data-theme="dark"] .vault-spec-chip,
 body.dark-mode .vault-spec-chip,
-[data-theme="dark"] .hero-badge.apple-keynote-badge,
-body.dark-mode .hero-badge.apple-keynote-badge,
 [data-theme="dark"] .assignment-header-badge,
 body.dark-mode .assignment-header-badge {
   background: var(--bg-surface-raised) !important;
   color: var(--text-primary) !important;
   border: 1px solid var(--border) !important;
   border-radius: 6px !important;
+}
+
+[data-theme="dark"] .hero-badge.apple-keynote-badge,
+body.dark-mode .hero-badge.apple-keynote-badge {
+  background: var(--bg-surface-raised) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 980px !important;
+}
+
+[data-theme="dark"] .apple-kicker-tag,
+body.dark-mode .apple-kicker-tag {
+  background: var(--bg-surface, #161616) !important;
+  color: var(--text-primary, #f5f5f5) !important;
+  border: 1px solid var(--border-strong, #4a4a4a) !important;
+}
+
+[data-theme="dark"] .badge-text,
+body.dark-mode .badge-text {
+  color: var(--text-primary, #f5f5f5) !important;
+}
+
+[data-theme="dark"] .badge-dot-live,
+body.dark-mode .badge-dot-live {
+  background: var(--text-primary, #f5f5f5) !important;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.25) !important;
 }
 
 [data-theme="dark"] .post-pill-tag svg,
@@ -1417,6 +1505,24 @@ body.dark-mode .jitter-prompt-pill {
 [data-theme="dark"] .jitter-prompt-pill:hover,
 body.dark-mode .jitter-prompt-pill:hover {
   border-color: var(--border-strong) !important;
+}
+
+[data-theme="dark"] .jitter-prompt-pill::before,
+body.dark-mode .jitter-prompt-pill::before {
+  background: conic-gradient(from var(--border-angle),
+      rgba(255, 255, 255, 0.05) 0%,
+      rgba(255, 255, 255, 0.05) 65%,
+      rgba(255, 255, 255, 0.2) 75%,
+      rgba(255, 255, 255, 0.6) 85%,
+      #ffffff 90%,
+      rgba(255, 255, 255, 0.4) 95%,
+      rgba(255, 255, 255, 0.05) 100%) !important;
+}
+
+[data-theme="dark"] .jitter-prompt-pill.ai-conduit-used::before,
+body.dark-mode .jitter-prompt-pill.ai-conduit-used::before {
+  animation: none !important;
+  opacity: 0.15 !important;
 }
 
 [data-theme="dark"] .jitter-prompt-input-area,
@@ -1768,28 +1874,112 @@ body.dark-mode .im-header-side {
 }
 
 /* ─── STATUS & REPORT BADGES (Strict Monochrome) ─── */
+[data-theme="dark"] .cl-report-badge,
+body.dark-mode .cl-report-badge,
 [data-theme="dark"] .cl-report-badge.reviewed,
 body.dark-mode .cl-report-badge.reviewed,
+[data-theme="dark"] .cl-eval-pill,
+body.dark-mode .cl-eval-pill,
 [data-theme="dark"] .cl-eval-pill.graded,
 body.dark-mode .cl-eval-pill.graded,
+[data-theme="dark"] .cl-eval-pill.checked,
+body.dark-mode .cl-eval-pill.checked,
+[data-theme="dark"] .cl-eval-pill.draft,
+body.dark-mode .cl-eval-pill.draft,
+[data-theme="dark"] .cl-sub-fraction-badge,
+body.dark-mode .cl-sub-fraction-badge,
+[data-theme="dark"] .cl-sub-fraction-badge.full,
+body.dark-mode .cl-sub-fraction-badge.full,
+[data-theme="dark"] .cl-sub-count-chip,
+body.dark-mode .cl-sub-count-chip,
+[data-theme="dark"] .sub-count-pill,
+body.dark-mode .sub-count-pill,
+[data-theme="dark"] .cl-subject-pill,
+body.dark-mode .cl-subject-pill,
+[data-theme="dark"] .cl-sem-pill,
+body.dark-mode .cl-sem-pill,
+[data-theme="dark"] .sem-pill-tag,
+body.dark-mode .sem-pill-tag,
 [data-theme="dark"] .badge-success,
 body.dark-mode .badge-success,
 [data-theme="dark"] .course-files-pill.has-files,
-body.dark-mode .course-files-pill.has-files {
-  background: var(--bg-surface-raised) !important;
-  border: 1px solid var(--border-strong) !important;
-  color: var(--text-primary) !important;
+body.dark-mode .course-files-pill.has-files,
+[data-theme="dark"] .btn-unit-delete-all,
+body.dark-mode .btn-unit-delete-all,
+[data-theme="dark"] .btn-file-delete,
+body.dark-mode .btn-file-delete {
+  background: var(--bg-surface-raised, #202020) !important;
+  border: 1px solid var(--border-strong, #4a4a4a) !important;
+  color: var(--text-primary, #f5f5f5) !important;
+}
+
+[data-theme="dark"] .cl-report-badge *,
+body.dark-mode .cl-report-badge *,
+[data-theme="dark"] .cl-eval-pill *,
+body.dark-mode .cl-eval-pill *,
+[data-theme="dark"] .cl-sub-fraction-badge *,
+body.dark-mode .cl-sub-fraction-badge *,
+[data-theme="dark"] .cl-sub-count-chip *,
+body.dark-mode .cl-sub-count-chip *,
+[data-theme="dark"] .cl-subject-pill *,
+body.dark-mode .cl-subject-pill *,
+[data-theme="dark"] .cl-sem-pill *,
+body.dark-mode .cl-sem-pill *,
+[data-theme="dark"] .btn-unit-delete-all *,
+body.dark-mode .btn-unit-delete-all *,
+[data-theme="dark"] .btn-file-delete *,
+body.dark-mode .btn-file-delete * {
+  color: var(--text-primary, #f5f5f5) !important;
+  stroke: var(--text-primary, #f5f5f5) !important;
+}
+
+[data-theme="dark"] .btn-unit-delete-all:hover,
+body.dark-mode .btn-unit-delete-all:hover,
+[data-theme="dark"] .btn-file-delete:hover,
+body.dark-mode .btn-file-delete:hover {
+  background: var(--fill-active, #f5f5f5) !important;
+  color: var(--fill-active-text, #0a0a0a) !important;
+  border-color: var(--fill-active, #f5f5f5) !important;
+}
+
+[data-theme="dark"] .btn-unit-delete-all:hover *,
+body.dark-mode .btn-unit-delete-all:hover *,
+[data-theme="dark"] .btn-file-delete:hover *,
+body.dark-mode .btn-file-delete:hover * {
+  color: var(--fill-active-text, #0a0a0a) !important;
+  stroke: var(--fill-active-text, #0a0a0a) !important;
 }
 
 [data-theme="dark"] .cl-report-badge.pending,
 body.dark-mode .cl-report-badge.pending,
 [data-theme="dark"] .cl-eval-pill.pending,
 body.dark-mode .cl-eval-pill.pending,
+[data-theme="dark"] .cl-sub-fraction-badge.partial,
+body.dark-mode .cl-sub-fraction-badge.partial,
 [data-theme="dark"] .course-files-pill,
 body.dark-mode .course-files-pill {
-  background: var(--bg-surface-raised) !important;
-  border: 1px solid var(--border) !important;
-  color: var(--text-primary) !important;
+  background: var(--bg-surface-raised, #202020) !important;
+  border: 1px solid var(--border, #333333) !important;
+  color: var(--text-secondary, #a0a0a0) !important;
+}
+
+[data-theme="dark"] .cl-report-badge.pending *,
+body.dark-mode .cl-report-badge.pending *,
+[data-theme="dark"] .cl-eval-pill.pending *,
+body.dark-mode .cl-eval-pill.pending *,
+[data-theme="dark"] .cl-sub-fraction-badge.partial *,
+body.dark-mode .cl-sub-fraction-badge.partial * {
+  color: var(--text-secondary, #a0a0a0) !important;
+  stroke: var(--text-secondary, #a0a0a0) !important;
+}
+
+/* Notification Count Badge (Strict Monochrome High Contrast) */
+[data-theme="dark"] .notification-badge,
+body.dark-mode .notification-badge {
+  background: var(--fill-active, #f5f5f5) !important;
+  color: var(--fill-active-text, #0a0a0a) !important;
+  border: 1.5px solid var(--bg-surface, #161616) !important;
+  font-weight: 800 !important;
 }
 
 /* Kyana AI Navigation Link (Strict Monochrome) */

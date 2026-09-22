@@ -98,14 +98,26 @@ test('post cards escape text and attributes and reject executable attachment/ava
   };
   const output = vm.runInContext('renderPost(post)', context);
   assert.ok(output.includes('&lt;script&gt;alert(1)&lt;/script&gt;\nSecond line'));
-  assert.ok(output.includes('@student&quot;&amp;'));
+  // Student role: no @handle, no GU Student badge
+  assert.ok(!output.includes('@student&quot;&amp;'));
   assert.ok(output.includes('student%22%26'));
   assert.ok(output.includes('3 submitted'));
-  assert.ok(output.includes('GU Student'));
+  assert.ok(!output.includes('GU Student'));
   assert.ok(!output.includes('<script>'));
   assert.ok(!output.includes('javascript:'));
   assert.ok(!output.includes('data:text/html'));
   assert.ok(!output.includes('Delete post'));
+
+  // Admin role: shows @handle and Admin badge and notice border
+  context.post = {
+    id: 2, studentId: 'admin"&', name: 'Admin User',
+    content: 'Admin announcement', role: 'admin', type: 'notice',
+    created_at: new Date().toISOString(), liked_by_me: false, like_count: 0, canDelete: false
+  };
+  const adminOutput = vm.runInContext('renderPost(post)', context);
+  assert.ok(adminOutput.includes('@admin&quot;&amp;'));
+  assert.ok(adminOutput.includes('Admin'));
+  assert.ok(adminOutput.includes('notice'));
 });
 
 

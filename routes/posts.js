@@ -4,7 +4,9 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-const POST_UPLOAD_DIR = path.join(__dirname, '..', 'public', 'uploads', 'posts');
+const POST_UPLOAD_DIR = process.env.VERCEL
+  ? path.join('/tmp', 'uploads', 'posts')
+  : path.join(__dirname, '..', 'public', 'uploads', 'posts');
 const imageExtensions = {
   'image/jpeg': '.jpg', 'image/png': '.png', 'image/gif': '.gif',
   'image/webp': '.webp', 'image/avif': '.avif', 'image/apng': '.apng',
@@ -64,12 +66,15 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
   const selectPosts = `
     SELECT p.*, s.name, s.role, s.avatarUrl AS "avatarUrl", s.studentId AS "studentId",
       COALESCE(l.like_count, 0) AS like_count,
+      COALESCE(c.comment_count, 0) AS comment_count,
       COALESCE(sub.submission_count, 0) AS submission_count,
       (mine.user_id IS NOT NULL) AS liked_by_me
     FROM posts p
     JOIN students s ON s.studentId = p.user_id
     LEFT JOIN (SELECT post_id, COUNT(*) AS like_count FROM post_likes GROUP BY post_id) l
       ON l.post_id = p.id
+    LEFT JOIN (SELECT post_id, COUNT(*) AS comment_count FROM post_comments GROUP BY post_id) c
+      ON c.post_id = p.id
     LEFT JOIN post_likes mine ON mine.post_id = p.id AND mine.user_id = ?
     LEFT JOIN (SELECT post_id, COUNT(*) AS submission_count FROM post_submissions GROUP BY post_id) sub
       ON sub.post_id = p.id AND p.type = 'assignment'`;
@@ -79,10 +84,12 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       ...post,
       id: Number(post.id),
       like_count: Number(post.like_count),
+      comment_count: Number(post.comment_count || 0),
       submission_count: Number(post.submission_count),
       liked_by_me: Boolean(post.liked_by_me),
       // Keep the original response fields for already-open dashboard clients.
       likeCount: Number(post.like_count),
+      commentCount: Number(post.comment_count || 0),
       submittedCount: Number(post.submission_count),
       liked: Boolean(post.liked_by_me),
       canDelete: post.user_id === req.postUser?.studentId || req.postUser?.role === 'admin'
@@ -132,6 +139,11 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
           return rejectPost('Attachment must be an HTTP or HTTPS URL.');
         }
       }
+      if (req.file) {
+        const saved = await db.saveFileBlob(req.file.filename, await fs.promises.readFile(req.file.path), req.file.mimetype);
+        if (!saved) throw new Error('Could not persist post image.');
+        req.postImageSaved = true;
+      }
       const result = await db.run(`INSERT INTO posts (user_id, content, type, attachment_url, created_at)
         VALUES (?, ?, ?, ?, ?)`, req.postUser.studentId, content.trim(), type, attachment_url, new Date().toISOString());
       req.postCreated = true;
@@ -168,6 +180,86 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
   router.post('/:id/like', setLike);
   router.delete('/:id/like', setLike);
 
+  router.get('/:id/comments', async (req, res, next) => {
+    try {
+      const postId = Number(req.params.id);
+      const post = await db.get('SELECT id FROM posts WHERE id = ?', postId);
+      if (!post) return res.status(404).json({ message: 'Post not found.' });
+
+      const comments = await db.all(`
+        SELECT c.id, c.post_id AS "postId", c.user_id AS "userId", c.content, c.created_at AS "createdAt",
+               s.name, s.role, s.avatarUrl AS "avatarUrl", s.studentId AS "studentId"
+        FROM post_comments c
+        JOIN students s ON s.studentId = c.user_id
+        WHERE c.post_id = ?
+        ORDER BY c.id ASC
+      `, postId);
+
+      res.setHeader('Cache-Control', 'no-store');
+      res.json(comments.map(c => ({
+        id: Number(c.id),
+        postId: Number(c.postId),
+        userId: c.userId,
+        studentId: c.studentId,
+        content: c.content,
+        createdAt: c.createdAt,
+        name: c.name,
+        role: c.role,
+        avatarUrl: c.avatarUrl,
+        canDelete: c.userId === req.postUser?.studentId || req.postUser?.role === 'admin'
+      })));
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.post('/:id/comments', async (req, res, next) => {
+    try {
+      const postId = Number(req.params.id);
+      const post = await db.get('SELECT id FROM posts WHERE id = ?', postId);
+      if (!post) return res.status(404).json({ message: 'Post not found.' });
+      if (!req.postUser) return res.status(403).json({ message: 'Sign in with a student account to comment.' });
+
+      const { content } = req.body || {};
+      if (typeof content !== 'string' || !content.trim() || content.trim().length > 2000) {
+        return res.status(400).json({ message: 'Comment must be between 1 and 2,000 characters.' });
+      }
+
+      const result = await db.run(
+        `INSERT INTO post_comments (post_id, user_id, content, created_at) VALUES (?, ?, ?, ?)`,
+        postId, req.postUser.studentId, content.trim(), new Date().toISOString()
+      );
+
+      const count = await db.get('SELECT COUNT(*) AS c FROM post_comments WHERE post_id = ?', postId);
+      const newComment = await db.get(`
+        SELECT c.id, c.post_id AS "postId", c.user_id AS "userId", c.content, c.created_at AS "createdAt",
+               s.name, s.role, s.avatarUrl AS "avatarUrl", s.studentId AS "studentId"
+        FROM post_comments c
+        JOIN students s ON s.studentId = c.user_id
+        WHERE c.id = ?
+      `, result.lastInsertRowid);
+
+      res.status(201).json({
+        comment: {
+          id: Number(newComment.id),
+          postId: Number(newComment.postId),
+          userId: newComment.userId,
+          studentId: newComment.studentId,
+          content: newComment.content,
+          createdAt: newComment.createdAt,
+          name: newComment.name,
+          role: newComment.role,
+          avatarUrl: newComment.avatarUrl,
+          canDelete: true
+        },
+        comment_count: Number(count.c),
+        commentCount: Number(count.c)
+      });
+    } catch (err) {
+      next(err);
+    }
+  });
+
   router.delete('/:id', async (req, res, next) => {
     try {
       const post = await db.get('SELECT user_id, attachment_url FROM posts WHERE id = ?', Number(req.params.id));
@@ -177,7 +269,9 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       }
       await db.run('DELETE FROM posts WHERE id = ?', Number(req.params.id));
       if (/^\/uploads\/posts\/[a-f0-9-]+\.[a-z]+$/.test(post.attachment_url || '')) {
-        await removeUploadedImage(path.join(uploadDir, path.basename(post.attachment_url)));
+        const filename = path.basename(post.attachment_url);
+        await db.deleteFileBlob(filename);
+        await removeUploadedImage(path.join(uploadDir, filename));
       }
       res.json({ message: 'Post deleted.' });
     } catch (err) {
@@ -186,7 +280,10 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
   });
 
   router.use(async (err, req, res, next) => {
-    if (req.file?.path && !req.postCreated) await removeUploadedImage(req.file.path);
+    if (!req.postCreated) {
+      if (req.postImageSaved) await db.deleteFileBlob(req.file.filename);
+      if (req.file?.path) await removeUploadedImage(req.file.path);
+    }
     if (err instanceof multer.MulterError) {
       return res.status(err.code === 'LIMIT_FILE_SIZE' ? 413 : 400).json({
         message: err.code === 'LIMIT_FILE_SIZE' ? 'Images must be 5 MB or smaller.' : 'Upload one image and the post text fields only.'

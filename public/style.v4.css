@@ -6115,6 +6115,7 @@ body.dash .dash-id::before {
 }
 
 .status-post-text {
+  margin: 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   color: var(--text-primary);
@@ -6238,7 +6239,7 @@ body.dark-mode .fb-card:hover {
   display: flex;
   align-items: center;
   gap: 14px;
-  margin-bottom: 16px;
+  margin-bottom: 0;
 }
 
 .post-avatar {
@@ -6279,7 +6280,7 @@ body.dark-mode .fb-card:hover {
   font-size: 15.5px;
   font-weight: 700;
   letter-spacing: -0.015em;
-  color: #1d1d1f;
+  color: var(--text-primary, #1d1d1f);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -6329,22 +6330,25 @@ body.dark-mode .fb-card:hover {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12.5px;
-  color: #86868b;
+  font-size: 13px;
+  color: var(--text-muted, #86868b);
 }
 
 .post-student-handle {
-  font-weight: 500;
-  color: #6e6e73;
+  font-weight: 400;
+  font-size: 13px;
+  color: var(--text-muted, #86868b);
 }
 
 .post-meta-sep {
-  color: #c7c7cc;
+  color: var(--text-muted, #86868b);
   font-size: 11px;
+  margin: 0 4px;
 }
 
 .post-timestamp {
-  color: #86868b;
+  font-size: 13px;
+  color: var(--text-muted, #86868b);
 }
 
 .post-visibility {
@@ -6404,14 +6408,54 @@ body.dark-mode .fb-card:hover {
 
 /* Post Content & Context Tags */
 .post-content {
-  margin-bottom: 16px;
+  margin-top: 4px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text-primary, #1d1d1f);
+  margin-bottom: 12px;
+}
+
+.post-content-clamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.post-content-clamped.expanded {
+  -webkit-line-clamp: unset;
+  overflow: visible;
+}
+
+.show-more-link,
+.post-expand-btn {
+  background: none;
+  border: none;
+  padding: 2px 0;
+  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted, #86868b);
+  text-decoration: underline;
+  cursor: pointer;
+  display: inline-block;
+  outline: none;
+  transition: color 0.15s ease;
+}
+
+.show-more-link:hover,
+.post-expand-btn:hover {
+  color: var(--text-primary, #1d1d1f);
+  text-decoration: underline;
 }
 
 .post-title {
   font-size: 16.5px;
   font-weight: 600;
   line-height: 1.5;
-  color: #1d1d1f;
+  color: var(--text-primary, #1d1d1f);
   margin: 0 0 10px;
   letter-spacing: -0.015em;
 }
@@ -6714,6 +6758,278 @@ body.dark-mode .fb-card:hover {
 
 .post-comment-submit:active {
   transform: scale(0.94);
+}
+
+/* Notice-style visual distinction for Admin / Notice posts */
+.post-card.notice,
+.social-post-card.notice {
+  border-left: 3px solid var(--accent-color, #1d9bf0) !important;
+  padding-left: 25px !important;
+}
+
+/* Post Actions Row (Comment, Like, Share) */
+.post-actions {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 48px;
+  margin-top: 12px;
+  padding-top: 10px;
+  color: var(--text-muted, #86868b);
+  font-size: 13px;
+  border-top: 1px solid var(--border-color, rgba(0, 0, 0, 0.06));
+}
+
+.post-actions .action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 4px 0;
+  color: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  transition: color 0.15s ease, transform 0.1s ease;
+  user-select: none;
+  outline: none;
+}
+
+.post-actions .action-btn svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+.post-actions .action-btn:hover {
+  color: var(--accent-color, #1d9bf0);
+}
+
+.post-actions .action-btn.like-btn:hover {
+  color: #f91880;
+}
+
+.post-actions .action-btn.like-btn.liked {
+  color: #f91880;
+}
+
+.post-actions .action-btn.like-btn.liked svg {
+  fill: currentColor;
+  stroke: currentColor;
+}
+
+.post-actions .action-btn:active {
+  transform: scale(0.94);
+}
+
+/* Post Comments Drawer for Status / Feed Posts */
+.post-comments-drawer {
+  display: none;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+}
+
+.post-comments-drawer.open {
+  display: block;
+}
+
+.post-comments-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.post-comments-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted, #86868b);
+  letter-spacing: -0.01em;
+}
+
+.post-comments-close-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  padding: 3px 8px;
+  border-radius: 6px;
+  color: var(--text-muted, #86868b);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.post-comments-close-btn:hover {
+  color: var(--text-primary, #1d1d1f);
+  background: var(--bg-secondary, rgba(0, 0, 0, 0.05));
+}
+
+body.dark-mode .post-comments-close-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.post-comment-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.post-comment-textarea {
+  width: 100%;
+  min-height: 48px;
+  max-height: 180px;
+  padding: 10px 14px;
+  font-size: 14px;
+  line-height: 1.45;
+  font-family: inherit;
+  background: var(--bg-secondary, #f5f5f7);
+  color: var(--text-primary, #1d1d1f);
+  border: 1px solid var(--border-color, #e5e5ea);
+  border-radius: 12px;
+  resize: vertical;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.post-comment-textarea:focus {
+  border-color: var(--accent-color, #1d9bf0);
+  background: var(--bg-primary, #ffffff);
+}
+
+.post-comment-composer-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.post-comment-submit-btn {
+  background: var(--accent-color, #1d9bf0);
+  color: #ffffff;
+  border: none;
+  border-radius: 980px;
+  padding: 7px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.post-comment-submit-btn:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.post-comment-submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.post-comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.post-comment-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: var(--bg-secondary, #f5f5f7);
+  border: 1px solid var(--border-color, #e5e5ea);
+}
+
+.post-comment-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #1d1d1f;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.post-comment-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.post-comment-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.post-comment-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+  flex-wrap: wrap;
+}
+
+.post-comment-author {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary, #1d1d1f);
+}
+
+.post-comment-time {
+  font-size: 12px;
+  color: var(--text-muted, #86868b);
+}
+
+.post-comment-text {
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--text-primary, #1d1d1f);
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+}
+
+.post-comments-empty {
+  font-size: 13px;
+  color: var(--text-muted, #86868b);
+  padding: 8px 2px;
+  margin: 0;
+  font-style: italic;
+}
+
+body.dark-mode .post-actions {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+body.dark-mode .post-comments-drawer {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+body.dark-mode .post-comment-textarea {
+  background: var(--bg-tertiary, #2c2c2e);
+  color: #f5f5f7;
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+body.dark-mode .post-comment-textarea:focus {
+  background: var(--bg-secondary, #1c1c1e);
+  border-color: var(--accent-color, #1d9bf0);
+}
+
+body.dark-mode .post-comment-item {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
 /* Toast Notification for Social Actions (e.g. Copy Link) */

@@ -12,7 +12,11 @@ async function fixture(t) {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'post-uploads-'));
   const uploadDir = path.join(tempDir, 'posts');
   const client = createClient({ url: ':memory:' });
+  const blobs = new Map();
   const db = {
+    saveFileBlob: async (filename, fileData, mimeType) => { blobs.set(filename, { fileData, mimeType }); return true; },
+    getFileBlob: async filename => blobs.get(filename),
+    deleteFileBlob: async filename => { blobs.delete(filename); return true; },
     isPostgres: false,
     exec: sql => client.executeMultiple(sql),
     all: async (sql, ...args) => (await client.execute({ sql, args })).rows,
@@ -37,6 +41,7 @@ async function fixture(t) {
   const requireLogin = (req, res, next) => req.session.studentId
     ? next() : res.status(401).json({ message: 'Authentication required.' });
   app.use('/api/posts', createPostsRouter(db, requireLogin, { uploadDir }));
+  app.use('/uploads/posts', require('../routes/post-images')(db));
   app.use('/uploads/posts', express.static(uploadDir));
   const server = app.listen(0);
   await new Promise(resolve => server.once('listening', resolve));
@@ -53,7 +58,7 @@ async function fixture(t) {
     });
     return { status: response.status, body: await response.json() };
   }
-  return { db, request, uploadDir, baseUrl: `http://127.0.0.1:${server.address().port}` };
+  return { db, blobs, request, uploadDir, baseUrl: `http://127.0.0.1:${server.address().port}` };
 }
 
 test('posts require login; guests and stale accounts cannot mutate', async t => {
@@ -264,7 +269,7 @@ test('oversized, non-image, multiple-image and invalid post uploads return JSON 
 });
 
 test('upload authentication runs before disk writes and failed inserts remove the image', async t => {
-  const { request, uploadDir, db } = await fixture(t);
+  const { request, uploadDir, db, blobs } = await fixture(t);
   assert.equal((await request('POST', '', postForm({ image: testPng }), null)).status, 401);
   assert.equal((await request('POST', '', postForm({ image: testPng }), 'guest')).status, 403);
   await assert.rejects(fs.stat(uploadDir), { code: 'ENOENT' });
@@ -272,6 +277,83 @@ test('upload authentication runs before disk writes and failed inserts remove th
   db.run = async () => { throw new Error('Test insert failure'); };
   const response = await request('POST', '', postForm({ image: testPng }));
   db.run = originalRun;
+  assert.equal(blobs.size, 0);
   assert.equal(response.status, 500);
   assert.deepEqual(await fs.readdir(uploadDir), []);
+});
+
+
+test('post images persist after local files disappear and deletion removes the stored blob', async t => {
+  const { request, uploadDir, baseUrl, blobs } = await fixture(t);
+  const created = await request('POST', '', postForm({ image: testPng }));
+  assert.equal(created.status, 201);
+  assert.equal(blobs.size, 1);
+  await fs.rm(uploadDir, { recursive: true });
+  const response = await fetch(baseUrl + created.body.attachment_url);
+  assert.equal(response.status, 200);
+  assert.deepEqual(Buffer.from(await response.arrayBuffer()), testPng);
+  assert.match(response.headers.get('content-security-policy'), /sandbox/);
+  assert.equal(response.headers.get('x-content-type-options'), 'nosniff');
+  await request('DELETE', `/${created.body.id}`);
+  assert.equal(blobs.size, 0);
+  assert.equal((await fetch(baseUrl + created.body.attachment_url)).status, 404);
+});
+
+test('failed persistent storage does not create a broken post or leave a local upload', async t => {
+  const { request, uploadDir, db, blobs } = await fixture(t);
+  db.saveFileBlob = async () => false;
+  assert.equal((await request('POST', '', postForm({ image: testPng }))).status, 500);
+  assert.equal((await request('GET')).body.posts.length, 0);
+  assert.equal(blobs.size, 0);
+  assert.deepEqual(await fs.readdir(uploadDir), []);
+});
+
+test('post comments require valid content and authentication, list newest last, update count and cascade on delete', async t => {
+  const { request, db } = await fixture(t);
+  const created = await request('POST', '', { content: 'Post for comments' });
+  const postId = created.body.id;
+
+  // Guest cannot comment
+  assert.equal((await request('POST', `/${postId}/comments`, { content: 'Hello' }, null)).status, 401);
+  // Unknown student cannot comment
+  assert.equal((await request('POST', `/${postId}/comments`, { content: 'Hello' }, 'missing')).status, 403);
+  // Invalid contents
+  assert.equal((await request('POST', `/${postId}/comments`, { content: '' })).status, 400);
+  assert.equal((await request('POST', `/${postId}/comments`, { content: '   ' })).status, 400);
+  assert.equal((await request('POST', `/${postId}/comments`, { content: 'a'.repeat(2001) })).status, 400);
+  // Comment on non-existent post
+  assert.equal((await request('POST', `/99999/comments`, { content: 'Hello' })).status, 404);
+
+  // Add first comment
+  const c1 = await request('POST', `/${postId}/comments`, { content: 'First comment' }, 'owner');
+  assert.equal(c1.status, 201);
+  assert.equal(c1.body.comment.content, 'First comment');
+  assert.equal(c1.body.comment.name, 'Post Author');
+  assert.equal(c1.body.comment.studentId, 'owner');
+  assert.equal(c1.body.comment_count, 1);
+
+  // Add second comment by other user
+  const c2 = await request('POST', `/${postId}/comments`, { content: 'Second comment' }, 'other');
+  assert.equal(c2.status, 201);
+  assert.equal(c2.body.comment.content, 'Second comment');
+  assert.equal(c2.body.comment.name, 'Other Student');
+  assert.equal(c2.body.comment.studentId, 'other');
+  assert.equal(c2.body.comment_count, 2);
+
+  // Fetch comments - must be newest last (chronological ascending)
+  const list = await request('GET', `/${postId}/comments`, undefined, 'owner');
+  assert.equal(list.status, 200);
+  assert.equal(list.body.length, 2);
+  assert.equal(list.body[0].content, 'First comment');
+  assert.equal(list.body[1].content, 'Second comment');
+
+  // Verify GET /api/posts reflects comment_count
+  const postsRes = await request('GET');
+  assert.equal(postsRes.body.posts[0].comment_count, 2);
+  assert.equal(postsRes.body.posts[0].commentCount, 2);
+
+  // Verify cascade delete
+  await request('DELETE', `/${postId}`);
+  const remaining = await db.all('SELECT * FROM post_comments WHERE post_id = ?', postId);
+  assert.equal(remaining.length, 0);
 });

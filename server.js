@@ -343,6 +343,9 @@ app.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
+// Serve persistent post images on every instance, including fresh Vercel functions.
+app.use('/uploads/posts', require('./routes/post-images')(db));
+
 // Serve static assets securely
 app.use(express.static(path.join(__dirname, 'public'), {
   setHeaders: (res, filePath) => {

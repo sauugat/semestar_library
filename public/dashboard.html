@@ -1235,15 +1235,18 @@
       const subjectTag = f.subject ? `<span class="post-pill-tag"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>${escapeHtml(f.subject)}</span>` : '';
       const chapterTag = f.chapter ? `<span class="post-pill-tag"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>${escapeHtml(f.chapter)}</span>` : '';
       const uploaderRole = f.uploaderRole || 'student';
-      let verifiedBadgeHtml = `<span class="post-verified-badge" title="Verified Gandaki University Student">
-          <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
-          GU Student
-        </span>`;
+      const isSpecialUploader = uploaderRole === 'admin' || uploaderRole === 'teacher' || uploaderRole === 'faculty';
+      let verifiedBadgeHtml = '';
 
       if (uploaderRole === 'admin') {
         verifiedBadgeHtml = `<span class="post-verified-badge post-admin-badge" title="Verified System Administrator">
             <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
             Admin
+          </span>`;
+      } else if (uploaderRole === 'teacher' || uploaderRole === 'faculty') {
+        verifiedBadgeHtml = `<span class="post-verified-badge post-admin-badge" title="Verified Faculty">
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
+            Teacher
           </span>`;
       } else if (uploaderRole === 'cr' || uploaderRole === 'class_rep') {
         verifiedBadgeHtml = `<span class="post-verified-badge post-cr-badge" title="Official Class Representative">
@@ -1251,6 +1254,10 @@
             Class Rep
           </span>`;
       }
+
+      const fileHandleHtml = isSpecialUploader
+        ? `<span class="post-student-handle">@${escapeHtml(f.uploadedBy || 'student')}</span> <span class="post-meta-sep">&middot;</span> `
+        : '';
 
       const deleteBtnHtml = f.canDelete
         ? `<button class="post-delete-btn" onclick="deletePost(${f.id}, this)" title="Delete post">
@@ -1261,7 +1268,7 @@
         : '';
 
       return `
-        <article class="feed-card social-post-card post-card" data-file-id="${f.id}">
+        <article class="feed-card social-post-card post-card${(f.type === 'notice' || isSpecialUploader) ? ' notice' : ''}" data-file-id="${f.id}">
           <a href="profile.html?id=${f.uploadedBy}" class="post-avatar" title="View ${escapeHtml(f.uploaderName)}'s Profile">${avatarHtml}</a>
           <div class="post-main">
             <header class="post-header">
@@ -1271,8 +1278,7 @@
                   ${verifiedBadgeHtml}
                 </div>
                 <div class="post-meta-row">
-                  <span class="post-student-handle">@${escapeHtml(f.uploadedBy || 'student')}</span>
-                  <span class="post-meta-sep">&middot;</span>
+                  ${fileHandleHtml}
                   <time class="post-timestamp" datetime="${f.uploadedAt}">${timeAgo(f.uploadedAt)}</time>
                   <span class="post-meta-sep">&middot;</span>
                   <span class="post-visibility" title="Public to Semester">
@@ -1420,11 +1426,7 @@
                   </span>
                 </div>
                 <div class="post-meta-row">
-                  <span class="post-student-handle">@${escapeHtml(a.createdBy || 'faculty')}</span>
-                  <span class="post-meta-sep">&middot;</span>
-                  <time class="post-timestamp" datetime="${a.createdAt}">${timeAgo(a.createdAt)}</time>
-                  <span class="post-meta-sep">&middot;</span>
-                  <span class="post-visibility" title="Academic Laboratory Assignment">
+                  <span class="post-student-handle">@${escapeHtml(a.createdBy || 'faculty')}</span> <span class="post-meta-sep">&middot;</span> <time class="post-timestamp" datetime="${a.createdAt}">${timeAgo(a.createdAt)}</time> <span class="post-meta-sep">&middot;</span> <span class="post-visibility" title="Academic Laboratory Assignment">
                     <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
                   </span>
                 </div>
@@ -1589,6 +1591,12 @@
       }
     }
 
+    const openCommentPosts = new Set();
+
+    function needsTruncation(content) {
+      return (content || '').trim().split(/\s+/).filter(Boolean).length > 150;
+    }
+
     function renderStatusPost(post) {
       return renderFeedPostCard(post);
     }
@@ -1599,30 +1607,51 @@
       const avatar = avatarUrl
         ? `<img src="${avatarUrl}" alt="${escapeHtml(post.name)}" class="post-avatar-img">`
         : escapeHtml((post.name || 'S').charAt(0).toUpperCase());
-      const roles = {
-        admin: ['Admin', 'post-admin-badge'],
-        cr: ['Class Rep', 'post-cr-badge'],
-        class_rep: ['Class Rep', 'post-cr-badge'],
-        teacher: ['Faculty', ''],
-        faculty: ['Faculty', '']
-      };
-      const [roleLabel, roleClass] = roles[post.role] || ['GU Student', ''];
-      const typeLabel = { status: 'Status', assignment: 'Assignment', notice: 'Notice' }[post.type] || 'Status';
+
+      const isSpecialRole = post.role === 'admin' || post.role === 'teacher' || post.role === 'faculty';
+      const isClassRep = post.role === 'cr' || post.role === 'class_rep';
+
+      // PART 1: Role badge - only render if not default student
+      let roleBadgeHtml = '';
+      if (post.role === 'admin') {
+        roleBadgeHtml = `<span class="post-verified-badge post-admin-badge" title="Verified System Administrator"><svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>Admin</span>`;
+      } else if (post.role === 'teacher' || post.role === 'faculty') {
+        roleBadgeHtml = `<span class="post-verified-badge post-admin-badge" title="Verified Faculty"><svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>Teacher</span>`;
+      } else if (isClassRep) {
+        roleBadgeHtml = `<span class="post-verified-badge post-cr-badge" title="Official Class Representative"><svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>Class Rep</span>`;
+      }
+
+      // PART 1 & 6: Only show @studentID when author's role is admin or teacher, with proper spacing
+      const handleHtml = isSpecialRole
+        ? `<span class="post-student-handle">@${escapeHtml(post.studentId)}</span> <span class="post-meta-sep">&middot;</span> `
+        : '';
+
       const attachmentUrl = safePostUrl(post.attachment_url);
+
+      // PART 2: Long text - Show more truncation (>150 words) and collapse 3+ newlines to max 2
+      const cleanContent = (post.content || '').replace(/\n{3,}/g, '\n\n');
+      const shouldTruncate = needsTruncation(cleanContent);
+
+      // PART 5: Notice visual accent for Admin or Notice posts
+      const isNotice = post.type === 'notice' || isSpecialRole;
+      const noticeClass = isNotice ? ' notice' : '';
+
+      const commentCount = post.comment_count ?? post.commentCount ?? 0;
+      const likeCount = post.like_count ?? post.likeCount ?? 0;
+      const isCommentsOpen = openCommentPosts.has(post.id);
+
       return `
-        <article class="feed-card social-post-card post-card status-post-card" data-post-id="${post.id}">
+        <article class="feed-card social-post-card post-card status-post-card${noticeClass}" data-post-id="${post.id}">
           <a href="${profileUrl}" class="post-avatar" aria-label="View ${escapeHtml(post.name)}'s profile">${avatar}</a>
           <div class="post-main">
             <header class="post-header">
               <div class="post-user-info">
                 <div class="post-author-row">
                   <a href="${profileUrl}" class="post-author-name post-author-link">${escapeHtml(post.name)}</a>
-                  <span class="post-verified-badge ${roleClass}">${roleLabel}</span>
+                  ${roleBadgeHtml}
                 </div>
                 <div class="post-meta-row">
-                  <span class="post-student-handle">@${escapeHtml(post.studentId)}</span>
-                  <span class="post-meta-sep">&middot;</span>
-                  <time class="post-timestamp" datetime="${escapeHtml(post.created_at)}">${timeAgo(post.created_at)}</time>
+                  ${handleHtml}<time class="post-timestamp" datetime="${escapeHtml(post.created_at)}">${timeAgo(post.created_at)}</time>
                 </div>
               </div>
               ${post.canDelete ? `<div class="post-header-actions"><button type="button" class="post-delete-btn" onclick="deleteStatusPost(${post.id}, this)" aria-label="Delete post" title="Delete post">
@@ -1630,17 +1659,55 @@
               </button></div>` : ''}
             </header>
             <div class="post-content">
-              <div class="post-tags-row"><span class="post-pill-tag">${typeLabel}</span></div>
-              <p class="status-post-text">${escapeHtml(post.content)}</p>
+              ${shouldTruncate ? `
+                <div class="post-content-clamped">
+                  <p class="status-post-text">${escapeHtml(cleanContent)}</p>
+                </div>
+                <button type="button" class="show-more-link post-expand-btn" onclick="togglePostExpand(this)">Show more</button>
+              ` : `
+                <div class="post-content-unclamped">
+                  <p class="status-post-text">${escapeHtml(cleanContent)}</p>
+                </div>
+              `}
             </div>
             ${attachmentUrl ? `<div class="post-image"><img src="${attachmentUrl}" alt="Image attached by ${escapeHtml(post.name)}" loading="lazy" decoding="async" tabindex="0" role="button" aria-label="Open full image" aria-haspopup="dialog" onload="this.style.maxHeight = Math.min(500, this.naturalHeight) + 'px';" onerror="this.hidden = true; this.nextElementSibling.hidden = false;"><a class="status-post-attachment" href="${attachmentUrl}" target="_blank" rel="noopener noreferrer" hidden>View attachment ↗</a></div>` : ''}
-            <footer class="post-engage-bar post-footer">
-              <button type="button" class="post-action-btn like-btn ${post.liked_by_me ? 'liked' : ''}" data-liked="${post.liked_by_me}" aria-pressed="${post.liked_by_me}" aria-label="${post.liked_by_me ? 'Unlike' : 'Like'} post" onclick="toggleStatusLike(${post.id}, this)">
-                <svg viewBox="0 0 24 24" fill="${post.liked_by_me ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>
-                <span class="like-count">${post.like_count}</span>
+            <footer class="post-actions">
+              <button type="button" class="action-btn like-btn ${post.liked_by_me ? 'liked' : ''}" data-liked="${post.liked_by_me}" aria-pressed="${post.liked_by_me}" aria-label="${post.liked_by_me ? 'Unlike' : 'Like'} post" onclick="toggleStatusLike(${post.id}, this)">
+                <svg viewBox="0 0 24 24" fill="${post.liked_by_me ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/>
+                </svg>
+                <span class="like-count">${likeCount}</span>
               </button>
-              ${post.type === 'assignment' ? `<span class="post-submitted-count">${post.submission_count} submitted</span>` : ''}
+              <button type="button" class="action-btn comment-btn" onclick="togglePostComments(${post.id}, this.closest('.feed-card'))" aria-label="Reply to post">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 8.4 8.4 0 0 1-3.5-.75L3 21l1.8-5.4A8.4 8.4 0 0 1 4 12.5 8.5 8.5 0 1 1 21 11.5z"/>
+                </svg>
+                <span class="comment-count">${commentCount}</span>
+              </button>
+              <button type="button" class="action-btn share-btn" onclick="copySharePostLink(${post.id})" aria-label="Share post" title="Copy link to post">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13"/>
+                </svg>
+              </button>
+              ${post.type === 'assignment' ? `<span class="post-submitted-count" style="margin-left: auto; color: var(--text-muted); font-size: 13px;">${post.submission_count} submitted</span>` : ''}
             </footer>
+
+            <div class="post-comments-drawer${isCommentsOpen ? ' open' : ''}" id="comments-drawer-${post.id}">
+              <div class="post-comments-header-row">
+                <span class="post-comments-title">Replies</span>
+                <button type="button" class="post-comments-close-btn" onclick="closePostComments(${post.id})" aria-label="Hide replies" title="Hide replies">
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                  <span>Hide</span>
+                </button>
+              </div>
+              <form class="post-comment-composer" onsubmit="submitPostComment(${post.id}, this, event)">
+                <textarea class="post-comment-textarea" placeholder="Post your reply…" rows="2" maxlength="2000" required></textarea>
+                <div class="post-comment-composer-actions">
+                  <button type="submit" class="post-comment-submit-btn">Reply</button>
+                </div>
+              </form>
+              <div class="post-comments-list"></div>
+            </div>
           </div>
         </article>`;
     }
@@ -1857,6 +1924,202 @@
         showToast(escapeHtml(err.message || 'Could not delete post. Please try again.'));
       }
     }
+
+    function togglePostExpand(btn) {
+      const container = btn.closest('.post-content');
+      if (!container) return;
+      const clamped = container.querySelector('.post-content-clamped');
+      if (!clamped) return;
+      const isExpanded = clamped.classList.toggle('expanded');
+      btn.textContent = isExpanded ? 'Show less' : 'Show more';
+    }
+
+    function copySharePostLink(postId) {
+      const url = `${window.location.origin}/dashboard.html?post=${encodeURIComponent(postId)}`;
+      const onCopied = () => showToast('Post link copied to clipboard');
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(onCopied).catch(() => fallbackCopy(url, onCopied));
+      } else {
+        fallbackCopy(url, onCopied);
+      }
+    }
+
+    function fallbackCopy(text, cb) {
+      const el = document.createElement('textarea');
+      el.value = text;
+      el.style.position = 'fixed';
+      el.style.left = '-9999px';
+      document.body.appendChild(el);
+      el.select();
+      try {
+        document.execCommand('copy');
+        if (cb) cb();
+      } catch (_) {
+        showToast('Failed to copy link');
+      }
+      document.body.removeChild(el);
+    }
+
+    function renderPostCommentItem(c) {
+      const profileUrl = 'profile.html?id=' + encodeURIComponent(c.studentId || c.student_id || '');
+      const avatarUrl = safePostUrl(c.avatarUrl || c.avatar_url);
+      const avatar = avatarUrl
+        ? `<img src="${avatarUrl}" alt="${escapeHtml(c.name || 'User')}" class="comment-avatar-img">`
+        : escapeHtml((c.name || 'S').charAt(0).toUpperCase());
+
+      const isSpecial = c.role === 'admin' || c.role === 'teacher' || c.role === 'faculty';
+      const isCR = c.role === 'cr' || c.role === 'class_rep';
+      let roleBadge = '';
+      if (c.role === 'admin') {
+        roleBadge = `<span class="post-verified-badge post-admin-badge" style="font-size: 10px; padding: 1px 6px;">Admin</span>`;
+      } else if (c.role === 'teacher' || c.role === 'faculty') {
+        roleBadge = `<span class="post-verified-badge post-admin-badge" style="font-size: 10px; padding: 1px 6px;">Teacher</span>`;
+      } else if (isCR) {
+        roleBadge = `<span class="post-verified-badge post-cr-badge" style="font-size: 10px; padding: 1px 6px;">Class Rep</span>`;
+      }
+
+      const handleHtml = isSpecial && (c.studentId || c.student_id)
+        ? `<span class="post-student-handle" style="font-size: 12px;">@${escapeHtml(c.studentId || c.student_id)}</span>`
+        : '';
+
+      return `
+        <div class="post-comment-item" data-comment-id="${c.id}">
+          <a href="${profileUrl}" class="post-comment-avatar">${avatar}</a>
+          <div class="post-comment-body">
+            <div class="post-comment-header">
+              <a href="${profileUrl}" class="post-comment-author">${escapeHtml(c.name || 'Student')}</a>
+              ${roleBadge}
+              ${handleHtml}
+              <time class="post-comment-time" datetime="${escapeHtml(c.created_at || '')}">${timeAgo(c.created_at)}</time>
+            </div>
+            <p class="post-comment-text">${escapeHtml(c.content || '')}</p>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderPostCommentsList(listEl, comments) {
+      if (!comments || !comments.length) {
+        listEl.innerHTML = '<p class="post-comments-empty">No comments yet. Be the first to reply!</p>';
+        return;
+      }
+      listEl.innerHTML = comments.map(c => renderPostCommentItem(c)).join('');
+    }
+
+    function closePostComments(postId) {
+      openCommentPosts.delete(postId);
+      const drawer = document.getElementById(`comments-drawer-${postId}`);
+      if (drawer) {
+        drawer.classList.remove('open');
+      }
+    }
+
+    async function togglePostComments(postId, card) {
+      if (!card) card = document.querySelector(`[data-post-id="${postId}"]`);
+      if (!card) return;
+      const drawer = card.querySelector(`#comments-drawer-${postId}`) || card.querySelector('.post-comments-drawer');
+      if (!drawer) return;
+
+      const isOpen = openCommentPosts.has(postId) || drawer.classList.contains('open');
+      if (isOpen) {
+        openCommentPosts.delete(postId);
+        drawer.classList.remove('open');
+        return;
+      }
+
+      openCommentPosts.add(postId);
+      drawer.classList.add('open');
+
+      if (!drawer.dataset.loaded) {
+        const listEl = drawer.querySelector('.post-comments-list');
+        if (listEl) {
+          listEl.innerHTML = '<p class="post-comments-empty" style="text-align: center;">Loading comments…</p>';
+          try {
+            const res = await fetch(`/api/posts/${postId}/comments`);
+            if (!res.ok) throw new Error('Could not load comments');
+            const data = await res.json();
+            drawer.dataset.loaded = 'true';
+            renderPostCommentsList(listEl, data.comments || []);
+          } catch (err) {
+            listEl.innerHTML = `<p class="post-comments-empty" style="color: var(--accent-red, #ff453a);">${escapeHtml(err.message)}</p>`;
+          }
+        }
+      }
+
+      const textarea = drawer.querySelector('.post-comment-textarea');
+      if (textarea) textarea.focus();
+    }
+
+    async function submitPostComment(postId, form, event) {
+      if (event) event.preventDefault();
+      const textarea = form.querySelector('.post-comment-textarea');
+      const submitBtn = form.querySelector('.post-comment-submit-btn');
+      const content = textarea.value.trim();
+      if (!content) return;
+
+      submitBtn.disabled = true;
+      textarea.disabled = true;
+      try {
+        const res = await fetch(`/api/posts/${postId}/comments`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Could not post comment.');
+
+        textarea.value = '';
+        openCommentPosts.add(postId);
+        const drawer = form.closest('.post-comments-drawer');
+        if (drawer) drawer.classList.add('open');
+        const listEl = drawer ? drawer.querySelector('.post-comments-list') : null;
+        if (listEl) {
+          drawer.dataset.loaded = 'true';
+          const emptyMsg = listEl.querySelector('.post-comments-empty');
+          if (emptyMsg) emptyMsg.remove();
+          const temp = document.createElement('div');
+          temp.innerHTML = renderPostCommentItem(data.comment);
+          listEl.appendChild(temp.firstElementChild);
+        }
+
+        const card = document.querySelector(`[data-post-id="${postId}"]`);
+        if (card) {
+          const countEl = card.querySelector('.comment-count');
+          if (countEl) countEl.textContent = data.comment_count;
+        }
+        const postObj = feedItems.find(item => item._feedType === 'post' && item.id === postId);
+        if (postObj) {
+          postObj.comment_count = data.comment_count;
+          postObj.commentCount = data.comment_count;
+        }
+
+        showToast('Reply posted');
+      } catch (err) {
+        showToast(escapeHtml(err.message || 'Failed to post reply'));
+      } finally {
+        submitBtn.disabled = false;
+        textarea.disabled = false;
+        textarea.focus();
+      }
+    }
+
+    feedReady.then(() => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const targetPostId = urlParams.get('post');
+      if (targetPostId) {
+        const targetCard = document.querySelector(`[data-post-id="${targetPostId}"]`);
+        if (targetCard) {
+          targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          targetCard.style.transition = 'box-shadow 0.3s ease, border-color 0.3s ease';
+          targetCard.style.borderColor = 'var(--accent-color, #1d9bf0)';
+          targetCard.style.boxShadow = '0 0 0 2px rgba(29, 155, 240, 0.3)';
+          setTimeout(() => {
+            targetCard.style.borderColor = '';
+            targetCard.style.boxShadow = '';
+          }, 3000);
+        }
+      }
+    });
 
     // --- Search Logic ---
     const searchInput = document.getElementById('headerSearchInput');

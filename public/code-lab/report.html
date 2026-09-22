@@ -583,7 +583,7 @@
 
             @page {
                 size: A4 portrait;
-                margin: 10mm;
+                margin: 12mm 10mm;
             }
 
             #toolbar, #teacherBottomBar, .cl-toast-notification, .instructor-eval-box {
@@ -594,11 +594,12 @@
                 border: none;
                 box-shadow: none;
                 padding: 0;
+                max-width: 100%;
             }
 
-            .deadline-badge, table tr, canvas {
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
+            *, .deadline-badge, table tr, canvas, span, div, td, th, pre {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
             }
 
             /* Clean per-page breaks */
@@ -608,6 +609,18 @@
             .timeline-page {
                 page-break-before: always !important;
                 break-before: page !important;
+            }
+
+            /* Prevent splitting important elements across pages */
+            table, canvas, pre, .report-cover-wrapper {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+            }
+
+            /* Keep code boxes and output boxes together */
+            div[style*="border-radius:14px"] {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
             }
         }
     </style>
@@ -659,6 +672,27 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
+
+    <!-- Prism.js for syntax highlighting in code boxes -->
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-c.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-cpp.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-java.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-javascript.min.js"></script>
+    <style>
+        /* VS Code Dark+ / Monaco vs-dark token colors — matches assignment page editor */
+        .token.comment, .token.prolog, .token.doctype, .token.cdata { color: #6a9955 !important; font-style: italic; }
+        .token.punctuation { color: #d4d4d4 !important; }
+        .token.property, .token.tag, .token.boolean, .token.number, .token.constant, .token.symbol { color: #b5cea8 !important; }
+        .token.selector, .token.attr-name, .token.string, .token.char, .token.builtin { color: #ce9178 !important; }
+        .token.operator { color: #d4d4d4 !important; }
+        .token.atrule, .token.attr-value, .token.keyword { color: #569cd6 !important; }
+        .token.function { color: #dcdcaa !important; }
+        .token.class-name { color: #4ec9b0 !important; }
+        .token.regex, .token.important, .token.variable { color: #d16969 !important; }
+    </style>
+
     <script src="/code-lab/utils.js"></script>
     <script src="/code-lab/report-generator.js"></script>
     <script>

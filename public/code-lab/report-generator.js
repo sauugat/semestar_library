@@ -578,7 +578,7 @@
               return `
                 <tr style="background: ${isEven ? '#ffffff' : '#f9fafb'}; border-bottom: 1px solid #e5e7eb;">
                   <td style="padding: 13px 16px; font-size: 13px; font-weight: 700; color: #6b7280; border-right: 1px solid #f3f4f6;">${q.questionNumber || (idx + 1)}</td>
-                  <td style="padding: 13px 16px; font-size: 13.5px; font-weight: 600; color: #111827; border-right: 1px solid #f3f4f6; line-height: 1.4;">
+                  <td style="padding: 13px 16px; font-size: 12.5px; font-weight: 600; color: #111827; border-right: 1px solid #f3f4f6; line-height: 1.4; font-family: Menlo, Monaco, Consolas, 'Courier New', monospace;">
                     ${escapeHtml(q.title)}
                   </td>
                   <td style="padding: 13px 16px; text-align: center; border-right: 1px solid #f3f4f6;">
@@ -587,7 +587,7 @@
                            <input type="checkbox" class="q-eval-checked" data-qid="${q.id}" ${isChecked ? 'checked' : ''} onchange="ReportGenerator.syncScorecard()" style="accent-color:${statusColor};">
                            <span class="status-label-text">${statusLabel}</span>
                          </label>`
-                      : `<span style="display:inline-block; font-size:12.5px; font-weight:700; color:${statusColor}; background:${statusBg}; border:1px solid ${statusBorder}; padding:3px 12px; border-radius:980px;">${statusLabel}</span>`
+                      : `<span style="display:inline-block; font-size:13px; font-weight:800; color:#111827; padding:4px 0; letter-spacing:0.02em;">${isChecked ? '☑ Checked' : '☐ Unchecked'}</span>`
                     }
                   </td>
                   <td style="padding: 13px 16px; text-align: center; border-right: 1px solid #f3f4f6;">
@@ -640,16 +640,83 @@
     // PAGE 3+ — PER-QUESTION ANALYSIS
     // ════════════════════════════════════════════════════════════════
 
-    // Helper: render code with line numbers (IDE-style)
+    // Helper: split Prism-highlighted HTML by newlines while keeping valid tags per line
+    function splitHighlightedHTML(html) {
+      const rawLines = html.split('\n');
+      const result = [];
+      let openTags = [];
+
+      for (const rawLine of rawLines) {
+        const prefix = openTags.join('');
+        const fullLine = prefix + rawLine;
+
+        // Track which span tags are still open after this line
+        let stack = [];
+        const allTags = fullLine.match(/<\/?span[^>]*>/g) || [];
+        for (const tag of allTags) {
+          if (tag.startsWith('</')) {
+            if (stack.length > 0) stack.pop();
+          } else {
+            stack.push(tag);
+          }
+        }
+
+        // Close unclosed spans at end of line
+        const suffix = stack.slice().reverse().map(() => '</span>').join('');
+        result.push(fullLine + suffix);
+        openTags = stack;
+      }
+      return result;
+    }
+
+    // Helper: render code with line numbers (IDE-style with syntax highlighting)
     function renderCodeWithLineNumbers(code, language) {
       if (!code) return '';
       const lines = code.split('\n');
       const gutterWidth = String(lines.length).length;
-      const lineNumbersHtml = lines.map((_, i) => {
+
+      // Syntax highlighting via Prism.js if available
+      const prismLangMap = { 'c': 'c', 'cpp': 'cpp', 'java': 'java', 'python': 'python', 'py': 'python', 'javascript': 'javascript', 'js': 'javascript' };
+      const prismLang = prismLangMap[(language || '').toLowerCase()] || 'clike';
+      let highlightedLines = lines.map(l => escapeHtml(l));
+
+      if (typeof Prism !== 'undefined' && Prism.languages[prismLang]) {
+        try {
+          const highlighted = Prism.highlight(code, Prism.languages[prismLang], prismLang);
+          highlightedLines = splitHighlightedHTML(highlighted);
+        } catch (e) {
+          // fallback to plain escaped text
+        }
+      }
+
+      let rowsHtml = '';
+      lines.forEach((line, i) => {
         const num = String(i + 1).padStart(gutterWidth, ' ');
-        return `<span style="color:#6b7280; user-select:none;">${num}</span>`;
-      }).join('\n');
-      const codeHtml = escapeHtml(code);
+        const lineContent = highlightedLines[i] || escapeHtml(line) || ' ';
+        rowsHtml += `
+          <div style="display:flex; line-height:1.7;">
+            <div style="
+              width:${gutterWidth * 9 + 20}px;
+              padding:0 12px 0 14px;
+              text-align:right;
+              color:#6c7086;
+              border-right:1px solid rgba(255,255,255,0.07);
+              flex-shrink:0;
+              user-select:none;
+              white-space:pre;
+              font-size:13px;
+            ">${num}</div>
+            <div style="
+              padding-left:16px;
+              color:#cdd6f4;
+              white-space:pre-wrap;
+              word-break:break-all;
+              flex:1;
+              font-size:13.5px;
+            ">${lineContent || ' '}</div>
+          </div>
+        `;
+      });
 
       const langLabel = (language || 'c').toUpperCase();
       const fileExtMap = { 'C': '.c', 'JAVA': '.java', 'PYTHON': '.py', 'CPP': '.cpp', 'JAVASCRIPT': '.js', 'JS': '.js', 'PY': '.py' };
@@ -657,56 +724,34 @@
       const fileName = `solution${ext}`;
 
       return `
-        <div style="border:1px solid #333; border-radius:10px; overflow:hidden; margin-bottom:16px;">
+        <div style="border:1.5px solid rgba(0,0,0,0.18); border-radius:14px; overflow:hidden; margin-bottom:16px;">
           <!-- File tab bar -->
           <div style="
-            background:#252526;
-            padding:7px 14px;
+            background:#181825;
+            padding:10px 18px;
             display:flex;
             align-items:center;
-            gap:10px;
-            border-bottom:1px solid #333;
+            justify-content:space-between;
+            border-bottom:1px solid rgba(255,255,255,0.07);
           ">
-            <div style="display:flex; gap:5px;">
-              <span style="width:10px; height:10px; border-radius:50%; background:#ff5f56; display:inline-block;"></span>
-              <span style="width:10px; height:10px; border-radius:50%; background:#ffbd2e; display:inline-block;"></span>
-              <span style="width:10px; height:10px; border-radius:50%; background:#27c93f; display:inline-block;"></span>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <div style="display:flex; gap:7px;">
+                <span style="width:11px; height:11px; border-radius:50%; background:#ff5f56; display:inline-block;"></span>
+                <span style="width:11px; height:11px; border-radius:50%; background:#ffbd2e; display:inline-block;"></span>
+                <span style="width:11px; height:11px; border-radius:50%; background:#27c93f; display:inline-block;"></span>
+              </div>
+              <span style="font-size:12.5px; font-weight:600; color:#cdd6f4; font-family:Menlo,Monaco,Consolas,'SF Mono',monospace; margin-left:8px;">${escapeHtml(fileName)}</span>
             </div>
-            <span style="font-size:12px; font-weight:600; color:#9ca3af; font-family:Menlo,Monaco,Consolas,monospace;">${escapeHtml(fileName)}</span>
-            <span style="font-size:10.5px; font-weight:600; color:#6b7280; margin-left:auto; background:#333; padding:2px 8px; border-radius:4px;">${langLabel}</span>
           </div>
-          <!-- Code area with line numbers -->
+          <!-- Code area with syntax highlighting -->
           <div style="
-            background:#1e1e1e;
-            display:flex;
-            overflow-x:auto;
+            background:#1e1e2e;
+            padding:14px 0;
+            font-family:Menlo,Monaco,Consolas,'SF Mono','Courier New',monospace;
+            font-weight:500;
+            letter-spacing:0.25px;
           ">
-            <!-- Line numbers gutter -->
-            <pre style="
-              margin:0; padding:14px 0 14px 14px;
-              background:transparent;
-              border:none; border-right:1px solid #333;
-              font-family:Menlo,Monaco,Consolas,'SF Mono','Courier New',monospace;
-              font-size:12.5px; line-height:1.65;
-              text-align:right;
-              padding-right:12px;
-              color:#6b7280;
-              user-select:none;
-              flex-shrink:0;
-              white-space:pre;
-            ">${lineNumbersHtml}</pre>
-            <!-- Code content -->
-            <pre style="
-              margin:0; padding:14px 16px;
-              background:transparent;
-              border:none;
-              font-family:Menlo,Monaco,Consolas,'SF Mono','Courier New',monospace;
-              font-size:12.5px; line-height:1.65;
-              color:#d4d4d4;
-              overflow-x:auto;
-              flex:1;
-              white-space:pre;
-            ">${codeHtml}</pre>
+            ${rowsHtml}
           </div>
         </div>
       `;
@@ -801,13 +846,10 @@
               <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
                 <div>
                   <div style="font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.08em; color:#6b7280; margin-bottom:2px;">Question ${q.questionNumber || 1}</div>
-                  <div style="font-size:17px; font-weight:700; color:#111827; line-height:1.35;">${escapeHtml(q.title)}</div>
+                  <div style="font-size:14.5px; font-weight:700; color:#111827; line-height:1.35;">${escapeHtml(q.title)}</div>
                 </div>
                 <div style="text-align:right;">
-                  <div style="font-size:12.5px; color:#4b5563;">
-                    Language: <strong style="color:#111827;">${escapeHtml((q.language || 'c').toUpperCase())}</strong>
-                  </div>
-                  <div style="font-size:12px; color:#6b7280; margin-top:2px;">
+                  <div style="font-size:12px; color:#6b7280;">
                     ${sub ? 'Submitted: ' + fmtTime(sub.submittedAt) + (assignment.deadline ? ' ' + deadlineBadge(assignment.deadline, sub.submittedAt) : '') : '<span style="color:#ef4444; font-weight:600;">Not submitted</span>'}
                   </div>
                 </div>
@@ -833,12 +875,18 @@
               ${sub ? `
                 <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; margin-bottom:6px; margin-top:10px;">Result</div>
                 ${testCasesHtml}
-                ${sub.stdout ? `
-                  <pre style="background:#f8f9fa; color:#1a1a2e; padding:11px 14px; border-radius:8px; border:1px solid #e5e7eb; font-family:Menlo,Monaco,Consolas,'SF Mono','Courier New',monospace; font-size:11.5px; line-height:1.5; overflow-x:auto; margin-bottom:10px; white-space:pre-wrap; max-height:220px;">${escapeHtml(sub.stdout)}</pre>
-                ` : (!parsedResults ? `<div style="font-size:12.5px; color:#9ca3af; padding: 6px 0; margin-bottom:8px;">No output recorded.</div>` : '')}
-                ${sub.stderr ? `
-                  <pre style="background:#fef2f2; color:#b91c1c; padding:10px 14px; border-radius:8px; border:1px solid #fecaca; font-family:Menlo,Monaco,Consolas,'SF Mono','Courier New',monospace; font-size:11.5px; line-height:1.5; overflow-x:auto; margin-bottom:10px; white-space:pre-wrap; max-height:120px;">${escapeHtml(sub.stderr)}</pre>
-                ` : ''}
+                <div style="border:1.5px solid rgba(0,0,0,0.18); border-radius:14px; overflow:hidden; margin-bottom:16px; margin-top:10px;">
+                  <div style="background:#11111b; padding:10px 18px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid rgba(255,255,255,0.08);">
+                    <span style="font-size:12px; font-weight:700; color:#a6adc8; font-family:Menlo,Monaco,Consolas,monospace; display:flex; align-items:center; gap:6px; letter-spacing:0.03em;">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
+                      Terminal Console
+                    </span>
+                  </div>
+                  <div style="background:#181825; padding:18px 22px; font-family:Menlo,Monaco,Consolas,'SF Mono','Courier New',monospace; font-size:13.5px; line-height:1.65; min-height:54px;">
+                    ${sub.stdout ? `<pre style="margin:0; color:#cdd6f4; white-space:pre-wrap; word-break:break-word;">${escapeHtml(sub.stdout)}</pre>` : (!parsedResults && !sub.stderr ? `<div style="color:#6c7086; font-family:-apple-system,sans-serif;">No output recorded.</div>` : '')}
+                    ${sub.stderr ? `<pre style="margin:${sub.stdout ? '8px' : '0'} 0 0 0; color:#e4e4e7; white-space:pre-wrap; word-break:break-word;">${escapeHtml(sub.stderr)}</pre>` : ''}
+                  </div>
+                </div>
               ` : ''}
             </div>
           </div>
@@ -873,15 +921,9 @@
             ">
               <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
                 <div>
-                  <div style="font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.08em; color:#6b7280; margin-bottom:2px;">
-                    Question ${q.questionNumber || 1} · Activity & Session Analytics
+                  <div style="font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:0.06em; color:#374151;">
+                    Question ${q.questionNumber || 1} — Activity & Session Analytics
                   </div>
-                  <div style="font-size:16.5px; font-weight:700; color:#111827;">
-                    ${escapeHtml(q.title)}
-                  </div>
-                </div>
-                <div style="font-size:12px; font-weight:600; color:#374151; background:#e5e7eb; padding:3px 11px; border-radius:980px;">
-                  ${escapeHtml((q.language || 'c').toUpperCase())}
                 </div>
               </div>
             </div>

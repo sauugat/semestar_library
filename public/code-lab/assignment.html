@@ -652,9 +652,39 @@
             color: #cdd6f4;
         }
 
+        .cl-output-content pre.placeholder {
+            color: #7f849c;
+            font-style: normal;
+        }
+
+        .cl-terminal-prompt {
+            color: #a6e3a1;
+            font-weight: 700;
+            margin-right: 8px;
+            user-select: none;
+        }
+
         .cl-output-content pre.stderr {
-            color: #e4e4e7;
+            color: #f38ba8;
             margin-top: 6px;
+        }
+
+        .cl-terminal-clear-btn {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #a6adc8;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 9px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .cl-terminal-clear-btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: #ffffff;
+            border-color: rgba(255, 255, 255, 0.25);
         }
 
         /* ── AI Explain Error ── */
@@ -1670,18 +1700,23 @@
                 <div class="monaco-slot" id="editor-${q.id}"></div>
               </div>
 
-              <!-- Terminal Output Box -->
-              <div class="cl-output-box" id="output-${q.id}" style="display:none;">
+              <!-- Terminal Output Box (Visible before and after run) -->
+              <div class="cl-output-box" id="output-${q.id}">
                 <div class="cl-output-bar">
                   <span style="display:flex; align-items:center; gap:6px;">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
                     Terminal Console
                   </span>
-                  <span class="cl-output-status-pill" id="statusPill-${q.id}">Execution Output</span>
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <button type="button" class="cl-terminal-clear-btn" id="clearTerm-${q.id}" title="Clear terminal output" onclick="clearTerminal('${q.id}')">
+                      Clear
+                    </button>
+                    <span class="cl-output-status-pill" id="statusPill-${q.id}">Ready</span>
+                  </div>
                 </div>
                 <div class="cl-output-content">
-                  <pre id="stdout-${q.id}"></pre>
-                  <pre id="stderr-${q.id}" class="stderr"></pre>
+                  <pre id="stdout-${q.id}" class="placeholder"><span class="cl-terminal-prompt">$</span>Ready to execute. Click &quot;Run Code&quot; (⌘+Enter) to compile and view output here.</pre>
+                  <pre id="stderr-${q.id}" class="stderr" style="display:none;"></pre>
                 </div>
               </div>
 
@@ -1878,12 +1913,21 @@
                 state.stderr = q.userSubmission.stderr || '';
 
                 if (q.userSubmission.stdout || q.userSubmission.stderr) {
-                    const outputEl = document.getElementById(`output-${q.id}`);
                     const stdoutEl = document.getElementById(`stdout-${q.id}`);
                     const stderrEl = document.getElementById(`stderr-${q.id}`);
-                    outputEl.style.display = 'block';
-                    stdoutEl.textContent = q.userSubmission.stdout || '';
-                    stderrEl.textContent = q.userSubmission.stderr || '';
+                    if (stdoutEl) {
+                        stdoutEl.className = '';
+                        stdoutEl.textContent = q.userSubmission.stdout || '';
+                    }
+                    if (stderrEl) {
+                        if (q.userSubmission.stderr) {
+                            stderrEl.style.display = 'block';
+                            stderrEl.textContent = q.userSubmission.stderr;
+                        } else {
+                            stderrEl.style.display = 'none';
+                            stderrEl.textContent = '';
+                        }
+                    }
                     const pill = document.getElementById(`statusPill-${q.id}`);
                     if (pill) {
                         pill.className = 'cl-output-status-pill success';
@@ -2040,6 +2084,28 @@
             });
         }
 
+        function clearTerminal(qId) {
+            const stdoutEl = document.getElementById(`stdout-${qId}`);
+            const stderrEl = document.getElementById(`stderr-${qId}`);
+            const statusPill = document.getElementById(`statusPill-${qId}`);
+            const explainWrap = document.getElementById(`explainWrap-${qId}`);
+            if (stdoutEl) {
+                stdoutEl.className = 'placeholder';
+                stdoutEl.innerHTML = '<span class="cl-terminal-prompt">$</span>Ready to execute. Click &quot;Run Code&quot; (⌘+Enter) to compile and view output here.';
+            }
+            if (stderrEl) {
+                stderrEl.style.display = 'none';
+                stderrEl.textContent = '';
+            }
+            if (statusPill) {
+                statusPill.className = 'cl-output-status-pill';
+                statusPill.textContent = 'Ready';
+            }
+            if (explainWrap) {
+                explainWrap.style.display = 'none';
+            }
+        }
+
         async function runCode(q) {
             const state = questionState[q.id];
             if (!state || !state.editor) return;
@@ -2051,9 +2117,14 @@
             const runBtn = document.getElementById(`runBtn-${q.id}`);
             const statusPill = document.getElementById(`statusPill-${q.id}`);
 
-            outputEl.style.display = 'block';
-            stdoutEl.textContent = 'Compiling and executing…';
-            stderrEl.textContent = '';
+            if (stdoutEl) {
+                stdoutEl.className = '';
+                stdoutEl.textContent = 'Compiling and executing…';
+            }
+            if (stderrEl) {
+                stderrEl.style.display = 'none';
+                stderrEl.textContent = '';
+            }
             if (statusPill) {
                 statusPill.className = 'cl-output-status-pill';
                 statusPill.textContent = 'Running…';
@@ -2085,11 +2156,21 @@
                 state.lastRunSuccess = isSuccess;
                 state.lastRunError = !isSuccess ? (data.stderr || data.error || `Process exited with code ${exitCode}`) : null;
 
-                stdoutEl.textContent = data.stdout || '';
-                stderrEl.textContent = data.stderr || '';
-
-                if (!data.stdout && !data.stderr) {
-                    stdoutEl.textContent = 'Program finished execution with no output.';
+                if (stdoutEl) {
+                    stdoutEl.className = '';
+                    stdoutEl.textContent = data.stdout || '';
+                    if (!data.stdout && !data.stderr) {
+                        stdoutEl.textContent = 'Program finished execution with no output.';
+                    }
+                }
+                if (stderrEl) {
+                    if (data.stderr) {
+                        stderrEl.style.display = 'block';
+                        stderrEl.textContent = data.stderr;
+                    } else {
+                        stderrEl.style.display = 'none';
+                        stderrEl.textContent = '';
+                    }
                 }
 
                 if (statusPill) {
@@ -2122,8 +2203,14 @@
                 state.lastRunCode = code;
                 state.lastRunSuccess = false;
                 state.lastRunError = err.message;
-                stdoutEl.textContent = '';
-                stderrEl.textContent = err.message;
+                if (stdoutEl) {
+                    stdoutEl.className = '';
+                    stdoutEl.textContent = '';
+                }
+                if (stderrEl) {
+                    stderrEl.style.display = 'block';
+                    stderrEl.textContent = err.message;
+                }
                 if (statusPill) {
                     statusPill.className = 'cl-output-status-pill error';
                     statusPill.textContent = 'Failed';

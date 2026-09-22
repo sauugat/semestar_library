@@ -37,9 +37,9 @@
 
     <style>
         :root {
-            --apple-font: 'Roboto', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            --apple-heading: 'Google Sans', 'Product Sans', 'Outfit', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-            --apple-mono: 'JetBrains Mono Nerd Font', 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            --apple-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "SF Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
+            --apple-heading: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Plus Jakarta Sans", "Helvetica Neue", sans-serif;
+            --apple-mono: "SF Mono", Menlo, Monaco, "Consolas", monospace;
         }
 
         body {
@@ -717,12 +717,12 @@
             letter-spacing: 0.03em;
         }
 
-        /* ── Code Box & Console (Google Antigravity CLI Container) ── */
+        /* ── Code Box & Console ── */
         .cl-code-box {
-            background: #1E242A;
+            background: #18181c;
             border-radius: 10px;
             overflow: hidden;
-            border: 1.5px solid rgba(218, 220, 224, 0.18);
+            border: 1.5px solid #27272a;
             box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
             margin-top: 10px;
         }
@@ -732,8 +732,8 @@
             align-items: center;
             justify-content: space-between;
             padding: 8px 14px;
-            background: #161B20;
-            border-bottom: 1px solid rgba(218, 220, 224, 0.12);
+            background: #121214;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
         }
 
         .cl-window-dots {
@@ -1613,8 +1613,8 @@
             font-family: var(--apple-mono);
             font-size: 12.5px;
             line-height: 1.55;
-            background: #1E242A;
-            color: #E8EAED;
+            background: #18181b;
+            color: #f4f4f5;
             overflow: auto;
             flex: 1;
             white-space: pre-wrap;

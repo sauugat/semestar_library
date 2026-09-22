@@ -724,15 +724,15 @@
       const fileName = `solution${ext}`;
 
       return `
-        <div style="border:1.5px solid #DADCE0; border-radius:16px; overflow:hidden; margin-bottom:16px;">
+        <div style="border:1.5px solid rgba(0,0,0,0.18); border-radius:14px; overflow:hidden; margin-bottom:16px;">
           <!-- File tab bar -->
           <div style="
-            background:#161B20;
+            background:#181825;
             padding:10px 18px;
             display:flex;
             align-items:center;
             justify-content:space-between;
-            border-bottom:1px solid rgba(218,220,224,0.12);
+            border-bottom:1px solid rgba(255,255,255,0.07);
           ">
             <div style="display:flex; align-items:center; gap:8px;">
               <div style="display:flex; gap:7px;">
@@ -740,14 +740,14 @@
                 <span style="width:11px; height:11px; border-radius:50%; background:#ffbd2e; display:inline-block;"></span>
                 <span style="width:11px; height:11px; border-radius:50%; background:#27c93f; display:inline-block;"></span>
               </div>
-              <span style="font-size:12.5px; font-weight:600; color:#E8EAED; font-family:'JetBrains Mono Nerd Font','JetBrains Mono','Fira Code',monospace; margin-left:8px;">${escapeHtml(fileName)}</span>
+              <span style="font-size:12.5px; font-weight:600; color:#cdd6f4; font-family:Menlo,Monaco,Consolas,'SF Mono',monospace; margin-left:8px;">${escapeHtml(fileName)}</span>
             </div>
           </div>
           <!-- Code area with syntax highlighting -->
           <div style="
-            background:#1E242A;
+            background:#1e1e2e;
             padding:14px 0;
-            font-family:'JetBrains Mono Nerd Font','JetBrains Mono','Fira Code',ui-monospace,monospace;
+            font-family:Menlo,Monaco,Consolas,'SF Mono','Courier New',monospace;
             font-weight:500;
             letter-spacing:0.25px;
           ">

@@ -30,7 +30,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
-        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Roboto:wght@400;500;700&family=Fira+Code:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap"
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Fira+Code:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="/style.v4.css">
     <link rel="stylesheet" href="/auth-modal.css">
@@ -38,33 +38,23 @@
 
     <style>
         :root {
-            /* Google Antigravity IDE Design System Tokens */
-            --agy-primary: #4285F4;
-            --agy-primary-hover: #3367D6;
-            --agy-error: #EA4335;
-            --agy-surface: #FFFFFF;
-            --agy-on-surface: #202124;
-            --agy-border: #DADCE0;
-            --agy-cli-bg: #1E242A;
-            --agy-cli-text: #E8EAED;
-
-            --apple-font: 'Roboto', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            --apple-heading: 'Google Sans', 'Product Sans', 'Outfit', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-            --apple-mono: 'JetBrains Mono Nerd Font', 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-            --cl-border: var(--agy-border);
-            --cl-border-hover: rgba(66, 133, 244, 0.4);
-            --cl-card-bg: var(--agy-surface);
-            --cl-subtle-bg: #f8f9fa;
-            --cl-text-primary: var(--agy-on-surface);
-            --cl-text-secondary: #5f6368;
-            --cl-text-muted: #80868b;
-            --cl-accent: var(--agy-primary);
-            --cl-accent-glow: rgba(66, 133, 244, 0.15);
-            --cl-success: #34A853;
-            --cl-danger: var(--agy-error);
-            --cl-radius-lg: 16px;
-            --cl-radius-md: 8px;
-            --cl-radius-sm: 4px;
+            --apple-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "SF Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
+            --apple-heading: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+            --apple-mono: Menlo, Monaco, Consolas, "SF Mono", "Courier New", monospace;
+            --cl-border: rgba(0, 0, 0, 0.09);
+            --cl-border-hover: rgba(0, 0, 0, 0.18);
+            --cl-card-bg: #ffffff;
+            --cl-subtle-bg: #f5f5f7;
+            --cl-text-primary: #1d1d1f;
+            --cl-text-secondary: #6e6e73;
+            --cl-text-muted: #86868b;
+            --cl-accent: #1d1d1f;
+            --cl-accent-glow: rgba(0, 0, 0, 0.08);
+            --cl-success: #1d1d1f;
+            --cl-danger: #1d1d1f;
+            --cl-radius-lg: 20px;
+            --cl-radius-md: 14px;
+            --cl-radius-sm: 10px;
         }
 
         body {
@@ -216,10 +206,10 @@
         }
 
         .cl-tab-btn.active {
-            background: var(--agy-primary, #4285F4);
+            background: #1d1d1f;
             color: #ffffff;
-            border-color: var(--agy-primary, #4285F4);
-            box-shadow: 0 3px 10px rgba(66, 133, 244, 0.3);
+            border-color: #1d1d1f;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.14);
         }
 
         .cl-tab-check {
@@ -350,8 +340,8 @@
             align-items: center;
             justify-content: space-between;
             padding: 12px 18px;
-            background: #1E242A;
-            border-bottom: 1px solid rgba(218, 220, 224, 0.12);
+            background: #181825;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.07);
         }
 
         .cl-traffic-dots {
@@ -515,7 +505,7 @@
         .monaco-slot {
             width: 100%;
             height: 420px;
-            background: #1E242A;
+            background: #1e1e2e;
         }
 
         /* ── Action Control Bar ── */
@@ -611,10 +601,10 @@
             color: var(--cl-text-muted);
         }
 
-        /* ── Terminal Output Box (Google Antigravity CLI Container) ── */
+        /* ── Terminal Output Box (Pro macOS Drawer) ── */
         .cl-output-box {
-            background: #1E242A;
-            border: 1.5px solid var(--agy-border, #DADCE0);
+            background: #181825;
+            border: 1.5px solid rgba(0, 0, 0, 0.18);
             border-radius: 16px;
             overflow: hidden;
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
@@ -626,11 +616,11 @@
             align-items: center;
             justify-content: space-between;
             padding: 10px 18px;
-            background: #161B20;
-            border-bottom: 1px solid rgba(218, 220, 224, 0.12);
+            background: #11111b;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
             font-size: 12px;
             font-weight: 700;
-            color: #DADCE0;
+            color: #a6adc8;
             letter-spacing: 0.03em;
         }
 
@@ -1728,13 +1718,13 @@
                             { token: 'constant', foreground: 'fbbf24' }
                         ],
                         colors: {
-                            'editor.background': '#1E242A',
-                            'editor.foreground': '#E8EAED',
-                            'editorLineNumber.foreground': '#5F6368',
-                            'editorLineNumber.activeForeground': '#E8EAED',
-                            'editorCursor.foreground': '#4285F4',
-                            'editor.selectionBackground': '#3367D644',
-                            'editor.inactiveSelectionBackground': '#3367D622'
+                            'editor.background': '#0d1117',
+                            'editor.foreground': '#e6edf3',
+                            'editorLineNumber.foreground': '#6e7681',
+                            'editorLineNumber.activeForeground': '#e6edf3',
+                            'editorCursor.foreground': '#58a6ff',
+                            'editor.selectionBackground': '#264f78',
+                            'editor.inactiveSelectionBackground': '#264f7855'
                         }
                     });
                 } catch (e) {
@@ -2029,7 +2019,7 @@
                 value: initialCode,
                 language: monacoLang,
                 theme: 'cl-vibrant-dark',
-                fontSize: 14,
+                fontSize: 13.5,
                 lineHeight: 22,
                 letterSpacing: 0.25,
                 fontWeight: "500",
@@ -2038,7 +2028,7 @@
                 scrollBeyondLastLine: false,
                 automaticLayout: true,
                 padding: { top: 14, bottom: 14 },
-                fontFamily: "'JetBrains Mono Nerd Font', 'JetBrains Mono', 'Fira Code', ui-monospace, Menlo, Monaco, Consolas, monospace",
+                fontFamily: "Menlo, Monaco, Consolas, 'SF Mono', 'Courier New', monospace",
                 roundedSelection: true,
                 cursorBlinking: 'smooth',
                 cursorSmoothCaretAnimation: "on",

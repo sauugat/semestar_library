@@ -49,45 +49,35 @@
        APPLE CUPERTINO ULTRA-MINIMALIST CODE COMPILER
        ============================================================ */
     :root {
-      /* Google Antigravity IDE Design System Tokens */
-      --agy-primary: #4285F4;
-      --agy-primary-hover: #3367D6;
-      --agy-error: #EA4335;
-      --agy-surface: #FFFFFF;
-      --agy-on-surface: #202124;
-      --agy-border: #DADCE0;
-      --agy-cli-bg: #1E242A;
-      --agy-cli-text: #E8EAED;
-
-      --sf-font: 'Google Sans', 'Product Sans', 'Outfit', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-      --mono-font: 'JetBrains Mono Nerd Font', 'JetBrains Mono', 'Fira Code', Menlo, Monaco, Consolas, monospace;
+      --sf-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "SF Pro", "Inter", sans-serif;
+      --mono-font: "JetBrains Mono", "SF Mono", Menlo, Monaco, Consolas, monospace;
 
       --app-bg: #fafafc;
-      --surface: var(--agy-surface);
-      --surface-subtle: #f8f9fa;
+      --surface: #ffffff;
+      --surface-subtle: #f5f5f7;
       --surface-hover: #ebebee;
-      --border-subtle: var(--agy-border);
+      --border-subtle: rgba(0, 0, 0, 0.08);
       --border-medium: rgba(0, 0, 0, 0.14);
 
-      --text-main: var(--agy-on-surface);
-      --text-sub: #5f6368;
-      --text-muted: #80868b;
+      --text-main: #1d1d1f;
+      --text-sub: #6e6e73;
+      --text-muted: #86868b;
 
-      --color-black: var(--agy-primary);
-      --color-black-hover: var(--agy-primary-hover);
+      --color-black: #000000;
+      --color-black-hover: #1c1c1e;
       --color-html: #ff5a5f;
       --color-css: #0071e3;
       --color-js: #f5a623;
-      --color-green: #34A853;
-      --color-red: var(--agy-error);
+      --color-green: #34c759;
+      --color-red: #ff3b30;
 
       --shadow-apple-sm: 0 2px 8px rgba(0, 0, 0, 0.03), 0 1px 2px rgba(0, 0, 0, 0.02);
       --shadow-apple-card: 0 2px 10px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(0, 0, 0, 0.06);
 
-      --radius-sm: 4px;
-      --radius-md: 8px;
+      --radius-sm: 8px;
+      --radius-md: 12px;
       --radius-lg: 16px;
-      --radius-pill: 9999px;
+      --radius-pill: 980px;
 
       --spring: cubic-bezier(0.25, 1, 0.5, 1);
     }
@@ -1265,8 +1255,8 @@
 
     [data-theme='dark'] .CodeMirror,
     [data-theme='dark'] .CodeMirror-gutters {
-      background: #1E242A !important;
-      color: #E8EAED !important;
+      background: #1c1c1e !important;
+      color: #dde1e9 !important;
     }
 
     [data-theme='dark'] .CodeMirror-linenumber {
@@ -1274,8 +1264,8 @@
     }
 
     [data-theme='dark'] .stdin-card textarea {
-      color: #E8EAED;
-      background: #1E242A;
+      color: #dde1e9;
+      background: #1c1c1e;
     }
 
     [data-theme='dark'] .lang-dropdown-trigger {
@@ -1284,12 +1274,12 @@
     }
 
     [data-theme='dark'] .btn-run-black {
-      background: #4285F4;
-      color: #ffffff;
+      background: #f5f5f7;
+      color: #111113;
     }
 
     [data-theme='dark'] .btn-run-black:hover {
-      background: #3367D6;
+      background: #e0e0e8;
     }
 
     [data-theme='dark'] .btn-toggle-subtle {

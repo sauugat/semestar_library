@@ -422,15 +422,13 @@
     // PAGE 1 — COVER PAGE
     // ════════════════════════════════════════════════════════════════
     let html = `
-      <div class="report-cover-wrapper page-break-after" style="
-        page-break-after: always;
-        break-after: page;
-        min-height: 100vh;
+      <div class="report-cover-wrapper" style="
+        min-height: 740px;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        padding: 40px 0;
+        padding: 30px 0;
         page-break-inside: avoid;
         break-inside: avoid;
         box-sizing: border-box;
@@ -529,14 +527,12 @@
     // PAGE 2 — MARKSHEET / CHECKED SHEET
     // ════════════════════════════════════════════════════════════════
     html += `
-      <div class="marksheet-page page-break-before page-break-after" style="
+      <div class="marksheet-page page-break-before" style="
         page-break-before: always;
         break-before: page;
-        page-break-after: always;
-        break-after: page;
         page-break-inside: avoid;
         break-inside: avoid;
-        padding: 32px 0 24px;
+        padding: 24px 0 20px;
         box-sizing: border-box;
       ">
         <!-- Marksheet header -->
@@ -780,12 +776,12 @@
       // PAGE A OF QUESTION — 1 QUESTION (CODE BOX AND RESULT)
       // ════════════════════════════════════════════════════════════════
       html += `
-        <div class="question-code-page page-break-before page-break-after" style="
+        <div class="question-code-page page-break-before" style="
           page-break-before: always;
           break-before: page;
-          page-break-after: always;
-          break-after: page;
-          padding: 24px 0 20px;
+          page-break-inside: avoid;
+          break-inside: avoid;
+          padding: 20px 0 16px;
           box-sizing: border-box;
         ">
           <!-- Bordered question card -->
@@ -853,12 +849,12 @@
       // PAGE B OF QUESTION — SESSION DETAILS, CODE GROWTH, TYPING RHYTHM
       // ════════════════════════════════════════════════════════════════
       html += `
-        <div class="question-analytics-page page-break-before page-break-after" style="
+        <div class="question-analytics-page page-break-before" style="
           page-break-before: always;
           break-before: page;
-          page-break-after: always;
-          break-after: page;
-          padding: 24px 0 20px;
+          page-break-inside: avoid;
+          break-inside: avoid;
+          padding: 20px 0 16px;
           box-sizing: border-box;
         ">
           <!-- Bordered analytics card -->

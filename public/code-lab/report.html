@@ -555,7 +555,7 @@
             border: 1px solid rgba(239, 68, 68, 0.28);
         }
 
-        /* Page break rules for per-page architecture */
+        /* Page break rules for per-page architecture (single-directional to prevent blank page spacers) */
         .page-break-before,
         .marksheet-page,
         .question-code-page,
@@ -563,15 +563,6 @@
         .timeline-page {
             page-break-before: always !important;
             break-before: page !important;
-        }
-
-        .page-break-after,
-        .report-cover-wrapper,
-        .marksheet-page,
-        .question-code-page,
-        .question-analytics-page {
-            page-break-after: always !important;
-            break-after: page !important;
         }
 
         .cl-code-ide-container,
@@ -610,15 +601,7 @@
                 print-color-adjust: exact;
             }
 
-            /* Ensure strict per-page breaks */
-            .report-cover-wrapper,
-            .marksheet-page,
-            .question-code-page,
-            .question-analytics-page {
-                page-break-after: always !important;
-                break-after: page !important;
-            }
-
+            /* Clean per-page breaks */
             .marksheet-page,
             .question-code-page,
             .question-analytics-page,
@@ -863,13 +846,9 @@
                             margin: 10,
                             filename,
                             image: { type: 'jpeg', quality: 0.98 },
-                            html2canvas: { scale: 2, useCORS: true, letterRendering: true, logging: false },
+                            html2canvas: { scale: 2, useCORS: true, scrollX: 0, scrollY: 0, logging: false },
                             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                            pagebreak: {
-                                mode: ['css', 'legacy'],
-                                before: ['.question-code-page', '.question-analytics-page', '.timeline-page', '.marksheet-page'],
-                                after: ['.report-cover-wrapper', '.marksheet-page', '.question-code-page', '.question-analytics-page']
-                            }
+                            pagebreak: { mode: ['css', 'legacy'] }
                         })
                         .from(document.getElementById('report'))
                         .save()

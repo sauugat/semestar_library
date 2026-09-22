@@ -34,11 +34,11 @@
   }
 
   function resolveTheme() {
-    return getStoredTheme() || 'dark';
+    return getStoredTheme() || getSystemPreference();
   }
 
   function updateThemeColorMeta(isDark) {
-    const color = isDark ? '#0d1117' : '#fafafc';
+    const color = isDark ? '#0f1115' : '#ffffff';
     let meta = document.querySelector('meta[name="theme-color"]');
     if (!meta) {
       meta = document.createElement('meta');

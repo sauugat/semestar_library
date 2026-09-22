@@ -11,19 +11,26 @@
    1. DESIGN TOKENS & INDUSTRIAL-GRADE SYSTEM VARIABLES
    ------------------------------------------------------------ */
 :root {
-  /* Industrial-Grade Color System (Light Baseline / Defaults) */
-  --bg-primary: #ffffff;
-  --bg-secondary: #f6f8fa;
-  --bg-tertiary: #eaeef2;
-  --border-color: #d0d7de;
-  --text-primary: #1f2328;
+  /* User-Defined Core System Variables (Light Baseline / Defaults) */
+  --bg-app: #f5f5f7;
+  --bg-surface: #ffffff;
+  --bg-surface-raised: #ffffff;
+  --border: #d0d7de;
+  --text-primary: #1d1d1f;
   --text-secondary: #656d76;
-  --accent: #0969da;
+  --accent-blue: #0969da;
+  --pill-dark: #000000;
+  --danger: #cf222e;
   --success: #1a7f37;
   --warning: #9a6700;
-  --danger: #cf222e;
 
-  /* Aliasing legacy tokens to system variables */
+  /* Aliasing legacy and system tokens to core variables */
+  --bg-primary: var(--bg-app);
+  --bg-secondary: var(--bg-surface);
+  --bg-tertiary: var(--bg-surface-raised);
+  --border-color: var(--border);
+  --accent: var(--accent-blue);
+
   --ceramic-bg: var(--bg-primary);
   --ceramic-surface: var(--bg-secondary);
   --ceramic-card-hover: var(--bg-tertiary);
@@ -96,24 +103,32 @@
 [data-theme="dark"],
 html.dark,
 body.dark-mode {
-  /* Core 10 Color System Tokens */
-  --bg-primary: #0d1117;
-  --bg-secondary: #161b22;
-  --bg-tertiary: #21262d;
-  --border-color: #30363d;
-  --text-primary: #e6edf3;
-  --text-secondary: #8b949e;
-  --accent: #3b82f6;
+  /* Exact User-Specified CSS Custom Properties */
+  --bg-app: #0f1115;
+  --bg-surface: #171a21;
+  --bg-surface-raised: #1e222b;
+  --border: #2a2f3a;
+  --text-primary: #eaecef;
+  --text-secondary: #8b93a1;
+  --accent-blue: #4d8eff;
+  --pill-dark: #0a0c10;
+  --danger: #f85149;
   --success: #3fb950;
   --warning: #d29922;
-  --danger: #f85149;
+
+  /* Aliasing legacy system variables to user tokens */
+  --bg-primary: var(--bg-app);
+  --bg-secondary: var(--bg-surface);
+  --bg-tertiary: var(--bg-surface-raised);
+  --border-color: var(--border);
+  --accent: var(--accent-blue);
 
   /* Ceramic & Base Surface Aliases */
   --ceramic-bg: var(--bg-primary);
   --ceramic-surface: var(--bg-secondary);
   --ceramic-card-hover: var(--bg-tertiary);
   --ceramic-border: var(--border-color);
-  --ceramic-border-hover: #8b949e;
+  --ceramic-border-hover: #444c56;
   --ceramic-border-focus: var(--accent);
   --text-main: var(--text-primary);
   --text-sub: var(--text-secondary);
@@ -126,8 +141,8 @@ body.dark-mode {
   --ap-canvas: var(--bg-primary);
   --ap-canvas-alt: var(--bg-primary);
   --ap-surface: var(--bg-secondary);
-  --ap-surface-translucent: rgba(22, 27, 34, 0.92);
-  --ap-surface-translucent-heavy: rgba(22, 27, 34, 0.98);
+  --ap-surface-translucent: rgba(23, 26, 33, 0.94);
+  --ap-surface-translucent-heavy: rgba(23, 26, 33, 0.98);
   --ap-surface-hover: var(--bg-tertiary);
 
   /* Typography Colors */
@@ -136,26 +151,26 @@ body.dark-mode {
   --ap-text-tertiary: var(--text-secondary);
   --ap-text-quaternary: #6e7681;
   --ap-text-inverse: var(--bg-primary);
-  --ap-text-inverse-secondary: rgba(13, 17, 23, 0.75);
-  --ap-text-inverse-tertiary: rgba(13, 17, 23, 0.50);
+  --ap-text-inverse-secondary: rgba(15, 17, 21, 0.75);
+  --ap-text-inverse-tertiary: rgba(15, 17, 21, 0.50);
 
   /* Functional Accents */
-  --ap-accent-blue: var(--accent);
+  --ap-accent-blue: var(--accent-blue);
   --ap-accent-blue-hover: #60a5fa;
   --ap-accent-blue-active: #2563eb;
-  --ap-accent-blue-subtle: rgba(59, 130, 246, 0.16);
+  --ap-accent-blue-subtle: rgba(77, 142, 255, 0.16);
   --ap-accent-green: var(--success);
   --ap-accent-amber: var(--warning);
   --ap-accent-red: var(--danger);
-  --ap-accent-purple: #a371f7;
+  --ap-accent-purple: #a855f7;
   --ap-accent-indigo: #818cf8;
 
   /* Subtle 1px Borders */
   --ap-border: var(--border-color);
   --ap-border-post: var(--border-color);
   --ap-border-subtle: var(--border-color);
-  --ap-border-strong: #8b949e;
-  --ap-border-focus: var(--accent);
+  --ap-border-strong: #444c56;
+  --ap-border-focus: var(--accent-blue);
   --ap-border-dark: var(--border-color);
   --ap-border-dark-subtle: var(--border-color);
 
@@ -481,7 +496,7 @@ body.dark-mode .nav-item.active svg {
 }
 
 /* ─── BUTTONS & CTAS ─── */
-/* Primary Buttons */
+/* Primary Buttons (Near-black with 1px lighter border for edge definition on dark bg) */
 [data-theme="dark"] .apple-nav-btn,
 body.dark-mode .apple-nav-btn,
 [data-theme="dark"] .nav-cta-btn,
@@ -499,14 +514,22 @@ body.dark-mode #downloadBtn:not(:disabled),
 [data-theme="dark"] .cl-run-btn,
 body.dark-mode .cl-run-btn,
 [data-theme="dark"] .codelab-run-btn,
-body.dark-mode .codelab-run-btn {
-  background: var(--accent) !important;
-  color: #ffffff !important;
-  border: 1px solid var(--accent) !important;
+body.dark-mode .codelab-run-btn,
+[data-theme="dark"] .cl-window-run-btn,
+body.dark-mode .cl-window-run-btn,
+[data-theme="dark"] #primaryRunBtn,
+body.dark-mode #primaryRunBtn,
+[data-theme="dark"] .btn-run-black,
+body.dark-mode .btn-run-black,
+[data-theme="dark"] .btn-file-action.btn-file-view,
+body.dark-mode .btn-file-action.btn-file-view {
+  background: var(--pill-dark) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid #3d4454 !important;
   font-weight: 600 !important;
   border-radius: 6px !important;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
-  transition: background 0.15s ease, filter 0.15s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4) !important;
+  transition: background 0.15s ease, border-color 0.15s ease, filter 0.15s ease;
 }
 
 [data-theme="dark"] .apple-nav-btn:hover,
@@ -524,29 +547,45 @@ body.dark-mode #downloadBtn:hover:not(:disabled),
 [data-theme="dark"] .cl-run-btn:hover:not(:disabled),
 body.dark-mode .cl-run-btn:hover:not(:disabled),
 [data-theme="dark"] .codelab-run-btn:hover:not(:disabled),
-body.dark-mode .codelab-run-btn:hover:not(:disabled) {
-  background: #2563eb !important;
+body.dark-mode .codelab-run-btn:hover:not(:disabled),
+[data-theme="dark"] .cl-window-run-btn:hover:not(:disabled),
+body.dark-mode .cl-window-run-btn:hover:not(:disabled),
+[data-theme="dark"] #primaryRunBtn:hover,
+body.dark-mode #primaryRunBtn:hover,
+[data-theme="dark"] .btn-run-black:hover,
+body.dark-mode .btn-run-black:hover,
+[data-theme="dark"] .btn-file-action.btn-file-view:hover,
+body.dark-mode .btn-file-action.btn-file-view:hover {
+  background: #141822 !important;
+  border-color: #555f75 !important;
   color: #ffffff !important;
-  border-color: #2563eb !important;
-  filter: brightness(1.08);
+  filter: brightness(1.1);
 }
 
-/* Secondary Buttons */
+/* Secondary Buttons (Flip to --bg-surface-raised with --border and --text-primary) */
 [data-theme="dark"] .cl-btn-secondary,
 body.dark-mode .cl-btn-secondary,
 [data-theme="dark"] .apple-confirm-btn.cancel,
 body.dark-mode .apple-confirm-btn.cancel,
 [data-theme="dark"] .cl-action-pill.secondary,
 body.dark-mode .cl-action-pill.secondary,
+[data-theme="dark"] .syllabus-action-pill.secondary,
+body.dark-mode .syllabus-action-pill.secondary,
+[data-theme="dark"] .dash-hero-btn.secondary,
+body.dark-mode .dash-hero-btn.secondary,
+[data-theme="dark"] .cl-modal-btn.cancel,
+body.dark-mode .cl-modal-btn.cancel,
 [data-theme="dark"] .cl-pdf-external-btn,
 body.dark-mode .cl-pdf-external-btn,
 [data-theme="dark"] .ag-hud-nav-btn,
 body.dark-mode .ag-hud-nav-btn,
 [data-theme="dark"] .ag-hud-close-btn,
-body.dark-mode .ag-hud-close-btn {
-  background: var(--bg-tertiary) !important;
+body.dark-mode .ag-hud-close-btn,
+[data-theme="dark"] .btn-secondary,
+body.dark-mode .btn-secondary {
+  background: var(--bg-surface-raised) !important;
   color: var(--text-primary) !important;
-  border: 1px solid var(--border-color) !important;
+  border: 1px solid var(--border) !important;
   border-radius: 6px !important;
   transition: background 0.15s ease, border-color 0.15s ease;
 }
@@ -557,13 +596,21 @@ body.dark-mode .cl-btn-secondary:hover,
 body.dark-mode .apple-confirm-btn.cancel:hover,
 [data-theme="dark"] .cl-action-pill.secondary:hover,
 body.dark-mode .cl-action-pill.secondary:hover,
+[data-theme="dark"] .syllabus-action-pill.secondary:hover,
+body.dark-mode .syllabus-action-pill.secondary:hover,
+[data-theme="dark"] .dash-hero-btn.secondary:hover,
+body.dark-mode .dash-hero-btn.secondary:hover,
+[data-theme="dark"] .cl-modal-btn.cancel:hover,
+body.dark-mode .cl-modal-btn.cancel:hover,
 [data-theme="dark"] .cl-pdf-external-btn:hover,
 body.dark-mode .cl-pdf-external-btn:hover,
 [data-theme="dark"] .ag-hud-nav-btn:hover,
 body.dark-mode .ag-hud-nav-btn:hover,
 [data-theme="dark"] .ag-hud-close-btn:hover,
-body.dark-mode .ag-hud-close-btn:hover {
-  background: #2d333b !important;
+body.dark-mode .ag-hud-close-btn:hover,
+[data-theme="dark"] .btn-secondary:hover,
+body.dark-mode .btn-secondary:hover {
+  background: #272c38 !important;
   border-color: #444c56 !important;
   color: var(--text-primary) !important;
 }
@@ -583,7 +630,72 @@ body.dark-mode .apple-confirm-btn.danger:hover {
   border-color: #da3633 !important;
 }
 
-/* ─── CARDS, PANELS & SURFACES ─── */
+/* ─── SEMESTER PILLS & FILTER PILLS ─── */
+[data-theme="dark"] .semester-btn,
+body.dark-mode .semester-btn,
+[data-theme="dark"] .routine-sem-btn,
+body.dark-mode .routine-sem-btn,
+[data-theme="dark"] .sem-btn,
+body.dark-mode .sem-btn,
+[data-theme="dark"] .cl-filter-tab,
+body.dark-mode .cl-filter-tab,
+[data-theme="dark"] .filter-btn,
+body.dark-mode .filter-btn,
+[data-theme="dark"] .cl-crumb-link,
+body.dark-mode .cl-crumb-link {
+  background: transparent !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .semester-btn:hover,
+body.dark-mode .semester-btn:hover,
+[data-theme="dark"] .routine-sem-btn:hover,
+body.dark-mode .routine-sem-btn:hover,
+[data-theme="dark"] .sem-btn:hover,
+body.dark-mode .sem-btn:hover,
+[data-theme="dark"] .cl-filter-tab:hover,
+body.dark-mode .cl-filter-tab:hover,
+[data-theme="dark"] .filter-btn:hover,
+body.dark-mode .filter-btn:hover,
+[data-theme="dark"] .cl-crumb-link:hover,
+body.dark-mode .cl-crumb-link:hover {
+  background: var(--bg-surface-raised) !important;
+  border-color: #444c56 !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .semester-btn.active,
+body.dark-mode .semester-btn.active,
+[data-theme="dark"] .routine-sem-btn.active,
+body.dark-mode .routine-sem-btn.active,
+[data-theme="dark"] .sem-btn.active,
+body.dark-mode .sem-btn.active,
+[data-theme="dark"] .cl-filter-tab.active,
+body.dark-mode .cl-filter-tab.active,
+[data-theme="dark"] .filter-btn.active,
+body.dark-mode .filter-btn.active,
+[data-theme="dark"] .cl-crumb-current,
+body.dark-mode .cl-crumb-current {
+  background: var(--pill-dark) !important;
+  color: #ffffff !important;
+  border: 1px solid #3d4454 !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4) !important;
+}
+
+[data-theme="dark"] .cl-filter-tab .cl-tab-badge,
+body.dark-mode .cl-filter-tab .cl-tab-badge {
+  background: var(--bg-surface-raised) !important;
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .cl-filter-tab.active .cl-tab-badge,
+body.dark-mode .cl-filter-tab.active .cl-tab-badge {
+  background: rgba(255, 255, 255, 0.2) !important;
+  color: #ffffff !important;
+}
+
+/* ─── CARDS, LIST ROWS & SUBJECT CARDS (--bg-surface-raised on --bg-app) ─── */
 [data-theme="dark"] .apple-card,
 body.dark-mode .apple-card,
 [data-theme="dark"] .poster-card,
@@ -608,12 +720,26 @@ body.dark-mode .fb-card,
 body.dark-mode .assignment-post-card,
 [data-theme="dark"] .subject-card,
 body.dark-mode .subject-card,
+[data-theme="dark"] .course-card-minimal,
+body.dark-mode .course-card-minimal,
+[data-theme="dark"] .course-card-clean,
+body.dark-mode .course-card-clean,
+[data-theme="dark"] .clean-file-item,
+body.dark-mode .clean-file-item,
+[data-theme="dark"] .search-chapter-item,
+body.dark-mode .search-chapter-item,
+[data-theme="dark"] .cl-submission-card,
+body.dark-mode .cl-submission-card,
+[data-theme="dark"] .submission-card,
+body.dark-mode .submission-card,
+[data-theme="dark"] .cl-student-card,
+body.dark-mode .cl-student-card,
+[data-theme="dark"] .clean-unit-row,
+body.dark-mode .clean-unit-row,
 [data-theme="dark"] .cl-desc-card,
 body.dark-mode .cl-desc-card,
 [data-theme="dark"] .cl-student-question-box,
 body.dark-mode .cl-student-question-box,
-[data-theme="dark"] .cl-assignment-header,
-body.dark-mode .cl-assignment-header,
 [data-theme="dark"] .cl-editor-window,
 body.dark-mode .cl-editor-window,
 [data-theme="dark"] .cl-pdf-side-pane,
@@ -638,9 +764,9 @@ body.dark-mode .apple-signin-card,
 body.dark-mode .routine-container,
 [data-theme="dark"] #report,
 body.dark-mode #report {
-  background: var(--bg-secondary) !important;
-  background-color: var(--bg-secondary) !important;
-  border: 1px solid var(--border-color) !important;
+  background: var(--bg-surface-raised) !important;
+  background-color: var(--bg-surface-raised) !important;
+  border: 1px solid var(--border) !important;
   border-radius: 8px !important;
   color: var(--text-primary) !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
@@ -660,13 +786,69 @@ body.dark-mode .social-post-card:hover,
 body.dark-mode .assignment-post-card:hover,
 [data-theme="dark"] .subject-card:hover,
 body.dark-mode .subject-card:hover,
+[data-theme="dark"] .course-card-minimal:hover,
+body.dark-mode .course-card-minimal:hover,
+[data-theme="dark"] .clean-file-item:hover,
+body.dark-mode .clean-file-item:hover,
+[data-theme="dark"] .search-chapter-item:hover,
+body.dark-mode .search-chapter-item:hover,
 [data-theme="dark"] .search-subject-card:hover,
 body.dark-mode .search-subject-card:hover,
 [data-theme="dark"] .search-student-card:hover,
 body.dark-mode .search-student-card:hover {
   border-color: #444c56 !important;
-  background: var(--bg-secondary) !important;
+  background: var(--bg-surface-raised) !important;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45) !important;
+}
+
+/* PDF Icon Badges (Lighter fill so they don't blend into dark cards) */
+[data-theme="dark"] .clean-file-icon,
+body.dark-mode .clean-file-icon,
+[data-theme="dark"] .pdf-badge,
+body.dark-mode .pdf-badge,
+[data-theme="dark"] .cl-meta-pdf,
+body.dark-mode .cl-meta-pdf,
+[data-theme="dark"] .attachment-file-badge,
+body.dark-mode .attachment-file-badge,
+[data-theme="dark"] .cl-pdf-badge,
+body.dark-mode .cl-pdf-badge {
+  background: #272c38 !important;
+  background-color: #272c38 !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Explore -> Links */
+[data-theme="dark"] .open-label,
+body.dark-mode .open-label,
+[data-theme="dark"] .course-card-foot .open-label,
+body.dark-mode .course-card-foot .open-label,
+[data-theme="dark"] .cl-link-explore,
+body.dark-mode .cl-link-explore {
+  color: var(--accent-blue) !important;
+}
+
+/* Course code badges */
+[data-theme="dark"] .course-code-badge,
+body.dark-mode .course-code-badge {
+  background: var(--bg-surface) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text-secondary) !important;
+}
+
+/* ─── HERO BANNERS (Lightened slightly to --bg-surface-raised) ─── */
+[data-theme="dark"] body.dash .dash-hero.cl-animated-hero,
+body.dash.dark-mode .dash-hero.cl-animated-hero,
+[data-theme="dark"] .cl-assignment-header,
+body.dark-mode .cl-assignment-header,
+[data-theme="dark"] .cl-hero-banner,
+body.dark-mode .cl-hero-banner,
+[data-theme="dark"] .cl-assignment-banner,
+body.dark-mode .cl-assignment-banner {
+  background: var(--bg-surface-raised) !important;
+  background-color: var(--bg-surface-raised) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35) !important;
 }
 
 /* Inner Panels / Windows Headers */
@@ -1317,6 +1499,23 @@ body.dark-mode .im-input-field {
 }
 
 /* ─── MODALS, DIALOGS & OVERLAYS ─── */
+[data-theme="dark"] .cl-create-modal-overlay,
+body.dark-mode .cl-create-modal-overlay,
+[data-theme="dark"] .cl-modal-overlay,
+body.dark-mode .cl-modal-overlay,
+[data-theme="dark"] .modal-backdrop,
+body.dark-mode .modal-backdrop,
+[data-theme="dark"] .apple-confirm-overlay,
+body.dark-mode .apple-confirm-overlay,
+[data-theme="dark"] #deviceNoticeOverlay,
+body.dark-mode #deviceNoticeOverlay,
+[data-theme="dark"] .drawer-overlay,
+body.dark-mode .drawer-overlay {
+  background: rgba(0, 0, 0, 0.78) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+}
+
 [data-theme="dark"] .gallery-modal,
 body.dark-mode .gallery-modal,
 [data-theme="dark"] .archive-modal-content,
@@ -1325,17 +1524,129 @@ body.dark-mode .archive-modal-content,
 body.dark-mode .modal-content,
 [data-theme="dark"] .cl-create-modal-card,
 body.dark-mode .cl-create-modal-card,
+[data-theme="dark"] .cl-create-modal-header,
+body.dark-mode .cl-create-modal-header,
+[data-theme="dark"] .cl-create-modal-footer,
+body.dark-mode .cl-create-modal-footer,
+[data-theme="dark"] .cl-modal-card,
+body.dark-mode .cl-modal-card,
 [data-theme="dark"] .device-notice-card,
 body.dark-mode .device-notice-card,
 [data-theme="dark"] #deviceNoticeOverlay .device-notice-card,
 body.dark-mode #deviceNoticeOverlay .device-notice-card,
 [data-theme="dark"] .apple-confirm-card,
-body.dark-mode .apple-confirm-card {
-  background: var(--bg-secondary) !important;
-  border: 1px solid var(--border-color) !important;
+body.dark-mode .apple-confirm-card,
+[data-theme="dark"] .drawer-sheet,
+body.dark-mode .drawer-sheet,
+[data-theme="dark"] .drawer-header,
+body.dark-mode .drawer-header,
+[data-theme="dark"] .drawer-preview-pane,
+body.dark-mode .drawer-preview-pane {
+  background: var(--bg-surface) !important;
+  background-color: var(--bg-surface) !important;
+  border: 1px solid var(--border) !important;
   color: var(--text-primary) !important;
   border-radius: 8px !important;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6) !important;
+}
+
+/* Modal Form Inputs & Semester/Subject Dropdowns */
+[data-theme="dark"] .cl-create-modal-card input,
+body.dark-mode .cl-create-modal-card input,
+[data-theme="dark"] .cl-create-modal-card select,
+body.dark-mode .cl-create-modal-card select,
+[data-theme="dark"] .cl-create-modal-card textarea,
+body.dark-mode .cl-create-modal-card textarea,
+[data-theme="dark"] .cl-modal-card input,
+body.dark-mode .cl-modal-card input,
+[data-theme="dark"] .cl-modal-card select,
+body.dark-mode .cl-modal-card select,
+[data-theme="dark"] .cl-modal-card textarea,
+body.dark-mode .cl-modal-card textarea,
+[data-theme="dark"] #modalAssignSemester,
+body.dark-mode #modalAssignSemester,
+[data-theme="dark"] #modalAssignSubject,
+body.dark-mode #modalAssignSubject {
+  background: var(--bg-surface-raised) !important;
+  background-color: var(--bg-surface-raised) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text-primary) !important;
+}
+
+/* ─── CODE EDITOR SURROUNDINGS ─── */
+[data-theme="dark"] .cl-editor-window .cl-window-titlebar,
+body.dark-mode .cl-editor-window .cl-window-titlebar,
+[data-theme="dark"] .cl-window-titlebar,
+body.dark-mode .cl-window-titlebar,
+[data-theme="dark"] .codelab-editor-label,
+body.dark-mode .codelab-editor-label {
+  background: var(--bg-surface) !important;
+  border-bottom: 1px solid var(--border) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .cl-window-file,
+body.dark-mode .cl-window-file {
+  background: var(--bg-surface-raised) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .cl-filename-input,
+body.dark-mode .cl-filename-input {
+  color: var(--text-primary) !important;
+}
+
+/* ─── SIDEBAR ICON RAIL ─── */
+[data-theme="dark"] .sidebar-rail,
+body.dark-mode .sidebar-rail,
+[data-theme="dark"] .app-rail,
+body.dark-mode .app-rail,
+[data-theme="dark"] .icon-rail,
+body.dark-mode .icon-rail,
+[data-theme="dark"] .dash-sidebar,
+body.dark-mode .dash-sidebar,
+[data-theme="dark"] .side-nav,
+body.dark-mode .side-nav,
+[data-theme="dark"] .im-header-side,
+body.dark-mode .im-header-side {
+  background: var(--bg-surface) !important;
+  border-color: var(--border) !important;
+}
+
+/* ─── STATUS & REPORT BADGES (Success green / Danger red) ─── */
+[data-theme="dark"] .cl-report-badge.reviewed,
+body.dark-mode .cl-report-badge.reviewed,
+[data-theme="dark"] .cl-eval-pill.graded,
+body.dark-mode .cl-eval-pill.graded,
+[data-theme="dark"] .badge-success,
+body.dark-mode .badge-success,
+[data-theme="dark"] .course-files-pill.has-files,
+body.dark-mode .course-files-pill.has-files {
+  background: rgba(63, 185, 80, 0.15) !important;
+  border: 1px solid rgba(63, 185, 80, 0.35) !important;
+  color: var(--success) !important;
+}
+
+[data-theme="dark"] .cl-report-badge.pending,
+body.dark-mode .cl-report-badge.pending,
+[data-theme="dark"] .cl-eval-pill.pending,
+body.dark-mode .cl-eval-pill.pending,
+[data-theme="dark"] .course-files-pill,
+body.dark-mode .course-files-pill {
+  background: var(--bg-surface-raised) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text-secondary) !important;
+}
+
+/* Keep Kyana AI purple accent */
+[data-theme="dark"] a[href*="chatbot"],
+body.dark-mode a[href*="chatbot"],
+[data-theme="dark"] .header-nav-item[href*="chatbot"],
+body.dark-mode .header-nav-item[href*="chatbot"],
+[data-theme="dark"] .nav-item[href*="chatbot"] span,
+body.dark-mode .nav-item[href*="chatbot"] span {
+  color: #a855f7 !important;
 }
 
 [data-theme="dark"] .gallery-modal-header,

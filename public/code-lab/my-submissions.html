@@ -1207,7 +1207,7 @@
                 if (allGroupedAssignments.length === 0) {
                     listEl.innerHTML = `
                         <div class="cl-empty-state">
-                            <div class="cl-empty-icon">📝</div>
+                            <img src="/minecraft-404-voxel-ruby.svg" alt="No submissions found" class="empty-voxel-illu" style="max-width: 240px; margin: 0 auto 16px;">
                             <div class="cl-empty-title">No Submissions Found</div>
                             <p class="cl-empty-desc">You have not submitted any programming assignments yet. Solve tasks in Code Lab and your submissions and evaluations will appear here.</p>
                         </div>
@@ -1512,7 +1512,7 @@
                 console.error('Error loading submissions:', error);
                 document.getElementById('list').innerHTML = `
                     <div class="cl-empty-state">
-                        <div class="cl-empty-icon">⚠️</div>
+                        <img src="/minecraft-404-voxel-ruby.svg" alt="Error loading" class="empty-voxel-illu" style="max-width: 220px; margin: 0 auto 14px;">
                         <div class="cl-empty-title">Failed to Load Submissions</div>
                         <p class="cl-empty-desc">${escapeHtml(error.message)}</p>
                     </div>

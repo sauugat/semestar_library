@@ -4830,6 +4830,23 @@ body.dark-mode .fb-card:hover {
   font-size: 14.5px;
 }
 
+.empty-voxel-illu {
+  width: 100%;
+  max-width: 260px;
+  height: auto;
+  max-height: 180px;
+  margin: 0 auto 16px auto;
+  display: block;
+  filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.12));
+  user-select: none;
+  pointer-events: none;
+  transition: transform 0.3s ease;
+}
+
+.empty-voxel-illu:hover {
+  transform: scale(1.02);
+}
+
 /* File Preview Popup */
 .file-preview-popup {
   position: fixed;

@@ -2607,12 +2607,15 @@ app.post('/api/compile', async (req, res) => {
 
 // --- Global API Error Handler (Ensures all /api routes return JSON, never HTML) ---
 app.use((err, req, res, next) => {
-  console.error('[API Error]:', err);
+  console.error('[Server Error]:', err);
   if (res.headersSent) return next(err);
   if (req.path.startsWith('/api/')) {
     return res.status(err.status || 500).json({
       message: err.message || 'An unexpected server error occurred.'
     });
+  }
+  if (req.accepts('html')) {
+    return res.status(err.status || 500).sendFile(path.join(__dirname, 'public', '404.html'));
   }
   next(err);
 });
@@ -2918,6 +2921,17 @@ function setupCompilerWebSocket(server) {
     });
   });
 }
+
+// 404 Handler for missing pages / resources
+app.use((req, res) => {
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ message: 'Resource not found' });
+  }
+  if (req.accepts('html')) {
+    return res.status(404).sendFile(path.join(__dirname, 'public', '404.html'));
+  }
+  res.status(404).type('txt').send('Resource not found');
+});
 
 const http = require('http');
 const server = http.createServer(app);

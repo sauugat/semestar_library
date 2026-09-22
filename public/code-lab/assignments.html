@@ -390,7 +390,13 @@
                     (semester ? ` · Semester ${semester}` : '');
 
                 if (!assignments.length) {
-                    listEl.innerHTML = '<div class="cl-empty-state">No assignments available yet for this subject.</div>';
+                    listEl.innerHTML = `
+                        <div class="cl-empty-state">
+                            <img src="/minecraft-404-voxel-ruby.svg" alt="No assignments" class="empty-voxel-illu" style="max-width: 240px; margin: 0 auto 14px;">
+                            <p style="margin: 0 0 4px 0; font-weight: 700; color: #111827; font-size: 16px;">No Assignments Available</p>
+                            <p style="margin: 0; color: #6b7280; font-size: 13.5px;">No assignments available yet for this subject.</p>
+                        </div>
+                    `;
                     return;
                 }
 

@@ -1173,7 +1173,14 @@
             document.getElementById('assignment-title').textContent = 'Invalid assignment link.';
             const loadEl = document.getElementById('loading-msg');
             if (loadEl) {
-                loadEl.innerHTML = '<div class="cl-empty-state">Please select a valid assignment from the assignments list.<br><br><a href="/code-lab/subjects.html" class="cl-crumb-link" style="display:inline-flex; margin-top:8px;">← Browse Assignments</a></div>';
+                loadEl.innerHTML = `
+                    <div class="cl-empty-state">
+                        <img src="/minecraft-404-voxel-ruby.svg" alt="Invalid assignment" class="empty-voxel-illu" style="max-width: 250px; margin: 0 auto 16px;">
+                        <p style="font-weight: 700; color: #111827; font-size: 17px; margin: 0 0 6px 0;">Assignment Not Found</p>
+                        <p style="color: #6b7280; font-size: 13.5px; margin: 0 0 16px 0;">Please select a valid assignment from the assignments list.</p>
+                        <a href="/code-lab/subjects.html" class="cl-crumb-link" style="display:inline-flex;">← Browse Assignments</a>
+                    </div>
+                `;
             }
         } else {
             fetch('/api/code-lab/assignments/' + assignmentId)
@@ -1192,7 +1199,14 @@
                     document.getElementById('assignment-title').textContent = 'Unable to Load Assignment';
                     const loadEl = document.getElementById('loading-msg');
                     if (loadEl) {
-                        loadEl.innerHTML = `<div class="cl-empty-state">${escapeHtml(err.message)}<br><br><a href="/code-lab/subjects.html" class="cl-crumb-link" style="display:inline-flex; margin-top:8px;">← Return to Assignments</a></div>`;
+                        loadEl.innerHTML = `
+                            <div class="cl-empty-state">
+                                <img src="/minecraft-404-voxel-ruby.svg" alt="Not found" class="empty-voxel-illu" style="max-width: 250px; margin: 0 auto 16px;">
+                                <p style="font-weight: 700; color: #111827; font-size: 17px; margin: 0 0 6px 0;">Assignment Not Available</p>
+                                <p style="color: #6b7280; font-size: 13.5px; margin: 0 0 16px 0;">${escapeHtml(err.message)}</p>
+                                <a href="/code-lab/subjects.html" class="cl-crumb-link" style="display:inline-flex;">← Return to Assignments</a>
+                            </div>
+                        `;
                     }
                 });
         }
@@ -1254,7 +1268,13 @@
             metaStrip.innerHTML = tags.join('');
 
             if (questions.length === 0) {
-                document.getElementById('loading-msg').innerHTML = '<div class="cl-empty-state">This assignment has no questions yet.</div>';
+                document.getElementById('loading-msg').innerHTML = `
+                    <div class="cl-empty-state">
+                        <img src="/minecraft-404-voxel-ruby.svg" alt="No questions" class="empty-voxel-illu" style="max-width: 230px; margin: 0 auto 14px;">
+                        <p style="font-weight: 700; color: #111827; font-size: 16px; margin: 0 0 4px 0;">No Questions Found</p>
+                        <p style="color: #6b7280; font-size: 13.5px; margin: 0;">This assignment has no questions published yet.</p>
+                    </div>
+                `;
                 return;
             }
 

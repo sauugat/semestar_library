@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>404 — Page Not Found — Semester Library</title>
+  <meta name="description" content="The page or resource you requested could not be found.">
+
+  <!-- Apple & PWA Metadata -->
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/logo.jpg">
+  <link rel="icon" type="image/png" sizes="192x192" href="/logo.jpg">
+  <meta name="theme-color" content="#ffffff">
+
+  <!-- Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet">
+
+  <link rel="stylesheet" href="/style.v4.css">
+  <link rel="stylesheet" href="/auth-modal.css">
+
+  <style>
+    :root {
+      --apple-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "SF Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      font-family: var(--apple-font);
+      background-color: #f5f5f7;
+      color: #1d1d1f;
+      -webkit-font-smoothing: antialiased;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .not-found-wrap {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 24px 80px;
+    }
+
+    .not-found-card {
+      width: 100%;
+      max-width: 620px;
+      background: #ffffff;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 28px;
+      padding: 48px 36px 40px;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.05), 0 4px 16px rgba(0, 0, 0, 0.02);
+      transition: all 0.3s ease;
+    }
+
+    .not-found-svg-wrap {
+      max-width: 360px;
+      margin: 0 auto 24px;
+    }
+
+    .not-found-svg-wrap img {
+      width: 100%;
+      height: auto;
+      max-height: 240px;
+      display: block;
+      filter: drop-shadow(0 14px 28px rgba(0, 0, 0, 0.12));
+    }
+
+    .not-found-title {
+      font-family: "Plus Jakarta Sans", var(--apple-font);
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.025em;
+      color: #1d1d1f;
+      margin: 0 0 10px 0;
+    }
+
+    .not-found-desc {
+      font-size: 15px;
+      line-height: 1.6;
+      color: #6e6e73;
+      margin: 0 auto 28px;
+      max-width: 440px;
+    }
+
+    .not-found-actions {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .nf-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      border-radius: 980px;
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+
+    .nf-btn.primary {
+      background: linear-gradient(180deg, #1d1d1f 0%, #000000 100%);
+      color: #ffffff;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+    }
+
+    .nf-btn.primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
+    }
+
+    .nf-btn.secondary {
+      background: #ffffff;
+      color: #1d1d1f;
+      border: 1px solid rgba(0, 0, 0, 0.14);
+    }
+
+    .nf-btn.secondary:hover {
+      background: #f5f5f7;
+      border-color: rgba(0, 0, 0, 0.25);
+      transform: translateY(-1px);
+    }
+
+    body.dark-mode {
+      background-color: #000000;
+      color: #f5f5f7;
+    }
+
+    body.dark-mode .not-found-card {
+      background: #1c1c1e;
+      border-color: rgba(255, 255, 255, 0.12);
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
+    }
+
+    body.dark-mode .not-found-title {
+      color: #ffffff;
+    }
+
+    body.dark-mode .not-found-desc {
+      color: #a1a1a6;
+    }
+
+    body.dark-mode .nf-btn.secondary {
+      background: #2c2c2e;
+      color: #ffffff;
+      border-color: rgba(255, 255, 255, 0.14);
+    }
+
+    body.dark-mode .nf-btn.secondary:hover {
+      background: #3a3a3c;
+    }
+  </style>
+</head>
+
+<body class="dash">
+
+  <header class="dash-header">
+    <a href="/dashboard.html" class="lib-wordmark">Semester Library</a>
+
+    <nav class="dash-header-nav">
+      <a href="/dashboard.html" class="header-nav-item">Feed</a>
+      <a href="/library.html" class="header-nav-item">Library</a>
+      <a href="/code-lab/subjects.html" class="header-nav-item">Assignments</a>
+      <a href="/routine.html" class="header-nav-item">Routine</a>
+      <a href="/chat.html" class="header-nav-item">Chat</a>
+      <a href="/chatbot.html" class="header-nav-item">Kyana AI</a>
+    </nav>
+
+    <div class="dash-header-actions">
+      <a href="/profile.html" class="dash-profile-chip" title="View Profile">
+        <div class="dash-profile-avatar" id="headerAvatar">·</div>
+        <span class="dash-profile-label" id="headerProfileName">Profile</span>
+      </a>
+    </div>
+  </header>
+
+  <main class="not-found-wrap">
+    <div class="not-found-card">
+      <div class="not-found-svg-wrap">
+        <img src="/minecraft-404-voxel-ruby.svg" alt="404 Page Not Found" class="empty-voxel-illu">
+      </div>
+      <h1 class="not-found-title">Page Not Found</h1>
+      <p class="not-found-desc">The page, document, or resource you're searching for does not exist, has been removed, or is temporarily unavailable.</p>
+      <div class="not-found-actions">
+        <a href="/dashboard.html" class="nf-btn primary">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+          Return to Feed
+        </a>
+        <a href="/library.html" class="nf-btn secondary">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+          Study Library
+        </a>
+        <a href="/code-lab/subjects.html" class="nf-btn secondary">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+          Assignments
+        </a>
+      </div>
+    </div>
+  </main>
+
+  <footer class="app-global-footer">
+    <div class="app-footer-inner">
+      <div class="app-footer-brand">
+        <strong>Semester Library</strong>
+        <span>· Bachelor of Information Technology</span>
+      </div>
+      <div class="app-footer-meta">
+        <span>Gandaki University</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/auth-modal.js"></script>
+  <script>
+    // Fetch profile avatar
+    fetch('/api/me').then(r => r.ok ? r.json() : null).then(u => {
+      if (!u) return;
+      const avatarEl = document.getElementById('headerAvatar');
+      const nameEl = document.getElementById('headerProfileName');
+      if (avatarEl && u.name) avatarEl.textContent = (u.name.charAt(0) || '·').toUpperCase();
+      if (nameEl && u.name) nameEl.textContent = u.name.split(' ')[0];
+    }).catch(() => {});
+  </script>
+</body>
+
+</html>

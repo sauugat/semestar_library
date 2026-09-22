@@ -2837,7 +2837,7 @@
             if (!filtered.length) {
                 feedEl.innerHTML = `
                   <div class="cl-empty-state">
-                    <div style="font-size: 36px; margin-bottom: 8px;">📋</div>
+                    <img src="/minecraft-404-voxel-ruby.svg" alt="No assignments" class="empty-voxel-illu" style="max-width: 250px; margin: 0 auto 16px;">
                     <p style="margin: 0 0 8px 0; font-weight: 700; color: #111827; font-size: 17px;">No Uploaded Assignments</p>
                     <p style="margin: 0 0 16px 0; color: #6b7280; font-size: 13.5px;">You have not uploaded any assignments yet or none match your search.</p>
                     <a href="/code-lab/create.html" class="dash-hero-btn primary cl-btn-pro" style="display:inline-flex;">+ Create New Assignment</a>
@@ -2934,7 +2934,7 @@
                     if (filterRow) filterRow.style.display = 'none';
                     listEl.innerHTML = `
                         <div class="cl-empty-state">
-                            <div style="font-size:32px; margin-bottom: 8px;">📝</div>
+                            <img src="/minecraft-404-voxel-ruby.svg" alt="No submissions" class="empty-voxel-illu" style="max-width: 230px; margin: 0 auto 14px;">
                             <p style="margin: 0 0 6px 0; font-weight: 700; color: #111827; font-size: 16px;">No Submissions Yet</p>
                             <p style="margin: 0; color: #6b7280; font-size: 13.5px;">No students have submitted this assignment yet.</p>
                         </div>
@@ -2998,7 +2998,13 @@
             const totalQuestions = Number(assignment.questionCount || 0);
 
             if (!studentsToRender.length) {
-                listEl.innerHTML = '<div class="cl-empty-state">No student submissions match this filter.</div>';
+                listEl.innerHTML = `
+                    <div class="cl-empty-state">
+                        <img src="/minecraft-404-voxel-ruby.svg" alt="No matching submissions" class="empty-voxel-illu" style="max-width: 210px; margin: 0 auto 12px;">
+                        <p style="margin: 0 0 4px 0; font-weight: 700; color: #111827; font-size: 15px;">No Submissions Match Filter</p>
+                        <p style="margin: 0; color: #6b7280; font-size: 13px;">No student submissions match this filter.</p>
+                    </div>
+                `;
                 return;
             }
 

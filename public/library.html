@@ -3223,6 +3223,7 @@
       if (totalMatches === 0) {
         container.innerHTML = `
           <div style="text-align:center; padding:48px 20px; border:1.5px dashed var(--border); border-radius:18px; background:var(--surface);">
+            <img src="/minecraft-404-voxel-ruby.svg" alt="No notes found" class="empty-voxel-illu" style="max-width:240px; margin:0 auto 16px;">
             <p style="font-size:16px; font-weight:700; color:var(--text); margin:0 0 6px;">No matching notes, chapters, or subjects found</p>
             <p style="font-size:13px; color:var(--text-muted); margin:0 0 16px;">Try searching for another topic or course name.</p>
             <button class="btn-file-action btn-file-view" onclick="document.getElementById('libSearch').value=''; renderView();" style="cursor:pointer;">Clear Search</button>
@@ -3460,9 +3461,11 @@
 
       if (!units.length && !files.length) {
         body.innerHTML = `
-          <div style="text-align:center; padding:40px 20px; color:var(--text-muted); font-size:13px; border:1.5px dashed var(--border); border-radius:14px;">
-            No study notes uploaded for this course yet.<br>
-            <button type="button" onclick="openDirectUploadModal('${escapeJs(course.title)}', '${course.rawSemester}')" class="upload-cta-btn" style="margin-top:12px; font-size:12px; padding:6px 14px;">+ Upload First Note</button>
+          <div style="text-align:center; padding:36px 20px; color:var(--text-muted); font-size:13px; border:1.5px dashed var(--border); border-radius:14px; background:var(--surface);">
+            <img src="/minecraft-404-voxel-ruby.svg" alt="No study notes" class="empty-voxel-illu" style="max-width:220px; margin:0 auto 14px;">
+            <p style="font-weight:700; color:var(--text); font-size:15px; margin:0 0 4px;">No study notes uploaded yet</p>
+            <p style="margin:0 0 14px; color:var(--text-muted); font-size:13px;">No study notes uploaded for this course yet.</p>
+            <button type="button" onclick="openDirectUploadModal('${escapeJs(course.title)}', '${course.rawSemester}')" class="upload-cta-btn" style="font-size:12px; padding:6px 14px;">+ Upload First Note</button>
           </div>
         `;
         return;

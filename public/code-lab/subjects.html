@@ -2151,8 +2151,9 @@
       if (!filtered.length) {
         feedEl.innerHTML = `
           <div class="cl-empty-state">
-            <p style="margin: 0 0 10px 0; font-weight: 600; color: #1d1d1f; font-size: 16px;">No assignments found</p>
-            <p style="margin: 0 0 18px 0;">No assignments match your current search or semester filters.</p>
+            <img src="/minecraft-404-voxel-ruby.svg" alt="No assignments found" class="empty-voxel-illu" style="max-width: 260px; margin: 0 auto 16px;">
+            <p style="margin: 0 0 8px 0; font-weight: 700; color: #1d1d1f; font-size: 17px;">No assignments found</p>
+            <p style="margin: 0 0 18px 0; color: #6e6e73; font-size: 13.5px;">No assignments match your current search or semester filters.</p>
             <button type="button" class="cl-cta-btn" onclick="resetFilters()" style="margin: 0 auto;">Reset Filters</button>
           </div>
         `;
@@ -2691,7 +2692,13 @@
     function renderSubjectsGrid(semester, courses) {
       const grid = document.getElementById('subjectGrid');
       if (!courses || courses.length === 0) {
-        grid.innerHTML = '<div class="cl-empty-state">No subjects found for this semester.</div>';
+        grid.innerHTML = `
+          <div class="cl-empty-state">
+            <img src="/minecraft-404-voxel-ruby.svg" alt="No subjects found" class="empty-voxel-illu" style="max-width: 240px; margin: 0 auto 14px;">
+            <p style="margin: 0 0 6px 0; font-weight: 700; color: #1d1d1f; font-size: 16px;">No Subjects Found</p>
+            <p style="margin: 0; color: #6e6e73; font-size: 13.5px;">No subjects found for this semester curriculum.</p>
+          </div>
+        `;
         return;
       }
 

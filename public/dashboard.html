@@ -1143,8 +1143,9 @@
         if (!combined.length) {
           container.innerHTML = `
             <div style="text-align: center; padding: 48px 16px; color: var(--text-tertiary, #86868b);">
-              <p style="font-size: 15px; font-weight: 500;">No posts or assignments shared yet in your semester feed.</p>
-              <p style="font-size: 13px; margin-top: 6px;">Upload notes in Library or Code Lab to share with your class!</p>
+              <img src="/minecraft-404-voxel-ruby.svg" alt="No posts found" class="empty-voxel-illu" style="max-width: 250px; margin: 0 auto 16px;">
+              <p style="font-size: 16px; font-weight: 700; color: var(--text-primary, #111827); margin: 0 0 6px 0;">No posts or assignments shared yet</p>
+              <p style="font-size: 13.5px; margin: 0;">Upload notes in Library or Code Lab to share with your class!</p>
             </div>
           `;
           return;
@@ -1276,7 +1277,13 @@
 
             const hasResults = (data.assignments && data.assignments.length > 0) || (data.students && data.students.length > 0) || (data.subjects && data.subjects.length > 0) || (data.files && data.files.length > 0);
             if (!hasResults) {
-              html += '<div class="empty-search-state"><p>No assignments, students, files, or subjects found matching your query.</p></div>';
+              html += `
+                <div class="empty-search-state" style="text-align:center; padding:36px 16px;">
+                  <img src="/minecraft-404-voxel-ruby.svg" alt="No results found" class="empty-voxel-illu" style="max-width: 230px; margin: 0 auto 14px;">
+                  <p style="font-size:15px; font-weight:700; color:var(--text-primary,#111827); margin:0 0 4px;">No results found</p>
+                  <p style="font-size:13px; color:var(--text-tertiary,#86868b); margin:0;">No assignments, students, files, or subjects found matching your query.</p>
+                </div>
+              `;
             }
 
             searchResults.innerHTML = html;

@@ -422,17 +422,18 @@
     // PAGE 1 — COVER PAGE
     // ════════════════════════════════════════════════════════════════
     let html = `
-      <div class="report-cover-wrapper" style="
+      <div class="report-cover-wrapper page-break-after" style="
         page-break-after: always;
-        break-after: always;
+        break-after: page;
         min-height: 100vh;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        padding: 48px 0;
+        padding: 40px 0;
         page-break-inside: avoid;
         break-inside: avoid;
+        box-sizing: border-box;
       ">
         <div style="
           width: 100%;
@@ -528,12 +529,15 @@
     // PAGE 2 — MARKSHEET / CHECKED SHEET
     // ════════════════════════════════════════════════════════════════
     html += `
-      <div class="marksheet-page" style="
+      <div class="marksheet-page page-break-before page-break-after" style="
+        page-break-before: always;
+        break-before: page;
         page-break-after: always;
-        break-after: always;
+        break-after: page;
         page-break-inside: avoid;
         break-inside: avoid;
-        padding: 36px 0 28px;
+        padding: 32px 0 24px;
+        box-sizing: border-box;
       ">
         <!-- Marksheet header -->
         <div style="border-bottom: 2.5px solid #1a1a2e; padding-bottom: 18px; margin-bottom: 28px;">
@@ -772,29 +776,35 @@
         `;
       }
 
+      // ════════════════════════════════════════════════════════════════
+      // PAGE A OF QUESTION — 1 QUESTION (CODE BOX AND RESULT)
+      // ════════════════════════════════════════════════════════════════
       html += `
-        <div class="question-section" style="
+        <div class="question-code-page page-break-before page-break-after" style="
           page-break-before: always;
-          break-before: always;
-          padding: 0;
-          margin-bottom: 0;
+          break-before: page;
+          page-break-after: always;
+          break-after: page;
+          padding: 24px 0 20px;
+          box-sizing: border-box;
         ">
           <!-- Bordered question card -->
           <div style="
             border: 1.5px solid #d1d5db;
             border-radius: 14px;
             overflow: hidden;
-            margin-top: 28px;
+            background: #ffffff;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.03);
           ">
             <!-- Question header bar -->
             <div style="
               background: #f9fafb;
               border-bottom: 1.5px solid #d1d5db;
-              padding: 18px 22px;
+              padding: 16px 20px;
             ">
               <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
                 <div>
-                  <div style="font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.08em; color:#6b7280; margin-bottom:3px;">Question ${q.questionNumber || 1}</div>
+                  <div style="font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.08em; color:#6b7280; margin-bottom:2px;">Question ${q.questionNumber || 1}</div>
                   <div style="font-size:17px; font-weight:700; color:#111827; line-height:1.35;">${escapeHtml(q.title)}</div>
                 </div>
                 <div style="text-align:right;">
@@ -809,16 +819,15 @@
             </div>
 
             <!-- Card body -->
-            <div style="padding: 20px 22px;">
-
+            <div style="padding: 18px 20px;">
               <!-- Problem statement -->
               ${q.description ? `
-                <div style="font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:#6b7280; margin-bottom:8px;">Problem Statement</div>
-                <div style="font-size:13.5px; line-height:1.65; color:#374151; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; padding:13px 16px; margin-bottom:20px; white-space:pre-wrap;">${escapeHtml(q.description)}</div>
+                <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; margin-bottom:6px;">Problem Statement</div>
+                <div style="font-size:13px; line-height:1.55; color:#374151; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; padding:10px 14px; margin-bottom:14px; white-space:pre-wrap;">${escapeHtml(q.description)}</div>
               ` : ''}
 
               <!-- Code (IDE-style with line numbers) -->
-              <div style="font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:#6b7280; margin-bottom:8px;">Code</div>
+              <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; margin-bottom:6px;">Code</div>
               ${sub
                 ? renderCodeWithLineNumbers(sub.code, q.language)
                 : `<div style="padding:14px; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; font-size:13px; color:#b91c1c; margin-bottom:16px;">No code submitted for this question.</div>`
@@ -826,82 +835,135 @@
 
               <!-- Result / Output -->
               ${sub ? `
-                <div style="font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:#6b7280; margin-bottom:8px;">Result</div>
+                <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; margin-bottom:6px; margin-top:10px;">Result</div>
                 ${testCasesHtml}
                 ${sub.stdout ? `
-                  <pre style="background:#f8f9fa; color:#1a1a2e; padding:13px 16px; border-radius:8px; border:1px solid #e5e7eb; font-family:Menlo,Monaco,Consolas,'SF Mono','Courier New',monospace; font-size:12.5px; line-height:1.6; overflow-x:auto; margin-bottom:12px; white-space:pre-wrap;">${escapeHtml(sub.stdout)}</pre>
-                ` : (!parsedResults ? `<div style="font-size:13px; color:#9ca3af; padding: 8px 0; margin-bottom:10px;">No output recorded.</div>` : '')}
+                  <pre style="background:#f8f9fa; color:#1a1a2e; padding:11px 14px; border-radius:8px; border:1px solid #e5e7eb; font-family:Menlo,Monaco,Consolas,'SF Mono','Courier New',monospace; font-size:11.5px; line-height:1.5; overflow-x:auto; margin-bottom:10px; white-space:pre-wrap; max-height:220px;">${escapeHtml(sub.stdout)}</pre>
+                ` : (!parsedResults ? `<div style="font-size:12.5px; color:#9ca3af; padding: 6px 0; margin-bottom:8px;">No output recorded.</div>` : '')}
                 ${sub.stderr ? `
-                  <pre style="background:#fef2f2; color:#b91c1c; padding:12px 16px; border-radius:8px; border:1px solid #fecaca; font-family:Menlo,Monaco,Consolas,'SF Mono','Courier New',monospace; font-size:12.5px; line-height:1.6; overflow-x:auto; margin-bottom:12px; white-space:pre-wrap;">${escapeHtml(sub.stderr)}</pre>
+                  <pre style="background:#fef2f2; color:#b91c1c; padding:10px 14px; border-radius:8px; border:1px solid #fecaca; font-family:Menlo,Monaco,Consolas,'SF Mono','Courier New',monospace; font-size:11.5px; line-height:1.5; overflow-x:auto; margin-bottom:10px; white-space:pre-wrap; max-height:120px;">${escapeHtml(sub.stderr)}</pre>
                 ` : ''}
               ` : ''}
+            </div>
+          </div>
+        </div>
+      `;
 
-              <!-- Session analytics — clean table -->
-              <div style="
-                margin-top: 16px;
-                border-top: 1px solid #e5e7eb;
-                padding-top: 16px;
-              ">
-                <div style="font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:#6b7280; margin-bottom:10px;">Session Details</div>
+      // ════════════════════════════════════════════════════════════════
+      // PAGE B OF QUESTION — SESSION DETAILS, CODE GROWTH, TYPING RHYTHM
+      // ════════════════════════════════════════════════════════════════
+      html += `
+        <div class="question-analytics-page page-break-before page-break-after" style="
+          page-break-before: always;
+          break-before: page;
+          page-break-after: always;
+          break-after: page;
+          padding: 24px 0 20px;
+          box-sizing: border-box;
+        ">
+          <!-- Bordered analytics card -->
+          <div style="
+            border: 1.5px solid #d1d5db;
+            border-radius: 14px;
+            overflow: hidden;
+            background: #ffffff;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+          ">
+            <!-- Analytics header bar -->
+            <div style="
+              background: #f9fafb;
+              border-bottom: 1.5px solid #d1d5db;
+              padding: 16px 20px;
+            ">
+              <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+                <div>
+                  <div style="font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.08em; color:#6b7280; margin-bottom:2px;">
+                    Question ${q.questionNumber || 1} · Activity & Session Analytics
+                  </div>
+                  <div style="font-size:16.5px; font-weight:700; color:#111827;">
+                    ${escapeHtml(q.title)}
+                  </div>
+                </div>
+                <div style="font-size:12px; font-weight:600; color:#374151; background:#e5e7eb; padding:3px 11px; border-radius:980px;">
+                  ${escapeHtml((q.language || 'c').toUpperCase())}
+                </div>
+              </div>
+            </div>
+
+            <!-- Analytics body -->
+            <div style="padding: 20px 22px;">
+              <!-- 1. SESSION DETAILS -->
+              <div>
+                <div style="font-size:11.5px; font-weight:800; text-transform:uppercase; letter-spacing:0.06em; color:#4b5563; margin-bottom:8px;">
+                  Session Details
+                </div>
                 <table style="width:100%; border-collapse:collapse; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden;">
                   <thead>
                     <tr style="background:#f3f4f6;">
-                      <th style="padding:9px 14px; text-align:left; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:#4b5563; border-bottom:1px solid #e5e7eb;">Metric</th>
-                      <th style="padding:9px 14px; text-align:center; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:#4b5563; border-bottom:1px solid #e5e7eb;">Value</th>
+                      <th style="padding:8px 14px; text-align:left; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:#4b5563; border-bottom:1px solid #e5e7eb;">Metric</th>
+                      <th style="padding:8px 14px; text-align:center; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:#4b5563; border-bottom:1px solid #e5e7eb; width:35%;">Value</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr style="border-bottom:1px solid #f3f4f6;">
-                      <td style="padding:9px 14px; font-size:13px; color:#374151;">Copy/Paste Attempts</td>
-                      <td style="padding:9px 14px; text-align:center; font-size:13.5px; font-weight:700; color:${pasteCount > 0 ? '#dc2626' : '#111827'};">${pasteCount}</td>
+                      <td style="padding:8px 14px; font-size:12.5px; color:#374151;">Copy/Paste Attempts</td>
+                      <td style="padding:8px 14px; text-align:center; font-size:13px; font-weight:700; color:${pasteCount > 0 ? '#dc2626' : '#111827'};">${pasteCount}</td>
                     </tr>
                     <tr style="background:#f9fafb; border-bottom:1px solid #f3f4f6;">
-                      <td style="padding:9px 14px; font-size:13px; color:#374151;">Total Code Duration</td>
-                      <td style="padding:9px 14px; text-align:center; font-size:13.5px; font-weight:700; color:#111827;">${fmtDuration(codeDuration)}</td>
+                      <td style="padding:8px 14px; font-size:12.5px; color:#374151;">Total Code Duration</td>
+                      <td style="padding:8px 14px; text-align:center; font-size:13px; font-weight:700; color:#111827;">${fmtDuration(codeDuration)}</td>
                     </tr>
                     <tr style="border-bottom:1px solid #f3f4f6;">
-                      <td style="padding:9px 14px; font-size:13px; color:#374151;">Total Errors (Failed Runs)</td>
-                      <td style="padding:9px 14px; text-align:center; font-size:13.5px; font-weight:700; color:${totalErrors > 0 ? '#dc2626' : '#111827'};">${totalErrors}</td>
+                      <td style="padding:8px 14px; font-size:12.5px; color:#374151;">Total Errors (Failed Runs)</td>
+                      <td style="padding:8px 14px; text-align:center; font-size:13px; font-weight:700; color:${totalErrors > 0 ? '#dc2626' : '#111827'};">${totalErrors}</td>
                     </tr>
                     <tr style="background:#f9fafb; border-bottom:1px solid #f3f4f6;">
-                      <td style="padding:9px 14px; font-size:13px; color:#374151;">Total AI Asks</td>
-                      <td style="padding:9px 14px; text-align:center; font-size:13.5px; font-weight:700; color:${aiCount > 0 ? '#1d4ed8' : '#111827'};">${aiCount}</td>
+                      <td style="padding:8px 14px; font-size:12.5px; color:#374151;">Total AI Asks</td>
+                      <td style="padding:8px 14px; text-align:center; font-size:13px; font-weight:700; color:${aiCount > 0 ? '#1d4ed8' : '#111827'};">${aiCount}</td>
                     </tr>
                     <tr>
-                      <td style="padding:9px 14px; font-size:13px; color:#374151;">Total Tab Changes</td>
-                      <td style="padding:9px 14px; text-align:center; font-size:13.5px; font-weight:700; color:${tabChanges > 4 ? '#b45309' : '#111827'};">${tabChanges}</td>
+                      <td style="padding:8px 14px; font-size:12.5px; color:#374151;">Total Tab Changes</td>
+                      <td style="padding:8px 14px; text-align:center; font-size:13px; font-weight:700; color:${tabChanges > 4 ? '#b45309' : '#111827'};">${tabChanges}</td>
                     </tr>
                   </tbody>
                 </table>
               </div>
 
-              <!-- Code growth chart -->
-              <div style="margin-top:18px; border-top:1px solid #e5e7eb; padding-top:16px;">
-                <div style="font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:#6b7280; margin-bottom:10px;">Code Growth</div>
-                <canvas id="growthChart_${q.id}_${uid}" height="70"></canvas>
+              <!-- 2. CODE GROWTH -->
+              <div style="margin-top:18px; border-top:1px solid #e5e7eb; padding-top:14px;">
+                <div style="font-size:11.5px; font-weight:800; text-transform:uppercase; letter-spacing:0.06em; color:#4b5563; margin-bottom:8px;">
+                  Code Growth
+                </div>
+                <div style="background:#fafafa; border:1px solid #e5e7eb; border-radius:8px; padding:10px 14px;">
+                  <canvas id="growthChart_${q.id}_${uid}" height="68"></canvas>
+                </div>
               </div>
 
-              <!-- Typing rhythm chart -->
-              <div style="margin-top:12px; border-top:1px solid #e5e7eb; padding-top:16px;">
-                <div style="font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:#6b7280; margin-bottom:6px;">Typing Rhythm</div>
-                <div id="rhythmNote_${q.id}_${uid}"></div>
-                <canvas id="rhythmChart_${q.id}_${uid}" height="70"></canvas>
+              <!-- 3. TYPING RHYTHM -->
+              <div style="margin-top:16px; border-top:1px solid #e5e7eb; padding-top:14px;">
+                <div style="font-size:11.5px; font-weight:800; text-transform:uppercase; letter-spacing:0.06em; color:#4b5563; margin-bottom:6px;">
+                  Typing Rhythm
+                </div>
+                <div id="rhythmNote_${q.id}_${uid}" style="margin-bottom:6px;"></div>
+                <div style="background:#fafafa; border:1px solid #e5e7eb; border-radius:8px; padding:10px 14px;">
+                  <canvas id="rhythmChart_${q.id}_${uid}" height="68"></canvas>
+                </div>
               </div>
+
+              <!-- Teacher eval box (inline, teacher-only) -->
+              ${(data.isTeacher && !isBulk) ? `
+                <div class="instructor-eval-box" style="display:none;"></div>
+              ` : (sub && (sub.marksObtained != null || sub.remarks) ? `
+                <div style="margin-top:16px; padding:11px 16px; background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:9px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:3px;">
+                    <span style="font-size:11px; font-weight:800; text-transform:uppercase; color:#166534; letter-spacing:0.04em;">Instructor Evaluation</span>
+                    <span style="font-family:Menlo,Monaco,Consolas,monospace; font-size:13.5px; font-weight:700; color:#15803d;">Score: ${sub.marksObtained != null ? sub.marksObtained : '—'} / ${maxPts} pts</span>
+                  </div>
+                  ${sub.remarks ? `<div style="font-size:12.5px; color:#166534; line-height:1.45; font-style:italic;">"${escapeHtml(sub.remarks)}"</div>` : ''}
+                </div>
+              ` : '')}
             </div>
           </div>
-
-          <!-- Teacher eval box (inline, teacher-only) -->
-          ${(data.isTeacher && !isBulk) ? `
-            <div class="instructor-eval-box" style="display:none;"></div>
-          ` : (sub && (sub.marksObtained != null || sub.remarks) ? `
-            <div style="margin-top:14px; padding:13px 18px; background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:10px;">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                <span style="font-size:11.5px; font-weight:800; text-transform:uppercase; color:#166534; letter-spacing:0.04em;">Instructor Evaluation</span>
-                <span style="font-family:Menlo,Monaco,Consolas,monospace; font-size:14px; font-weight:700; color:#15803d;">Score: ${sub.marksObtained != null ? sub.marksObtained : '—'} / ${maxPts} pts</span>
-              </div>
-              ${sub.remarks ? `<div style="font-size:13px; color:#166534; line-height:1.5; font-style:italic;">"${escapeHtml(sub.remarks)}"</div>` : ''}
-            </div>
-          ` : '')}
         </div>
       `;
     }
@@ -910,11 +972,12 @@
     // LAST — EVENT TIMELINE + TOTAL CODE TIME
     // ════════════════════════════════════════════════════════════════
     html += `
-      <div style="
+      <div class="timeline-page page-break-before" style="
         margin-top: 0;
         page-break-before: always;
-        break-before: always;
+        break-before: page;
         padding-top: 28px;
+        box-sizing: border-box;
       ">
         <div style="border-bottom:2.5px solid #1a1a2e; padding-bottom:12px; margin-bottom:22px;">
           <div style="font-size:11px; font-weight:800; letter-spacing:0.12em; text-transform:uppercase; color:#6b7280; margin-bottom:3px;">Code Lab Report</div>

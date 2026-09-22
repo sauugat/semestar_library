@@ -1442,6 +1442,8 @@
         function renderAssignment(assignment) {
             window._currentStudentId = assignment.currentStudentId || null;
             document.getElementById('assignment-title').textContent = assignment.title;
+            const questions = Array.isArray(assignment.questions) ? assignment.questions : [];
+            assignment.questions = questions;
 
             const metaStrip = document.getElementById('assignment-meta-strip');
             const tags = [];

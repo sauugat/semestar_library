@@ -379,8 +379,672 @@
             font-weight: 600;
         }
 
-        /* ── Assignment Post Cards (View 1) ── */
+        /* ── Modern Uploaded Assignment Cards (View 1) ── */
+        .cl-assign-item-card {
+            background: #ffffff;
+            border: 1.5px solid rgba(0, 0, 0, 0.1);
+            border-radius: 18px;
+            padding: 22px 26px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            cursor: pointer;
+        }
+
+        .cl-assign-item-card:hover {
+            transform: translateY(-2px);
+            border-color: #111827;
+            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08);
+        }
+
+        .cl-assign-card-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+        }
+
+        .cl-assign-card-main {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .cl-assign-badge-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .cl-subject-pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 10px;
+            border-radius: 6px;
+            background: #f3f4f6;
+            color: #1f2937;
+            font-size: 11.5px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+        }
+
+        .cl-sem-pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 9px;
+            border-radius: 6px;
+            background: #e0f2fe;
+            color: #0369a1;
+            font-size: 11.5px;
+            font-weight: 700;
+        }
+
+        .cl-assign-card-title {
+            font-size: 18px;
+            font-weight: 800;
+            color: #111827;
+            margin: 0 0 8px 0;
+            letter-spacing: -0.015em;
+            font-family: var(--apple-heading);
+        }
+
+        .cl-assign-card-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #6b7280;
+            flex-wrap: wrap;
+        }
+
+        .cl-meta-dot {
+            color: #d1d5db;
+        }
+
+        .cl-sub-count-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 10px;
+            border-radius: 980px;
+            background: #f0fdf4;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+            font-weight: 700;
+            font-size: 11.5px;
+        }
+
+        .cl-assign-card-arrow {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #111827;
+            font-size: 13px;
+            font-weight: 700;
+            transition: transform 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .cl-assign-item-card:hover .cl-assign-card-arrow {
+            transform: translateX(3px);
+        }
+
+        /* ── Minimalist Student Submission Accordion Cards (View 2) ── */
+        .cl-student-card {
+            background: #ffffff;
+            border: 1.5px solid rgba(0, 0, 0, 0.1);
+            border-radius: 16px;
+            margin-bottom: 14px;
+            overflow: hidden;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .cl-student-card:hover {
+            border-color: rgba(0, 0, 0, 0.25);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
+        }
+
+        .cl-student-header-btn {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            padding: 18px 24px;
+            background: #ffffff;
+            border: none;
+            cursor: pointer;
+            text-align: left;
+            user-select: none;
+            transition: background 0.15s ease;
+            gap: 16px;
+        }
+
+        .cl-student-header-btn:hover {
+            background: #fafafc;
+        }
+
+        .cl-student-header-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex: 1;
+            min-width: 0;
+            flex-wrap: wrap;
+        }
+
+        .cl-student-name {
+            font-size: 17px;
+            font-weight: 800;
+            color: #111827;
+            letter-spacing: -0.015em;
+            font-family: var(--apple-heading);
+        }
+
+        .cl-sub-fraction-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 12px;
+            border-radius: 980px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+        }
+
+        .cl-sub-fraction-badge.full {
+            background: #dcfce7;
+            color: #15803d;
+            border: 1px solid #bbf7d0;
+        }
+
+        .cl-sub-fraction-badge.partial {
+            background: #fef3c7;
+            color: #b45309;
+            border: 1px solid #fde68a;
+        }
+
+        .cl-student-header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+
+        .cl-eval-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 12px;
+            border-radius: 980px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+            white-space: nowrap;
+        }
+
+        .cl-eval-pill.checked {
+            background: #f0fdf4;
+            color: #166534;
+            border: 1px solid #86efac;
+        }
+
+        .cl-eval-pill.draft {
+            background: #fef3c7;
+            color: #b45309;
+            border: 1px solid #fde68a;
+        }
+
+        .cl-eval-pill.pending {
+            background: #f3f4f6;
+            color: #4b5563;
+            border: 1px solid #e5e7eb;
+        }
+
+        .cl-header-expand-hint {
+            font-size: 12px;
+            font-weight: 600;
+            color: #6b7280;
+        }
+
+        @media (max-width: 640px) {
+            .cl-header-expand-hint {
+                display: none;
+            }
+        }
+
+        .cl-accordion-chevron {
+            transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            color: #9ca3af;
+        }
+
+        .cl-student-header-btn.open .cl-accordion-chevron {
+            transform: rotate(180deg);
+            color: #111827;
+        }
+
+        .cl-student-drawer {
+            display: none;
+            padding: 0 24px 24px;
+            border-top: 1px solid rgba(0, 0, 0, 0.08);
+            background: #fafafc;
+        }
+
+        .cl-student-drawer.open {
+            display: block;
+            animation: fadeInDrawer 0.25s ease;
+        }
+
+        @keyframes fadeInDrawer {
+            from { opacity: 0; transform: translateY(-4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ── Task Card inside Drawer ── */
+        .cl-task-card {
+            background: #ffffff;
+            border: 1px solid rgba(0, 0, 0, 0.09);
+            border-radius: 14px;
+            padding: 18px 20px;
+            margin-top: 16px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02);
+        }
+
+        .cl-task-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .cl-task-title-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .cl-task-title {
+            margin: 0;
+            font-size: 15px;
+            font-weight: 700;
+            color: #111827;
+            font-family: var(--apple-font);
+        }
+
+        .cl-task-pts-badge {
+            font-size: 11.5px;
+            font-weight: 700;
+            color: #6b7280;
+            background: #f3f4f6;
+            padding: 2px 7px;
+            border-radius: 6px;
+        }
+
+        .cl-task-meta-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+
+        .cl-lang-pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 1.5px 6px;
+            border-radius: 4px;
+            background: #111827;
+            color: #ffffff;
+            font-size: 10.5px;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+        }
+
+        /* ── Code Box & Console ── */
+        .cl-code-box {
+            background: #18181c;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1.5px solid #27272a;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+            margin-top: 10px;
+        }
+
+        .cl-code-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 14px;
+            background: #121214;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .cl-window-dots {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .cl-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .cl-dot.red { background: #ff5f56; }
+        .cl-dot.yellow { background: #ffbd2e; }
+        .cl-dot.green { background: #27c93f; }
+
+        .cl-code-filename {
+            font-family: var(--apple-mono);
+            font-size: 11.5px;
+            color: #a1a1aa;
+            font-weight: 500;
+        }
+
+        .cl-copy-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
+            background: rgba(255, 255, 255, 0.08);
+            color: #e4e4e7;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 5px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: var(--apple-font);
+            transition: all 0.18s ease;
+        }
+
+        .cl-copy-btn:hover {
+            background: rgba(255, 255, 255, 0.18);
+            color: #ffffff;
+        }
+
+        .cl-code-pre {
+            margin: 0;
+            padding: 14px 16px;
+            max-height: 320px;
+            overflow: auto;
+            font-family: var(--apple-mono);
+            font-size: 12.5px;
+            line-height: 1.6;
+            color: #f4f4f5;
+            background: transparent;
+            white-space: pre;
+            tab-size: 2;
+        }
+
+        .cl-output-box {
+            margin-top: 10px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-family: var(--apple-mono);
+            font-size: 12px;
+        }
+
+        .cl-output-title {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #64748b;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .cl-output-content {
+            margin: 0;
+            white-space: pre-wrap;
+            word-break: break-word;
+            line-height: 1.5;
+            color: #1e293b;
+        }
+
+        .cl-output-content.err {
+            color: #dc2626;
+            background: #fef2f2;
+            padding: 6px 10px;
+            border-radius: 4px;
+        }
+
+        /* ── Task Grading Row ── */
+        .cl-task-grade-bar {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(0, 0, 0, 0.07);
+            flex-wrap: wrap;
+        }
+
+        .cl-check-toggle-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            cursor: pointer;
+            user-select: none;
+            font-size: 13px;
+            font-weight: 700;
+            color: #111827;
+        }
+
+        .cl-task-check-cb {
+            width: 17px;
+            height: 17px;
+            accent-color: #16a34a;
+            cursor: pointer;
+        }
+
+        .cl-task-marks-group {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .cl-grade-label {
+            font-size: 12.5px;
+            font-weight: 600;
+            color: #4b5563;
+        }
+
+        .cl-task-marks-input {
+            width: 58px;
+            padding: 5px 8px;
+            border: 1.5px solid #d1d5db;
+            border-radius: 7px;
+            font-size: 13px;
+            font-weight: 700;
+            font-family: var(--apple-mono);
+            text-align: center;
+            outline: none;
+            background: #ffffff;
+            transition: border-color 0.15s ease;
+        }
+
+        .cl-task-marks-input:focus {
+            border-color: #111827;
+            box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.1);
+        }
+
+        .cl-grade-max {
+            font-size: 12.5px;
+            font-weight: 600;
+            color: #6b7280;
+            font-family: var(--apple-mono);
+        }
+
+        .cl-task-remark-group {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .cl-task-remark-input {
+            width: 100%;
+            padding: 6px 12px;
+            border: 1.5px solid #d1d5db;
+            border-radius: 7px;
+            font-size: 12.5px;
+            color: #111827;
+            outline: none;
+            background: #ffffff;
+            font-family: var(--apple-font);
+            box-sizing: border-box;
+            transition: border-color 0.15s ease;
+        }
+
+        .cl-task-remark-input:focus {
+            border-color: #111827;
+            box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.1);
+        }
+
+        /* ── Student Drawer Footer Bar ── */
+        .cl-student-footer-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-top: 18px;
+            padding-top: 18px;
+            border-top: 1.5px solid rgba(0, 0, 0, 0.08);
+            flex-wrap: wrap;
+        }
+
+        .cl-student-footer-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        .cl-footer-summary {
+            font-size: 14px;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .cl-footer-summary strong {
+            color: #111827;
+            font-size: 15px;
+        }
+
+        .cl-mark-all-btn {
+            background: #ffffff;
+            border: 1.5px solid #d1d5db;
+            border-radius: 980px;
+            padding: 6px 14px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #374151;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .cl-mark-all-btn:hover {
+            background: #f3f4f6;
+            color: #111827;
+            border-color: #9ca3af;
+        }
+
+        .cl-student-footer-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .cl-grade-draft-btn {
+            background: #ffffff;
+            border: 1.5px solid #d1d5db;
+            border-radius: 980px;
+            padding: 8px 16px;
+            font-size: 12.5px;
+            font-weight: 600;
+            color: #374151;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .cl-grade-draft-btn:hover:not(:disabled) {
+            background: #f3f4f6;
+            color: #111827;
+            border-color: #9ca3af;
+        }
+
+        .cl-grade-submit-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #111827;
+            color: #ffffff;
+            border: 1.5px solid #111827;
+            border-radius: 980px;
+            padding: 8px 18px;
+            font-size: 12.5px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        .cl-grade-submit-btn:hover:not(:disabled) {
+            background: #000000;
+            border-color: #000000;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+        }
+
+        .cl-report-link {
+            font-size: 12px;
+            font-weight: 600;
+            color: #6b7280;
+            text-decoration: none;
+            padding: 6px 10px;
+            border-radius: 6px;
+            transition: color 0.15s ease;
+        }
+
+        .cl-report-link:hover {
+            color: #111827;
+            text-decoration: underline;
+        }
+
+        .cl-grade-toast {
+            margin-top: 12px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            animation: fadeInDrawer 0.2s ease;
+        }
+
+        .cl-grade-toast.success {
+            background: #f0fdf4;
+            color: #15803d;
+            border: 1px solid #bbf7d0;
+        }
+
+        .cl-grade-toast.error {
+            background: #fef2f2;
+            color: #b91c1c;
+            border: 1px solid #fecaca;
+        }
+
+        /* ── Assignment Post Cards (View 1 legacy fallback) ── */
         .assignment-post-card {
+            background: #ffffff;
             background: #ffffff;
             border: 1px solid var(--ap-border-post, rgba(0, 0, 0, 0.55));
             border-radius: var(--ap-radius-card, 20px);
@@ -1578,6 +2242,59 @@
             color: #60a5fa;
             border-color: rgba(0, 113, 227, 0.3);
         }
+
+        body.dark-mode .cl-assign-item-card {
+            background: #1c1c1f;
+            border-color: rgba(255, 255, 255, 0.12);
+        }
+        body.dark-mode .cl-assign-card-title,
+        body.dark-mode .cl-student-name,
+        body.dark-mode .cl-task-title {
+            color: #ffffff;
+        }
+        body.dark-mode .cl-student-card {
+            background: #1c1c1f;
+            border-color: rgba(255, 255, 255, 0.12);
+        }
+        body.dark-mode .cl-student-header-btn {
+            background: #1c1c1f;
+        }
+        body.dark-mode .cl-student-header-btn:hover {
+            background: #242428;
+        }
+        body.dark-mode .cl-student-drawer {
+            background: #141416;
+            border-color: rgba(255, 255, 255, 0.08);
+        }
+        body.dark-mode .cl-task-card {
+            background: #1e1e22;
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+        body.dark-mode .cl-output-box {
+            background: #121214;
+            border-color: rgba(255, 255, 255, 0.08);
+        }
+        body.dark-mode .cl-output-content {
+            color: #e4e4e7;
+        }
+        body.dark-mode .cl-task-marks-input,
+        body.dark-mode .cl-task-remark-input {
+            background: #27272a;
+            border-color: rgba(255, 255, 255, 0.18);
+            color: #ffffff;
+        }
+        body.dark-mode .cl-mark-all-btn,
+        body.dark-mode .cl-grade-draft-btn {
+            background: #27272a;
+            border-color: rgba(255, 255, 255, 0.18);
+            color: #ffffff;
+        }
+        body.dark-mode .cl-check-toggle-text {
+            color: #f4f4f5;
+        }
+        body.dark-mode .cl-assign-card-arrow {
+            color: #ffffff;
+        }
     </style>
 </head>
 
@@ -1694,7 +2411,7 @@
                         stroke-width="2.5">
                         <polyline points="15 18 9 12 15 6"></polyline>
                     </svg>
-                    <span>All Assignments</span>
+                    <span>Back to My Assignments</span>
                 </a>
                 <span class="cl-crumb-sep">/</span>
                 <span class="cl-crumb-current" id="crumbAssignmentTitle">Submissions</span>
@@ -1881,10 +2598,208 @@
             }
         }
 
-        // ── Load All Assignments Given (View 1) ──
+        // ── Current User Authentication & Helpers ──
+        let currentUser = null;
+        async function fetchCurrentUser() {
+            try {
+                const res = await fetch('/api/me');
+                if (res.ok) {
+                    currentUser = await res.json();
+                    const avatarEl = document.getElementById('headerAvatar');
+                    const nameEl = document.getElementById('headerProfileName');
+                    if (avatarEl && currentUser.name) avatarEl.textContent = getInitials(currentUser.name);
+                    if (nameEl && currentUser.name) nameEl.textContent = currentUser.name.split(' ')[0];
+                }
+            } catch (e) {
+                console.warn('Could not fetch user session:', e);
+            }
+        }
+
+        function getFileName(lang) {
+            const map = {
+                c: 'program.c',
+                cpp: 'main.cpp',
+                java: 'Main.java',
+                python: 'solution.py',
+                javascript: 'index.js'
+            };
+            return map[(lang || 'c').toLowerCase()] || 'code.txt';
+        }
+
+        function highlightCode(rawCode, lang) {
+            if (!rawCode) return '';
+            const l = (lang || 'c').toLowerCase();
+            const prismLang = (window.Prism && Prism.languages)
+                ? (Prism.languages[l] || (l === 'c' ? Prism.languages.clike : Prism.languages.javascript) || Prism.languages.clike)
+                : null;
+            if (prismLang) {
+                try {
+                    return Prism.highlight(rawCode, prismLang, l);
+                } catch (e) {
+                    return escapeHtml(rawCode);
+                }
+            }
+            return escapeHtml(rawCode);
+        }
+
+        function copyStudentCode(btn, code) {
+            navigator.clipboard.writeText(code).then(() => {
+                const orig = btn.innerHTML;
+                btn.innerHTML = `✓ Copied!`;
+                setTimeout(() => {
+                    btn.innerHTML = orig;
+                }, 1800);
+            }).catch(() => {
+                alert('Copied to clipboard!');
+            });
+        }
+
+        function toggleStudentDrawer(studentId) {
+            const drawer = document.getElementById(`student-drawer-${studentId}`);
+            const btn = document.getElementById(`student-toggle-${studentId}`);
+            if (!drawer || !btn) return;
+            const isOpen = drawer.classList.contains('open');
+            if (isOpen) {
+                drawer.classList.remove('open');
+                btn.classList.remove('open');
+            } else {
+                drawer.classList.add('open');
+                btn.classList.add('open');
+            }
+        }
+
+        function markAllStudentTasksChecked(studentId) {
+            const drawer = document.getElementById(`student-drawer-${studentId}`);
+            if (!drawer) return;
+            drawer.querySelectorAll('.cl-task-check-cb').forEach(cb => {
+                cb.checked = true;
+            });
+        }
+
+        function updateStudentTotalScore(studentId) {
+            const drawer = document.getElementById(`student-drawer-${studentId}`);
+            if (!drawer) return;
+            let totalObtained = 0;
+            let hasAnyMarks = false;
+            let totalMax = 0;
+            drawer.querySelectorAll('.cl-task-marks-input').forEach(inp => {
+                const max = Number(inp.dataset.max || 10);
+                totalMax += max;
+                if (inp.value !== '' && !isNaN(Number(inp.value))) {
+                    totalObtained += Number(inp.value);
+                    hasAnyMarks = true;
+                }
+            });
+            const summaryEl = document.getElementById(`footerSummary-${studentId}`);
+            if (summaryEl) {
+                summaryEl.innerHTML = `Total Score: <strong>${hasAnyMarks ? totalObtained : 0} / ${totalMax} pts</strong>`;
+            }
+        }
+
+        async function submitStudentGrading(assignmentId, studentId, isRelease, btn) {
+            const drawer = document.getElementById(`student-drawer-${studentId}`);
+            const toast = document.getElementById(`gradeToast-${studentId}`);
+            if (!drawer) return;
+
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = `<span>Saving…</span>`;
+
+            const students = window._currentStudents || [];
+            const student = students.find(s => String(s.studentId) === String(studentId));
+            if (!student) {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+                return;
+            }
+
+            const grades = [];
+            (student.submissions || []).forEach(sub => {
+                const qId = sub.questionId;
+                const cb = drawer.querySelector(`.cl-task-check-cb[data-qid="${qId}"]`);
+                const marksInp = drawer.querySelector(`.cl-task-marks-input[data-qid="${qId}"]`);
+                const remInp = drawer.querySelector(`.cl-task-remark-input[data-qid="${qId}"]`);
+
+                let marks = null;
+                if (marksInp && marksInp.value !== '' && !isNaN(Number(marksInp.value))) {
+                    marks = Number(marksInp.value);
+                }
+                const remarks = remInp ? remInp.value.trim() : '';
+                const checked = isRelease ? true : (cb ? cb.checked : false);
+
+                if (isRelease && cb) {
+                    cb.checked = true;
+                }
+
+                grades.push({
+                    questionId: qId,
+                    marksObtained: marks,
+                    remarks: remarks || null,
+                    checked: checked
+                });
+            });
+
+            try {
+                const res = await fetch(`/api/code-lab/assignments/${assignmentId}/grade-student/${studentId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ grades, release: isRelease })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || 'Failed to save grading.');
+
+                // Update in-memory state
+                grades.forEach(g => {
+                    const sub = (student.submissions || []).find(s => s.questionId === g.questionId);
+                    if (sub) {
+                        sub.marksObtained = g.marksObtained;
+                        sub.remarks = g.remarks;
+                        sub.checked = g.checked;
+                        sub.released = isRelease;
+                    }
+                });
+
+                // Update status pill
+                const statusPill = document.getElementById(`studentStatusPill-${studentId}`);
+                if (statusPill) {
+                    if (isRelease) {
+                        statusPill.className = 'cl-eval-pill checked';
+                        statusPill.innerHTML = `✓ Checked & Submitted`;
+                    } else {
+                        statusPill.className = 'cl-eval-pill draft';
+                        statusPill.innerHTML = `Draft Checked`;
+                    }
+                }
+
+                if (toast) {
+                    toast.style.display = 'block';
+                    toast.className = 'cl-grade-toast success';
+                    toast.innerHTML = isRelease
+                        ? `✓ Evaluation submitted and marked as checked for student!`
+                        : `✓ Evaluation draft saved successfully.`;
+                    setTimeout(() => {
+                        toast.style.display = 'none';
+                    }, 4000);
+                }
+            } catch (err) {
+                if (toast) {
+                    toast.style.display = 'block';
+                    toast.className = 'cl-grade-toast error';
+                    toast.innerHTML = `Error: ${escapeHtml(err.message)}`;
+                } else {
+                    alert('Error: ' + err.message);
+                }
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+        }
+
+        // ── Load Uploaded Assignments Only (View 1) ──
         async function loadAllAssignments() {
             const feedEl = document.getElementById('allAssignmentsFeed');
             try {
+                await fetchCurrentUser();
                 const res = await fetch('/api/code-lab/assignments');
                 if (!res.ok) throw new Error('Could not load assignments.');
                 allAssignmentsList = await res.json();
@@ -1898,26 +2813,36 @@
             const feedEl = document.getElementById('allAssignmentsFeed');
             const query = document.getElementById('assignSearchInput').value.trim().toLowerCase();
 
-            const filtered = allAssignmentsList.filter(a => {
+            // Filter to show only assignments uploaded by current user
+            let userAssignments = allAssignmentsList;
+            if (currentUser && currentUser.studentId) {
+                const uploadedByMe = allAssignmentsList.filter(a => String(a.createdBy) === String(currentUser.studentId));
+                if (uploadedByMe.length > 0 || !currentUser.isAdmin) {
+                    userAssignments = uploadedByMe;
+                }
+            }
+
+            const filtered = userAssignments.filter(a => {
                 if (currentSemesterFilter) {
                     if (!semMatches(a.semester, currentSemesterFilter)) return false;
                 }
                 if (query) {
                     const matchTitle = (a.title || '').toLowerCase().includes(query);
                     const matchSubject = (a.subject || '').toLowerCase().includes(query);
-                    const matchTeacher = (a.teacherName || '').toLowerCase().includes(query);
-                    if (!matchTitle && !matchSubject && !matchTeacher) return false;
+                    if (!matchTitle && !matchSubject) return false;
                 }
                 return true;
             });
 
             if (!filtered.length) {
                 feedEl.innerHTML = `
-          <div class="cl-empty-state">
-            <p style="margin: 0 0 10px 0; font-weight: 700; color: #111827; font-size: 16px;">No assignments found</p>
-            <p style="margin: 0;">No assignments match your search or semester filter.</p>
-          </div>
-        `;
+                  <div class="cl-empty-state">
+                    <div style="font-size: 36px; margin-bottom: 8px;">📋</div>
+                    <p style="margin: 0 0 8px 0; font-weight: 700; color: #111827; font-size: 17px;">No Uploaded Assignments</p>
+                    <p style="margin: 0 0 16px 0; color: #6b7280; font-size: 13.5px;">You have not uploaded any assignments yet or none match your search.</p>
+                    <a href="/code-lab/create.html" class="dash-hero-btn primary cl-btn-pro" style="display:inline-flex;">+ Create New Assignment</a>
+                  </div>
+                `;
                 return;
             }
 
@@ -1925,57 +2850,32 @@
             filtered.forEach(a => {
                 const qCount = Number(a.questionCount || 0);
                 const subCount = Number(a.submissionCount || a.submissioncount || 0);
-                const initials = getInitials(a.teacherName);
 
                 const card = document.createElement('article');
-                card.className = 'feed-card social-post-card assignment-post-card';
+                card.className = 'cl-assign-item-card';
                 card.innerHTML = `
-          <header class="post-header">
-            <div class="post-avatar assignment-avatar">
-              <span>${escapeHtml(initials)}</span>
-            </div>
-            <div class="post-user-info">
-              <div class="post-author-row">
-                <span class="post-author-name">${escapeHtml(a.teacherName || 'Faculty Member')}</span>
-                <span class="verified-badge" title="Faculty / Admin">
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="#111827"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
-                </span>
-              </div>
-              <div class="post-meta-row">
-                <span class="post-student-handle">@${escapeHtml(a.createdBy || 'faculty')}</span>
-                <span class="post-meta-sep">&middot;</span>
-                <time class="post-timestamp">${formatDate(a.createdAt)}</time>
-                <span class="post-meta-sep">&middot;</span>
-                <span class="post-visibility" title="Academic Laboratory Assignment">
-                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-                </span>
-              </div>
-            </div>
-            <div class="post-header-actions">
-              <span class="assignment-header-badge" title="Official Academic Assignment">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
-                <span>${subCount} Submitted</span>
-              </span>
-            </div>
-          </header>
-
-          <!-- Dashboard File Attachment Card Replica -->
-          <div class="post-attachment-card">
-            <div class="attachment-file-badge">
-              <span>LAB</span>
-            </div>
-            <div class="attachment-details">
-              <p class="attachment-name" title="${escapeHtml(a.title)}">${escapeHtml(a.title)}</p>
-              <span class="attachment-meta">${qCount > 0 ? `${qCount} Problem${qCount !== 1 ? 's' : ''} &middot; ` : ''}${escapeHtml(a.subject || 'Curriculum')}${a.semester ? ` &middot; Sem ${escapeHtml(a.semester)}` : ''}</span>
-            </div>
-            <div class="attachment-actions">
-              <button type="button" class="attach-action-btn" title="View student submissions">
-                <span>View Submissions</span>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
-              </button>
-            </div>
-          </div>
-        `;
+                  <div class="cl-assign-card-inner">
+                    <div class="cl-assign-card-main">
+                      <div class="cl-assign-badge-row">
+                        ${a.subject ? `<span class="cl-subject-pill">${escapeHtml(a.subject)}</span>` : ''}
+                        ${a.semester ? `<span class="cl-sem-pill">Sem ${escapeHtml(a.semester)}</span>` : ''}
+                      </div>
+                      <h3 class="cl-assign-card-title">${escapeHtml(a.title)}</h3>
+                      <div class="cl-assign-card-meta">
+                        <span>${qCount} Problem${qCount !== 1 ? 's' : ''}</span>
+                        <span class="cl-meta-dot">·</span>
+                        <span class="cl-sub-count-chip">${subCount} Student${subCount !== 1 ? 's' : ''} Submitted</span>
+                        ${a.deadline ? `<span class="cl-meta-dot">·</span><span>Due ${fmtTime(a.deadline)}</span>` : ''}
+                      </div>
+                    </div>
+                    <div class="cl-assign-card-arrow">
+                      <span class="cl-view-sub-label">View Submissions</span>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                      </svg>
+                    </div>
+                  </div>
+                `;
 
                 card.addEventListener('click', () => {
                     openAssignmentSubmissions(a.id);
@@ -2003,13 +2903,6 @@
                 </div>
             `;
 
-            // Clear previous similarity warnings
-            const simContainer = document.getElementById('similarityWarningsContainer');
-            if (simContainer) {
-                simContainer.style.display = 'none';
-                simContainer.innerHTML = '';
-            }
-
             try {
                 const res = await fetch('/api/code-lab/assignments/' + id + '/submissions');
                 const result = await res.json();
@@ -2021,29 +2914,31 @@
                 window._currentAssignment = assignment;
                 window._currentStudents = students;
 
-                document.getElementById('crumbAssignmentTitle').textContent = 'Submissions';
+                document.getElementById('crumbAssignmentTitle').textContent = assignment.title || 'Submissions';
                 document.getElementById('singleAssignTitle').textContent = assignment.title || 'Assignment Submissions';
 
                 const metaRow = document.getElementById('singleAssignMetaRow');
                 metaRow.innerHTML = `
-          ${assignment.subject ? `<span class="cl-meta-pill">${escapeHtml(assignment.subject)}</span>` : ''}
-          ${assignment.semester ? `<span class="cl-meta-pill">Sem ${escapeHtml(assignment.semester)}</span>` : ''}
-          ${assignment.questionCount ? `<span class="cl-meta-pill">${assignment.questionCount} Question${assignment.questionCount !== 1 ? 's' : ''}</span>` : ''}
-          ${assignment.deadline ? `<span class="cl-meta-pill deadline-pill">Due: ${fmtTime(assignment.deadline)}</span>` : ''}
-          <span class="cl-meta-pill sub-count-pill">${students.length} Student${students.length !== 1 ? 's' : ''} Submitted</span>
-        `;
+                  ${assignment.subject ? `<span class="cl-meta-pill">${escapeHtml(assignment.subject)}</span>` : ''}
+                  ${assignment.semester ? `<span class="cl-meta-pill">Sem ${escapeHtml(assignment.semester)}</span>` : ''}
+                  ${assignment.questionCount ? `<span class="cl-meta-pill">${assignment.questionCount} Question${assignment.questionCount !== 1 ? 's' : ''}</span>` : ''}
+                  ${assignment.deadline ? `<span class="cl-meta-pill deadline-pill">Due: ${fmtTime(assignment.deadline)}</span>` : ''}
+                  <span class="cl-meta-pill sub-count-pill">${students.length} Student${students.length !== 1 ? 's' : ''} Submitted</span>
+                `;
 
                 const dlBtn = document.getElementById('downloadAllReportsBtn');
                 if (dlBtn) dlBtn.style.display = students.length > 0 ? 'inline-flex' : 'none';
 
-                const bulkReleaseBtn = document.getElementById('releaseAllReviewedBtn');
-                const hasReviewedUnreleased = students.some(s => (s.submissions || []).some(sub => sub.checked && !sub.released));
-                if (bulkReleaseBtn) bulkReleaseBtn.style.display = hasReviewedUnreleased ? 'inline-flex' : 'none';
-
                 const filterRow = document.getElementById('subFilterRow');
                 if (!students.length) {
                     if (filterRow) filterRow.style.display = 'none';
-                    listEl.innerHTML = '<div class="cl-empty-state">No students have submitted this assignment yet.</div>';
+                    listEl.innerHTML = `
+                        <div class="cl-empty-state">
+                            <div style="font-size:32px; margin-bottom: 8px;">📝</div>
+                            <p style="margin: 0 0 6px 0; font-weight: 700; color: #111827; font-size: 16px;">No Submissions Yet</p>
+                            <p style="margin: 0; color: #6b7280; font-size: 13.5px;">No students have submitted this assignment yet.</p>
+                        </div>
+                    `;
                     return;
                 }
 
@@ -2065,24 +2960,6 @@
                 }
 
                 filterSubmissions('all');
-
-                // Check for similarity across all submitted questions
-                const questionsMap = new Map();
-                students.forEach(s => {
-                    (s.submissions || []).forEach(sub => {
-                        if (sub.questionId && !questionsMap.has(sub.questionId)) {
-                            questionsMap.set(sub.questionId, {
-                                questionId: sub.questionId,
-                                questionNumber: sub.questionNumber,
-                                questionTitle: sub.questionTitle
-                            });
-                        }
-                    });
-                });
-
-                if (questionsMap.size > 0) {
-                    checkSimilarityWarnings(Array.from(questionsMap.values()));
-                }
 
             } catch (err) {
                 listEl.innerHTML = `<div class="cl-empty-state">${escapeHtml(err.message)}</div>`;
@@ -2127,106 +3004,180 @@
 
             listEl.innerHTML = '';
             studentsToRender.forEach(s => {
-                const card = document.createElement('div');
-                card.className = 'cl-student-card';
-
-                const initials = getInitials(s.studentName || 'Student');
+                const studentId = s.studentId;
                 const submittedCount = (s.submissions || []).length;
                 const totalForCalc = totalQuestions > 0 ? totalQuestions : submittedCount;
                 const isPartial = totalForCalc > 0 && submittedCount < totalForCalc;
 
-                let subCountBadge = '';
-                if (totalForCalc > 0) {
-                    subCountBadge = `
-                        <span class="cl-sub-count-badge ${isPartial ? 'partial' : 'complete'}" 
-                              style="display:inline-flex; align-items:center; gap:4px; font-size:11.5px; font-weight:700; padding:2px 8px; border-radius:980px; ${isPartial ? 'background:#fee2e2; color:#dc2626; border:1px solid #fca5a5;' : 'background:#dcfce7; color:#15803d; border:1px solid #bbf7d0;'}">
-                            <span>${submittedCount}/${totalForCalc} submitted</span>
-                        </span>
-                    `;
+                // Progress Badge: "1/7 submitted", "4/7 submitted", "7/7 submitted"
+                const subFractionBadge = `
+                    <span class="cl-sub-fraction-badge ${isPartial ? 'partial' : 'full'}">
+                        ${submittedCount}/${totalForCalc} submitted
+                    </span>
+                `;
+
+                // Status Pill
+                const isFullyReleased = s.submissions.length > 0 && s.submissions.every(sub => sub.released);
+                const isFullyChecked = s.submissions.length > 0 && s.submissions.every(sub => sub.checked || sub.released);
+
+                let statusPillHtml = '';
+                if (isFullyReleased) {
+                    statusPillHtml = `<span class="cl-eval-pill checked" id="studentStatusPill-${studentId}">✓ Checked & Submitted</span>`;
+                } else if (isFullyChecked) {
+                    statusPillHtml = `<span class="cl-eval-pill draft" id="studentStatusPill-${studentId}">Draft Checked</span>`;
+                } else {
+                    statusPillHtml = `<span class="cl-eval-pill pending" id="studentStatusPill-${studentId}">Pending Review</span>`;
                 }
 
-                let questionsHtml = '';
-                (s.submissions || []).forEach(sub => {
-                    const timeStr = sub.submittedAt ? fmtTime(sub.submittedAt) : 'Submitted';
-                    const badgeHtml = deadlineBadge(assignment.deadline, sub.submittedAt);
+                // Tasks Content
+                let totalObtained = 0;
+                let totalMaxPossible = 0;
+                let hasAnyMarks = false;
 
-                    // Automated Test Cases badge (Item 4)
-                    let testCasesBadge = '';
-                    const totalCases = Number(sub.testCaseCount || (sub.testResults ? sub.testResults.length : 0));
-                    if (totalCases > 0) {
-                        const passedCount = sub.testResults ? sub.testResults.filter(t => t.passed).length : 0;
-                        const allPassed = passedCount === totalCases;
-                        testCasesBadge = `
-                            <span class="cl-tc-badge" style="display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700; padding:2px 8px; border-radius:980px; background:${allPassed ? '#dcfce7' : '#fef3c7'}; color:${allPassed ? '#15803d' : '#b45309'}; border:1px solid ${allPassed ? '#bbf7d0' : '#fde68a'};">
-                                <span style="font-size:10px;">${allPassed ? '✓' : '⚠️'}</span>
-                                <span>Passed ${passedCount}/${totalCases} test case${totalCases === 1 ? '' : 's'}</span>
-                            </span>
-                        `;
-                    }
-
+                const tasksHtml = (s.submissions || []).map((sub, qIdx) => {
                     const maxPts = sub.maxPoints != null ? sub.maxPoints : 10;
-                    let statusPill = '';
-                    if (sub.released) {
-                        const marksStr = sub.marksObtained != null ? `${sub.marksObtained}/${maxPts}` : 'Released';
-                        statusPill = `<span class="cl-status-pill released" id="statusPill-${sub.questionId}-${s.studentId}">Released (${marksStr})</span>`;
-                    } else if (sub.checked) {
-                        const marksStr = sub.marksObtained != null ? ` (${sub.marksObtained}/${maxPts})` : '';
-                        statusPill = `<span class="cl-status-pill reviewed" id="statusPill-${sub.questionId}-${s.studentId}">Reviewed — Draft${marksStr}</span>`;
-                    } else {
-                        statusPill = `<span class="cl-status-pill not-reviewed" id="statusPill-${sub.questionId}-${s.studentId}">Not reviewed</span>`;
+                    totalMaxPossible += maxPts;
+                    if (sub.marksObtained != null) {
+                        totalObtained += Number(sub.marksObtained);
+                        hasAnyMarks = true;
                     }
 
-                    questionsHtml += `
-          <div class="cl-q-item-wrap" id="qWrap-${sub.questionId}-${s.studentId}">
-            <div class="cl-q-row">
-              <span class="cl-q-info">
-                <span class="cl-q-num-badge">Task ${sub.questionNumber}</span>
-                <span>${escapeHtml(sub.questionTitle)}</span>
-                <span class="cl-max-points-tag">(${maxPts} pts)</span>
-              </span>
-              <span class="cl-q-meta">
-                ${testCasesBadge}
-                <span>${timeStr}</span>
-                ${badgeHtml}
-                ${statusPill}
-                <a class="cl-tool-link" href="/code-lab/timelapse.html?questionId=${sub.questionId}&studentId=${s.studentId}" title="Step-by-step code animation playback">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-                  <span>Timelapse</span>
-                </a>
-                <a class="cl-tool-link" href="/code-lab/events.html?questionId=${sub.questionId}&studentId=${s.studentId}" title="Real-time activity log">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
-                  <span>Activity Log</span>
-                </a>
-              </span>
-            </div>
-          </div>
-        `;
-                });
+                    const filename = getFileName(sub.questionLanguage || assignment.language);
+                    const rawCode = sub.code || '// No code recorded for this task';
+                    const highlightedHtml = highlightCode(rawCode, sub.questionLanguage || assignment.language);
+                    const hasOutput = Boolean(sub.stdout || sub.stderr);
+                    const isTaskChecked = Boolean(sub.checked || sub.released);
+
+                    return `
+                    <div class="cl-task-card" id="taskCard-${sub.questionId}-${studentId}">
+                        <div class="cl-task-card-header">
+                            <div>
+                                <div class="cl-task-title-row">
+                                    <h4 class="cl-task-title">Task ${sub.questionNumber || (qIdx + 1)}: ${escapeHtml(sub.questionTitle || 'Task ' + (qIdx + 1))}</h4>
+                                    <span class="cl-task-pts-badge">${maxPts} pts</span>
+                                </div>
+                                <div class="cl-task-meta-row">
+                                    ${sub.questionLanguage ? `<span class="cl-lang-pill">${escapeHtml(sub.questionLanguage.toUpperCase())}</span>` : ''}
+                                    <span>Submitted ${fmtTime(sub.submittedAt)}</span>
+                                    ${deadlineBadge(assignment.deadline, sub.submittedAt)}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- macOS IDE Code Box (Matching my-submissions.html) -->
+                        <div class="cl-code-box">
+                            <div class="cl-code-header">
+                                <div class="cl-window-dots">
+                                    <span class="cl-dot red"></span>
+                                    <span class="cl-dot yellow"></span>
+                                    <span class="cl-dot green"></span>
+                                </div>
+                                <div class="cl-code-filename">${escapeHtml(filename)}</div>
+                                <button type="button" class="cl-copy-btn" id="copy-btn-${sub.questionId}-${studentId}">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                                    Copy Code
+                                </button>
+                            </div>
+                            <pre class="cl-code-pre"><code>${highlightedHtml}</code></pre>
+                        </div>
+
+                        ${hasOutput ? `
+                        <div class="cl-output-box">
+                            <div class="cl-output-title">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                                Execution Output
+                            </div>
+                            ${sub.stdout ? `<pre class="cl-output-content">${escapeHtml(sub.stdout)}</pre>` : ''}
+                            ${sub.stderr ? `<pre class="cl-output-content err">${escapeHtml(sub.stderr)}</pre>` : ''}
+                        </div>
+                        ` : ''}
+
+                        <!-- Inline Task Grading Bar -->
+                        <div class="cl-task-grade-bar">
+                            <label class="cl-check-toggle-label">
+                                <input type="checkbox" class="cl-task-check-cb" data-qid="${sub.questionId}" data-sid="${studentId}" ${isTaskChecked ? 'checked' : ''}>
+                                <span class="cl-check-toggle-text">Mark Checked</span>
+                            </label>
+
+                            <div class="cl-task-marks-group">
+                                <span class="cl-grade-label">Marks:</span>
+                                <input type="number" step="0.5" min="0" max="${maxPts}" class="cl-task-marks-input" data-qid="${sub.questionId}" data-max="${maxPts}" id="marks-${sub.questionId}-${studentId}" value="${sub.marksObtained != null ? sub.marksObtained : ''}" placeholder="${maxPts}" oninput="updateStudentTotalScore('${studentId}')">
+                                <span class="cl-grade-max">/ ${maxPts} pts</span>
+                            </div>
+
+                            <div class="cl-task-remark-group">
+                                <input type="text" class="cl-task-remark-input" data-qid="${sub.questionId}" id="remarks-${sub.questionId}-${studentId}" value="${escapeHtml(sub.remarks || '')}" placeholder="Feedback / remarks (optional)">
+                            </div>
+                        </div>
+                    </div>
+                    `;
+                }).join('');
+
+                const card = document.createElement('div');
+                card.className = 'cl-student-card';
+                card.id = `studentCard-${studentId}`;
 
                 card.innerHTML = `
-        <div class="cl-student-header">
-          <div class="cl-student-profile">
-            <div class="cl-student-avatar">${escapeHtml(initials)}</div>
-            <div>
-              <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                <h3 class="cl-student-name">${escapeHtml(s.studentName)}</h3>
-                ${subCountBadge}
-              </div>
-              <div class="cl-student-id">Student ID: ${escapeHtml(String(s.studentId))}</div>
-            </div>
-          </div>
-          <div class="cl-student-actions">
-            <a class="cl-report-pill" href="/code-lab/report.html?id=${id}&studentId=${s.studentId}" title="Open student report to review and grade">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
-              <span>View Report & Grade</span>
-            </a>
-          </div>
-        </div>
-        <div class="cl-q-list">
-          ${questionsHtml}
-        </div>
-      `;
+                    <!-- Accordion Header: Clean, only student name and submitted fraction -->
+                    <button type="button" class="cl-student-header-btn" id="student-toggle-${studentId}" onclick="toggleStudentDrawer('${studentId}')">
+                        <div class="cl-student-header-left">
+                            <span class="cl-student-name">${escapeHtml(s.studentName || 'Student')}</span>
+                            ${subFractionBadge}
+                        </div>
+                        <div class="cl-student-header-right">
+                            ${statusPillHtml}
+                            <span class="cl-header-expand-hint">Review Code & Grade</span>
+                            <svg class="cl-accordion-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </div>
+                    </button>
+
+                    <!-- Collapsible Drawer -->
+                    <div class="cl-student-drawer" id="student-drawer-${studentId}">
+                        <div class="cl-student-tasks-list">
+                            ${tasksHtml}
+                        </div>
+
+                        <!-- Bottom Evaluation Action Bar -->
+                        <div class="cl-student-footer-bar">
+                            <div class="cl-student-footer-left">
+                                <span class="cl-footer-summary" id="footerSummary-${studentId}">
+                                    Total Score: <strong>${hasAnyMarks ? totalObtained : 0} / ${totalMaxPossible} pts</strong>
+                                </span>
+                                <button type="button" class="cl-mark-all-btn" onclick="markAllStudentTasksChecked('${studentId}')">
+                                    ✓ Check All Tasks
+                                </button>
+                            </div>
+                            <div class="cl-student-footer-right">
+                                <button type="button" class="cl-grade-draft-btn" onclick="submitStudentGrading('${id}', '${studentId}', false, this)">
+                                    Save Draft
+                                </button>
+                                <button type="button" class="cl-grade-submit-btn" onclick="submitStudentGrading('${id}', '${studentId}', true, this)">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                    <span>Submit & Mark Checked</span>
+                                </button>
+                                <a href="/code-lab/report.html?id=${id}&studentId=${encodeURIComponent(studentId)}" target="_blank" class="cl-report-link" title="Open official PDF Report">
+                                    Official Report PDF ↗
+                                </a>
+                            </div>
+                        </div>
+                        <div class="cl-grade-toast" id="gradeToast-${studentId}" style="display:none;"></div>
+                    </div>
+                `;
+
                 listEl.appendChild(card);
+
+                // Attach copy listeners
+                (s.submissions || []).forEach(sub => {
+                    const copyBtn = card.querySelector(`#copy-btn-${sub.questionId}-${studentId}`);
+                    if (copyBtn) {
+                        copyBtn.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            copyStudentCode(copyBtn, sub.code || '');
+                        });
+                    }
+                });
             });
         }
 
@@ -2505,7 +3456,7 @@
 
             document.getElementById('viewSingleAssignment').style.display = 'none';
             document.getElementById('viewAllAssignments').style.display = 'block';
-            document.getElementById('heroTitle').textContent = 'Submissions';
+            document.getElementById('heroTitle').textContent = 'My Assignments';
             if (!allAssignmentsList.length) {
                 loadAllAssignments();
             } else {

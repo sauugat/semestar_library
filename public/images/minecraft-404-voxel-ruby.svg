@@ -1,0 +1,321 @@
+<svg id="voxel-404-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 520" class="w-full h-auto max-h-[380px] drop-shadow-2xl select-none"><style>
+        :root {
+          --primary-glow: #ef4444;
+          --primary-glow-soft: rgba(239, 68, 68, 0.22);
+          --primary-glow-bright: #fca5a5;
+          --secondary-glow: #f87171;
+        }
+        @keyframes charScanMotion { 0%, 100% { transform: rotate(0deg) translateY(0px); } 25% { transform: rotate(-3deg) translateY(-2px); } 50% { transform: rotate(2deg) translateY(1px); } 75% { transform: rotate(-2deg) translateY(-1px); } }
+        @keyframes beamSweepMotion { 0%, 100% { opacity: 0.35; transform: scale(1); } 50% { opacity: 0.85; transform: scale(1.05); } }
+        @keyframes scanlineTravel { 0% { transform: translateY(-20px); opacity: 0; } 20%, 80% { opacity: 0.8; } 100% { transform: translateY(45px); opacity: 0; } }
+        @keyframes voxelBobMotion { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-8px); } }
+        @keyframes shadowPulse { 0%, 100% { transform: scale(1); opacity: 0.6; } 50% { transform: scale(0.92); opacity: 0.4; } }
+        @keyframes particleDriftA { 0% { transform: translate(0, 0); opacity: 0; } 20% { opacity: 0.9; } 80% { opacity: 0.7; } 100% { transform: translate(-15px, -65px); opacity: 0; } }
+        @keyframes particleDriftB { 0% { transform: translate(0, 0); opacity: 0; } 25% { opacity: 1; } 75% { opacity: 0.6; } 100% { transform: translate(18px, -75px); opacity: 0; } }
+        @keyframes ventGlowPulse { 0%, 100% { opacity: 0.45; filter: drop-shadow(0 0 3px #ef4444); } 50% { opacity: 0.95; filter: drop-shadow(0 0 10px #fca5a5); } }
+        @keyframes slotWarningBlink { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+        @keyframes circuitFlow { 0% { stroke-dashoffset: 40; } 100% { stroke-dashoffset: 0; } }
+
+        .char-scanner-head { transform-origin: 300px 240px; animation: charScanMotion 4.5s ease-in-out infinite; }
+        .beam-core { transform-origin: 338px 246px; animation: beamSweepMotion 3s ease-in-out infinite; }
+        .scan-slice { animation: scanlineTravel 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite; }
+        .voxel-bob { animation: voxelBobMotion 3.5s ease-in-out infinite; }
+        .shadow-bob { transform-origin: 470px 230px; animation: shadowPulse 3.5s ease-in-out infinite; }
+        .particle-1 { animation: particleDriftA 3.2s linear infinite; }
+        .particle-2 { animation: particleDriftB 2.8s linear 0.9s infinite; }
+        .particle-3 { animation: particleDriftA 4.1s linear 1.6s infinite; }
+        .vent-glow { animation: ventGlowPulse 2s ease-in-out infinite; }
+        .slot-alert { animation: slotWarningBlink 1.4s ease-in-out infinite; }
+        .circuit-pulse { stroke-dasharray: 8 12; animation: circuitFlow 1.8s linear infinite; }
+      </style>
+                  <defs>
+                    <!-- Holographic Scan Beam Gradient -->
+                    <linearGradient id="scanBeamGrad" x1="0%" y1="0%" x2="100%" y2="80%">
+                      <stop offset="0%" stop-color="var(--primary-glow-bright)" stop-opacity="0.85"/>
+                      <stop offset="35%" stop-color="var(--primary-glow)" stop-opacity="0.45"/>
+                      <stop offset="100%" stop-color="var(--primary-glow)" stop-opacity="0.02"/>
+                    </linearGradient>
+
+                    <!-- Scan Beam Sweep Bar Gradient -->
+                    <linearGradient id="scanSliceGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stop-color="var(--primary-glow)" stop-opacity="0"/>
+                      <stop offset="50%" stop-color="var(--primary-glow-bright)" stop-opacity="0.9"/>
+                      <stop offset="100%" stop-color="var(--primary-glow)" stop-opacity="0"/>
+                    </linearGradient>
+
+                    <!-- Server Rack Glow Filter -->
+                    <filter id="neonGlow" x="-20%" y="-20%" width="140%" height="140%">
+                      <feGaussianBlur stdDeviation="5" result="blur"/>
+                      <feMerge>
+                        <feMergeNode in="blur"/>
+                        <feMergeNode in="SourceGraphic"/>
+                      </feMerge>
+                    </filter>
+                    
+                    <!-- Subtle Floor Shadow Filter -->
+                    <radialGradient id="groundShadowGrad" cx="50%" cy="50%" r="50%">
+                      <stop offset="0%" stop-color="#000000" stop-opacity="0.7"/>
+                      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+                    </radialGradient>
+                  </defs>
+
+                  <!-- 1. AMBIENT FLOOR SHADOWS -->
+                  <g class="floor-shadows">
+                    <!-- Base large ground shadow -->
+                    <ellipse cx="380" cy="450" rx="270" ry="60" fill="url(#groundShadowGrad)"/>
+                    <!-- Character ground shadow -->
+                    <ellipse cx="280" cy="430" rx="70" ry="24" fill="#000000" opacity="0.4"/>
+                    <!-- Server rack ground shadow -->
+                    <ellipse cx="490" cy="440" rx="90" ry="32" fill="#000000" opacity="0.5"/>
+                  </g>
+
+                  <!-- 2. ISOMETRIC BASE PLATFORM TILES (Deepslate Cobblestone Grid) -->
+                  <g id="isometric-platform">
+                    <!-- Main pedestal top face -->
+                    <polygon points="380,360 560,450 380,505 200,450" fill="#1e293b" stroke="#334155" stroke-width="2"/>
+                    <!-- Pedestal left edge -->
+                    <polygon points="200,450 380,505 380,520 200,465" fill="#0f172a"/>
+                    <!-- Pedestal right edge -->
+                    <polygon points="380,505 560,450 560,465 380,520" fill="#090d16"/>
+                    
+                    <!-- Inner decorative isometric tiles (Minecraft block seams) -->
+                    <polygon points="380,360 470,405 380,450 290,405" fill="#243044" stroke="#334155" stroke-width="1.5"/>
+                    <polygon points="290,405 380,450 290,495 200,450" fill="#1b2434" stroke="#334155" stroke-width="1.5"/>
+                    <polygon points="470,405 560,450 470,495 380,450" fill="#161e2c" stroke="#334155" stroke-width="1.5"/>
+
+                    <!-- Pulsing Data Conduit Cable on Ground -->
+                    <path d="M 450,425 L 380,390 L 320,420 L 290,405" fill="none" stroke="var(--primary-glow)" stroke-width="3" stroke-linecap="round" class="circuit-pulse" opacity="0.8"/>
+                  </g>
+
+                  <!-- 3. DEEPSLATE DATABASE RACK (Chiseled Server Module with Empty Bay) -->
+                  <g id="database-rack">
+                    <!-- Lower Server Cabinet Block -->
+                    <!-- Top Face -->
+                    <polygon points="480,290 560,330 480,370 400,330" fill="#475569" stroke="#64748b" stroke-width="1.5"/>
+                    <!-- Left Face -->
+                    <polygon points="400,330 480,370 480,440 400,400" fill="#334155" stroke="#1e293b" stroke-width="1.5"/>
+                    <!-- Right Face -->
+                    <polygon points="480,370 560,330 560,400 480,440" fill="#1e293b" stroke="#0f172a" stroke-width="1.5"/>
+
+                    <!-- Lower Server Bay Slots & Glowing Vents -->
+                    <!-- Vent 1 (Bottom Left Face) -->
+                    <polygon points="415,355 465,380 465,388 415,363" fill="#0f172a"/>
+                    <line x1="418" y1="361" x2="462" y2="383" stroke="var(--primary-glow)" stroke-width="2.5" class="vent-glow"/>
+                    
+                    <!-- Vent 2 (Bottom Left Face) -->
+                    <polygon points="415,373 465,398 465,406 415,381" fill="#0f172a"/>
+                    <line x1="418" y1="379" x2="462" y2="401" stroke="var(--primary-glow)" stroke-width="2.5" class="vent-glow"/>
+
+                    <!-- Server LED Status Dots on Lower Bay -->
+                    <circle cx="470" cy="360" r="2.5" fill="var(--primary-glow-bright)" class="vent-glow"/>
+                    <circle cx="470" cy="370" r="2.5" fill="#ef4444"/>
+                    <circle cx="470" cy="380" r="2.5" fill="var(--primary-glow)" class="vent-glow"/>
+
+                    <!-- Right Side Cooling Exhaust Fins -->
+                    <polygon points="495,365 545,340 545,346 495,371" fill="#090d16"/>
+                    <polygon points="495,376 545,351 545,357 495,382" fill="#090d16"/>
+                    <polygon points="495,387 545,362 545,368 495,393" fill="#090d16"/>
+
+                    <!-- UPPER SERVER BAY: OPEN / EXTRACTED DRIVE CHASSIS (THE EMPTY DATABASE SLOT) -->
+                    <!-- Upper Deepslate Block -->
+                    <!-- Top Face -->
+                    <polygon points="480,200 560,240 480,280 400,240" fill="#334155" stroke="#475569" stroke-width="1.5"/>
+                    <!-- Left Face -->
+                    <polygon points="400,240 480,280 480,330 400,290" fill="#1e293b" stroke="#0f172a" stroke-width="1.5"/>
+                    <!-- Right Face -->
+                    <polygon points="480,280 560,240 560,290 480,330" fill="#0f172a" stroke="#090d16" stroke-width="1.5"/>
+
+                    <!-- THE OPEN EMPTY BAY (Recessed Cavity showing missing block/drive) -->
+                    <!-- Hollow Bay Interior -->
+                    <polygon points="415,255 465,280 465,315 415,290" fill="#05080f" stroke="var(--primary-glow)" stroke-width="1.5" opacity="0.9"/>
+                    <!-- Bay Interior Top Ceiling -->
+                    <polygon points="415,255 440,242 465,255 440,268" fill="#0a0f1d"/>
+                    <!-- Missing Drive Guides (Empty Rail Slots) -->
+                    <line x1="422" y1="270" x2="458" y2="288" stroke="#334155" stroke-width="1.5" stroke-dasharray="2 3"/>
+                    <line x1="422" y1="285" x2="458" y2="303" stroke="#334155" stroke-width="1.5" stroke-dasharray="2 3"/>
+
+                    <!-- Pulsing Holographic "VOID / EMPTY" Warning Grid inside slot -->
+                    <g class="slot-alert">
+                      <polygon points="425,268 455,283 455,302 425,287" fill="var(--primary-glow-soft)" stroke="var(--primary-glow)" stroke-width="1"/>
+                      <!-- Small pixelated redstone warning cross/dash -->
+                      <line x1="435" y1="280" x2="445" y2="288" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"/>
+                    </g>
+
+                    <!-- Ejected / Extended Drawer Edge (Empty Voxel Crate) -->
+                    <polygon points="380,270 415,288 415,298 380,280" fill="#475569" stroke="#64748b" stroke-width="1"/>
+                    <polygon points="380,270 415,288 440,275 405,257" fill="#64748b" opacity="0.4"/>
+                  </g>
+
+                  <!-- 4. VOXEL CHARACTER: THE ARCHIVIST / EXPLORER -->
+                  <g id="minecraft-character">
+                    <!-- Shadow right under character boots -->
+                    <ellipse cx="280" cy="425" rx="35" ry="12" fill="#000000" opacity="0.35"/>
+
+                    <!-- Legs & Boots (Voxel Cuboids) -->
+                    <!-- Left Leg (Behind) -->
+                    <g id="char-left-leg">
+                      <!-- Boot Left -->
+                      <polygon points="260,390 280,400 280,422 260,412" fill="#1e293b"/>
+                      <polygon points="280,400 295,392 295,414 280,422" fill="#0f172a"/>
+                      <!-- Pants -->
+                      <polygon points="260,360 280,370 280,395 260,385" fill="#3b82f6"/>
+                      <polygon points="280,370 295,362 295,387 280,395" fill="#1d4ed8"/>
+                    </g>
+
+                    <!-- Right Leg (Forward) -->
+                    <g id="char-right-leg">
+                      <!-- Boot Right -->
+                      <polygon points="275,395 295,405 295,427 275,417" fill="#334155"/>
+                      <polygon points="295,405 310,397 310,419 295,427" fill="#1e293b"/>
+                      <!-- Pants -->
+                      <polygon points="275,365 295,375 295,400 275,390" fill="#2563eb"/>
+                      <polygon points="295,375 310,367 310,392 295,400" fill="#1e40af"/>
+                    </g>
+
+                    <!-- Character Torso & Tech Vest -->
+                    <g id="char-torso">
+                      <!-- Top Shoulder Face -->
+                      <polygon points="280,295 320,315 290,330 250,310" fill="#0284c7"/>
+                      <!-- Front/Right Torso Face (Facing Server) -->
+                      <polygon points="290,330 320,315 320,370 290,385" fill="#0369a1" stroke="#075985" stroke-width="1"/>
+                      <!-- Left Torso Face -->
+                      <polygon points="250,310 290,330 290,385 250,365" fill="#0c4a6e" stroke="#082f49" stroke-width="1"/>
+                      
+                      <!-- Redstone / Tech Utility Harness Details -->
+                      <!-- Belt -->
+                      <polygon points="250,358 290,378 290,385 250,365" fill="#78350f"/>
+                      <polygon points="290,378 320,363 320,370 290,385" fill="#451a03"/>
+                      <!-- Buckle / Data Chip -->
+                      <polygon points="285,372 298,379 298,384 285,377" fill="var(--primary-glow-bright)" class="vent-glow"/>
+                      
+                      <!-- Adventurer Tech Backpack / Server Pack -->
+                      <polygon points="240,312 255,304 255,345 240,353" fill="#475569"/>
+                      <polygon points="230,320 240,312 240,353 230,361" fill="#334155"/>
+                      <circle cx="236" cy="330" r="2" fill="var(--primary-glow)" class="vent-glow"/>
+                    </g>
+
+                    <!-- Left Arm (Holding spyglass base) -->
+                    <polygon points="295,325 315,315 325,335 305,345" fill="#0284c7"/>
+
+                    <!-- ANIMATED HEAD + SPYGLASS GROUP -->
+                    <g class="char-scanner-head">
+                      <!-- Voxel Head Cuboid -->
+                      <!-- Head Top Face (Brown Hair / Explorer Headset) -->
+                      <polygon points="285,220 320,237 290,252 255,235" fill="#78350f" stroke="#451a03" stroke-width="1"/>
+                      <!-- Head Right Face (Facing Forward/Spyglass) -->
+                      <polygon points="290,252 320,237 320,277 290,292" fill="#fcd34d" stroke="#d97706" stroke-width="1"/>
+                      <!-- Head Left Face -->
+                      <polygon points="255,235 290,252 290,292 255,275" fill="#fbbf24" stroke="#b45309" stroke-width="1"/>
+                      
+                      <!-- Explorer Hair / Headband -->
+                      <polygon points="255,235 290,252 290,260 255,243" fill="#451a03"/>
+                      <polygon points="290,252 320,237 320,245 290,260" fill="#292524"/>
+                      
+                      <!-- Voxel Eye (Pixel Steve eye with focused tech pupil) -->
+                      <rect x="296" y="258" width="6" height="5" fill="#ffffff" transform="skewY(15)"/>
+                      <rect x="300" y="259" width="3" height="4" fill="#0284c7" transform="skewY(15)"/>
+                      
+                      <!-- Tech Eyepiece / Monocle Goggles on Right Eye -->
+                      <polygon points="305,252 318,245 318,260 305,267" fill="var(--primary-glow-soft)" stroke="var(--primary-glow)" stroke-width="1.5"/>
+                      <circle cx="312" cy="256" r="1.5" fill="var(--primary-glow-bright)"/>
+
+                      <!-- MINECRAFT SPYGLASS (Telescoping Brass/Copper Cylinder with Lens) -->
+                      <g id="spyglass">
+                        <!-- Barrel 1 (Gold/Brass Tube base near eye) -->
+                        <polygon points="314,258 335,248 342,260 321,270" fill="#f59e0b" stroke="#b45309" stroke-width="1"/>
+                        <!-- Barrel 2 (Copper Extension tube) -->
+                        <polygon points="335,248 360,236 366,247 341,259" fill="#ea580c" stroke="#9a3412" stroke-width="1"/>
+                        <!-- Barrel 3 (Gold Objective ring) -->
+                        <polygon points="360,236 372,230 376,240 364,246" fill="#fbbf24" stroke="#d97706" stroke-width="1"/>
+                        <!-- Lens Front Edge (Glow rim emitting beam) -->
+                        <polygon points="372,230 378,227 382,237 376,240" fill="var(--primary-glow-bright)" class="vent-glow"/>
+                      </g>
+
+                      <!-- HOLOGRAPHIC SEARCH SCAN BEAM EMANATING FROM SPYGLASS -->
+                      <g class="beam-core">
+                        <!-- Scan Pyramid / Cone to Database Bay -->
+                        <polygon points="378,234 475,270 425,325 378,236" fill="url(#scanBeamGrad)"/>
+                        <!-- Boundary Focus Ray Lines -->
+                        <line x1="378" y1="234" x2="475" y2="270" stroke="var(--primary-glow-bright)" stroke-width="1.5" opacity="0.6" stroke-dasharray="3 3"/>
+                        <line x1="378" y1="236" x2="425" y2="325" stroke="var(--primary-glow-bright)" stroke-width="1.5" opacity="0.6" stroke-dasharray="3 3"/>
+                        
+                        <!-- Dynamic Hologram Scanline Bar Sweeping the Empty Drive -->
+                        <g class="scan-slice">
+                          <polygon points="400,250 455,275 435,295 385,268" fill="url(#scanSliceGrad)"/>
+                        </g>
+                      </g>
+
+                      <!-- Arm Right (Holding Spyglass Barrel) -->
+                      <polygon points="298,285 330,268 338,278 306,295" fill="#fcd34d" stroke="#d97706" stroke-width="1"/>
+                      <!-- Glove / Sleeve Cuff -->
+                      <polygon points="294,288 310,280 314,288 298,296" fill="#0284c7"/>
+                    </g>
+                  </g>
+
+                  <!-- 5. FLOATING VOXEL 404 SIGN & DATA QUESTION MARK -->
+                  <g id="floating-voxel-beacon">
+                    <!-- Subtle drop shadow for floating block -->
+                    <ellipse cx="485" cy="180" rx="35" ry="12" fill="#000000" class="shadow-bob"/>
+
+                    <!-- Floating 3D Voxel "404" Cube -->
+                    <g class="voxel-bob">
+                      <!-- Main Obsidian/Deepslate Floating Beacon Cube -->
+                      <!-- Top Face -->
+                      <polygon points="485,75 525,95 485,115 445,95" fill="#334155" stroke="#475569" stroke-width="1.5"/>
+                      <!-- Left Face (Front) with Glowing "404" Neon Text -->
+                      <polygon points="445,95 485,115 485,155 445,135" fill="#1e293b" stroke="#0f172a" stroke-width="1.5"/>
+                      <!-- Right Face -->
+                      <polygon points="485,115 525,95 525,135 485,155" fill="#0f172a" stroke="#090d16" stroke-width="1.5"/>
+
+                      <!-- Glowing "404" Glyphs on the Left Face (Skewed to Isometric Plane) -->
+                      <g fill="var(--primary-glow-bright)" class="vent-glow">
+                        <!-- Pixelated "4" -->
+                        <polygon points="453,115 456,116 456,128 453,127"/>
+                        <polygon points="453,122 461,126 461,129 453,125"/>
+                        <polygon points="458,117 461,118 461,130 458,129"/>
+                        
+                        <!-- Pixelated "0" -->
+                        <polygon points="464,121 471,124 471,136 464,133" fill="none" stroke="var(--primary-glow-bright)" stroke-width="2"/>
+                        
+                        <!-- Pixelated "4" -->
+                        <polygon points="474,126 477,127 477,139 474,138"/>
+                        <polygon points="474,133 482,137 482,140 474,136"/>
+                        <polygon points="479,128 482,129 482,141 479,140"/>
+                      </g>
+
+                      <!-- Neon Beacon Core Top Ring (Sea Lantern / Redstone Pulse) -->
+                      <polygon points="485,82 515,97 485,112 455,97" fill="var(--primary-glow-soft)" stroke="var(--primary-glow)" stroke-width="2" class="vent-glow"/>
+                      <circle cx="485" cy="97" r="4" fill="var(--primary-glow-bright)" class="vent-glow"/>
+
+                      <!-- Floating Pixelated Question Mark above the empty slot -->
+                      <g transform="translate(435, 175)" class="vent-glow">
+                        <rect x="0" y="0" width="5" height="5" fill="var(--primary-glow)"/>
+                        <rect x="5" y="-5" width="5" height="5" fill="var(--primary-glow)"/>
+                        <rect x="10" y="-5" width="5" height="5" fill="var(--primary-glow)"/>
+                        <rect x="10" y="5" width="5" height="5" fill="var(--primary-glow)"/>
+                        <rect x="5" y="10" width="5" height="5" fill="var(--primary-glow)"/>
+                        <rect x="5" y="20" width="5" height="5" fill="var(--primary-glow)"/>
+                      </g>
+                    </g>
+                  </g>
+
+                  <!-- 6. FLOATING REDSTONE / DATA PARTICLES (Drifting upward) -->
+                  <g id="particles" opacity="0.85">
+                    <!-- Particle 1: Small Cyan Voxel near empty bay -->
+                    <g class="particle-1" transform="translate(430, 270)">
+                      <polygon points="6,0 12,3 6,6 0,3" fill="var(--primary-glow-bright)"/>
+                      <polygon points="0,3 6,6 6,12 0,9" fill="var(--primary-glow)"/>
+                      <polygon points="6,6 12,3 12,9 6,12" fill="var(--secondary-glow)"/>
+                    </g>
+                    <!-- Particle 2: Redstone spark near floor conduit -->
+                    <g class="particle-2" transform="translate(360, 390)">
+                      <rect x="0" y="0" width="4" height="4" fill="#ef4444"/>
+                    </g>
+                    <!-- Particle 3: Data bit floating near character -->
+                    <g class="particle-3" transform="translate(340, 260)">
+                      <polygon points="4,0 8,2 4,4 0,2" fill="var(--primary-glow)"/>
+                      <polygon points="0,2 4,4 4,8 0,6" fill="var(--secondary-glow)"/>
+                      <polygon points="4,4 8,2 8,6 4,8" fill="var(--primary-glow-bright)"/>
+                    </g>
+                  </g>
+                </svg>

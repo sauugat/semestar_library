@@ -979,7 +979,7 @@ router.put('/questions/:questionId/grade/:studentId', requireLogin, async (req, 
             questionId
         );
         if (!question) return res.status(404).json({ message: 'Question not found.' });
-        if (question.createdBy !== req.session.studentId) {
+        if (question.createdBy !== req.session.studentId && !admin) {
             return res.status(403).json({ message: 'You can only grade your own assignments.' });
         }
 
@@ -1177,7 +1177,7 @@ router.post('/assignments/:id/grade-student/:studentId', requireLogin, async (re
 
         const assignment = await db.get('SELECT * FROM assignments WHERE id = ?', assignmentId);
         if (!assignment) return res.status(404).json({ message: 'Assignment not found.' });
-        if (assignment.createdBy !== req.session.studentId) {
+        if (assignment.createdBy !== req.session.studentId && !admin) {
             return res.status(403).json({ message: 'You can only grade your own assignments.' });
         }
 

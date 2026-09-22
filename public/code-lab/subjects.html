@@ -1155,6 +1155,652 @@
       font-size: 14.5px;
       grid-column: 1 / -1;
     }
+
+    /* ── Playful Student Denied Popup ── */
+    .cl-denied-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.52);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      z-index: 100020;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.22s ease;
+      user-select: none;
+    }
+
+    .cl-denied-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .cl-denied-card {
+      width: 100%;
+      max-width: 410px;
+      background: #ffffff;
+      border-radius: 26px;
+      padding: 36px 30px 28px;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.28), 0 10px 24px rgba(0, 0, 0, 0.08);
+      text-align: center;
+      transform: scale(0.9) translateY(14px);
+      transition: transform 0.26s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .cl-denied-overlay.open .cl-denied-card {
+      transform: scale(1) translateY(0);
+    }
+
+    .cl-denied-emoji {
+      font-size: 56px;
+      line-height: 1;
+      margin-bottom: 16px;
+      display: inline-block;
+      filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.12));
+      animation: clDeniedWiggle 0.65s ease-in-out infinite alternate;
+    }
+
+    @keyframes clDeniedWiggle {
+      0% { transform: rotate(-8deg) scale(0.96); }
+      100% { transform: rotate(8deg) scale(1.04); }
+    }
+
+    .cl-denied-title {
+      font-size: 25px;
+      font-weight: 800;
+      color: #1d1d1f;
+      letter-spacing: -0.025em;
+      margin: 0 0 10px 0;
+      font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    .cl-denied-desc {
+      font-size: 14.5px;
+      line-height: 1.55;
+      color: #6e6e73;
+      margin: 0 0 24px 0;
+      padding: 0 8px;
+    }
+
+    .cl-denied-close-x {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #f5f5f7;
+      border: none;
+      color: #86868b;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .cl-denied-close-x:hover {
+      background: #e5e5ea;
+      color: #1d1d1f;
+    }
+
+    .cl-denied-action-btn {
+      width: 100%;
+      height: 46px;
+      border-radius: 980px;
+      background: #1d1d1f;
+      color: #ffffff;
+      font-size: 14.5px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16);
+      font-family: inherit;
+    }
+
+    .cl-denied-action-btn:hover {
+      background: #000000;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.24);
+    }
+
+    /* ── Teacher Assignment Creation Modal ── */
+    .cl-create-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.55);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      z-index: 100030;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.24s ease;
+    }
+
+    .cl-create-modal-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .cl-create-modal-card {
+      width: 100%;
+      max-width: 780px;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      background: #ffffff;
+      border-radius: 24px;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      box-shadow: 0 32px 84px rgba(0, 0, 0, 0.26), 0 12px 30px rgba(0, 0, 0, 0.08);
+      transform: scale(0.94) translateY(16px);
+      transition: transform 0.26s cubic-bezier(0.16, 1, 0.3, 1);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .cl-create-modal-overlay.open .cl-create-modal-card {
+      transform: scale(1) translateY(0);
+    }
+
+    .cl-create-modal-header {
+      padding: 20px 28px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.07);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(255, 255, 255, 0.94);
+      backdrop-filter: blur(10px);
+      position: sticky;
+      top: 0;
+      z-index: 3;
+    }
+
+    .cl-create-modal-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #1d1d1f;
+      letter-spacing: -0.02em;
+      margin: 0;
+      font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    .cl-create-modal-subtitle {
+      font-size: 13px;
+      color: #86868b;
+      margin: 3px 0 0 0;
+    }
+
+    .cl-create-modal-close {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: #f5f5f7;
+      border: none;
+      color: #6e6e73;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .cl-create-modal-close:hover {
+      background: #e5e5ea;
+      color: #1d1d1f;
+    }
+
+    .cl-create-modal-body {
+      padding: 24px 28px;
+      overflow-y: auto;
+      flex: 1;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .cl-create-modal-footer {
+      padding: 16px 28px;
+      border-top: 1px solid rgba(0, 0, 0, 0.07);
+      background: #fafafa;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 12px;
+      position: sticky;
+      bottom: 0;
+      z-index: 3;
+    }
+
+    .cl-modal-divider {
+      height: 1px;
+      background: rgba(0, 0, 0, 0.06);
+      margin: 22px 0;
+    }
+
+    /* Modal Form Elements */
+    .cl-form-group {
+      margin-bottom: 20px;
+    }
+
+    .cl-form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    @media (max-width: 600px) {
+      .cl-form-row {
+        grid-template-columns: 1fr;
+      }
+      .cl-create-modal-card {
+        max-height: 95vh;
+        border-radius: 18px;
+      }
+      .cl-create-modal-header,
+      .cl-create-modal-body,
+      .cl-create-modal-footer {
+        padding-left: 18px;
+        padding-right: 18px;
+      }
+    }
+
+    .cl-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #1d1d1f;
+      margin-bottom: 7px;
+      letter-spacing: -0.01em;
+    }
+
+    .cl-label span.req {
+      color: #000000;
+      opacity: 0.6;
+      font-weight: 700;
+      margin-left: 2px;
+    }
+
+    .cl-input,
+    .cl-select,
+    .cl-textarea {
+      width: 100%;
+      padding: 11px 15px;
+      background: #fbfbfd;
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      border-radius: 12px;
+      font-size: 14px;
+      color: #1d1d1f;
+      font-family: inherit;
+      outline: none;
+      transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+      box-sizing: border-box;
+    }
+
+    .cl-input::placeholder,
+    .cl-textarea::placeholder {
+      color: #aeaeb2;
+    }
+
+    .cl-input:focus,
+    .cl-select:focus,
+    .cl-textarea:focus {
+      background: #ffffff;
+      border-color: #000000;
+      box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.12);
+    }
+
+    .cl-select {
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%231d1d1f' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      padding-right: 38px;
+      cursor: pointer;
+    }
+
+    .cl-textarea {
+      min-height: 90px;
+      resize: vertical;
+      line-height: 1.5;
+    }
+
+    .cl-section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .cl-section-title {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #86868b;
+      margin: 0;
+    }
+
+    .cl-question-block {
+      background: #fbfbfd;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 16px;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .cl-question-block:hover {
+      border-color: rgba(0, 0, 0, 0.16);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.03);
+    }
+
+    .cl-q-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .cl-q-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 980px;
+      background: linear-gradient(180deg, #242426 0%, #000000 100%);
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    }
+
+    .cl-remove-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 12px;
+      border-radius: 980px;
+      border: 1px solid rgba(0, 0, 0, 0.16);
+      background: #f5f5f7;
+      color: #48484a;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s ease;
+    }
+
+    .cl-remove-btn:hover {
+      background: linear-gradient(180deg, #1d1d1f 0%, #000000 100%);
+      color: #ffffff;
+      border-color: #000000;
+    }
+
+    .cl-add-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 12px 18px;
+      background: #ffffff;
+      border: 1.5px dashed rgba(0, 0, 0, 0.25);
+      border-radius: 14px;
+      color: #1d1d1f;
+      font-size: 13.5px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+      margin-bottom: 20px;
+    }
+
+    .cl-add-btn:hover {
+      background: #f5f5f7;
+      border-color: #000000;
+      color: #000000;
+      transform: translateY(-1px);
+    }
+
+    .cl-submit-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 11px 26px;
+      background: linear-gradient(180deg, #2c2c2e 0%, #000000 100%);
+      color: #ffffff;
+      border: 1px solid #000000;
+      border-radius: 980px;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+    }
+
+    .cl-submit-btn:hover {
+      background: #000000;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.32);
+    }
+
+    .cl-submit-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .cl-cancel-btn {
+      display: inline-flex;
+      align-items: center;
+      padding: 11px 20px;
+      background: #ffffff;
+      color: #6e6e73;
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      border-radius: 980px;
+      font-size: 13.5px;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s ease;
+    }
+
+    .cl-cancel-btn:hover {
+      color: #1d1d1f;
+      border-color: rgba(0, 0, 0, 0.24);
+    }
+
+    .cl-alert {
+      margin-top: 16px;
+      padding: 12px 16px;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 500;
+      display: none;
+      animation: fadeIn 0.2s ease;
+    }
+
+    .cl-alert.success {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: linear-gradient(180deg, #242426 0%, #000000 100%);
+      border: 1px solid #000000;
+      color: #ffffff;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+    }
+
+    .cl-alert.error {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: #1d1d1f;
+      border: 1px solid #000000;
+      color: #ffffff;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+    }
+
+    /* Dark Mode Styling for Modals */
+    body.dark-mode .cl-denied-card,
+    body.dark-mode .cl-create-modal-card {
+      background: #1c1c1e;
+      border-color: rgba(255, 255, 255, 0.12);
+      color: #f5f5f7;
+      box-shadow: 0 32px 84px rgba(0, 0, 0, 0.65);
+    }
+
+    body.dark-mode .cl-denied-title,
+    body.dark-mode .cl-create-modal-title {
+      color: #f5f5f7;
+    }
+
+    body.dark-mode .cl-denied-desc,
+    body.dark-mode .cl-create-modal-subtitle {
+      color: #a1a1a6;
+    }
+
+    body.dark-mode .cl-denied-close-x,
+    body.dark-mode .cl-create-modal-close {
+      background: #2c2c2e;
+      color: #a1a1a6;
+    }
+
+    body.dark-mode .cl-denied-close-x:hover,
+    body.dark-mode .cl-create-modal-close:hover {
+      background: #3a3a3c;
+      color: #ffffff;
+    }
+
+    body.dark-mode .cl-denied-action-btn {
+      background: #ffffff;
+      color: #111827;
+    }
+
+    body.dark-mode .cl-denied-action-btn:hover {
+      background: #e5e5ea;
+    }
+
+    body.dark-mode .cl-create-modal-header {
+      background: rgba(28, 28, 30, 0.94);
+      border-bottom-color: rgba(255, 255, 255, 0.08);
+    }
+
+    body.dark-mode .cl-create-modal-footer {
+      background: #18181a;
+      border-top-color: rgba(255, 255, 255, 0.08);
+    }
+
+    body.dark-mode .cl-modal-divider {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    body.dark-mode .cl-form-group .cl-label,
+    body.dark-mode .cl-form-row .cl-label {
+      color: #e5e5ea;
+    }
+
+    body.dark-mode .cl-label span.req {
+      color: #ffffff;
+      opacity: 0.7;
+    }
+
+    body.dark-mode .cl-input,
+    body.dark-mode .cl-select,
+    body.dark-mode .cl-textarea {
+      background: #252528;
+      border-color: rgba(255, 255, 255, 0.14);
+      color: #f5f5f7;
+    }
+
+    body.dark-mode .cl-input:focus,
+    body.dark-mode .cl-select:focus,
+    body.dark-mode .cl-textarea:focus {
+      background: #2c2c30;
+      border-color: #ffffff;
+      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.16);
+    }
+
+    body.dark-mode .cl-question-block {
+      background: #252528;
+      border-color: rgba(255, 255, 255, 0.08);
+    }
+
+    body.dark-mode .cl-add-btn {
+      background: #252528;
+      border-color: rgba(255, 255, 255, 0.2);
+      color: #f5f5f7;
+    }
+
+    body.dark-mode .cl-add-btn:hover {
+      background: #2f2f34;
+      border-color: #ffffff;
+      color: #ffffff;
+    }
+
+    body.dark-mode .cl-q-badge {
+      background: linear-gradient(180deg, #3a3a3c 0%, #1c1c1e 100%);
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    body.dark-mode .cl-remove-btn {
+      background: #2c2c2e;
+      border-color: rgba(255, 255, 255, 0.15);
+      color: #d1d1d6;
+    }
+
+    body.dark-mode .cl-remove-btn:hover {
+      background: #ffffff;
+      color: #000000;
+      border-color: #ffffff;
+    }
+
+    body.dark-mode .cl-cancel-btn {
+      background: #2c2c2e;
+      color: #aeaeb2;
+      border-color: rgba(255, 255, 255, 0.12);
+    }
+
+    body.dark-mode .cl-cancel-btn:hover {
+      color: #ffffff;
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+
+    body.dark-mode .cl-submit-btn {
+      background: #ffffff;
+      color: #111827;
+      border-color: #ffffff;
+    }
+
+    body.dark-mode .cl-submit-btn:hover {
+      background: #e5e5ea;
+    }
   </style>
 </head>
 
@@ -1188,7 +1834,7 @@
     </div>
 
     <div class="dash-hero-actions">
-      <a href="/code-lab/create.html" class="dash-hero-btn primary cl-btn-pro" title="Create a new programming assignment">
+      <a href="/code-lab/create.html" id="dashCreateAssignBtn" class="dash-hero-btn primary cl-btn-pro" title="Create a new programming assignment" onclick="handleCreateAssignmentClick(event)">
         <svg class="cl-btn-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
         <span>Create Assignment</span>
       </a>
@@ -1267,6 +1913,83 @@
     </section>
 
   </main>
+
+  <!-- Student Denied Modal ("u cant buddy ;)") -->
+  <div id="clDeniedModalOverlay" class="cl-denied-overlay" onclick="closeStudentDeniedModal()">
+    <div class="cl-denied-card" onclick="event.stopPropagation()">
+      <button type="button" class="cl-denied-close-x" onclick="closeStudentDeniedModal()" title="Close (Esc)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+      <div class="cl-denied-emoji">😜</div>
+      <h3 class="cl-denied-title">u cant buddy ;)</h3>
+      <p class="cl-denied-desc">Only teachers and instructors can create assignments. You're logged in as a student — solve and submit your lab work from the assignments feed below!</p>
+      <button type="button" class="cl-denied-action-btn" onclick="closeStudentDeniedModal()">Got it, my bad 😅</button>
+    </div>
+  </div>
+
+  <!-- Teacher Create Assignment Modal -->
+  <div id="clCreateModalOverlay" class="cl-create-modal-overlay" onclick="handleCreateModalOverlayClick(event)">
+    <div class="cl-create-modal-card" onclick="event.stopPropagation()">
+      <div class="cl-create-modal-header">
+        <div>
+          <h2 class="cl-create-modal-title">Create Assignment</h2>
+        </div>
+        <button type="button" class="cl-create-modal-close" onclick="closeCreateAssignmentModal()" title="Close (Esc)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+
+      <div class="cl-create-modal-body">
+        <div class="cl-form-group">
+          <label class="cl-label" for="modalAssignTitle">Assignment Title <span class="req">*</span></label>
+          <input id="modalAssignTitle" class="cl-input" type="text" placeholder="e.g. Lab 4: Binary Search Trees & Graph Algorithms">
+        </div>
+
+        <div class="cl-form-row">
+          <div>
+            <label class="cl-label" for="modalAssignSemester">Semester <span class="req">*</span></label>
+            <select id="modalAssignSemester" class="cl-select">
+              <option value="">Select semester...</option>
+            </select>
+          </div>
+          <div>
+            <label class="cl-label" for="modalAssignSubject">Subject / Course <span class="req">*</span></label>
+            <select id="modalAssignSubject" class="cl-select">
+              <option value="">Select subject...</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="cl-form-group">
+          <label class="cl-label" for="modalAssignDeadline">Deadline (Optional)</label>
+          <input id="modalAssignDeadline" class="cl-input" type="datetime-local">
+        </div>
+
+        <div class="cl-modal-divider"></div>
+
+        <div class="cl-section-header">
+          <h3 class="cl-section-title">Assignment Questions</h3>
+          <span style="font-size: 12px; color: #86868b; font-weight: 500;" id="modalQCounter">1 Question</span>
+        </div>
+
+        <div id="modalQuestionsContainer"></div>
+
+        <button type="button" class="cl-add-btn" id="modalAddQuestionBtn" onclick="modalAddQuestion()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          Add Another Question
+        </button>
+
+        <div id="modalAssignAlert" class="cl-alert" role="alert"></div>
+      </div>
+
+      <div class="cl-create-modal-footer">
+        <button type="button" class="cl-cancel-btn" onclick="closeCreateAssignmentModal()">Cancel</button>
+        <button type="button" class="cl-submit-btn" id="modalCreateSubmitBtn" onclick="submitModalCreateAssignment()">
+          Create Assignment
+        </button>
+      </div>
+    </div>
+  </div>
 
   <footer class="app-global-footer">
     <div class="app-footer-inner">
@@ -2006,20 +2729,28 @@
       });
     }
 
-    // ── User Profile for Greeting ──
+    // ── User Profile & Role Identification ──
+    let currentUser = null;
+
     async function loadUserProfile() {
       try {
-        const res = await fetch('/api/user');
+        const res = await fetch('/api/me');
         if (!res.ok) return;
         const data = await res.json();
-        if (!data || !data.authenticated) return;
+        if (!data) return;
+        currentUser = data;
 
         const greetingEl = document.getElementById('greetingLine');
         const idLineEl = document.getElementById('idLine');
         const avatarEl = document.getElementById('avatarInitial');
+        const nameEl = document.getElementById('headerProfileName');
+        const headerAvatar = document.getElementById('headerAvatar');
+
         if (greetingEl) greetingEl.textContent = `${getGreeting()}, ${data.name || 'Student'}`;
         if (idLineEl) idLineEl.textContent = data.studentId ? `Student ID: ${data.studentId}` : (data.email || 'Gandaki University');
         if (avatarEl) avatarEl.textContent = (data.name || 'S').charAt(0).toUpperCase();
+        if (nameEl && data.name) nameEl.textContent = data.name.split(' ')[0];
+        if (headerAvatar && data.name) headerAvatar.textContent = getInitials(data.name);
 
         try {
           const profRes = await fetch('/api/profile');
@@ -2027,6 +2758,9 @@
             const p = await profRes.json();
             if (p && p.avatarUrl && avatarEl) {
               avatarEl.innerHTML = `<img src="${escapeHtml(p.avatarUrl)}" alt="${escapeHtml(p.name || 'Avatar')}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+            }
+            if (p && p.avatarUrl && headerAvatar) {
+              headerAvatar.innerHTML = `<img src="${escapeHtml(p.avatarUrl)}" alt="${escapeHtml(p.name || 'Avatar')}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
             }
           }
         } catch (_) {}
@@ -2039,6 +2773,496 @@
         if (avatarEl) avatarEl.textContent = 'GU';
       }
     }
+
+    // ── Create Assignment / Add Submission Modal & Role Flow ──
+    let modalQuestionCount = 0;
+    let modalSemestersList = [];
+
+    async function handleCreateAssignmentClick(e) {
+      if (e) e.preventDefault();
+
+      if (!currentUser) {
+        try {
+          const res = await fetch('/api/me');
+          if (res.ok) {
+            currentUser = await res.json();
+          } else if (res.status === 401) {
+            if (typeof showAuthModal === 'function') {
+              showAuthModal(true);
+            } else {
+              window.location.href = '/login.html';
+            }
+            return;
+          }
+        } catch (err) {
+          console.warn('Auth check error:', err);
+        }
+      }
+
+      if (!currentUser || currentUser.studentId === 'guest') {
+        if (typeof showAuthModal === 'function') {
+          showAuthModal(true);
+        } else {
+          window.location.href = '/login.html';
+        }
+        return;
+      }
+
+      const isTeacher = currentUser.isAdmin === true || currentUser.role === 'admin';
+
+      if (!isTeacher) {
+        openStudentDeniedModal();
+      } else {
+        openCreateAssignmentModal();
+      }
+    }
+
+    // ── Student Denied Modal Logic ("u cant buddy ;)") ──
+    function openStudentDeniedModal() {
+      const overlay = document.getElementById('clDeniedModalOverlay');
+      if (overlay) {
+        overlay.classList.add('open');
+        document.body.style.overflow = 'hidden';
+      }
+    }
+
+    function closeStudentDeniedModal() {
+      const overlay = document.getElementById('clDeniedModalOverlay');
+      if (overlay) {
+        overlay.classList.remove('open');
+        if (!document.getElementById('clCreateModalOverlay')?.classList.contains('open')) {
+          document.body.style.overflow = '';
+        }
+      }
+    }
+
+    // ── Teacher Create Assignment Modal Logic ──
+    async function openCreateAssignmentModal() {
+      const overlay = document.getElementById('clCreateModalOverlay');
+      if (!overlay) return;
+
+      await setupModalCurriculum();
+
+      const container = document.getElementById('modalQuestionsContainer');
+      if (container && container.children.length === 0) {
+        modalQuestionCount = 0;
+        modalAddQuestion();
+      }
+
+      const alertEl = document.getElementById('modalAssignAlert');
+      if (alertEl) {
+        alertEl.style.display = 'none';
+        alertEl.textContent = '';
+      }
+
+      overlay.classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeCreateAssignmentModal() {
+      const overlay = document.getElementById('clCreateModalOverlay');
+      if (overlay) {
+        overlay.classList.remove('open');
+        if (!document.getElementById('clDeniedModalOverlay')?.classList.contains('open')) {
+          document.body.style.overflow = '';
+        }
+      }
+    }
+
+    function handleCreateModalOverlayClick(e) {
+      if (e.target.id === 'clCreateModalOverlay') {
+        closeCreateAssignmentModal();
+      }
+    }
+
+    // Populate semester and subject dropdowns inside the modal
+    async function setupModalCurriculum() {
+      if (!modalSemestersList || modalSemestersList.length === 0) {
+        if (syllabusData) {
+          try {
+            modalSemestersList = SyllabusHelper.getFormattedSemesters(syllabusData);
+          } catch (_) {}
+        }
+        if (!modalSemestersList || modalSemestersList.length === 0) {
+          try {
+            const res = await fetch('/api/code-lab/subjects');
+            const data = await res.json();
+            if (data && data.semesters) {
+              modalSemestersList = data.semesters.map(s => ({
+                rawSemester: String(s.semester),
+                year: s.year || '',
+                fullLabel: `Semester ${s.semester}`,
+                courses: s.courses || []
+              }));
+            }
+          } catch (_) {}
+        }
+      }
+
+      const semSelect = document.getElementById('modalAssignSemester');
+      const subSelect = document.getElementById('modalAssignSubject');
+      if (!semSelect || !subSelect) return;
+
+      const previousSem = semSelect.value;
+      semSelect.innerHTML = '<option value="">Select semester...</option>';
+
+      (modalSemestersList || []).forEach(s => {
+        if (s.rawSemester === 'Electives') return;
+        const opt = document.createElement('option');
+        opt.value = s.rawSemester;
+        const num = NUM_MAP[s.rawSemester] || s.rawSemester;
+        const roman = ROMAN_MAP[s.rawSemester] || s.rawSemester;
+        const yr = s.year ? ` · ${s.year}` : '';
+        opt.textContent = `Semester ${num} (${roman})${yr}`;
+        semSelect.appendChild(opt);
+      });
+
+      // Synchronize semester dropdown change
+      semSelect.onchange = () => {
+        const val = semSelect.value;
+        if (!val) {
+          populateAllModalSubjects();
+          return;
+        }
+        const sem = modalSemestersList.find(s => semMatches(s.rawSemester, val));
+        populateModalSubjects(sem ? sem.courses : []);
+      };
+
+      // Set initial semester if active on page or previous
+      const targetSem = previousSem || currentSemesterFilter;
+      if (targetSem) {
+        for (let opt of semSelect.options) {
+          if (semMatches(opt.value, targetSem)) {
+            semSelect.value = opt.value;
+            const sem = modalSemestersList.find(s => semMatches(s.rawSemester, opt.value));
+            populateModalSubjects(sem ? sem.courses : []);
+            break;
+          }
+        }
+      } else {
+        populateAllModalSubjects();
+      }
+
+      // Preselect subject if matches
+      if (currentSubjectFilter && subSelect.options.length > 0) {
+        for (let opt of subSelect.options) {
+          if (opt.value.toLowerCase() === currentSubjectFilter.toLowerCase() || opt.textContent.toLowerCase().includes(currentSubjectFilter.toLowerCase())) {
+            subSelect.value = opt.value;
+            break;
+          }
+        }
+      }
+    }
+
+    function populateModalSubjects(courses) {
+      const subSelect = document.getElementById('modalAssignSubject');
+      if (!subSelect) return;
+      const currentVal = subSelect.value;
+      subSelect.innerHTML = '<option value="">Select subject / course...</option>';
+      (courses || []).forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.title || c.name;
+        opt.textContent = `${c.code ? c.code + ' — ' : ''}${c.title || c.name}`;
+        subSelect.appendChild(opt);
+      });
+      if (currentVal) subSelect.value = currentVal;
+    }
+
+    function populateAllModalSubjects() {
+      const subSelect = document.getElementById('modalAssignSubject');
+      if (!subSelect) return;
+      subSelect.innerHTML = '<option value="">Select subject / course...</option>';
+      (modalSemestersList || []).forEach(s => {
+        if (s.rawSemester === 'Electives') return;
+        const grp = document.createElement('optgroup');
+        const num = NUM_MAP[s.rawSemester] || s.rawSemester;
+        grp.label = `Semester ${num} (${s.rawSemester})`;
+        (s.courses || []).forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c.title || c.name;
+          opt.textContent = `${c.code ? c.code + ' — ' : ''}${c.title || c.name}`;
+          opt.dataset.semester = s.rawSemester;
+          grp.appendChild(opt);
+        });
+        subSelect.appendChild(grp);
+      });
+
+      subSelect.onchange = () => {
+        const selectedOpt = subSelect.options[subSelect.selectedIndex];
+        const semSelect = document.getElementById('modalAssignSemester');
+        if (selectedOpt && selectedOpt.dataset.semester && !semSelect.value) {
+          semSelect.value = selectedOpt.dataset.semester;
+        }
+      };
+    }
+
+    function getQuestion1Language() {
+      const firstBlock = document.querySelector('#modalQuestionsContainer .cl-question-block');
+      if (firstBlock) {
+        const langSelect = firstBlock.querySelector('.q-lang');
+        if (langSelect && langSelect.value) return langSelect.value;
+      }
+      return 'c';
+    }
+
+    function attachQuestion1LanguageSync() {
+      const firstBlock = document.querySelector('#modalQuestionsContainer .cl-question-block');
+      if (!firstBlock) return;
+      const q1LangSelect = firstBlock.querySelector('.q-lang');
+      if (q1LangSelect && !q1LangSelect.dataset.syncAttached) {
+        q1LangSelect.dataset.syncAttached = 'true';
+        q1LangSelect.addEventListener('change', () => {
+          const chosenLang = q1LangSelect.value;
+          const allBlocks = document.querySelectorAll('#modalQuestionsContainer .cl-question-block');
+          allBlocks.forEach((b, idx) => {
+            if (idx > 0) {
+              const other = b.querySelector('.q-lang');
+              if (other) other.value = chosenLang;
+            }
+          });
+        });
+      }
+    }
+
+    function modalAddQuestion() {
+      modalQuestionCount++;
+      const num = modalQuestionCount;
+      const container = document.getElementById('modalQuestionsContainer');
+      if (!container) return;
+
+      const defaultLang = getQuestion1Language();
+
+      const block = document.createElement('div');
+      block.className = 'cl-question-block';
+      block.id = `modal-q-block-${num}`;
+      block.innerHTML = `
+        <div class="cl-q-header">
+          <span class="cl-q-badge">Question ${num}</span>
+          <button type="button" class="cl-remove-btn" onclick="modalRemoveQuestion(${num})" style="${num === 1 && container.children.length === 0 ? 'display:none;' : ''}">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg> Remove
+          </button>
+        </div>
+        <div class="cl-form-group">
+          <label class="cl-label">Question Title <span class="req">*</span></label>
+          <input class="cl-input q-title" type="text" placeholder="e.g. Reverse a String using Pointers">
+        </div>
+        <div class="cl-form-group">
+          <label class="cl-label">Problem Statement / Instructions <span style="font-weight: 400; color: #86868b;">(Optional)</span></label>
+          <textarea class="cl-textarea q-desc" placeholder="Write instructions, constraints, or problem details (optional)..."></textarea>
+        </div>
+        <div style="display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap;">
+          <div class="cl-form-group" style="margin-bottom: 0; flex: 1; min-width: 180px;">
+            <label class="cl-label">Programming Language</label>
+            <select class="cl-select q-lang" style="width: 100%;">
+              <option value="c" ${defaultLang === 'c' ? 'selected' : ''}>C (GCC)</option>
+              <option value="cpp" ${defaultLang === 'cpp' ? 'selected' : ''}>C++ (G++)</option>
+              <option value="java" ${defaultLang === 'java' ? 'selected' : ''}>Java</option>
+              <option value="python" ${defaultLang === 'python' ? 'selected' : ''}>Python 3</option>
+            </select>
+          </div>
+          <div class="cl-form-group" style="margin-bottom: 0; width: 130px;">
+            <label class="cl-label">Max Points</label>
+            <input class="cl-input q-points" type="number" min="1" max="100" value="10" placeholder="10">
+          </div>
+        </div>
+        <div class="cl-testcases-wrapper" style="margin-top: 16px; padding-top: 14px; border-top: 1px dashed rgba(0,0,0,0.12);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+            <div>
+              <span style="font-size: 12.5px; font-weight: 600; color: #1d1d1f;">Automated Test Cases</span>
+              <span style="font-size: 11.5px; color: #86868b; margin-left: 5px;">(Optional)</span>
+            </div>
+            <button type="button" onclick="modalAddTestCase(${num})" style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px; font-size: 11.5px; font-weight: 600; color: #ffffff; background: linear-gradient(180deg, #2c2c2e 0%, #111827 100%); border: 1px solid #000000; border-radius: 980px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#000000'" onmouseout="this.style.background='linear-gradient(180deg, #2c2c2e 0%, #111827 100%)'">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              Add Test Case
+            </button>
+          </div>
+          <div class="cl-tc-list" id="modal-tc-list-${num}"></div>
+        </div>
+      `;
+      container.appendChild(block);
+      modalRenumberQuestions();
+    }
+
+    function modalAddTestCase(qNum, initialInput = '', initialExpected = '') {
+      const list = document.getElementById(`modal-tc-list-${qNum}`);
+      if (!list) return;
+      const count = list.querySelectorAll('.cl-tc-item').length + 1;
+
+      const item = document.createElement('div');
+      item.className = 'cl-tc-item';
+      item.style.cssText = 'background: #ffffff; border: 1px solid rgba(0,0,0,0.1); border-radius: 12px; padding: 12px; margin-bottom: 10px;';
+      item.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 11px; font-weight: 700; color: #1d1d1f; text-transform: uppercase; letter-spacing: 0.05em;" class="tc-label">Test Case ${count}</span>
+          <button type="button" onclick="modalRemoveTestCase(this, ${qNum})" style="background: none; border: none; color: #6e6e73; font-size: 11.5px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; transition: color 0.15s;" onmouseover="this.style.color='#000000'" onmouseout="this.style.color='#6e6e73'">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg> Remove
+          </button>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div>
+            <label style="display: block; font-size: 11px; font-weight: 600; color: #1d1d1f; margin-bottom: 4px;">Input (stdin) <span style="font-weight: 400; color: #86868b;">(Optional)</span></label>
+            <textarea class="cl-textarea tc-input" style="min-height: 48px; padding: 6px 9px; font-family: ui-monospace, monospace; font-size: 12px;" placeholder="Stdin to feed program">${escapeHtml(initialInput)}</textarea>
+          </div>
+          <div>
+            <label style="display: block; font-size: 11px; font-weight: 600; color: #1d1d1f; margin-bottom: 4px;">Expected Output <span style="color: #000000; font-weight: 700; opacity: 0.6;">*</span></label>
+            <textarea class="cl-textarea tc-expected" style="min-height: 48px; padding: 6px 9px; font-family: ui-monospace, monospace; font-size: 12px;" placeholder="Exact expected stdout">${escapeHtml(initialExpected)}</textarea>
+          </div>
+        </div>
+      `;
+      list.appendChild(item);
+    }
+
+    function modalRemoveTestCase(btn, qNum) {
+      const item = btn.closest('.cl-tc-item');
+      if (item) item.remove();
+      const list = document.getElementById(`modal-tc-list-${qNum}`);
+      if (list) {
+        list.querySelectorAll('.cl-tc-item').forEach((it, idx) => {
+          const lbl = it.querySelector('.tc-label');
+          if (lbl) lbl.textContent = `Test Case ${idx + 1}`;
+        });
+      }
+    }
+
+    function modalRemoveQuestion(num) {
+      const block = document.getElementById(`modal-q-block-${num}`);
+      if (block) block.remove();
+      modalRenumberQuestions();
+    }
+
+    function modalRenumberQuestions() {
+      const blocks = document.querySelectorAll('#modalQuestionsContainer .cl-question-block');
+      blocks.forEach((block, i) => {
+        const badge = block.querySelector('.cl-q-badge');
+        if (badge) badge.textContent = `Question ${i + 1}`;
+        const removeBtn = block.querySelector('.cl-remove-btn');
+        if (removeBtn) {
+          removeBtn.style.display = blocks.length > 1 ? 'inline-flex' : 'none';
+        }
+      });
+      const counter = document.getElementById('modalQCounter');
+      if (counter) {
+        counter.textContent = `${blocks.length} Question${blocks.length === 1 ? '' : 's'}`;
+      }
+      attachQuestion1LanguageSync();
+    }
+
+    function showModalAlert(text, isError = false) {
+      const alertEl = document.getElementById('modalAssignAlert');
+      if (!alertEl) return;
+      alertEl.textContent = text;
+      alertEl.className = isError ? 'cl-alert error' : 'cl-alert success';
+      alertEl.style.display = 'flex';
+      alertEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    async function submitModalCreateAssignment() {
+      const title = document.getElementById('modalAssignTitle').value.trim();
+      const semester = document.getElementById('modalAssignSemester').value;
+      const subject = document.getElementById('modalAssignSubject').value;
+      const deadlineVal = document.getElementById('modalAssignDeadline').value;
+      const deadline = deadlineVal ? new Date(deadlineVal).toISOString() : null;
+      const btn = document.getElementById('modalCreateSubmitBtn');
+
+      const blocks = document.querySelectorAll('#modalQuestionsContainer .cl-question-block');
+      const questions = [];
+
+      for (let i = 0; i < blocks.length; i++) {
+        const block = blocks[i];
+        const qTitle = block.querySelector('.q-title')?.value?.trim();
+        const qDesc = block.querySelector('.q-desc')?.value?.trim() || '';
+        const qLang = block.querySelector('.q-lang')?.value || 'c';
+        const qPoints = parseInt(block.querySelector('.q-points')?.value, 10) || 10;
+
+        if (!qTitle) {
+          showModalAlert(`Question ${i + 1}: Question title is compulsory.`, true);
+          return;
+        }
+
+        const tcItems = block.querySelectorAll('.cl-tc-item');
+        const testCases = [];
+        for (const item of tcItems) {
+          const inp = item.querySelector('.tc-input').value;
+          const exp = item.querySelector('.tc-expected').value;
+          if (!exp.trim()) {
+            showModalAlert(`Question "${qTitle}": Expected output is required for all added test cases.`, true);
+            return;
+          }
+          testCases.push({ input: inp, expectedOutput: exp });
+        }
+
+        questions.push({
+          title: qTitle,
+          description: qDesc,
+          language: qLang,
+          maxPoints: qPoints,
+          testCases
+        });
+      }
+
+      if (!title) {
+        showModalAlert('Please enter an Assignment Title.', true);
+        return;
+      }
+      if (!semester || !subject) {
+        showModalAlert('Please select both a Semester and a Subject.', true);
+        return;
+      }
+      if (questions.length === 0) {
+        showModalAlert('At least one question is required.', true);
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="app-spinner spinner-sm spinner-light" style="margin-right:8px; display:inline-block; vertical-align:middle;"></span><span>Creating…</span>';
+
+      try {
+        const res = await fetch('/api/code-lab/assignments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, subject, semester, deadline, questions })
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          showModalAlert(`Assignment "${title}" created successfully!`, false);
+          
+          // Reset form fields
+          document.getElementById('modalAssignTitle').value = '';
+          document.getElementById('modalAssignDeadline').value = '';
+          document.getElementById('modalQuestionsContainer').innerHTML = '';
+          modalQuestionCount = 0;
+
+          // Reload feed so the new assignment appears immediately
+          await loadAssignments();
+
+          setTimeout(() => {
+            closeCreateAssignmentModal();
+          }, 1200);
+        } else {
+          showModalAlert(data.message || 'Failed to create assignment.', true);
+        }
+      } catch (err) {
+        showModalAlert('Network error — could not reach the server.', true);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'Create Assignment';
+      }
+    }
+
+    // Close modals on Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const deniedModal = document.getElementById('clDeniedModalOverlay');
+        if (deniedModal && deniedModal.classList.contains('open')) {
+          closeStudentDeniedModal();
+        }
+        const createModal = document.getElementById('clCreateModalOverlay');
+        if (createModal && createModal.classList.contains('open')) {
+          closeCreateAssignmentModal();
+        }
+      }
+    });
 
     // ── Initial Boot ──
     async function init() {

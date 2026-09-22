@@ -28,34 +28,75 @@
 
     <style>
         [data-theme="dark"] body, body.dark-mode {
-            background-color: var(--bg-primary, #0d1117) !important;
-            color: var(--text-primary, #e6edf3) !important;
+            background-color: var(--bg-base, #0a0a0a) !important;
+            color: var(--text-primary, #f5f5f5) !important;
         }
+        /* Report paper mockup remains crisp white paper */
         [data-theme="dark"] #report, body.dark-mode #report {
-            background: var(--bg-secondary, #161b22) !important;
-            border: 1px solid var(--border-color, #30363d) !important;
-            color: var(--text-primary, #e6edf3) !important;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
-            border-radius: 8px !important;
+            background: #ffffff !important;
+            color: #1d1d1f !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6) !important;
         }
-        [data-theme="dark"] .report-header, body.dark-mode .report-header {
-            border-bottom: 1px solid var(--border-color, #30363d) !important;
-        }
-        [data-theme="dark"] .question-description, body.dark-mode .question-description {
-            background: var(--bg-tertiary, #21262d) !important;
-            border: 1px solid var(--border-color, #30363d) !important;
-            color: var(--text-primary, #e6edf3) !important;
-            border-radius: 6px !important;
-        }
-        [data-theme="dark"] .grading-q-row, body.dark-mode .grading-q-row {
-            color: var(--text-primary, #e6edf3) !important;
-            border-bottom: 1px solid var(--border-color, #30363d) !important;
-        }
-        [data-theme="dark"] .grading-q-line, body.dark-mode .grading-q-line {
-            color: var(--text-secondary, #8b949e) !important;
-        }
+        /* UI Chrome: strictly monochrome dark mode */
         [data-theme="dark"] .back-link, body.dark-mode .back-link {
-            color: var(--accent, #3b82f6) !important;
+            background: var(--bg-surface-raised, #202020) !important;
+            color: var(--text-primary, #f5f5f5) !important;
+            border: 1px solid var(--border, #333333) !important;
+            box-shadow: none !important;
+        }
+        [data-theme="dark"] .back-link:hover, body.dark-mode .back-link:hover {
+            background: var(--bg-surface, #161616) !important;
+            border-color: var(--border-strong, #4a4a4a) !important;
+            color: var(--text-primary, #f5f5f5) !important;
+        }
+        [data-theme="dark"] #downloadBtn, body.dark-mode #downloadBtn {
+            background: var(--fill-active, #f5f5f5) !important;
+            color: var(--fill-active-text, #0a0a0a) !important;
+            border: 1px solid var(--border-strong, #4a4a4a) !important;
+            box-shadow: none !important;
+        }
+        [data-theme="dark"] #downloadBtn:hover:not(:disabled), body.dark-mode #downloadBtn:hover:not(:disabled) {
+            background: #ffffff !important;
+            color: #000000 !important;
+        }
+        [data-theme="dark"] .cl-btn-secondary, body.dark-mode .cl-btn-secondary {
+            background: var(--bg-surface-raised, #202020) !important;
+            color: var(--text-primary, #f5f5f5) !important;
+            border: 1px solid var(--border, #333333) !important;
+            box-shadow: none !important;
+        }
+        [data-theme="dark"] .cl-btn-secondary:hover:not(:disabled), body.dark-mode .cl-btn-secondary:hover:not(:disabled) {
+            border-color: var(--border-strong, #4a4a4a) !important;
+            background: var(--bg-surface, #161616) !important;
+        }
+        [data-theme="dark"] .cl-btn-submit-student, body.dark-mode .cl-btn-submit-student {
+            background: var(--fill-active, #f5f5f5) !important;
+            color: var(--fill-active-text, #0a0a0a) !important;
+            border: 1px solid var(--border-strong, #4a4a4a) !important;
+            box-shadow: none !important;
+        }
+        [data-theme="dark"] .cl-btn-submit-student:hover:not(:disabled), body.dark-mode .cl-btn-submit-student:hover:not(:disabled) {
+            background: #ffffff !important;
+            color: #000000 !important;
+        }
+        [data-theme="dark"] .cl-report-status-badge, body.dark-mode .cl-report-status-badge {
+            background: var(--bg-surface-raised, #202020) !important;
+            color: var(--text-primary, #f5f5f5) !important;
+            border: 1px solid var(--border, #333333) !important;
+        }
+        [data-theme="dark"] .cl-teacher-bottom-bar, body.dark-mode .cl-teacher-bottom-bar {
+            background: var(--bg-surface, #161616) !important;
+            border: 1px solid var(--border, #333333) !important;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6) !important;
+        }
+        [data-theme="dark"] .cl-bottom-bar-info, body.dark-mode .cl-bottom-bar-info {
+            color: var(--text-primary, #f5f5f5) !important;
+        }
+        [data-theme="dark"] .cl-bottom-check-pill, body.dark-mode .cl-bottom-check-pill {
+            background: var(--bg-surface-raised, #202020) !important;
+            color: var(--text-primary, #f5f5f5) !important;
+            border: 1px solid var(--border, #333333) !important;
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "SF Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;

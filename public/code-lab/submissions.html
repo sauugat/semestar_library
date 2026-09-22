@@ -2208,7 +2208,7 @@
         body.dark-mode .attachment-meta {
             background: var(--bg-tertiary) !important;
             border-color: var(--border-color) !important;
-            color: var(--text-secondary) !important;
+            color: var(--text-primary) !important;
         }
 
         [data-theme="dark"] .cl-q-list,
@@ -2232,8 +2232,8 @@
 
         [data-theme="dark"] .cl-tool-link:hover,
         body.dark-mode .cl-tool-link:hover {
-            background: #2d333b !important;
-            border-color: #444c56 !important;
+            background: var(--bg-surface-raised, #202020) !important;
+            border-color: var(--border-strong, #4a4a4a) !important;
             color: var(--text-primary) !important;
         }
 
@@ -2255,37 +2255,32 @@
 
         [data-theme="dark"] .cl-seg-btn.active,
         body.dark-mode .cl-seg-btn.active {
-            background: var(--bg-tertiary) !important;
+            background: var(--bg-surface-raised, #202020) !important;
             color: var(--text-primary) !important;
-            border-bottom: 2px solid var(--accent) !important;
+            border-bottom: 2px solid var(--border-strong, #4a4a4a) !important;
             font-weight: 600 !important;
         }
 
         [data-theme="dark"] .cl-seg-btn.active .cl-seg-count,
         body.dark-mode .cl-seg-btn.active .cl-seg-count {
-            background: var(--accent) !important;
-            color: #ffffff !important;
+            background: var(--fill-active, #f5f5f5) !important;
+            color: var(--fill-active-text, #0a0a0a) !important;
         }
 
         [data-theme="dark"] .cl-deadline-badge.on-time,
-        body.dark-mode .cl-deadline-badge.on-time {
-            background: var(--bg-tertiary) !important;
-            color: var(--success) !important;
-            border: 1px solid var(--success) !important;
-        }
-
+        body.dark-mode .cl-deadline-badge.on-time,
         [data-theme="dark"] .cl-deadline-badge.late,
         body.dark-mode .cl-deadline-badge.late {
-            background: var(--bg-tertiary) !important;
-            color: var(--danger) !important;
-            border: 1px solid var(--danger) !important;
+            background: var(--bg-surface-raised, #202020) !important;
+            color: var(--text-primary) !important;
+            border: 1px solid var(--border-strong, #4a4a4a) !important;
         }
 
         [data-theme="dark"] .cl-meta-pill.deadline-pill,
         body.dark-mode .cl-meta-pill.deadline-pill {
-            background: var(--bg-tertiary) !important;
-            color: var(--accent) !important;
-            border: 1px solid var(--accent) !important;
+            background: var(--bg-surface-raised, #202020) !important;
+            color: var(--text-primary) !important;
+            border: 1px solid var(--border-strong, #4a4a4a) !important;
         }
 
         [data-theme="dark"] .cl-assign-item-card,
@@ -2351,15 +2346,16 @@
         }
         [data-theme="dark"] .cl-grade-submit-btn,
         body.dark-mode .cl-grade-submit-btn {
-            background: var(--accent) !important;
-            color: #ffffff !important;
-            border: 1px solid var(--accent) !important;
+            background: var(--fill-active, #f5f5f5) !important;
+            color: var(--fill-active-text, #0a0a0a) !important;
+            border: 1px solid var(--border-strong, #4a4a4a) !important;
             font-weight: 600 !important;
             border-radius: 6px !important;
         }
         [data-theme="dark"] .cl-grade-submit-btn:hover,
         body.dark-mode .cl-grade-submit-btn:hover {
-            background: #2563eb !important;
+            background: #ffffff !important;
+            color: #000000 !important;
         }
         [data-theme="dark"] .cl-check-toggle-text,
         body.dark-mode .cl-check-toggle-text {
@@ -2367,7 +2363,7 @@
         }
         [data-theme="dark"] .cl-assign-card-arrow,
         body.dark-mode .cl-assign-card-arrow {
-            color: var(--text-secondary) !important;
+            color: var(--text-primary) !important;
         }
     </style>
 </head>

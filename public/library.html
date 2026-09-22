@@ -66,15 +66,15 @@
 
     [data-theme="dark"],
     body.dark-mode {
-      --bg: var(--bg-app);
-      --surface: var(--bg-surface-raised);
-      --surface-glass: rgba(30, 34, 43, 0.92);
-      --border: var(--border);
-      --border-hover: rgba(255, 255, 255, 0.25);
-      --text: var(--text-primary);
-      --text-muted: var(--text-secondary);
-      --text-subtle: var(--text-secondary);
-      --accent: var(--accent-blue);
+      --bg: var(--bg-base, #0a0a0a);
+      --surface: var(--bg-surface-raised, #202020);
+      --surface-glass: rgba(22, 22, 22, 0.92);
+      --border: var(--border, #333333);
+      --border-hover: var(--border-strong, #4a4a4a);
+      --text: var(--text-primary, #f5f5f5);
+      --text-muted: var(--text-secondary, #a3a3a3);
+      --text-subtle: var(--text-secondary, #a3a3a3);
+      --accent: var(--border-strong, #4a4a4a);
     }
 
     body.dash {
@@ -237,9 +237,9 @@
 
     [data-theme="dark"] .course-code-badge,
     body.dark-mode .course-code-badge {
-      background: var(--surface);
-      border-color: var(--border);
-      color: var(--text-muted);
+      background: var(--surface) !important;
+      border-color: var(--border) !important;
+      color: var(--text) !important;
     }
 
     .course-files-pill {
@@ -254,6 +254,11 @@
     .course-files-pill.has-files {
       color: #059669;
       font-weight: 700;
+    }
+
+    [data-theme="dark"] .course-files-pill.has-files,
+    body.dark-mode .course-files-pill.has-files {
+      color: var(--text) !important;
     }
 
     .course-name-clean {
@@ -811,6 +816,36 @@
       display: block;
     }
 
+    [data-theme="dark"] .clean-unit-row,
+    body.dark-mode .clean-unit-row {
+      background: var(--surface) !important;
+      border-color: var(--border) !important;
+      color: var(--text) !important;
+    }
+
+    [data-theme="dark"] .clean-unit-row.open,
+    body.dark-mode .clean-unit-row.open {
+      border-color: var(--border-hover) !important;
+    }
+
+    [data-theme="dark"] .clean-unit-head,
+    body.dark-mode .clean-unit-head {
+      background: var(--surface) !important;
+      color: var(--text) !important;
+    }
+
+    [data-theme="dark"] .clean-unit-row.open .clean-unit-head {
+      background: #262626 !important;
+      border-bottom: 1px solid var(--border) !important;
+    }
+
+    [data-theme="dark"] .clean-unit-body,
+    body.dark-mode .clean-unit-body {
+      background: var(--surface) !important;
+      border-top-color: var(--border) !important;
+      color: var(--text) !important;
+    }
+
     .clean-file-item {
       background: var(--surface);
       border: 1.5px solid var(--border);
@@ -878,7 +913,7 @@
 
     [data-theme="dark"] .clean-file-icon,
     body.dark-mode .clean-file-icon {
-      background: #272c38;
+      background: var(--surface);
       border: 1px solid var(--border);
       color: var(--text);
     }
@@ -937,6 +972,20 @@
       border-color: #0071e3;
     }
 
+    [data-theme="dark"] .btn-file-view,
+    body.dark-mode .btn-file-view {
+      background: var(--surface) !important;
+      color: var(--text) !important;
+      border: 1px solid var(--border) !important;
+    }
+
+    [data-theme="dark"] .btn-file-view:hover,
+    body.dark-mode .btn-file-view:hover {
+      background: #2a2a2a !important;
+      color: var(--text) !important;
+      border-color: var(--border-hover) !important;
+    }
+
     .btn-file-get {
       background: #111827;
       color: #ffffff;
@@ -944,6 +993,20 @@
 
     .btn-file-get:hover {
       background: #000000;
+    }
+
+    [data-theme="dark"] .btn-file-get,
+    body.dark-mode .btn-file-get {
+      background: var(--text) !important;
+      color: var(--bg) !important;
+      border: 1px solid var(--text) !important;
+      font-weight: 700 !important;
+    }
+
+    [data-theme="dark"] .btn-file-get:hover,
+    body.dark-mode .btn-file-get:hover {
+      background: #ffffff !important;
+      color: #000000 !important;
     }
 
     .btn-file-delete {

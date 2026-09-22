@@ -557,6 +557,10 @@
     }
 
     .post-image {
+      /* The unpadded text column already fills the available width beside the avatar. */
+      box-sizing: border-box;
+      width: 100%;
+      min-width: 0;
       margin-top: 8px;
       border-radius: 16px;
       overflow: hidden;
@@ -565,9 +569,49 @@
 
     .post-image img {
       width: 100%;
+      height: auto;
       display: block;
       max-height: 500px;
-      object-fit: cover;
+      /* Like contain, but never enlarge a small source image. */
+      object-fit: scale-down;
+      background: var(--bg-secondary);
+    }
+
+    .post-card .post-image img {
+      cursor: pointer;
+    }
+
+    .lightbox {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+    }
+
+    .lightbox.hidden {
+      display: none;
+    }
+
+    .lightbox img {
+      width: auto;
+      height: auto;
+      max-width: 90vw;
+      max-height: 90vh;
+      object-fit: contain;
+    }
+
+    .lightbox-close {
+      position: absolute;
+      top: 20px;
+      right: 30px;
+      border: 0;
+      background: transparent;
+      font-size: 32px;
+      color: white;
+      cursor: pointer;
     }
 
     .post-image img[hidden] {
@@ -1589,7 +1633,7 @@
               <div class="post-tags-row"><span class="post-pill-tag">${typeLabel}</span></div>
               <p class="status-post-text">${escapeHtml(post.content)}</p>
             </div>
-            ${attachmentUrl ? `<div class="post-image"><img src="${attachmentUrl}" alt="Image attached by ${escapeHtml(post.name)}" loading="lazy" decoding="async" onerror="this.hidden = true; this.nextElementSibling.hidden = false;"><a class="status-post-attachment" href="${attachmentUrl}" target="_blank" rel="noopener noreferrer" hidden>View attachment ↗</a></div>` : ''}
+            ${attachmentUrl ? `<div class="post-image"><img src="${attachmentUrl}" alt="Image attached by ${escapeHtml(post.name)}" loading="lazy" decoding="async" tabindex="0" role="button" aria-label="Open full image" aria-haspopup="dialog" onload="this.style.maxHeight = Math.min(500, this.naturalHeight) + 'px';" onerror="this.hidden = true; this.nextElementSibling.hidden = false;"><a class="status-post-attachment" href="${attachmentUrl}" target="_blank" rel="noopener noreferrer" hidden>View attachment ↗</a></div>` : ''}
             <footer class="post-engage-bar post-footer">
               <button type="button" class="post-action-btn like-btn ${post.liked_by_me ? 'liked' : ''}" data-liked="${post.liked_by_me}" aria-pressed="${post.liked_by_me}" aria-label="${post.liked_by_me ? 'Unlike' : 'Like'} post" onclick="toggleStatusLike(${post.id}, this)">
                 <svg viewBox="0 0 24 24" fill="${post.liked_by_me ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>
@@ -1994,6 +2038,58 @@
     </svg>
     <span>Login required to access this page. <a href="login.html">Sign In</a></span>
   </div>
+  <div id="imageLightbox" class="lightbox hidden" role="dialog" aria-modal="true" aria-label="Full image" tabindex="-1">
+    <button type="button" class="lightbox-close" aria-label="Close full image">&times;</button>
+    <img id="lightboxImg" alt="">
+  </div>
+  <script>
+    const imageLightbox = document.getElementById('imageLightbox');
+    const lightboxImg = document.getElementById('lightboxImg');
+    const lightboxClose = imageLightbox.querySelector('.lightbox-close');
+    let lightboxTrigger = null;
+    let lightboxPreviousOverflow = '';
+
+    function openPostImage(image) {
+      if (image.hidden) return;
+      lightboxTrigger = image;
+      lightboxImg.src = image.currentSrc || image.src;
+      lightboxImg.alt = image.alt;
+      lightboxPreviousOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      imageLightbox.classList.remove('hidden');
+      lightboxClose.focus();
+    }
+
+    function closePostImage() {
+      imageLightbox.classList.add('hidden');
+      lightboxImg.removeAttribute('src');
+      document.body.style.overflow = lightboxPreviousOverflow;
+      if (lightboxTrigger?.isConnected) lightboxTrigger.focus();
+      lightboxTrigger = null;
+    }
+
+    document.getElementById('realFiles').addEventListener('click', (event) => {
+      if (event.target.matches('.post-image img')) openPostImage(event.target);
+    });
+    document.getElementById('realFiles').addEventListener('keydown', (event) => {
+      if (event.target.matches('.post-image img') && ['Enter', ' '].includes(event.key)) {
+        event.preventDefault();
+        openPostImage(event.target);
+      }
+    });
+    lightboxClose.addEventListener('click', closePostImage);
+    imageLightbox.addEventListener('click', (event) => {
+      if (event.target === imageLightbox) closePostImage();
+    });
+    document.addEventListener('keydown', (event) => {
+      if (imageLightbox.classList.contains('hidden')) return;
+      if (event.key === 'Escape') closePostImage();
+      if (event.key === 'Tab') {
+        event.preventDefault();
+        lightboxClose.focus();
+      }
+    });
+  </script>
   <!-- PWA Service Worker Registration -->
   <script>
     if ('serviceWorker' in navigator) {

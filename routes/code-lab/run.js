@@ -3,13 +3,15 @@ const router = express.Router();
 
 router.post('/run', async (req, res) => {
   const { code, stdin, language = 'c' } = req.body;
+  const normLang = String(language || 'c').trim().toLowerCase();
+  const lang = normLang === 'c++' ? 'cpp' : (normLang === 'py' ? 'python' : normLang);
   const supportedLanguages = new Set(['c', 'cpp', 'java', 'python']);
 
   if (typeof code !== 'string' || !code.trim()) {
     return res.status(400).json({ error: 'Code is required.' });
   }
 
-  if (!supportedLanguages.has(language)) {
+  if (!supportedLanguages.has(lang)) {
     return res.status(400).json({ error: 'Unsupported programming language.' });
   }
 
@@ -17,7 +19,7 @@ router.post('/run', async (req, res) => {
     // Step 1: submit the code to paiza.io
     const params = new URLSearchParams();
     params.append('source_code', code);
-    params.append('language', language);
+    params.append('language', lang);
     params.append('input', stdin || '');
     params.append('api_key', 'guest');
     params.append('longpoll', 'true');

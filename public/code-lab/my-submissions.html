@@ -1178,28 +1178,41 @@
             tab-size: 2;
         }
 
-        /* Syntax Highlighting Tokens */
-        .syn-kwd {
+        /* Syntax Highlighting Tokens (Vibrant IDE Theme) */
+        .token.comment, .token.prolog, .token.doctype, .token.cdata, .syn-com {
+            color: #8b949e !important;
+            font-style: italic !important;
+        }
+        .token.punctuation, .syn-punc {
+            color: #cbd5e1 !important;
+        }
+        .token.property, .token.tag, .token.symbol {
+            color: #79c0ff !important;
+        }
+        .token.boolean, .token.number, .token.constant, .syn-num {
+            color: #79c0ff !important;
+            font-weight: 600 !important;
+        }
+        .token.selector, .token.attr-name, .token.string, .token.char, .token.builtin, .syn-str {
+            color: #7ee787 !important;
+        }
+        .token.operator, .syn-op {
+            color: #ff7b72 !important;
+        }
+        .token.atrule, .token.attr-value, .token.keyword, .syn-kwd {
             color: #f43f5e !important;
             font-weight: 600 !important;
         }
-
-        .syn-str {
-            color: #34d399 !important;
-        }
-
-        .syn-com {
-            color: #94a3b8 !important;
-            font-style: italic !important;
-        }
-
-        .syn-num {
-            color: #fbbf24 !important;
-        }
-
-        .syn-type {
-            color: #60a5fa !important;
+        .token.function, .syn-fn {
+            color: #d2a8ff !important;
             font-weight: 600 !important;
+        }
+        .token.class-name, .token.type, .syn-type {
+            color: #ffa657 !important;
+            font-weight: 600 !important;
+        }
+        .token.regex, .token.important, .token.variable, .syn-var {
+            color: #79c0ff !important;
         }
 
         /* Output Console */
@@ -1395,6 +1408,14 @@
         </div>
     </footer>
 
+    <!-- Prism.js for syntax highlighting in code boxes -->
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-c.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-cpp.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-java.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-javascript.min.js"></script>
+
     <script src="/auth-modal.js"></script>
     <script src="/code-lab/utils.js"></script>
     <script>
@@ -1451,9 +1472,21 @@
             return map[(lang || 'c').toLowerCase()] || 'code.txt';
         }
 
-        // Lightweight Syntax Highlighter for code box
+        // Syntax Highlighter for code box (Prism.js with rich fallback)
         function highlightCode(rawCode, lang) {
             if (!rawCode) return '';
+            const prismLangMap = {
+                'c': 'c', 'cpp': 'cpp', 'c++': 'cpp',
+                'java': 'java', 'python': 'python', 'py': 'python',
+                'javascript': 'javascript', 'js': 'javascript'
+            };
+            const pLang = prismLangMap[(lang || '').toLowerCase()] || 'c';
+            if (typeof Prism !== 'undefined' && Prism.languages && Prism.languages[pLang]) {
+                try {
+                    return Prism.highlight(rawCode, Prism.languages[pLang], pLang);
+                } catch (e) {}
+            }
+            // Rich fallback
             let code = escapeHtml(rawCode);
             const tokens = [];
             const pushToken = (content, cls) => {
@@ -1463,21 +1496,30 @@
             };
 
             // 1. Strings
-            code = code.replace(/(&quot;[\s\S]*?&quot;|&#39;[\s\S]*?&#39;|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')/g, m => pushToken(m, 'syn-str'));
+            code = code.replace(/(&quot;[\s\S]*?&quot;|&#39;[\s\S]*?&#39;|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`[\s\S]*?`)/g, m => pushToken(m, 'syn-str'));
 
             // 2. Comments
             code = code.replace(/(\/\/.*|\/\*[\s\S]*?\*\/|#.*)/g, m => pushToken(m, 'syn-com'));
 
-            // 3. Keywords
-            const keywords = /\b(public|private|protected|class|interface|static|void|int|float|double|char|boolean|String|new|return|if|else|for|while|do|switch|case|break|continue|try|catch|finally|throw|throws|import|package|def|elif|from|as|with|lambda|yield|struct|typedef|include|define|const|virtual|override|namespace|using)\b/g;
+            // 3. Preprocessor
+            code = code.replace(/(#(?:include|define|ifdef|ifndef|endif|pragma)\b[^\n]*)/g, m => pushToken(m, 'syn-kwd'));
+
+            // 4. Keywords
+            const keywords = /\b(public|private|protected|class|interface|static|void|int|float|double|char|boolean|bool|long|short|unsigned|signed|String|new|return|if|else|for|while|do|switch|case|break|continue|try|catch|finally|throw|throws|import|package|def|elif|from|as|with|lambda|yield|struct|typedef|const|virtual|override|namespace|using|auto|sizeof|final|abstract)\b/g;
             code = code.replace(keywords, m => pushToken(m, 'syn-kwd'));
 
-            // 4. Numbers
-            code = code.replace(/\b(\d+(?:\.\d+)?)\b/g, m => pushToken(m, 'syn-num'));
+            // 5. Numbers
+            code = code.replace(/\b(\d+(?:\.\d+)?(?:f|d|u|l|ul|ll)?)\b/gi, m => pushToken(m, 'syn-num'));
 
-            // 5. Types & Builtins
-            const types = /\b(System|out|println|print|Scanner|cin|cout|endl|vector|string|printf|scanf|NULL|nullptr|True|False|None)\b/g;
+            // 6. Types & Builtins
+            const types = /\b(System|out|println|print|Scanner|cin|cout|endl|vector|string|printf|scanf|NULL|nullptr|True|False|None|true|false|null|this|super|self)\b/g;
             code = code.replace(types, m => pushToken(m, 'syn-type'));
+
+            // 7. Functions
+            code = code.replace(/\b([a-zA-Z_]\w*)(?=\s*\()/g, m => pushToken(m, 'syn-fn'));
+
+            // 8. Operators
+            code = code.replace(/(&amp;&amp;|\|\||==|!=|&lt;=|&gt;=|&lt;&lt;|&gt;&gt;|\+=|-=|\*=|\/=|%=|-&gt;|\+\+|--|[+\-*\/%!=&lt;&gt;=&amp;|^~])/g, m => pushToken(m, 'syn-op'));
 
             // Restore tokens
             tokens.forEach((t, i) => {

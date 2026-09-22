@@ -1446,6 +1446,26 @@
             }
         }
 
+        function normalizeLanguage(lang) {
+            if (!lang) return 'c';
+            const l = String(lang).trim().toLowerCase();
+            if (l === 'c++' || l === 'cpp') return 'cpp';
+            if (l === 'java') return 'java';
+            if (l === 'python' || l === 'py') return 'python';
+            if (l === 'javascript' || l === 'js') return 'javascript';
+            if (l === 'c') return 'c';
+            return l;
+        }
+
+        function getFileExtension(lang) {
+            const l = normalizeLanguage(lang);
+            if (l === 'cpp') return 'cpp';
+            if (l === 'java') return 'java';
+            if (l === 'python') return 'py';
+            if (l === 'javascript') return 'js';
+            return 'c';
+        }
+
         // ── Event logging (per-question) ──────────────────────────────
         function logEvent(questionId, type, payload) {
             const state = questionState[questionId];
@@ -1676,6 +1696,40 @@
             // Init Monaco for all questions
             require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs' } });
             require(['vs/editor/editor.main'], function () {
+                try {
+                    monaco.editor.defineTheme('cl-vibrant-dark', {
+                        base: 'vs-dark',
+                        inherit: true,
+                        rules: [
+                            { token: 'keyword', foreground: 'f43f5e', fontStyle: 'bold' },
+                            { token: 'keyword.control', foreground: 'f43f5e', fontStyle: 'bold' },
+                            { token: 'string', foreground: '7ee787' },
+                            { token: 'string.escape', foreground: '38bdf8' },
+                            { token: 'number', foreground: '79c0ff' },
+                            { token: 'comment', foreground: '8b949e', fontStyle: 'italic' },
+                            { token: 'type', foreground: 'ffa657', fontStyle: 'bold' },
+                            { token: 'type.identifier', foreground: 'ffa657', fontStyle: 'bold' },
+                            { token: 'class', foreground: 'ffa657', fontStyle: 'bold' },
+                            { token: 'function', foreground: 'd2a8ff' },
+                            { token: 'identifier', foreground: 'e2e8f0' },
+                            { token: 'delimiter', foreground: 'cbd5e1' },
+                            { token: 'operator', foreground: 'ff7b72' },
+                            { token: 'variable', foreground: '79c0ff' },
+                            { token: 'constant', foreground: 'fbbf24' }
+                        ],
+                        colors: {
+                            'editor.background': '#0d1117',
+                            'editor.foreground': '#e6edf3',
+                            'editorLineNumber.foreground': '#6e7681',
+                            'editorLineNumber.activeForeground': '#e6edf3',
+                            'editorCursor.foreground': '#58a6ff',
+                            'editor.selectionBackground': '#264f78',
+                            'editor.inactiveSelectionBackground': '#264f7855'
+                        }
+                    });
+                } catch (e) {
+                    console.warn('Monaco theme definition notice:', e);
+                }
                 questions.forEach(q => initEditor(q));
                 if (document.fonts && document.fonts.ready) {
                     document.fonts.ready.then(() => {
@@ -1712,7 +1766,7 @@
             }
 
             // Language file extension helper
-            const fileExt = q.language === 'c' ? 'c' : q.language === 'cpp' ? 'cpp' : q.language === 'java' ? 'java' : 'py';
+            const fileExt = getFileExtension(q.language);
 
             // Panel
             const panel = document.createElement('div');
@@ -1958,13 +2012,13 @@
                 return;
             }
             const state = questionState[q.id];
-            const monacoLang = q.language === 'cpp' ? 'cpp' : q.language;
+            const monacoLang = normalizeLanguage(q.language);
             const initialCode = (q.userSubmission && q.userSubmission.code) ? q.userSubmission.code : '// Write your code here\n';
 
             state.editor = monaco.editor.create(document.getElementById(`editor-${q.id}`), {
                 value: initialCode,
                 language: monacoLang,
-                theme: 'vs-dark',
+                theme: 'cl-vibrant-dark',
                 fontSize: 13.5,
                 lineHeight: 22,
                 letterSpacing: 0.25,
@@ -2017,7 +2071,7 @@
             }
 
             // Filename input handling
-            const fileExt = q.language === 'c' ? 'c' : q.language === 'cpp' ? 'cpp' : q.language === 'java' ? 'java' : 'py';
+            const fileExt = getFileExtension(q.language);
             const filenameInput = document.getElementById(`filename-${q.id}`);
             if (filenameInput) {
                 const resizeInput = () => {
@@ -2220,7 +2274,7 @@
                 const res = await fetch('/api/code-lab/run', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ language: state.language, code, stdin: '' })
+                    body: JSON.stringify({ language: normalizeLanguage(state.language), code, stdin: '' })
                 });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || 'Execution failed.');

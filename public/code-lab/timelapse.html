@@ -40,6 +40,14 @@
     <link rel="stylesheet" href="/style.v4.css">
     <link rel="stylesheet" href="/auth-modal.css">
 
+    <!-- Prism.js for code timelapse syntax highlighting -->
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-c.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-cpp.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-java.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-javascript.min.js"></script>
+
     <style>
         :root {
             --apple-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "SF Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
@@ -267,6 +275,18 @@
             overflow-y: auto;
         }
 
+        /* Vibrant IDE syntax highlighting token colors */
+        .token.comment, .token.prolog, .token.doctype, .token.cdata { color: #8b949e !important; font-style: italic; }
+        .token.punctuation { color: #cbd5e1 !important; }
+        .token.property, .token.tag, .token.symbol { color: #79c0ff !important; }
+        .token.boolean, .token.number, .token.constant { color: #79c0ff !important; font-weight: 600; }
+        .token.selector, .token.attr-name, .token.string, .token.char, .token.builtin { color: #7ee787 !important; }
+        .token.operator { color: #ff7b72 !important; }
+        .token.atrule, .token.attr-value, .token.keyword { color: #f43f5e !important; font-weight: 600; }
+        .token.function { color: #d2a8ff !important; font-weight: 600; }
+        .token.class-name, .token.type { color: #ffa657 !important; font-weight: 600; }
+        .token.regex, .token.important, .token.variable { color: #79c0ff !important; }
+
         .cl-snapshot-meta {
             padding: 10px 20px;
             background: rgba(255, 255, 255, 0.03);
@@ -410,7 +430,21 @@
         function renderSnapshot(index) {
             const snap = snapshots[index];
             if (!snap) return;
-            document.getElementById('codeView').textContent = snap.code || '// Empty snapshot';
+            const code = snap.code || '// Empty snapshot';
+            const codeViewEl = document.getElementById('codeView');
+            if (typeof Prism !== 'undefined') {
+                let lang = 'c';
+                if (/public\s+class|System\.out\.println/i.test(code)) lang = 'java';
+                else if (/#include\s*<iostream>|std::/i.test(code)) lang = 'cpp';
+                else if (/def\s+\w+\(|import\s+\w+|print\(/i.test(code) && !/#include/i.test(code)) lang = 'python';
+                try {
+                    codeViewEl.innerHTML = Prism.highlight(code, Prism.languages[lang] || Prism.languages.c, lang);
+                } catch (e) {
+                    codeViewEl.textContent = code;
+                }
+            } else {
+                codeViewEl.textContent = code;
+            }
             document.getElementById('timeLabel').textContent =
                 fmtTime(snap.ts) + ` (${index + 1}/${snapshots.length})`;
             document.getElementById('snapshotMeta').innerHTML = `

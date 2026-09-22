@@ -986,6 +986,31 @@ body.sla-fullpage-mode .sla-welcome-hero {
   background: #0b0914;
 }
 
+/* Chat Code Block Syntax Highlighting */
+.sla-code-block-wrap pre .token.comment { color: #8b949e !important; font-style: italic; }
+.sla-code-block-wrap pre .token.punctuation { color: #cbd5e1 !important; }
+.sla-code-block-wrap pre .token.property,
+.sla-code-block-wrap pre .token.tag,
+.sla-code-block-wrap pre .token.symbol { color: #79c0ff !important; }
+.sla-code-block-wrap pre .token.boolean,
+.sla-code-block-wrap pre .token.number,
+.sla-code-block-wrap pre .token.constant { color: #79c0ff !important; font-weight: 600; }
+.sla-code-block-wrap pre .token.selector,
+.sla-code-block-wrap pre .token.attr-name,
+.sla-code-block-wrap pre .token.string,
+.sla-code-block-wrap pre .token.char,
+.sla-code-block-wrap pre .token.builtin { color: #7ee787 !important; }
+.sla-code-block-wrap pre .token.operator { color: #ff7b72 !important; }
+.sla-code-block-wrap pre .token.atrule,
+.sla-code-block-wrap pre .token.attr-value,
+.sla-code-block-wrap pre .token.keyword { color: #f43f5e !important; font-weight: 600; }
+.sla-code-block-wrap pre .token.function { color: #d2a8ff !important; font-weight: 600; }
+.sla-code-block-wrap pre .token.class-name,
+.sla-code-block-wrap pre .token.type { color: #ffa657 !important; font-weight: 600; }
+.sla-code-block-wrap pre .token.regex,
+.sla-code-block-wrap pre .token.important,
+.sla-code-block-wrap pre .token.variable { color: #79c0ff !important; }
+
 /* AI Message Actions Bar */
 .sla-msg-actions-bar {
   margin-top: 12px;

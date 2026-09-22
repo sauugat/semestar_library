@@ -2645,15 +2645,16 @@
     <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-javascript.min.js"></script>
     <style>
-        .token.comment, .token.prolog, .token.doctype, .token.cdata { color: #6a9955 !important; font-style: italic; }
-        .token.punctuation { color: #d4d4d4 !important; }
-        .token.property, .token.tag, .token.boolean, .token.number, .token.constant, .token.symbol { color: #b5cea8 !important; }
-        .token.selector, .token.attr-name, .token.string, .token.char, .token.builtin { color: #ce9178 !important; }
-        .token.operator { color: #d4d4d4 !important; }
-        .token.atrule, .token.attr-value, .token.keyword { color: #569cd6 !important; }
-        .token.function { color: #dcdcaa !important; }
-        .token.class-name { color: #4ec9b0 !important; }
-        .token.regex, .token.important, .token.variable { color: #d16969 !important; }
+        .token.comment, .token.prolog, .token.doctype, .token.cdata { color: #8b949e !important; font-style: italic; }
+        .token.punctuation { color: #cbd5e1 !important; }
+        .token.property, .token.tag, .token.symbol { color: #79c0ff !important; }
+        .token.boolean, .token.number, .token.constant { color: #79c0ff !important; font-weight: 600; }
+        .token.selector, .token.attr-name, .token.string, .token.char, .token.builtin { color: #7ee787 !important; }
+        .token.operator { color: #ff7b72 !important; }
+        .token.atrule, .token.attr-value, .token.keyword { color: #f43f5e !important; font-weight: 600; }
+        .token.function { color: #d2a8ff !important; font-weight: 600; }
+        .token.class-name, .token.type { color: #ffa657 !important; font-weight: 600; }
+        .token.regex, .token.important, .token.variable { color: #79c0ff !important; }
     </style>
 
     <script src="/code-lab/utils.js"></script>
@@ -3407,9 +3408,20 @@
             document.getElementById('simModalTitle').textContent = `Task ${w.questionNumber}: ${w.questionTitle || 'Question'} — Code Comparison (${w.similarityPercent}% Match)`;
             document.getElementById('simModalSubtitle').textContent = `Comparing ${w.studentAName || 'Student'} (${w.studentA}) against ${w.studentBName || 'Student'} (${w.studentB})`;
             document.getElementById('simPaneAHeader').textContent = `${w.studentAName || 'Student'} (${w.studentA})`;
-            document.getElementById('simPaneBHeader').textContent = `${w.studentBName || 'Student'} (${w.studentB})`;
-            document.getElementById('simCodeA').textContent = w.codeA || '// No code submitted';
-            document.getElementById('simCodeB').textContent = w.codeB || '// No code submitted';
+            const simLang = (w.language || 'c').toLowerCase();
+            const prismSimLang = simLang === 'cpp' || simLang === 'c++' ? 'cpp' : (typeof Prism !== 'undefined' && Prism.languages[simLang] ? simLang : 'c');
+            try {
+                if (typeof Prism !== 'undefined' && Prism.languages[prismSimLang]) {
+                    document.getElementById('simCodeA').innerHTML = Prism.highlight(w.codeA || '// No code submitted', Prism.languages[prismSimLang], prismSimLang);
+                    document.getElementById('simCodeB').innerHTML = Prism.highlight(w.codeB || '// No code submitted', Prism.languages[prismSimLang], prismSimLang);
+                } else {
+                    document.getElementById('simCodeA').textContent = w.codeA || '// No code submitted';
+                    document.getElementById('simCodeB').textContent = w.codeB || '// No code submitted';
+                }
+            } catch (e) {
+                document.getElementById('simCodeA').textContent = w.codeA || '// No code submitted';
+                document.getElementById('simCodeB').textContent = w.codeB || '// No code submitted';
+            }
 
             const modal = document.getElementById('similarityModal');
             if (modal) modal.style.display = 'flex';

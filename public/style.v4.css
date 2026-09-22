@@ -1990,6 +1990,7 @@ body.dark-mode .cl-dot-green {
 
 /* IDE Code Box Syntax Highlighting Tokens (Vibrant colors like standard IDE) */
 .token.keyword,
+.token.atrule,
 .syn-kwd,
 [data-theme="dark"] .token.keyword,
 body.dark-mode .token.keyword,
@@ -2000,6 +2001,8 @@ body.dark-mode .syn-kwd {
 }
 
 .token.string,
+.token.char,
+.token.attr-value,
 .syn-str,
 [data-theme="dark"] .token.string,
 body.dark-mode .token.string,
@@ -2009,6 +2012,9 @@ body.dark-mode .syn-str {
 }
 
 .token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata,
 .syn-com,
 [data-theme="dark"] .token.comment,
 body.dark-mode .token.comment,
@@ -2019,12 +2025,15 @@ body.dark-mode .syn-com {
 }
 
 .token.number,
+.token.boolean,
+.token.constant,
 .syn-num,
 [data-theme="dark"] .token.number,
 body.dark-mode .token.number,
 [data-theme="dark"] .syn-num,
 body.dark-mode .syn-num {
   color: #79c0ff !important;
+  font-weight: 600 !important;
 }
 
 .token.type,
@@ -2047,24 +2056,37 @@ body.dark-mode .token.function,
 [data-theme="dark"] .syn-fn,
 body.dark-mode .syn-fn {
   color: #d2a8ff !important;
+  font-weight: 600 !important;
 }
 
 .token.operator,
+.syn-op,
 [data-theme="dark"] .token.operator,
-body.dark-mode .token.operator {
+body.dark-mode .token.operator,
+[data-theme="dark"] .syn-op,
+body.dark-mode .syn-op {
   color: #ff7b72 !important;
 }
 
 .token.punctuation,
+.syn-punc,
 [data-theme="dark"] .token.punctuation,
-body.dark-mode .token.punctuation {
-  color: #c9d1d9 !important;
+body.dark-mode .token.punctuation,
+[data-theme="dark"] .syn-punc,
+body.dark-mode .syn-punc {
+  color: #cbd5e1 !important;
 }
 
-.token.boolean,
-[data-theme="dark"] .token.boolean,
-body.dark-mode .token.boolean {
-  color: #ff7b72 !important;
+.token.property,
+.token.tag,
+.token.symbol,
+.token.variable,
+.syn-var,
+[data-theme="dark"] .token.property,
+body.dark-mode .token.property,
+[data-theme="dark"] .token.variable,
+body.dark-mode .token.variable {
+  color: #79c0ff !important;
 }
 
 /* Empty States (Reskinned for Dark Mode) */

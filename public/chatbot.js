@@ -272,6 +272,44 @@
     );
   }
 
+  function highlightChatCode(rawCode, lang) {
+    if (!rawCode) return '';
+    const l = (lang || '').toLowerCase();
+    const prismLangMap = {
+      'c': 'c', 'cpp': 'cpp', 'c++': 'cpp',
+      'java': 'java', 'python': 'python', 'py': 'python',
+      'javascript': 'javascript', 'js': 'javascript',
+      'html': 'markup', 'css': 'css', 'json': 'json', 'sql': 'sql'
+    };
+    const pLang = prismLangMap[l] || l;
+    if (typeof Prism !== 'undefined' && Prism.languages && Prism.languages[pLang]) {
+      try {
+        return Prism.highlight(rawCode, Prism.languages[pLang], pLang);
+      } catch (e) {}
+    }
+    let code = escapeHtml(rawCode);
+    const tokens = [];
+    const pushToken = (content, cls) => {
+      const id = `___CHAT_TOK_${tokens.length}___`;
+      tokens.push(`<span class="token ${cls}">${content}</span>`);
+      return id;
+    };
+    code = code.replace(/(&quot;[\s\S]*?&quot;|&#39;[\s\S]*?&#39;|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`[\s\S]*?`)/g, m => pushToken(m, 'string'));
+    code = code.replace(/(\/\/.*|\/\*[\s\S]*?\*\/|#.*)/g, m => pushToken(m, 'comment'));
+    code = code.replace(/(#(?:include|define|ifdef|ifndef|endif|pragma)\b[^\n]*)/g, m => pushToken(m, 'keyword'));
+    const keywords = /\b(public|private|protected|class|interface|static|void|int|float|double|char|boolean|bool|long|short|unsigned|signed|String|new|return|if|else|for|while|do|switch|case|break|continue|try|catch|finally|throw|throws|import|package|def|elif|from|as|with|lambda|yield|struct|typedef|const|virtual|override|namespace|using|auto|sizeof|final|abstract|let|var|const|function|async|await|select|from|where|insert|delete|update)\b/gi;
+    code = code.replace(keywords, m => pushToken(m, 'keyword'));
+    code = code.replace(/\b(\d+(?:\.\d+)?(?:f|d|u|l|ul|ll)?)\b/gi, m => pushToken(m, 'number'));
+    const types = /\b(System|out|println|print|Scanner|cin|cout|endl|vector|string|printf|scanf|NULL|nullptr|True|False|None|true|false|null|this|super|self|console|log|document|window)\b/g;
+    code = code.replace(types, m => pushToken(m, 'class-name'));
+    code = code.replace(/\b([a-zA-Z_]\w*)(?=\s*\()/g, m => pushToken(m, 'function'));
+    code = code.replace(/(&amp;&amp;|\|\||==|!=|&lt;=|&gt;=|&lt;&lt;|&gt;&gt;|\+=|-=|\*=|\/=|%=|-&gt;|\+\+|--|[+\-*\/%!=&lt;&gt;=&amp;|^~])/g, m => pushToken(m, 'operator'));
+    tokens.forEach((t, i) => {
+      code = code.replace(`___CHAT_TOK_${i}___`, t);
+    });
+    return code;
+  }
+
   function renderFormattedContent(element, rawMarkdown, streaming = false) {
     const normalized = normalizeLatexDelimiters(rawMarkdown);
 
@@ -282,6 +320,14 @@
         FORBID_TAGS: ['style', 'iframe', 'form', 'input', 'button'],
         FORBID_ATTR: ['style']
       });
+    } else if (window.markdownit) {
+      const md = window.markdownit({
+        html: false,
+        linkify: true,
+        typographer: false,
+        breaks: true
+      });
+      element.innerHTML = md.render(normalized);
     } else {
       element.innerHTML = fallbackMarkdown(normalized);
     }
@@ -289,21 +335,24 @@
     element.querySelectorAll('a[target="_blank"]').forEach(link => { link.rel = 'noopener noreferrer'; });
     if (streaming) return;
 
-    // Enhance Code Blocks with Syntax Headers and Copy Buttons
+    // Enhance Code Blocks with Syntax Highlighting, Headers and Copy Buttons
     element.querySelectorAll('pre code').forEach((codeBlock) => {
       const pre = codeBlock.parentElement;
       if (pre.parentElement.classList.contains('sla-code-block-wrap')) return;
+
+      const rawCode = codeBlock.textContent || '';
+      const langMatch = codeBlock.className.match(/language-(\w+)/);
+      const langName = langMatch ? langMatch[1] : 'Code';
+      const langKey = langName.toLowerCase();
+      const compilerSupported = /^(java|c|html|css|javascript|js)$/.test(langKey);
+
+      codeBlock.innerHTML = highlightChatCode(rawCode, langKey);
 
       const wrap = document.createElement('div');
       wrap.className = 'sla-code-block-wrap';
 
       const header = document.createElement('div');
       header.className = 'sla-code-header';
-
-      const langMatch = codeBlock.className.match(/language-(\w+)/);
-      const langName = langMatch ? langMatch[1] : 'Code';
-      const langKey = langName.toLowerCase();
-      const compilerSupported = /^(java|c|html|css|javascript|js)$/.test(langKey);
 
       header.innerHTML = `
         <span>${langName}</span>

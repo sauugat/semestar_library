@@ -1,28 +1,68 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&family=Outfit:wght@700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Roboto:wght@400;500;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap');
 
 /* ============================================================
-   SEMESTER LIBRARY — COMPLETE APPLE DESIGN SYSTEM
-   Inspired by apple.com & macOS Pro Aesthetics
-   Monochromatic Precision, SF Pro Typography, Keynote Obsidian Depth,
-   Frosted Glass Translucency, Cupertino Spring Physics, and Micro-Interactions.
+   SEMESTER LIBRARY — COMPLETE APPLE & GOOGLE DESIGN SYSTEM
+   Standardized with Google Antigravity IDE & Stitch Design Tokens:
+   Primary Core #4285F4, Hover #3367D6, Error #EA4335, Surface #FFFFFF,
+   On-Surface #202124, Border #DADCE0, CLI Canvas #1E242A, CLI Text #E8EAED/#262B30,
+   JetBrains Mono Nerd Font, Google Sans headings, Roboto body.
    ============================================================ */
 
 /* ------------------------------------------------------------
    1. DESIGN TOKENS & INDUSTRIAL-GRADE SYSTEM VARIABLES
    ------------------------------------------------------------ */
 :root {
+  /* ============================================================
+     GOOGLE ANTIGRAVITY IDE STANDARDIZED DESIGN TOKENS
+     ============================================================ */
+  --agy-primary: #4285F4;        /* Google Blue - Brand emphasis, active borders, main buttons */
+  --agy-primary-hover: #3367D6;  /* Interactive button hover states */
+  --agy-error: #EA4335;          /* Google Red - Code diagnostics, syntax errors, alerts */
+  --agy-surface: #FFFFFF;        /* Light theme canvas base / editor surface background */
+  --agy-on-surface: #202124;     /* Standard dark text on a light background */
+  --agy-border: #DADCE0;         /* Divider lines, sidebar frames, pane separators */
+  --agy-cli-bg: #1E242A;         /* Terminal-based desktop wrapper canvas */
+  --agy-cli-text: #E8EAED;       /* Standard text output inside console workspace */
+  --agy-cli-text-dark: #262B30;  /* Standard text output for light console workspace */
+
+  /* 🔤 Typography & Font Settings */
+  --agy-font-code: 'JetBrains Mono Nerd Font', 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --agy-code-size: 18px;         /* Code Editor Default Size */
+  --agy-font-heading: 'Google Sans', 'Product Sans', 'Outfit', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --agy-heading-weight: 500;
+  --agy-heading-size: 24px;
+  --agy-font-body: 'Roboto', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --agy-body-weight: 400;
+  --agy-body-size: 14px;
+  --agy-caption-weight: 400;
+  --agy-caption-size: 12px;
+
+  /* 🧱 Spacing Scale */
+  --agy-space-xs: 4px;
+  --agy-space-sm: 8px;
+  --agy-space-md: 16px;
+  --agy-space-lg: 24px;
+  --agy-space-xl: 32px;
+
+  /* 🧱 Border Radius Scale */
+  --agy-radius-sm: 4px;
+  --agy-radius-md: 8px;
+  --agy-radius-lg: 16px;
+  --agy-radius-full: 9999px;
+
   /* User-Defined Core System Variables (Light Baseline / Defaults) */
   --bg-app: #f5f5f7;
-  --bg-surface: #ffffff;
+  --bg-surface: var(--agy-surface);
   --bg-surface-raised: #ffffff;
-  --border: #d0d7de;
-  --text-primary: #1d1d1f;
-  --text-secondary: #656d76;
-  --accent-blue: #0969da;
+  --border: var(--agy-border);
+  --text-primary: var(--agy-on-surface);
+  --text-secondary: #5f6368;
+  --accent-blue: var(--agy-primary);
+  --accent-blue-hover: var(--agy-primary-hover);
   --pill-dark: #000000;
-  --danger: #cf222e;
-  --success: #1a7f37;
-  --warning: #9a6700;
+  --danger: var(--agy-error);
+  --success: #34A853;
+  --warning: #FBBC05;
 
   /* Aliasing legacy and system tokens to core variables */
   --bg-primary: var(--bg-app);
@@ -117,6 +157,13 @@ body.dark-mode {
   --fill-active-text: #0a0a0a;
   --success-mono: #f5f5f5;
   --danger-mono: #f5f5f5;
+
+  /* Antigravity Dark Theme Tokens */
+  --agy-surface: #1E242A;
+  --agy-on-surface: #E8EAED;
+  --agy-border: rgba(218, 220, 224, 0.18);
+  --agy-cli-bg: #1E242A;
+  --agy-cli-text: #E8EAED;
 
   /* Aliasing legacy system variables to user tokens */
   --bg-app: var(--bg-base);

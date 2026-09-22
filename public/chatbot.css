@@ -931,8 +931,8 @@ body.sla-fullpage-mode .sla-welcome-hero {
   margin: 12px 0;
   border-radius: 8px;
   overflow: hidden;
-  background: #0b0914;
-  border: 1px solid var(--sla-border-glass);
+  background: #1E242A;
+  border: 1px solid rgba(218, 220, 224, 0.18);
 }
 
 .sla-code-header {
@@ -940,11 +940,11 @@ body.sla-fullpage-mode .sla-welcome-hero {
   align-items: center;
   justify-content: space-between;
   padding: 7px 12px;
-  background: rgba(22, 17, 36, 0.9);
-  border-bottom: 1px solid var(--sla-border-glass);
+  background: #161B20;
+  border-bottom: 1px solid rgba(218, 220, 224, 0.12);
   font-size: 11px;
-  color: var(--sla-text-muted);
-  font-family: var(--sla-font-mono);
+  color: #DADCE0;
+  font-family: 'JetBrains Mono Nerd Font', 'JetBrains Mono', var(--sla-font-mono);
 }
 
 .sla-code-header-actions {
@@ -979,11 +979,11 @@ body.sla-fullpage-mode .sla-welcome-hero {
   margin: 0;
   padding: 12px 14px;
   overflow-x: auto;
-  font-family: var(--sla-font-mono);
-  font-size: 12px;
-  line-height: 1.55;
-  color: #e9d5ff;
-  background: #0b0914;
+  font-family: 'JetBrains Mono Nerd Font', 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: #E8EAED;
+  background: #1E242A;
 }
 
 /* Chat Code Block Syntax Highlighting */

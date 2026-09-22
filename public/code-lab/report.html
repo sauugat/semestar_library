@@ -3,8 +3,57 @@
 
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#ffffff">
     <title>Submission Report — Assignments</title>
+
+    <!-- Anti-flash inline script: executes before paint to prevent FOUC -->
+    <script>
+      (function() {
+        try {
+          var t = localStorage.getItem('theme');
+          if (!t) t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+          var d = t === 'dark';
+          document.documentElement.setAttribute('data-theme', t);
+          if (d) {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
+    <link rel="stylesheet" href="/style.v4.css">
+    <script src="/theme.js" defer></script>
+
     <style>
+        [data-theme="dark"] body, body.dark-mode {
+            background-color: #0c0d12 !important;
+            color: #f4f4f7 !important;
+        }
+        [data-theme="dark"] #report, body.dark-mode #report {
+            background: #141620 !important;
+            border-color: rgba(255, 255, 255, 0.08) !important;
+            color: #f4f4f7 !important;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4) !important;
+        }
+        [data-theme="dark"] .report-header, body.dark-mode .report-header {
+            border-color: rgba(255, 255, 255, 0.15) !important;
+        }
+        [data-theme="dark"] .question-description, body.dark-mode .question-description {
+            background: #1b1e2c !important;
+            color: #d1d5db !important;
+        }
+        [data-theme="dark"] .grading-q-row, body.dark-mode .grading-q-row {
+            color: #f4f4f7 !important;
+            border-color: rgba(255, 255, 255, 0.08) !important;
+        }
+        [data-theme="dark"] .grading-q-line, body.dark-mode .grading-q-line {
+            color: #9ca3af !important;
+        }
+        [data-theme="dark"] .back-link, body.dark-mode .back-link {
+            color: #89b4fa !important;
+        }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "SF Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
             max-width: 880px;
@@ -637,6 +686,24 @@
         </a>
         <div class="toolbar-actions" id="toolbarActions">
             <span id="gradingStatusBadge" class="cl-report-status-badge draft" style="display:none;">Draft — Not Released</span>
+            <button type="button" class="theme-toggle-btn" id="themeToggleBtn" aria-label="Toggle theme" title="Toggle theme">
+                <span class="theme-toggle-track">
+                    <svg class="theme-icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                    <svg class="theme-icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                </span>
+            </button>
             <button type="button" id="saveDraftBtn" class="cl-btn-secondary" style="display:none;" onclick="saveGradingDraft()">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
                 <span>Save Draft</span>

@@ -99,6 +99,707 @@
 }
 
 /* ------------------------------------------------------------
+   1.1 DARK THEME DESIGN TOKENS (Overridden via [data-theme="dark"] or body.dark-mode)
+   ------------------------------------------------------------ */
+[data-theme="dark"],
+html.dark,
+body.dark-mode {
+  /* Ceramic Dark Visual Tokens */
+  --ceramic-bg: #0c0d12;
+  --ceramic-surface: #141620;
+  --ceramic-card-hover: #1b1e2c;
+  --ceramic-border: rgba(255, 255, 255, 0.09);
+  --ceramic-border-hover: rgba(255, 255, 255, 0.18);
+  --ceramic-border-focus: rgba(10, 132, 255, 0.5);
+  --text-main: #f4f4f7;
+  --text-sub: #a1a1aa;
+  --text-muted: #71717a;
+  --text-caption: #52525b;
+  --chip-bg: #1c1f2d;
+  --chip-text: #e4e4e7;
+  --laser-sweep: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.02), transparent);
+  --specular-inner: inset 0 1px 0 rgba(255, 255, 255, 0.12), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --apple-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.25);
+  --apple-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
+  --apple-shadow-hover: 0 20px 48px rgba(0, 0, 0, 0.65), 0 6px 16px rgba(0, 0, 0, 0.4);
+
+  /* Apple Dark Palette */
+  --ap-canvas: #0c0d12;
+  --ap-canvas-alt: #12141c;
+  --ap-surface: #141620;
+  --ap-surface-translucent: rgba(20, 22, 32, 0.84);
+  --ap-surface-translucent-heavy: rgba(20, 22, 32, 0.94);
+  --ap-surface-hover: #1b1e2c;
+
+  /* Typography Colors */
+  --ap-text-primary: #f4f4f7;
+  --ap-text-secondary: #a1a1aa;
+  --ap-text-tertiary: #71717a;
+  --ap-text-quaternary: #52525b;
+  --ap-text-inverse: #0c0d12;
+  --ap-text-inverse-secondary: rgba(12, 13, 18, 0.72);
+  --ap-text-inverse-tertiary: rgba(12, 13, 18, 0.48);
+
+  /* Dark Functional Accents */
+  --ap-accent-blue: #0a84ff;
+  --ap-accent-blue-hover: #409cff;
+  --ap-accent-blue-active: #0071e3;
+  --ap-accent-blue-subtle: rgba(10, 132, 255, 0.15);
+  --ap-accent-green: #30d158;
+  --ap-accent-amber: #ffd60a;
+  --ap-accent-red: #ff453a;
+  --ap-accent-purple: #bf5af2;
+  --ap-accent-indigo: #5e5ce6;
+
+  /* Crisp Subtle Dark Borders */
+  --ap-border: rgba(255, 255, 255, 0.1);
+  --ap-border-post: rgba(255, 255, 255, 0.2);
+  --ap-border-subtle: rgba(255, 255, 255, 0.06);
+  --ap-border-strong: rgba(255, 255, 255, 0.22);
+  --ap-border-focus: #0a84ff;
+  --ap-border-dark: rgba(255, 255, 255, 0.18);
+  --ap-border-dark-subtle: rgba(255, 255, 255, 0.08);
+
+  /* Dark Specular Shadows */
+  --ap-shadow-xs: 0 1px 3px rgba(0, 0, 0, 0.35);
+  --ap-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --ap-shadow-md: 0 4px 14px rgba(0, 0, 0, 0.5);
+  --ap-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.6);
+  --ap-shadow-xl: 0 20px 48px rgba(0, 0, 0, 0.75);
+  --ap-shadow-dock: 0 18px 48px rgba(0, 0, 0, 0.85);
+  --ap-specular-light: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  --ap-specular-dark: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* ------------------------------------------------------------
+   1.2 THEME TOGGLE BUTTON (Sun / Moon Micro-Animation)
+   ------------------------------------------------------------ */
+.theme-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  border-radius: 980px;
+  border: 1px solid var(--ap-border);
+  background: var(--ap-surface-translucent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  color: var(--ap-text-primary);
+  cursor: pointer;
+  padding: 0;
+  margin: 0 6px;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s var(--ap-spring);
+  box-shadow: var(--ap-shadow-xs);
+  position: relative;
+  overflow: hidden;
+  user-select: none;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+.theme-toggle-btn:hover {
+  background: var(--ap-surface-hover);
+  border-color: var(--ceramic-border-hover);
+  transform: scale(1.05);
+}
+
+.theme-toggle-btn:active {
+  transform: scale(0.95);
+}
+
+.theme-toggle-btn:focus-visible {
+  outline: 2px solid var(--ap-border-focus);
+  outline-offset: 2px;
+}
+
+.theme-toggle-track {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 18px;
+  height: 18px;
+}
+
+.theme-toggle-btn .theme-icon-sun,
+.theme-toggle-btn .theme-icon-moon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.25s ease, color 0.2s ease;
+}
+
+/* Light Mode: Sun hidden, Moon visible (click to switch to dark) */
+[data-theme="light"] .theme-toggle-btn .theme-icon-sun,
+:root:not([data-theme="dark"]) .theme-toggle-btn:not(.is-dark) .theme-icon-sun {
+  opacity: 0;
+  transform: translate(-50%, -50%) rotate(90deg) scale(0.3);
+  pointer-events: none;
+}
+
+[data-theme="light"] .theme-toggle-btn .theme-icon-moon,
+:root:not([data-theme="dark"]) .theme-toggle-btn:not(.is-dark) .theme-icon-moon {
+  opacity: 1;
+  transform: translate(-50%, -50%) rotate(0deg) scale(1);
+  color: #1d1d1f;
+}
+
+/* Dark Mode: Moon hidden, Sun visible (click to switch to light) */
+[data-theme="dark"] .theme-toggle-btn .theme-icon-sun,
+.theme-toggle-btn.is-dark .theme-icon-sun,
+body.dark-mode .theme-toggle-btn .theme-icon-sun {
+  opacity: 1;
+  transform: translate(-50%, -50%) rotate(0deg) scale(1);
+  color: #ffd60a;
+}
+
+[data-theme="dark"] .theme-toggle-btn .theme-icon-moon,
+.theme-toggle-btn.is-dark .theme-icon-moon,
+body.dark-mode .theme-toggle-btn .theme-icon-moon {
+  opacity: 0;
+  transform: translate(-50%, -50%) rotate(-90deg) scale(0.3);
+  pointer-events: none;
+}
+
+/* ------------------------------------------------------------
+   1.3 COMPONENT OVERRIDES IN DARK THEME
+   ------------------------------------------------------------ */
+
+/* Global Body Backgrounds in Dark Mode */
+[data-theme="dark"] body,
+body.dark-mode {
+  background-color: #0c0d12 !important;
+  background-image:
+    radial-gradient(ellipse 80% 40% at 50% -10%, rgba(99, 102, 241, 0.16), transparent 70%),
+    radial-gradient(circle at 18% 18%, rgba(59, 130, 246, 0.09), transparent 45%),
+    radial-gradient(circle at 82% 22%, rgba(168, 85, 247, 0.09), transparent 45%),
+    linear-gradient(180deg, #0c0d12 0%, #11131c 45%, #151824 100%) !important;
+  background-attachment: fixed !important;
+  color: var(--ap-text-primary) !important;
+}
+
+/* Navigation Bar */
+[data-theme="dark"] .apple-nav,
+body.dark-mode .apple-nav,
+[data-theme="dark"] .dash-header,
+body.dark-mode .dash-header {
+  background: rgba(12, 13, 18, 0.84) !important;
+  border-bottom: 1.5px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="dark"] .apple-wordmark,
+body.dark-mode .apple-wordmark,
+[data-theme="dark"] .lib-wordmark,
+body.dark-mode .lib-wordmark {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .apple-univ-tag,
+body.dark-mode .apple-univ-tag {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  color: #e4e4e7 !important;
+}
+
+[data-theme="dark"] .apple-nav-btn,
+body.dark-mode .apple-nav-btn {
+  background: #ffffff !important;
+  color: #0c0d12 !important;
+}
+
+[data-theme="dark"] .apple-nav-btn:hover,
+body.dark-mode .apple-nav-btn:hover {
+  background: #e4e4e7 !important;
+}
+
+[data-theme="dark"] .header-nav-item,
+body.dark-mode .header-nav-item {
+  color: #a1a1aa !important;
+}
+
+[data-theme="dark"] .header-nav-item:hover,
+body.dark-mode .header-nav-item:hover {
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .header-nav-item.active,
+body.dark-mode .header-nav-item.active {
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.14) !important;
+}
+
+[data-theme="dark"] .dash-profile-chip,
+body.dark-mode .dash-profile-chip {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #f4f4f7 !important;
+}
+
+[data-theme="dark"] .dash-profile-label,
+body.dark-mode .dash-profile-label {
+  color: #f4f4f7 !important;
+}
+
+/* Hero Section & Badges */
+[data-theme="dark"] .apple-main-title .apple-text-grad-primary,
+body.dark-mode .apple-main-title .apple-text-grad-primary {
+  background: linear-gradient(180deg, #ffffff 0%, #e2e8f0 50%, #94a3b8 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+[data-theme="dark"] .hero-badge.apple-keynote-badge,
+body.dark-mode .hero-badge.apple-keynote-badge {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  color: #f1f5f9 !important;
+}
+
+[data-theme="dark"] .apple-kicker-tag,
+body.dark-mode .apple-kicker-tag {
+  background: rgba(255, 255, 255, 0.14) !important;
+  color: #ffffff !important;
+}
+
+/* Feature Cards (Notes, Exam Routines, Notices, Syllabus, Chat, Search, Notification Hub, Vault) */
+[data-theme="dark"] .poster-card,
+body.dark-mode .poster-card,
+[data-theme="dark"] .apple-poster-card,
+body.dark-mode .apple-poster-card,
+[data-theme="dark"] .feature-card,
+body.dark-mode .feature-card,
+[data-theme="dark"] .portal-card,
+body.dark-mode .portal-card,
+[data-theme="dark"] .lib-card,
+body.dark-mode .lib-card,
+[data-theme="dark"] .glass-panel,
+body.dark-mode .glass-panel {
+  background: #141622 !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45) !important;
+  color: #f4f4f7 !important;
+}
+
+[data-theme="dark"] .poster-card:hover,
+body.dark-mode .poster-card:hover,
+[data-theme="dark"] .apple-poster-card:hover,
+body.dark-mode .apple-poster-card:hover {
+  background: #191c2c !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.65) !important;
+}
+
+[data-theme="dark"] .poster-card-title,
+body.dark-mode .poster-card-title,
+[data-theme="dark"] .apple-card-title,
+body.dark-mode .apple-card-title {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .poster-card-desc,
+body.dark-mode .poster-card-desc,
+[data-theme="dark"] .apple-card-desc,
+body.dark-mode .apple-card-desc {
+  color: #a1a1aa !important;
+}
+
+[data-theme="dark"] .apple-spec-pill,
+body.dark-mode .apple-spec-pill,
+[data-theme="dark"] .vault-spec-chip,
+body.dark-mode .vault-spec-chip {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #e4e4e7 !important;
+}
+
+[data-theme="dark"] .vault-card-body,
+body.dark-mode .vault-card-body {
+  background: #181b28 !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="dark"] .vault-chip,
+body.dark-mode .vault-chip {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #f3f4f6 !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+}
+
+[data-theme="dark"] .vault-spec-text,
+body.dark-mode .vault-spec-text {
+  color: #a1a1aa !important;
+}
+
+/* Modals & Photo Gallery Archive */
+[data-theme="dark"] .gallery-modal,
+body.dark-mode .gallery-modal,
+[data-theme="dark"] .archive-modal-content,
+body.dark-mode .archive-modal-content,
+[data-theme="dark"] .modal-content,
+body.dark-mode .modal-content {
+  background: #141622 !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  color: #f4f4f7 !important;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.75) !important;
+}
+
+[data-theme="dark"] .gallery-modal-header,
+body.dark-mode .gallery-modal-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="dark"] .ag-hud-lightbox,
+body.dark-mode .ag-hud-lightbox {
+  background: rgba(12, 13, 18, 0.92) !important;
+}
+
+[data-theme="dark"] .ag-hud-frame,
+body.dark-mode .ag-hud-frame {
+  background: #0f1016 !important;
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="dark"] .ag-corner-reticle,
+body.dark-mode .ag-corner-reticle {
+  border-color: #f4f4f7 !important;
+}
+
+[data-theme="dark"] .ag-hud-console,
+body.dark-mode .ag-hud-console {
+  background: rgba(20, 22, 34, 0.95) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #f4f4f7 !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="dark"] .ag-hud-title,
+body.dark-mode .ag-hud-title {
+  color: #f4f4f7 !important;
+}
+
+[data-theme="dark"] .ag-hud-desc,
+body.dark-mode .ag-hud-desc {
+  color: #a1a1aa !important;
+}
+
+[data-theme="dark"] .ag-hud-nav-btn,
+body.dark-mode .ag-hud-nav-btn,
+[data-theme="dark"] .ag-hud-close-btn,
+body.dark-mode .ag-hud-close-btn {
+  background: rgba(30, 33, 48, 0.9) !important;
+  color: #f4f4f7 !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+/* "Not Optimized for Mobile" Popup */
+[data-theme="dark"] .device-notice-card,
+body.dark-mode .device-notice-card,
+[data-theme="dark"] #deviceNoticeOverlay .device-notice-card,
+body.dark-mode #deviceNoticeOverlay .device-notice-card {
+  background: #141622 !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  color: #f4f4f7 !important;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.75) !important;
+}
+
+[data-theme="dark"] .device-notice-title,
+body.dark-mode .device-notice-title {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .device-notice-desc,
+body.dark-mode .device-notice-desc {
+  color: #a1a1aa !important;
+}
+
+[data-theme="dark"] .device-notice-close-btn,
+body.dark-mode .device-notice-close-btn {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(255, 255, 255, 0.16) !important;
+  color: #ffffff !important;
+}
+
+/* Global Forms & Input Elements */
+[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
+body.dark-mode input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
+[data-theme="dark"] select,
+body.dark-mode select,
+[data-theme="dark"] textarea,
+body.dark-mode textarea {
+  background-color: #161824 !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  color: #f4f4f7 !important;
+}
+
+[data-theme="dark"] input::placeholder,
+body.dark-mode input::placeholder,
+[data-theme="dark"] textarea::placeholder,
+body.dark-mode textarea::placeholder {
+  color: #71717a !important;
+}
+
+/* Apple Account Sign-In Page (login.html) */
+[data-theme="dark"] .apple-signin-card,
+body.dark-mode .apple-signin-card {
+  background: #141622 !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 32px 64px rgba(0, 0, 0, 0.6) !important;
+  color: #f4f4f7 !important;
+}
+
+[data-theme="dark"] .apple-signin-headline,
+body.dark-mode .apple-signin-headline {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .apple-signin-subtext,
+body.dark-mode .apple-signin-subtext {
+  color: #a1a1aa !important;
+}
+
+[data-theme="dark"] .apple-signin-input,
+body.dark-mode .apple-signin-input {
+  background: #191c2c !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .apple-signin-btn,
+body.dark-mode .apple-signin-btn {
+  background: #ffffff !important;
+  color: #0c0d12 !important;
+}
+
+[data-theme="dark"] .apple-signin-footer,
+body.dark-mode .apple-signin-footer {
+  color: #71717a !important;
+}
+
+/* ------------------------------------------------------------
+   1.4 CODE LAB & ASSIGNMENT PAGES DARK THEME
+   ------------------------------------------------------------ */
+
+/* Assignment View Page (assignment.html) */
+[data-theme="dark"] .cl-assignment-header,
+body.dark-mode .cl-assignment-header {
+  background: #141622 !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="dark"] .cl-title,
+body.dark-mode .cl-title {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .cl-meta-tag,
+body.dark-mode .cl-meta-tag {
+  background: #1c1f2d !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #d1d5db !important;
+}
+
+[data-theme="dark"] .cl-meta-tag.cl-meta-subject,
+body.dark-mode .cl-meta-tag.cl-meta-subject {
+  background: rgba(10, 132, 255, 0.15) !important;
+  border-color: rgba(10, 132, 255, 0.28) !important;
+  color: #60a5fa !important;
+}
+
+[data-theme="dark"] .cl-meta-tag.cl-meta-pdf,
+body.dark-mode .cl-meta-tag.cl-meta-pdf {
+  background: rgba(255, 69, 58, 0.15) !important;
+  border-color: rgba(255, 69, 58, 0.28) !important;
+  color: #f87171 !important;
+}
+
+[data-theme="dark"] .cl-desc-card,
+body.dark-mode .cl-desc-card {
+  background: #141622 !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="dark"] .cl-desc-title,
+body.dark-mode .cl-desc-title {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .cl-desc-text,
+body.dark-mode .cl-desc-text {
+  color: #a1a1aa !important;
+}
+
+[data-theme="dark"] .cl-student-question-box,
+body.dark-mode .cl-student-question-box {
+  background: #141622 !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+[data-theme="dark"] .cl-student-q-label,
+body.dark-mode .cl-student-q-label {
+  color: #f4f4f7 !important;
+}
+
+[data-theme="dark"] .cl-student-q-input,
+body.dark-mode .cl-student-q-input {
+  background: #1a1d2c !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .cl-tab-bar,
+body.dark-mode .cl-tab-bar {
+  background: #10121a !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .cl-tab-btn,
+body.dark-mode .cl-tab-btn {
+  background: #161824 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  color: #a1a1aa !important;
+}
+
+[data-theme="dark"] .cl-tab-btn:hover,
+body.dark-mode .cl-tab-btn:hover {
+  background: #1c1f2e !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .cl-tab-btn.active,
+body.dark-mode .cl-tab-btn.active {
+  background: #202437 !important;
+  border-color: rgba(255, 255, 255, 0.16) !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .cl-editor-window,
+body.dark-mode .cl-editor-window {
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+[data-theme="dark"] .cl-window-header,
+body.dark-mode .cl-window-header {
+  background: #12141d !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .cl-filename-input,
+body.dark-mode .cl-filename-input {
+  background: transparent !important;
+  color: #e4e4e7 !important;
+}
+
+[data-theme="dark"] .cl-pdf-side-pane,
+body.dark-mode .cl-pdf-side-pane {
+  background: #10121a !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="dark"] .cl-pdf-side-header,
+body.dark-mode .cl-pdf-side-header {
+  background: #141622 !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .cl-pdf-filename,
+body.dark-mode .cl-pdf-filename {
+  color: #f4f4f7 !important;
+}
+
+/* Subjects Page & Cards (subjects.html) */
+[data-theme="dark"] .subject-card,
+body.dark-mode .subject-card,
+[data-theme="dark"] .assignment-post-card,
+body.dark-mode .assignment-post-card {
+  background: #141622 !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #f4f4f7 !important;
+}
+
+[data-theme="dark"] .subject-card:hover,
+body.dark-mode .subject-card:hover {
+  background: #181b2a !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+[data-theme="dark"] .cl-subject-title,
+body.dark-mode .cl-subject-title {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .cl-filter-toolbar,
+body.dark-mode .cl-filter-toolbar {
+  background: #141622 !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="dark"] .cl-search-input,
+body.dark-mode .cl-search-input {
+  background: #181b28 !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #ffffff !important;
+}
+
+/* Assignment Creation Modal & Page (create.html & modal in subjects.html) */
+[data-theme="dark"] .cl-create-card,
+body.dark-mode .cl-create-card,
+[data-theme="dark"] .cl-create-modal-card,
+body.dark-mode .cl-create-modal-card {
+  background: #141622 !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  color: #f4f4f7 !important;
+}
+
+[data-theme="dark"] .cl-question-block,
+body.dark-mode .cl-question-block {
+  background: #181b28 !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="dark"] .cl-creation-mode-tabs,
+body.dark-mode .cl-creation-mode-tabs {
+  background: #10121a !important;
+}
+
+[data-theme="dark"] .cl-mode-tab-btn,
+body.dark-mode .cl-mode-tab-btn {
+  color: #a1a1aa !important;
+}
+
+[data-theme="dark"] .cl-mode-tab-btn.active,
+body.dark-mode .cl-mode-tab-btn.active {
+  background: #202437 !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .cl-pdf-upload-box,
+body.dark-mode .cl-pdf-upload-box {
+  background: #181b28 !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+[data-theme="dark"] .cl-input,
+body.dark-mode .cl-input,
+[data-theme="dark"] .cl-select,
+body.dark-mode .cl-select,
+[data-theme="dark"] .cl-textarea,
+body.dark-mode .cl-textarea {
+  background: #181b28 !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .cl-label,
+body.dark-mode .cl-label {
+  color: #d1d5db !important;
+}
+
+/* ------------------------------------------------------------
    2. GLOBAL RESETS, TYPOGRAPHY & SCROLLBAR
    ------------------------------------------------------------ */
 *,

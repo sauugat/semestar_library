@@ -113,6 +113,29 @@ a.header-nav-item[href="chatbot.html"] {
   opacity: 0.95;
 }
 
+[data-theme="dark"] .header-nav-item[href="chatbot.html"],
+[data-theme="dark"] a.header-nav-item[href="chatbot.html"],
+body.dark-mode .header-nav-item[href="chatbot.html"],
+body.dark-mode a.header-nav-item[href="chatbot.html"] {
+  background: none !important;
+  -webkit-background-clip: initial !important;
+  background-clip: initial !important;
+  -webkit-text-fill-color: initial !important;
+  animation: none !important;
+  color: var(--text-secondary, #a3a3a3) !important;
+}
+
+[data-theme="dark"] .header-nav-item[href="chatbot.html"].active,
+[data-theme="dark"] a.header-nav-item[href="chatbot.html"].active,
+body.dark-mode .header-nav-item[href="chatbot.html"].active,
+body.dark-mode a.header-nav-item[href="chatbot.html"].active,
+[data-theme="dark"] .header-nav-item[href="chatbot.html"]:hover,
+[data-theme="dark"] a.header-nav-item[href="chatbot.html"]:hover,
+body.dark-mode .header-nav-item[href="chatbot.html"]:hover,
+body.dark-mode a.header-nav-item[href="chatbot.html"]:hover {
+  color: var(--text-primary, #f5f5f5) !important;
+}
+
 /* ==========================================================================
    MOVING AMBIENT GLOW MESH BACKGROUND (VIBRANT, VISIBLE, ULTRA-PREMIUM)
    ========================================================================== */

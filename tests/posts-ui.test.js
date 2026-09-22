@@ -146,3 +146,126 @@ test('shared post markup uses post actions for assignments and hides submissions
     assert.ok(!output.includes('/code-lab/assignment.html'));
   }
 });
+
+test('uploaded images render below content and above actions; text-only posts omit the image block', () => {
+  const { context } = fixture();
+  context.post = {
+    id: 2, studentId: 'owner', name: 'Author', content: 'A class photo', type: 'status',
+    role: 'student', created_at: new Date().toISOString(), like_count: 0, liked_by_me: false,
+    attachment_url: '/uploads/posts/photo.png'
+  };
+  const output = vm.runInContext('renderPost(post)', context);
+  assert.match(output, /<div class="post-image"><img src="https:\/\/example.com\/uploads\/posts\/photo.png"/);
+  assert.ok(output.indexOf('A class photo') < output.indexOf('<div class="post-image">'));
+  assert.ok(output.indexOf('<div class="post-image">') < output.indexOf('<footer'));
+  context.post.attachment_url = null;
+  assert.ok(!vm.runInContext('renderPost(post)', context).includes('<div class="post-image">'));
+});
+
+test('Code Lab assignments preserve the Lab embed, badges, question counts and links', () => {
+  const { context } = fixture();
+  context.localStorage = { getItem: () => null };
+  context.assignment = {
+    id: 7, title: 'Arrays', createdBy: 'faculty', teacherName: 'Teacher',
+    createdAt: new Date().toISOString(), questionCount: 3, submissionCount: 12,
+    mySubmissionCount: 1, subject: 'C', semester: 'II', canDelete: true
+  };
+  const output = vm.runInContext('renderAssignmentPost(assignment)', context);
+  for (const expected of ['post-attachment-card', '<span>LAB</span>', 'post-admin-badge',
+    '3 Problems', '12 Submitted', '1/3 Submitted', '/code-lab/assignment.html?id=7',
+    '/code-lab/submissions.html?id=7', 'deleteAssignmentPost(7, this, event)']) {
+    assert.ok(output.includes(expected), expected);
+  }
+  assert.ok(!output.includes('post-image'));
+});
+
+function composerFixture(fetch) {
+  const elements = {};
+  for (const id of ['postImageInput', 'postImagePreview', 'postImagePreviewImg', 'choosePostImage',
+    'removePostImage', 'postComposerMessage', 'postComposer', 'postContent', 'postType', 'publishPost']) {
+    elements[id] = {
+      value: '', files: [], hidden: true, disabled: false, textContent: '', events: {},
+      addEventListener(event, handler) { this.events[event] = handler; },
+      removeAttribute(name) { delete this[name]; },
+      click() {}, focus() {}
+    };
+  }
+  Object.defineProperty(elements.postImageInput, 'value', {
+    get: () => '', set: () => { elements.postImageInput.files = []; }
+  });
+  const revoked = [];
+  const added = [];
+  let rendered = 0;
+  const context = vm.createContext({
+    document: { getElementById: id => elements[id] },
+    URL: { createObjectURL: file => 'blob:' + file.name, revokeObjectURL: url => revoked.push(url) },
+    FormData, fetch, feedReady: Promise.resolve(),
+    addFeedPosts: posts => added.push(...posts), renderFeed: () => { rendered++; }
+  });
+  vm.runInContext(functionSection('    const postImageInput =', '    const pendingPostLikes ='), context);
+  elements.postContent.value = 'Class update';
+  elements.postType.value = 'status';
+  return {
+    elements, revoked, added, get rendered() { return rendered; },
+    select: file => { elements.postImageInput.files = [file]; elements.postImageInput.events.change(); },
+    submit: () => elements.postComposer.events.submit({ preventDefault() {} })
+  };
+}
+
+test('image selection previews, replacement revokes the old URL, and remove clears the file', () => {
+  const f = composerFixture();
+  f.select(new File(['a'], 'one.png', { type: 'image/png' }));
+  assert.equal(f.elements.postImagePreview.hidden, false);
+  assert.equal(f.elements.postImagePreviewImg.src, 'blob:one.png');
+  f.select(new File(['b'], 'two.png', { type: 'image/png' }));
+  assert.deepEqual(f.revoked, ['blob:one.png']);
+  f.elements.removePostImage.events.click();
+  assert.equal(f.elements.postImageInput.files.length, 0);
+  assert.equal(f.elements.postImagePreview.hidden, true);
+  assert.equal(f.elements.postImagePreviewImg.src, undefined);
+  assert.deepEqual(f.revoked, ['blob:one.png', 'blob:two.png']);
+  f.select(new File(['bad'], 'bad.txt', { type: 'text/plain' }));
+  assert.equal(f.elements.postImagePreview.hidden, true);
+  assert.match(f.elements.postComposerMessage.textContent, /image file/);
+  f.select(new File([new Uint8Array(5 * 1024 * 1024 + 1)], 'large.png', { type: 'image/png' }));
+  assert.match(f.elements.postComposerMessage.textContent, /5 MB/);
+});
+
+test('composer sends multipart with or without an image and clears only after success', async () => {
+  for (const withImage of [false, true]) {
+    let request;
+    const f = composerFixture(async (url, options) => {
+      request = { url, ...options };
+      return { ok: true, json: async () => ({ id: 5, content: 'Class update', type: 'status' }) };
+    });
+    if (withImage) f.select(new File(['photo'], 'photo.png', { type: 'image/png' }));
+    await f.submit();
+    assert.equal(request.url, '/api/posts');
+    assert.equal(request.headers, undefined);
+    assert.ok(request.body instanceof FormData);
+    assert.equal(request.body.get('content'), 'Class update');
+    assert.equal(request.body.get('type'), 'status');
+    assert.equal(request.body.has('image'), withImage);
+    assert.equal(f.elements.postContent.value, '');
+    assert.equal(f.elements.postImageInput.files.length, 0);
+    assert.equal(f.elements.postImagePreview.hidden, true);
+    assert.equal(f.elements.publishPost.disabled, false);
+    assert.equal(f.added[0].id, 5);
+    assert.equal(f.rendered, 1);
+  }
+});
+
+test('failed image posts retain draft and selection so the user can retry', async () => {
+  const f = composerFixture(async () => ({ ok: false, json: async () => ({ message: 'Upload failed' }) }));
+  f.select(new File(['photo'], 'photo.png', { type: 'image/png' }));
+  await f.submit();
+  assert.equal(f.elements.postContent.value, 'Class update');
+  assert.equal(f.elements.postImageInput.files.length, 1);
+  assert.equal(f.elements.postImagePreview.hidden, false);
+  assert.equal(f.elements.postImagePreviewImg.src, 'blob:photo.png');
+  assert.equal(f.elements.postComposerMessage.textContent, 'Upload failed');
+  assert.equal(f.elements.choosePostImage.disabled, false);
+  assert.equal(f.elements.publishPost.disabled, false);
+  assert.equal(f.added.length, 0);
+  assert.deepEqual(f.revoked, []);
+});

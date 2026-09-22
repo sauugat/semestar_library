@@ -64,6 +64,10 @@ All `/api/posts` endpoints use the existing session authentication. Creating, li
 
 Submission counts read from `post_submissions` for assignment-type posts; other types return zero and hide the submission label. The dashboard routes each item through `renderPost()`, with shared markup for status, notice, and feed assignment cards. These feed posts do not create Code Lab assignments or add a submission workflow.
 
+The composer sends multipart `content`, `type`, and an optional `image` file (one image, up to 5 MB). JSON text-only requests remain supported. Images are stored with generated filenames in `public/uploads/posts/`, created on upload and excluded from git, and served at `/uploads/posts/<filename>`. Failed post creation and post deletion clean up uploaded files. Uploaded SVG responses are sandboxed. Preview removal clears the selected file; failed requests preserve the draft for retry. Feed rows use dividers, circular avatars, and rounded images while retaining the existing Lab embed.
+
+Image uploads require a writable, persistent `public/uploads/posts/` directory. The requested disk storage is intended for the local server or a persistent Node host; Vercel's read-only deployment filesystem requires a separate persistent storage implementation for uploaded post images.
+
 ## Validation
 
 ```sh

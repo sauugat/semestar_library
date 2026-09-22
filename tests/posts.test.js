@@ -1,11 +1,16 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const express = require('express');
+const fs = require('node:fs/promises');
+const os = require('node:os');
+const path = require('node:path');
 const { createClient } = require('@libsql/client');
 const { ensurePostsSchema } = require('../lib/posts');
 const createPostsRouter = require('../routes/posts');
 
 async function fixture(t) {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'post-uploads-'));
+  const uploadDir = path.join(tempDir, 'posts');
   const client = createClient({ url: ':memory:' });
   const db = {
     isPostgres: false,
@@ -31,22 +36,24 @@ async function fixture(t) {
   });
   const requireLogin = (req, res, next) => req.session.studentId
     ? next() : res.status(401).json({ message: 'Authentication required.' });
-  app.use('/api/posts', createPostsRouter(db, requireLogin));
+  app.use('/api/posts', createPostsRouter(db, requireLogin, { uploadDir }));
+  app.use('/uploads/posts', express.static(uploadDir));
   const server = app.listen(0);
   await new Promise(resolve => server.once('listening', resolve));
   t.after(async () => {
     await new Promise(resolve => server.close(resolve));
     client.close();
+    await fs.rm(tempDir, { recursive: true, force: true });
   });
   async function request(method, path = '', body, user = 'owner') {
     const response = await fetch(`http://127.0.0.1:${server.address().port}/api/posts${path}`, {
       method,
-      headers: { 'Content-Type': 'application/json', ...(user ? { 'x-test-user': user } : {}) },
-      body: body === undefined ? undefined : JSON.stringify(body)
+      headers: { ...(body instanceof FormData ? {} : { 'Content-Type': 'application/json' }), ...(user ? { 'x-test-user': user } : {}) },
+      body: body instanceof FormData ? body : body === undefined ? undefined : JSON.stringify(body)
     });
     return { status: response.status, body: await response.json() };
   }
-  return { db, request };
+  return { db, request, uploadDir, baseUrl: `http://127.0.0.1:${server.address().port}` };
 }
 
 test('posts require login; guests and stale accounts cannot mutate', async t => {
@@ -196,4 +203,75 @@ test('schema initialization preserves existing posts and engagement', async t =>
   assert.equal(post.content, 'Keep me');
   assert.equal(post.like_count, 1);
   assert.equal(post.submission_count, 1);
+});
+
+const testPng = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a1S8AAAAASUVORK5CYII=', 'base64');
+function postForm({ content = 'Photo from class', type = 'status', image = null, mime = 'image/png', filename = 'photo.png' } = {}) {
+  const form = new FormData();
+  form.append('content', content);
+  form.append('type', type);
+  if (image) form.append('image', new Blob([image], { type: mime }), filename);
+  return form;
+}
+
+test('multipart text-only posts still work for all post types', async t => {
+  const { request } = await fixture(t);
+  for (const type of ['status', 'notice', 'assignment']) {
+    const response = await request('POST', '', postForm({ type }));
+    assert.equal(response.status, 201);
+    assert.equal(response.body.type, type);
+    assert.equal(response.body.attachment_url, null);
+  }
+});
+
+test('image upload creates a safe URL, serves the bytes and cleans up after deletion', async t => {
+  const { request, uploadDir, baseUrl } = await fixture(t);
+  const response = await request('POST', '', postForm({ image: testPng, filename: '../../unsafe.html', type: 'assignment' }));
+  assert.equal(response.status, 201);
+  assert.match(response.body.attachment_url, /^\/uploads\/posts\/[a-f0-9-]+\.png$/);
+  assert.equal(response.body.user_id, 'owner');
+  const filename = path.basename(response.body.attachment_url);
+  assert.deepEqual(await fs.readFile(path.join(uploadDir, filename)), testPng);
+  const imageResponse = await fetch(baseUrl + response.body.attachment_url);
+  assert.equal(imageResponse.status, 200);
+  assert.match(imageResponse.headers.get('content-type'), /^image\/png/);
+  assert.deepEqual(Buffer.from(await imageResponse.arrayBuffer()), testPng);
+  assert.equal((await request('GET')).body.posts[0].attachment_url, response.body.attachment_url);
+  assert.equal((await request('DELETE', `/${response.body.id}`, undefined, 'other')).status, 403);
+  assert.deepEqual(await fs.readdir(uploadDir), [filename]);
+  assert.equal((await request('DELETE', `/${response.body.id}`)).status, 200);
+  assert.deepEqual(await fs.readdir(uploadDir), []);
+});
+
+test('oversized, non-image, multiple-image and invalid post uploads return JSON errors without leftover files', async t => {
+  const { request, uploadDir, db } = await fixture(t);
+  const cases = [
+    [postForm({ image: Buffer.alloc(5 * 1024 * 1024 + 1) }), 413],
+    [postForm({ image: 'plain text', mime: 'text/plain' }), 400],
+    [postForm({ image: testPng, content: '  ' }), 400],
+    [postForm({ image: testPng, type: 'bad' }), 400]
+  ];
+  const twoImages = postForm({ image: testPng });
+  twoImages.append('image', new Blob([testPng], { type: 'image/png' }), 'second.png');
+  cases.push([twoImages, 400]);
+  for (const [form, status] of cases) {
+    const response = await request('POST', '', form);
+    assert.equal(response.status, status);
+    assert.equal(typeof response.body.message, 'string');
+    assert.deepEqual(await fs.readdir(uploadDir), []);
+  }
+  assert.equal(Number((await db.get('SELECT COUNT(*) AS c FROM posts')).c), 0);
+});
+
+test('upload authentication runs before disk writes and failed inserts remove the image', async t => {
+  const { request, uploadDir, db } = await fixture(t);
+  assert.equal((await request('POST', '', postForm({ image: testPng }), null)).status, 401);
+  assert.equal((await request('POST', '', postForm({ image: testPng }), 'guest')).status, 403);
+  await assert.rejects(fs.stat(uploadDir), { code: 'ENOENT' });
+  const originalRun = db.run;
+  db.run = async () => { throw new Error('Test insert failure'); };
+  const response = await request('POST', '', postForm({ image: testPng }));
+  db.run = originalRun;
+  assert.equal(response.status, 500);
+  assert.deepEqual(await fs.readdir(uploadDir), []);
 });

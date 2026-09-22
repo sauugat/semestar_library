@@ -344,7 +344,15 @@ app.get('/login', (req, res) => {
 });
 
 // Serve static assets securely
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), {
+  setHeaders: (res, filePath) => {
+    // Check the resolved path so encoded URLs cannot bypass protection for uploaded SVGs.
+    const postUploads = path.join(__dirname, 'public', 'uploads', 'posts') + path.sep;
+    if (filePath.startsWith(postUploads)) {
+      res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'; style-src 'unsafe-inline'");
+    }
+  }
+}));
 
 function requireLogin(req, res, next) {
   if (!req.session || !req.session.studentId) {

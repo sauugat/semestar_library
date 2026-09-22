@@ -2,6 +2,7 @@ node_modules/
 .env
 .env.*
 uploads/
+public/uploads/posts/
 database.db
 .DS_Store
 scratch/

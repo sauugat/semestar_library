@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 
 <head>
   <meta charset="UTF-8">
@@ -66,6 +66,90 @@
       --text-tertiary: #999999;
       --input-bg: #ffffff;
       --input-border: rgba(0, 0, 0, 0.15);
+    }
+
+    [data-theme="dark"],
+    html.dark {
+      --bg-base: var(--bg-primary, #0d1117);
+      --bar-bg: var(--bg-secondary, #161b22);
+      --bar-border: var(--border-color, #30363d);
+      --bubble-incoming: var(--bg-secondary, #161b22);
+      --bubble-incoming-border: var(--border-color, #30363d);
+      --bubble-outgoing: var(--bg-tertiary, #21262d);
+      --apple-primary: var(--text-primary, #e6edf3);
+      --text-primary: var(--text-primary, #e6edf3);
+      --text-secondary: var(--text-secondary, #8b949e);
+      --text-tertiary: #6e7681;
+      --input-bg: var(--bg-tertiary, #21262d);
+      --input-border: var(--border-color, #30363d);
+    }
+
+    [data-theme="dark"] .im-row.other .im-bubble,
+    body.dark-mode .im-row.other .im-bubble {
+      background: var(--bg-secondary, #161b22) !important;
+      border: 1px solid var(--border-color, #30363d) !important;
+      color: var(--text-primary, #e6edf3) !important;
+      padding: 8px 12px !important;
+      border-radius: 8px !important;
+    }
+
+    [data-theme="dark"] .im-row.self .im-bubble,
+    body.dark-mode .im-row.self .im-bubble {
+      background: var(--bg-tertiary, #21262d) !important;
+      border: 1px solid var(--border-color, #30363d) !important;
+      color: var(--text-primary, #e6edf3) !important;
+      padding: 8px 12px !important;
+      border-radius: 8px !important;
+    }
+
+    [data-theme="dark"] .im-row .im-bubble a,
+    body.dark-mode .im-row .im-bubble a,
+    [data-theme="dark"] .im-row .im-bubble .link-highlight,
+    body.dark-mode .im-row .im-bubble .link-highlight {
+      color: var(--accent, #3b82f6) !important;
+    }
+
+    [data-theme="dark"] .im-msg-avatar,
+    body.dark-mode .im-msg-avatar {
+      background: var(--bg-tertiary, #21262d) !important;
+      color: var(--text-primary, #e6edf3) !important;
+      border: 1px solid var(--border-color, #30363d) !important;
+    }
+
+    [data-theme="dark"] .im-input-capsule:focus-within,
+    body.dark-mode .im-input-capsule:focus-within {
+      border-color: var(--accent, #3b82f6) !important;
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35) !important;
+    }
+
+    [data-theme="dark"] .im-send-btn.ready,
+    body.dark-mode .im-send-btn.ready {
+      background: var(--accent, #3b82f6) !important;
+      color: #ffffff !important;
+    }
+
+    [data-theme="dark"] .im-plus-upload-btn,
+    body.dark-mode .im-plus-upload-btn {
+      background: var(--bg-tertiary, #21262d) !important;
+      color: var(--text-secondary, #8b949e) !important;
+    }
+
+    [data-theme="dark"] .im-attachment-chip,
+    body.dark-mode .im-attachment-chip {
+      background: var(--bg-tertiary, #21262d) !important;
+      border-color: var(--border-color, #30363d) !important;
+      color: var(--text-primary, #e6edf3) !important;
+    }
+
+    [data-theme="dark"] .im-chip-name,
+    body.dark-mode .im-chip-name {
+      color: var(--text-primary, #e6edf3) !important;
+    }
+
+    [data-theme="dark"] .im-media-box,
+    body.dark-mode .im-media-box {
+      background: var(--bg-tertiary, #21262d) !important;
+      border-color: var(--border-color, #30363d) !important;
     }
 
     html,

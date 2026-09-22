@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 
 <head>
   <meta charset="UTF-8">
@@ -279,141 +279,150 @@
     /* Dark Theme Overrides for Dashboard Local Styles */
     [data-theme="dark"] .assignment-post-card,
     body.dark-mode .assignment-post-card {
-      background: #000000 !important;
-      border: 1.5px solid rgba(255, 255, 255, 0.35) !important;
-      color: #ffffff !important;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.85) !important;
+      background: var(--bg-secondary) !important;
+      border: 1px solid var(--border-color) !important;
+      border-radius: 8px !important;
+      color: var(--text-primary) !important;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
     }
 
     [data-theme="dark"] .assignment-post-card:hover,
     body.dark-mode .assignment-post-card:hover {
-      border-color: #ffffff !important;
-      box-shadow: 0 10px 32px rgba(0, 0, 0, 0.95), 0 0 0 1px #ffffff !important;
+      border-color: #444c56 !important;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45) !important;
     }
 
     [data-theme="dark"] .post-avatar.assignment-avatar,
     body.dark-mode .post-avatar.assignment-avatar {
-      background: #ffffff !important;
-      color: #000000 !important;
-      border: 1.5px solid #ffffff !important;
+      background: var(--accent) !important;
+      color: #ffffff !important;
+      border: 1px solid var(--border-color) !important;
     }
 
     [data-theme="dark"] .assignment-header-badge,
     body.dark-mode .assignment-header-badge {
-      background: #111111 !important;
-      color: #ffffff !important;
-      border: 1px solid rgba(255, 255, 255, 0.3) !important;
+      background: var(--bg-tertiary) !important;
+      color: var(--text-secondary) !important;
+      border: 1px solid var(--border-color) !important;
+      border-radius: 6px !important;
     }
 
     [data-theme="dark"] .assignment-header-badge svg,
     body.dark-mode .assignment-header-badge svg {
-      color: #ffffff !important;
-      stroke: #ffffff !important;
+      color: var(--text-secondary) !important;
+      stroke: var(--text-secondary) !important;
     }
 
     [data-theme="dark"] .post-attachment-card,
     body.dark-mode .post-attachment-card {
-      background: #000000 !important;
-      background-color: #000000 !important;
-      border: 1.5px solid rgba(255, 255, 255, 0.35) !important;
-      color: #ffffff !important;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.8) !important;
+      background: var(--bg-tertiary) !important;
+      background-color: var(--bg-tertiary) !important;
+      border: 1px solid var(--border-color) !important;
+      border-radius: 6px !important;
+      color: var(--text-primary) !important;
+      box-shadow: none !important;
     }
 
     [data-theme="dark"] .post-attachment-card:hover,
     body.dark-mode .post-attachment-card:hover {
-      border-color: #ffffff !important;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.95), 0 0 0 1px #ffffff !important;
+      border-color: #444c56 !important;
     }
 
     [data-theme="dark"] .attachment-name,
     body.dark-mode .attachment-name {
-      color: #ffffff !important;
+      color: var(--text-primary) !important;
     }
 
     [data-theme="dark"] .attachment-meta,
     body.dark-mode .attachment-meta {
-      background: #111111 !important;
-      color: #d1d5db !important;
-      border: 1px solid rgba(255, 255, 255, 0.25) !important;
+      background: var(--bg-secondary) !important;
+      color: var(--text-secondary) !important;
+      border: 1px solid var(--border-color) !important;
+      border-radius: 4px !important;
     }
 
     [data-theme="dark"] .attachment-file-badge,
     body.dark-mode .attachment-file-badge {
-      background: #ffffff !important;
-      color: #000000 !important;
-      border: 1px solid #ffffff !important;
+      background: var(--bg-secondary) !important;
+      color: var(--text-primary) !important;
+      border: 1px solid var(--border-color) !important;
+      border-radius: 4px !important;
     }
 
     [data-theme="dark"] .attach-action-btn.attach-btn-view,
     body.dark-mode .attach-action-btn.attach-btn-view {
-      background: #000000 !important;
-      color: #ffffff !important;
-      border: 1.5px solid rgba(255, 255, 255, 0.35) !important;
+      background: var(--bg-secondary) !important;
+      color: var(--text-primary) !important;
+      border: 1px solid var(--border-color) !important;
+      border-radius: 6px !important;
     }
 
     [data-theme="dark"] .attach-action-btn.attach-btn-view:hover,
     body.dark-mode .attach-action-btn.attach-btn-view:hover {
-      background: #ffffff !important;
-      color: #000000 !important;
-      border-color: #ffffff !important;
+      background: #2d333b !important;
+      border-color: #444c56 !important;
     }
 
     [data-theme="dark"] .attach-action-btn.attach-btn-download,
     body.dark-mode .attach-action-btn.attach-btn-download {
-      background: #ffffff !important;
-      color: #000000 !important;
-      border: 1.5px solid #ffffff !important;
+      background: var(--accent) !important;
+      color: #ffffff !important;
+      border: 1px solid var(--accent) !important;
+      border-radius: 6px !important;
     }
 
     [data-theme="dark"] .attach-action-btn.attach-btn-download:hover,
     body.dark-mode .attach-action-btn.attach-btn-download:hover {
-      background: #e4e4e7 !important;
-      color: #000000 !important;
+      background: #2563eb !important;
     }
 
     [data-theme="dark"] .post-action-btn.status-btn.submitted,
     body.dark-mode .post-action-btn.status-btn.submitted {
-      background: #ffffff !important;
-      color: #000000 !important;
-      border: 1.5px solid #ffffff !important;
+      background: var(--bg-tertiary) !important;
+      color: var(--success) !important;
+      border: 1px solid var(--success) !important;
+      border-radius: 6px !important;
     }
 
     [data-theme="dark"] .post-action-btn.status-btn.not-submitted,
     body.dark-mode .post-action-btn.status-btn.not-submitted {
-      background: #000000 !important;
-      color: #f87171 !important;
-      border: 1.5px solid rgba(248, 113, 113, 0.6) !important;
+      background: var(--bg-tertiary) !important;
+      color: var(--danger) !important;
+      border: 1px solid var(--danger) !important;
+      border-radius: 6px !important;
     }
 
     [data-theme="dark"] .post-action-btn.status-btn.partial,
     body.dark-mode .post-action-btn.status-btn.partial {
-      background: #000000 !important;
-      color: #fbbf24 !important;
-      border: 1.5px solid rgba(251, 191, 36, 0.6) !important;
+      background: var(--bg-tertiary) !important;
+      color: var(--warning) !important;
+      border: 1px solid var(--warning) !important;
+      border-radius: 6px !important;
     }
 
     [data-theme="dark"] .skeleton-box,
     body.dark-mode .skeleton-box {
-      background: linear-gradient(90deg, #18181b 25%, #27272a 37%, #18181b 63%) !important;
+      background: linear-gradient(90deg, #161b22 25%, #21262d 37%, #161b22 63%) !important;
     }
 
     [data-theme="dark"] .skeleton-card,
     body.dark-mode .skeleton-card {
-      background: #000000 !important;
-      border: 1.5px solid rgba(255, 255, 255, 0.22) !important;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8) !important;
+      background: var(--bg-secondary) !important;
+      border: 1px solid var(--border-color) !important;
+      border-radius: 8px !important;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
     }
 
     [data-theme="dark"] .skeleton-attachment,
     body.dark-mode .skeleton-attachment {
-      background: #09090b !important;
-      border: 1.5px solid rgba(255, 255, 255, 0.22) !important;
+      background: var(--bg-tertiary) !important;
+      border: 1px solid var(--border-color) !important;
+      border-radius: 6px !important;
     }
 
     [data-theme="dark"] .skeleton-footer,
     body.dark-mode .skeleton-footer {
-      border-top-color: rgba(255, 255, 255, 0.22) !important;
+      border-top-color: var(--border-color) !important;
     }
   </style>
 </head>

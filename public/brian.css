@@ -534,4 +534,42 @@
   z-index: -5;
 }
 
+/* Dark Mode Theme overrides for Brian Cartoon Illustration */
+[data-theme="dark"] .brian-wrapper .brian .head,
+body.dark-mode .brian-wrapper .brian .head,
+[data-theme="dark"] .brian-wrapper .brian .head .ear-hide,
+body.dark-mode .brian-wrapper .brian .head .ear-hide,
+[data-theme="dark"] .brian-wrapper .brian .head .ear,
+body.dark-mode .brian-wrapper .brian .head .ear,
+[data-theme="dark"] .brian-wrapper .brian .head .eye-hide,
+body.dark-mode .brian-wrapper .brian .head .eye-hide,
+[data-theme="dark"] .brian-wrapper .brian .head .snout,
+body.dark-mode .brian-wrapper .brian .head .snout,
+[data-theme="dark"] .brian-wrapper .brian .body,
+body.dark-mode .brian-wrapper .brian .body,
+[data-theme="dark"] .brian-wrapper .brian .arm,
+body.dark-mode .brian-wrapper .brian .arm,
+[data-theme="dark"] .brian-wrapper .brian .foot,
+body.dark-mode .brian-wrapper .brian .foot {
+  background: var(--bg-secondary, #161b22) !important;
+  border-color: var(--border-color, #30363d) !important;
+}
+
+[data-theme="dark"] .brian-wrapper .brian .head:after,
+body.dark-mode .brian-wrapper .brian .head:after,
+[data-theme="dark"] .brian-wrapper .brian .head .ear:after,
+body.dark-mode .brian-wrapper .brian .head .ear:after,
+[data-theme="dark"] .brian-wrapper .brian .foot:after,
+body.dark-mode .brian-wrapper .brian .foot:after {
+  box-shadow: none !important;
+}
+
+[data-theme="dark"] .brian-wrapper .brian .head .ear.right:before,
+body.dark-mode .brian-wrapper .brian .head .ear.right:before,
+[data-theme="dark"] .brian-wrapper .brian .foot span,
+body.dark-mode .brian-wrapper .brian .foot span {
+  border-left-color: var(--border-color, #30363d) !important;
+}
+
 /*# sourceMappingURL=brian.css.map */
+

@@ -244,6 +244,66 @@ body.dark-mode {
   outline-offset: 2px;
 }
 
+.create-post-header-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  border-radius: 980px;
+  border: 1px solid var(--ap-border);
+  background: var(--ap-surface-translucent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  color: var(--ap-text-primary);
+  cursor: pointer;
+  padding: 0;
+  margin: 0 4px 0 0;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s var(--ap-spring), color 0.2s ease;
+  box-shadow: var(--ap-shadow-xs);
+  position: relative;
+  overflow: hidden;
+  user-select: none;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+.create-post-header-btn:hover {
+  background: var(--ap-surface-hover);
+  border-color: var(--ceramic-border-hover);
+  color: var(--accent-color, #0071e3);
+  transform: scale(1.05);
+}
+
+.create-post-header-btn:active {
+  transform: scale(0.95);
+}
+
+.create-post-header-btn:focus-visible {
+  outline: 2px solid var(--ap-border-focus);
+  outline-offset: 2px;
+}
+
+[data-theme="dark"] .create-post-header-btn,
+body.dark-mode .create-post-header-btn {
+  background: var(--ap-surface-translucent);
+  border-color: var(--ap-border);
+  color: var(--ap-text-primary);
+}
+
+[data-theme="dark"] .create-post-header-btn:hover,
+body.dark-mode .create-post-header-btn:hover {
+  background: var(--ap-surface-hover);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: var(--accent-color, #2997ff);
+}
+
+.create-post-header-btn svg {
+  pointer-events: none;
+}
+
 .theme-toggle-track {
   display: inline-flex;
   align-items: center;
@@ -6138,6 +6198,211 @@ body.dash .dash-id::before {
   display: none;
 }
 
+/* Create Post Modal Dialog */
+.post-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 16px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.22s ease;
+}
+
+.post-modal-overlay:not([hidden]).open {
+  opacity: 1;
+  visibility: visible;
+}
+
+.post-modal-overlay[hidden] {
+  display: none !important;
+}
+
+.post-modal-card {
+  background: var(--ap-surface, #ffffff);
+  border: 1px solid var(--border-color, rgba(0, 0, 0, 0.12));
+  border-radius: 20px;
+  width: 100%;
+  max-width: 520px;
+  padding: 24px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.24);
+  transform: scale(0.96) translateY(8px);
+  transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.post-modal-overlay.open .post-modal-card {
+  transform: scale(1) translateY(0);
+}
+
+[data-theme="dark"] .post-modal-overlay,
+body.dark-mode .post-modal-overlay {
+  background: rgba(0, 0, 0, 0.65);
+}
+
+[data-theme="dark"] .post-modal-card,
+body.dark-mode .post-modal-card {
+  background: var(--bg-surface, #1c1c1e);
+  border-color: var(--border-color, rgba(255, 255, 255, 0.12));
+  color: var(--text-primary, #f5f5f7);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.7);
+}
+
+.post-modal-card .modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+}
+
+.post-modal-card .modal-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.post-modal-card .modal-subtitle {
+  font-size: 13px;
+  color: var(--text-secondary, #86868b);
+  margin: 4px 0 0;
+}
+
+.post-modal-card .modal-close {
+  background: transparent;
+  border: none;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--text-secondary, #86868b);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.post-modal-card .modal-close:hover {
+  color: var(--text-primary);
+  background: var(--ap-surface-hover, rgba(0, 0, 0, 0.05));
+}
+
+.modal-post-composer {
+  display: flex;
+  flex-direction: column;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  transform: none !important;
+  animation: none !important;
+}
+
+.modal-post-composer textarea {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--bg-secondary, #f5f5f7);
+  border: 1px solid var(--border-color, #e5e5ea);
+  border-radius: 12px;
+  color: var(--text-primary, #1d1d1f);
+  font: inherit;
+  font-size: 14.5px;
+  line-height: 1.5;
+  padding: 12px 14px;
+  resize: vertical;
+  min-height: 110px;
+  margin: 0 0 12px 0;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.modal-post-composer textarea:focus {
+  border-color: var(--accent-color, #0071e3);
+  box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.15);
+}
+
+.modal-post-composer .post-composer-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.modal-post-composer .post-type-selector-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-post-composer .post-type-selector-wrap label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.modal-post-composer select#postType {
+  background: var(--bg-secondary, #f5f5f7);
+  color: var(--text-primary, #1d1d1f);
+  border: 1px solid var(--border-color, #e5e5ea);
+  border-radius: 10px;
+  padding: 7px 12px;
+  font-size: 13.5px;
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+}
+
+.modal-post-composer .post-composer-actions button#publishPost {
+  margin-left: auto;
+  background: var(--accent-color, #0071e3);
+  color: #ffffff;
+  border: none;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 8px 20px;
+  border-radius: 980px;
+  cursor: pointer;
+  transition: transform 0.15s ease, opacity 0.15s ease, background 0.15s ease;
+}
+
+.modal-post-composer .post-composer-actions button#publishPost:hover {
+  background: var(--accent-hover, #0077ed);
+  transform: scale(1.02);
+}
+
+.modal-post-composer .post-composer-actions button#choosePostImage {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border-color, #e5e5ea);
+  background: var(--bg-secondary, #f5f5f7);
+  color: var(--text-primary, #1d1d1f);
+  cursor: pointer;
+  margin-left: 0;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.modal-post-composer .post-composer-actions button#choosePostImage:hover {
+  border-color: var(--accent-color, #0071e3);
+  color: var(--accent-color, #0071e3);
+}
+
 .feed-heading {
   margin: 38px 0 0;
   padding: 0 6vw 16px;
@@ -6449,6 +6714,31 @@ body.dark-mode .fb-card:hover {
 .post-expand-btn:hover {
   color: var(--text-primary, #1d1d1f);
   text-decoration: underline;
+}
+
+.post-main,
+.post-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.post-image {
+  margin-top: 8px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--border-color, #e5e5ea);
+  display: inline-block;
+  max-width: 100%;
+}
+
+.post-image img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 500px;
+  object-fit: contain;
+  cursor: pointer;
 }
 
 .post-title {

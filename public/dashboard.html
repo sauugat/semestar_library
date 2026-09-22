@@ -556,25 +556,46 @@
       stroke: currentColor !important;
     }
 
-    .post-image {
-      /* The unpadded text column already fills the available width beside the avatar. */
-      box-sizing: border-box;
-      width: 100%;
+    .feed,
+    .feed-container {
+      padding-bottom: 90px !important;
+    }
+
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      z-index: 50;
+      background: var(--bg-primary) !important;
+    }
+
+    body.dark-mode .bottom-nav,
+    [data-theme="dark"] .bottom-nav {
+      background: var(--bg-primary) !important;
+    }
+
+    .post-main,
+    .post-body {
+      flex: 1;
       min-width: 0;
+    }
+
+    .post-image {
       margin-top: 8px;
       border-radius: 16px;
       overflow: hidden;
       border: 1px solid var(--border-color);
+      display: inline-block;
+      max-width: 100%;
     }
 
     .post-image img {
-      width: 100%;
-      height: auto;
       display: block;
+      width: auto;
+      height: auto;
+      max-width: 100%;
       max-height: 500px;
-      /* Like contain, but never enlarge a small source image. */
-      object-fit: scale-down;
-      background: var(--bg-secondary);
+      object-fit: contain;
+      cursor: pointer;
     }
 
     .post-card .post-image img {
@@ -651,6 +672,272 @@
     .post-composer-actions .post-photo-button {
       margin-left: 0;
     }
+
+    /* Header Create Post (+) Button */
+    .create-post-header-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      min-width: 36px;
+      min-height: 36px;
+      border-radius: 980px;
+      border: 1px solid var(--ap-border, rgba(0, 0, 0, 0.12));
+      background: var(--ap-surface-translucent, rgba(255, 255, 255, 0.72));
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      color: var(--ap-text-primary, #1d1d1f);
+      cursor: pointer;
+      padding: 0;
+      margin: 0 4px 0 0;
+      transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s var(--ap-spring), color 0.2s ease;
+      box-shadow: var(--ap-shadow-xs, 0 1px 2px rgba(0, 0, 0, 0.04));
+      position: relative;
+      overflow: hidden;
+      user-select: none;
+      flex-shrink: 0;
+      vertical-align: middle;
+    }
+
+    .create-post-header-btn:hover {
+      background: var(--ap-surface-hover, rgba(0, 0, 0, 0.05));
+      border-color: var(--ceramic-border-hover, rgba(0, 0, 0, 0.25));
+      color: var(--accent-color, #0071e3);
+      transform: scale(1.05);
+    }
+
+    .create-post-header-btn:active {
+      transform: scale(0.95);
+    }
+
+    .create-post-header-btn:focus-visible {
+      outline: 2px solid var(--ap-border-focus, #0071e3);
+      outline-offset: 2px;
+    }
+
+    [data-theme="dark"] .create-post-header-btn,
+    body.dark-mode .create-post-header-btn {
+      background: var(--ap-surface-translucent, rgba(255, 255, 255, 0.08));
+      border-color: var(--ap-border, rgba(255, 255, 255, 0.14));
+      color: var(--ap-text-primary, #f5f5f7);
+    }
+
+    [data-theme="dark"] .create-post-header-btn:hover,
+    body.dark-mode .create-post-header-btn:hover {
+      background: var(--ap-surface-hover, rgba(255, 255, 255, 0.14));
+      border-color: rgba(255, 255, 255, 0.25);
+      color: var(--accent-color, #2997ff);
+    }
+
+    .create-post-header-btn svg {
+      pointer-events: none;
+    }
+
+    /* Create Post Modal Dialog */
+    .post-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+      padding: 16px;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.22s ease;
+    }
+
+    .post-modal-overlay:not([hidden]).open {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .post-modal-overlay[hidden] {
+      display: none !important;
+    }
+
+    .post-modal-card {
+      background: var(--ap-surface, #ffffff);
+      border: 1px solid var(--border-color, rgba(0, 0, 0, 0.12));
+      border-radius: 20px;
+      width: 100%;
+      max-width: 520px;
+      padding: 24px;
+      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.24);
+      transform: scale(0.96) translateY(8px);
+      transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .post-modal-overlay.open .post-modal-card {
+      transform: scale(1) translateY(0);
+    }
+
+    [data-theme="dark"] .post-modal-overlay,
+    body.dark-mode .post-modal-overlay {
+      background: rgba(0, 0, 0, 0.65);
+    }
+
+    [data-theme="dark"] .post-modal-card,
+    body.dark-mode .post-modal-card {
+      background: var(--bg-surface, #1c1c1e);
+      border-color: var(--border-color, rgba(255, 255, 255, 0.12));
+      color: var(--text-primary, #f5f5f7);
+      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.7);
+    }
+
+    .post-modal-card .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+    }
+
+    .post-modal-card .modal-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .post-modal-card .modal-subtitle {
+      font-size: 13px;
+      color: var(--text-secondary, #86868b);
+      margin: 4px 0 0;
+    }
+
+    .post-modal-card .modal-close {
+      background: transparent;
+      border: none;
+      font-size: 22px;
+      line-height: 1;
+      color: var(--text-secondary, #86868b);
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 8px;
+      transition: color 0.15s ease, background 0.15s ease;
+    }
+
+    .post-modal-card .modal-close:hover {
+      color: var(--text-primary);
+      background: var(--ap-surface-hover, rgba(0, 0, 0, 0.05));
+    }
+
+    .modal-post-composer {
+      display: flex;
+      flex-direction: column;
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+      padding: 0 !important;
+      transform: none !important;
+      animation: none !important;
+    }
+
+    .modal-post-composer textarea {
+      width: 100%;
+      box-sizing: border-box;
+      background: var(--bg-secondary, #f5f5f7);
+      border: 1px solid var(--border-color, #e5e5ea);
+      border-radius: 12px;
+      color: var(--text-primary, #1d1d1f);
+      font: inherit;
+      font-size: 14.5px;
+      line-height: 1.5;
+      padding: 12px 14px;
+      resize: vertical;
+      min-height: 110px;
+      margin: 0 0 12px 0;
+      outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .modal-post-composer textarea:focus {
+      border-color: var(--accent-color, #0071e3);
+      box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.15);
+    }
+
+    .modal-post-composer .post-composer-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 6px;
+    }
+
+    .modal-post-composer .post-type-selector-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .modal-post-composer .post-type-selector-wrap label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .modal-post-composer select#postType {
+      background: var(--bg-secondary, #f5f5f7);
+      color: var(--text-primary, #1d1d1f);
+      border: 1px solid var(--border-color, #e5e5ea);
+      border-radius: 10px;
+      padding: 7px 12px;
+      font-size: 13.5px;
+      font-family: inherit;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .modal-post-composer .post-composer-actions button#publishPost {
+      margin-left: auto;
+      background: var(--accent-color, #0071e3);
+      color: #ffffff;
+      border: none;
+      font-weight: 600;
+      font-size: 14px;
+      padding: 8px 20px;
+      border-radius: 980px;
+      cursor: pointer;
+      transition: transform 0.15s ease, opacity 0.15s ease, background 0.15s ease;
+    }
+
+    .modal-post-composer .post-composer-actions button#publishPost:hover {
+      background: var(--accent-hover, #0077ed);
+      transform: scale(1.02);
+    }
+
+    .modal-post-composer .post-composer-actions button#choosePostImage {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      padding: 0;
+      border-radius: 50%;
+      border: 1px solid var(--border-color, #e5e5ea);
+      background: var(--bg-secondary, #f5f5f7);
+      color: var(--text-primary, #1d1d1f);
+      cursor: pointer;
+      margin-left: 0;
+      transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    }
+
+    .modal-post-composer .post-composer-actions button#choosePostImage:hover {
+      border-color: var(--accent-color, #0071e3);
+      color: var(--accent-color, #0071e3);
+    }
   </style>
 </head>
 
@@ -688,6 +975,12 @@
       </div>
     </div>
     <div class="dash-header-actions">
+      <button type="button" class="create-post-header-btn" id="openPostModalBtn" aria-label="Create Post" title="Create a post">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+      </button>
       <button type="button" class="theme-toggle-btn dash-theme-btn" id="themeToggleBtn" aria-label="Toggle theme" title="Toggle theme">
         <span class="theme-toggle-track">
           <svg class="theme-icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -725,31 +1018,6 @@
         <p class="dash-id" id="idLine"></p>
       </div>
     </div>
-  </section>
-
-  <section class="post-composer-wrap" id="postComposerSection" aria-label="Create a post">
-    <form id="postComposer" class="social-post-card post-composer">
-      <label for="postContent">Share with your class</label>
-      <textarea id="postContent" name="content" rows="3" maxlength="5000" required placeholder="What's on your mind?"></textarea>
-      <input type="file" id="postImageInput" name="image" accept="image/*" hidden>
-      <div id="postImagePreview" class="post-image post-image-preview" hidden>
-        <img id="postImagePreviewImg" alt="Selected image preview">
-        <button type="button" id="removePostImage" class="post-image-remove" aria-label="Remove selected image" title="Remove image">✕</button>
-      </div>
-      <div class="post-composer-actions">
-        <button type="button" id="choosePostImage" class="post-action-btn post-photo-button" aria-label="Add photo" title="Add photo (up to 5 MB)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
-        </button>
-        <label for="postType">Post type</label>
-        <select id="postType" name="type">
-          <option value="status">Status</option>
-          <option value="assignment">Assignment</option>
-          <option value="notice">Notice</option>
-        </select>
-        <button type="submit" id="publishPost" class="post-action-btn">Post</button>
-      </div>
-      <p id="postComposerMessage" class="post-feedback" role="status" aria-live="polite"></p>
-    </form>
   </section>
 
   <div class="feed-heading">
@@ -907,7 +1175,49 @@
     </a>
   </nav>
 
+  <!-- Create Post Modal Dialog -->
+  <div class="modal-overlay post-modal-overlay" id="postModalOverlay" role="dialog" aria-modal="true" aria-labelledby="postModalTitle" hidden>
+    <div class="modal-card post-modal-card">
+      <div class="modal-header">
+        <div class="modal-header-left">
+          <h2 class="modal-title" id="postModalTitle">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 20h9"></path>
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+            </svg>
+            Create Post
+          </h2>
+          <p class="modal-subtitle">Share an update, assignment, or notice with your class</p>
+        </div>
+        <button type="button" class="modal-close" id="closePostModalBtn" aria-label="Close dialog" title="Close">&times;</button>
+      </div>
 
+      <form id="postComposer" class="post-composer modal-post-composer">
+        <label for="postContent" class="sr-only">Share with your class</label>
+        <textarea id="postContent" name="content" rows="4" maxlength="5000" required placeholder="What's on your mind?"></textarea>
+        <input type="file" id="postImageInput" name="image" accept="image/*" hidden>
+        <div id="postImagePreview" class="post-image post-image-preview" hidden>
+          <img id="postImagePreviewImg" alt="Selected image preview">
+          <button type="button" id="removePostImage" class="post-image-remove" aria-label="Remove selected image" title="Remove image">✕</button>
+        </div>
+        <div class="post-composer-actions">
+          <button type="button" id="choosePostImage" class="post-action-btn post-photo-button" aria-label="Add photo" title="Add photo (up to 5 MB)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+          </button>
+          <div class="post-type-selector-wrap">
+            <label for="postType">Post type</label>
+            <select id="postType" name="type">
+              <option value="status">Status</option>
+              <option value="assignment">Assignment</option>
+              <option value="notice">Notice</option>
+            </select>
+          </div>
+          <button type="submit" id="publishPost" class="post-action-btn">Post</button>
+        </div>
+        <p id="postComposerMessage" class="post-feedback" role="status" aria-live="polite"></p>
+      </form>
+    </div>
+  </div>
 
   <script>
     function getGreeting() {
@@ -1643,7 +1953,7 @@
       return `
         <article class="feed-card social-post-card post-card status-post-card${noticeClass}" data-post-id="${post.id}">
           <a href="${profileUrl}" class="post-avatar" aria-label="View ${escapeHtml(post.name)}'s profile">${avatar}</a>
-          <div class="post-main">
+          <div class="post-main post-body">
             <header class="post-header">
               <div class="post-user-info">
                 <div class="post-author-row">
@@ -1670,7 +1980,7 @@
                 </div>
               `}
             </div>
-            ${attachmentUrl ? `<div class="post-image"><img src="${attachmentUrl}" alt="Image attached by ${escapeHtml(post.name)}" loading="lazy" decoding="async" tabindex="0" role="button" aria-label="Open full image" aria-haspopup="dialog" onload="this.style.maxHeight = Math.min(500, this.naturalHeight) + 'px';" onerror="this.hidden = true; this.nextElementSibling.hidden = false;"><a class="status-post-attachment" href="${attachmentUrl}" target="_blank" rel="noopener noreferrer" hidden>View attachment ↗</a></div>` : ''}
+            ${attachmentUrl ? `<div class="post-image"><img src="${attachmentUrl}" alt="Image attached by ${escapeHtml(post.name)}" loading="lazy" decoding="async" tabindex="0" role="button" aria-label="Open full image" aria-haspopup="dialog" onerror="this.hidden = true; this.nextElementSibling.hidden = false;"><a class="status-post-attachment" href="${attachmentUrl}" target="_blank" rel="noopener noreferrer" hidden>View attachment ↗</a></div>` : ''}
             <footer class="post-actions">
               <button type="button" class="action-btn like-btn ${post.liked_by_me ? 'liked' : ''}" data-liked="${post.liked_by_me}" aria-pressed="${post.liked_by_me}" aria-label="${post.liked_by_me ? 'Unlike' : 'Like'} post" onclick="toggleStatusLike(${post.id}, this)">
                 <svg viewBox="0 0 24 24" fill="${post.liked_by_me ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -1789,6 +2099,61 @@
       }
     });
 
+    // --- Create Post Modal Dialog Controls ---
+    const postModalOverlay = document.getElementById('postModalOverlay');
+    const openPostModalBtn = document.getElementById('openPostModalBtn');
+    const closePostModalBtn = document.getElementById('closePostModalBtn');
+
+    function openPostModal() {
+      const modal = document.getElementById('postModalOverlay') || postModalOverlay;
+      if (!modal) return;
+      const message = document.getElementById('postComposerMessage');
+      if (message) message.textContent = '';
+      modal.removeAttribute('hidden');
+      modal.hidden = false;
+      modal.classList.add('open');
+      document.body.style.overflow = 'hidden';
+      const contentEl = document.getElementById('postContent');
+      if (contentEl) setTimeout(() => contentEl.focus(), 60);
+    }
+
+    function closePostModal() {
+      const modal = document.getElementById('postModalOverlay') || postModalOverlay;
+      if (!modal) return;
+      modal.classList.remove('open');
+      modal.setAttribute('hidden', '');
+      modal.hidden = true;
+      document.body.style.overflow = '';
+      const openBtn = document.getElementById('openPostModalBtn') || openPostModalBtn;
+      if (openBtn) openBtn.focus();
+    }
+
+    if (openPostModalBtn) {
+      openPostModalBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        openPostModal();
+      });
+    }
+    if (closePostModalBtn) {
+      closePostModalBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        closePostModal();
+      });
+    }
+    if (postModalOverlay) {
+      postModalOverlay.addEventListener('click', (event) => {
+        if (event.target === postModalOverlay) closePostModal();
+      });
+    }
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        const modal = document.getElementById('postModalOverlay') || postModalOverlay;
+        if (modal && !modal.hidden && modal.classList.contains('open')) {
+          closePostModal();
+        }
+      }
+    });
+
     const postImageInput = document.getElementById('postImageInput');
     const postImagePreview = document.getElementById('postImagePreview');
     const postImagePreviewImg = document.getElementById('postImagePreviewImg');
@@ -1856,6 +2221,8 @@
         content.value = '';
         clearPostImage();
         message.textContent = 'Post shared with your class.';
+        if (typeof showToast === 'function') showToast('Post shared with your class.');
+        if (typeof closePostModal === 'function') closePostModal();
       } catch (err) {
         message.textContent = err.message || 'Could not publish your post. Please try again.';
       } finally {
@@ -2186,7 +2553,8 @@
           searchResults.style.display = 'none';
           dashHero.style.display = 'flex'; // .dash-hero is flex
           feedHeading.style.display = 'flex';
-          document.getElementById('postComposerSection').hidden = false;
+          const composerSec = document.getElementById('postComposerSection');
+          if (composerSec) composerSec.hidden = false;
           document.getElementById('postPagination').hidden = false;
           realFiles.style.display = 'block';
           if (demoNotes) demoNotes.style.display = 'block';
@@ -2201,7 +2569,8 @@
 
             dashHero.style.display = 'none';
             feedHeading.style.display = 'none';
-            document.getElementById('postComposerSection').hidden = true;
+            const composerSec = document.getElementById('postComposerSection');
+            if (composerSec) composerSec.hidden = true;
             document.getElementById('postPagination').hidden = true;
             realFiles.style.display = 'none';
             if (demoNotes) demoNotes.style.display = 'none';
@@ -2301,6 +2670,7 @@
     </svg>
     <span>Login required to access this page. <a href="login.html">Sign In</a></span>
   </div>
+
   <div id="imageLightbox" class="lightbox hidden" role="dialog" aria-modal="true" aria-label="Full image" tabindex="-1">
     <button type="button" class="lightbox-close" aria-label="Close full image">&times;</button>
     <img id="lightboxImg" alt="">

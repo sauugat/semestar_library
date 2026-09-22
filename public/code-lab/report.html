@@ -574,9 +574,15 @@
                 padding: 0;
             }
 
-            .deadline-badge {
+            .deadline-badge, table tr, canvas {
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
+            }
+
+            /* Ensure page breaks work cleanly */
+            .report-cover-wrapper, .marksheet-page, .question-section {
+                page-break-after: always;
+                break-after: always;
             }
         }
     </style>
@@ -772,6 +778,14 @@
                             bCheck.style.background = allChecked ? '#dcfce7' : '#f3f4f6';
                             bCheck.style.color = allChecked ? '#15803d' : '#4b5563';
                         }
+                        // Sync marks in marksheet row for student view
+                        document.querySelectorAll('.q-eval-marks').forEach(inp => {
+                            const qid = inp.dataset.qid;
+                            const scEl = document.querySelector(`#scMarks_${qid}`);
+                            if (scEl && inp.value.trim() !== '') {
+                                scEl.innerHTML = `${inp.value} / ${inp.dataset.max}`;
+                            }
+                        });
                     };
 
                     ReportGenerator.syncScorecard(reportEl);

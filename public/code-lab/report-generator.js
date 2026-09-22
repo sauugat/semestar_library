@@ -1,6 +1,12 @@
 /**
  * report-generator.js — Shared Report Data Fetching & DOM Rendering for Code Lab
  * Used by both report.html (single report) and submissions.html (bulk ZIP export).
+ *
+ * Report Structure:
+ *   Page 1 — Cover page (assignment name, sem, subject, teacher, student, submitted date)
+ *   Page 2 — Marksheet table (Title | Status | Marks | Remarks)
+ *   Page 3+ — Per-question: question → code → result → stats → suspicious graph
+ *   Last   — Event timeline + total code time
  */
 
 (function () {
@@ -36,6 +42,20 @@
         dateStyle: 'medium',
         timeStyle: 'short'
       }) + ' NPT';
+    } catch (e) {
+      return String(iso);
+    }
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    try {
+      return new Date(iso).toLocaleDateString('en-US', {
+        timeZone: 'Asia/Kathmandu',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
     } catch (e) {
       return String(iso);
     }
@@ -159,6 +179,60 @@
     (events || []).forEach(e => { counts[e.eventType] = (counts[e.eventType] || 0) + 1; });
 
     return { sorted, totalSpanMs, hiddenMs, idleMs, activeMs, sessionCount, counts };
+  }
+
+  // Compute a suspicious level for a question based on multiple signals
+  function computeSuspiciousLevel(qStats, qEvents) {
+    const reasons = [];
+    let score = 0;
+
+    const pasteCount = qStats.counts.paste_attempt || 0;
+    const largeChanges = qStats.counts.large_change || 0;
+    const tabChanges = qStats.counts.tab_hidden || 0;
+    const aiUsed = qStats.counts.ai_explain_used || 0;
+    const runs = qStats.counts.run_clicked || 0;
+    const activeMs = qStats.activeMs || 0;
+
+    // Paste attempts
+    if (pasteCount >= 3) { score += 3; reasons.push(`${pasteCount} paste attempts (high)`); }
+    else if (pasteCount >= 1) { score += 1.5; reasons.push(`${pasteCount} paste attempt(s)`); }
+
+    // Large text jumps (sudden code appearance)
+    if (largeChanges >= 2) { score += 3; reasons.push(`${largeChanges} sudden large text jumps`); }
+    else if (largeChanges >= 1) { score += 2; reasons.push(`${largeChanges} large text jump detected`); }
+
+    // Very low active time with a submission
+    if (activeMs < 60 * 1000 && runs > 0) { score += 3; reasons.push('Submitted in under 1 min of active coding'); }
+    else if (activeMs < 2.5 * 60 * 1000 && runs <= 1) { score += 2; reasons.push('Very short active coding time'); }
+
+    // Excessive tab changes (looking up answers)
+    if (tabChanges >= 10) { score += 2; reasons.push(`${tabChanges} tab changes (very high)`); }
+    else if (tabChanges >= 5) { score += 1; reasons.push(`${tabChanges} tab changes`); }
+
+    // AI usage
+    if (aiUsed >= 3) { score += 1.5; reasons.push(`AI explanation used ${aiUsed} times`); }
+    else if (aiUsed >= 1) { score += 0.5; reasons.push(`AI explanation used ${aiUsed} time(s)`); }
+
+    let level, levelColor, levelBg;
+    if (score >= 6) {
+      level = 'Very High';
+      levelColor = '#b91c1c';
+      levelBg = '#fef2f2';
+    } else if (score >= 3.5) {
+      level = 'High';
+      levelColor = '#d97706';
+      levelBg = '#fffbeb';
+    } else if (score >= 1.5) {
+      level = 'Medium';
+      levelColor = '#1d4ed8';
+      levelBg = '#eff6ff';
+    } else {
+      level = 'Low';
+      levelColor = '#15803d';
+      levelBg = '#f0fdf4';
+    }
+
+    return { level, levelColor, levelBg, score, reasons };
   }
 
   async function fetchReportData(assignmentId, studentId) {
@@ -285,303 +359,388 @@
 
     const studentName = studentData.studentName || 'Student';
     const studentId = studentData.studentId;
-    const hasFlags = flagReasons.length > 0;
 
-    // Earliest submission or first event
-    const firstSub = (studentData.submissions || []).reduce((earliest, s) => {
-      if (!s.submittedAt) return earliest;
+    // Find the latest submission date
+    const latestSub = (studentData.submissions || []).reduce((latest, s) => {
+      if (!s.submittedAt) return latest;
       const ts = new Date(s.submittedAt).getTime();
-      return !earliest || ts < earliest ? ts : earliest;
+      return !latest || ts > latest.ts ? { ts, iso: s.submittedAt } : latest;
     }, null);
+    const submittedDateStr = latestSub ? fmtDate(latestSub.iso) : '—';
 
     const generatedTimeStr = fmtTime(new Date().toISOString());
 
-      // Compute real grading values for scorecard
-      let totalMaxPoints = 0;
-      let totalMarksObtained = 0;
-      let anyGraded = false;
-      let allGraded = questions.length > 0;
-      let firstGradedBy = null;
-      let firstGradedAt = null;
+    // Compute grading values for scorecard / marksheet
+    let totalMaxPoints = 0;
+    let totalMarksObtained = 0;
+    let anyGraded = false;
+    let allGraded = questions.length > 0;
+    let firstGradedBy = null;
+    let firstGradedAt = null;
 
-      const scoredQuestions = questions.map((q, idx) => {
-        const sub = (studentData.submissions || []).find(s => Number(s.questionId) === q.id);
-        const maxPts = (sub && sub.maxPoints != null) ? Number(sub.maxPoints) : (q.maxPoints != null ? Number(q.maxPoints) : 10);
-        totalMaxPoints += maxPts;
+    const scoredQuestions = questions.map((q, idx) => {
+      const sub = (studentData.submissions || []).find(s => Number(s.questionId) === q.id);
+      const maxPts = (sub && sub.maxPoints != null) ? Number(sub.maxPoints) : (q.maxPoints != null ? Number(q.maxPoints) : 10);
+      totalMaxPoints += maxPts;
 
-        let marksText = '';
-        if (sub && sub.marksObtained !== null && sub.marksObtained !== undefined) {
-          totalMarksObtained += Number(sub.marksObtained);
-          marksText = `${sub.marksObtained} / ${maxPts}`;
-          anyGraded = true;
-          if (!firstGradedBy && sub.gradedBy) firstGradedBy = sub.gradedBy;
-          if (!firstGradedAt && sub.gradedAt) firstGradedAt = sub.gradedAt;
-        } else {
-          allGraded = false;
-          marksText = `<span style="font-weight:600; color:#6b7280; font-family:sans-serif; font-size:12.5px;">Not yet graded</span> / ${maxPts}`;
-        }
-
-        return {
-          q,
-          maxPts,
-          marksText,
-          remarks: sub ? sub.remarks : null
-        };
-      });
-
-      let totalScoreDisplay = '';
-      if (allGraded && questions.length > 0) {
-        totalScoreDisplay = `${totalMarksObtained} / ${totalMaxPoints}`;
-      } else if (anyGraded) {
-        totalScoreDisplay = `${totalMarksObtained} / ${totalMaxPoints} <span style="font-size:12px; font-weight:600; color:#6b7280; font-family:sans-serif;">(partial)</span>`;
+      let marksText = '';
+      let marksRaw = null;
+      if (sub && sub.marksObtained !== null && sub.marksObtained !== undefined) {
+        marksRaw = Number(sub.marksObtained);
+        totalMarksObtained += marksRaw;
+        marksText = `${marksRaw} / ${maxPts}`;
+        anyGraded = true;
+        if (!firstGradedBy && sub.gradedBy) firstGradedBy = sub.gradedBy;
+        if (!firstGradedAt && sub.gradedAt) firstGradedAt = sub.gradedAt;
       } else {
-        totalScoreDisplay = `<span style="font-size:13.5px; font-weight:600; color:#6b7280; font-family:sans-serif;">Not yet graded</span> / ${totalMaxPoints}`;
+        allGraded = false;
+        marksText = `— / ${maxPts}`;
       }
 
-      let html = `
-      <!-- Flagged for Review Banner -->
-      ${hasFlags ? `
-        <div class="flagged-banner" style="page-break-inside: avoid; break-inside: avoid;">
-          <div class="flagged-banner-icon">⚠️</div>
-          <div>
-            <div class="flagged-banner-title">Flagged for Review</div>
-            <div class="flagged-banner-text">
-              The automated telemetry system detected anomalous patterns during this student's coding session:
-            </div>
-            <ul class="flagged-reasons-list">
-              ${flagReasons.map(r => `<li>${escapeHtml(r)}</li>`).join('')}
-            </ul>
-          </div>
-        </div>
-      ` : ''}
+      const isChecked = sub ? Boolean(sub.checked) : false;
 
-      <!-- Clock Mismatch Warning Banner -->
-      ${clockMismatchDetected ? `
-        <div class="clock-warning-banner" style="page-break-inside: avoid; break-inside: avoid;">
-          <span style="font-size: 18px;">⚠️</span>
-          <div>
-            <strong>Clock mismatch detected</strong> — this student's device clock differed from the server by approx. ${fmtDuration(maxDriftMs)}. Duration figures below may be subject to client-side clock drift.
-          </div>
-        </div>
-      ` : ''}
+      return {
+        q,
+        maxPts,
+        marksText,
+        marksRaw,
+        isChecked,
+        remarks: sub ? sub.remarks : null
+      };
+    });
 
-      <!-- Cover & Scorecard -->
-      <div class="report-cover-wrapper" style="page-break-after: always; margin-bottom: 36px; padding-bottom: 24px; border-bottom: 2px solid #e5e7eb; page-break-inside: avoid; break-inside: avoid;">
-        <div class="cover-card" style="border: 2px solid #111827; border-radius: 16px; padding: 28px 32px; background: #ffffff; page-break-inside: avoid; break-inside: avoid;">
-          <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #111827; padding-bottom: 18px; margin-bottom: 22px;">
-            <div>
-              <div style="font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: #4b5563;">Semester Library · Code Lab</div>
-              <h1 style="font-size: 26px; font-weight: 800; margin: 4px 0 2px 0; color: #111827; letter-spacing: -0.02em;">Student Submission Evaluation</h1>
-              <div style="font-size: 14px; font-weight: 500; color: #6b7280;">Official Archival Report · Tribhuvan University / IOST</div>
+    let totalScoreDisplay = '';
+    if (allGraded && questions.length > 0) {
+      totalScoreDisplay = `${totalMarksObtained} / ${totalMaxPoints}`;
+    } else if (anyGraded) {
+      totalScoreDisplay = `${totalMarksObtained} / ${totalMaxPoints} <span style="font-size:12px; font-weight:600; color:#6b7280;">(partial)</span>`;
+    } else {
+      totalScoreDisplay = `— / ${totalMaxPoints}`;
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // PAGE 1 — COVER PAGE
+    // ════════════════════════════════════════════════════════════════
+    let html = `
+      <div class="report-cover-wrapper" style="
+        page-break-after: always;
+        break-after: always;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 48px 0;
+        page-break-inside: avoid;
+        break-inside: avoid;
+      ">
+        <div style="
+          width: 100%;
+          max-width: 600px;
+          border: 2.5px solid #1a1a2e;
+          border-radius: 20px;
+          overflow: hidden;
+          background: #ffffff;
+          box-shadow: 0 8px 40px rgba(0,0,0,0.07);
+        ">
+          <!-- Header band -->
+          <div style="
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);
+            padding: 32px 36px 28px;
+            text-align: center;
+          ">
+            <div style="font-size: 11px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255,255,255,0.55); margin-bottom: 10px;">
+              Gandaki University
             </div>
-            <div style="text-align: right;">
-              <div style="font-size: 11px; font-weight: 700; color: #9ca3af; text-transform: uppercase;">Generated</div>
-              <div style="font-size: 12.5px; font-weight: 600; color: #374151;">${escapeHtml(generatedTimeStr)}</div>
+            <div style="font-size: 28px; font-weight: 800; color: #ffffff; letter-spacing: -0.02em; line-height: 1.2; margin-bottom: 6px;">
+              Assignment Report
+            </div>
+            <div style="font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.6);">
+              Code Lab — Academic Submission
             </div>
           </div>
 
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 26px;">
-            <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px 18px;">
-              <div style="font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; margin-bottom: 6px;">Student Profile</div>
-              <div style="font-size: 17px; font-weight: 700; color: #111827;">${escapeHtml(studentName)}</div>
-              <div style="font-size: 13px; color: #4b5563; margin-top: 2px;">Student ID / Roll: <strong>${escapeHtml(studentId)}</strong></div>
-            </div>
-            <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px 18px;">
-              <div style="font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; margin-bottom: 6px;">Assignment Info</div>
-              <div style="font-size: 16px; font-weight: 700; color: #111827;">${escapeHtml(assignment.title)}</div>
-              <div style="font-size: 13px; color: #4b5563; margin-top: 2px;">
-                ${assignment.subject ? escapeHtml(assignment.subject) + ' · ' : ''}
-                ${assignment.semester ? 'Semester ' + escapeHtml(assignment.semester) : ''}
-              </div>
-            </div>
+          <!-- Info grid -->
+          <div style="padding: 32px 36px;">
+            <table style="width: 100%; border-collapse: collapse;">
+              <tbody>
+                <tr>
+                  <td colspan="2" style="padding-bottom: 22px;">
+                    <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #6b7280; margin-bottom: 6px;">Assignment Name</div>
+                    <div style="font-size: 20px; font-weight: 800; color: #111827; letter-spacing: -0.01em;">${escapeHtml(assignment.title)}</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="width: 50%; padding-bottom: 18px; vertical-align: top;">
+                    <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #6b7280; margin-bottom: 4px;">Semester</div>
+                    <div style="font-size: 15px; font-weight: 700; color: #111827;">${assignment.semester ? 'Semester ' + escapeHtml(String(assignment.semester)) : '—'}</div>
+                  </td>
+                  <td style="width: 50%; padding-bottom: 18px; vertical-align: top;">
+                    <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #6b7280; margin-bottom: 4px;">Subject</div>
+                    <div style="font-size: 15px; font-weight: 700; color: #111827;">${assignment.subject ? escapeHtml(assignment.subject) : '—'}</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding-bottom: 18px; vertical-align: top;">
+                    <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #6b7280; margin-bottom: 4px;">Teacher Name</div>
+                    <div style="font-size: 15px; font-weight: 700; color: #111827;">${firstGradedBy ? escapeHtml(firstGradedBy) : (assignment.teacherName ? escapeHtml(assignment.teacherName) : '—')}</div>
+                  </td>
+                  <td style="padding-bottom: 18px; vertical-align: top;">
+                    <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #6b7280; margin-bottom: 4px;">Student Name</div>
+                    <div style="font-size: 15px; font-weight: 700; color: #111827;">${escapeHtml(studentName)}</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td colspan="2">
+                    <div style="border-top: 1.5px dashed #e5e7eb; padding-top: 18px; display: flex; align-items: center; justify-content: space-between;">
+                      <div>
+                        <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #6b7280; margin-bottom: 4px;">Submitted Date</div>
+                        <div style="font-size: 15px; font-weight: 700; color: #111827;">${submittedDateStr}</div>
+                      </div>
+                      <div style="text-align: right;">
+                        <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #6b7280; margin-bottom: 4px;">Report Generated</div>
+                        <div style="font-size: 12px; font-weight: 600; color: #4b5563;">${escapeHtml(generatedTimeStr)}</div>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
 
-          <!-- Grading Scorecard Rubric -->
-          <div class="scorecard-card" style="border: 1px solid #d1d5db; border-radius: 12px; padding: 18px 22px; background: #ffffff; page-break-inside: avoid; break-inside: avoid;">
-            <div style="font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #111827; margin-bottom: 12px; display: flex; justify-content: space-between;">
-              <span>Instructor Evaluation & Scorecard</span>
-              <span style="font-weight: 600; color: #6b7280;">Marks / Max</span>
-            </div>
-            <div style="display: flex; flex-direction: column; gap: 10px;">
-              ${scoredQuestions.map(({ q, marksText, remarks }, idx) => `
-                <div style="border-bottom: 1px dashed #e5e7eb; padding-bottom: 8px;">
-                  <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-size: 13.5px; font-weight: 600; color: #374151;">Task ${q.questionNumber || (idx + 1)}: ${escapeHtml(q.title)}</span>
-                    <span id="scMarks_${q.id}" class="scorecard-task-marks" style="font-family: Menlo, Monaco, Consolas, 'SF Mono', 'Courier New', monospace; font-size: 14px; font-weight: 700; color: #111827;">${marksText}</span>
-                  </div>
-                  <div id="scRemarks_${q.id}" class="scorecard-task-remarks" style="font-size: 12px; color: #4b5563; margin-top: 3px; font-style: italic; line-height: 1.4; ${remarks ? '' : 'display:none;'}">${remarks ? 'Remarks: ' + escapeHtml(remarks) : ''}</div>
-                </div>
-              `).join('')}
-              <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 10px; font-weight: 800; font-size: 15px;">
-                <span>Total Score</span>
-                <span id="scTotal" class="scorecard-total-val" style="font-family: Menlo, Monaco, Consolas, 'SF Mono', 'Courier New', monospace; font-size: 17px; color: #111827;">${totalScoreDisplay}</span>
-              </div>
-              <div style="margin-top: 18px; padding-top: 14px; border-top: 1px solid #111827; display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; color: #4b5563; flex-wrap: wrap; gap: 8px;">
-                <span>Graded By: <strong>${firstGradedBy ? escapeHtml(firstGradedBy) : '_______________________'}</strong></span>
-                <span>${firstGradedAt ? 'Date: ' + escapeHtml(fmtTime(firstGradedAt)) + ' · ' : ''}Instructor Signature: _______________________</span>
-              </div>
-            </div>
+          <!-- Footer band -->
+          <div style="
+            background: #f9fafb;
+            border-top: 1.5px solid #e5e7eb;
+            padding: 14px 36px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          ">
+            <div style="font-size: 11.5px; font-weight: 600; color: #6b7280;">Student ID: ${escapeHtml(String(studentId))}</div>
+            <div style="font-size: 11.5px; font-weight: 600; color: #6b7280;">${questions.length} Question${questions.length !== 1 ? 's' : ''}</div>
           </div>
         </div>
       </div>
-
-      <!-- Report Header -->
-      <div class="report-header">
-        <h1>${escapeHtml(studentName)} — ${escapeHtml(assignment.title)}</h1>
-        <div class="meta">
-          ${assignment.subject ? escapeHtml(assignment.subject) + ' · ' : ''}
-          ${assignment.semester ? 'Semester ' + escapeHtml(assignment.semester) + ' · ' : ''}
-          ${questions.length} question${questions.length !== 1 ? 's' : ''} ·
-          Student ID: ${escapeHtml(studentId)}
-        </div>
-      </div>
-
-      <div class="section-title">Combined Summary (All Questions)</div>
-      <div class="stats-row">
-        <div class="stat-box">
-          <div class="value">${combinedStats.sessionCount}</div>
-          <div class="label">Coding session(s)</div>
-        </div>
-        <div class="stat-box">
-          <div class="value">${fmtDuration(combinedStats.totalSpanMs)}</div>
-          <div class="label">Total session time</div>
-        </div>
-        <div class="stat-box">
-          <div class="value">${fmtDuration(combinedStats.activeMs)}</div>
-          <div class="label">Actually working</div>
-        </div>
-        <div class="stat-box ${combinedStats.idleMs > 0 ? 'warn' : ''}">
-          <div class="value">${fmtDuration(combinedStats.idleMs)}</div>
-          <div class="label">Idle on tab</div>
-        </div>
-        <div class="stat-box">
-          <div class="value">${fmtDuration(combinedStats.hiddenMs)}</div>
-          <div class="label">Hidden (tab away)</div>
-        </div>
-        <div class="stat-box">
-          <div class="value">${combinedStats.counts.run_clicked || 0}</div>
-          <div class="label">Code runs</div>
-        </div>
-        <div class="stat-box ${combinedStats.counts.paste_attempt ? 'warn' : ''}">
-          <div class="value">${combinedStats.counts.paste_attempt || 0}</div>
-          <div class="label">Paste attempts</div>
-        </div>
-        <div class="stat-box ${combinedStats.counts.large_change ? 'warn' : ''}">
-          <div class="value">${combinedStats.counts.large_change || 0}</div>
-          <div class="label">Large text jumps</div>
-        </div>
-        <div class="stat-box">
-          <div class="value">${combinedStats.counts.tab_hidden || 0}</div>
-          <div class="label">Tab switches</div>
-        </div>
-        ${combinedStats.counts.ai_explain_used ? `
-        <div class="stat-box" style="border-left: 3px solid #3b82f6;">
-          <div class="value">${combinedStats.counts.ai_explain_used}</div>
-          <div class="label">AI explains used</div>
-        </div>` : ''}
-      </div>
-
-      <div class="section-title">Combined Activity Breakdown</div>
-      <canvas id="combinedEventChart_${uid}" height="90"></canvas>
     `;
 
-    // Per-question rendering
+    // ════════════════════════════════════════════════════════════════
+    // PAGE 2 — MARKSHEET / CHECKED SHEET
+    // ════════════════════════════════════════════════════════════════
+    html += `
+      <div class="marksheet-page" style="
+        page-break-after: always;
+        break-after: always;
+        page-break-inside: avoid;
+        break-inside: avoid;
+        padding: 36px 0 28px;
+      ">
+        <!-- Marksheet header -->
+        <div style="border-bottom: 2.5px solid #1a1a2e; padding-bottom: 18px; margin-bottom: 28px;">
+          <div style="font-size: 11px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: #6b7280; margin-bottom: 4px;">Gandaki University — Code Lab</div>
+          <div style="font-size: 22px; font-weight: 800; color: #111827; letter-spacing: -0.01em;">Assignment Marksheet</div>
+          <div style="font-size: 13px; color: #4b5563; margin-top: 4px;">
+            ${escapeHtml(assignment.title)}
+            ${assignment.subject ? ' · ' + escapeHtml(assignment.subject) : ''}
+            ${assignment.semester ? ' · Semester ' + escapeHtml(String(assignment.semester)) : ''}
+          </div>
+          <div style="font-size: 13px; color: #4b5563; margin-top: 2px;">
+            Student: <strong>${escapeHtml(studentName)}</strong> &nbsp;·&nbsp; Submitted: <strong>${submittedDateStr}</strong>
+          </div>
+        </div>
+
+        <!-- Marksheet table -->
+        <table style="
+          width: 100%;
+          border-collapse: collapse;
+          font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', Helvetica, Arial, sans-serif;
+          border: 1.5px solid #d1d5db;
+          border-radius: 12px;
+          overflow: hidden;
+        ">
+          <thead>
+            <tr style="background: #1a1a2e;">
+              <th style="padding: 13px 16px; text-align: left; font-size: 11.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: #ffffff; border-right: 1px solid rgba(255,255,255,0.12);">#</th>
+              <th style="padding: 13px 16px; text-align: left; font-size: 11.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: #ffffff; border-right: 1px solid rgba(255,255,255,0.12); width: 40%;">Title</th>
+              <th style="padding: 13px 16px; text-align: center; font-size: 11.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: #ffffff; border-right: 1px solid rgba(255,255,255,0.12);">Status</th>
+              <th style="padding: 13px 16px; text-align: center; font-size: 11.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: #ffffff; border-right: 1px solid rgba(255,255,255,0.12);">Marks</th>
+              <th style="padding: 13px 16px; text-align: left; font-size: 11.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: #ffffff;">Remarks</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${scoredQuestions.map(({ q, maxPts, marksText, marksRaw, isChecked, remarks }, idx) => {
+              const isEven = idx % 2 === 0;
+              const statusLabel = isChecked ? 'Checked' : 'Unchecked';
+              const statusColor = isChecked ? '#15803d' : '#b45309';
+              const statusBg = isChecked ? '#dcfce7' : '#fef3c7';
+              const statusBorder = isChecked ? '#bbf7d0' : '#fde68a';
+
+              return `
+                <tr style="background: ${isEven ? '#ffffff' : '#f9fafb'}; border-bottom: 1px solid #e5e7eb;">
+                  <td style="padding: 13px 16px; font-size: 13px; font-weight: 700; color: #6b7280; border-right: 1px solid #f3f4f6;">${q.questionNumber || (idx + 1)}</td>
+                  <td style="padding: 13px 16px; font-size: 13.5px; font-weight: 600; color: #111827; border-right: 1px solid #f3f4f6; line-height: 1.4;">
+                    ${escapeHtml(q.title)}
+                  </td>
+                  <td style="padding: 13px 16px; text-align: center; border-right: 1px solid #f3f4f6;">
+                    ${data.isTeacher && !isBulk
+                      ? `<label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; font-size:12.5px; font-weight:700; color:${statusColor}; background:${statusBg}; border:1px solid ${statusBorder}; padding:3px 12px; border-radius:980px;">
+                           <input type="checkbox" class="q-eval-checked" data-qid="${q.id}" ${isChecked ? 'checked' : ''} onchange="ReportGenerator.syncScorecard()" style="accent-color:${statusColor};">
+                           <span class="status-label-text">${statusLabel}</span>
+                         </label>`
+                      : `<span style="display:inline-block; font-size:12.5px; font-weight:700; color:${statusColor}; background:${statusBg}; border:1px solid ${statusBorder}; padding:3px 12px; border-radius:980px;">${statusLabel}</span>`
+                    }
+                  </td>
+                  <td style="padding: 13px 16px; text-align: center; border-right: 1px solid #f3f4f6;">
+                    ${data.isTeacher && !isBulk
+                      ? `<div style="display:flex; align-items:center; justify-content:center; gap:5px;">
+                           <input type="number" min="0" max="${maxPts}" step="1"
+                                  class="q-eval-marks" data-qid="${q.id}" data-max="${maxPts}"
+                                  value="${marksRaw != null ? marksRaw : ''}"
+                                  placeholder="—"
+                                  oninput="ReportGenerator.syncScorecard()"
+                                  style="width:60px; padding:5px 8px; font-size:14px; font-weight:700; font-family:Menlo,Monaco,Consolas,monospace; border:1.5px solid #d1d5db; border-radius:7px; text-align:center;">
+                           <span style="font-size:13px; font-weight:600; color:#4b5563;">/ ${maxPts}</span>
+                         </div>`
+                      : `<span id="scMarks_${q.id}" class="scorecard-task-marks" style="font-family:Menlo,Monaco,Consolas,monospace; font-size:14px; font-weight:700; color:#111827;">${marksText}</span>`
+                    }
+                  </td>
+                  <td style="padding: 13px 16px; font-size: 12.5px; color: #4b5563; font-style: italic;">
+                    ${data.isTeacher && !isBulk
+                      ? `<textarea class="q-eval-remarks" data-qid="${q.id}"
+                                  placeholder="Feedback..."
+                                  rows="2"
+                                  oninput="ReportGenerator.syncScorecard()"
+                                  style="width:100%; box-sizing:border-box; padding:6px 10px; font-size:12.5px; font-family:inherit; border:1.5px solid #e5e7eb; border-radius:7px; resize:vertical; color:#374151;">${escapeHtml(remarks || '')}</textarea>`
+                      : `<span id="scRemarks_${q.id}" class="scorecard-task-remarks" style="${remarks ? '' : 'color:#9ca3af; font-style:normal;'}">${remarks ? escapeHtml(remarks) : 'No remarks'}</span>`
+                    }
+                  </td>
+                </tr>
+              `;
+            }).join('')}
+
+            <!-- Total row -->
+            <tr style="background: #1a1a2e;">
+              <td colspan="3" style="padding: 14px 16px; font-size: 13px; font-weight: 800; color: #ffffff; text-transform: uppercase; letter-spacing: 0.05em;">Total Score</td>
+              <td colspan="2" style="padding: 14px 16px; font-size: 16px; font-weight: 800; font-family: Menlo, Monaco, Consolas, monospace; color: #ffffff; text-align: center;">
+                <span id="scTotal" class="scorecard-total-val">${totalScoreDisplay}</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Teacher signature row -->
+        <div style="margin-top: 28px; display: flex; justify-content: space-between; font-size: 12.5px; font-weight: 600; color: #4b5563; border-top: 1.5px solid #e5e7eb; padding-top: 18px;">
+          <span>Graded By: <strong>${firstGradedBy ? escapeHtml(firstGradedBy) : '_______________________________'}</strong></span>
+          <span>${firstGradedAt ? 'Date: ' + escapeHtml(fmtTime(firstGradedAt)) + '  ·  ' : ''}Instructor Signature: _______________________________</span>
+        </div>
+      </div>
+    `;
+
+    // ════════════════════════════════════════════════════════════════
+    // PAGE 3+ — PER-QUESTION ANALYSIS
+    // ════════════════════════════════════════════════════════════════
+
+    // Helper: render code with line numbers (IDE-style)
+    function renderCodeWithLineNumbers(code, language) {
+      if (!code) return '';
+      const lines = code.split('\n');
+      const gutterWidth = String(lines.length).length;
+      const lineNumbersHtml = lines.map((_, i) => {
+        const num = String(i + 1).padStart(gutterWidth, ' ');
+        return `<span style="color:#6b7280; user-select:none;">${num}</span>`;
+      }).join('\n');
+      const codeHtml = escapeHtml(code);
+
+      const langLabel = (language || 'c').toUpperCase();
+      const fileExtMap = { 'C': '.c', 'JAVA': '.java', 'PYTHON': '.py', 'CPP': '.cpp', 'JAVASCRIPT': '.js', 'JS': '.js', 'PY': '.py' };
+      const ext = fileExtMap[langLabel] || '';
+      const fileName = `solution${ext}`;
+
+      return `
+        <div style="border:1px solid #333; border-radius:10px; overflow:hidden; margin-bottom:16px;">
+          <!-- File tab bar -->
+          <div style="
+            background:#252526;
+            padding:7px 14px;
+            display:flex;
+            align-items:center;
+            gap:10px;
+            border-bottom:1px solid #333;
+          ">
+            <div style="display:flex; gap:5px;">
+              <span style="width:10px; height:10px; border-radius:50%; background:#ff5f56; display:inline-block;"></span>
+              <span style="width:10px; height:10px; border-radius:50%; background:#ffbd2e; display:inline-block;"></span>
+              <span style="width:10px; height:10px; border-radius:50%; background:#27c93f; display:inline-block;"></span>
+            </div>
+            <span style="font-size:12px; font-weight:600; color:#9ca3af; font-family:Menlo,Monaco,Consolas,monospace;">${escapeHtml(fileName)}</span>
+            <span style="font-size:10.5px; font-weight:600; color:#6b7280; margin-left:auto; background:#333; padding:2px 8px; border-radius:4px;">${langLabel}</span>
+          </div>
+          <!-- Code area with line numbers -->
+          <div style="
+            background:#1e1e1e;
+            display:flex;
+            overflow-x:auto;
+          ">
+            <!-- Line numbers gutter -->
+            <pre style="
+              margin:0; padding:14px 0 14px 14px;
+              background:transparent;
+              border:none; border-right:1px solid #333;
+              font-family:Menlo,Monaco,Consolas,'SF Mono','Courier New',monospace;
+              font-size:12.5px; line-height:1.65;
+              text-align:right;
+              padding-right:12px;
+              color:#6b7280;
+              user-select:none;
+              flex-shrink:0;
+              white-space:pre;
+            ">${lineNumbersHtml}</pre>
+            <!-- Code content -->
+            <pre style="
+              margin:0; padding:14px 16px;
+              background:transparent;
+              border:none;
+              font-family:Menlo,Monaco,Consolas,'SF Mono','Courier New',monospace;
+              font-size:12.5px; line-height:1.65;
+              color:#d4d4d4;
+              overflow-x:auto;
+              flex:1;
+              white-space:pre;
+            ">${codeHtml}</pre>
+          </div>
+        </div>
+      `;
+    }
+
     for (const q of questions) {
       const sub = (studentData.submissions || []).find(s => Number(s.questionId) === q.id);
       const maxPts = (sub && sub.maxPoints != null) ? Number(sub.maxPoints) : (q.maxPoints != null ? Number(q.maxPoints) : 10);
       const qEvents = eventsByQuestion[q.id] || [];
       const qStats = computeSessionStats(qEvents);
 
-      // Run vs Submit ratio
+      // Counts for this question
+      const pasteCount = qStats.counts.paste_attempt || 0;
+      const tabChanges = qStats.counts.tab_hidden || 0;
+      const aiCount = qStats.counts.ai_explain_used || 0;
       const runEvents = qEvents.filter(e => e.eventType === 'run_clicked');
       const totalRuns = runEvents.length;
-      let passedRuns = 0;
       let failedRuns = 0;
       runEvents.forEach(e => {
         let p = {};
         try { p = typeof e.payload === 'string' ? JSON.parse(e.payload || '{}') : (e.payload || {}); } catch (_) { }
-        if (p.success === true || p.exitStatus === 'success') {
-          passedRuns++;
-        } else {
-          failedRuns++;
-        }
+        if (!(p.success === true || p.exitStatus === 'success')) failedRuns++;
       });
+      const totalErrors = failedRuns;
 
-      let runStatText = '';
-      if (totalRuns === 0) runStatText = 'Ran 0 times before submitting.';
-      else if (totalRuns === 1) runStatText = `Ran 1 time (${passedRuns === 1 ? 'passed' : 'failed'}) before submitting.`;
-      else runStatText = `Ran ${totalRuns} times (${passedRuns} passed, ${failedRuns} failed) before submitting.`;
+      // Total code duration
+      const codeDuration = qStats.totalSpanMs;
 
-      // Time to first keystroke
-      const sessionStartEvent = qEvents.find(e => e.eventType === 'session_start');
-      const firstKeystrokeEvent = qEvents.find(e => e.eventType === 'first_keystroke');
-      let firstKeystrokeStatText = '';
-      let tabSwitchBeforeTypingText = '';
-
-      if (sessionStartEvent && firstKeystrokeEvent) {
-        const startTs = new Date(sessionStartEvent.clientTime || sessionStartEvent.createdAt).getTime();
-        const keystrokeTs = new Date(firstKeystrokeEvent.clientTime || firstKeystrokeEvent.createdAt).getTime();
-        const gapMs = Math.max(keystrokeTs - startTs, 0);
-        firstKeystrokeStatText = `Started typing ${fmtDuration(gapMs)} after opening this question.`;
-
-        const windowEvents = qEvents
-          .filter(e => {
-            const ts = new Date(e.clientTime || e.createdAt).getTime();
-            return ts >= startTs && ts <= keystrokeTs;
-          })
-          .sort((a, b) => new Date(a.clientTime || a.createdAt).getTime() - new Date(b.clientTime || b.createdAt).getTime());
-
-        let tabSwitchesInGap = 0;
-        let pendingHide = false;
-        for (const we of windowEvents) {
-          if (we.eventType === 'tab_hidden') pendingHide = true;
-          else if (we.eventType === 'tab_visible' && pendingHide) {
-            tabSwitchesInGap++;
-            pendingHide = false;
-          }
-        }
-        if (tabSwitchesInGap === 1) tabSwitchBeforeTypingText = 'Switched tabs once before starting to type.';
-        else if (tabSwitchesInGap > 1) tabSwitchBeforeTypingText = `Switched tabs ${tabSwitchesInGap} times before starting to type.`;
-      }
-
-      // Mild flag check
-      let showMildFlag = false;
-      if (sub && totalRuns <= 1 && qStats.activeMs < 2.5 * 60 * 1000) {
-        showMildFlag = true;
-      }
-
-      // Wall-clock timeline
-      const sortedQEvents = (qStats.sorted && qStats.sorted.length > 0)
-        ? qStats.sorted
-        : qEvents.map(e => ({ ...e, ts: new Date(e.clientTime || e.createdAt).getTime() })).sort((a, b) => a.ts - b.ts);
-
-      const firstOpenEv = sortedQEvents.find(e => e.eventType === 'first_open')
-        || sortedQEvents.find(e => e.eventType === 'session_start')
-        || (sortedQEvents.length > 0 ? sortedQEvents[0] : null);
-
-      let calendarGapHtml = '';
-      if (firstOpenEv && sub && sub.submittedAt) {
-        const openTs = firstOpenEv.ts;
-        const submitTs = new Date(sub.submittedAt).getTime();
-        const calendarDiffMs = Math.max(submitTs - openTs, 0);
-        calendarGapHtml = `
-          <div style="margin-top:6px; padding:7px 11px; background:rgba(0,0,0,0.03); border:1px solid rgba(0,0,0,0.07); border-radius:6px; font-size:12px; color:#4b5563; line-height:1.5;">
-            <span style="font-weight:600; color:#111827;">Wall-Clock Timeline:</span>
-            First opened: <strong style="color:#1f2937;">${fmtTime(openTs)}</strong>
-            · Final submission: <strong style="color:#1f2937;">${fmtTime(sub.submittedAt)}</strong>
-            · Calendar time to completion: <strong style="color:#2563eb;">${fmtCalendarDuration(calendarDiffMs)}</strong>
-            <span style="font-size:11px; color:#6b7280; margin-left:4px;">(wall-clock time, distinct from active working time)</span>
-          </div>
-        `;
-      }
-
-      // ── Automated Test Cases Section (Item 4) ─────────────────────────
+      // Automated Test Cases
       let testCasesHtml = '';
       let parsedResults = null;
       if (sub && sub.testResults) {
         parsedResults = Array.isArray(sub.testResults) ? sub.testResults : (typeof sub.testResults === 'string' ? JSON.parse(sub.testResults) : null);
       }
-
       if (parsedResults && Array.isArray(parsedResults) && parsedResults.length > 0) {
         const passedCount = parsedResults.filter(tc => tc.passed).length;
         const totalCount = parsedResults.length;
@@ -589,32 +748,24 @@
         const failedCases = parsedResults.filter(tc => !tc.passed);
 
         testCasesHtml = `
-          <div style="margin: 14px 0 16px 0; padding: 12px 16px; border-radius: 10px; background: ${allPassed ? '#f0fdf4' : '#fffbeb'}; border: 1px solid ${allPassed ? '#bbf7d0' : '#fde68a'};">
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <span style="font-size: 16px;">${allPassed ? '✅' : '⚠️'}</span>
-                <span style="font-size: 13.5px; font-weight: 700; color: ${allPassed ? '#166534' : '#92400e'};">
-                  Automated Test Cases: Passed ${passedCount}/${totalCount}
-                </span>
-              </div>
-              <span style="font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 980px; background: ${allPassed ? '#dcfce7' : '#fef3c7'}; color: ${allPassed ? '#15803d' : '#b45309'};">
-                ${allPassed ? 'All Test Cases Passed' : `${totalCount - passedCount} Failed Case${totalCount - passedCount === 1 ? '' : 's'}`}
+          <div style="margin: 10px 0 14px 0; padding: 11px 15px; border-radius: 9px; background: ${allPassed ? '#f0fdf4' : '#fffbeb'}; border: 1px solid ${allPassed ? '#bbf7d0' : '#fde68a'};">
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+              <span style="font-size:15px;">${allPassed ? '✅' : '⚠️'}</span>
+              <span style="font-size:13px; font-weight:700; color:${allPassed ? '#166534' : '#92400e'};">Test Cases: Passed ${passedCount}/${totalCount}</span>
+              <span style="font-size:11.5px; font-weight:700; padding:2px 10px; border-radius:980px; background:${allPassed ? '#dcfce7' : '#fef3c7'}; color:${allPassed ? '#15803d' : '#b45309'};">
+                ${allPassed ? 'All Passed' : `${totalCount - passedCount} Failed`}
               </span>
             </div>
-
             ${failedCases.length > 0 ? `
-              <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(0,0,0,0.1);">
-                <div style="font-size: 12px; font-weight: 700; color: #b45309; margin-bottom: 6px;">Failed Test Case Details:</div>
-                <div style="display: flex; flex-direction: column; gap: 8px;">
-                  ${failedCases.map((fc, fcIdx) => `
-                    <div style="background: #ffffff; border: 1px solid #fed7aa; border-radius: 8px; padding: 10px; font-size: 12px;">
-                      <div style="font-weight: 700; color: #9a3412; margin-bottom: 4px;">Failed Case #${fcIdx + 1}</div>
-                      ${fc.input ? `<div style="margin-bottom: 2px;"><strong style="color: #4b5563;">Input (stdin):</strong> <code style="background: #f3f4f6; padding: 1px 5px; border-radius: 4px; font-family: Menlo, Monaco, Consolas, 'SF Mono', 'Courier New', monospace;">${escapeHtml(fc.input)}</code></div>` : '<div style="margin-bottom: 2px; color: #6b7280; font-style: italic;">No stdin provided</div>'}
-                      <div style="margin-bottom: 2px;"><strong style="color: #4b5563;">Expected Output:</strong> <code style="background: #f0fdf4; color: #166534; padding: 1px 5px; border-radius: 4px; font-family: Menlo, Monaco, Consolas, 'SF Mono', 'Courier New', monospace;">${escapeHtml(fc.expected)}</code></div>
-                      <div><strong style="color: #4b5563;">Actual Output:</strong> <code style="background: #fef2f2; color: #991b1b; padding: 1px 5px; border-radius: 4px; font-family: Menlo, Monaco, Consolas, 'SF Mono', 'Courier New', monospace;">${escapeHtml(fc.actual || '— (empty)')}</code></div>
-                    </div>
-                  `).join('')}
-                </div>
+              <div style="margin-top:9px; display:flex; flex-direction:column; gap:6px;">
+                ${failedCases.map((fc, fcIdx) => `
+                  <div style="background:#fff; border:1px solid #fed7aa; border-radius:7px; padding:9px 12px; font-size:12px;">
+                    <div style="font-weight:700; color:#9a3412; margin-bottom:3px;">Failed Case #${fcIdx + 1}</div>
+                    ${fc.input ? `<div><strong style="color:#4b5563;">Input:</strong> <code style="background:#f3f4f6; padding:1px 5px; border-radius:4px;">${escapeHtml(fc.input)}</code></div>` : '<div style="color:#6b7280;font-style:italic;">No stdin</div>'}
+                    <div><strong style="color:#4b5563;">Expected:</strong> <code style="background:#f0fdf4; color:#166534; padding:1px 5px; border-radius:4px;">${escapeHtml(fc.expected)}</code></div>
+                    <div><strong style="color:#4b5563;">Actual:</strong> <code style="background:#fef2f2; color:#991b1b; padding:1px 5px; border-radius:4px;">${escapeHtml(fc.actual || '— (empty)')}</code></div>
+                  </div>
+                `).join('')}
               </div>
             ` : ''}
           </div>
@@ -622,112 +773,171 @@
       }
 
       html += `
-        <div class="question-section" style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
-          <h3>Task ${q.questionNumber || 1}: ${escapeHtml(q.title)}</h3>
-          <div style="font-size:12.5px;color:#6e6e73;margin-bottom:12px;line-height:1.6;">
-            <span>Language: <strong style="color:#1d1d1f;">${escapeHtml((q.language || 'c').toUpperCase())}</strong></span>
-            ${sub ? ' · Submitted: ' + fmtTime(sub.submittedAt) + (assignment.deadline ? ' ' + deadlineBadge(assignment.deadline, sub.submittedAt) : '') : ' · Not submitted'}
-            · Sessions: ${qStats.sessionCount} · Actually working: ${fmtDuration(qStats.activeMs)}
-            · Idle on tab: ${fmtDuration(qStats.idleMs)} · Hidden: ${fmtDuration(qStats.hiddenMs)}
-            · Pastes: ${qStats.counts.paste_attempt || 0}
-            ${qStats.counts.ai_explain_used ? ` · AI explains: ${qStats.counts.ai_explain_used}` : ''}
-            ${calendarGapHtml}
-            <br>
-            <span style="display:inline-block; margin-top:4px; color:#1d1d1f; font-weight:500;">
-              <strong>Run vs Submit Ratio:</strong> ${escapeHtml(runStatText)}
-            </span>
-            <br>
-            <span style="display:inline-block; margin-top:3px; color:#1d1d1f; font-weight:500;">
-              <strong>Idle on tab (no typing):</strong> ${fmtDuration(qStats.idleMs)}
-            </span>
-            ${firstKeystrokeStatText ? `
-              <br>
-              <span style="display:inline-block; margin-top:3px; color:#1d1d1f; font-weight:500;">
-                <strong>First Keystroke:</strong> ${escapeHtml(firstKeystrokeStatText)}
-                ${tabSwitchBeforeTypingText ? `<span style="color:#b45309; font-weight:600; margin-left:6px;">(${escapeHtml(tabSwitchBeforeTypingText)})</span>` : ''}
-              </span>
-            ` : ''}
-            ${showMildFlag ? `
-              <div style="margin-top:6px; display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:600; color:#b45309; background:rgba(245, 158, 11, 0.12); padding:3px 9px; border-radius:6px; border:1px solid rgba(245, 158, 11, 0.25);">
-                ⚠️ Submitted after ≤1 run attempt.
-              </div>` : ''}
-          </div>
-
-          ${testCasesHtml}
-
-          ${q.description ? `
-            <div class="section-title" style="margin-top:14px;">Problem Statement</div>
-            <div class="question-description" style="background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; padding:12px 14px; font-size:13px; line-height:1.5; color:#374151;">${escapeHtml(q.description)}</div>
-          ` : ''}
-
-          ${sub ? `
-            <div class="section-title" style="margin-top:10px;">Submitted Code</div>
-            <pre style="background:#1e1e1e; color:#d4d4d4; padding:14px; border-radius:10px; font-family: Menlo, Monaco, Consolas, 'SF Mono', 'Courier New', monospace; font-size:12.5px; line-height:1.6; overflow-x:auto;">${escapeHtml(sub.code)}</pre>
-            ${sub.stdout ? `
-              <div class="section-title">Output</div>
-              <pre style="background:#f4f4f5; color:#18181b; padding:12px; border-radius:8px; font-family: Menlo, Monaco, Consolas, 'SF Mono', 'Courier New', monospace; font-size:12px; line-height:1.6; overflow-x:auto;">${escapeHtml(sub.stdout)}</pre>
-            ` : ''}
-            ${sub.stderr ? `<pre class="stderr" style="background:#fef2f2; color:#b91c1c; padding:10px; border-radius:8px; font-family: Menlo, Monaco, Consolas, 'SF Mono', 'Courier New', monospace; font-size:12px; line-height:1.6; overflow-x:auto;">${escapeHtml(sub.stderr)}</pre>` : ''}
-          ` : '<p style="color:#888;font-size:13px;">No code submitted for this question.</p>'}
-
-          <div class="section-title">Code Growth</div>
-          <canvas id="growthChart_${q.id}_${uid}" height="70"></canvas>
-
-          <div class="section-title" style="margin-top:16px;">Typing Consistency & Rhythm</div>
-          <div id="rhythmNote_${q.id}_${uid}"></div>
-          <canvas id="rhythmChart_${q.id}_${uid}" height="70"></canvas>
-
-          ${(data.isTeacher && !isBulk) ? `
-            <div class="instructor-eval-box" style="margin-top: 22px; padding: 18px 22px; background: #ffffff; border: 1.5px solid #d1d5db; border-radius: 14px; page-break-inside: avoid; break-inside: avoid; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
-                <div style="font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #111827; display: flex; align-items: center; gap: 6px;">
-                  <span>Task ${q.questionNumber || 1} Evaluation & Marks</span>
-                </div>
-                <label style="display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; cursor: pointer; color: #1f2937; background: #f3f4f6; padding: 5px 14px; border-radius: 980px; border: 1px solid #e5e7eb;">
-                  <input type="checkbox" class="q-eval-checked" data-qid="${q.id}" ${sub?.checked ? 'checked' : ''} onchange="ReportGenerator.syncScorecard()">
-                  <span>Mark as Checked</span>
-                </label>
-              </div>
-              <div style="display: grid; grid-template-columns: 170px 1fr; gap: 16px; align-items: start;">
+        <div class="question-section" style="
+          page-break-before: always;
+          break-before: always;
+          padding: 0;
+          margin-bottom: 0;
+        ">
+          <!-- Bordered question card -->
+          <div style="
+            border: 1.5px solid #d1d5db;
+            border-radius: 14px;
+            overflow: hidden;
+            margin-top: 28px;
+          ">
+            <!-- Question header bar -->
+            <div style="
+              background: #f9fafb;
+              border-bottom: 1.5px solid #d1d5db;
+              padding: 18px 22px;
+            ">
+              <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
                 <div>
-                  <label style="display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #4b5563; margin-bottom: 5px;">Marks Obtained</label>
-                  <div style="display: flex; align-items: center; gap: 6px;">
-                    <input type="number" min="0" max="${maxPts}" step="1" 
-                           class="q-eval-marks" data-qid="${q.id}" data-max="${maxPts}"
-                           value="${sub?.marksObtained != null ? sub.marksObtained : ''}" 
-                           placeholder="—"
-                           oninput="ReportGenerator.syncScorecard()"
-                           style="width: 75px; padding: 7px 10px; font-size: 15px; font-weight: 700; font-family: Menlo, Monaco, Consolas, monospace; border: 1.5px solid #d1d5db; border-radius: 8px; text-align: center;">
-                    <span style="font-size: 14px; font-weight: 700; color: #4b5563;">/ ${maxPts}</span>
+                  <div style="font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.08em; color:#6b7280; margin-bottom:3px;">Question ${q.questionNumber || 1}</div>
+                  <div style="font-size:17px; font-weight:700; color:#111827; line-height:1.35;">${escapeHtml(q.title)}</div>
+                </div>
+                <div style="text-align:right;">
+                  <div style="font-size:12.5px; color:#4b5563;">
+                    Language: <strong style="color:#111827;">${escapeHtml((q.language || 'c').toUpperCase())}</strong>
                   </div>
-                </div>
-                <div>
-                  <label style="display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #4b5563; margin-bottom: 5px;">Teacher Feedback / Remarks</label>
-                  <textarea class="q-eval-remarks" data-qid="${q.id}" 
-                            placeholder="Feedback or remarks for student on Task ${q.questionNumber || 1}..." 
-                            rows="2"
-                            oninput="ReportGenerator.syncScorecard()"
-                            style="width: 100%; box-sizing: border-box; padding: 8px 12px; font-size: 13px; font-family: inherit; border: 1.5px solid #d1d5db; border-radius: 8px; resize: vertical;">${escapeHtml(sub?.remarks || '')}</textarea>
+                  <div style="font-size:12px; color:#6b7280; margin-top:2px;">
+                    ${sub ? 'Submitted: ' + fmtTime(sub.submittedAt) + (assignment.deadline ? ' ' + deadlineBadge(assignment.deadline, sub.submittedAt) : '') : '<span style="color:#ef4444; font-weight:600;">Not submitted</span>'}
+                  </div>
                 </div>
               </div>
             </div>
-          ` : (sub && (sub.marksObtained != null || sub.remarks) ? `
-            <div class="student-eval-feedback" style="margin-top: 18px; padding: 14px 18px; background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: 12px; page-break-inside: avoid; break-inside: avoid;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                <span style="font-size: 12px; font-weight: 800; text-transform: uppercase; color: #166534; letter-spacing: 0.04em;">Instructor Evaluation</span>
-                <span style="font-family: Menlo, Monaco, Consolas, monospace; font-size: 14px; font-weight: 700; color: #15803d;">Score: ${sub.marksObtained != null ? sub.marksObtained : '—'} / ${maxPts} pts</span>
+
+            <!-- Card body -->
+            <div style="padding: 20px 22px;">
+
+              <!-- Problem statement -->
+              ${q.description ? `
+                <div style="font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:#6b7280; margin-bottom:8px;">Problem Statement</div>
+                <div style="font-size:13.5px; line-height:1.65; color:#374151; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; padding:13px 16px; margin-bottom:20px; white-space:pre-wrap;">${escapeHtml(q.description)}</div>
+              ` : ''}
+
+              <!-- Code (IDE-style with line numbers) -->
+              <div style="font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:#6b7280; margin-bottom:8px;">Code</div>
+              ${sub
+                ? renderCodeWithLineNumbers(sub.code, q.language)
+                : `<div style="padding:14px; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; font-size:13px; color:#b91c1c; margin-bottom:16px;">No code submitted for this question.</div>`
+              }
+
+              <!-- Result / Output -->
+              ${sub ? `
+                <div style="font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:#6b7280; margin-bottom:8px;">Result</div>
+                ${testCasesHtml}
+                ${sub.stdout ? `
+                  <pre style="background:#f8f9fa; color:#1a1a2e; padding:13px 16px; border-radius:8px; border:1px solid #e5e7eb; font-family:Menlo,Monaco,Consolas,'SF Mono','Courier New',monospace; font-size:12.5px; line-height:1.6; overflow-x:auto; margin-bottom:12px; white-space:pre-wrap;">${escapeHtml(sub.stdout)}</pre>
+                ` : (!parsedResults ? `<div style="font-size:13px; color:#9ca3af; padding: 8px 0; margin-bottom:10px;">No output recorded.</div>` : '')}
+                ${sub.stderr ? `
+                  <pre style="background:#fef2f2; color:#b91c1c; padding:12px 16px; border-radius:8px; border:1px solid #fecaca; font-family:Menlo,Monaco,Consolas,'SF Mono','Courier New',monospace; font-size:12.5px; line-height:1.6; overflow-x:auto; margin-bottom:12px; white-space:pre-wrap;">${escapeHtml(sub.stderr)}</pre>
+                ` : ''}
+              ` : ''}
+
+              <!-- Session analytics — clean table -->
+              <div style="
+                margin-top: 16px;
+                border-top: 1px solid #e5e7eb;
+                padding-top: 16px;
+              ">
+                <div style="font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:#6b7280; margin-bottom:10px;">Session Details</div>
+                <table style="width:100%; border-collapse:collapse; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden;">
+                  <thead>
+                    <tr style="background:#f3f4f6;">
+                      <th style="padding:9px 14px; text-align:left; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:#4b5563; border-bottom:1px solid #e5e7eb;">Metric</th>
+                      <th style="padding:9px 14px; text-align:center; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:#4b5563; border-bottom:1px solid #e5e7eb;">Value</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr style="border-bottom:1px solid #f3f4f6;">
+                      <td style="padding:9px 14px; font-size:13px; color:#374151;">Copy/Paste Attempts</td>
+                      <td style="padding:9px 14px; text-align:center; font-size:13.5px; font-weight:700; color:${pasteCount > 0 ? '#dc2626' : '#111827'};">${pasteCount}</td>
+                    </tr>
+                    <tr style="background:#f9fafb; border-bottom:1px solid #f3f4f6;">
+                      <td style="padding:9px 14px; font-size:13px; color:#374151;">Total Code Duration</td>
+                      <td style="padding:9px 14px; text-align:center; font-size:13.5px; font-weight:700; color:#111827;">${fmtDuration(codeDuration)}</td>
+                    </tr>
+                    <tr style="border-bottom:1px solid #f3f4f6;">
+                      <td style="padding:9px 14px; font-size:13px; color:#374151;">Total Errors (Failed Runs)</td>
+                      <td style="padding:9px 14px; text-align:center; font-size:13.5px; font-weight:700; color:${totalErrors > 0 ? '#dc2626' : '#111827'};">${totalErrors}</td>
+                    </tr>
+                    <tr style="background:#f9fafb; border-bottom:1px solid #f3f4f6;">
+                      <td style="padding:9px 14px; font-size:13px; color:#374151;">Total AI Asks</td>
+                      <td style="padding:9px 14px; text-align:center; font-size:13.5px; font-weight:700; color:${aiCount > 0 ? '#1d4ed8' : '#111827'};">${aiCount}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding:9px 14px; font-size:13px; color:#374151;">Total Tab Changes</td>
+                      <td style="padding:9px 14px; text-align:center; font-size:13.5px; font-weight:700; color:${tabChanges > 4 ? '#b45309' : '#111827'};">${tabChanges}</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
-              ${sub.remarks ? `<div style="font-size: 13px; color: #166534; line-height: 1.5; font-style: italic;">“${escapeHtml(sub.remarks)}”</div>` : ''}
+
+              <!-- Code growth chart -->
+              <div style="margin-top:18px; border-top:1px solid #e5e7eb; padding-top:16px;">
+                <div style="font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:#6b7280; margin-bottom:10px;">Code Growth</div>
+                <canvas id="growthChart_${q.id}_${uid}" height="70"></canvas>
+              </div>
+
+              <!-- Typing rhythm chart -->
+              <div style="margin-top:12px; border-top:1px solid #e5e7eb; padding-top:16px;">
+                <div style="font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:#6b7280; margin-bottom:6px;">Typing Rhythm</div>
+                <div id="rhythmNote_${q.id}_${uid}"></div>
+                <canvas id="rhythmChart_${q.id}_${uid}" height="70"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Teacher eval box (inline, teacher-only) -->
+          ${(data.isTeacher && !isBulk) ? `
+            <div class="instructor-eval-box" style="display:none;"></div>
+          ` : (sub && (sub.marksObtained != null || sub.remarks) ? `
+            <div style="margin-top:14px; padding:13px 18px; background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:10px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <span style="font-size:11.5px; font-weight:800; text-transform:uppercase; color:#166534; letter-spacing:0.04em;">Instructor Evaluation</span>
+                <span style="font-family:Menlo,Monaco,Consolas,monospace; font-size:14px; font-weight:700; color:#15803d;">Score: ${sub.marksObtained != null ? sub.marksObtained : '—'} / ${maxPts} pts</span>
+              </div>
+              ${sub.remarks ? `<div style="font-size:13px; color:#166534; line-height:1.5; font-style:italic;">"${escapeHtml(sub.remarks)}"</div>` : ''}
             </div>
           ` : '')}
         </div>
       `;
     }
 
-    // Event timeline list
+    // ════════════════════════════════════════════════════════════════
+    // LAST — EVENT TIMELINE + TOTAL CODE TIME
+    // ════════════════════════════════════════════════════════════════
     html += `
-      <div class="section-title" style="margin-top:28px;">Event Timeline (All Questions)</div>
-      <div id="eventList_${uid}"></div>
+      <div style="
+        margin-top: 0;
+        page-break-before: always;
+        break-before: always;
+        padding-top: 28px;
+      ">
+        <div style="border-bottom:2.5px solid #1a1a2e; padding-bottom:12px; margin-bottom:22px;">
+          <div style="font-size:11px; font-weight:800; letter-spacing:0.12em; text-transform:uppercase; color:#6b7280; margin-bottom:3px;">Code Lab Report</div>
+          <div style="font-size:19px; font-weight:800; color:#111827;">Event Timeline</div>
+        </div>
+
+        <div id="eventList_${uid}" style="margin-bottom:32px;"></div>
+
+        <!-- Total code time — the only summary stat -->
+        <div style="
+          background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);
+          border-radius: 14px;
+          padding: 20px 26px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 16px;
+          flex-wrap: wrap;
+        ">
+          <div style="font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.65);">Total Code Time — Whole Assignment</div>
+          <div style="font-size: 26px; font-weight: 800; font-family: Menlo, Monaco, Consolas, monospace; color: #ffffff; letter-spacing: -0.02em;">${fmtDuration(combinedStats.totalSpanMs)}</div>
+        </div>
+      </div>
     `;
 
     container.innerHTML = html;
@@ -735,25 +945,6 @@
     // ── Chart.js Chart Initializations ──────────────────────────────────
     if (typeof Chart !== 'undefined') {
       const chartOptions = { responsive: true, animation: isBulk ? false : true };
-
-      // Combined Event Chart
-      const combinedCanvas = container.querySelector(`#combinedEventChart_${uid}`);
-      if (combinedCanvas) {
-        const labels = Object.keys(combinedStats.counts).map(k => EVENT_LABELS[k] || k);
-        const values = Object.values(combinedStats.counts);
-        new Chart(combinedCanvas, {
-          type: 'bar',
-          data: {
-            labels,
-            datasets: [{ label: 'Count', data: values, backgroundColor: '#2563eb' }]
-          },
-          options: {
-            ...chartOptions,
-            plugins: { legend: { display: false } },
-            scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
-          }
-        });
-      }
 
       // Per-question charts
       for (const q of questions) {
@@ -834,9 +1025,9 @@
               const startStr = new Date(maxUniformStreak[0].ts).toLocaleTimeString('en-US', { timeZone: 'Asia/Kathmandu', hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' NPT';
               const endStr = new Date(maxUniformStreak[maxUniformStreak.length - 1].ts).toLocaleTimeString('en-US', { timeZone: 'Asia/Kathmandu', hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' NPT';
               rhythmNoteEl.innerHTML = `
-                <div style="margin-bottom:10px; padding:7px 12px; background:rgba(99, 102, 241, 0.08); border:1px solid rgba(99, 102, 241, 0.22); border-radius:8px; font-size:12px; color:#3730a3; display:inline-flex; align-items:center; gap:6px;">
+                <div style="margin-bottom:8px; padding:6px 12px; background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.22); border-radius:8px; font-size:12px; color:#3730a3; display:inline-flex; align-items:center; gap:6px;">
                   <span>ℹ️</span>
-                  <span>Typing rhythm was unusually consistent during this period (${startStr} – ${endStr}).</span>
+                  <span>Typing rhythm was unusually consistent during ${startStr} – ${endStr}.</span>
                 </div>
               `;
             }
@@ -849,7 +1040,7 @@
                   label: 'Avg Keystroke Gap (ms)',
                   data: rhythmEvents.map(r => r.avgGapMs),
                   borderColor: '#6366f1',
-                  backgroundColor: 'rgba(99, 102, 241, 0.08)',
+                  backgroundColor: 'rgba(99,102,241,0.08)',
                   tension: 0.2,
                   fill: true,
                   pointRadius: 3
@@ -865,7 +1056,7 @@
               }
             });
           } else {
-            rhythmCanvas.outerHTML = '<p style="color:#888;font-size:12px;">No typing rhythm data recorded (requires continuous typing).</p>';
+            rhythmCanvas.outerHTML = '<p style="color:#888;font-size:12px;">No typing rhythm data recorded.</p>';
           }
         }
       }
@@ -880,10 +1071,13 @@
       if (!visibleEvents.length) {
         eventListEl.innerHTML = '<p style="color:#888;font-size:13px;">No notable activity events recorded.</p>';
       } else {
+        // Group events by question for clarity
+        const questionMap = {};
+        questions.forEach(q => { questionMap[q.id] = q; });
+
         visibleEvents.forEach(e => {
           const row = document.createElement('div');
-          row.className = 'event-row';
-          row.style.cssText = 'display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f3f4f6; font-size:13px;';
+          row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:9px 12px; border-bottom:1px solid #f3f4f6; font-size:13px; gap:8px;';
 
           let detail = '';
           try {
@@ -892,7 +1086,7 @@
               detail = ` — +${p.delta} chars`;
               if (p.charsPerSec) detail += ` at ~${p.charsPerSec} chars/sec`;
             } else if (e.eventType === 'run_clicked') {
-              detail = p.success ? ' — Passed (Exit 0)' : ` — ${p.exitStatus || 'Failed'}`;
+              detail = p.success ? ' — Passed ✓' : ` — ${p.exitStatus || 'Failed ✗'}`;
             } else if (e.eventType === 'idle_on_tab') {
               detail = ` — no typing for ${fmtDuration(p.idleMs || 180000)}`;
             } else if (e.eventType === 'idle_ended') {
@@ -900,13 +1094,39 @@
             }
           } catch (_) { }
 
+          const qLabel = e.questionId && questionMap[e.questionId]
+            ? `<span style="font-size:11px; font-weight:700; padding:1px 7px; border-radius:980px; background:#f3f4f6; color:#4b5563; margin-right:8px;">Q${questionMap[e.questionId].questionNumber || e.questionId}</span>`
+            : '';
+
           row.innerHTML = `
-            <span class="type" style="font-weight:500; color:#1f2937;">${escapeHtml((EVENT_LABELS[e.eventType] || e.eventType) + detail)}</span>
-            <span class="time" style="color:#6b7280; font-size:12px;">${new Date(e.ts).toLocaleTimeString('en-US', { timeZone: 'Asia/Kathmandu', hour: '2-digit', minute: '2-digit', second: '2-digit' })} NPT</span>
+            <span style="font-weight:500; color:#1f2937; flex:1;">${qLabel}${escapeHtml((EVENT_LABELS[e.eventType] || e.eventType) + detail)}</span>
+            <span style="color:#6b7280; font-size:12px; white-space:nowrap;">${new Date(e.ts).toLocaleTimeString('en-US', { timeZone: 'Asia/Kathmandu', hour: '2-digit', minute: '2-digit', second: '2-digit' })} NPT</span>
           `;
           eventListEl.appendChild(row);
         });
       }
+    }
+
+    // Handle checkbox label text update for teacher marksheet
+    if (data.isTeacher && !isBulk) {
+      container.querySelectorAll('.q-eval-checked').forEach(cb => {
+        cb.addEventListener('change', function () {
+          const labelText = this.closest('label')?.querySelector('.status-label-text');
+          if (labelText) labelText.textContent = this.checked ? 'Checked' : 'Unchecked';
+          const label = this.closest('label');
+          if (label) {
+            if (this.checked) {
+              label.style.color = '#15803d';
+              label.style.background = '#dcfce7';
+              label.style.borderColor = '#bbf7d0';
+            } else {
+              label.style.color = '#b45309';
+              label.style.background = '#fef3c7';
+              label.style.borderColor = '#fde68a';
+            }
+          }
+        });
+      });
     }
 
     return container;
@@ -941,17 +1161,21 @@
         if (scMarksEl) scMarksEl.innerHTML = `${num} / ${maxPts}`;
       } else {
         allGraded = false;
-        if (scMarksEl) scMarksEl.innerHTML = `<span style="font-weight:600; color:#6b7280; font-family:sans-serif; font-size:12.5px;">Not yet graded</span> / ${maxPts}`;
+        if (scMarksEl) scMarksEl.innerHTML = `<span style="font-weight:600; color:#6b7280; font-size:12.5px;">—</span> / ${maxPts}`;
       }
 
       if (scRemarksEl && remarksInput) {
         const rVal = remarksInput.value.trim();
         if (rVal) {
-          scRemarksEl.innerHTML = `Remarks: ${escapeHtml(rVal)}`;
-          scRemarksEl.style.display = 'block';
+          scRemarksEl.innerHTML = escapeHtml(rVal);
+          scRemarksEl.style.display = '';
+          scRemarksEl.style.fontStyle = 'italic';
+          scRemarksEl.style.color = '#374151';
         } else {
-          scRemarksEl.innerHTML = '';
-          scRemarksEl.style.display = 'none';
+          scRemarksEl.innerHTML = 'No remarks';
+          scRemarksEl.style.display = '';
+          scRemarksEl.style.fontStyle = 'normal';
+          scRemarksEl.style.color = '#9ca3af';
         }
       }
     });
@@ -961,9 +1185,9 @@
       if (allGraded && marksInputs.length > 0) {
         scTotalEl.innerHTML = `${totalMarks} / ${totalMax}`;
       } else if (anyGraded) {
-        scTotalEl.innerHTML = `${totalMarks} / ${totalMax} <span style="font-size:12px; font-weight:600; color:#6b7280; font-family:sans-serif;">(partial)</span>`;
+        scTotalEl.innerHTML = `${totalMarks} / ${totalMax} <span style="font-size:12px; font-weight:600; color:rgba(255,255,255,0.6);">(partial)</span>`;
       } else {
-        scTotalEl.innerHTML = `<span style="font-size:13.5px; font-weight:600; color:#6b7280; font-family:sans-serif;">Not yet graded</span> / ${totalMax}`;
+        scTotalEl.innerHTML = `— / ${totalMax}`;
       }
     }
 

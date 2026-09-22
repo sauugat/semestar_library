@@ -1023,6 +1023,198 @@
             background: #b91c1c;
             border-color: #b91c1c;
         }
+
+        /* ── Split Layout & PDF Side Pane ── */
+        .cl-page-wrap.has-pdf {
+            max-width: 1720px;
+            width: 100%;
+            transition: max-width 0.25s ease;
+        }
+
+        .cl-workspace-grid {
+            display: block;
+            width: 100%;
+        }
+
+        .cl-workspace-grid.has-pdf {
+            display: grid;
+            grid-template-columns: minmax(380px, 46%) minmax(0, 1fr);
+            gap: 22px;
+            align-items: start;
+        }
+
+        @media (max-width: 1120px) {
+            .cl-workspace-grid.has-pdf {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .cl-pdf-side-pane {
+            background: #ffffff;
+            border: 1.5px solid rgba(0, 0, 0, 0.18);
+            border-radius: var(--cl-radius-lg);
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04);
+            display: flex;
+            flex-direction: column;
+            position: sticky;
+            top: 20px;
+            height: calc(100vh - 40px);
+            min-height: 720px;
+            overflow: hidden;
+            z-index: 10;
+        }
+
+        @media (max-width: 1120px) {
+            .cl-pdf-side-pane {
+                position: relative;
+                top: 0;
+                height: 520px;
+                min-height: 420px;
+                margin-bottom: 20px;
+            }
+        }
+
+        .cl-pdf-pane-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 18px;
+            background: #fafafc;
+            border-bottom: 1.5px solid rgba(0, 0, 0, 0.1);
+            flex-shrink: 0;
+        }
+
+        .cl-pdf-header-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13.5px;
+            font-weight: 700;
+            color: #111113;
+            max-width: 78%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .cl-pdf-tool-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #111113;
+            background: #ffffff;
+            border: 1.5px solid rgba(0, 0, 0, 0.16);
+            border-radius: 7px;
+            text-decoration: none;
+            transition: all 0.15s ease;
+        }
+
+        .cl-pdf-tool-btn:hover {
+            background: #f3f4f6;
+            border-color: #111113;
+        }
+
+        .cl-pdf-frame-wrapper {
+            flex: 1;
+            width: 100%;
+            height: 100%;
+            background: #525659;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .cl-pdf-frame {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block;
+        }
+
+        .cl-code-workspace-col {
+            min-width: 0;
+            width: 100%;
+        }
+
+        /* ── Student Question Specification Box ── */
+        .cl-student-question-box {
+            background: #ffffff;
+            border: 1.5px solid rgba(0, 0, 0, 0.18);
+            border-radius: var(--cl-radius-lg);
+            padding: 18px 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+        }
+
+        .cl-student-q-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .cl-student-q-label {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            font-size: 13.5px;
+            font-weight: 700;
+            color: #111113;
+        }
+
+        .cl-student-q-hint {
+            font-size: 12px;
+            color: #6e6e73;
+        }
+
+        .cl-student-q-input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 11px 15px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #111113;
+            background: #f9fafb;
+            border: 1.5px solid rgba(0, 0, 0, 0.16);
+            border-radius: 9px;
+            outline: none;
+            transition: all 0.18s ease;
+            font-family: inherit;
+        }
+
+        .cl-student-q-input:focus {
+            background: #ffffff;
+            border-color: #111113;
+            box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.06);
+        }
+
+        .cl-tab-add-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 6px 14px;
+            border-radius: 980px;
+            border: 1.5px dashed rgba(0, 0, 0, 0.3);
+            background: transparent;
+            color: #111113;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            font-family: var(--apple-font);
+            transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+            margin-left: 4px;
+        }
+
+        .cl-tab-add-btn:hover {
+            background: rgba(0, 0, 0, 0.06);
+            border-color: #000000;
+            transform: translateY(-1px);
+        }
     </style>
 </head>
 
@@ -1048,7 +1240,7 @@
         </div>
     </header>
 
-    <main class="cl-page-wrap">
+    <main class="cl-page-wrap" id="pageWrap">
 
         <!-- Assignment Header Card -->
         <div class="cl-assignment-header">
@@ -1065,16 +1257,41 @@
             </div>
         </div>
 
-        <!-- Question Segmented Tabs Container -->
-        <div class="cl-tab-bar-container" id="tabContainer" style="display:none;">
-            <div class="cl-tab-bar" id="tabBar" role="tablist"></div>
+        <!-- Workspace Grid: Side-by-side if assignment has PDF -->
+        <div class="cl-workspace-grid" id="workspaceGrid">
+            <!-- Left Side: PDF Viewer Pane -->
+            <aside class="cl-pdf-side-pane" id="pdfSidePane" style="display: none;">
+                <div class="cl-pdf-pane-header">
+                    <div class="cl-pdf-header-title">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                        <span id="pdfSideFileName">Assignment PDF</span>
+                    </div>
+                    <div class="cl-pdf-header-tools">
+                        <a id="pdfOpenNewTabBtn" href="#" target="_blank" rel="noopener noreferrer" class="cl-pdf-tool-btn" title="Open PDF in a new tab">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                            <span>Open</span>
+                        </a>
+                    </div>
+                </div>
+                <div class="cl-pdf-frame-wrapper">
+                    <iframe id="pdfFrame" class="cl-pdf-frame" title="Assignment PDF Document"></iframe>
+                </div>
+            </aside>
+
+            <!-- Right Side: Monaco Code Workspace -->
+            <div class="cl-code-workspace-col" id="codeWorkspaceCol">
+                <!-- Question Segmented Tabs Container -->
+                <div class="cl-tab-bar-container" id="tabContainer" style="display:none;">
+                    <div class="cl-tab-bar" id="tabBar" role="tablist"></div>
+                </div>
+
+                <!-- Question Workspace Panels -->
+                <div id="panels"></div>
+
+                <!-- Global Submit All -->
+                <div id="submitAllWrap" class="cl-submit-all-wrap" style="display:none;"></div>
+            </div>
         </div>
-
-        <!-- Question Workspace Panels -->
-        <div id="panels"></div>
-
-        <!-- Global Submit All -->
-        <div id="submitAllWrap" class="cl-submit-all-wrap" style="display:none;"></div>
 
     </main>
 
@@ -1255,6 +1472,15 @@
             }
 
             const questions = assignment.questions || [];
+            if (assignment.pdfUrl) {
+                tags.push(`
+          <span class="cl-meta-tag cl-meta-pdf" title="Assignment references attached PDF document">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+            PDF Attached
+          </span>
+        `);
+            }
+
             if (questions.length > 0) {
                 const submittedCount = questions.filter(q => q.userSubmission).length;
                 tags.push(`
@@ -1266,6 +1492,27 @@
             }
 
             metaStrip.innerHTML = tags.join('');
+
+            // PDF Side Pane setup
+            const pageWrap = document.getElementById('pageWrap');
+            const workspaceGrid = document.getElementById('workspaceGrid');
+            const pdfSidePane = document.getElementById('pdfSidePane');
+            const pdfFrame = document.getElementById('pdfFrame');
+            const pdfSideFileName = document.getElementById('pdfSideFileName');
+            const pdfOpenNewTabBtn = document.getElementById('pdfOpenNewTabBtn');
+
+            if (assignment.pdfUrl) {
+                if (pageWrap) pageWrap.classList.add('has-pdf');
+                if (workspaceGrid) workspaceGrid.classList.add('has-pdf');
+                if (pdfSidePane) pdfSidePane.style.display = 'flex';
+                if (pdfFrame) pdfFrame.src = assignment.pdfUrl;
+                if (pdfSideFileName) pdfSideFileName.textContent = assignment.pdfName || 'Assignment PDF';
+                if (pdfOpenNewTabBtn) pdfOpenNewTabBtn.href = assignment.pdfUrl;
+            } else {
+                if (pageWrap) pageWrap.classList.remove('has-pdf');
+                if (workspaceGrid) workspaceGrid.classList.remove('has-pdf');
+                if (pdfSidePane) pdfSidePane.style.display = 'none';
+            }
 
             if (questions.length === 0) {
                 document.getElementById('loading-msg').innerHTML = `
@@ -1281,152 +1528,31 @@
             document.getElementById('loading-msg').innerHTML = '';
             const tabContainer = document.getElementById('tabContainer');
             const tabBar = document.getElementById('tabBar');
-            const panels = document.getElementById('panels');
             tabContainer.style.display = 'block';
+            tabBar.innerHTML = '';
+            document.getElementById('panels').innerHTML = '';
 
             // Create tabs and panels
             questions.forEach((q, i) => {
-                // Tab button
-                const tab = document.createElement('button');
-                tab.className = 'cl-tab-btn' + (i === 0 ? ' active' : '');
-                tab.id = `tab-btn-${q.id}`;
-                tab.innerHTML = `
-          ${q.userSubmission ? '<span class="cl-tab-check">✓</span>' : ''}
-          <span>Q${q.questionNumber}: ${escapeHtml(q.title)}</span>
-        `;
-                tab.dataset.qid = q.id;
-                tab.setAttribute('role', 'tab');
-                tab.addEventListener('click', () => switchTab(q.id));
-                tabBar.appendChild(tab);
-
-                // Language file extension helper
-                const fileExt = q.language === 'c' ? 'c' : q.language === 'cpp' ? 'cpp' : q.language === 'java' ? 'java' : 'py';
-
-                // Panel
-                const panel = document.createElement('div');
-                panel.className = 'question-panel' + (i === 0 ? ' active' : '');
-                panel.id = `panel-${q.id}`;
-                panel.innerHTML = `
-          <!-- Problem Briefing Card -->
-          <div class="cl-desc-card">
-            <div class="cl-desc-top">
-              <div class="cl-desc-title-wrap">
-                <span class="cl-qnum-badge">Task ${q.questionNumber}</span>
-                <h2 class="cl-desc-title">${escapeHtml(q.title)}</h2>
-              </div>
-              <span class="cl-lang-pill">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
-                ${escapeHtml((q.language || '').toUpperCase())}
-              </span>
-            </div>
-            ${q.description ? `<p class="cl-desc-text">${escapeHtml(q.description)}</p>` : ''}
-          </div>
-
-          <!-- macOS Studio Code Editor Window -->
-          <div class="cl-editor-window">
-            <div class="cl-window-titlebar">
-              <div class="cl-traffic-dots">
-                <span class="cl-dot cl-dot-red"></span>
-                <span class="cl-dot cl-dot-yellow"></span>
-                <span class="cl-dot cl-dot-green"></span>
-              </div>
-              <div class="cl-window-file" title="Click to rename file">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                <input type="text" class="cl-filename-input" id="filename-${q.id}" value="solution.${fileExt}" spellcheck="false" autocomplete="off" />
-                <svg class="cl-filename-edit-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
-              </div>
-              <div class="cl-window-actions">
-                <button type="button" class="cl-window-run-btn" id="runBtn-${q.id}" title="Shortcut: Cmd/Ctrl + Enter">
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-                  <span>Run Code</span>
-                </button>
-              </div>
-            </div>
-            <div class="monaco-slot" id="editor-${q.id}"></div>
-          </div>
-
-          <!-- Terminal Output Box -->
-          <div class="cl-output-box" id="output-${q.id}" style="display:none;">
-            <div class="cl-output-bar">
-              <span style="display:flex; align-items:center; gap:6px;">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
-                Terminal Console
-              </span>
-              <span class="cl-output-status-pill" id="statusPill-${q.id}">Execution Output</span>
-            </div>
-            <div class="cl-output-content">
-              <pre id="stdout-${q.id}"></pre>
-              <pre id="stderr-${q.id}" class="stderr"></pre>
-            </div>
-          </div>
-
-          <!-- AI Explain Error -->
-          <div class="cl-explain-wrap" id="explainWrap-${q.id}" style="display:none;">
-            <button type="button" class="cl-explain-btn" id="explainBtn-${q.id}" onclick="explainError('${q.id}')">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-              <span>Help me understand this error</span>
-            </button>
-            <div class="cl-explanation-box" id="explanationBox-${q.id}" style="display:none;">
-              <div class="cl-explain-label">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-                <span>AI Explanation</span>
-              </div>
-              <div id="explanationText-${q.id}" class="cl-explanation-text"></div>
-            </div>
-          </div>
-
-          <!-- Pro Action Buttons Bar (Below Terminal) -->
-          <div class="cl-action-row">
-            <div class="cl-action-left">
-              <button type="button" class="cl-btn cl-btn-submit" id="submitBtn-${q.id}">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                <span>Submit Q${q.questionNumber}</span>
-              </button>
-            </div>
-            <div class="cl-action-right">
-              <span class="cl-badge-secure">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-                Real-time Sandbox
-              </span>
-            </div>
-          </div>
-
-          <div class="cl-toast-msg" id="msg-${q.id}"></div>
-        `;
-                panels.appendChild(panel);
-
-                // Init state
-                questionState[q.id] = {
-                    editor: null,
-                    stdout: '',
-                    stderr: '',
-                    eventQueue: [],
-                    language: q.language,
-                    questionNumber: q.questionNumber,
-                    title: q.title,
-                    lastValueLength: 0,
-                    lastChangeAt: Date.now(),
-                    lastSnapshotCode: '',
-                    questionObj: q,
-                    hasRun: false,
-                    lastRunCode: null,
-                    lastRunSuccess: false,
-                    lastRunError: null
-                };
+                createQuestionTabAndPanel(q, i, i === 0, assignment);
             });
 
-            // Submit All button if multiple questions
-            if (questions.length > 1) {
-                const wrap = document.getElementById('submitAllWrap');
-                wrap.style.display = 'block';
-                wrap.innerHTML = `
-          <button type="button" class="cl-btn-submit-all" id="globalSubmitAllBtn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-            <span>Submit All Questions</span>
-          </button>
-        `;
-                document.getElementById('globalSubmitAllBtn').addEventListener('click', () => submitAll(questions));
+            // If PDF assignment, add "+ Add Question" button to tab bar
+            if (assignment.pdfUrl) {
+                const addBtn = document.createElement('button');
+                addBtn.type = 'button';
+                addBtn.className = 'cl-tab-add-btn';
+                addBtn.id = 'addQuestionBtn';
+                addBtn.title = 'Add another question solution';
+                addBtn.innerHTML = `
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                  <span>Add Question</span>
+                `;
+                addBtn.addEventListener('click', () => addNewQuestionSlot(assignment));
+                tabBar.appendChild(addBtn);
             }
+
+            renderSubmitAllButton(questions);
 
             activeQuestionId = questions[0].id;
 
@@ -1440,6 +1566,249 @@
                     });
                 }
             });
+        }
+
+        function createQuestionTabAndPanel(q, i, isFirst = false, assignment = null) {
+            const tabBar = document.getElementById('tabBar');
+            const panels = document.getElementById('panels');
+            const hasPdf = !!(assignment && assignment.pdfUrl);
+
+            const displayTitle = (q.userSubmission && q.userSubmission.questionTitle) || q.title || `Question ${q.questionNumber}`;
+
+            // Tab button
+            const tab = document.createElement('button');
+            tab.className = 'cl-tab-btn' + (isFirst ? ' active' : '');
+            tab.id = `tab-btn-${q.id}`;
+            tab.innerHTML = `
+              ${q.userSubmission ? '<span class="cl-tab-check">✓</span>' : ''}
+              <span class="cl-tab-title-text">Q${q.questionNumber}: ${escapeHtml(displayTitle)}</span>
+            `;
+            tab.dataset.qid = q.id;
+            tab.setAttribute('role', 'tab');
+            tab.addEventListener('click', () => switchTab(q.id));
+
+            const addBtn = document.getElementById('addQuestionBtn');
+            if (addBtn && addBtn.parentNode === tabBar) {
+                tabBar.insertBefore(tab, addBtn);
+            } else {
+                tabBar.appendChild(tab);
+            }
+
+            // Language file extension helper
+            const fileExt = q.language === 'c' ? 'c' : q.language === 'cpp' ? 'cpp' : q.language === 'java' ? 'java' : 'py';
+
+            // Panel
+            const panel = document.createElement('div');
+            panel.className = 'question-panel' + (isFirst ? ' active' : '');
+            panel.id = `panel-${q.id}`;
+            panel.innerHTML = `
+              <!-- If PDF assignment, show student question specification box -->
+              ${hasPdf ? `
+                <div class="cl-student-question-box">
+                  <div class="cl-student-q-header">
+                    <label for="q-title-input-${q.id}" class="cl-student-q-label">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                      <span>Which question/problem from the PDF are you solving?</span>
+                    </label>
+                    <span class="cl-student-q-hint">Specify question number or topic (e.g. "Q1: Matrix Multiplication" or "Problem 2(b)")</span>
+                  </div>
+                  <input 
+                    type="text" 
+                    class="cl-student-q-input" 
+                    id="q-title-input-${q.id}" 
+                    placeholder="e.g. Question ${q.questionNumber}: Write a program to..." 
+                    value="${escapeHtml((q.userSubmission && q.userSubmission.questionTitle) || q.title || '')}" 
+                    spellcheck="false" 
+                    autocomplete="off" 
+                  />
+                </div>
+              ` : `
+                <!-- Problem Briefing Card -->
+                <div class="cl-desc-card">
+                  <div class="cl-desc-top">
+                    <div class="cl-desc-title-wrap">
+                      <span class="cl-qnum-badge">Task ${q.questionNumber}</span>
+                      <h2 class="cl-desc-title">${escapeHtml(q.title)}</h2>
+                    </div>
+                    <span class="cl-lang-pill">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+                      ${escapeHtml((q.language || '').toUpperCase())}
+                    </span>
+                  </div>
+                  ${q.description ? `<p class="cl-desc-text">${escapeHtml(q.description)}</p>` : ''}
+                </div>
+              `}
+
+              <!-- macOS Studio Code Editor Window -->
+              <div class="cl-editor-window">
+                <div class="cl-window-titlebar">
+                  <div class="cl-traffic-dots">
+                    <span class="cl-dot cl-dot-red"></span>
+                    <span class="cl-dot cl-dot-yellow"></span>
+                    <span class="cl-dot cl-dot-green"></span>
+                  </div>
+                  <div class="cl-window-file" title="Click to rename file">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                    <input type="text" class="cl-filename-input" id="filename-${q.id}" value="solution.${fileExt}" spellcheck="false" autocomplete="off" />
+                    <svg class="cl-filename-edit-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+                  </div>
+                  <div class="cl-window-actions">
+                    <button type="button" class="cl-window-run-btn" id="runBtn-${q.id}" title="Shortcut: Cmd/Ctrl + Enter">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                      <span>Run Code</span>
+                    </button>
+                  </div>
+                </div>
+                <div class="monaco-slot" id="editor-${q.id}"></div>
+              </div>
+
+              <!-- Terminal Output Box -->
+              <div class="cl-output-box" id="output-${q.id}" style="display:none;">
+                <div class="cl-output-bar">
+                  <span style="display:flex; align-items:center; gap:6px;">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
+                    Terminal Console
+                  </span>
+                  <span class="cl-output-status-pill" id="statusPill-${q.id}">Execution Output</span>
+                </div>
+                <div class="cl-output-content">
+                  <pre id="stdout-${q.id}"></pre>
+                  <pre id="stderr-${q.id}" class="stderr"></pre>
+                </div>
+              </div>
+
+              <!-- AI Explain Error -->
+              <div class="cl-explain-wrap" id="explainWrap-${q.id}" style="display:none;">
+                <button type="button" class="cl-explain-btn" id="explainBtn-${q.id}" onclick="explainError('${q.id}')">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                  <span>Help me understand this error</span>
+                </button>
+                <div class="cl-explanation-box" id="explanationBox-${q.id}" style="display:none;">
+                  <div class="cl-explain-label">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                    <span>AI Explanation</span>
+                  </div>
+                  <div id="explanationText-${q.id}" class="cl-explanation-text"></div>
+                </div>
+              </div>
+
+              <!-- Pro Action Buttons Bar (Below Terminal) -->
+              <div class="cl-action-row">
+                <div class="cl-action-left">
+                  <button type="button" class="cl-btn cl-btn-submit" id="submitBtn-${q.id}">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    <span>Submit Q${q.questionNumber}</span>
+                  </button>
+                </div>
+                <div class="cl-action-right">
+                  <span class="cl-badge-secure">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                    Real-time Sandbox
+                  </span>
+                </div>
+              </div>
+
+              <div class="cl-toast-msg" id="msg-${q.id}"></div>
+            `;
+            panels.appendChild(panel);
+
+            // Live update tab title as student types question title
+            const titleInput = panel.querySelector(`#q-title-input-${q.id}`);
+            if (titleInput) {
+                titleInput.addEventListener('input', () => {
+                    const val = titleInput.value.trim();
+                    const tabTitleSpan = tab.querySelector('.cl-tab-title-text');
+                    if (tabTitleSpan) {
+                        tabTitleSpan.textContent = `Q${q.questionNumber}: ${val || ('Question ' + q.questionNumber)}`;
+                    }
+                    q.title = val || `Question ${q.questionNumber}`;
+                });
+            }
+
+            // Init state
+            questionState[q.id] = {
+                editor: null,
+                stdout: '',
+                stderr: '',
+                eventQueue: [],
+                language: q.language,
+                questionNumber: q.questionNumber,
+                title: q.title,
+                lastValueLength: 0,
+                lastChangeAt: Date.now(),
+                lastSnapshotCode: '',
+                questionObj: q,
+                hasRun: false,
+                lastRunCode: null,
+                lastRunSuccess: false,
+                lastRunError: null
+            };
+        }
+
+        function renderSubmitAllButton(questions) {
+            const wrap = document.getElementById('submitAllWrap');
+            if (!wrap) return;
+            if (questions.length > 1) {
+                wrap.style.display = 'block';
+                wrap.innerHTML = `
+                  <button type="button" class="cl-btn-submit-all" id="globalSubmitAllBtn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                    <span>Submit All Questions</span>
+                  </button>
+                `;
+                document.getElementById('globalSubmitAllBtn').addEventListener('click', () => submitAll(questions));
+            } else {
+                wrap.style.display = 'none';
+                wrap.innerHTML = '';
+            }
+        }
+
+        async function addNewQuestionSlot(assignment) {
+            const addBtn = document.getElementById('addQuestionBtn');
+            if (addBtn) {
+                addBtn.disabled = true;
+                addBtn.innerHTML = `
+                    <span class="cl-loading-spinner" style="width:12px;height:12px;border-color:rgba(0,0,0,0.15);border-top-color:#111;"></span>
+                    <span>Adding...</span>
+                `;
+            }
+
+            try {
+                const lang = (assignment.questions && assignment.questions[0]?.language) || 'c';
+                const res = await fetch(`/api/code-lab/assignments/${assignment.id}/student-questions`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ language: lang })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || 'Failed to add question slot.');
+
+                const newQ = data.question;
+                assignment.questions.push(newQ);
+
+                // Create tab and panel
+                createQuestionTabAndPanel(newQ, assignment.questions.length - 1, false, assignment);
+
+                // Initialize editor
+                initEditor(newQ);
+
+                // Switch to this new question
+                switchTab(newQ.id);
+
+                // Update progress badge and submit-all button
+                updateProgressBadge(assignment.questions);
+                renderSubmitAllButton(assignment.questions);
+            } catch (err) {
+                showErrorAlert(err.message || 'Could not add question slot.', 'Error');
+            } finally {
+                if (addBtn) {
+                    addBtn.disabled = false;
+                    addBtn.innerHTML = `
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                        <span>Add Question</span>
+                    `;
+                }
+            }
         }
 
         function switchTab(questionId) {
@@ -1460,6 +1829,12 @@
         }
 
         function initEditor(q) {
+            if (typeof monaco === 'undefined' || !monaco.editor) {
+                require(['vs/editor/editor.main'], function () {
+                    initEditor(q);
+                });
+                return;
+            }
             const state = questionState[q.id];
             const monacoLang = q.language === 'cpp' ? 'cpp' : q.language;
             const initialCode = (q.userSubmission && q.userSubmission.code) ? q.userSubmission.code : '// Write your code here\n';
@@ -1863,16 +2238,31 @@
             logEvent(q.id, 'submit_clicked', {});
             flushEvents(q.id);
 
+            const qTitleInput = document.getElementById(`q-title-input-${q.id}`);
+            const questionTitle = qTitleInput ? qTitleInput.value.trim() : (q.title || `Question ${q.questionNumber}`);
+
             try {
                 const res = await fetch(`/api/code-lab/questions/${q.id}/submissions`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ code, stdout: state.stdout, stderr: state.stderr })
+                    body: JSON.stringify({
+                        code,
+                        stdout: state.stdout,
+                        stderr: state.stderr,
+                        questionTitle: questionTitle || `Question ${q.questionNumber}`
+                    })
                 });
                 const data = await res.json();
                 if (res.ok) {
                     showMsg(q.id, `Q${q.questionNumber} submitted successfully!`, 'success');
-                    q.userSubmission = { code, stdout: state.stdout, stderr: state.stderr, submittedAt: new Date().toISOString() };
+                    q.title = questionTitle || q.title;
+                    q.userSubmission = {
+                        code,
+                        stdout: state.stdout,
+                        stderr: state.stderr,
+                        questionTitle: questionTitle || q.title,
+                        submittedAt: new Date().toISOString()
+                    };
 
                     // Update tab checkmark
                     const tabBtn = document.getElementById(`tab-btn-${q.id}`);

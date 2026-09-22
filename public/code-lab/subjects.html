@@ -1392,6 +1392,71 @@
       margin: 22px 0;
     }
 
+    /* PDF Attachment Zone */
+    .cl-pdf-upload-box {
+      border: 1.5px dashed rgba(0, 0, 0, 0.16);
+      border-radius: 14px;
+      background: #fafafa;
+      padding: 20px 16px;
+      text-align: center;
+      transition: all 0.2s ease;
+      cursor: pointer;
+      position: relative;
+    }
+    .cl-pdf-upload-box:hover, .cl-pdf-upload-box.dragover {
+      border-color: #1d1d1f;
+      background: #f5f5f7;
+    }
+    .cl-pdf-selected-badge {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #ffffff;
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      border-radius: 12px;
+      padding: 10px 14px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    }
+    .cl-pdf-icon-pill {
+      background: #ff3b30;
+      color: #ffffff;
+      font-size: 10.5px;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      padding: 3px 7px;
+      border-radius: 6px;
+      text-transform: uppercase;
+    }
+    .cl-remove-pdf-btn {
+      background: rgba(0, 0, 0, 0.05);
+      border: none;
+      border-radius: 50%;
+      width: 26px;
+      height: 26px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #6e6e73;
+      transition: all 0.15s ease;
+    }
+    .cl-remove-pdf-btn:hover {
+      background: #ff3b30;
+      color: #ffffff;
+    }
+    body.dark-mode .cl-pdf-upload-box {
+      background: #18181b;
+      border-color: rgba(255, 255, 255, 0.18);
+    }
+    body.dark-mode .cl-pdf-upload-box:hover {
+      background: #202023;
+      border-color: #ffffff;
+    }
+    body.dark-mode .cl-pdf-selected-badge {
+      background: #242428;
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
     /* Modal Form Elements */
     .cl-form-group {
       margin-bottom: 20px;
@@ -1963,6 +2028,36 @@
         <div class="cl-form-group">
           <label class="cl-label" for="modalAssignDeadline">Deadline (Optional)</label>
           <input id="modalAssignDeadline" class="cl-input" type="datetime-local">
+        </div>
+
+        <div class="cl-form-group">
+          <label class="cl-label">Assignment Document (PDF) <span style="font-weight: 400; color: #86868b; font-size: 12.5px;">— Students view this PDF on the side while coding</span></label>
+          <div class="cl-pdf-upload-box" id="modalPdfDropZone">
+            <input type="file" id="modalAssignPdfInput" accept="application/pdf,.pdf" style="display: none;">
+            <div id="modalPdfEmptyState" class="cl-pdf-upload-content" onclick="document.getElementById('modalAssignPdfInput').click()">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color: #6e6e73; margin-bottom: 4px;">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="12" y1="18" x2="12" y2="12"></line>
+                <line x1="9" y1="15" x2="12" y2="12"></line>
+                <line x1="15" y1="15" x2="12" y2="12"></line>
+              </svg>
+              <div style="font-weight: 600; font-size: 13.5px; color: #1d1d1f;">Attach Assignment PDF</div>
+              <div style="font-size: 12px; color: #86868b; margin-top: 2px;">Click to browse or drag &amp; drop PDF file (Max 50MB)</div>
+            </div>
+            <div id="modalPdfSelectedBadge" class="cl-pdf-selected-badge" style="display: none;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <div class="cl-pdf-icon-pill">PDF</div>
+                <div style="text-align: left;">
+                  <div id="modalPdfFileName" style="font-weight: 600; font-size: 13px; color: #1d1d1f;">assignment.pdf</div>
+                  <div id="modalPdfFileSize" style="font-size: 11.5px; color: #86868b;">0 KB</div>
+                </div>
+              </div>
+              <button type="button" class="cl-remove-pdf-btn" id="modalRemovePdfBtn" title="Remove attached PDF">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              </button>
+            </div>
+          </div>
         </div>
 
         <div class="cl-modal-divider"></div>
@@ -2862,6 +2957,9 @@
         alertEl.textContent = '';
       }
 
+      initModalPdfDropZone();
+      modalClearPdf();
+
       overlay.classList.add('open');
       document.body.style.overflow = 'hidden';
     }
@@ -3163,6 +3261,68 @@
       alertEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
+    let modalSelectedPdfFile = null;
+
+    function initModalPdfDropZone() {
+      const input = document.getElementById('modalAssignPdfInput');
+      const dropZone = document.getElementById('modalPdfDropZone');
+      const emptyState = document.getElementById('modalPdfEmptyState');
+      const badge = document.getElementById('modalPdfSelectedBadge');
+      const fileNameEl = document.getElementById('modalPdfFileName');
+      const fileSizeEl = document.getElementById('modalPdfFileSize');
+      const removeBtn = document.getElementById('modalRemovePdfBtn');
+
+      if (!input || !dropZone) return;
+
+      input.onchange = (e) => {
+        if (e.target.files && e.target.files[0]) {
+          const file = e.target.files[0];
+          if (!file.name.toLowerCase().endsWith('.pdf') && file.type !== 'application/pdf') {
+            showModalAlert('Only PDF files are supported.', true);
+            return;
+          }
+          if (file.size > 50 * 1024 * 1024) {
+            showModalAlert('PDF file size exceeds 50MB limit.', true);
+            return;
+          }
+          modalSelectedPdfFile = file;
+          fileNameEl.textContent = file.name;
+          const sizeKb = Math.round(file.size / 1024);
+          fileSizeEl.textContent = sizeKb >= 1024 ? `${(sizeKb / 1024).toFixed(1)} MB` : `${sizeKb} KB`;
+          emptyState.style.display = 'none';
+          badge.style.display = 'flex';
+        }
+      };
+
+      if (removeBtn) {
+        removeBtn.onclick = (e) => {
+          e.stopPropagation();
+          modalClearPdf();
+        };
+      }
+
+      dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('dragover'); };
+      dropZone.ondragleave = () => { dropZone.classList.remove('dragover'); };
+      dropZone.ondrop = (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
+          input.files = e.dataTransfer.files;
+          input.dispatchEvent(new Event('change'));
+        }
+      };
+    }
+
+    function modalClearPdf() {
+      modalSelectedPdfFile = null;
+      const input = document.getElementById('modalAssignPdfInput');
+      const emptyState = document.getElementById('modalPdfEmptyState');
+      const badge = document.getElementById('modalPdfSelectedBadge');
+      if (input) input.value = '';
+      if (emptyState) emptyState.style.display = 'block';
+      if (badge) badge.style.display = 'none';
+    }
+
     async function submitModalCreateAssignment() {
       const title = document.getElementById('modalAssignTitle').value.trim();
       const semester = document.getElementById('modalAssignSemester').value;
@@ -3181,7 +3341,7 @@
         const qLang = block.querySelector('.q-lang')?.value || 'c';
         const qPoints = parseInt(block.querySelector('.q-points')?.value, 10) || 10;
 
-        if (!qTitle) {
+        if (!qTitle && !modalSelectedPdfFile) {
           showModalAlert(`Question ${i + 1}: Question title is compulsory.`, true);
           return;
         }
@@ -3192,19 +3352,21 @@
           const inp = item.querySelector('.tc-input').value;
           const exp = item.querySelector('.tc-expected').value;
           if (!exp.trim()) {
-            showModalAlert(`Question "${qTitle}": Expected output is required for all added test cases.`, true);
+            showModalAlert(`Question "${qTitle || 'Question'}": Expected output is required for all added test cases.`, true);
             return;
           }
           testCases.push({ input: inp, expectedOutput: exp });
         }
 
-        questions.push({
-          title: qTitle,
-          description: qDesc,
-          language: qLang,
-          maxPoints: qPoints,
-          testCases
-        });
+        if (qTitle) {
+          questions.push({
+            title: qTitle,
+            description: qDesc,
+            language: qLang,
+            maxPoints: qPoints,
+            testCases
+          });
+        }
       }
 
       if (!title) {
@@ -3215,29 +3377,53 @@
         showModalAlert('Please select both a Semester and a Subject.', true);
         return;
       }
-      if (questions.length === 0) {
-        showModalAlert('At least one question is required.', true);
+      if (questions.length === 0 && !modalSelectedPdfFile) {
+        showModalAlert('Please add at least one question or attach an Assignment PDF.', true);
         return;
       }
 
       btn.disabled = true;
-      btn.innerHTML = '<span class="app-spinner spinner-sm spinner-light" style="margin-right:8px; display:inline-block; vertical-align:middle;"></span><span>Creating…</span>';
 
       try {
+        let pdfUrl = null;
+        let pdfName = null;
+
+        if (modalSelectedPdfFile) {
+          btn.innerHTML = '<span class="app-spinner spinner-sm spinner-light" style="margin-right:8px; display:inline-block; vertical-align:middle;"></span><span>Uploading PDF…</span>';
+          const formData = new FormData();
+          formData.append('pdf', modalSelectedPdfFile);
+          const uploadRes = await fetch('/api/code-lab/upload-assignment-pdf', {
+            method: 'POST',
+            body: formData
+          });
+          const uploadData = await uploadRes.json();
+          if (!uploadRes.ok) {
+            showModalAlert(uploadData.message || 'Failed to upload assignment PDF.', true);
+            btn.disabled = false;
+            btn.innerHTML = 'Create Assignment';
+            return;
+          }
+          pdfUrl = uploadData.pdfUrl;
+          pdfName = uploadData.pdfName;
+        }
+
+        btn.innerHTML = '<span class="app-spinner spinner-sm spinner-light" style="margin-right:8px; display:inline-block; vertical-align:middle;"></span><span>Creating…</span>';
+
         const res = await fetch('/api/code-lab/assignments', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title, subject, semester, deadline, questions })
+          body: JSON.stringify({ title, subject, semester, deadline, pdfUrl, pdfName, questions })
         });
         const data = await res.json();
 
         if (res.ok) {
-          showModalAlert(`Assignment "${title}" created successfully!`, false);
+          showModalAlert(`Assignment "${title}" created successfully${pdfName ? ' with PDF attachment' : ''}!`, false);
           
           // Reset form fields
           document.getElementById('modalAssignTitle').value = '';
           document.getElementById('modalAssignDeadline').value = '';
           document.getElementById('modalQuestionsContainer').innerHTML = '';
+          modalClearPdf();
           modalQuestionCount = 0;
 
           // Reload feed so the new assignment appears immediately

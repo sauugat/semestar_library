@@ -17,6 +17,97 @@ async function isAdmin(studentId) {
 
 const COMPILER_URL = process.env.COMPILER_URL || 'https://slcompiler.duckdns.org/api/compile';
 const INTERNAL_COMPILER_KEY = process.env.INTERNAL_COMPILER_KEY || 'codelab-internal-vm-secret-key-2026';
+const path = require('path');
+const fs = require('fs');
+const crypto = require('crypto');
+const multer = require('multer');
+
+const UPLOAD_DIR = process.env.VERCEL ? path.join('/tmp', 'uploads') : path.join(__dirname, '..', '..', 'uploads');
+if (!fs.existsSync(UPLOAD_DIR)) {
+    try { fs.mkdirSync(UPLOAD_DIR, { recursive: true }); } catch (_) {}
+}
+
+const pdfStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+        cb(null, UPLOAD_DIR);
+    },
+    filename: (req, file, cb) => {
+        const uniqueName = 'assignment-pdf-' + crypto.randomBytes(12).toString('hex') + path.extname(file.originalname);
+        cb(null, uniqueName);
+    }
+});
+
+const uploadAssignmentPdf = multer({
+    storage: pdfStorage,
+    limits: { fileSize: 50 * 1024 * 1024 }, // 50MB max
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype === 'application/pdf' || file.originalname.toLowerCase().endsWith('.pdf')) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only PDF documents are allowed.'));
+        }
+    }
+});
+
+// ── POST /upload-assignment-pdf — upload assignment PDF document ─────────────
+router.post('/upload-assignment-pdf', requireLogin, async (req, res) => {
+    const admin = await isAdmin(req.session.studentId);
+    if (!admin) {
+        return res.status(403).json({ message: 'Only teachers/admins can upload assignment PDFs.' });
+    }
+
+    uploadAssignmentPdf.single('pdf')(req, res, async (err) => {
+        if (err) {
+            return res.status(400).json({ message: err.message || 'File upload error.' });
+        }
+        if (!req.file) {
+            return res.status(400).json({ message: 'No PDF file uploaded.' });
+        }
+
+        try {
+            const filePath = req.file.path;
+            const buffer = fs.readFileSync(filePath);
+            await db.saveFileBlob(req.file.filename, buffer, 'application/pdf');
+
+            return res.json({
+                success: true,
+                pdfUrl: `/api/code-lab/pdf/${req.file.filename}`,
+                pdfName: req.file.originalname,
+                filename: req.file.filename
+            });
+        } catch (saveErr) {
+            console.error('[Code Lab] PDF Blob Save Error:', saveErr);
+            return res.status(500).json({ message: 'Failed to save uploaded PDF.' });
+        }
+    });
+});
+
+// ── GET /pdf/:filename — stream assignment PDF inline for viewer ────────────
+router.get('/pdf/:filename', async (req, res) => {
+    const filename = path.basename(req.params.filename);
+    const localPath = path.join(UPLOAD_DIR, filename);
+
+    if (!fs.existsSync(localPath)) {
+        try {
+            const blob = await db.getFileBlob(filename);
+            if (blob && blob.fileData) {
+                if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+                fs.writeFileSync(localPath, blob.fileData);
+            }
+        } catch (e) {
+            console.warn('[Code Lab] Error restoring PDF blob:', e.message);
+        }
+    }
+
+    if (!fs.existsSync(localPath)) {
+        return res.status(404).json({ message: 'Assignment PDF not found.' });
+    }
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(filename)}"`);
+    res.sendFile(localPath);
+});
 
 async function runTestCases(language, code, testCases) {
     if (!Array.isArray(testCases) || testCases.length === 0) return null;
@@ -80,17 +171,29 @@ router.post('/assignments', requireLogin, async (req, res) => {
         return res.status(403).json({ message: 'Only admins can create assignments.' });
     }
 
-    const { title, subject, semester, deadline, questions } = req.body;
+    const { title, subject, semester, deadline, pdfUrl, pdfName, language, questions } = req.body;
     if (!title) {
         return res.status(400).json({ message: 'Assignment title is required.' });
     }
-    if (!Array.isArray(questions) || questions.length === 0) {
-        return res.status(400).json({ message: 'At least one question is required.' });
+
+    let finalQuestions = Array.isArray(questions) && questions.length > 0 ? questions : [];
+    // If an assignment PDF is attached and no manual questions are supplied, provide an initial flexible Question 1
+    if (finalQuestions.length === 0 && pdfUrl) {
+        finalQuestions = [{
+            title: 'Question 1',
+            description: 'Refer to attached assignment PDF for problem statement',
+            language: language || 'c',
+            maxPoints: 10
+        }];
+    }
+
+    if (finalQuestions.length === 0) {
+        return res.status(400).json({ message: 'At least one question or an assignment PDF is required.' });
     }
 
     // Validate each question: Title is compulsory, Problem Statement / Description is optional
-    for (let i = 0; i < questions.length; i++) {
-        const q = questions[i];
+    for (let i = 0; i < finalQuestions.length; i++) {
+        const q = finalQuestions[i];
         if (!q.title || !q.title.trim()) {
             return res.status(400).json({ message: `Question ${i + 1}: Question title is compulsory.` });
         }
@@ -100,13 +203,15 @@ router.post('/assignments', requireLogin, async (req, res) => {
 
     // Use first question's description/language as fallback for the legacy columns
     const result = await db.run(
-        'INSERT INTO assignments (title, description, language, subject, semester, deadline, createdBy, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO assignments (title, description, language, subject, semester, deadline, pdfUrl, pdfName, createdBy, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         title,
-        questions[0].description ? questions[0].description.trim() : '',
-        questions[0].language || 'c',
+        finalQuestions[0].description ? finalQuestions[0].description.trim() : '',
+        finalQuestions[0].language || language || 'c',
         subject || null,
         semester || null,
         deadline || null,
+        pdfUrl || null,
+        pdfName || null,
         req.session.studentId,
         now
     );
@@ -115,8 +220,8 @@ router.post('/assignments', requireLogin, async (req, res) => {
 
     // Create question rows
     const questionIds = [];
-    for (let i = 0; i < questions.length; i++) {
-        const q = questions[i];
+    for (let i = 0; i < finalQuestions.length; i++) {
+        const q = finalQuestions[i];
         const maxPts = (q.maxPoints !== undefined && q.maxPoints !== null && !isNaN(Number(q.maxPoints)) && Number(q.maxPoints) > 0)
             ? Math.floor(Number(q.maxPoints))
             : 10;
@@ -126,7 +231,7 @@ router.post('/assignments', requireLogin, async (req, res) => {
             i + 1,
             q.title.trim(),
             q.description ? q.description.trim() : '',
-            q.language || 'c',
+            q.language || language || 'c',
             maxPts,
             now
         );
@@ -325,6 +430,7 @@ router.get('/assignments/:id', async (req, res) => {
                 code: sub.code,
                 stdout: sub.stdout,
                 stderr: sub.stderr,
+                questionTitle: sub.questionTitle || null,
                 testResults: parsedResults,
                 submittedAt: sub.submittedAt
             } : null
@@ -346,7 +452,7 @@ router.post('/questions/:questionId/submissions', requireLogin, async (req, res)
         return res.status(400).json({ message: 'Invalid question ID.' });
     }
 
-    const { code, stdout, stderr } = req.body;
+    const { code, stdout, stderr, questionTitle } = req.body;
     if (typeof code !== 'string' || !code.trim()) {
         return res.status(400).json({ message: 'Code is required.' });
     }
@@ -359,6 +465,7 @@ router.post('/questions/:questionId/submissions', requireLogin, async (req, res)
         }
 
         const now = new Date().toISOString();
+        const safeTitle = (questionTitle && typeof questionTitle === 'string' && questionTitle.trim()) ? questionTitle.trim() : null;
 
         // Check for test cases and evaluate server-side
         const testCases = await db.all('SELECT * FROM question_test_cases WHERE questionId = ? ORDER BY id ASC', questionId);
@@ -370,26 +477,88 @@ router.post('/questions/:questionId/submissions', requireLogin, async (req, res)
 
         // Upsert submission
         const existing = await db.get(
-            'SELECT id FROM submissions WHERE questionId = ? AND studentId = ?',
+            'SELECT id, questionTitle FROM submissions WHERE questionId = ? AND studentId = ?',
             questionId, req.session.studentId
         );
 
+        const finalTitle = safeTitle || (existing ? existing.questionTitle : null);
+
         if (existing) {
             await db.run(
-                'UPDATE submissions SET code = ?, stdout = ?, stderr = ?, testResults = ?, submittedAt = ? WHERE id = ?',
-                code, stdout || '', stderr || '', testResultsJson, now, existing.id
+                'UPDATE submissions SET code = ?, stdout = ?, stderr = ?, testResults = ?, questionTitle = ?, submittedAt = ? WHERE id = ?',
+                code, stdout || '', stderr || '', testResultsJson, finalTitle, now, existing.id
             );
         } else {
             await db.run(
-                'INSERT INTO submissions (assignmentId, questionId, studentId, code, stdout, stderr, testResults, submittedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                question.assignmentId, questionId, req.session.studentId, code, stdout || '', stderr || '', testResultsJson, now
+                'INSERT INTO submissions (assignmentId, questionId, studentId, code, stdout, stderr, testResults, questionTitle, submittedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                question.assignmentId, questionId, req.session.studentId, code, stdout || '', stderr || '', testResultsJson, finalTitle, now
             );
         }
 
-        res.json({ message: 'Submitted successfully', testResults });
+        // If student supplied a custom question title, update the question record title as well
+        if (safeTitle) {
+            try {
+                await db.run('UPDATE assignment_questions SET title = ? WHERE id = ?', safeTitle, questionId);
+            } catch (_) {}
+        }
+
+        res.json({ message: 'Submitted successfully', testResults, questionTitle: finalTitle });
     } catch (err) {
         console.error(`[Code Lab][POST /questions/${questionId}/submissions] studentId=${req.session.studentId}:`, err);
         res.status(500).json({ message: 'Failed to submit code.' });
+    }
+});
+
+// ── POST /assignments/:id/student-questions — add question solution slot for PDF assignment ──
+router.post('/assignments/:id/student-questions', requireLogin, async (req, res) => {
+    try {
+        const assignmentId = Number(req.params.id);
+        if (!Number.isInteger(assignmentId) || assignmentId <= 0) {
+            return res.status(400).json({ message: 'Invalid assignment ID.' });
+        }
+
+        const assignment = await db.get('SELECT * FROM assignments WHERE id = ?', assignmentId);
+        if (!assignment) {
+            return res.status(404).json({ message: 'Assignment not found.' });
+        }
+
+        const { title, language } = req.body;
+        const countRow = await db.get('SELECT COUNT(*) AS cnt FROM assignment_questions WHERE assignmentId = ?', assignmentId);
+        const nextQNum = (Number(countRow?.cnt) || 0) + 1;
+        const qTitle = (title && typeof title === 'string' && title.trim()) ? title.trim() : `Question ${nextQNum}`;
+        const qLang = language || assignment.language || 'c';
+        const now = new Date().toISOString();
+
+        const result = await db.run(
+            'INSERT INTO assignment_questions (assignmentId, questionNumber, title, description, language, maxPoints, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            assignmentId,
+            nextQNum,
+            qTitle,
+            'Question solution from attached PDF',
+            qLang,
+            10,
+            now
+        );
+
+        const newQId = result.lastInsertRowid;
+
+        res.json({
+            success: true,
+            question: {
+                id: newQId,
+                assignmentId,
+                questionNumber: nextQNum,
+                title: qTitle,
+                description: 'Question solution from attached PDF',
+                language: qLang,
+                maxPoints: 10,
+                testCaseCount: 0,
+                userSubmission: null
+            }
+        });
+    } catch (err) {
+        console.error('[Code Lab] Add student question error:', err);
+        res.status(500).json({ message: 'Failed to add question.' });
     }
 });
 
@@ -450,7 +619,7 @@ router.get('/assignments/:id/submissions', requireLogin, async (req, res) => {
 
     const admin = await isAdmin(req.session.studentId);
     const assignment = await db.get(
-        `SELECT a.id, a.title, a.subject, a.semester, a.deadline, a.createdBy, s.name AS teacherName,
+        `SELECT a.id, a.title, a.subject, a.semester, a.deadline, a.pdfUrl, a.pdfName, a.createdBy, s.name AS teacherName,
                 (SELECT COUNT(*) FROM assignment_questions aq WHERE aq.assignmentId = a.id) AS questionCount
          FROM assignments a
          LEFT JOIN students s ON s.studentId = a.createdBy
@@ -477,7 +646,7 @@ router.get('/assignments/:id/submissions', requireLogin, async (req, res) => {
     const submissions = await db.all(
         `SELECT sub.*, 
                 st.name AS studentName,
-                aq.questionNumber, aq.title AS questionTitle, aq.language AS questionLanguage,
+                aq.questionNumber, COALESCE(sub.questionTitle, aq.title, 'Question') AS questionTitle, aq.language AS questionLanguage,
                 COALESCE(aq.maxPoints, 10) AS maxPoints,
                 (SELECT COUNT(*) FROM question_test_cases qtc WHERE qtc.questionId = aq.id) AS testCaseCount,
                 sg.marksObtained, sg.remarks, sg.checked, sg.released, sg.gradedBy, sg.gradedAt
@@ -1073,7 +1242,7 @@ router.get('/assignments/:id/report/:studentId', requireLogin, async (req, res) 
         const currentStudentId = String(req.session.studentId);
 
         const assignment = await db.get(
-            `SELECT a.id, a.title, a.subject, a.semester, a.deadline, a.createdBy, s.name AS teacherName
+            `SELECT a.id, a.title, a.subject, a.semester, a.deadline, a.pdfUrl, a.pdfName, a.createdBy, s.name AS teacherName
              FROM assignments a
              LEFT JOIN students s ON s.studentId = a.createdBy
              WHERE a.id = ?`,
@@ -1102,7 +1271,7 @@ router.get('/assignments/:id/report/:studentId', requireLogin, async (req, res) 
 
         const submissions = await db.all(
             `SELECT sub.*, 
-                    aq.questionNumber, aq.title AS questionTitle, aq.language AS questionLanguage,
+                    aq.questionNumber, COALESCE(sub.questionTitle, aq.title, 'Question') AS questionTitle, aq.language AS questionLanguage,
                     COALESCE(aq.maxPoints, 10) AS maxPoints,
                     (SELECT COUNT(*) FROM question_test_cases qtc WHERE qtc.questionId = aq.id) AS testCaseCount,
                     sg.marksObtained, sg.remarks, sg.checked, sg.released, sg.gradedBy, sg.gradedAt

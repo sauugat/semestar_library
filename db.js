@@ -397,6 +397,8 @@ async function initSchema() {
             subject TEXT,
             semester TEXT,
             deadline TIMESTAMPTZ,
+            pdfUrl TEXT,
+            pdfName TEXT,
             createdBy TEXT NOT NULL REFERENCES students(studentId) ON DELETE CASCADE,
             createdAt TIMESTAMPTZ NOT NULL
           );
@@ -582,6 +584,8 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
             subject TEXT,
             semester TEXT,
             deadline TEXT,
+            pdfUrl TEXT,
+            pdfName TEXT,
             createdBy TEXT NOT NULL,
             createdAt TEXT NOT NULL,
             FOREIGN KEY (createdBy) REFERENCES students(studentId)
@@ -648,9 +652,12 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
           await exec(`ALTER TABLE assignments ADD COLUMN IF NOT EXISTS subject TEXT;`);
           await exec(`ALTER TABLE assignments ADD COLUMN IF NOT EXISTS semester TEXT;`);
           await exec(`ALTER TABLE assignments ADD COLUMN IF NOT EXISTS deadline TEXT;`);
+          await exec(`ALTER TABLE assignments ADD COLUMN IF NOT EXISTS pdfUrl TEXT;`);
+          await exec(`ALTER TABLE assignments ADD COLUMN IF NOT EXISTS pdfName TEXT;`);
           await exec(`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS stdout TEXT;`);
           await exec(`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS stderr TEXT;`);
           await exec(`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS testResults TEXT;`);
+          await exec(`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS questionTitle TEXT;`);
           await exec(`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS questionId INTEGER REFERENCES assignment_questions(id) ON DELETE CASCADE;`);
           await exec(`ALTER TABLE submission_events ADD COLUMN IF NOT EXISTS questionId INTEGER REFERENCES assignment_questions(id) ON DELETE CASCADE;`);
           await exec(`ALTER TABLE submission_events ADD COLUMN IF NOT EXISTS serverReceivedAt TEXT;`);
@@ -692,6 +699,7 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
           if (!colNames.includes('stdout')) await exec(`ALTER TABLE submissions ADD COLUMN stdout TEXT;`);
           if (!colNames.includes('stderr')) await exec(`ALTER TABLE submissions ADD COLUMN stderr TEXT;`);
           if (!colNames.includes('testResults')) await exec(`ALTER TABLE submissions ADD COLUMN testResults TEXT;`);
+          if (!colNames.includes('questionTitle')) await exec(`ALTER TABLE submissions ADD COLUMN questionTitle TEXT;`);
           if (!colNames.includes('questionId')) await exec(`ALTER TABLE submissions ADD COLUMN questionId INTEGER REFERENCES assignment_questions(id);`);
 
           const assignCols = await all(`PRAGMA table_info(assignments)`);
@@ -699,6 +707,8 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
           if (!assignColNames.includes('subject')) await exec(`ALTER TABLE assignments ADD COLUMN subject TEXT;`);
           if (!assignColNames.includes('semester')) await exec(`ALTER TABLE assignments ADD COLUMN semester TEXT;`);
           if (!assignColNames.includes('deadline')) await exec(`ALTER TABLE assignments ADD COLUMN deadline TEXT;`);
+          if (!assignColNames.includes('pdfUrl')) await exec(`ALTER TABLE assignments ADD COLUMN pdfUrl TEXT;`);
+          if (!assignColNames.includes('pdfName')) await exec(`ALTER TABLE assignments ADD COLUMN pdfName TEXT;`);
 
           const eventCols = await all(`PRAGMA table_info(submission_events)`);
           const eventColNames = eventCols.map(c => c.name);

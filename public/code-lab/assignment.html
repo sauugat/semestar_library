@@ -1471,8 +1471,12 @@
         `);
             }
 
-            const questions = assignment.questions || [];
-            if (assignment.pdfUrl) {
+            const pdfUrl = assignment.pdfUrl || assignment.pdfurl || null;
+            const pdfName = assignment.pdfName || assignment.pdfname || null;
+            assignment.pdfUrl = pdfUrl;
+            assignment.pdfName = pdfName;
+
+            if (pdfUrl) {
                 tags.push(`
           <span class="cl-meta-tag cl-meta-pdf" title="Assignment references attached PDF document">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
@@ -1501,13 +1505,15 @@
             const pdfSideFileName = document.getElementById('pdfSideFileName');
             const pdfOpenNewTabBtn = document.getElementById('pdfOpenNewTabBtn');
 
-            if (assignment.pdfUrl) {
+            if (pdfUrl) {
                 if (pageWrap) pageWrap.classList.add('has-pdf');
                 if (workspaceGrid) workspaceGrid.classList.add('has-pdf');
                 if (pdfSidePane) pdfSidePane.style.display = 'flex';
-                if (pdfFrame) pdfFrame.src = assignment.pdfUrl;
-                if (pdfSideFileName) pdfSideFileName.textContent = assignment.pdfName || 'Assignment PDF';
-                if (pdfOpenNewTabBtn) pdfOpenNewTabBtn.href = assignment.pdfUrl;
+                if (pdfFrame) {
+                    pdfFrame.src = pdfUrl;
+                }
+                if (pdfSideFileName) pdfSideFileName.textContent = pdfName || 'Assignment PDF';
+                if (pdfOpenNewTabBtn) pdfOpenNewTabBtn.href = pdfUrl;
             } else {
                 if (pageWrap) pageWrap.classList.remove('has-pdf');
                 if (workspaceGrid) workspaceGrid.classList.remove('has-pdf');

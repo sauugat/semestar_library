@@ -171,13 +171,17 @@ router.post('/assignments', requireLogin, async (req, res) => {
         return res.status(403).json({ message: 'Only admins can create assignments.' });
     }
 
-    const { title, subject, semester, deadline, pdfUrl, pdfName, language, questions } = req.body;
+    const { title, subject, semester, deadline, questions } = req.body;
+    const pdfUrl = req.body.pdfUrl || req.body.pdfurl || null;
+    const pdfName = req.body.pdfName || req.body.pdfname || null;
+    const language = (req.body.language && typeof req.body.language === 'string') ? req.body.language.trim().toLowerCase() : 'c';
+
     if (!title) {
         return res.status(400).json({ message: 'Assignment title is required.' });
     }
 
     let finalQuestions = Array.isArray(questions) && questions.length > 0 ? questions : [];
-    // If an assignment PDF is attached and no manual questions are supplied, provide an initial flexible Question 1
+    // If an assignment PDF is attached and no manual questions are supplied, provide an initial flexible Question 1 with the chosen language
     if (finalQuestions.length === 0 && pdfUrl) {
         finalQuestions = [{
             title: 'Question 1',
@@ -200,13 +204,14 @@ router.post('/assignments', requireLogin, async (req, res) => {
     }
 
     const now = new Date().toISOString();
+    const effectiveLanguage = finalQuestions[0].language || language || 'c';
 
     // Use first question's description/language as fallback for the legacy columns
     const result = await db.run(
         'INSERT INTO assignments (title, description, language, subject, semester, deadline, pdfUrl, pdfName, createdBy, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         title,
         finalQuestions[0].description ? finalQuestions[0].description.trim() : '',
-        finalQuestions[0].language || language || 'c',
+        effectiveLanguage,
         subject || null,
         semester || null,
         deadline || null,
@@ -317,10 +322,18 @@ router.get('/assignments', async (req, res) => {
     if (currentStudentId) {
         adminUser = await isAdmin(currentStudentId);
     }
-    const enriched = assignments.map(a => ({
-        ...a,
-        canDelete: !!(currentStudentId && (a.createdBy === currentStudentId || adminUser))
-    }));
+    const enriched = assignments.map(a => {
+        const pUrl = a.pdfUrl || a.pdfurl || null;
+        const pName = a.pdfName || a.pdfname || null;
+        return {
+            ...a,
+            pdfUrl: pUrl,
+            pdfName: pName,
+            pdfurl: pUrl,
+            pdfname: pName,
+            canDelete: !!(currentStudentId && (a.createdBy === currentStudentId || adminUser))
+        };
+    });
     res.json(enriched);
 });
 
@@ -339,7 +352,18 @@ router.get('/my-assignments', requireLogin, async (req, res) => {
          ORDER BY a.createdAt DESC`,
         req.session.studentId
     );
-    res.json(assignments.map(a => ({ ...a, canDelete: true })));
+    res.json(assignments.map(a => {
+        const pUrl = a.pdfUrl || a.pdfurl || null;
+        const pName = a.pdfName || a.pdfname || null;
+        return {
+            ...a,
+            pdfUrl: pUrl,
+            pdfName: pName,
+            pdfurl: pUrl,
+            pdfname: pName,
+            canDelete: true
+        };
+    }));
 });
 
 // ── DELETE /assignments/:id — delete assignment and associated records ────────
@@ -437,8 +461,15 @@ router.get('/assignments/:id', async (req, res) => {
         };
     });
 
+    const resolvedPdfUrl = assignment.pdfUrl || assignment.pdfurl || null;
+    const resolvedPdfName = assignment.pdfName || assignment.pdfname || null;
+
     res.json({
         ...assignment,
+        pdfUrl: resolvedPdfUrl,
+        pdfName: resolvedPdfName,
+        pdfurl: resolvedPdfUrl,
+        pdfname: resolvedPdfName,
         canDelete: !!(currentStudentId && (assignment.createdBy === currentStudentId || adminUser)),
         currentStudentId: currentStudentId || null,
         questions: questionsWithSub

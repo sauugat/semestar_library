@@ -448,6 +448,49 @@
       from { opacity: 0; transform: translateY(-4px); }
       to { opacity: 1; transform: translateY(0); }
     }
+
+    /* ── 2 Creation Mode Switcher Tabs ── */
+    .cl-creation-mode-wrap {
+      margin-bottom: 20px;
+    }
+
+    .cl-creation-mode-tabs {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #f4f4f6;
+      padding: 4px;
+      border-radius: 12px;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      margin-top: 6px;
+    }
+
+    .cl-mode-tab-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 18px;
+      border-radius: 9px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #6e6e73;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+      font-family: var(--apple-font);
+    }
+
+    .cl-mode-tab-btn:hover {
+      color: #111113;
+    }
+
+    .cl-mode-tab-btn.active {
+      background: #ffffff;
+      color: #111113;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+      border: 1px solid rgba(0, 0, 0, 0.06);
+    }
   </style>
 </head>
 
@@ -495,6 +538,21 @@
         <h2 class="cl-section-title">Assignment Overview</h2>
       </div>
 
+      <!-- 2 Options Mode Switcher -->
+      <div class="cl-creation-mode-wrap">
+        <label class="cl-label">Assignment Method <span class="req">*</span></label>
+        <div class="cl-creation-mode-tabs" role="tablist">
+          <button type="button" class="cl-mode-tab-btn active" id="tabModeQuestion" onclick="switchAssignmentMode('question')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+            <span>Type Questions Manually</span>
+          </button>
+          <button type="button" class="cl-mode-tab-btn" id="tabModePdf" onclick="switchAssignmentMode('pdf')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="12" y2="12"></line><line x1="15" y1="15" x2="12" y2="12"></line></svg>
+            <span>Upload by PDF</span>
+          </button>
+        </div>
+      </div>
+
       <div class="cl-form-group">
         <label class="cl-label" for="title">Assignment Title <span class="req">*</span></label>
         <input id="title" class="cl-input" type="text" placeholder="e.g. Lab Sheet 1 — Control Structures & Functions">
@@ -519,9 +577,30 @@
         <label class="cl-label" for="deadline">Deadline (optional)</label>
         <input id="deadline" class="cl-input" type="datetime-local">
       </div>
+    </section>
 
-      <div class="cl-form-group" style="margin-top: 16px;">
-        <label class="cl-label">Assignment Document (PDF) <span style="font-weight: 400; color: #86868b; font-size: 12.5px;">— Students will view this PDF on the side while solving questions</span></label>
+    <!-- PDF Upload Section (shown when mode === 'pdf') -->
+    <section class="cl-card" id="pdfModeSection" style="display: none;">
+      <div class="cl-section-header">
+        <h2 class="cl-section-title">PDF Document &amp; Programming Language</h2>
+        <span style="font-size: 12px; color: #86868b; font-weight: 500;">PDF-Only Mode</span>
+      </div>
+
+      <div class="cl-form-group" style="margin-bottom: 18px;">
+        <label class="cl-label" for="pdfLanguage">Programming Language <span class="req">*</span></label>
+        <select id="pdfLanguage" class="cl-select">
+          <option value="c">C (GCC)</option>
+          <option value="cpp">C++ (G++)</option>
+          <option value="java">Java (OpenJDK)</option>
+          <option value="python">Python 3</option>
+        </select>
+        <div style="font-size: 12px; color: #86868b; margin-top: 4px;">
+          Select the language students will use to code solutions for this PDF assignment.
+        </div>
+      </div>
+
+      <div class="cl-form-group">
+        <label class="cl-label">Upload Assignment PDF <span class="req">*</span></label>
         <div class="cl-pdf-upload-box" id="pdfDropZone">
           <input type="file" id="assignmentPdfInput" accept="application/pdf,.pdf" style="display: none;">
           <div id="pdfEmptyState" class="cl-pdf-upload-content" onclick="document.getElementById('assignmentPdfInput').click()">
@@ -549,10 +628,18 @@
           </div>
         </div>
       </div>
+
+      <div class="cl-actions-bar" style="margin-top: 24px;">
+        <button type="button" class="cl-submit-btn" id="createPdfBtn" onclick="submitPdfAssignment()">
+          Publish PDF Assignment
+        </button>
+        <a href="/code-lab/subjects.html" class="cl-cancel-btn">Cancel</a>
+      </div>
+      <div id="pdfMsg" class="cl-alert" role="alert"></div>
     </section>
 
-    <!-- Questions Container -->
-    <section class="cl-card">
+    <!-- Manual Questions Section (shown when mode === 'question') -->
+    <section class="cl-card" id="manualQuestionsSection">
       <div class="cl-section-header">
         <h2 class="cl-section-title">Assignment Questions</h2>
         <span style="font-size: 12px; color: #86868b; font-weight: 500;" id="q-counter">1 Question</span>
@@ -890,6 +977,109 @@
       if (pdfInput) pdfInput.value = '';
       pdfEmptyState.style.display = 'block';
       pdfSelectedBadge.style.display = 'none';
+    }
+
+    let currentCreationMode = 'question'; // 'question' | 'pdf'
+
+    function switchAssignmentMode(mode) {
+      currentCreationMode = mode;
+      const isPdf = mode === 'pdf';
+      const tabQuestion = document.getElementById('tabModeQuestion');
+      const tabPdf = document.getElementById('tabModePdf');
+      const pdfSection = document.getElementById('pdfModeSection');
+      const manualSection = document.getElementById('manualQuestionsSection');
+
+      if (tabQuestion) tabQuestion.classList.toggle('active', !isPdf);
+      if (tabPdf) tabPdf.classList.toggle('active', isPdf);
+
+      if (pdfSection) pdfSection.style.display = isPdf ? 'block' : 'none';
+      if (manualSection) manualSection.style.display = isPdf ? 'none' : 'block';
+    }
+
+    function showPdfMessage(text, isError) {
+      const el = document.getElementById('pdfMsg');
+      if (!el) return;
+      el.className = 'cl-alert ' + (isError ? 'error' : 'success');
+      el.textContent = text;
+      el.style.display = 'flex';
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    async function submitPdfAssignment() {
+      const title = document.getElementById('title').value.trim();
+      const semester = document.getElementById('semester').value;
+      const subject = document.getElementById('subject').value;
+      const deadlineVal = document.getElementById('deadline').value;
+      const deadline = deadlineVal ? new Date(deadlineVal).toISOString() : null;
+      const language = document.getElementById('pdfLanguage').value || 'c';
+      const btn = document.getElementById('createPdfBtn');
+
+      if (!title) {
+        showPdfMessage('Please enter an Assignment Title.', true);
+        return;
+      }
+      if (!semester || !subject) {
+        showPdfMessage('Please select both a Semester and a Subject.', true);
+        return;
+      }
+      if (!selectedPdfFile) {
+        showPdfMessage('Please select or drag & drop an Assignment PDF file.', true);
+        return;
+      }
+
+      btn.disabled = true;
+      try {
+        btn.innerHTML = '<span class="app-spinner spinner-sm spinner-light" style="margin-right:8px; display:inline-block; vertical-align:middle;"></span><span>Uploading PDF…</span>';
+        const formData = new FormData();
+        formData.append('pdf', selectedPdfFile);
+        const uploadRes = await fetch('/api/code-lab/upload-assignment-pdf', {
+          method: 'POST',
+          body: formData
+        });
+        const uploadData = await uploadRes.json();
+        if (!uploadRes.ok) {
+          showPdfMessage(uploadData.message || 'Failed to upload assignment PDF.', true);
+          btn.disabled = false;
+          btn.innerHTML = 'Publish PDF Assignment';
+          return;
+        }
+
+        const pdfUrl = uploadData.pdfUrl;
+        const pdfName = uploadData.pdfName;
+
+        btn.innerHTML = '<span class="app-spinner spinner-sm spinner-light" style="margin-right:8px; display:inline-block; vertical-align:middle;"></span><span>Publishing Assignment…</span>';
+
+        const res = await fetch('/api/code-lab/assignments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title,
+            subject,
+            semester,
+            deadline,
+            pdfUrl,
+            pdfName,
+            language,
+            questions: []
+          })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showPdfMessage(`PDF Assignment "${title}" published successfully! Redirecting…`, false);
+          setTimeout(() => {
+            const assignId = data.id || data.assignmentId || '';
+            window.location.href = assignId ? `/code-lab/assignment.html?id=${assignId}` : '/code-lab/subjects.html';
+          }, 1000);
+        } else {
+          showPdfMessage(data.message || 'Failed to publish assignment.', true);
+          btn.disabled = false;
+          btn.innerHTML = 'Publish PDF Assignment';
+        }
+      } catch (err) {
+        showPdfMessage('Network error — could not reach server.', true);
+        btn.disabled = false;
+        btn.innerHTML = 'Publish PDF Assignment';
+      }
     }
 
     if (pdfInput) {

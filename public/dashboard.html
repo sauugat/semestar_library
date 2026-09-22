@@ -529,6 +529,23 @@
     </div>
   </section>
 
+  <section class="post-composer-wrap" id="postComposerSection" aria-label="Create a post">
+    <form id="postComposer" class="social-post-card post-composer">
+      <label for="postContent">Share with your class</label>
+      <textarea id="postContent" name="content" rows="3" maxlength="5000" required placeholder="What's on your mind?"></textarea>
+      <div class="post-composer-actions">
+        <label for="postType">Post type</label>
+        <select id="postType" name="type">
+          <option value="status">Status</option>
+          <option value="assignment">Assignment</option>
+          <option value="notice">Notice</option>
+        </select>
+        <button type="submit" id="publishPost" class="post-action-btn">Post</button>
+      </div>
+      <p id="postComposerMessage" class="post-feedback" role="status" aria-live="polite"></p>
+    </form>
+  </section>
+
   <div class="feed-heading">
     <h2>Your Feed</h2>
     <span>Updated just now</span>
@@ -635,6 +652,10 @@
           <div class="skeleton-box skeleton-pill" style="width: 80px; height: 28px; margin-left: auto;"></div>
         </div>
       </div>
+    </div>
+    <div id="postPagination" class="post-pagination">
+      <p id="postFeedMessage" class="post-feedback" role="status" aria-live="polite"></p>
+      <button type="button" id="loadMorePosts" class="post-action-btn" hidden>Load older posts</button>
     </div>
     <div id="demoNotes"></div>
   </main>
@@ -972,6 +993,7 @@
         const res = await fetch(`/api/files/${fileId}`, { method: 'DELETE' });
         const data = await res.json();
         if (res.ok) {
+          feedItems = feedItems.filter(item => item._feedType !== 'file' || Number(item.id) !== fileId);
           showToast('Post deleted successfully');
           const card = btn.closest('.feed-card');
           if (card) {
@@ -988,7 +1010,17 @@
       }
     }
 
-    function renderPost(f) {
+    function renderPost(post) {
+      if (post.type === 'assignment' || post._feedType === 'assignment') {
+        return renderAssignmentPost(post);
+      }
+      if (post.type === 'status' || post.type === 'notice') {
+        return renderStatusPost(post);
+      }
+      return renderFilePost(post);
+    }
+
+    function renderFilePost(f) {
       const badge = getFileBadge(f.originalName);
       const initial = (f.uploaderName || 'S').charAt(0).toUpperCase();
       const avatarHtml = f.uploaderAvatar
@@ -1114,6 +1146,9 @@
     }
 
     function renderAssignmentPost(a) {
+      // Feed assignments share the post layout and API; Code Lab keeps its question controls.
+      if (a.type === 'assignment') return renderFeedPostCard(a);
+
       const qCount = Number(a.questionCount || 0);
       const subCount = Number(a.submissionCount || a.submissioncount || 0);
       const mySubCount = Number(a.mySubmissionCount || a.mysubmissioncount || 0);
@@ -1252,6 +1287,7 @@
         const res = await fetch(`/api/code-lab/assignments/${id}`, { method: 'DELETE' });
         const data = await res.json();
         if (res.ok) {
+          feedItems = feedItems.filter(item => item._feedType !== 'assignment' || Number(item.id) !== id);
           showToast('Assignment deleted successfully');
           const card = btn.closest('.feed-card');
           if (card) {
@@ -1328,53 +1364,248 @@
       return html;
     }
 
-    function loadFeed() {
-      const container = document.getElementById('realFiles');
-      if (container && !container.children.length) {
-        container.innerHTML = getSkeletonFeedHtml(3);
+    let feedItems = [];
+    let postsCursor = null;
+    let postsLoaded = false;
+    const loadMorePostsBtn = document.getElementById('loadMorePosts');
+    const postFeedMessage = document.getElementById('postFeedMessage');
+
+    function safePostUrl(value) {
+      if (typeof value !== 'string' || !value) return '';
+      try {
+        const url = new URL(value, window.location.origin);
+        return ['http:', 'https:'].includes(url.protocol) ? escapeHtml(url.href) : '';
+      } catch (_) {
+        return '';
       }
+    }
 
-      const startTime = Date.now();
-      Promise.all([
-        fetch('/api/files').then(r => r.ok ? r.json() : []).catch(() => []),
-        fetch('/api/code-lab/assignments').then(r => r.ok ? r.json() : []).catch(() => [])
-      ]).then(async ([files, assignments]) => {
-        const elapsed = Date.now() - startTime;
-        if (elapsed < 200) {
-          await new Promise(res => setTimeout(res, 200 - elapsed));
-        }
-        if (!container) return;
+    function renderStatusPost(post) {
+      return renderFeedPostCard(post);
+    }
 
-        const fileItems = (files || []).map(f => ({ ...f, _feedType: 'file', _feedTime: new Date(f.uploadedAt || f.createdAt || 0).getTime() }));
-        const assignItems = (assignments || []).map(a => ({ ...a, _feedType: 'assignment', _feedTime: new Date(a.createdAt || 0).getTime() }));
-
-        const combined = [...fileItems, ...assignItems].sort((a, b) => b._feedTime - a._feedTime);
-
-        if (!combined.length) {
-          container.innerHTML = `
-            <div style="text-align: center; padding: 48px 16px; color: var(--text-tertiary, #86868b);">
-              <img src="/minecraft-404-voxel-ruby.svg" alt="No posts found" class="empty-voxel-illu" style="max-width: 250px; margin: 0 auto 16px;">
-              <p style="font-size: 16px; font-weight: 700; color: var(--text-primary, #111827); margin: 0 0 6px 0;">No posts or assignments shared yet</p>
-              <p style="font-size: 13.5px; margin: 0;">Upload notes in Library or Code Lab to share with your class!</p>
+    function renderFeedPostCard(post) {
+      const profileUrl = 'profile.html?id=' + encodeURIComponent(post.studentId);
+      const avatarUrl = safePostUrl(post.avatarUrl);
+      const avatar = avatarUrl
+        ? `<img src="${avatarUrl}" alt="${escapeHtml(post.name)}" class="post-avatar-img">`
+        : escapeHtml((post.name || 'S').charAt(0).toUpperCase());
+      const roles = {
+        admin: ['Admin', 'post-admin-badge'],
+        cr: ['Class Rep', 'post-cr-badge'],
+        class_rep: ['Class Rep', 'post-cr-badge'],
+        teacher: ['Faculty', ''],
+        faculty: ['Faculty', '']
+      };
+      const [roleLabel, roleClass] = roles[post.role] || ['GU Student', ''];
+      const typeLabel = { status: 'Status', assignment: 'Assignment', notice: 'Notice' }[post.type] || 'Status';
+      const attachmentUrl = safePostUrl(post.attachment_url);
+      return `
+        <article class="feed-card social-post-card status-post-card" data-post-id="${post.id}">
+          <header class="post-header">
+            <a href="${profileUrl}" class="post-avatar" aria-label="View ${escapeHtml(post.name)}'s profile">${avatar}</a>
+            <div class="post-user-info">
+              <div class="post-author-row">
+                <a href="${profileUrl}" class="post-author-name post-author-link">${escapeHtml(post.name)}</a>
+                <span class="post-verified-badge ${roleClass}">${roleLabel}</span>
+              </div>
+              <div class="post-meta-row">
+                <span class="post-student-handle">@${escapeHtml(post.studentId)}</span>
+                <span class="post-meta-sep">&middot;</span>
+                <time class="post-timestamp" datetime="${escapeHtml(post.created_at)}">${timeAgo(post.created_at)}</time>
+              </div>
             </div>
-          `;
-          return;
+            ${post.canDelete ? `<div class="post-header-actions"><button type="button" class="post-delete-btn" onclick="deleteStatusPost(${post.id}, this)" aria-label="Delete post" title="Delete post">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14H5V6m3 0V3h8v3"/></svg>
+            </button></div>` : ''}
+          </header>
+          <div class="post-content">
+            <div class="post-tags-row"><span class="post-pill-tag">${typeLabel}</span></div>
+            <p class="status-post-text">${escapeHtml(post.content)}</p>
+            ${attachmentUrl ? `<a class="status-post-attachment" href="${attachmentUrl}" target="_blank" rel="noopener noreferrer">View attachment ↗</a>` : ''}
+          </div>
+          <footer class="post-engage-bar">
+            <button type="button" class="post-action-btn like-btn ${post.liked_by_me ? 'liked' : ''}" data-liked="${post.liked_by_me}" aria-pressed="${post.liked_by_me}" aria-label="${post.liked_by_me ? 'Unlike' : 'Like'} post" onclick="toggleStatusLike(${post.id}, this)">
+              <svg viewBox="0 0 24 24" fill="${post.liked_by_me ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>
+              <span class="like-count">${post.like_count}</span>
+            </button>
+            ${post.type === 'assignment' ? `<span class="post-submitted-count">${post.submission_count} submitted</span>` : ''}
+          </footer>
+        </article>`;
+    }
+
+    function renderFeed() {
+      const container = document.getElementById('realFiles');
+      feedItems.sort((a, b) => b._feedTime - a._feedTime || b.id - a.id);
+      // Reuse existing cards so paging or publishing preserves open comments and pending likes.
+      const fragment = document.createDocumentFragment();
+      feedItems.forEach(item => {
+        const attribute = { post: 'post', assignment: 'assignment', file: 'file' }[item._feedType];
+        const existing = container.querySelector(`[data-${attribute}-id="${item.id}"]`);
+        if (existing) {
+          fragment.appendChild(existing);
+        } else {
+          const template = document.createElement('template');
+          template.innerHTML = renderPost(item);
+          fragment.appendChild(template.content);
         }
+      });
+      container.replaceChildren(fragment);
+      if (!feedItems.length) {
+        container.innerHTML = `<div class="post-feed-empty"><p>No posts or assignments shared yet</p><p>Share a status above or upload notes in Library.</p></div>`;
+      }
+      loadMorePostsBtn.hidden = postsLoaded && postsCursor === null;
+      loadMorePostsBtn.textContent = postsLoaded ? 'Load older posts' : 'Retry loading posts';
+      initDashboardCardPhysics();
+    }
 
-        container.innerHTML = combined.map(item => {
-          if (item._feedType === 'assignment') {
-            return renderAssignmentPost(item);
-          }
-          return renderPost(item);
-        }).join('');
-
-        initDashboardCardPhysics();
-      }).catch(err => {
-        console.error('[Feed Error]:', err);
+    function addFeedPosts(posts) {
+      const existing = new Set(feedItems.filter(item => item._feedType === 'post').map(item => item.id));
+      posts.forEach(post => {
+        if (!existing.has(post.id)) {
+          feedItems.push({ ...post, _feedType: 'post', _feedTime: new Date(post.created_at).getTime() });
+          existing.add(post.id);
+        }
       });
     }
 
-    loadFeed();
+    async function fetchPostPage(before = null) {
+      const response = await fetch('/api/posts?limit=20' + (before === null ? '' : '&before=' + before));
+      if (!response.ok) throw new Error('Could not load posts. Please try again.');
+      return response.json();
+    }
+
+    async function loadFeed() {
+      const [files, assignments, page] = await Promise.all([
+        fetch('/api/files').then(r => r.ok ? r.json() : []).catch(() => []),
+        fetch('/api/code-lab/assignments').then(r => r.ok ? r.json() : []).catch(() => []),
+        fetchPostPage().catch(err => { postFeedMessage.textContent = err.message; return null; })
+      ]);
+      feedItems = [
+        ...files.map(f => ({ ...f, _feedType: 'file', _feedTime: new Date(f.uploadedAt || f.createdAt || 0).getTime() })),
+        ...assignments.map(a => ({ ...a, _feedType: 'assignment', _feedTime: new Date(a.createdAt || 0).getTime() }))
+      ];
+      if (page) {
+        addFeedPosts(page.posts);
+        postsCursor = page.nextCursor;
+        postsLoaded = true;
+      }
+      renderFeed();
+    }
+
+    const feedReady = loadFeed();
+
+    loadMorePostsBtn.addEventListener('click', async () => {
+      loadMorePostsBtn.disabled = true;
+      postFeedMessage.textContent = '';
+      try {
+        const page = await fetchPostPage(postsCursor);
+        addFeedPosts(page.posts);
+        postsCursor = page.nextCursor;
+        postsLoaded = true;
+        renderFeed();
+      } catch (err) {
+        postFeedMessage.textContent = err.message;
+      } finally {
+        loadMorePostsBtn.disabled = false;
+      }
+    });
+
+    document.getElementById('postComposer').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const content = document.getElementById('postContent');
+      const type = document.getElementById('postType');
+      const button = document.getElementById('publishPost');
+      const message = document.getElementById('postComposerMessage');
+      if (button.disabled) return;
+      if (!content.value.trim()) {
+        message.textContent = 'Write something before posting.';
+        content.focus();
+        return;
+      }
+      button.disabled = content.disabled = type.disabled = true;
+      button.textContent = 'Posting…';
+      message.textContent = '';
+      try {
+        await feedReady;
+        const response = await fetch('/api/posts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: content.value, type: type.value })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Could not publish your post.');
+        addFeedPosts([data]);
+        renderFeed();
+        content.value = '';
+        message.textContent = 'Post shared with your class.';
+      } catch (err) {
+        message.textContent = err.message || 'Could not publish your post. Please try again.';
+      } finally {
+        button.disabled = content.disabled = type.disabled = false;
+        button.textContent = 'Post';
+      }
+    });
+
+    const pendingPostLikes = new Set();
+
+    function updateStatusLike(id, liked, count) {
+      const post = feedItems.find(item => item._feedType === 'post' && item.id === id);
+      if (post) Object.assign(post, { liked_by_me: liked, like_count: count });
+      const button = document.querySelector(`[data-post-id="${id}"] .like-btn`);
+      if (!button) return;
+      button.dataset.liked = String(liked);
+      button.classList.toggle('liked', liked);
+      button.setAttribute('aria-pressed', String(liked));
+      button.setAttribute('aria-label', liked ? 'Unlike post' : 'Like post');
+      button.querySelector('svg').setAttribute('fill', liked ? 'currentColor' : 'none');
+      button.querySelector('.like-count').textContent = count;
+      button.disabled = pendingPostLikes.has(id);
+    }
+
+    async function toggleStatusLike(id, button) {
+      if (pendingPostLikes.has(id)) return;
+      const liked = button.dataset.liked === 'true';
+      const count = Number(button.querySelector('.like-count').textContent);
+      pendingPostLikes.add(id);
+      updateStatusLike(id, !liked, Math.max(0, count + (liked ? -1 : 1)));
+      try {
+        const response = await fetch(`/api/posts/${id}/like`, { method: liked ? 'DELETE' : 'POST' });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Could not update like.');
+        updateStatusLike(id, data.liked_by_me, data.like_count);
+      } catch (err) {
+        updateStatusLike(id, liked, count);
+        showToast(escapeHtml(err.message || 'Could not update like. Please try again.'));
+      } finally {
+        pendingPostLikes.delete(id);
+        const currentButton = document.querySelector(`[data-post-id="${id}"] .like-btn`);
+        if (currentButton) currentButton.disabled = false;
+      }
+    }
+
+    async function deleteStatusPost(id, button) {
+      const confirmed = await showAppleConfirmModal({
+        title: 'Delete Post?',
+        message: 'Are you sure you want to delete this post? This action cannot be undone.',
+        confirmText: 'Delete Post',
+        cancelText: 'Cancel',
+        isDanger: true
+      });
+      if (!confirmed) return;
+      button.disabled = true;
+      try {
+        const response = await fetch(`/api/posts/${id}`, { method: 'DELETE' });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Could not delete post.');
+        feedItems = feedItems.filter(item => item._feedType !== 'post' || item.id !== id);
+        renderFeed();
+        showToast('Post deleted.');
+      } catch (err) {
+        button.disabled = false;
+        showToast(escapeHtml(err.message || 'Could not delete post. Please try again.'));
+      }
+    }
 
     // --- Search Logic ---
     const searchInput = document.getElementById('headerSearchInput');
@@ -1441,6 +1672,8 @@
           searchResults.style.display = 'none';
           dashHero.style.display = 'flex'; // .dash-hero is flex
           feedHeading.style.display = 'flex';
+          document.getElementById('postComposerSection').hidden = false;
+          document.getElementById('postPagination').hidden = false;
           realFiles.style.display = 'block';
           if (demoNotes) demoNotes.style.display = 'block';
           return;
@@ -1454,6 +1687,8 @@
 
             dashHero.style.display = 'none';
             feedHeading.style.display = 'none';
+            document.getElementById('postComposerSection').hidden = true;
+            document.getElementById('postPagination').hidden = true;
             realFiles.style.display = 'none';
             if (demoNotes) demoNotes.style.display = 'none';
 

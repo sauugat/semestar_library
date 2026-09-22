@@ -7,6 +7,7 @@
     "start": "node server.js",
     "seed": "node seed.js",
     "test:chat": "node --test tests/chat-*.test.js test/chat-provider.test.js tests/note-search.test.js",
+    "test:posts": "node --test tests/posts*.test.js",
     "index:notes": "node scripts/reindex-notes.js"
   },
   "dependencies": {

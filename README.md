@@ -56,12 +56,23 @@ The default resumes only unindexed notes. `--retry-failed` retries extraction er
 
 Extraction limits: 20 MB per document, 500 PDF pages, 1 million text characters. Truncation and `indexed`, `empty`, `unsupported`, `too_large`, or `error` status are recorded in `note_search_documents`. Scanned PDFs need OCR and PPTX/image content is not indexed; their titles and subjects remain searchable. Indexing never claims unavailable text was extracted.
 
+## Feed posts
+
+The dashboard composer shares statuses, assignments, and notices alongside existing notes and Code Lab cards. The normal database initialization creates `posts`, `post_likes`, and `post_submissions` for PostgreSQL/Neon and SQLite/Turso; restart the server after updating.
+
+All `/api/posts` endpoints use the existing session authentication. Creating, liking, and deleting require a real student account; deletion is limited to the owner or an admin. `POST /api/posts` accepts `{ "content": "...", "type": "status", "attachment_url": null }` (up to 5,000 characters; optional HTTP/HTTPS attachment URL). `GET /api/posts?limit=20&before=<id>` returns `{ posts, nextCursor }`, newest ID first, with author details, `like_count`, `submission_count`, `liked_by_me`, and `canDelete` (the original camelCase/count fields remain as compatibility aliases). A null cursor marks the final page. `POST` and `DELETE /api/posts/:id/like` set and remove a like idempotently; `DELETE /api/posts/:id` removes the post and its related likes/submissions.
+
+Submission counts read from `post_submissions` for assignment-type posts; other types return zero and hide the submission label. The dashboard routes each item through `renderPost()`, with shared markup for status, notice, and feed assignment cards. These feed posts do not create Code Lab assignments or add a submission workflow.
+
 ## Validation
 
 ```sh
 npm run test:chat
+npm run test:posts
 ```
 
 Tests cover real SQLite FTS/PDF/DOCX extraction, exact filters, topic fallbacks, invalidation, provider function calls, SSE chunk boundaries, timeout/fallback behavior, real-source requirements, transport errors, safe markdown and service worker behavior. Tests use in-memory databases and mocked provider responses, not live paid calls.
+
+Post tests use an isolated SQLite database and Express server to check authentication, validation, cursor pagination, counts, idempotent likes, authorization, and cascading deletion. UI tests cover optimistic likes, rollback, repeat-click protection, and escaped post rendering.
 
 API references: [Gemini function calling](https://ai.google.dev/gemini-api/docs/function-calling), [Gemini search grounding](https://ai.google.dev/gemini-api/docs/google-search), [OpenRouter search server tool](https://openrouter.ai/docs/guides/features/server-tools/web-search), [SQLite FTS5](https://www.sqlite.org/fts5.html), [PostgreSQL full-text search](https://www.postgresql.org/docs/current/textsearch.html).

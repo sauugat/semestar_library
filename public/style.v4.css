@@ -6049,6 +6049,94 @@ body.dash .dash-id::before {
 /* ============================================================
    7. FEED & POST CARDS (38PX SPACING & HIGH-DEFINITION BORDERS)
    ============================================================ */
+.post-composer-wrap {
+  margin: 28px 6vw 0;
+}
+
+.post-composer label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.post-composer textarea,
+.post-composer select {
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font: inherit;
+  padding: 12px;
+}
+
+.post-composer textarea {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  margin: 12px 0;
+  min-height: 100px;
+  resize: vertical;
+}
+
+.post-composer textarea::placeholder {
+  color: var(--text-secondary);
+}
+
+.post-composer :is(textarea, select, button):focus-visible {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 3px;
+}
+
+.post-composer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.post-composer-actions button {
+  margin-left: auto;
+}
+
+.post-feedback,
+.post-submitted-count,
+.post-feed-empty {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.post-feedback:empty {
+  display: none;
+}
+
+.post-feed-empty,
+.post-pagination {
+  text-align: center;
+}
+
+.status-post-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--text-primary);
+  line-height: 1.6;
+}
+
+.status-post-attachment {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+
+.post-composer button:disabled,
+.status-post-card button:disabled,
+.post-pagination button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.post-pagination button[hidden] {
+  display: none;
+}
+
 .feed-heading {
   margin: 38px 0 0;
   padding: 0 6vw 16px;

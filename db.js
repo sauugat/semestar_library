@@ -162,7 +162,7 @@ async function run(sql, ...params) {
     const hasReturning = /RETURNING/i.test(sql);
 
     if (isInsert && !hasReturning) {
-      const noIdTables = ['chat_read_receipts', 'chat_typing', 'file_likes', 'follows', 'chat_reactions', 'students', 'submissions', 'submission_events'];
+      const noIdTables = ['chat_read_receipts', 'chat_typing', 'file_likes', 'follows', 'chat_reactions', 'students', 'submissions', 'submission_events', 'post_likes', 'post_submissions'];
       const isNoIdTable = noIdTables.some(tbl => new RegExp(`INSERT\\s+INTO\\s+${tbl}\\b`, 'i').test(sql));
       if (!isNoIdTable) {
         pgSql += ' RETURNING id';
@@ -646,6 +646,8 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
         `);
       }
 
+      await require('./lib/posts').ensurePostsSchema({ exec, isPostgres });
+
       // One-time migration for tables that existed before subject/stdout/stderr columns were added
       try {
         if (isPostgres) {
@@ -934,4 +936,4 @@ module.exports = {
   isPostgres,
   isTurso,
   pgPool
-}; 
+};

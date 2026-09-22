@@ -352,6 +352,8 @@ function requireLogin(req, res, next) {
   }
   next();
 }
+app.use('/api/posts', require('./routes/posts')(db, requireLogin));
+
 // --- Code Lab Rate Limiting ---
 const rateLimit = require('express-rate-limit');
 

@@ -586,13 +586,23 @@
       padding-bottom: 90px !important;
     }
 
-    /* Rounded edges for Good Morning box and Dashboard Navbar */
+    /* Rounded edges for Good Morning box, Dashboard Navbar, and Search Box */
     body.dash .dash-hero {
       border-radius: 28px !important;
     }
 
     body.dash .dash-header {
       border-radius: 0 0 20px 20px;
+    }
+
+    /* Search box rounded a little */
+    .header-search-wrapper,
+    .jitter-prompt-pill,
+    body.dash .jitter-prompt-pill {
+      border-radius: 14px !important;
+    }
+    .jitter-prompt-pill::before {
+      border-radius: 14px !important;
     }
 
     .bottom-nav {
@@ -1004,7 +1014,10 @@
       background: var(--bg-secondary);
       min-width: 0;
     }
-    .post-card .file-icon {
+    .post-card .file-icon,
+    .post-card .file-icon.pdf,
+    .file-icon.pdf,
+    .post-card .file-icon-lab {
       width: 40px;
       height: 40px;
       flex-shrink: 0;
@@ -1012,12 +1025,18 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      background: var(--text-primary);
-      color: var(--bg-primary);
+      background: #000000 !important;
+      color: #8e8e93 !important;
+      border: 1px solid rgba(255, 255, 255, 0.12) !important;
       font-size: 11px;
       font-weight: 700;
     }
-    .post-card .file-icon-lab { background: var(--text-primary); }
+    .post-card .file-icon span,
+    .post-card .file-icon.pdf span,
+    .file-icon.pdf span,
+    .post-card .file-icon-lab span {
+      color: #8e8e93 !important;
+    }
     .post-card .post-actions button:disabled { opacity: 0.45; cursor: not-allowed; }
     .post-card .file-info { flex: 1; min-width: 0; }
     .post-card .file-name {
@@ -1045,7 +1064,27 @@
       color: var(--text-primary);
       text-decoration: none;
     }
-    .post-card .file-action.primary { background: var(--text-primary); color: var(--bg-primary); border-color: transparent; }
+    /* Get button: gray background, white text */
+    .post-card .file-action.primary,
+    .file-action.primary,
+    .btn-file-get {
+      background: #3a3a3c !important;
+      color: #ffffff !important;
+      border: 1px solid #48484a !important;
+    }
+    .post-card .file-action.primary *,
+    .file-action.primary *,
+    .btn-file-get * {
+      color: #ffffff !important;
+      stroke: #ffffff !important;
+    }
+    .post-card .file-action.primary:hover,
+    .file-action.primary:hover,
+    .btn-file-get:hover {
+      background: #48484a !important;
+      color: #ffffff !important;
+      border-color: #5a5a5e !important;
+    }
     .post-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 4px; }
     .post-tag { font-size: 12px; padding: 3px 10px; border-radius: 20px; background: var(--bg-secondary); color: var(--text-muted); border: 1px solid var(--border-color); }
     body.dash .feed .post-card .post-actions { justify-content: flex-start; gap: 8px 32px !important; }

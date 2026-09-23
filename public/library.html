@@ -917,11 +917,12 @@
       flex-shrink: 0;
     }
 
+    .clean-file-icon,
     [data-theme="dark"] .clean-file-icon,
     body.dark-mode .clean-file-icon {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      color: var(--text);
+      background: #000000 !important;
+      color: #8e8e93 !important;
+      border: 1px solid rgba(255, 255, 255, 0.12) !important;
     }
 
     .clean-file-title {
@@ -1001,47 +1002,51 @@
       background: #000000;
     }
 
+    .btn-file-get,
     [data-theme="dark"] .btn-file-get,
     body.dark-mode .btn-file-get,
     [data-theme="dark"] a.btn-file-get,
     body.dark-mode a.btn-file-get,
     [data-theme="dark"] .btn-file-action.btn-file-get,
     body.dark-mode .btn-file-action.btn-file-get {
-      background: var(--fill-active, #f5f5f5) !important;
-      color: var(--fill-active-text, #0a0a0a) !important;
-      border: 1px solid var(--fill-active, #f5f5f5) !important;
-      font-weight: 700 !important;
+      background: #3a3a3c !important;
+      color: #ffffff !important;
+      border: 1px solid #48484a !important;
+      font-weight: 600 !important;
     }
 
+    .btn-file-get *,
     [data-theme="dark"] .btn-file-get *,
     body.dark-mode .btn-file-get *,
     [data-theme="dark"] a.btn-file-get *,
     body.dark-mode a.btn-file-get *,
     [data-theme="dark"] .btn-file-action.btn-file-get *,
     body.dark-mode .btn-file-action.btn-file-get * {
-      color: var(--fill-active-text, #0a0a0a) !important;
-      stroke: var(--fill-active-text, #0a0a0a) !important;
+      color: #ffffff !important;
+      stroke: #ffffff !important;
     }
 
+    .btn-file-get:hover,
     [data-theme="dark"] .btn-file-get:hover,
     body.dark-mode .btn-file-get:hover,
     [data-theme="dark"] a.btn-file-get:hover,
     body.dark-mode a.btn-file-get:hover,
     [data-theme="dark"] .btn-file-action.btn-file-get:hover,
     body.dark-mode .btn-file-action.btn-file-get:hover {
-      background: #ffffff !important;
-      color: #000000 !important;
-      border-color: #ffffff !important;
+      background: #48484a !important;
+      color: #ffffff !important;
+      border-color: #5a5a5e !important;
     }
 
+    .btn-file-get:hover *,
     [data-theme="dark"] .btn-file-get:hover *,
     body.dark-mode .btn-file-get:hover *,
     [data-theme="dark"] a.btn-file-get:hover *,
     body.dark-mode a.btn-file-get:hover *,
     [data-theme="dark"] .btn-file-action.btn-file-get:hover *,
     body.dark-mode .btn-file-action.btn-file-get:hover * {
-      color: #000000 !important;
-      stroke: #000000 !important;
+      color: #ffffff !important;
+      stroke: #ffffff !important;
     }
 
     .btn-file-delete {

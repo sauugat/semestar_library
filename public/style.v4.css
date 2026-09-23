@@ -601,12 +601,6 @@ body.dark-mode #primaryRunBtn,
 body.dark-mode .btn-run-black,
 [data-theme="dark"] .cl-create-btn,
 body.dark-mode .cl-create-btn,
-[data-theme="dark"] .btn-file-get,
-body.dark-mode .btn-file-get,
-[data-theme="dark"] a.btn-file-get,
-body.dark-mode a.btn-file-get,
-[data-theme="dark"] .btn-file-action.btn-file-get,
-body.dark-mode .btn-file-action.btn-file-get,
 [data-theme="dark"] .attach-action-btn.attach-btn-download,
 body.dark-mode .attach-action-btn.attach-btn-download {
   background: var(--fill-active) !important;
@@ -616,6 +610,55 @@ body.dark-mode .attach-action-btn.attach-btn-download {
   border-radius: 6px !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4) !important;
   transition: background 0.15s ease, border-color 0.15s ease, filter 0.15s ease;
+}
+
+/* "Get" Action Buttons: Gray Background, White Text */
+.btn-file-get,
+a.btn-file-get,
+.btn-file-action.btn-file-get,
+.post-card .file-action.primary,
+.file-action.primary,
+[data-theme="dark"] .btn-file-get,
+body.dark-mode .btn-file-get,
+[data-theme="dark"] a.btn-file-get,
+body.dark-mode a.btn-file-get,
+[data-theme="dark"] .btn-file-action.btn-file-get,
+body.dark-mode .btn-file-action.btn-file-get {
+  background: #3a3a3c !important;
+  color: #ffffff !important;
+  border: 1px solid #48484a !important;
+  font-weight: 600 !important;
+}
+
+.btn-file-get *,
+a.btn-file-get *,
+.btn-file-action.btn-file-get *,
+.post-card .file-action.primary *,
+.file-action.primary *,
+[data-theme="dark"] .btn-file-get *,
+body.dark-mode .btn-file-get *,
+[data-theme="dark"] a.btn-file-get *,
+body.dark-mode a.btn-file-get *,
+[data-theme="dark"] .btn-file-action.btn-file-get *,
+body.dark-mode .btn-file-action.btn-file-get * {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+.btn-file-get:hover,
+a.btn-file-get:hover,
+.btn-file-action.btn-file-get:hover,
+.post-card .file-action.primary:hover,
+.file-action.primary:hover,
+[data-theme="dark"] .btn-file-get:hover,
+body.dark-mode .btn-file-get:hover,
+[data-theme="dark"] a.btn-file-get:hover,
+body.dark-mode a.btn-file-get:hover,
+[data-theme="dark"] .btn-file-action.btn-file-get:hover,
+body.dark-mode .btn-file-action.btn-file-get:hover {
+  background: #48484a !important;
+  color: #ffffff !important;
+  border-color: #5a5a5e !important;
 }
 
 [data-theme="dark"] .dash-hero-btn:not(.secondary),
@@ -642,12 +685,6 @@ body.dark-mode .dash-hero-btn:not(.secondary),
 body.dark-mode .cl-btn-pro,
 [data-theme="dark"] .cl-view-report-btn,
 body.dark-mode .cl-view-report-btn,
-[data-theme="dark"] .btn-file-get,
-body.dark-mode .btn-file-get,
-[data-theme="dark"] a.btn-file-get,
-body.dark-mode a.btn-file-get,
-[data-theme="dark"] .btn-file-action.btn-file-get,
-body.dark-mode .btn-file-action.btn-file-get,
 [data-theme="dark"] .btn-run-black,
 body.dark-mode .btn-run-black,
 [data-theme="dark"] #primaryRunBtn,
@@ -669,12 +706,6 @@ body.dark-mode .dash-hero-btn:not(.secondary) *,
 body.dark-mode .cl-btn-pro *,
 [data-theme="dark"] .cl-view-report-btn *,
 body.dark-mode .cl-view-report-btn *,
-[data-theme="dark"] .btn-file-get *,
-body.dark-mode .btn-file-get *,
-[data-theme="dark"] a.btn-file-get *,
-body.dark-mode a.btn-file-get *,
-[data-theme="dark"] .btn-file-action.btn-file-get *,
-body.dark-mode .btn-file-action.btn-file-get *,
 [data-theme="dark"] .btn-run-black *,
 body.dark-mode .btn-run-black *,
 [data-theme="dark"] #primaryRunBtn *,
@@ -993,7 +1024,12 @@ body.dark-mode .cl-report-card:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45) !important;
 }
 
-/* PDF Icon Badges (Lighter fill so they don't blend into dark cards) */
+/* PDF Icon Badges: Black Background, Gray Text */
+.post-card .file-icon,
+.post-card .file-icon.pdf,
+.file-icon.pdf,
+.clean-file-icon,
+.bento-attachment .file-icon,
 [data-theme="dark"] .clean-file-icon,
 body.dark-mode .clean-file-icon,
 [data-theme="dark"] .pdf-badge,
@@ -1004,10 +1040,18 @@ body.dark-mode .cl-meta-pdf,
 body.dark-mode .attachment-file-badge,
 [data-theme="dark"] .cl-pdf-badge,
 body.dark-mode .cl-pdf-badge {
-  background: var(--bg-surface-raised) !important;
-  background-color: var(--bg-surface-raised) !important;
-  border: 1px solid var(--border) !important;
-  color: var(--text-primary) !important;
+  background: #000000 !important;
+  background-color: #000000 !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #8e8e93 !important;
+}
+
+.post-card .file-icon span,
+.post-card .file-icon.pdf span,
+.file-icon.pdf span,
+.clean-file-icon span,
+.bento-attachment .file-icon span {
+  color: #8e8e93 !important;
 }
 
 /* Explore -> Links (Strict Monochrome) */
@@ -1567,13 +1611,22 @@ body.dark-mode .cl-search-input::placeholder {
   color: var(--text-secondary) !important;
 }
 
-/* ─── ANIMATED TEXT BOX & AI PROMPT PILL ─── */
+/* ─── ANIMATED TEXT BOX & AI PROMPT PILL (Search Box Round a Little) ─── */
+.header-search-wrapper,
+.header-search-wrapper.jitter-prompt-pill,
 [data-theme="dark"] .jitter-prompt-pill,
 body.dark-mode .jitter-prompt-pill {
   background: var(--bg-surface) !important;
   border: 1px solid var(--border) !important;
-  border-radius: 8px !important;
+  border-radius: 14px !important;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45) !important;
+}
+
+.header-search-wrapper::before,
+.header-search-wrapper.jitter-prompt-pill::before,
+[data-theme="dark"] .jitter-prompt-pill::before,
+body.dark-mode .jitter-prompt-pill::before {
+  border-radius: 14px !important;
 }
 
 [data-theme="dark"] .jitter-prompt-pill:hover,

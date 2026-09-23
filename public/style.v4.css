@@ -13882,3 +13882,809 @@ body.dark-mode .ag-hud-btn-primary:hover {
   color: #000000 !important;
 }
 
+/* ==========================================================================
+   ANTIGRAVITY & LABS.GOOGLE CLASSY MINIMALIST DESIGN SYSTEM
+   - Background: near-black #0a0a0a
+   - Surface: #141414 to #181818 with 1px #262626 border
+   - Typography: #f5f5f5 headlines, #9ca3af body, #d1d5db subheaders
+   - Unified Outlined Pill Badges across the entire interface
+   - High-contrast accessible CTA buttons and links
+   - GPU-cheap scroll-triggered reveals & restrained hover transitions
+   ========================================================================== */
+
+/* ─── 1. CORE TOKENS & CANVAS ─── */
+[data-theme="dark"] body.landing,
+body.dark-mode.landing,
+[data-theme="dark"],
+body.dark-mode {
+  --bg-app: #0a0a0a !important;
+  --bg-surface: #141414 !important;
+  --bg-surface-raised: #181818 !important;
+  --border: #262626 !important;
+  --border-subtle: #1e1e1e !important;
+  background-color: #0a0a0a !important;
+  color: #f5f5f5 !important;
+}
+
+body.landing {
+  background-color: #0a0a0a;
+  color: #f5f5f5;
+  font-family: -apple-system, BlinkMacSystemFont, "Plus Jakarta Sans", "SF Pro Display", "Inter", sans-serif;
+  overflow-x: hidden;
+}
+
+/* Disable distracting background glows or laser scans */
+.siri-screen-border,
+.poster-ambient-canvas,
+.gemini-chat-emitter-wave {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+
+/* ─── 2. RESTRAINED MINIMAL NAVIGATION ─── */
+.lib-nav.apple-nav {
+  background: rgba(10, 10, 10, 0.85) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border-bottom: 1px solid #1f1f1f !important;
+  padding: 16px 28px !important;
+}
+
+.apple-wordmark {
+  color: #f5f5f5 !important;
+  font-weight: 700 !important;
+  font-size: 16px !important;
+  letter-spacing: -0.02em !important;
+  text-decoration: none !important;
+}
+
+.apple-univ-tag {
+  color: #a1a1aa !important;
+  border: 1px solid #2a2a2a !important;
+  background: #141414 !important;
+  padding: 5px 12px !important;
+  border-radius: 9999px !important;
+  font-size: 11.5px !important;
+  font-weight: 500 !important;
+  text-decoration: none !important;
+  transition: border-color 0.2s ease, color 0.2s ease !important;
+}
+
+.apple-univ-tag:hover {
+  border-color: #404040 !important;
+  color: #f5f5f5 !important;
+}
+
+.apple-nav-btn {
+  background: #ffffff !important;
+  color: #0a0a0a !important;
+  border: 1px solid #ffffff !important;
+  font-weight: 600 !important;
+  font-size: 13px !important;
+  padding: 7px 16px !important;
+  border-radius: 9999px !important;
+  text-decoration: none !important;
+  transition: background 0.2s ease, transform 0.2s ease !important;
+}
+
+.apple-nav-btn:hover {
+  background: #e5e5e5 !important;
+  transform: translateY(-1px) !important;
+}
+
+/* ─── 3. HERO STAGE (LARGE CONFIDENT TYPOGRAPHY & GENEROUS WHITESPACE) ─── */
+.lib-hero-header.poster-hero-header {
+  padding: 100px 24px 60px !important;
+  max-width: 940px !important;
+  margin: 0 auto !important;
+  text-align: center !important;
+}
+
+.apple-keynote-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  background: #141414 !important;
+  border: 1px solid #282828 !important;
+  color: #d1d5db !important;
+  padding: 6px 14px !important;
+  border-radius: 9999px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+  margin-bottom: 28px !important;
+}
+
+.apple-kicker-tag {
+  color: #9ca3af !important;
+  font-weight: 500 !important;
+  margin-left: 4px !important;
+  padding-left: 8px !important;
+  border-left: 1px solid #2a2a2a !important;
+}
+
+.badge-dot-live {
+  width: 6px !important;
+  height: 6px !important;
+  background-color: #f5f5f5 !important;
+  border-radius: 50% !important;
+}
+
+.apple-main-title {
+  font-size: clamp(40px, 6.5vw, 72px) !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.035em !important;
+  line-height: 1.08 !important;
+  margin: 0 auto 24px !important;
+}
+
+.apple-text-grad-primary {
+  color: #f5f5f5 !important;
+  background: none !important;
+  -webkit-text-fill-color: #f5f5f5 !important;
+  display: inline-block !important;
+}
+
+.apple-text-grad-secondary {
+  color: #a1a1aa !important;
+  background: none !important;
+  -webkit-text-fill-color: #a1a1aa !important;
+  display: inline-block !important;
+}
+
+.apple-hero-desc {
+  font-size: clamp(16px, 1.8vw, 19px) !important;
+  line-height: 1.62 !important;
+  color: #9ca3af !important;
+  max-width: 680px !important;
+  margin: 0 auto 40px !important;
+  font-weight: 400 !important;
+}
+
+.apple-cta-group {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 14px !important;
+  flex-wrap: wrap !important;
+}
+
+.apple-primary-cta {
+  background: #ffffff !important;
+  color: #0a0a0a !important;
+  border: 1px solid #ffffff !important;
+  font-size: 14.5px !important;
+  font-weight: 600 !important;
+  padding: 12px 26px !important;
+  border-radius: 9999px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  text-decoration: none !important;
+  transition: transform 0.2s ease-out, background 0.2s ease-out !important;
+}
+
+.apple-primary-cta:hover {
+  background: #e5e5e5 !important;
+  transform: translateY(-2px) !important;
+}
+
+.apple-secondary-cta {
+  background: transparent !important;
+  color: #f5f5f5 !important;
+  border: 1px solid #2e2e2e !important;
+  font-size: 14.5px !important;
+  font-weight: 500 !important;
+  padding: 12px 24px !important;
+  border-radius: 9999px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  text-decoration: none !important;
+  transition: transform 0.2s ease-out, border-color 0.2s ease-out, background 0.2s ease-out !important;
+}
+
+.apple-secondary-cta:hover {
+  border-color: #525252 !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  transform: translateY(-2px) !important;
+}
+
+/* ─── 4. CARD SURFACES & UNIFIED OUTLINED PILL BADGES ─── */
+.poster-bento-grid {
+  max-width: 1240px !important;
+  margin: 0 auto !important;
+  padding: 20px 20px 60px !important;
+  gap: 20px !important;
+}
+
+[data-theme="dark"] .apple-card,
+body.dark-mode .apple-card,
+[data-theme="dark"] .poster-card,
+body.dark-mode .poster-card {
+  background: #141414 !important;
+  border: 1px solid #262626 !important;
+  border-radius: 20px !important;
+  box-shadow: none !important;
+  padding: 28px !important;
+  transition: transform 0.25s ease-out, border-color 0.25s ease-out, background 0.25s ease-out !important;
+  overflow: hidden !important;
+  position: relative !important;
+}
+
+[data-theme="dark"] .apple-card:hover,
+body.dark-mode .apple-card:hover,
+[data-theme="dark"] .poster-card:hover,
+body.dark-mode .poster-card:hover {
+  background: #171717 !important;
+  border-color: #383838 !important;
+  transform: translateY(-2px) !important;
+}
+
+/* UNIFIED OUTLINED PILL TAG ACROSS ALL CARDS (CONTRAST-CHECKED) */
+.apple-pill-tag,
+.kinetic-tag,
+.ag-card-category-tag,
+.feature-badge-pill {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.05em !important;
+  text-transform: uppercase !important;
+  padding: 4px 10px !important;
+  border-radius: 9999px !important;
+  border: 1px solid #2e2e2e !important;
+  background: #1a1a1a !important;
+  color: #e5e5e5 !important;
+  box-shadow: none !important;
+}
+
+/* CARD TITLES & BODY TEXT */
+[data-theme="dark"] .apple-card-title,
+body.dark-mode .apple-card-title,
+[data-theme="dark"] .poster-card-title,
+body.dark-mode .poster-card-title {
+  color: #f5f5f5 !important;
+  font-size: 21px !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.02em !important;
+  margin: 0 0 10px !important;
+  line-height: 1.25 !important;
+}
+
+[data-theme="dark"] .apple-card-desc,
+body.dark-mode .apple-card-desc,
+[data-theme="dark"] .poster-card-desc,
+body.dark-mode .poster-card-desc {
+  color: #9ca3af !important;
+  font-size: 14.5px !important;
+  line-height: 1.6 !important;
+  margin: 0 0 20px !important;
+}
+
+/* UNIFIED CARD CTA LINKS */
+.apple-card-link,
+.poster-card-link {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  color: #f5f5f5 !important;
+  font-size: 13.5px !important;
+  font-weight: 600 !important;
+  text-decoration: none !important;
+  padding: 8px 14px !important;
+  border-radius: 9999px !important;
+  background: #1c1c1c !important;
+  border: 1px solid #2e2e2e !important;
+  transition: background 0.2s ease-out, border-color 0.2s ease-out, color 0.2s ease-out, transform 0.2s ease-out !important;
+}
+
+.apple-card-link:hover,
+.poster-card-link:hover {
+  background: #242424 !important;
+  border-color: #444444 !important;
+  color: #ffffff !important;
+  transform: translateX(3px) !important;
+}
+
+/* ─── 5. NEW FLAGSHIP CARD: KYANA AI ─── */
+.kyana-flagship-card {
+  grid-column: 1 / -1 !important;
+  background: #141414 !important;
+  border: 1px solid #262626 !important;
+  border-radius: 24px !important;
+  padding: 36px 32px !important;
+  margin-bottom: 10px !important;
+}
+
+.kyana-flagship-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 36px;
+  align-items: center;
+}
+
+@media (max-width: 900px) {
+  .kyana-flagship-layout {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+}
+
+.kyana-info-col h3 {
+  font-size: 26px !important;
+  font-weight: 700 !important;
+  color: #f5f5f5 !important;
+  letter-spacing: -0.025em !important;
+  margin: 12px 0 10px !important;
+}
+
+.kyana-info-col p {
+  color: #9ca3af !important;
+  font-size: 15px !important;
+  line-height: 1.6 !important;
+  margin-bottom: 22px !important;
+}
+
+.kyana-features-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.kyana-features-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #d1d5db;
+  font-size: 13.5px;
+}
+
+.kyana-features-list svg {
+  color: #f5f5f5;
+  flex-shrink: 0;
+}
+
+/* Kyana Mock Chat Window */
+.kyana-mock-window {
+  background: #0d0d0d;
+  border: 1px solid #262626;
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.kyana-window-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #1f1f1f;
+}
+
+.kyana-window-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #a1a1aa;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.kyana-window-title span.pulse-dot {
+  width: 6px;
+  height: 6px;
+  background: #f5f5f5;
+  border-radius: 50%;
+}
+
+.kyana-msg-student {
+  align-self: flex-end;
+  background: #1c1c1c;
+  border: 1px solid #2a2a2a;
+  color: #f5f5f5;
+  font-size: 13.5px;
+  padding: 10px 14px;
+  border-radius: 14px 14px 2px 14px;
+  max-width: 85%;
+  line-height: 1.45;
+}
+
+.kyana-msg-ai {
+  align-self: flex-start;
+  background: #141414;
+  border: 1px solid #242424;
+  color: #d1d5db;
+  font-size: 13px;
+  padding: 14px 16px;
+  border-radius: 14px 14px 14px 2px;
+  max-width: 95%;
+  line-height: 1.55;
+}
+
+.kyana-msg-ai strong {
+  color: #f5f5f5;
+}
+
+.kyana-msg-ai ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+
+.kyana-msg-ai li {
+  margin-bottom: 4px;
+}
+
+/* ─── 6. NEW CARD: ONLINE COMPILER ─── */
+.compiler-preview-window {
+  background: #0d0d0d;
+  border: 1px solid #262626;
+  border-radius: 12px;
+  overflow: hidden;
+  font-family: 'JetBrains Mono', monospace;
+  margin-top: 14px;
+}
+
+.compiler-tab-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #141414;
+  border-bottom: 1px solid #222222;
+  padding: 8px 12px;
+}
+
+.compiler-tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.compiler-tab {
+  font-size: 11px;
+  color: #888888;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.compiler-tab.active {
+  background: #1f1f1f;
+  color: #f5f5f5;
+  font-weight: 600;
+}
+
+.compiler-code-pane {
+  padding: 14px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: #d1d5db;
+  overflow-x: auto;
+}
+
+.compiler-code-line {
+  display: flex;
+  gap: 12px;
+}
+
+.compiler-line-num {
+  color: #555555;
+  user-select: none;
+  min-width: 18px;
+  text-align: right;
+}
+
+.compiler-kw { color: #f5f5f5; font-weight: 600; }
+.compiler-str { color: #a1a1aa; }
+.compiler-fn { color: #e5e5e5; }
+
+.compiler-term-footer {
+  background: #111111;
+  border-top: 1px solid #202020;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.compiler-run-badge {
+  background: #ffffff;
+  color: #0a0a0a;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 10.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ─── 7. NEW CARD: ASSIGNMENTS & LABS ─── */
+.assignment-preview-window {
+  background: #0d0d0d;
+  border: 1px solid #262626;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.assignment-meta-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.assignment-course-code {
+  font-size: 11px;
+  color: #888888;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+}
+
+.assignment-status-pill {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #f5f5f5;
+  background: #1a1a1a;
+  border: 1px solid #333333;
+  padding: 3px 8px;
+  border-radius: 9999px;
+}
+
+.assignment-task-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #f5f5f5;
+  margin: 0;
+}
+
+.assignment-due-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.assignment-checks-strip {
+  background: #141414;
+  border: 1px solid #222222;
+  border-radius: 8px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #d1d5db;
+}
+
+/* ─── 8. NEW CARD: POST & SHARE STATUS ─── */
+.post-preview-window {
+  background: #0d0d0d;
+  border: 1px solid #262626;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.post-author-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.post-author-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #222222;
+  border: 1px solid #333333;
+  color: #f5f5f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.post-author-info strong {
+  display: block;
+  font-size: 13px;
+  color: #f5f5f5;
+}
+
+.post-author-info span {
+  font-size: 11px;
+  color: #888888;
+}
+
+.post-text-body {
+  font-size: 13px;
+  color: #d1d5db;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.post-attachment-box {
+  background: #141414;
+  border: 1px solid #242424;
+  border-radius: 8px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #e5e5e5;
+}
+
+.post-reactions-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-top: 6px;
+  border-top: 1px solid #1a1a1a;
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.post-reaction-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ─── 9. STATS STRIP CONTRAST & MINIMAL CLEANUP ─── */
+.poster-stats-strip.apple-stats-strip {
+  background: #111111 !important;
+  border: 1px solid #222222 !important;
+  border-radius: 20px !important;
+  max-width: 1240px !important;
+  margin: 30px auto !important;
+  padding: 24px 32px !important;
+}
+
+.stat-indicator-badge {
+  background: #1c1c1c !important;
+  border: 1px solid #2a2a2a !important;
+  color: #f5f5f5 !important;
+  border-radius: 12px !important;
+}
+
+.poster-stat-item strong {
+  color: #f5f5f5 !important;
+  font-size: 17px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.01em !important;
+}
+
+.poster-stat-item span {
+  color: #9ca3af !important;
+  font-size: 12.5px !important;
+}
+
+/* ─── 10. GALLERY CONTRAST FIXES (CONFIRMED AUDIT) ─── */
+[data-theme="dark"] .gallery-home-section,
+body.dark-mode .gallery-home-section {
+  background: #0a0a0a !important;
+  color: #f5f5f5 !important;
+}
+
+[data-theme="dark"] .ag-photo-card,
+body.dark-mode .ag-photo-card {
+  background: #141414 !important;
+  border: 1px solid #262626 !important;
+  border-radius: 16px !important;
+  box-shadow: none !important;
+}
+
+[data-theme="dark"] .ag-photo-card:hover,
+body.dark-mode .ag-photo-card:hover {
+  background: #181818 !important;
+  border-color: #383838 !important;
+  transform: translateY(-2px) !important;
+}
+
+[data-theme="dark"] .ag-card-title,
+body.dark-mode .ag-card-title {
+  color: #f5f5f5 !important;
+  font-size: 16.5px !important;
+  font-weight: 600 !important;
+}
+
+[data-theme="dark"] .ag-card-desc,
+body.dark-mode .ag-card-desc {
+  color: #9ca3af !important;
+  font-size: 13.5px !important;
+}
+
+[data-theme="dark"] .ag-card-meta-row,
+body.dark-mode .ag-card-meta-row {
+  color: #a1a1aa !important;
+}
+
+[data-theme="dark"] .ag-card-category-tag,
+body.dark-mode .ag-card-category-tag {
+  background: #1a1a1a !important;
+  color: #e5e5e5 !important;
+  border: 1px solid #333333 !important;
+}
+
+[data-theme="dark"] .ag-inspect-btn,
+body.dark-mode .ag-inspect-btn {
+  background: #1c1c1c !important;
+  border: 1px solid #333333 !important;
+  color: #f5f5f5 !important;
+}
+
+[data-theme="dark"] .ag-inspect-btn:hover,
+body.dark-mode .ag-inspect-btn:hover {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border-color: #ffffff !important;
+}
+
+[data-theme="dark"] .ag-deck-capsule,
+body.dark-mode .ag-deck-capsule {
+  background: #141414 !important;
+  border: 1px solid #262626 !important;
+}
+
+[data-theme="dark"] .ag-chip-btn,
+body.dark-mode .ag-chip-btn {
+  background: transparent !important;
+  color: #9ca3af !important;
+  border: 1px solid transparent !important;
+}
+
+[data-theme="dark"] .ag-chip-btn:hover:not(.active),
+body.dark-mode .ag-chip-btn:hover:not(.active) {
+  color: #f5f5f5 !important;
+  background: #1a1a1a !important;
+}
+
+[data-theme="dark"] .ag-chip-btn.active,
+body.dark-mode .ag-chip-btn.active {
+  background: #ffffff !important;
+  color: #0a0a0a !important;
+  border-color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+/* ─── 11. GPU-ONLY SCROLL REVEALS ─── */
+.reveal-item {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+  will-change: opacity, transform;
+}
+
+.reveal-item.reveal-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal-item {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+}
+
+

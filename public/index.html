@@ -149,7 +149,6 @@
 
       <!-- Card 1: Wide Panorama Hero Card (2 Columns Wide) -->
       <div class="poster-card bento-shape-wide tilt-card apple-card bento-glow-card" data-card-idx="0">
-        <div class="poster-card-specular"></div>
         <div class="wide-card-layout">
           <div class="wide-card-content">
             <div class="poster-card-top">
@@ -221,7 +220,6 @@
 
       <!-- Card 2: Tall Vertical Bento Shape (Chrono Watch Widget) -->
       <div class="poster-card bento-shape-tall tilt-card apple-card bento-glow-card" data-card-idx="1">
-        <div class="poster-card-specular"></div>
         <div class="poster-card-top">
           <div class="poster-icon-box apple-icon-box">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -274,7 +272,6 @@
 
       <!-- Card 3: Compact Square Notice Card (1 Column) -->
       <div class="poster-card bento-shape-compact tilt-card apple-card bento-glow-card" data-card-idx="2">
-        <div class="poster-card-specular"></div>
         <div class="poster-card-top">
           <div class="poster-icon-box apple-icon-box">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -318,7 +315,6 @@
 
       <!-- Card 4: Wide Panoramic Roadmap Card (2 Columns Wide) -->
       <div class="poster-card bento-shape-wide tilt-card apple-card bento-glow-card" data-card-idx="3">
-        <div class="poster-card-specular"></div>
         <div class="poster-card-top">
           <div class="poster-icon-box apple-icon-box">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -384,7 +380,6 @@
 
       <!-- Card 5: Wide Panoramic Monochromatic Animated iMessage Chat Card -->
       <div class="poster-card bento-shape-wide tilt-card apple-card bento-glow-card" data-card-idx="4">
-        <div class="poster-card-specular"></div>
         <div class="wide-card-layout">
           <div class="wide-card-content">
             <div class="poster-card-top">
@@ -458,7 +453,6 @@
 
       <!-- Card 6: Monochromatic Smart Search Engine (Col 1) -->
       <div class="poster-card bento-shape-tall tilt-card apple-card bento-glow-card" data-card-idx="5">
-        <div class="poster-card-specular"></div>
         <div class="poster-card-top">
           <div class="poster-icon-box apple-icon-box">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -535,7 +529,6 @@
 
       <!-- Card 7: Monochromatic Live Notification & Radar (Col 2) -->
       <div class="poster-card bento-shape-compact tilt-card apple-card bento-glow-card" data-card-idx="6">
-        <div class="poster-card-specular"></div>
         <div class="poster-card-top">
           <div class="poster-icon-box apple-icon-box">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -604,7 +597,6 @@
 
       <!-- Card 8: Monochromatic Account Security Vault (Span 2) -->
       <div class="poster-card bento-shape-wide tilt-card apple-card bento-glow-card" data-card-idx="7">
-        <div class="poster-card-specular"></div>
         <div class="wide-card-layout">
           <div class="wide-card-content">
             <div class="poster-card-top">
@@ -936,11 +928,6 @@
 
         card.style.transform = `perspective(850px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) translateZ(${liftZ}px) scale3d(1.025, 1.025, 1.025)`;
         card.style.boxShadow = `${(-rotateY * 2.5).toFixed(1)}px ${(rotateX * 2.5 + 24).toFixed(1)}px 50px rgba(0, 0, 0, 0.16), 0 4px 12px rgba(0, 0, 0, 0.06)`;
-
-        const specular = card.querySelector('.poster-card-specular');
-        if (specular) {
-          specular.style.background = `radial-gradient(circle 350px at ${x}px ${y}px, rgba(66, 133, 244, 0.25) 0%, rgba(155, 114, 203, 0.18) 35%, rgba(240, 98, 146, 0.12) 65%, transparent 80%)`;
-        }
       });
 
       card.addEventListener('mouseleave', () => {
@@ -948,8 +935,6 @@
         card.style.transition = 'transform 0.65s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.65s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.35s ease';
         card.style.transform = 'perspective(850px) rotateX(0deg) rotateY(0deg) translateZ(0px) scale3d(1, 1, 1)';
         card.style.boxShadow = '';
-        const specular = card.querySelector('.poster-card-specular');
-        if (specular) specular.style.background = 'transparent';
       });
     });
 

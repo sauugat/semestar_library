@@ -4077,23 +4077,17 @@ body.landing .apple-univ-tag:hover {
   }
 }
 
-/* Liquid Titanium Specular Sheen Glider across Card on Hover */
+/* Specular Sheen Glider across Card on Hover - Disabled for clean matte finish */
 .apple-card::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: -130%;
-  width: 70%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.6) 50%, transparent 100%);
-  transform: skewX(-22deg);
-  pointer-events: none;
-  z-index: 5;
+  display: none !important;
+  content: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
 .apple-card:hover::after {
-  left: 180%;
-  transition: left 0.95s cubic-bezier(0.16, 1, 0.3, 1);
+  display: none !important;
+  content: none !important;
 }
 
 .apple-card:hover {
@@ -4160,71 +4154,14 @@ body.landing .apple-univ-tag:hover {
   min-height: 400px;
 }
 
-/* Card Radial Specular Spotlight with Gemini Intro Flash */
-.poster-card-specular {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  border-radius: inherit;
-  transition: background 0.08s ease;
-  z-index: 1;
-}
-
+/* Card Radial Specular Spotlight with Gemini Intro Flash - Disabled for clean matte finish */
+.poster-card-specular,
 .poster-grid-active .poster-card-specular {
-  animation: cardSpecularGeminiIntro 1.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.poster-grid-active .apple-card:nth-child(1) .poster-card-specular {
-  animation-delay: 0.12s;
-}
-
-.poster-grid-active .apple-card:nth-child(2) .poster-card-specular {
-  animation-delay: 0.28s;
-}
-
-.poster-grid-active .apple-card:nth-child(3) .poster-card-specular {
-  animation-delay: 0.44s;
-}
-
-.poster-grid-active .apple-card:nth-child(4) .poster-card-specular {
-  animation-delay: 0.60s;
-}
-
-.poster-grid-active .apple-card:nth-child(5) .poster-card-specular {
-  animation-delay: 0.76s;
-}
-
-.poster-grid-active .apple-card:nth-child(6) .poster-card-specular {
-  animation-delay: 0.92s;
-}
-
-.poster-grid-active .apple-card:nth-child(7) .poster-card-specular {
-  animation-delay: 1.08s;
-}
-
-.poster-grid-active .apple-card:nth-child(8) .poster-card-specular {
-  animation-delay: 1.24s;
-}
-
-@keyframes cardSpecularGeminiIntro {
-  0% {
-    opacity: 0;
-    background: radial-gradient(circle at 40% 10%, rgba(66, 133, 244, 0.22) 0%, rgba(155, 114, 203, 0.18) 40%, rgba(240, 98, 146, 0.14) 75%, transparent 100%);
-  }
-
-  30% {
-    opacity: 1;
-    background: radial-gradient(circle at 50% 25%, rgba(66, 133, 244, 0.18) 0%, rgba(155, 114, 203, 0.15) 40%, rgba(240, 98, 146, 0.1) 75%, transparent 100%);
-  }
-
-  65% {
-    opacity: 0.35;
-  }
-
-  100% {
-    opacity: 0;
-    background: transparent;
-  }
+  display: none !important;
+  content: none !important;
+  animation: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
 }
 
 .poster-card-top {
@@ -13143,13 +13080,26 @@ body.dark-mode .poster-card:hover {
   box-shadow: 0 16px 44px rgba(0, 0, 0, 0.6) !important;
 }
 
-/* Hover Aura: Monochromatic Silver Sheen Only (Zero Blue/Pink) */
-.apple-card::before {
-  background: linear-gradient(135deg,
-      rgba(255, 255, 255, 0.35) 0%,
-      rgba(200, 200, 200, 0.25) 35%,
-      rgba(255, 255, 255, 0.2) 70%,
-      rgba(160, 160, 160, 0.15) 100%) !important;
+/* Explicitly disable all reflecting shine, sheen sweeps, specular flashlights and aura glows on template cards */
+.apple-card::before,
+.apple-card:hover::before,
+.apple-card::after,
+.apple-card:hover::after,
+.poster-card::before,
+.poster-card:hover::before,
+.poster-card::after,
+.poster-card:hover::after,
+.poster-card-specular,
+.poster-grid-active .poster-card-specular {
+  display: none !important;
+  content: none !important;
+  animation: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  background: none !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
 /* Card Titles */

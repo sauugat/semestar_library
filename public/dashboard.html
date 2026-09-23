@@ -960,6 +960,71 @@
       border-color: var(--accent-color, #0071e3);
       color: var(--accent-color, #0071e3);
     }
+
+    /* Resource and Lab embeds share a compact attachment layout. */
+    .post-card .file-attachment {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 10px;
+      padding: 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      background: var(--bg-secondary);
+      min-width: 0;
+    }
+    .post-card .file-icon {
+      width: 40px;
+      height: 40px;
+      flex-shrink: 0;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--accent-blue);
+      color: var(--bg-primary);
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .post-card .file-icon-lab { background: var(--text-primary); }
+    .post-card .post-actions button:disabled { opacity: 0.45; cursor: not-allowed; }
+    .post-card .file-info { flex: 1; min-width: 0; }
+    .post-card .file-name {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .post-card .file-meta { font-size: 12px; color: var(--text-muted); }
+    .post-card .file-actions { display: flex; gap: 8px; flex-shrink: 0; }
+    .post-card .file-action {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+      border: 1px solid var(--border-color);
+      background: transparent;
+      color: var(--text-primary);
+      text-decoration: none;
+    }
+    .post-card .file-action.primary { background: var(--accent-blue); color: var(--bg-primary); border-color: transparent; }
+    .post-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 4px; }
+    .post-tag { font-size: 12px; padding: 3px 10px; border-radius: 20px; background: var(--bg-secondary); color: var(--text-muted); border: 1px solid var(--border-color); }
+    body.dash .feed .post-card .post-actions { justify-content: space-between; gap: 8px 16px !important; }
+    body.dash .feed .post-card .post-actions > * { position: static; margin: 0 !important; }
+    body.dash .feed .post-card .post-actions .status-btn { background: transparent !important; color: var(--text-muted) !important; }
+    body.dash .feed .post-card .post-actions button:focus-visible { outline: 2px solid var(--accent-blue) !important; outline-offset: 3px; }
+    @media (max-width: 600px) {
+      .post-card .file-attachment { flex-wrap: wrap; }
+      .post-card .file-info { flex-basis: calc(100% - 52px); }
+      .post-card .file-actions { margin-left: 52px; }
+    }
   </style>
 </head>
 
@@ -1367,28 +1432,31 @@
     }
 
     async function toggleLike(fileId, btn) {
+      if (btn.disabled) return;
       const isLiked = btn.dataset.liked === 'true';
       const countEl = btn.querySelector('.like-count');
       const currentCount = parseInt(countEl.textContent || '0', 10);
-
-      const newLiked = !isLiked;
-      const newCount = newLiked ? currentCount + 1 : currentCount - 1;
-
-      btn.dataset.liked = newLiked ? 'true' : 'false';
-      btn.classList.toggle('liked', newLiked);
-      countEl.textContent = newCount;
-
+      function updateLike(liked, count) {
+        btn.dataset.liked = String(liked);
+        btn.classList.toggle('liked', liked);
+        btn.setAttribute('aria-pressed', String(liked));
+        btn.setAttribute('aria-label', liked ? 'Unlike post' : 'Like post');
+        btn.querySelector('svg').setAttribute('fill', liked ? 'currentColor' : 'none');
+        countEl.textContent = count;
+      }
+      updateLike(!isLiked, Math.max(0, currentCount + (isLiked ? -1 : 1)));
+      btn.disabled = true;
       try {
         const res = await fetch(`/api/files/${fileId}/like`, { method: 'POST' });
         const data = await res.json();
-        btn.dataset.liked = data.liked;
-        btn.querySelector('.like-count').textContent = data.likeCount;
-        btn.classList.toggle('liked', data.liked);
+        if (!res.ok) throw new Error(data.message || 'Could not update like.');
+        updateLike(Boolean(data.liked), data.likeCount);
       } catch (err) {
         console.error('Like error:', err);
-        btn.dataset.liked = isLiked ? 'true' : 'false';
-        btn.classList.toggle('liked', isLiked);
-        countEl.textContent = currentCount;
+        updateLike(isLiked, currentCount);
+        showToast(escapeHtml(err.message || 'Could not update like.'));
+      } finally {
+        btn.disabled = false;
       }
     }
 
@@ -1558,14 +1626,54 @@
       return renderFilePost(post);
     }
 
+    function renderPostShell({ kind, id, className = '', profileUrl, avatar, name, badge = '', meta, controls = '', body, actions, comments = '' }) {
+      return `
+        <article class="feed-card social-post-card post-card ${className}" data-${kind}-id="${id}">
+          <a href="${profileUrl}" class="post-avatar" aria-label="View ${escapeHtml(name)}'s profile">${avatar}</a>
+          <div class="post-main post-body">
+            <header class="post-header">
+              <div class="post-user-info">
+                <div class="post-author-row">
+                  <a href="${profileUrl}" class="post-author-name post-author-link">${escapeHtml(name)}</a>
+                  ${badge}
+                </div>
+                <div class="post-meta-row">${meta}</div>
+              </div>
+              ${controls ? `<div class="post-header-actions">${controls}</div>` : ''}
+            </header>
+            ${body}
+            ${actions}
+            ${comments}
+          </div>
+        </article>`;
+    }
+
+    function renderPostActions({ liked = false, likes = 0, comments = 0, likeAction, commentAction, shareAction, extra = '' }) {
+      return `<footer class="post-actions post-footer">
+        <button type="button" class="action-btn like-btn ${liked ? 'liked' : ''}" data-liked="${Boolean(liked)}" aria-pressed="${Boolean(liked)}" aria-label="${liked ? 'Unlike' : 'Like'} post" onclick="${likeAction}">
+          <svg viewBox="0 0 24 24" fill="${liked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          <span class="like-count">${likes}</span>
+        </button>
+        <button type="button" class="action-btn comment-btn" ${commentAction ? `onclick="${commentAction}" aria-label="Reply to post"` : 'disabled aria-label="Replies unavailable for Lab assignments" title="Lab assignments do not support replies"'}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 8.4 8.4 0 0 1-3.5-.75L3 21l1.8-5.4A8.4 8.4 0 0 1 4 12.5 8.5 8.5 0 1 1 21 11.5z"/></svg>
+          <span class="comment-count">${comments}</span>
+        </button>
+        <button type="button" class="action-btn share-btn" onclick="${shareAction}" aria-label="Share post" title="Copy link to post">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13"/></svg>
+        </button>
+        ${extra}
+      </footer>`;
+    }
+
     function renderFilePost(f) {
       const badge = getFileBadge(f.originalName);
       const initial = (f.uploaderName || 'S').charAt(0).toUpperCase();
-      const avatarHtml = f.uploaderAvatar
-        ? `<img src="${f.uploaderAvatar}" alt="${escapeHtml(f.uploaderName)}" class="post-avatar-img">`
-        : initial;
-      const subjectTag = f.subject ? `<span class="post-pill-tag"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>${escapeHtml(f.subject)}</span>` : '';
-      const chapterTag = f.chapter ? `<span class="post-pill-tag"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>${escapeHtml(f.chapter)}</span>` : '';
+      const avatarUrl = safePostUrl(f.uploaderAvatar);
+      const avatarHtml = avatarUrl
+        ? `<img src="${avatarUrl}" alt="${escapeHtml(f.uploaderName)}" class="post-avatar-img">`
+        : escapeHtml(initial);
+      const subjectTag = f.subject ? `<span class="post-tag">${escapeHtml(f.subject)}</span>` : '';
+      const chapterTag = f.chapter ? `<span class="post-tag">${escapeHtml(f.chapter)}</span>` : '';
       const uploaderRole = f.uploaderRole || 'student';
       const isSpecialUploader = uploaderRole === 'admin' || uploaderRole === 'teacher' || uploaderRole === 'faculty';
       let verifiedBadgeHtml = '';
@@ -1599,83 +1707,41 @@
           </button>`
         : '';
 
-      return `
-        <article class="feed-card social-post-card post-card${(f.type === 'notice' || isSpecialUploader) ? ' notice' : ''}" data-file-id="${f.id}">
-          <a href="profile.html?id=${f.uploadedBy}" class="post-avatar" title="View ${escapeHtml(f.uploaderName)}'s Profile">${avatarHtml}</a>
-          <div class="post-main">
-            <header class="post-header">
-              <div class="post-user-info">
-                <div class="post-author-row">
-                  <a href="profile.html?id=${f.uploadedBy}" class="post-author-name post-author-link">${escapeHtml(f.uploaderName || 'Student')}</a>
-                  ${verifiedBadgeHtml}
-                </div>
-                <div class="post-meta-row">
-                  ${fileHandleHtml}
-                  <time class="post-timestamp" datetime="${f.uploadedAt}">${timeAgo(f.uploadedAt)}</time>
-                  <span class="post-meta-sep">&middot;</span>
-                  <span class="post-visibility" title="Public to Semester">
-                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-                  </span>
-                </div>
-              </div>
-
-              <div class="post-header-actions">
-                ${deleteBtnHtml}
-                <button class="post-more-btn" onclick="copyPostLink(${f.id})" title="Copy link to file">
-                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
-                </button>
-              </div>
-            </header>
-
+      return renderPostShell({
+        kind: 'file', id: f.id, className: isSpecialUploader ? 'notice' : '',
+        profileUrl: 'profile.html?id=' + encodeURIComponent(f.uploadedBy), avatar: avatarHtml,
+        name: f.uploaderName || 'Student', badge: verifiedBadgeHtml,
+        meta: `${fileHandleHtml}<time class="post-timestamp" datetime="${escapeHtml(f.uploadedAt)}">${timeAgo(f.uploadedAt)}</time>`,
+        controls: deleteBtnHtml,
+        body: `
             <div class="post-content">
-              <h3 class="post-title">${escapeHtml(f.title || f.originalName)}</h3>
-              ${(subjectTag || chapterTag) ? `<div class="post-tags-row">${subjectTag}${chapterTag}</div>` : ''}
+              ${f.title && f.title !== f.originalName ? `<h3 class="post-title">${escapeHtml(f.title)}</h3>` : ''}
+              ${(subjectTag || chapterTag) ? `<div class="post-tags">${subjectTag}${chapterTag}</div>` : ''}
             </div>
 
-            <div class="post-attachment-card">
-              <div class="attachment-file-badge ${badge.iconClass}">
+            <div class="file-attachment">
+              <div class="file-icon ${badge.iconClass}">
                 <span>${badge.ext}</span>
               </div>
-              <div class="attachment-details">
-                <p class="attachment-name" title="${escapeHtml(f.originalName)}">${escapeHtml(f.originalName)}</p>
-                <span class="attachment-meta">${formatSize(f.sizeBytes)} &middot; ${badge.ext} Resource</span>
+              <div class="file-info">
+                <p class="file-name" title="${escapeHtml(f.originalName)}">${escapeHtml(f.originalName)}</p>
+                <span class="file-meta">${formatSize(f.sizeBytes)} &middot; ${badge.ext} Resource</span>
               </div>
-              <div class="attachment-actions">
-                <a href="/api/files/${f.id}/view" target="_blank" rel="noopener" class="attach-action-btn attach-btn-view" title="Preview file in browser">
+              <div class="file-actions">
+                <a href="/api/files/${f.id}/view" target="_blank" rel="noopener" class="file-action" title="Preview file in browser">
                   <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                   <span>View</span>
                 </a>
-                <a href="/api/files/${f.id}/download" class="attach-action-btn attach-btn-download" title="Download file">
+                <a href="/api/files/${f.id}/download" class="file-action primary" title="Download file">
                   <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
                   <span>Get</span>
                 </a>
               </div>
             </div>
-
-            <footer class="post-engage-bar post-footer">
-              <button class="post-action-btn like-btn ${f.liked ? 'liked' : ''}" data-liked="${f.liked ? 'true' : 'false'}" onclick="toggleLike(${f.id}, this)">
-                <svg viewBox="0 0 24 24" fill="${f.liked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/>
-                </svg>
-                <span class="like-count">${f.likeCount || 0}</span>
-              </button>
-
-              <button class="post-action-btn comment-btn" onclick="toggleCommentPanel(${f.id}, this.closest('.feed-card'))">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 8.4 8.4 0 0 1-3.5-.75L3 21l1.8-5.4A8.4 8.4 0 0 1 4 12.5 8.5 8.5 0 1 1 21 11.5z"/>
-                </svg>
-                <span class="comment-count">${f.commentCount || 0}</span>
-              </button>
-
-              <button class="post-action-btn share-btn" onclick="copyPostLink(${f.id})" title="Copy link">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13"/>
-                </svg>
-                <span>Share</span>
-              </button>
-            </footer>
-
-            <div class="comment-panel post-comment-drawer">
+        `,
+        actions: renderPostActions({ liked: f.liked, likes: f.likeCount || 0, comments: f.commentCount || 0,
+          likeAction: `toggleLike(${f.id}, this)`, commentAction: `toggleCommentPanel(${f.id}, this.closest('.feed-card'))`, shareAction: `copyPostLink(${f.id})` }),
+        comments: `<div class="comment-panel post-comment-drawer">
               <div class="comment-list"></div>
               <div class="comment-composer">
                 <input type="text" class="comment-input post-comment-input" placeholder="Write a comment for the class…" maxlength="500">
@@ -1683,11 +1749,8 @@
                   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
                 </button>
               </div>
-            </div>
-
-          </div>
-        </article>
-      `;
+            </div>`
+      });
     }
 
     function renderAssignmentPost(a) {
@@ -1742,65 +1805,32 @@
           </button>`
         : '';
 
-      return `
-        <article class="feed-card social-post-card post-card assignment-post-card" data-assignment-id="${a.id}">
-          <a href="profile.html?id=${escapeHtml(a.createdBy)}" class="post-avatar assignment-avatar" title="View Profile">
-            <span>${escapeHtml(initials)}</span>
-          </a>
-          <div class="post-main">
-            <header class="post-header">
-              <div class="post-user-info">
-                <div class="post-author-row">
-                  <a href="profile.html?id=${escapeHtml(a.createdBy)}" class="post-author-name post-author-link">${escapeHtml(a.teacherName || 'Faculty Member')}</a>
-                  <span class="post-verified-badge post-admin-badge" title="Faculty / Lab Admin">
-                    <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
-                    Admin
-                  </span>
-                </div>
-                <div class="post-meta-row">
-                  <span class="post-student-handle">@${escapeHtml(a.createdBy || 'faculty')}</span> <span class="post-meta-sep">&middot;</span> <time class="post-timestamp" datetime="${a.createdAt}">${timeAgo(a.createdAt)}</time> <span class="post-meta-sep">&middot;</span> <span class="post-visibility" title="Academic Laboratory Assignment">
-                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-                  </span>
-                </div>
-              </div>
-
-              <div class="post-header-actions">
-                <span class="assignment-header-badge" title="Official Academic Assignment">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
-                  <span>Assignment</span>
-                </span>
-                ${deleteBtnHtml}
-              </div>
-            </header>
-
-            <div class="post-content">
-              <h3 class="post-title">${escapeHtml(a.title)}</h3>
-            </div>
-
-            <div class="post-attachment-card">
-              <div class="attachment-file-badge">
+      return renderPostShell({
+        kind: 'assignment', id: a.id, className: 'assignment-post-card',
+        profileUrl: 'profile.html?id=' + encodeURIComponent(a.createdBy), avatar: escapeHtml(initials),
+        name: a.teacherName || 'Faculty Member', badge: '<span class="post-verified-badge post-admin-badge">Admin</span>',
+        meta: `<span class="post-student-handle">@${escapeHtml(a.createdBy || 'faculty')}</span> &middot; <time class="post-timestamp" datetime="${escapeHtml(a.createdAt)}">${timeAgo(a.createdAt)}</time>`,
+        controls: deleteBtnHtml,
+        body: `
+            <div class="file-attachment">
+              <div class="file-icon file-icon-lab">
                 <span>LAB</span>
               </div>
-              <div class="attachment-details">
-                <p class="attachment-name" title="${escapeHtml(a.title)}">${escapeHtml(a.title)}</p>
-                <span class="attachment-meta">${qCount > 0 ? `${qCount} Problem${qCount !== 1 ? 's' : ''} &middot; ` : ''}${escapeHtml(a.subject || 'Curriculum')}${a.semester ? ` &middot; Sem ${escapeHtml(a.semester)}` : ''}</span>
+              <div class="file-info">
+                <p class="file-name" title="${escapeHtml(a.title)}">${escapeHtml(a.title)}</p>
+                <span class="file-meta">${qCount > 0 ? `${qCount} Problem${qCount !== 1 ? 's' : ''} &middot; ` : ''}${escapeHtml(a.subject || 'Curriculum')}${a.semester ? ` &middot; Sem ${escapeHtml(a.semester)}` : ''}</span>
               </div>
-              <div class="attachment-actions">
-                <a href="/code-lab/assignment.html?id=${a.id}" class="attach-action-btn attach-btn-download" title="Open and solve assignment">
+              <div class="file-actions">
+                <a href="/code-lab/assignment.html?id=${a.id}" class="file-action primary" title="Open and solve assignment">
                   <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                   <span>Open</span>
                 </a>
               </div>
             </div>
-
-            <footer class="post-engage-bar post-footer">
-              <button class="post-action-btn like-btn ${isLiked ? 'liked' : ''}" data-liked="${isLiked ? 'true' : 'false'}" onclick="toggleAssignmentLike(${a.id}, this)" title="Like assignment">
-                <svg viewBox="0 0 24 24" fill="${isLiked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/>
-                </svg>
-                <span class="like-count">${initialLikeCount}</span>
-              </button>
-
+        `,
+        actions: renderPostActions({ liked: isLiked, likes: initialLikeCount,
+          likeAction: `toggleAssignmentLike(${a.id}, this)`, commentAction: null, shareAction: `copyAssignmentLink(${a.id})`,
+          extra: `
               <a href="/code-lab/submissions.html?id=${a.id}" class="post-action-btn submission-btn" title="View class submissions">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
@@ -1809,10 +1839,8 @@
               </a>
 
               ${statusBadgeHtml}
-            </footer>
-          </div>
-        </article>
-      `;
+          ` })
+      });
     }
 
     async function deleteAssignmentPost(id, btn, event) {
@@ -1847,6 +1875,16 @@
       }
     }
 
+    function copyAssignmentLink(id) {
+      const url = `${window.location.origin}/code-lab/assignment.html?id=${encodeURIComponent(id)}`;
+      const onCopied = () => showToast('Assignment link copied to clipboard');
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(onCopied).catch(() => fallbackCopy(url, onCopied));
+      } else {
+        fallbackCopy(url, onCopied);
+      }
+    }
+
     function toggleAssignmentLike(id, btn) {
       const isLiked = btn.dataset.liked === 'true';
       const countEl = btn.querySelector('.like-count');
@@ -1860,6 +1898,8 @@
       if (svg) svg.setAttribute('fill', newLiked ? 'currentColor' : 'none');
       if (countEl) countEl.textContent = newCount;
 
+      btn.setAttribute('aria-pressed', String(newLiked));
+      btn.setAttribute('aria-label', newLiked ? 'Unlike post' : 'Like post');
       localStorage.setItem('liked_assign_' + id, newLiked ? 'true' : 'false');
       localStorage.setItem('like_count_assign_' + id, String(newCount));
     }
@@ -1972,24 +2012,12 @@
       const likeCount = post.like_count ?? post.likeCount ?? 0;
       const isCommentsOpen = openCommentPosts.has(post.id);
 
-      return `
-        <article class="feed-card social-post-card post-card status-post-card${noticeClass}" data-post-id="${post.id}">
-          <a href="${profileUrl}" class="post-avatar" aria-label="View ${escapeHtml(post.name)}'s profile">${avatar}</a>
-          <div class="post-main post-body">
-            <header class="post-header">
-              <div class="post-user-info">
-                <div class="post-author-row">
-                  <a href="${profileUrl}" class="post-author-name post-author-link">${escapeHtml(post.name)}</a>
-                  ${roleBadgeHtml}
-                </div>
-                <div class="post-meta-row">
-                  ${handleHtml}<time class="post-timestamp" datetime="${escapeHtml(post.created_at)}">${timeAgo(post.created_at)}</time>
-                </div>
-              </div>
-              ${post.canDelete ? `<div class="post-header-actions"><button type="button" class="post-delete-btn" onclick="deleteStatusPost(${post.id}, this)" aria-label="Delete post" title="Delete post">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14H5V6m3 0V3h8v3"/></svg>
-              </button></div>` : ''}
-            </header>
+      return renderPostShell({
+        kind: 'post', id: post.id, className: 'status-post-card' + noticeClass,
+        profileUrl, avatar, name: post.name, badge: roleBadgeHtml,
+        meta: `${handleHtml}<time class="post-timestamp" datetime="${escapeHtml(post.created_at)}">${timeAgo(post.created_at)}</time>`,
+        controls: post.canDelete ? `<button type="button" class="post-delete-btn" onclick="deleteStatusPost(${post.id}, this)" aria-label="Delete post" title="Delete post"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14H5V6m3 0V3h8v3"/></svg></button>` : '',
+        body: `
             <div class="post-content">
               ${shouldTruncate ? `
                 <div class="post-content-clamped">
@@ -2003,28 +2031,11 @@
               `}
             </div>
             ${attachmentUrl ? `<div class="post-image"><img src="${attachmentUrl}" alt="Image attached by ${escapeHtml(post.name)}" loading="lazy" decoding="async" tabindex="0" role="button" aria-label="Open full image" aria-haspopup="dialog" onerror="this.hidden = true; this.nextElementSibling.hidden = false;"><a class="status-post-attachment" href="${attachmentUrl}" target="_blank" rel="noopener noreferrer" hidden>View attachment ↗</a></div>` : ''}
-            <footer class="post-actions post-footer">
-              <button type="button" class="action-btn like-btn ${post.liked_by_me ? 'liked' : ''}" data-liked="${post.liked_by_me}" aria-pressed="${post.liked_by_me}" aria-label="${post.liked_by_me ? 'Unlike' : 'Like'} post" onclick="toggleStatusLike(${post.id}, this)">
-                <svg viewBox="0 0 24 24" fill="${post.liked_by_me ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/>
-                </svg>
-                <span class="like-count">${likeCount}</span>
-              </button>
-              <button type="button" class="action-btn comment-btn" onclick="togglePostComments(${post.id}, this.closest('.feed-card'))" aria-label="Reply to post">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 8.4 8.4 0 0 1-3.5-.75L3 21l1.8-5.4A8.4 8.4 0 0 1 4 12.5 8.5 8.5 0 1 1 21 11.5z"/>
-                </svg>
-                <span class="comment-count">${commentCount}</span>
-              </button>
-              <button type="button" class="action-btn share-btn" onclick="copySharePostLink(${post.id})" aria-label="Share post" title="Copy link to post">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13"/>
-                </svg>
-              </button>
-              ${post.type === 'assignment' ? `<span class="post-submitted-count" style="margin-left: auto; color: var(--text-muted); font-size: 13px;">${post.submission_count} submitted</span>` : ''}
-            </footer>
-
-            <div class="post-comments-drawer${isCommentsOpen ? ' open' : ''}" id="comments-drawer-${post.id}">
+`,
+        actions: renderPostActions({ liked: post.liked_by_me, likes: likeCount, comments: commentCount,
+          likeAction: `toggleStatusLike(${post.id}, this)`, commentAction: `togglePostComments(${post.id}, this.closest('.feed-card'))`, shareAction: `copySharePostLink(${post.id})`,
+          extra: post.type === 'assignment' ? `<span class="post-submitted-count">${post.submission_count} submitted</span>` : '' }),
+        comments: `<div class="post-comments-drawer${isCommentsOpen ? ' open' : ''}" id="comments-drawer-${post.id}">
               <div class="post-comments-header-row">
                 <span class="post-comments-title">Replies</span>
                 <button type="button" class="post-comments-close-btn" onclick="closePostComments(${post.id})" aria-label="Hide replies" title="Hide replies">
@@ -2039,9 +2050,8 @@
                 </div>
               </form>
               <div class="post-comments-list"></div>
-            </div>
-          </div>
-        </article>`;
+            </div>`
+      });
     }
 
     function renderFeed() {

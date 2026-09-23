@@ -28,7 +28,9 @@ function fixture(fetch) {
   });
   vm.runInContext([
     functionSection('    function escapeHtml(', '    function formatSize('),
-    functionSection('    function timeAgo(', '    function getFileBadge('),
+    functionSection('    function formatSize(', '    function showToast('),
+    functionSection('    function renderFilePost(', '    function renderAssignmentPost('),
+    functionSection('    async function toggleLike(', '    async function toggleCommentPanel('),
     functionSection('    function renderPost(', '    function renderFilePost('),
     functionSection('    function renderAssignmentPost(', '    async function deleteAssignmentPost('),
     functionSection('    function safePostUrl(', '    function renderFeed('),
@@ -183,7 +185,7 @@ test('Code Lab assignments preserve the Lab embed, badges, question counts and l
     mySubmissionCount: 1, subject: 'C', semester: 'II', canDelete: true
   };
   const output = vm.runInContext('renderAssignmentPost(assignment)', context);
-  for (const expected of ['post-attachment-card', '<span>LAB</span>', 'post-admin-badge',
+  for (const expected of ['file-attachment', '<span>LAB</span>', 'post-admin-badge',
     '3 Problems', '12 Submitted', '1/3 Submitted', '/code-lab/assignment.html?id=7',
     '/code-lab/submissions.html?id=7', 'deleteAssignmentPost(7, this, event)']) {
     assert.ok(output.includes(expected), expected);
@@ -280,4 +282,35 @@ test('failed image posts retain draft and selection so the user can retry', asyn
   assert.equal(f.elements.publishPost.disabled, false);
   assert.equal(f.added.length, 0);
   assert.deepEqual(f.revoked, []);
+});
+
+
+test('PDF and spreadsheet resources share actions and show one filename with working file links', () => {
+  const { context } = fixture();
+  for (const extension of ['pdf', 'xlsx']) {
+    context.file = { id: 12, originalName: `Long_resource_name.${extension}`, title: `Long_resource_name.${extension}`,
+      uploaderName: 'Teacher', uploaderRole: 'teacher', uploadedBy: 'faculty', uploadedAt: new Date().toISOString(),
+      sizeBytes: 2048, subject: 'Web Technology I', chapter: 'PYQS', likeCount: 5, commentCount: 2 };
+    const output = vm.runInContext('renderPost(file)', context);
+    assert.equal(output.split(`>Long_resource_name.${extension}<`).length - 1, 1);
+    assert.ok(output.includes(`title="Long_resource_name.${extension}"`));
+    assert.ok(output.includes(`<span>${extension.toUpperCase()}</span>`));
+    assert.ok(output.includes('class="post-actions post-footer"'));
+    assert.ok(output.includes('/api/files/12/view'));
+    assert.ok(output.includes('/api/files/12/download'));
+    assert.ok(output.includes('toggleCommentPanel(12,'));
+    assert.ok(output.includes('copyPostLink(12)'));
+    assert.ok(!output.includes('<span>Share</span>'));
+    assert.ok(!output.includes('attachment-name'));
+  }
+});
+
+test('resource like failures roll back the count, heart and accessible state', async () => {
+  const f = fixture(async () => ({ ok: false, json: async () => ({ message: 'Please sign in' }) }));
+  await vm.runInContext('toggleLike(12, button)', f.context);
+  assert.equal(f.button.dataset.liked, 'false');
+  assert.equal(f.count.textContent, 2);
+  assert.equal(f.attributes.fill, 'none');
+  assert.equal(f.attributes['aria-pressed'], 'false');
+  assert.equal(f.button.disabled, false);
 });

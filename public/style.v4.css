@@ -12795,3 +12795,1154 @@ body.dark-mode .app-spinner {
   transform: translateY(-1px);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
 }
+
+/* ==========================================================================
+   MONOCHROMATIC LANDING PAGE REDESIGN & CONTRAST REFINEMENT
+   Strict Black, White, & Grayscale — Zero Color Accents — Ultra High Contrast
+   ========================================================================== */
+
+/* ─── 1. BASE LANDING PAGE & AMBIENT CANVAS (MONOCHROME ONLY) ─── */
+body.landing,
+body.landing.apple-poster-landing {
+  color: var(--text-primary, #1d1d1f);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+[data-theme="dark"] body.landing,
+body.dark-mode.landing,
+.dark body.landing {
+  background-color: #090a0d !important;
+  background-image: radial-gradient(circle at 50% -10%, rgba(30, 32, 38, 0.7) 0%, rgba(14, 15, 18, 0.5) 60%, #090a0d 100%) !important;
+  color: #f5f5f7 !important;
+}
+
+/* Grayscale Ambient Spotlights & Grid */
+.ambient-spotlight.spotlight-1 {
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 45%, transparent 70%) !important;
+}
+
+.ambient-spotlight.spotlight-2 {
+  background: radial-gradient(circle, rgba(200, 200, 200, 0.035) 0%, rgba(200, 200, 200, 0.01) 50%, transparent 70%) !important;
+}
+
+.cursor-ambient-follow {
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 45%, transparent 70%) !important;
+}
+
+[data-theme="dark"] .ambient-grid-lines {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px) !important;
+}
+
+/* Monochromatic Siri Edge Filament (White / Silver Only) */
+.siri-screen-border.siri-border-active {
+  animation: siriActivationDecayMono 3.2s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+}
+
+@keyframes siriActivationDecayMono {
+  0% {
+    opacity: 0.95;
+    filter: brightness(1.2) drop-shadow(0 0 16px rgba(255, 255, 255, 0.6));
+  }
+  40% {
+    opacity: 0.6;
+    filter: brightness(1.1) drop-shadow(0 0 8px rgba(255, 255, 255, 0.3));
+  }
+  100% {
+    opacity: 0.2;
+    filter: brightness(1);
+  }
+}
+
+.siri-glow-core {
+  background: linear-gradient(180deg,
+      rgba(255, 255, 255, 0.9) 0%,
+      rgba(210, 210, 215, 0.7) 20%,
+      rgba(255, 255, 255, 0.95) 45%,
+      rgba(180, 180, 185, 0.6) 70%,
+      rgba(255, 255, 255, 0.9) 100%) !important;
+  background-size: 100% 300% !important;
+}
+
+.siri-glow-aura {
+  background: linear-gradient(180deg,
+      rgba(255, 255, 255, 0.5) 0%,
+      rgba(190, 190, 195, 0.35) 35%,
+      rgba(255, 255, 255, 0.55) 65%,
+      rgba(160, 160, 165, 0.3) 100%) !important;
+  background-size: 100% 250% !important;
+}
+
+/* ─── 2. LANDING NAVIGATION (CLEAN MONOCHROME) ─── */
+[data-theme="dark"] body.landing .apple-nav,
+body.dark-mode.landing .apple-nav {
+  background: rgba(12, 13, 16, 0.88) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
+}
+
+[data-theme="dark"] body.landing .apple-wordmark,
+body.dark-mode.landing .apple-wordmark {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] body.landing .apple-univ-tag,
+body.dark-mode.landing .apple-univ-tag {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #d1d1d6 !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+}
+
+[data-theme="dark"] body.landing .apple-univ-tag:hover,
+body.dark-mode.landing .apple-univ-tag:hover {
+  background: rgba(255, 255, 255, 0.14) !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] body.landing .apple-nav-btn,
+body.dark-mode.landing .apple-nav-btn {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border: 1px solid #ffffff !important;
+  font-weight: 600 !important;
+}
+
+[data-theme="dark"] body.landing .apple-nav-btn:hover,
+body.dark-mode.landing .apple-nav-btn:hover {
+  background: #e5e5ea !important;
+  color: #000000 !important;
+}
+
+/* ─── 3. HERO HEADLINE & BADGE (CRITICAL CONTRAST FIX) ─── */
+/* Dark Mode Hero Typography */
+[data-theme="dark"] .apple-main-title,
+body.dark-mode .apple-main-title {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .apple-text-grad-primary,
+body.dark-mode .apple-text-grad-primary {
+  background: linear-gradient(180deg, #ffffff 0%, #ffffff 45%, #e5e5ea 75%, #b5b5ba 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  text-shadow: 0 0 45px rgba(255, 255, 255, 0.18);
+  display: inline-block !important;
+}
+
+[data-theme="dark"] .apple-text-grad-secondary,
+body.dark-mode .apple-text-grad-secondary {
+  background: linear-gradient(180deg, #e5e5ea 0%, #b0b0b8 50%, #8e8e93 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  display: inline-block !important;
+}
+
+[data-theme="dark"] .apple-hero-desc,
+body.dark-mode .apple-hero-desc {
+  color: #d1d1d6 !important;
+}
+
+/* Light Mode Hero Typography (Crisp Graphite Black) */
+body:not(.dark-mode) .apple-text-grad-primary {
+  background: linear-gradient(180deg, #000000 0%, #111111 50%, #2c2c2e 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  display: inline-block !important;
+}
+
+body:not(.dark-mode) .apple-text-grad-secondary {
+  background: linear-gradient(180deg, #2c2c2e 0%, #48484a 55%, #6e6e73 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  display: inline-block !important;
+}
+
+body:not(.dark-mode) .apple-hero-desc {
+  color: #3a3a3c !important;
+}
+
+/* Hero Badge */
+[data-theme="dark"] .apple-keynote-badge,
+body.dark-mode .apple-keynote-badge {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3) !important;
+}
+
+[data-theme="dark"] .apple-keynote-badge .badge-text,
+body.dark-mode .apple-keynote-badge .badge-text {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .apple-keynote-badge .apple-kicker-tag,
+body.dark-mode .apple-keynote-badge .apple-kicker-tag {
+  background: rgba(255, 255, 255, 0.15) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+}
+
+[data-theme="dark"] .apple-keynote-badge .badge-dot-live,
+body.dark-mode .apple-keynote-badge .badge-dot-live {
+  background: #ffffff !important;
+  box-shadow: 0 0 8px #ffffff !important;
+}
+
+/* Primary CTA Button ("Enter the Library") */
+[data-theme="dark"] .apple-primary-cta,
+body.dark-mode .apple-primary-cta {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border: 1px solid #ffffff !important;
+  font-weight: 600 !important;
+  box-shadow: 0 8px 28px rgba(255, 255, 255, 0.22) !important;
+}
+
+[data-theme="dark"] .apple-primary-cta:hover,
+body.dark-mode .apple-primary-cta:hover {
+  background: #e5e5ea !important;
+  color: #000000 !important;
+  border-color: #ffffff !important;
+  box-shadow: 0 12px 34px rgba(255, 255, 255, 0.32) !important;
+}
+
+body:not(.dark-mode) .apple-primary-cta {
+  background: #000000 !important;
+  color: #ffffff !important;
+  border: 1px solid #000000 !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22) !important;
+}
+
+body:not(.dark-mode) .apple-primary-cta:hover {
+  background: #1d1d1f !important;
+  color: #ffffff !important;
+}
+
+/* ─── 4. JITTER AI PROMPT PILL (MONOCHROMATIC & HIGH CONTRAST) ─── */
+[data-theme="dark"] .jitter-prompt-pill,
+body.dark-mode .jitter-prompt-pill {
+  background: rgba(18, 20, 24, 0.88) !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Monochromatic Conic Sheen Border (White/Gray/Silver Only) */
+.jitter-prompt-pill::before {
+  background: conic-gradient(from var(--border-angle),
+      rgba(255, 255, 255, 0.06) 0%,
+      rgba(255, 255, 255, 0.06) 65%,
+      rgba(255, 255, 255, 0.85) 75%,
+      rgba(200, 200, 205, 0.95) 85%,
+      rgba(255, 255, 255, 0.9) 90%,
+      rgba(160, 160, 165, 0.7) 95%,
+      rgba(255, 255, 255, 0.06) 100%) !important;
+}
+
+[data-theme="dark"] .jitter-prompt-text,
+body.dark-mode .jitter-prompt-text {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .jitter-cursor,
+body.dark-mode .jitter-cursor {
+  background-color: #ffffff !important;
+}
+
+[data-theme="dark"] .jitter-tool-btn,
+body.dark-mode .jitter-tool-btn {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #d1d1d6 !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+}
+
+[data-theme="dark"] .jitter-tool-btn:hover,
+body.dark-mode .jitter-tool-btn:hover {
+  background: rgba(255, 255, 255, 0.16) !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .jitter-ask-btn,
+body.dark-mode .jitter-ask-btn {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border: 1px solid #ffffff !important;
+  font-weight: 700 !important;
+  box-shadow: 0 4px 16px rgba(255, 255, 255, 0.25) !important;
+}
+
+[data-theme="dark"] .jitter-ask-btn:hover,
+body.dark-mode .jitter-ask-btn:hover {
+  background: #e5e5ea !important;
+  color: #000000 !important;
+}
+
+body:not(.dark-mode) .jitter-ask-btn {
+  background: #000000 !important;
+  color: #ffffff !important;
+  border: 1px solid #000000 !important;
+}
+
+/* Monochromatic Aurora Mist Wave */
+.gemini-chat-emitter-wave {
+  background: radial-gradient(ellipse 95% 80% at 50% 0%,
+      rgba(255, 255, 255, 0.12) 0%,
+      rgba(200, 200, 205, 0.08) 32%,
+      rgba(150, 150, 155, 0.04) 60%,
+      transparent 100%) !important;
+}
+
+/* Monochromatic Interim Loader */
+[data-theme="dark"] .gemini-loading-pill,
+body.dark-mode .gemini-loading-pill {
+  background: rgba(22, 24, 28, 0.92) !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  color: #ffffff !important;
+}
+
+.gemini-loader-text {
+  background: linear-gradient(90deg, #8e8e93 0%, #ffffff 50%, #8e8e93 100%) !important;
+  background-size: 200% auto !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+.gemini-loader-dots span,
+.gemini-loader-dots span:nth-child(2),
+.gemini-loader-dots span:nth-child(3) {
+  background: #ffffff !important;
+}
+
+.gemini-loading-beam-glow {
+  background: linear-gradient(90deg, transparent 0%, #ffffff 40%, #d1d1d6 70%, transparent 100%) !important;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.6) !important;
+}
+
+/* ─── 5. BENTO GRID & CARD SURFACES (UNIFIED & HIGH CONTRAST) ─── */
+.apple-bento-grid {
+  display: grid !important;
+  opacity: 1 !important;
+  transform: translate3d(0, 0, 0) !important;
+  pointer-events: auto !important;
+}
+
+/* Card Outer Surface */
+[data-theme="dark"] .apple-card,
+body.dark-mode .apple-card,
+[data-theme="dark"] .poster-card,
+body.dark-mode .poster-card {
+  background: #14161a !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4) !important;
+}
+
+[data-theme="dark"] .apple-card:hover,
+body.dark-mode .apple-card:hover,
+[data-theme="dark"] .poster-card:hover,
+body.dark-mode .poster-card:hover {
+  border-color: rgba(255, 255, 255, 0.28) !important;
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.6) !important;
+}
+
+/* Hover Aura: Monochromatic Silver Sheen Only (Zero Blue/Pink) */
+.apple-card::before {
+  background: linear-gradient(135deg,
+      rgba(255, 255, 255, 0.35) 0%,
+      rgba(200, 200, 200, 0.25) 35%,
+      rgba(255, 255, 255, 0.2) 70%,
+      rgba(160, 160, 160, 0.15) 100%) !important;
+}
+
+/* Card Titles */
+[data-theme="dark"] .apple-card-title,
+body.dark-mode .apple-card-title,
+[data-theme="dark"] .poster-card-title,
+body.dark-mode .poster-card-title {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+body:not(.dark-mode) .apple-card-title,
+body:not(.dark-mode) .poster-card-title {
+  color: #111111 !important;
+  font-weight: 700 !important;
+}
+
+/* Card Descriptions / Body Text */
+[data-theme="dark"] .apple-card-text,
+body.dark-mode .apple-card-text,
+[data-theme="dark"] .poster-card-desc,
+body.dark-mode .poster-card-desc {
+  color: #a1a1a6 !important;
+  line-height: 1.55 !important;
+}
+
+body:not(.dark-mode) .apple-card-text,
+body:not(.dark-mode) .poster-card-desc {
+  color: #48484a !important;
+  line-height: 1.55 !important;
+}
+
+/* Card Header Icon Boxes */
+[data-theme="dark"] .apple-icon-box,
+body.dark-mode .apple-icon-box {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+body:not(.dark-mode) .apple-icon-box {
+  background: #000000 !important;
+  border: 1px solid #000000 !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* ─── 6. SMALL LABEL PILLS (CONFIRMED CONTRAST BUG FIX) ─── */
+/* "SECURITY VAULT · 08", "STAT SYNC · 01", "CURRICULUM ARCHITECTURE",
+   "REAL-TIME CHAT · 05", "ACTIVITY RADAR · 07", "OFFICIAL DISPATCH", "TIMELINE · 02" */
+[data-theme="dark"] .apple-pill-tag,
+body.dark-mode .apple-pill-tag,
+[data-theme="dark"] .kinetic-tag,
+body.dark-mode .kinetic-tag,
+[data-theme="dark"] .apple-kicker-tag,
+body.dark-mode .apple-kicker-tag {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  color: #ffffff !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.07em !important;
+  text-transform: uppercase !important;
+  padding: 4px 12px !important;
+  border-radius: 980px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+}
+
+[data-theme="dark"] .apple-card:hover .apple-pill-tag,
+body.dark-mode .apple-card:hover .apple-pill-tag,
+[data-theme="dark"] .apple-card:hover .kinetic-tag,
+body.dark-mode .apple-card:hover .kinetic-tag {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border-color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(255, 255, 255, 0.25) !important;
+}
+
+body:not(.dark-mode) .apple-pill-tag,
+body:not(.dark-mode) .kinetic-tag {
+  background: #000000 !important;
+  border: 1px solid #000000 !important;
+  color: #ffffff !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.07em !important;
+  text-transform: uppercase !important;
+  padding: 4px 12px !important;
+  border-radius: 980px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+}
+
+body:not(.dark-mode) .apple-card:hover .apple-pill-tag,
+body:not(.dark-mode) .apple-card:hover .kinetic-tag {
+  background: #242426 !important;
+  color: #ffffff !important;
+}
+
+/* ─── 7. CARD LINK / CTA BUTTONS (CONFIRMED CONTRAST BUG FIX) ─── */
+/* "Explore Notes →", "View Full Schedule →", "Manage Credentials →",
+   "Open Class Chat →", "Try Global Search →", "View Notifications →", "Explore Complete 8-Semester" */
+[data-theme="dark"] .apple-card-link,
+body.dark-mode .apple-card-link,
+[data-theme="dark"] .poster-card-link,
+body.dark-mode .poster-card-link {
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  font-size: 13.5px !important;
+  letter-spacing: -0.01em !important;
+  text-decoration: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 7px !important;
+  padding: 8px 16px !important;
+  border-radius: 980px !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+[data-theme="dark"] .apple-card-link:hover,
+body.dark-mode .apple-card-link:hover,
+[data-theme="dark"] .poster-card-link:hover,
+body.dark-mode .poster-card-link:hover {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border-color: #ffffff !important;
+  transform: translateX(4px) !important;
+  box-shadow: 0 6px 20px rgba(255, 255, 255, 0.25) !important;
+}
+
+body:not(.dark-mode) .apple-card-link,
+body:not(.dark-mode) .poster-card-link {
+  color: #111111 !important;
+  font-weight: 600 !important;
+  font-size: 13.5px !important;
+  letter-spacing: -0.01em !important;
+  text-decoration: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 7px !important;
+  padding: 8px 16px !important;
+  border-radius: 980px !important;
+  background: #f0f0f4 !important;
+  border: 1px solid #d2d2d7 !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04) !important;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+body:not(.dark-mode) .apple-card-link:hover,
+body:not(.dark-mode) .poster-card-link:hover {
+  background: #000000 !important;
+  color: #ffffff !important;
+  border-color: #000000 !important;
+  transform: translateX(4px) !important;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.16) !important;
+}
+
+/* ─── 8. MOCK WIDGETS CONTRAST FIXES (INSIDE ALL 8 CARDS) ─── */
+
+/* CARD 1: Community Feed Mock Post */
+[data-theme="dark"] .apple-mock-post,
+body.dark-mode .apple-mock-post {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #ffffff !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4) !important;
+}
+
+[data-theme="dark"] .mock-post-header-row strong,
+body.dark-mode .mock-post-header-row strong {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .mock-badge-pill,
+body.dark-mode .mock-badge-pill {
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+[data-theme="dark"] .mock-caption,
+body.dark-mode .mock-caption {
+  color: #f5f5f7 !important;
+}
+
+[data-theme="dark"] .apple-file-pill,
+body.dark-mode .apple-file-pill {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .apple-like-btn,
+body.dark-mode .apple-like-btn {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .mock-sync-bar,
+body.dark-mode .mock-sync-bar {
+  background: rgba(255, 255, 255, 0.12) !important;
+}
+
+.sync-bar-progress {
+  background: linear-gradient(90deg, transparent 0%, #ffffff 50%, transparent 100%) !important;
+}
+
+.payload-dot {
+  background: #ffffff !important;
+}
+
+[data-theme="dark"] .payload-sync-indicator,
+body.dark-mode .payload-sync-indicator {
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+/* CARD 2: Countdown Box & Digit Boxes (BLACK-ON-BLACK BUG FIXED) */
+[data-theme="dark"] .apple-countdown-box,
+body.dark-mode .apple-countdown-box {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .countdown-heading,
+body.dark-mode .countdown-heading {
+  color: #d1d1d6 !important;
+}
+
+.countdown-pulse-dot {
+  background: #ffffff !important;
+}
+
+/* High Contrast Digit Boxes */
+[data-theme="dark"] .digit-box,
+body.dark-mode .digit-box {
+  background: rgba(255, 255, 255, 0.09) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+[data-theme="dark"] .digit-box span,
+body.dark-mode .digit-box span {
+  color: #ffffff !important;
+  font-weight: 800 !important;
+}
+
+[data-theme="dark"] .digit-box small,
+body.dark-mode .digit-box small {
+  color: #a1a1a6 !important;
+}
+
+[data-theme="dark"] .digit-colon,
+body.dark-mode .digit-colon {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .apple-routine-submeta,
+body.dark-mode .apple-routine-submeta {
+  color: #a1a1a6 !important;
+}
+
+/* Light Mode Digit Boxes */
+body:not(.dark-mode) .digit-box {
+  background: #000000 !important;
+  border: 1px solid #000000 !important;
+}
+
+body:not(.dark-mode) .digit-box span {
+  color: #ffffff !important;
+  font-weight: 800 !important;
+}
+
+body:not(.dark-mode) .digit-box small {
+  color: #d1d1d6 !important;
+}
+
+body:not(.dark-mode) .digit-colon {
+  color: #000000 !important;
+  font-weight: 700 !important;
+}
+
+/* CARD 3: Official Notices */
+[data-theme="dark"] .apple-notice-box,
+body.dark-mode .apple-notice-box {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+}
+
+[data-theme="dark"] .mini-notice-headline,
+body.dark-mode .mini-notice-headline {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .notice-date,
+body.dark-mode .notice-date {
+  color: #d1d1d6 !important;
+}
+
+[data-theme="dark"] .notice-badge-urgent,
+body.dark-mode .notice-badge-urgent {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border: none !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="dark"] .mini-notice-meta,
+body.dark-mode .mini-notice-meta {
+  color: #a1a1a6 !important;
+}
+
+[data-theme="dark"] .notice-status-open,
+body.dark-mode .notice-status-open {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+/* CARD 4: Curriculum Architecture & Semester Roadmap */
+[data-theme="dark"] .apple-credits-pill,
+body.dark-mode .apple-credits-pill {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  color: #ffffff !important;
+}
+
+body:not(.dark-mode) .apple-credits-pill {
+  background: #000000 !important;
+  border: 1px solid #000000 !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .roadmap-pill,
+body.dark-mode .roadmap-pill {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  color: #d1d1d6 !important;
+}
+
+[data-theme="dark"] .roadmap-pill.active,
+body.dark-mode .roadmap-pill.active {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border-color: #ffffff !important;
+  font-weight: 700 !important;
+  box-shadow: 0 2px 10px rgba(255, 255, 255, 0.25) !important;
+}
+
+body:not(.dark-mode) .roadmap-pill {
+  background: #f5f5f7 !important;
+  border: 1px solid #d2d2d7 !important;
+  color: #1d1d1f !important;
+}
+
+body:not(.dark-mode) .roadmap-pill.active {
+  background: #000000 !important;
+  color: #ffffff !important;
+  border-color: #000000 !important;
+  font-weight: 700 !important;
+}
+
+.roadmap-sep {
+  color: #8e8e93 !important;
+}
+
+[data-theme="dark"] .apple-sem-desc,
+body.dark-mode .apple-sem-desc {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #d1d1d6 !important;
+}
+
+/* CARD 5: Group Chat */
+[data-theme="dark"] .apple-mock-chat,
+body.dark-mode .apple-mock-chat {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+}
+
+[data-theme="dark"] .mock-chat-bubble.incoming,
+body.dark-mode .mock-chat-bubble.incoming {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+}
+
+[data-theme="dark"] .mock-chat-bubble.outgoing,
+body.dark-mode .mock-chat-bubble.outgoing {
+  background: #ffffff !important;
+  color: #000000 !important;
+  font-weight: 500 !important;
+  border: none !important;
+}
+
+[data-theme="dark"] .mock-chat-bubble.outgoing .mock-time,
+body.dark-mode .mock-chat-bubble.outgoing .mock-time {
+  color: #555555 !important;
+}
+
+body:not(.dark-mode) .mock-chat-bubble.incoming {
+  background: #f0f0f4 !important;
+  color: #1d1d1f !important;
+  border: 1px solid #e5e5ea !important;
+}
+
+body:not(.dark-mode) .mock-chat-bubble.outgoing {
+  background: #000000 !important;
+  color: #ffffff !important;
+  border: none !important;
+}
+
+[data-theme="dark"] .mock-tapback-pill,
+body.dark-mode .mock-tapback-pill {
+  background: #000000 !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+}
+
+.mock-online-dot {
+  background: #ffffff !important;
+  box-shadow: 0 0 6px #ffffff !important;
+}
+
+/* CARD 6: Smart Search Engine */
+[data-theme="dark"] .apple-mock-search,
+body.dark-mode .apple-mock-search {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .mock-search-input-box,
+body.dark-mode .mock-search-input-box {
+  background: rgba(255, 255, 255, 0.07) !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .mock-search-typing-text,
+body.dark-mode .mock-search-typing-text {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .mock-search-cursor,
+body.dark-mode .mock-search-cursor {
+  background: #ffffff !important;
+}
+
+[data-theme="dark"] .mock-filter-chip,
+body.dark-mode .mock-filter-chip {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  color: #d1d1d6 !important;
+}
+
+[data-theme="dark"] .mock-filter-chip.active,
+body.dark-mode .mock-filter-chip.active {
+  background: #ffffff !important;
+  color: #000000 !important;
+  font-weight: 700 !important;
+  border-color: #ffffff !important;
+  box-shadow: 0 2px 10px rgba(255, 255, 255, 0.25) !important;
+}
+
+body:not(.dark-mode) .mock-filter-chip.active {
+  background: #000000 !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  border-color: #000000 !important;
+}
+
+[data-theme="dark"] .mock-search-result-item,
+body.dark-mode .mock-search-result-item {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .result-item-title,
+body.dark-mode .result-item-title {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .result-item-sub,
+body.dark-mode .result-item-sub {
+  color: #a1a1a6 !important;
+}
+
+[data-theme="dark"] .result-item-badge,
+body.dark-mode .result-item-badge {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  color: #ffffff !important;
+}
+
+/* CARD 7: Activity Radar */
+[data-theme="dark"] .apple-mock-radar-card,
+body.dark-mode .apple-mock-radar-card {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .radar-status-badge,
+body.dark-mode .radar-status-badge {
+  color: #ffffff !important;
+}
+
+.radar-beacon-dot {
+  background: #ffffff !important;
+  box-shadow: 0 0 8px #ffffff !important;
+}
+
+[data-theme="dark"] .radar-sweep-canvas {
+  border-color: rgba(255, 255, 255, 0.16) !important;
+}
+
+[data-theme="dark"] .radar-sweep-canvas::before {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.radar-sweep-canvas::after {
+  background: conic-gradient(from 0deg, transparent 0deg, transparent 270deg, rgba(255, 255, 255, 0.18) 360deg) !important;
+}
+
+[data-theme="dark"] .mock-notif-card-item,
+body.dark-mode .mock-notif-card-item {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .mock-notif-item-msg,
+body.dark-mode .mock-notif-item-msg {
+  color: #f5f5f7 !important;
+}
+
+[data-theme="dark"] .mock-notif-item-msg strong,
+body.dark-mode .mock-notif-item-msg strong {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .mock-notif-item-time,
+body.dark-mode .mock-notif-item-time {
+  color: #a1a1a6 !important;
+}
+
+.mock-notif-item-ping {
+  background: #ffffff !important;
+  box-shadow: 0 0 6px #ffffff !important;
+}
+
+/* CARD 8: Security Vault */
+[data-theme="dark"] .apple-mock-vault-wide,
+body.dark-mode .apple-mock-vault-wide {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .vault-metric-row,
+body.dark-mode .vault-metric-row {
+  color: #d1d1d6 !important;
+}
+
+[data-theme="dark"] .vault-col-right,
+body.dark-mode .vault-col-right {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .vault-auth-pill,
+body.dark-mode .vault-auth-pill {
+  background: rgba(255, 255, 255, 0.12) !important;
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+body:not(.dark-mode) .vault-auth-pill {
+  background: #000000 !important;
+  border: 1px solid #000000 !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="dark"] .vault-strength-track,
+body.dark-mode .vault-strength-track {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+}
+
+.vault-strength-bar {
+  background: linear-gradient(90deg, #8e8e93 0%, #d1d1d6 50%, #ffffff 100%) !important;
+}
+
+/* ─── 9. SECTION DIVIDER & STATS RIBBON ─── */
+[data-theme="dark"] .bento-whats-new-badge,
+body.dark-mode .bento-whats-new-badge {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  color: #ffffff !important;
+}
+
+body:not(.dark-mode) .bento-whats-new-badge {
+  background: #000000 !important;
+  border: 1px solid #000000 !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .bento-whats-new-title,
+body.dark-mode .bento-whats-new-title {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .bento-whats-new-subtitle,
+body.dark-mode .bento-whats-new-subtitle {
+  color: #a1a1a6 !important;
+}
+
+/* Stats Ribbon */
+.apple-stats-strip {
+  display: grid !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+[data-theme="dark"] .apple-stats-strip,
+body.dark-mode .apple-stats-strip {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
+}
+
+[data-theme="dark"] .apple-stats-strip .poster-stat-item strong,
+body.dark-mode .apple-stats-strip .poster-stat-item strong {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .apple-stats-strip .poster-stat-item span,
+body.dark-mode .apple-stats-strip .poster-stat-item span {
+  color: #a1a1a6 !important;
+}
+
+[data-theme="dark"] .stat-indicator-badge,
+body.dark-mode .stat-indicator-badge {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  color: #ffffff !important;
+}
+
+body:not(.dark-mode) .stat-indicator-badge {
+  background: #000000 !important;
+  border: 1px solid #000000 !important;
+  color: #ffffff !important;
+}
+
+/* ─── 10. PHOTOGRAPHIC VISUAL CLOUD GALLERY (MONOCHROMATIC) ─── */
+.gallery-home-section {
+  display: block !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+[data-theme="dark"] .gallery-explore-badge,
+body.dark-mode .gallery-explore-badge {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  color: #ffffff !important;
+}
+
+.gallery-radar-dot {
+  background: #ffffff !important;
+  box-shadow: 0 0 8px #ffffff !important;
+}
+
+[data-theme="dark"] .gallery-cloud-pill {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+body:not(.dark-mode) .gallery-cloud-pill {
+  color: #111111 !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="dark"] .gallery-explore-desc,
+body.dark-mode .gallery-explore-desc {
+  color: #a1a1a6 !important;
+}
+
+[data-theme="dark"] .ag-deck-capsule,
+body.dark-mode .ag-deck-capsule {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
+}
+
+[data-theme="dark"] .ag-chip-btn,
+body.dark-mode .ag-chip-btn {
+  color: #a1a1a6 !important;
+}
+
+[data-theme="dark"] .ag-chip-btn:hover:not(.active),
+body.dark-mode .ag-chip-btn:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .ag-chip-btn.active,
+body.dark-mode .ag-chip-btn.active {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border-color: #ffffff !important;
+  font-weight: 700 !important;
+  box-shadow: 0 2px 10px rgba(255, 255, 255, 0.25) !important;
+}
+
+body:not(.dark-mode) .ag-chip-btn.active {
+  background: #000000 !important;
+  color: #ffffff !important;
+  border-color: #000000 !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="dark"] .ag-search-input,
+body.dark-mode .ag-search-input {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  color: #ffffff !important;
+}
+
+.ag-search-input:focus {
+  border-color: #ffffff !important;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.2) !important;
+}
+
+body:not(.dark-mode) .ag-search-input:focus {
+  border-color: #000000 !important;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1) !important;
+}
+
+[data-theme="dark"] .ag-search-icon-left,
+body.dark-mode .ag-search-icon-left,
+[data-theme="dark"] .ag-search-kbd,
+body.dark-mode .ag-search-kbd {
+  color: #a1a1a6 !important;
+}
+
+[data-theme="dark"] .ag-marquee-card,
+body.dark-mode .ag-marquee-card {
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  background: #14161a !important;
+}
+
+/* Lightbox HUD */
+[data-theme="dark"] .ag-hud-panel,
+body.dark-mode .ag-hud-panel {
+  background: #14161a !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+}
+
+[data-theme="dark"] .ag-hud-title,
+body.dark-mode .ag-hud-title {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] #homeAgHudDate,
+body.dark-mode #homeAgHudDate {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .ag-hud-btn-primary,
+body.dark-mode .ag-hud-btn-primary {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border: 1px solid #ffffff !important;
+  font-weight: 600 !important;
+}
+
+[data-theme="dark"] .ag-hud-btn-primary:hover,
+body.dark-mode .ag-hud-btn-primary:hover {
+  background: #e5e5ea !important;
+  color: #000000 !important;
+}
+

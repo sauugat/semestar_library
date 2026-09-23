@@ -393,11 +393,11 @@
       require(['vs/editor/editor.main'], function () {
         editor = monaco.editor.create(document.getElementById('codelab-monaco'), {
           value: '#include <stdio.h>\n\nint main() {\n    printf("Hello, World!\\n");\n    return 0;\n}\n',
-          language: 'c',
+          language: 'cpp',
           theme: 'vs-dark',
           fontSize: 14,
           lineHeight: 24,
-          fontFamily: "'SF Mono', 'Fira Code', Consolas, Menlo, monospace",
+          fontFamily: "'SF Mono', Menlo, Monaco, Consolas, 'Courier New', monospace",
           minimap: { enabled: false },
           scrollBeyondLastLine: false,
           automaticLayout: true,

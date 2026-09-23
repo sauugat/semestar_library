@@ -171,21 +171,16 @@
         .cl-tab-bar {
             display: flex;
             align-items: center;
-            gap: 6px;
+            flex-wrap: wrap;
+            gap: 8px;
             background: rgba(255, 255, 255, 0.88);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
-            padding: 4px 6px;
+            padding: 6px;
             border: 1px solid rgba(0, 0, 0, 0.08);
-            border-radius: 980px;
+            border-radius: 14px;
             box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04);
-            overflow-x: auto;
-            scrollbar-width: none;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        .cl-tab-bar::-webkit-scrollbar {
-            display: none;
+            max-width: 100%;
         }
 
         .cl-tab-btn {
@@ -201,9 +196,16 @@
             font-weight: 600;
             cursor: pointer;
             white-space: nowrap;
-            flex-shrink: 0;
+            max-width: 100%;
             font-family: var(--apple-font);
             transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        .cl-tab-title-text {
+            max-width: 240px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .cl-tab-btn:hover {
@@ -308,16 +310,34 @@
         .cl-lang-pill {
             display: inline-flex;
             align-items: center;
-            gap: 5px;
+            gap: 6px;
             padding: 4px 12px;
             border-radius: 980px;
-            background: #f5f5f7;
+            background: rgba(0, 0, 0, 0.05);
             border: 1px solid rgba(0, 0, 0, 0.12);
             color: #1d1d1f;
-            font-size: 12px;
+            font-size: 11.5px;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.04em;
+            line-height: 1;
+        }
+
+        .cl-lang-pill svg {
+            color: currentColor;
+            stroke: currentColor;
+            flex-shrink: 0;
+        }
+
+        .cl-lang-pill .cl-lang-label {
+            color: inherit;
+        }
+
+        [data-theme="dark"] .cl-lang-pill,
+        body.dark-mode .cl-lang-pill {
+            background: rgba(255, 255, 255, 0.08) !important;
+            border-color: rgba(255, 255, 255, 0.16) !important;
+            color: #f5f5f7 !important;
         }
 
         .cl-desc-text {
@@ -511,7 +531,7 @@
         .monaco-slot {
             width: 100%;
             height: 420px;
-            background: #0d1117;
+            background: #1e1e1e;
         }
 
         /* ── Action Control Bar ── */
@@ -1707,38 +1727,57 @@
                         base: 'vs-dark',
                         inherit: true,
                         rules: [
-                            { token: 'keyword', foreground: 'f43f5e', fontStyle: 'bold' },
-                            { token: 'keyword.control', foreground: 'f43f5e', fontStyle: 'bold' },
-                            { token: 'keyword.public', foreground: 'f43f5e', fontStyle: 'bold' },
-                            { token: 'keyword.private', foreground: 'f43f5e', fontStyle: 'bold' },
-                            { token: 'keyword.protected', foreground: 'f43f5e', fontStyle: 'bold' },
-                            { token: 'keyword.static', foreground: 'f43f5e', fontStyle: 'bold' },
-                            { token: 'keyword.void', foreground: 'f43f5e', fontStyle: 'bold' },
-                            { token: 'keyword.class', foreground: 'f43f5e', fontStyle: 'bold' },
-                            { token: 'keyword.package', foreground: 'f43f5e', fontStyle: 'bold' },
-                            { token: 'keyword.import', foreground: 'f43f5e', fontStyle: 'bold' },
-                            { token: 'string', foreground: '7ee787' },
-                            { token: 'string.escape', foreground: '38bdf8' },
-                            { token: 'number', foreground: '79c0ff' },
-                            { token: 'comment', foreground: '8b949e', fontStyle: 'italic' },
-                            { token: 'type', foreground: 'ffa657', fontStyle: 'bold' },
-                            { token: 'type.identifier', foreground: 'ffa657', fontStyle: 'bold' },
-                            { token: 'class', foreground: 'ffa657', fontStyle: 'bold' },
-                            { token: 'function', foreground: 'd2a8ff' },
-                            { token: 'identifier', foreground: 'e2e8f0' },
-                            { token: 'delimiter', foreground: 'cbd5e1' },
-                            { token: 'operator', foreground: 'ff7b72' },
-                            { token: 'variable', foreground: '79c0ff' },
-                            { token: 'constant', foreground: 'fbbf24' }
+                            { token: 'keyword', foreground: '569cd6' },
+                            { token: 'keyword.control', foreground: 'c586c0' },
+                            { token: 'keyword.directive', foreground: 'c586c0' },
+                            { token: 'keyword.directive.include', foreground: 'c586c0' },
+                            { token: 'string.include.identifier', foreground: 'ce9178' },
+                            { token: 'keyword.public', foreground: '569cd6' },
+                            { token: 'keyword.private', foreground: '569cd6' },
+                            { token: 'keyword.protected', foreground: '569cd6' },
+                            { token: 'keyword.static', foreground: '569cd6' },
+                            { token: 'keyword.void', foreground: '569cd6' },
+                            { token: 'keyword.class', foreground: '569cd6' },
+                            { token: 'keyword.package', foreground: '569cd6' },
+                            { token: 'keyword.import', foreground: 'c586c0' },
+                            { token: 'keyword.return', foreground: 'c586c0' },
+                            { token: 'keyword.if', foreground: 'c586c0' },
+                            { token: 'keyword.else', foreground: 'c586c0' },
+                            { token: 'keyword.for', foreground: 'c586c0' },
+                            { token: 'keyword.while', foreground: 'c586c0' },
+                            { token: 'keyword.do', foreground: 'c586c0' },
+                            { token: 'keyword.switch', foreground: 'c586c0' },
+                            { token: 'keyword.case', foreground: 'c586c0' },
+                            { token: 'keyword.break', foreground: 'c586c0' },
+                            { token: 'keyword.continue', foreground: 'c586c0' },
+                            { token: 'string', foreground: 'ce9178' },
+                            { token: 'string.escape', foreground: 'd7ba7d' },
+                            { token: 'number', foreground: 'b5cea8' },
+                            { token: 'number.float', foreground: 'b5cea8' },
+                            { token: 'number.hex', foreground: 'b5cea8' },
+                            { token: 'comment', foreground: '6a9955', fontStyle: 'italic' },
+                            { token: 'comment.doc', foreground: '6a9955', fontStyle: 'italic' },
+                            { token: 'type', foreground: '4ec9b0' },
+                            { token: 'type.identifier', foreground: '4ec9b0' },
+                            { token: 'class', foreground: '4ec9b0' },
+                            { token: 'function', foreground: 'dcdcaa' },
+                            { token: 'identifier', foreground: '9cdcfe' },
+                            { token: 'delimiter', foreground: 'd4d4d4' },
+                            { token: 'delimiter.parenthesis', foreground: 'd4d4d4' },
+                            { token: 'delimiter.curly', foreground: 'd4d4d4' },
+                            { token: 'delimiter.square', foreground: 'd4d4d4' },
+                            { token: 'operator', foreground: 'd4d4d4' },
+                            { token: 'variable', foreground: '9cdcfe' },
+                            { token: 'constant', foreground: '4fc1ff' }
                         ],
                         colors: {
-                            'editor.background': '#0d1117',
-                            'editor.foreground': '#e6edf3',
-                            'editorLineNumber.foreground': '#6e7681',
-                            'editorLineNumber.activeForeground': '#e6edf3',
-                            'editorCursor.foreground': '#58a6ff',
+                            'editor.background': '#1e1e1e',
+                            'editor.foreground': '#d4d4d4',
+                            'editorLineNumber.foreground': '#858585',
+                            'editorLineNumber.activeForeground': '#c6c6c6',
+                            'editorCursor.foreground': '#aeafad',
                             'editor.selectionBackground': '#264f78',
-                            'editor.inactiveSelectionBackground': '#264f7855'
+                            'editor.inactiveSelectionBackground': '#3a3d41'
                         }
                     });
                 } catch (e) {
@@ -1815,9 +1854,9 @@
                       <span class="cl-qnum-badge">Task ${q.questionNumber}</span>
                       <h2 class="cl-desc-title">${escapeHtml(q.title)}</h2>
                     </div>
-                    <span class="cl-lang-pill">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
-                      ${escapeHtml((q.language || '').toUpperCase())}
+                    <span class="cl-lang-pill" title="Language: ${escapeHtml((q.language || (assignment && assignment.language) || 'C').toUpperCase())}">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+                      <span class="cl-lang-label">${escapeHtml((q.language || (assignment && assignment.language) || 'C').toUpperCase())}</span>
                     </span>
                   </div>
                   ${q.description ? `<p class="cl-desc-text">${escapeHtml(q.description)}</p>` : ''}
@@ -2039,13 +2078,13 @@
                 fontSize: 13.5,
                 lineHeight: 22,
                 letterSpacing: 0.25,
-                fontWeight: "500",
+                fontWeight: "400",
                 fontLigatures: true,
                 minimap: { enabled: false },
                 scrollBeyondLastLine: false,
                 automaticLayout: true,
                 padding: { top: 14, bottom: 14 },
-                fontFamily: "Menlo, Monaco, Consolas, 'SF Mono', 'Courier New', monospace",
+                fontFamily: "'SF Mono', Menlo, Monaco, Consolas, 'Courier New', monospace",
                 roundedSelection: true,
                 cursorBlinking: 'smooth',
                 cursorSmoothCaretAnimation: "on",

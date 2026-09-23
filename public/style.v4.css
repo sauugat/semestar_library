@@ -1739,11 +1739,11 @@ body.dark-mode .cl-mode-tab-btn.active {
 .cl-tab-bar {
   display: flex !important;
   align-items: center !important;
-  overflow-x: auto !important;
-  flex-wrap: nowrap !important;
-  scrollbar-width: none !important;
-  -webkit-overflow-scrolling: touch !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
   max-width: 100% !important;
+  border-radius: 14px !important;
+  padding: 6px !important;
 }
 .cl-tab-bar::-webkit-scrollbar {
   display: none !important;
@@ -1752,6 +1752,19 @@ body.dark-mode .cl-mode-tab-btn.active {
 .cl-tab-bar .cl-tab-add-btn {
   flex-shrink: 0 !important;
   white-space: nowrap !important;
+  max-width: 100% !important;
+}
+.cl-tab-bar .cl-tab-title-text {
+  max-width: 240px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+[data-theme="dark"] .cl-tab-bar,
+body.dark-mode .cl-tab-bar {
+  background: var(--bg-surface-raised, #181818) !important;
+  border: 1px solid var(--border, #333333) !important;
 }
 
 [data-theme="dark"] .cl-tab-bar .cl-tab-btn,
@@ -2112,7 +2125,26 @@ body.dark-mode .cl-window-run-btn:hover:not(:disabled) {
 
 [data-theme="dark"] .monaco-slot,
 body.dark-mode .monaco-slot {
-  background: #0d1117 !important;
+  background: #1e1e1e !important;
+}
+
+[data-theme="dark"] .cl-lang-pill,
+body.dark-mode .cl-lang-pill {
+  background: rgba(255, 255, 255, 0.08) !important;
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  color: #f5f5f7 !important;
+}
+
+[data-theme="dark"] .cl-lang-pill svg,
+body.dark-mode .cl-lang-pill svg {
+  color: #f5f5f7 !important;
+  stroke: #f5f5f7 !important;
+}
+
+[data-theme="dark"] .cl-lang-pill .cl-lang-label,
+body.dark-mode .cl-lang-pill .cl-lang-label {
+  color: #f5f5f7 !important;
 }
 
 [data-theme="dark"] .cl-output-box,
@@ -2160,7 +2192,7 @@ body.dark-mode .cl-dot-green {
   background: #27c93f !important;
 }
 
-/* IDE Code Box Syntax Highlighting Tokens (Vibrant colors like standard IDE) */
+/* IDE Code Box Syntax Highlighting Tokens (VS Code Dark+ on macOS) */
 .token.keyword,
 .token.atrule,
 .syn-kwd,
@@ -2168,8 +2200,19 @@ body.dark-mode .cl-dot-green {
 body.dark-mode .token.keyword,
 [data-theme="dark"] .syn-kwd,
 body.dark-mode .syn-kwd {
-  color: #f43f5e !important;
-  font-weight: 600 !important;
+  color: #569cd6 !important;
+  font-weight: 500 !important;
+}
+
+.token.keyword.control,
+.token.directive,
+.token.macro,
+.token.important,
+[data-theme="dark"] .token.directive,
+body.dark-mode .token.directive,
+[data-theme="dark"] .token.macro,
+body.dark-mode .token.macro {
+  color: #c586c0 !important;
 }
 
 .token.string,
@@ -2180,7 +2223,7 @@ body.dark-mode .syn-kwd {
 body.dark-mode .token.string,
 [data-theme="dark"] .syn-str,
 body.dark-mode .syn-str {
-  color: #7ee787 !important;
+  color: #ce9178 !important;
 }
 
 .token.comment,
@@ -2192,7 +2235,7 @@ body.dark-mode .syn-str {
 body.dark-mode .token.comment,
 [data-theme="dark"] .syn-com,
 body.dark-mode .syn-com {
-  color: #8b949e !important;
+  color: #6a9955 !important;
   font-style: italic !important;
 }
 
@@ -2204,8 +2247,8 @@ body.dark-mode .syn-com {
 body.dark-mode .token.number,
 [data-theme="dark"] .syn-num,
 body.dark-mode .syn-num {
-  color: #79c0ff !important;
-  font-weight: 600 !important;
+  color: #b5cea8 !important;
+  font-weight: 500 !important;
 }
 
 .token.type,
@@ -2217,8 +2260,8 @@ body.dark-mode .token.type,
 body.dark-mode .token.class-name,
 [data-theme="dark"] .syn-type,
 body.dark-mode .syn-type {
-  color: #ffa657 !important;
-  font-weight: 600 !important;
+  color: #4ec9b0 !important;
+  font-weight: 500 !important;
 }
 
 .token.function,
@@ -2227,8 +2270,8 @@ body.dark-mode .syn-type {
 body.dark-mode .token.function,
 [data-theme="dark"] .syn-fn,
 body.dark-mode .syn-fn {
-  color: #d2a8ff !important;
-  font-weight: 600 !important;
+  color: #dcdcaa !important;
+  font-weight: 500 !important;
 }
 
 .token.operator,
@@ -2237,7 +2280,7 @@ body.dark-mode .syn-fn {
 body.dark-mode .token.operator,
 [data-theme="dark"] .syn-op,
 body.dark-mode .syn-op {
-  color: #ff7b72 !important;
+  color: #d4d4d4 !important;
 }
 
 .token.punctuation,
@@ -2246,7 +2289,7 @@ body.dark-mode .syn-op {
 body.dark-mode .token.punctuation,
 [data-theme="dark"] .syn-punc,
 body.dark-mode .syn-punc {
-  color: #cbd5e1 !important;
+  color: #d4d4d4 !important;
 }
 
 .token.property,
@@ -2257,8 +2300,10 @@ body.dark-mode .syn-punc {
 [data-theme="dark"] .token.property,
 body.dark-mode .token.property,
 [data-theme="dark"] .token.variable,
-body.dark-mode .token.variable {
-  color: #79c0ff !important;
+body.dark-mode .token.variable,
+[data-theme="dark"] .syn-var,
+body.dark-mode .syn-var {
+  color: #9cdcfe !important;
 }
 
 /* Empty States (Reskinned for Dark Mode) */

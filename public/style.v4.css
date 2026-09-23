@@ -957,6 +957,12 @@ body.dark-mode .submission-card,
 body.dark-mode .cl-student-card,
 [data-theme="dark"] .clean-unit-row,
 body.dark-mode .clean-unit-row,
+[data-theme="dark"] .cl-desc-card,
+body.dark-mode .cl-desc-card,
+[data-theme="dark"] .cl-student-question-box,
+body.dark-mode .cl-student-question-box,
+[data-theme="dark"] .cl-editor-window,
+body.dark-mode .cl-editor-window,
 [data-theme="dark"] .cl-pdf-side-pane,
 body.dark-mode .cl-pdf-side-pane,
 [data-theme="dark"] .cl-create-card,
@@ -16832,78 +16838,3 @@ body.dark-mode .preview-action-btn.close-btn svg {
   stroke: #000000 !important;
   color: #000000 !important;
 }
-
-/* ─── VS CODE MAC CODE BOX THEME (IDENTICAL IN LIGHT & DARK MODE) ─── */
-.cl-editor-window,
-[data-theme="dark"] .cl-editor-window,
-body.dark-mode .cl-editor-window {
-  background: #1e1e1e !important;
-  background-color: #1e1e1e !important;
-  border: 1px solid #333333 !important;
-  border-radius: 14px !important;
-  box-shadow: none !important;
-}
-
-.cl-window-titlebar,
-.cl-editor-window .cl-window-titlebar,
-[data-theme="dark"] .cl-editor-window .cl-window-titlebar,
-body.dark-mode .cl-editor-window .cl-window-titlebar {
-  background: #252526 !important;
-  background-color: #252526 !important;
-  border-bottom: 1px solid #333333 !important;
-  box-shadow: none !important;
-}
-
-.monaco-slot,
-[data-theme="dark"] .monaco-slot,
-body.dark-mode .monaco-slot {
-  background: #1e1e1e !important;
-  background-color: #1e1e1e !important;
-  box-shadow: none !important;
-}
-
-.cl-output-box,
-[data-theme="dark"] .cl-output-box,
-body.dark-mode .cl-output-box {
-  background: #1e1e1e !important;
-  background-color: #1e1e1e !important;
-  border: 1px solid #333333 !important;
-  border-radius: 12px !important;
-  box-shadow: none !important;
-}
-
-.cl-output-bar,
-[data-theme="dark"] .cl-output-bar,
-body.dark-mode .cl-output-bar {
-  background: #252526 !important;
-  background-color: #252526 !important;
-  border-bottom: 1px solid #333333 !important;
-  color: #cccccc !important;
-  box-shadow: none !important;
-}
-
-.cl-output-content,
-[data-theme="dark"] .cl-output-content,
-body.dark-mode .cl-output-content {
-  background: #1e1e1e !important;
-  background-color: #1e1e1e !important;
-  box-shadow: none !important;
-}
-
-.cl-output-content pre,
-[data-theme="dark"] .cl-output-content pre,
-body.dark-mode .cl-output-content pre {
-  font-family: Menlo, Monaco, -apple-system, BlinkMacSystemFont, 'SF Mono', 'Courier New', monospace !important;
-  color: #cccccc !important;
-  box-shadow: none !important;
-}
-
-.cl-desc-card,
-[data-theme="dark"] .cl-desc-card,
-body.dark-mode .cl-desc-card,
-.cl-student-question-box,
-[data-theme="dark"] .cl-student-question-box,
-body.dark-mode .cl-student-question-box {
-  box-shadow: none !important;
-}
-

@@ -1675,8 +1675,8 @@
       if (e.key === 'ArrowRight') nextHud();
     });
 
-    // Theme state synchronization
-    if (localStorage.getItem('theme') === 'dark') {
+    // Theme state synchronization (default is dark mode)
+    if (localStorage.getItem('theme') !== 'light') {
       document.body.classList.add('dark-mode');
     }
 

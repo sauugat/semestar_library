@@ -1760,7 +1760,7 @@
     let autoRunTimer = null;
     let consoleLogCount = 0;
     const activePanes = new Set(['html', 'css', 'js']);
-    let isDark = localStorage.getItem('compiler-theme') === 'dark';
+    let isDark = localStorage.getItem('compiler-theme') !== 'light';
 
     // Apply saved theme immediately (before paint)
     if (isDark) document.documentElement.setAttribute('data-theme', 'dark');

@@ -34,7 +34,13 @@
   }
 
   function resolveTheme() {
-    return getStoredTheme() || getSystemPreference();
+    const stored = getStoredTheme();
+    if (stored) return stored;
+    // Default mode for new users is always dark
+    try {
+      localStorage.setItem(THEME_KEY, 'dark');
+    } catch (e) {}
+    return 'dark';
   }
 
   function updateThemeColorMeta(isDark) {
@@ -182,8 +188,14 @@
   if (window.matchMedia) {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     const handleSystemChange = (e) => {
-      if (!getStoredTheme()) {
-        applyTheme(e.matches ? 'dark' : 'light');
+      // If user hasn't chosen a theme yet, default remains dark
+      const stored = getStoredTheme();
+      if (!stored && !e.matches) {
+        // Keep default dark mode
+        return;
+      }
+      if (!stored) {
+        applyTheme('dark');
       }
     };
     if (mediaQuery.addEventListener) {

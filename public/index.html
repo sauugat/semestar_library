@@ -451,6 +451,63 @@
           radar, and credential vaulting.</p>
       </div>
 
+      <!-- Kyana AI Intelligence Demonstration Template (Wide) -->
+      <div class="poster-card bento-shape-wide tilt-card apple-card bento-glow-card" data-card-idx="kyana-demo">
+        <div class="wide-card-layout">
+          <div class="wide-card-content">
+            <div class="poster-card-top">
+              <div class="poster-icon-box apple-icon-box">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 2a4 4 0 0 1 4 4v2a4 4 0 0 1-8 0V6a4 4 0 0 1 4-4z"></path>
+                  <path d="M18 10v2a6 6 0 0 1-12 0v-2"></path>
+                  <circle cx="12" cy="12" r="2"></circle>
+                  <path d="M12 18v4"></path>
+                  <path d="M8 22h8"></path>
+                </svg>
+              </div>
+              <span class="apple-pill-tag kinetic-tag">INTELLIGENCE &bull; KYANA AI</span>
+            </div>
+            <h3 class="poster-card-title apple-card-title">Kyana AI Academic Copilot</h3>
+            <p class="poster-card-desc apple-card-text">
+              Context-grounded intelligence trained on your B.Tech CSE curriculum. Ask questions on engineering mathematics, database models, computer architecture, or past papers.
+            </p>
+            <div class="poster-card-footer">
+              <a href="chatbot.html" class="poster-card-link apple-card-link">
+                <span>Launch Kyana AI</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;">
+                  <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+              </a>
+            </div>
+          </div>
+          <div class="wide-card-preview">
+            <div class="kyana-chat-container">
+              <div class="kyana-chip-row" id="kyanaTopicChips">
+                <button type="button" class="kyana-topic-chip active" data-topic="dbms">DBMS Normalization</button>
+                <button type="button" class="kyana-topic-chip" data-topic="assembly">8086 Assembly</button>
+                <button type="button" class="kyana-topic-chip" data-topic="os">OS Page Faults</button>
+              </div>
+              <div class="kyana-msg-bubble student">
+                <span id="kyanaPromptText">Explain 3NF vs BCNF with a quick example</span>
+              </div>
+              <div class="kyana-msg-bubble ai">
+                <div class="kyana-ai-badge-row">
+                  <span class="kyana-ai-pulse-dot"></span>
+                  <span>KYANA AI &bull; B.TECH CSE COPILOT</span>
+                </div>
+                <div id="kyanaResponseText">
+                  <strong>3NF</strong> requires no transitive functional dependency. <strong>BCNF</strong> is stronger: for every non-trivial functional dependency <em>X &rarr; Y</em>, <em>X</em> must be a candidate super-key.
+                </div>
+                <ul class="kyana-ai-points" id="kyanaPointsList">
+                  <li>3NF allows <em>Y</em> to be a prime attribute when <em>X</em> is not a super key.</li>
+                  <li>BCNF eliminates redundancy when non-prime attributes determine candidate keys.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Card 6: Monochromatic Smart Search Engine (Col 1) -->
       <div class="poster-card bento-shape-tall tilt-card apple-card bento-glow-card" data-card-idx="5">
         <div class="poster-card-top">
@@ -646,6 +703,156 @@
                 </div>
                 <div style="font-size: 10.5px; opacity: 0.6;">
                   Status: Verified &bull; SHA-256 / bcrypt
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Online Cloud Compiler & Code Lab Template (Wide) -->
+      <div class="poster-card bento-shape-wide tilt-card apple-card bento-glow-card" data-card-idx="compiler-demo">
+        <div class="wide-card-layout">
+          <div class="wide-card-content">
+            <div class="poster-card-top">
+              <div class="poster-icon-box apple-icon-box">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="16 18 22 12 16 6"></polyline>
+                  <polyline points="8 6 2 12 8 18"></polyline>
+                </svg>
+              </div>
+              <span class="apple-pill-tag kinetic-tag">DEV TOOLS &bull; CODE LAB</span>
+            </div>
+            <h3 class="poster-card-title apple-card-title">Cloud Code Sandbox &amp; Compiler</h3>
+            <p class="poster-card-desc apple-card-text">
+              Execute, benchmark, and debug C++, Python, and JavaScript snippets in real-time. Zero-setup cloud compilation sandbox built right into Gandaki University Semester Library.
+            </p>
+            <div class="poster-card-footer">
+              <a href="code-lab/index.html" class="poster-card-link apple-card-link">
+                <span>Launch Code Lab</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;">
+                  <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+              </a>
+            </div>
+          </div>
+          <div class="wide-card-preview">
+            <div class="compiler-ide-box">
+              <div class="compiler-ide-topbar">
+                <div class="compiler-window-dots">
+                  <span class="compiler-dot"></span>
+                  <span class="compiler-dot"></span>
+                  <span class="compiler-dot"></span>
+                </div>
+                <div class="compiler-lang-tabs" id="compilerTabs">
+                  <button type="button" class="compiler-tab-btn active" data-lang="cpp">main.cpp</button>
+                  <button type="button" class="compiler-tab-btn" data-lang="python">script.py</button>
+                  <button type="button" class="compiler-tab-btn" data-lang="js">app.js</button>
+                </div>
+              </div>
+              <div class="compiler-code-area" id="compilerCodeSnippet">
+                <div class="compiler-code-line"><span class="compiler-ln">1</span><span><span class="compiler-kw">#include</span> <span class="compiler-str">&lt;iostream&gt;</span></span></div>
+                <div class="compiler-code-line"><span class="compiler-ln">2</span><span><span class="compiler-kw">using namespace</span> std;</span></div>
+                <div class="compiler-code-line"><span class="compiler-ln">3</span><span><span class="compiler-kw">int</span> <span class="compiler-fn">main</span>() {</span></div>
+                <div class="compiler-code-line"><span class="compiler-ln">4</span><span>    cout &lt;&lt; <span class="compiler-str">"Gandaki University Code Lab v2.0"</span> &lt;&lt; endl;</span></div>
+                <div class="compiler-code-line"><span class="compiler-ln">5</span><span>    <span class="compiler-kw">return</span> 0;</span></div>
+                <div class="compiler-code-line"><span class="compiler-ln">6</span><span>}</span></div>
+              </div>
+              <div class="compiler-action-bar">
+                <span style="font-size: 11px; opacity: 0.65; font-family: monospace;">GCC 13.2 &bull; Monochromatic Runtime</span>
+                <button type="button" class="compiler-run-btn" id="compilerDemoRunBtn">
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                  <span>RUN CODE</span>
+                </button>
+              </div>
+              <div class="compiler-terminal-output" id="compilerDemoOutput">
+                <span class="compiler-term-success">&gt; Compilation finished in 0.04s (exit code 0)</span><br>
+                <span>Output: Gandaki University Code Lab v2.0</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Post Status & Academic Social Dispatch Template (Wide, At Last) -->
+      <div class="poster-card bento-shape-wide tilt-card apple-card bento-glow-card" data-card-idx="post-status-demo">
+        <div class="wide-card-layout">
+          <div class="wide-card-content">
+            <div class="poster-card-top">
+              <div class="poster-icon-box apple-icon-box">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+              </div>
+              <span class="apple-pill-tag kinetic-tag">COMMUNITY &bull; STATUS DISPATCH</span>
+            </div>
+            <h3 class="poster-card-title apple-card-title">Live Peer Post Status &amp; Discussion</h3>
+            <p class="poster-card-desc apple-card-text">
+              Share quick study updates, upload verified chapter notes, ask questions to classmates, and interact directly with heart reactions and peer comments.
+            </p>
+            <div class="poster-card-footer">
+              <a href="portal.html" class="poster-card-link apple-card-link">
+                <span>Open Community Feed</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;">
+                  <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+              </a>
+            </div>
+          </div>
+          <div class="wide-card-preview">
+            <div class="post-status-showcase-box">
+              <div class="post-composer-strip" onclick="window.location.href='portal.html'" title="Create a Post">
+                <div class="post-composer-avatar">GU</div>
+                <div class="post-composer-input">Post a status update, note, or question...</div>
+                <button type="button" class="post-composer-btn">POST</button>
+              </div>
+              <div class="post-card-preview-inner">
+                <div class="post-preview-header">
+                  <div class="post-author-block">
+                    <div class="post-composer-avatar" style="background: rgba(255,255,255,0.15); color: #fff;">SS</div>
+                    <div>
+                      <div class="post-author-name">Saugat Sharma</div>
+                      <div class="post-author-sub">Gandaki University &bull; B.Tech CSE &bull; 10m ago</div>
+                    </div>
+                  </div>
+                  <span class="apple-pill-tag" style="font-size: 10px; padding: 2px 8px;">VERIFIED NOTE</span>
+                </div>
+                <p class="post-preview-caption">
+                  Just finalized the comprehensive Operating Systems Unit 4 (Memory Management &amp; Virtual Paging) handwritten summary sheets with past questions solved. Check it out!
+                </p>
+                <div class="post-attachment-pill">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                  </svg>
+                  <span>OS_Unit4_Paging_Solutions.pdf (3.4 MB)</span>
+                </div>
+                <div class="post-actions-row">
+                  <button type="button" class="post-interactive-like-btn" id="postDemoLikeBtn" title="Like this post">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" id="postDemoHeartIcon">
+                      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                    </svg>
+                    <span id="postDemoLikeCount">42</span>
+                  </button>
+                  <button type="button" class="post-comment-btn" onclick="window.location.href='portal.html'" title="Comments">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    <span>8 comments</span>
+                  </button>
+                  <button type="button" class="post-share-btn" id="postDemoShareBtn" title="Share link">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="18" cy="5" r="3"></circle>
+                      <circle cx="6" cy="12" r="3"></circle>
+                      <circle cx="18" cy="19" r="3"></circle>
+                      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                    </svg>
+                    <span id="postDemoShareText">Share</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -1093,6 +1300,198 @@
         chip.classList.add('active');
       });
     });
+
+    /* ==========================================================================
+       11b. NEW INTERACTIVE CONTROLLERS: KYANA AI, ONLINE COMPILER & POST STATUS
+       ========================================================================== */
+    // A. Kyana AI Interactive Topic Switcher
+    (function initKyanaDemo() {
+      const topicChips = document.querySelectorAll('#kyanaTopicChips .kyana-topic-chip');
+      const promptEl = document.getElementById('kyanaPromptText');
+      const responseEl = document.getElementById('kyanaResponseText');
+      const pointsListEl = document.getElementById('kyanaPointsList');
+
+      const kyanaData = {
+        dbms: {
+          prompt: "Explain 3NF vs BCNF with a quick example",
+          response: "<strong>3NF</strong> requires no transitive functional dependency. <strong>BCNF</strong> is stronger: for every non-trivial functional dependency <em>X &rarr; Y</em>, <em>X</em> must be a candidate super-key.",
+          points: [
+            "3NF allows <em>Y</em> to be a prime attribute when <em>X</em> is not a super key.",
+            "BCNF eliminates redundancy when non-prime attributes determine candidate keys."
+          ]
+        },
+        assembly: {
+          prompt: "How does 8086 segmented memory addressing work?",
+          response: "The 8086 uses <strong>Physical Address = (Segment Register &times; 16) + Offset</strong> to access 1MB memory across 20-bit address lines with 16-bit registers.",
+          points: [
+            "Code Segment (CS) pairs with Instruction Pointer (IP) for next instruction fetch.",
+            "Data Segment (DS) pairs with SI, DI, or direct addresses for operand access."
+          ]
+        },
+        os: {
+          prompt: "What happens during a Page Fault trap in Virtual Memory?",
+          response: "When a process accesses an unmapped virtual address, the MMU signals a <strong>Page Fault exception</strong> to the OS kernel to load the frame from disk into physical RAM.",
+          points: [
+            "OS traps to kernel mode, checks swap space, and selects a victim frame (LRU/FIFO).",
+            "Page table is updated with present bit = 1, and the instruction restarts seamlessly."
+          ]
+        }
+      };
+
+      topicChips.forEach(chip => {
+        chip.addEventListener('click', () => {
+          const topic = chip.getAttribute('data-topic');
+          if (!kyanaData[topic]) return;
+
+          topicChips.forEach(c => c.classList.remove('active'));
+          chip.classList.add('active');
+
+          if (promptEl) {
+            promptEl.style.opacity = '0.3';
+            setTimeout(() => {
+              promptEl.textContent = kyanaData[topic].prompt;
+              promptEl.style.opacity = '1';
+            }, 120);
+          }
+
+          if (responseEl && pointsListEl) {
+            responseEl.style.opacity = '0.3';
+            pointsListEl.style.opacity = '0.3';
+            setTimeout(() => {
+              responseEl.innerHTML = kyanaData[topic].response;
+              pointsListEl.innerHTML = kyanaData[topic].points.map(pt => `<li>${pt}</li>`).join('');
+              responseEl.style.opacity = '1';
+              pointsListEl.style.opacity = '1';
+            }, 180);
+          }
+        });
+      });
+    })();
+
+    // B. Online Compiler Sandbox Controller
+    (function initCompilerDemo() {
+      const tabs = document.querySelectorAll('#compilerTabs .compiler-tab-btn');
+      const codeSnippetEl = document.getElementById('compilerCodeSnippet');
+      const runBtn = document.getElementById('compilerDemoRunBtn');
+      const outputEl = document.getElementById('compilerDemoOutput');
+
+      const snippets = {
+        cpp: {
+          code: `
+            <div class="compiler-code-line"><span class="compiler-ln">1</span><span><span class="compiler-kw">#include</span> <span class="compiler-str">&lt;iostream&gt;</span></span></div>
+            <div class="compiler-code-line"><span class="compiler-ln">2</span><span><span class="compiler-kw">using namespace</span> std;</span></div>
+            <div class="compiler-code-line"><span class="compiler-ln">3</span><span><span class="compiler-kw">int</span> <span class="compiler-fn">main</span>() {</span></div>
+            <div class="compiler-code-line"><span class="compiler-ln">4</span><span>    cout &lt;&lt; <span class="compiler-str">"Gandaki University Code Lab v2.0"</span> &lt;&lt; endl;</span></div>
+            <div class="compiler-code-line"><span class="compiler-ln">5</span><span>    <span class="compiler-kw">return</span> 0;</span></div>
+            <div class="compiler-code-line"><span class="compiler-ln">6</span><span>}</span></div>
+          `,
+          output: `<span class="compiler-term-success">&gt; Compilation finished in 0.04s (exit code 0)</span><br><span>Output: Gandaki University Code Lab v2.0</span>`
+        },
+        python: {
+          code: `
+            <div class="compiler-code-line"><span class="compiler-ln">1</span><span><span class="compiler-kw">def</span> <span class="compiler-fn">calculate_gpa</span>(grades):</span></div>
+            <div class="compiler-code-line"><span class="compiler-ln">2</span><span>    <span class="compiler-kw">return</span> round(sum(grades) / len(grades), 2)</span></div>
+            <div class="compiler-code-line"><span class="compiler-ln">3</span><span></span></div>
+            <div class="compiler-code-line"><span class="compiler-ln">4</span><span>gpa = calculate_gpa([3.8, 4.0, 3.9, 3.7])</span></div>
+            <div class="compiler-code-line"><span class="compiler-ln">5</span><span>print(f<span class="compiler-str">"Current Semester GPA: {gpa}"</span>)</span></div>
+          `,
+          output: `<span class="compiler-term-success">&gt; Python 3.12.2 execution finished in 0.02s</span><br><span>Output: Current Semester GPA: 3.85</span>`
+        },
+        js: {
+          code: `
+            <div class="compiler-code-line"><span class="compiler-ln">1</span><span><span class="compiler-kw">const</span> student = {</span></div>
+            <div class="compiler-code-line"><span class="compiler-ln">2</span><span>    university: <span class="compiler-str">"Gandaki University"</span>,</span></div>
+            <div class="compiler-code-line"><span class="compiler-ln">3</span><span>    program: <span class="compiler-str">"B.Tech CSE"</span>, active: <span class="compiler-kw">true</span></span></div>
+            <div class="compiler-code-line"><span class="compiler-ln">4</span><span>};</span></div>
+            <div class="compiler-code-line"><span class="compiler-ln">5</span><span>console.log(<span class="compiler-str">"Enrolled in:"</span>, student.program);</span></div>
+          `,
+          output: `<span class="compiler-term-success">&gt; Node.js v20.11 runtime finished in 0.015s</span><br><span>Output: Enrolled in: B.Tech CSE</span>`
+        }
+      };
+
+      let currentLang = 'cpp';
+
+      tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          const lang = tab.getAttribute('data-lang');
+          if (!snippets[lang]) return;
+
+          currentLang = lang;
+          tabs.forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
+
+          if (codeSnippetEl) {
+            codeSnippetEl.innerHTML = snippets[lang].code.trim();
+          }
+          if (outputEl) {
+            outputEl.innerHTML = snippets[lang].output;
+          }
+        });
+      });
+
+      if (runBtn && outputEl) {
+        runBtn.addEventListener('click', () => {
+          const origHTML = runBtn.innerHTML;
+          runBtn.innerHTML = `<span>COMPILING...</span>`;
+          runBtn.style.opacity = '0.7';
+          outputEl.innerHTML = `<span style="opacity: 0.6;">&gt; Sandboxing GCC/Runtime container...</span>`;
+
+          setTimeout(() => {
+            runBtn.innerHTML = origHTML;
+            runBtn.style.opacity = '1';
+            outputEl.innerHTML = snippets[currentLang].output;
+          }, 420);
+        });
+      }
+    })();
+
+    // C. Post Status Interactive Demo Controller
+    (function initPostStatusDemo() {
+      const likeBtn = document.getElementById('postDemoLikeBtn');
+      const likeCountEl = document.getElementById('postDemoLikeCount');
+      const heartIcon = document.getElementById('postDemoHeartIcon');
+      const shareBtn = document.getElementById('postDemoShareBtn');
+      const shareText = document.getElementById('postDemoShareText');
+
+      let isLiked = false;
+
+      if (likeBtn && likeCountEl) {
+        likeBtn.addEventListener('click', () => {
+          let count = parseInt(likeCountEl.textContent, 10) || 42;
+          if (!isLiked) {
+            count++;
+            likeBtn.classList.add('liked');
+            if (heartIcon) heartIcon.setAttribute('fill', 'currentColor');
+            isLiked = true;
+            if (typeof spawnHeartParticles === 'function') {
+              spawnHeartParticles(likeBtn);
+            }
+          } else {
+            count--;
+            likeBtn.classList.remove('liked');
+            if (heartIcon) heartIcon.setAttribute('fill', 'none');
+            isLiked = false;
+          }
+          likeCountEl.textContent = count;
+        });
+      }
+
+      if (shareBtn && shareText) {
+        shareBtn.addEventListener('click', () => {
+          const shareUrl = window.location.origin + '/portal.html';
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(shareUrl).then(() => {
+              const origText = shareText.textContent;
+              shareText.textContent = 'Copied! ✓';
+              setTimeout(() => { shareText.textContent = origText; }, 1800);
+            }).catch(() => {
+              shareText.textContent = 'Copied! ✓';
+              setTimeout(() => { shareText.textContent = 'Share'; }, 1800);
+            });
+          }
+        });
+      }
+    })();
 
     /* ==========================================================================
        12. VISUAL CLOUD PHOTO GALLERY CONTROLLER (EMBEDDED 34 ASSETS)

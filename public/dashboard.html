@@ -1275,7 +1275,7 @@
             </svg>
             Create Post
           </h2>
-          <p class="modal-subtitle">Share an update, assignment, or notice with your class</p>
+          <p class="modal-subtitle">Share an update or notice with your class</p>
         </div>
         <button type="button" class="modal-close" id="closePostModalBtn" aria-label="Close dialog" title="Close">&times;</button>
       </div>
@@ -1296,7 +1296,6 @@
             <label for="postType">Post type</label>
             <select id="postType" name="type">
               <option value="status">Status</option>
-              <option value="assignment">Assignment</option>
               <option value="notice">Notice</option>
             </select>
           </div>
@@ -2057,6 +2056,7 @@
 
     function renderFeed() {
       const container = document.getElementById('realFiles');
+      feedItems = feedItems.filter(item => item._feedType !== 'assignment' && item.type !== 'assignment');
       feedItems.sort((a, b) => b._feedTime - a._feedTime || b.id - a.id);
       // Reuse existing cards so paging or publishing preserves open comments and pending likes.
       const fragment = document.createDocumentFragment();
@@ -2073,7 +2073,7 @@
       });
       container.replaceChildren(fragment);
       if (!feedItems.length) {
-        container.innerHTML = `<div class="post-feed-empty"><p>No posts or assignments shared yet</p><p>Share a status above or upload notes in Library.</p></div>`;
+        container.innerHTML = `<div class="post-feed-empty"><p>No posts shared yet</p><p>Share a status above or upload notes in Library.</p></div>`;
       }
       loadMorePostsBtn.hidden = postsLoaded && postsCursor === null;
       loadMorePostsBtn.textContent = postsLoaded ? 'Load older posts' : 'Retry loading posts';
@@ -2083,6 +2083,7 @@
     function addFeedPosts(posts) {
       const existing = new Set(feedItems.filter(item => item._feedType === 'post').map(item => item.id));
       posts.forEach(post => {
+        if (post.type === 'assignment') return;
         if (!existing.has(post.id)) {
           feedItems.push({ ...post, _feedType: 'post', _feedTime: new Date(post.created_at).getTime() });
           existing.add(post.id);
@@ -2097,14 +2098,12 @@
     }
 
     async function loadFeed() {
-      const [files, assignments, page] = await Promise.all([
+      const [files, page] = await Promise.all([
         fetch('/api/files').then(r => r.ok ? r.json() : []).catch(() => []),
-        fetch('/api/code-lab/assignments').then(r => r.ok ? r.json() : []).catch(() => []),
         fetchPostPage().catch(err => { postFeedMessage.textContent = err.message; return null; })
       ]);
       feedItems = [
-        ...files.map(f => ({ ...f, _feedType: 'file', _feedTime: new Date(f.uploadedAt || f.createdAt || 0).getTime() })),
-        ...assignments.map(a => ({ ...a, _feedType: 'assignment', _feedTime: new Date(a.createdAt || 0).getTime() }))
+        ...files.map(f => ({ ...f, _feedType: 'file', _feedTime: new Date(f.uploadedAt || f.createdAt || 0).getTime() }))
       ];
       if (page) {
         addFeedPosts(page.posts);

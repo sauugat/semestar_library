@@ -84,9 +84,9 @@
   --ap-specular-light: none;
   --ap-specular-dark: none;
 
-  /* Industrial Subtle Radii (6-8px per spec) */
+  /* Industrial Subtle Radii */
   --ap-radius-pill: 980px;
-  --ap-radius-hero: 10px;
+  --ap-radius-hero: 28px;
   --ap-radius-card: 8px;
   --ap-radius-item: 6px;
   --ap-radius-btn: 6px;
@@ -192,8 +192,8 @@ body.dark-mode {
   --ap-specular-light: none;
   --ap-specular-dark: none;
 
-  /* Industrial Radii (6-8px per spec) */
-  --ap-radius-hero: 10px;
+  /* Industrial Radii */
+  --ap-radius-hero: 28px;
   --ap-radius-card: 8px;
   --ap-radius-item: 6px;
   --ap-radius-btn: 6px;
@@ -534,14 +534,14 @@ body.dark-mode .dash-profile-label {
 body.dark-mode .bottom-nav {
   background: var(--bg-surface) !important;
   border: 1px solid var(--border) !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5) !important;
-  border-radius: 8px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
+  border-radius: 9999px !important;
 }
 
 [data-theme="dark"] .nav-item,
 body.dark-mode .nav-item {
   color: var(--text-secondary) !important;
-  border-radius: 6px !important;
+  border-radius: 9999px !important;
 }
 
 [data-theme="dark"] .nav-item svg,
@@ -5433,7 +5433,7 @@ body.dash:has(.bottom-nav) {
   padding-bottom: max(110px, calc(80px + env(safe-area-inset-bottom, 16px)));
 }
 
-/* Apple Pro Header with Translucent Blur */
+/* Apple Pro Header with Translucent Blur & Rounded Edges */
 body.dash .dash-header {
   display: flex;
   justify-content: space-between;
@@ -5443,6 +5443,7 @@ body.dash .dash-header {
   backdrop-filter: blur(28px) saturate(190%);
   -webkit-backdrop-filter: blur(28px) saturate(190%);
   border-bottom: 1.5px solid var(--ap-border);
+  border-radius: 0 0 20px 20px;
   position: sticky;
   top: 0;
   z-index: 60;
@@ -5900,7 +5901,7 @@ body.dash .dash-hero {
   overflow: hidden;
   margin: 28px 6vw 0;
   padding: 34px 38px;
-  border-radius: var(--ap-radius-hero);
+  border-radius: 28px !important;
   display: flex;
   align-items: center;
   gap: 24px;
@@ -6646,22 +6647,31 @@ body.dark-mode .fb-card:hover {
 }
 
 .post-image {
-  margin-top: 8px;
-  border-radius: 16px;
+  margin-top: 10px;
+  border-radius: 14px;
   overflow: hidden;
-  border: 1px solid var(--border-color, #e5e5ea);
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.12));
   display: inline-block;
-  max-width: 100%;
+  max-width: min(100%, 360px);
+  max-height: 240px;
+  background: var(--bg-surface-raised, rgba(255, 255, 255, 0.04));
 }
 
 .post-image img {
   display: block;
-  width: auto;
-  height: auto;
-  max-width: 100%;
-  max-height: 500px;
-  object-fit: contain;
+  width: 100%;
+  height: 100%;
+  max-width: 360px;
+  max-height: 240px;
+  object-fit: cover;
   cursor: pointer;
+  border-radius: 13px;
+  transition: transform 0.25s ease, opacity 0.2s ease;
+}
+
+.post-image img:hover {
+  transform: scale(1.015);
+  opacity: 0.96;
 }
 
 .post-title {
@@ -10175,12 +10185,11 @@ body:has(.bottom-nav) .app-global-footer {
 }
 
 /* ============================================================
-   NOTIFICATIONS SYSTEM
+   NOTIFICATIONS SYSTEM (Header Icon Removed)
    ============================================================ */
-.dash-notif-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
+.dash-notif-wrapper,
+#notifBellBtn {
+  display: none !important;
 }
 
 .notification-badge {

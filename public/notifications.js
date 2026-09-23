@@ -111,8 +111,10 @@
     }
   }
 
-  // Inject UI
+  // Inject UI (Notification icon removed from header)
   document.addEventListener('DOMContentLoaded', () => {
+    // Notification bell icon removed from header per design requirements
+    return;
     const headerActions = document.querySelector('.dash-header-actions');
     if (!headerActions) return;
 

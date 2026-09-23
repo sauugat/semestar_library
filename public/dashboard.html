@@ -586,16 +586,36 @@
       padding-bottom: 90px !important;
     }
 
+    /* Rounded edges for Good Morning box and Dashboard Navbar */
+    body.dash .dash-hero {
+      border-radius: 28px !important;
+    }
+
+    body.dash .dash-header {
+      border-radius: 0 0 20px 20px;
+    }
+
     .bottom-nav {
       position: fixed;
-      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: max(16px, env(safe-area-inset-bottom, 16px));
       z-index: 50;
-      background: var(--bg-primary) !important;
+      border-radius: 9999px !important;
+      background: var(--bg-surface, var(--bg-primary)) !important;
+      border: 1px solid var(--border) !important;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45) !important;
+      overflow: hidden;
     }
 
     body.dark-mode .bottom-nav,
     [data-theme="dark"] .bottom-nav {
-      background: var(--bg-primary) !important;
+      background: var(--bg-surface, var(--bg-primary)) !important;
+      border-radius: 9999px !important;
+    }
+
+    .bottom-nav .nav-item {
+      border-radius: 9999px !important;
     }
 
     .post-main,
@@ -604,27 +624,35 @@
       min-width: 0;
     }
 
+    /* Compact / Decreased size for uploaded images in dashboard */
     .post-image {
-      margin-top: 8px;
-      border-radius: 16px;
+      margin-top: 10px;
+      border-radius: 14px;
       overflow: hidden;
-      border: 1px solid var(--border-color);
+      border: 1px solid var(--border-color, rgba(255, 255, 255, 0.12));
       display: inline-block;
-      max-width: 100%;
+      max-width: min(100%, 360px);
+      max-height: 240px;
+      background: var(--bg-surface-raised, rgba(255, 255, 255, 0.04));
     }
 
-    .post-image img {
-      display: block;
-      width: auto;
-      height: auto;
-      max-width: 100%;
-      max-height: 500px;
-      object-fit: contain;
-      cursor: pointer;
-    }
-
+    .post-image img,
     .post-card .post-image img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      max-width: 360px;
+      max-height: 240px;
+      object-fit: cover;
       cursor: pointer;
+      border-radius: 13px;
+      transition: transform 0.25s ease, opacity 0.2s ease;
+    }
+
+    .post-image img:hover,
+    .post-card .post-image img:hover {
+      transform: scale(1.015);
+      opacity: 0.96;
     }
 
     .lightbox {
@@ -2694,7 +2722,6 @@
     if (realFiles) dashObs.observe(realFiles, { childList: true });
     if (searchResults) dashObs.observe(searchResults, { childList: true });
   </script>
-  <script src="notifications.js"></script>
   <script src="chatbot.js"></script>
 
   <div id="minimalAuthToast" class="minimal-auth-toast">

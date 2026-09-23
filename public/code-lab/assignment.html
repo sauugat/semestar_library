@@ -96,10 +96,10 @@
             border-radius: var(--cl-radius-lg);
             padding: 24px 28px;
             margin-bottom: 22px;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+            box-shadow: none !important;
             position: relative;
             overflow: hidden;
-            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+            transition: border-color 0.2s ease;
         }
 
         .cl-title {
@@ -179,7 +179,7 @@
             padding: 4px 6px;
             border: 1px solid rgba(0, 0, 0, 0.08);
             border-radius: 980px;
-            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04);
+            box-shadow: none !important;
             overflow-x: auto;
             scrollbar-width: none;
             -webkit-overflow-scrolling: touch;
@@ -216,7 +216,7 @@
             background: #1d1d1f;
             color: #ffffff;
             border-color: #1d1d1f;
-            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.14);
+            box-shadow: none !important;
         }
 
         .cl-tab-check {
@@ -266,7 +266,7 @@
             border-radius: var(--cl-radius-md);
             padding: 22px 26px;
             margin-bottom: 20px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+            box-shadow: none !important;
         }
 
         .cl-desc-top {
@@ -332,13 +332,12 @@
 
         /* ── macOS Window Code Editor Container ── */
         .cl-editor-window {
-            background: #181818;
-            border: 1.5px solid rgba(255, 255, 255, 0.1);
-            border-radius: 16px;
-            overflow: hidden;
-            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+            background: #1e1e1e !important;
+            border: 1px solid #333333 !important;
+            border-radius: 14px !important;
+            overflow: hidden !important;
+            box-shadow: none !important;
             margin-bottom: 20px;
-            transition: box-shadow 0.2s ease, border-color 0.2s ease;
         }
 
         .cl-window-titlebar {
@@ -347,8 +346,9 @@
             align-items: center;
             justify-content: space-between;
             padding: 10px 18px;
-            background: #1f1f1f;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            background: #252526 !important;
+            border-bottom: 1px solid #333333 !important;
+            box-shadow: none !important;
         }
 
         .cl-traffic-dots {
@@ -367,17 +367,17 @@
 
         .cl-dot-red {
             background: #ff5f56 !important;
-            box-shadow: 0 0 4px rgba(255, 95, 86, 0.4);
+            box-shadow: none !important;
         }
 
         .cl-dot-yellow {
             background: #ffbd2e !important;
-            box-shadow: 0 0 4px rgba(255, 189, 46, 0.4);
+            box-shadow: none !important;
         }
 
         .cl-dot-green {
             background: #27c93f !important;
-            box-shadow: 0 0 4px rgba(39, 201, 63, 0.4);
+            box-shadow: none !important;
         }
 
         .cl-window-file {
@@ -389,44 +389,43 @@
             align-items: center;
             gap: 6px;
             padding: 4px 14px;
-            background: rgba(255, 255, 255, 0.06);
-            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: #2d2d2d !important;
+            border: 1px solid #454545 !important;
             border-radius: 6px;
-            transition: all 0.2s ease;
-            color: #d4d4d4;
+            color: #cccccc !important;
             cursor: text;
             z-index: 1;
+            box-shadow: none !important;
         }
 
         .cl-window-file:hover {
-            background: rgba(255, 255, 255, 0.1);
-            border-color: rgba(255, 255, 255, 0.22);
+            background: #383838 !important;
+            border-color: #555555 !important;
         }
 
         .cl-window-file:focus-within {
-            background: rgba(17, 17, 27, 0.95);
-            border-color: rgba(255, 255, 255, 0.4);
-            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
+            background: #1e1e1e !important;
+            border-color: #007acc !important;
+            box-shadow: none !important;
         }
 
         .cl-filename-input {
-            background: transparent;
-            border: none;
-            outline: none;
-            color: #d4d4d4;
-            font-family: var(--code-font, 'JetBrains Mono', monospace);
+            background: transparent !important;
+            border: none !important;
+            outline: none !important;
+            color: #cccccc !important;
+            font-family: Menlo, Monaco, -apple-system, BlinkMacSystemFont, 'SF Mono', 'Courier New', monospace !important;
             font-size: 12.5px;
-            font-weight: 600;
+            font-weight: 500;
             padding: 0;
             margin: 0;
             min-width: 80px;
             width: 105px;
             text-align: center;
-            transition: width 0.1s ease;
         }
 
         .cl-filename-input:focus {
-            color: #ffffff;
+            color: #ffffff !important;
         }
 
         .cl-filename-edit-icon {
@@ -463,13 +462,13 @@
             transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
             user-select: none;
             letter-spacing: -0.01em;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+            box-shadow: none !important;
         }
 
         .cl-window-run-btn:hover:not(:disabled) {
             background: #f4f4f6;
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+            box-shadow: none !important;
         }
 
         .cl-window-run-btn:disabled {
@@ -512,7 +511,8 @@
         .monaco-slot {
             width: 100%;
             height: 440px;
-            background: #181818;
+            background: #1e1e1e !important;
+            box-shadow: none !important;
         }
 
         /* ── Action Control Bar ── */
@@ -565,14 +565,14 @@
             background: #ffffff;
             color: #1d1d1f;
             border: 1.5px solid rgba(0, 0, 0, 0.18);
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+            box-shadow: none !important;
         }
 
         .cl-btn-run:hover:not(:disabled) {
             background: #f5f5f7;
             border-color: rgba(0, 0, 0, 0.35);
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            box-shadow: none !important;
         }
 
         .cl-btn-run .key-shortcut {
@@ -589,14 +589,14 @@
             background: #1d1d1f;
             color: #ffffff;
             border: 1.5px solid #1d1d1f;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+            box-shadow: none !important;
         }
 
         .cl-btn-submit:hover:not(:disabled) {
             background: #000000;
             border-color: #000000;
             transform: translateY(-1px);
-            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+            box-shadow: none !important;
         }
 
         .cl-badge-secure {
@@ -608,13 +608,13 @@
             color: var(--cl-text-muted);
         }
 
-        /* ── Terminal Output Box (Pro macOS Drawer) ── */
+        /* ── Terminal Output Box (VS Code Mac Console) ── */
         .cl-output-box {
-            background: #181818;
-            border: 1.5px solid rgba(255, 255, 255, 0.1);
-            border-radius: 14px;
-            overflow: hidden;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+            background: #1e1e1e !important;
+            border: 1px solid #333333 !important;
+            border-radius: 14px !important;
+            overflow: hidden !important;
+            box-shadow: none !important;
             margin-bottom: 20px;
         }
 
@@ -623,12 +623,13 @@
             align-items: center;
             justify-content: space-between;
             padding: 10px 18px;
-            background: #1f1f1f;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            background: #252526 !important;
+            border-bottom: 1px solid #333333 !important;
             font-size: 12px;
             font-weight: 700;
-            color: #d4d4d4;
+            color: #cccccc !important;
             letter-spacing: 0.03em;
+            box-shadow: none !important;
         }
 
         .cl-output-status-pill {
@@ -656,21 +657,23 @@
         }
 
         .cl-output-content {
-            padding: 18px 22px;
+            padding: 16px 20px;
             min-height: 54px;
             max-height: 300px;
             overflow-y: auto;
-            background: #181818;
+            background: #1e1e1e !important;
+            box-shadow: none !important;
         }
 
         .cl-output-content pre {
             margin: 0;
-            font-family: var(--code-font, 'JetBrains Mono', monospace);
-            font-size: 13.5px;
-            line-height: 1.65;
+            font-family: Menlo, Monaco, -apple-system, BlinkMacSystemFont, 'SF Mono', 'Courier New', monospace !important;
+            font-size: 13px;
+            line-height: 1.6;
             white-space: pre-wrap;
             word-break: break-word;
-            color: #d4d4d4;
+            color: #cccccc !important;
+            box-shadow: none !important;
         }
 
         .cl-output-content pre.placeholder {
@@ -726,7 +729,7 @@
             color: #1d1d1f;
             border: 1.5px solid rgba(0, 0, 0, 0.15);
             cursor: pointer;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+            box-shadow: none !important;
             transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
             box-sizing: border-box;
         }
@@ -735,7 +738,7 @@
             background: #f5f5f7;
             border-color: rgba(0, 0, 0, 0.3);
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            box-shadow: none !important;
         }
 
         .cl-explain-btn:disabled {
@@ -755,7 +758,7 @@
             line-height: 1.65;
             color: #2c2c2e;
             font-family: var(--apple-font);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+            box-shadow: none !important;
             box-sizing: border-box;
         }
 
@@ -825,7 +828,7 @@
             border: 1px solid var(--border-strong, #4a4a4a) !important;
             border-left: 4px solid var(--fill-active, #f5f5f5) !important;
             color: var(--text-primary, #f5f5f5) !important;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+            box-shadow: none !important;
         }
 
         [data-theme="dark"] .cl-explanation-box .cl-explain-label,
@@ -873,61 +876,129 @@
             border-radius: 8px !important;
         }
 
-        /* ── Antigravity IDE Dark Mode Theme for Code Box ── */
+        /* ── VS Code Mac Theme for Code Box (Same in Dark & Light Mode) ── */
+        .cl-editor-window,
         [data-theme="dark"] .cl-editor-window,
         body.dark-mode .cl-editor-window {
-            background: #181818 !important;
-            border: 1.5px solid rgba(255, 255, 255, 0.12) !important;
-            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55) !important;
+            background: #1e1e1e !important;
+            border: 1px solid #333333 !important;
+            box-shadow: none !important;
         }
 
+        .cl-window-titlebar,
         [data-theme="dark"] .cl-window-titlebar,
         body.dark-mode .cl-window-titlebar {
-            background: #1f1f1f !important;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+            background: #252526 !important;
+            border-bottom: 1px solid #333333 !important;
+            box-shadow: none !important;
         }
 
+        .monaco-slot,
         [data-theme="dark"] .monaco-slot,
         body.dark-mode .monaco-slot {
-            background: #181818 !important;
+            background: #1e1e1e !important;
+            box-shadow: none !important;
         }
 
+        .cl-window-file,
         [data-theme="dark"] .cl-window-file,
         body.dark-mode .cl-window-file {
-            background: rgba(255, 255, 255, 0.06) !important;
-            border: 1px solid rgba(255, 255, 255, 0.12) !important;
-            color: #d4d4d4 !important;
+            background: #2d2d2d !important;
+            border: 1px solid #454545 !important;
+            color: #cccccc !important;
+            box-shadow: none !important;
         }
 
+        .cl-filename-input,
         [data-theme="dark"] .cl-filename-input,
         body.dark-mode .cl-filename-input {
-            color: #d4d4d4 !important;
-            font-family: var(--code-font, 'JetBrains Mono', monospace) !important;
+            color: #cccccc !important;
+            font-family: Menlo, Monaco, -apple-system, BlinkMacSystemFont, 'SF Mono', 'Courier New', monospace !important;
         }
 
+        .cl-output-box,
         [data-theme="dark"] .cl-output-box,
         body.dark-mode .cl-output-box {
-            background: #181818 !important;
-            border: 1.5px solid rgba(255, 255, 255, 0.12) !important;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35) !important;
+            background: #1e1e1e !important;
+            border: 1px solid #333333 !important;
+            box-shadow: none !important;
         }
 
+        .cl-output-bar,
         [data-theme="dark"] .cl-output-bar,
         body.dark-mode .cl-output-bar {
-            background: #1f1f1f !important;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
-            color: #d4d4d4 !important;
+            background: #252526 !important;
+            border-bottom: 1px solid #333333 !important;
+            color: #cccccc !important;
+            box-shadow: none !important;
         }
 
+        .cl-output-content,
         [data-theme="dark"] .cl-output-content,
         body.dark-mode .cl-output-content {
-            background: #181818 !important;
+            background: #1e1e1e !important;
+            box-shadow: none !important;
         }
 
+        .cl-output-content pre,
         [data-theme="dark"] .cl-output-content pre,
         body.dark-mode .cl-output-content pre {
-            font-family: var(--code-font, 'JetBrains Mono', monospace) !important;
-            color: #d4d4d4 !important;
+            font-family: Menlo, Monaco, -apple-system, BlinkMacSystemFont, 'SF Mono', 'Courier New', monospace !important;
+            color: #cccccc !important;
+            box-shadow: none !important;
+        }
+
+        .cl-desc-card,
+        [data-theme="dark"] .cl-desc-card,
+        body.dark-mode .cl-desc-card,
+        .cl-student-question-box,
+        [data-theme="dark"] .cl-student-question-box,
+        body.dark-mode .cl-student-question-box {
+            box-shadow: none !important;
+        }
+
+        [data-theme="dark"] .cl-desc-card,
+        body.dark-mode .cl-desc-card {
+            background: #1e1e1e !important;
+            border: 1px solid #333333 !important;
+        }
+
+        [data-theme="dark"] .cl-desc-title,
+        body.dark-mode .cl-desc-title {
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] .cl-desc-text,
+        body.dark-mode .cl-desc-text {
+            color: #cccccc !important;
+        }
+
+        [data-theme="dark"] .cl-qnum-badge,
+        body.dark-mode .cl-qnum-badge {
+            background: #252526 !important;
+            border: 1px solid #454545 !important;
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] .cl-lang-pill,
+        body.dark-mode .cl-lang-pill {
+            background: #252526 !important;
+            border: 1px solid #454545 !important;
+            color: #569cd6 !important;
+        }
+
+        [data-theme="dark"] .cl-assignment-header,
+        body.dark-mode .cl-assignment-header {
+            background: #1e1e1e !important;
+            border: 1px solid #333333 !important;
+            box-shadow: none !important;
+        }
+
+        [data-theme="dark"] .cl-tab-bar,
+        body.dark-mode .cl-tab-bar {
+            background: #1e1e1e !important;
+            border: 1px solid #333333 !important;
+            box-shadow: none !important;
         }
 
         /* ── Toast / Notification Pill ── */
@@ -943,7 +1014,7 @@
             background: #1d1d1f;
             color: #ffffff;
             border: 1px solid rgba(0, 0, 0, 0.15);
-            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+            box-shadow: none !important;
             transition: all 0.25s cubic-bezier(0.25, 1, 0.5, 1);
         }
 
@@ -985,14 +1056,14 @@
             cursor: pointer;
             font-family: var(--apple-font);
             transition: all 0.25s cubic-bezier(0.25, 1, 0.5, 1);
-            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
+            box-shadow: none !important;
         }
 
         .cl-btn-submit-all:hover {
             background: #1f2937;
             border-color: #1f2937;
             transform: translateY(-2px);
-            box-shadow: 0 8px 26px rgba(0, 0, 0, 0.35);
+            box-shadow: none !important;
         }
 
         .cl-empty-state {
@@ -1239,7 +1310,7 @@
             background: #ffffff;
             border: 1.5px solid rgba(0, 0, 0, 0.18);
             border-radius: var(--cl-radius-lg);
-            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04);
+            box-shadow: none !important;
             display: flex;
             flex-direction: column;
             position: sticky;
@@ -1331,7 +1402,7 @@
             border-radius: var(--cl-radius-lg);
             padding: 18px 20px;
             margin-bottom: 20px;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+            box-shadow: none !important;
         }
 
         .cl-student-q-header {
@@ -1509,11 +1580,10 @@
         // Per-question state
         const questionState = {};
 
-        // Sync Monaco with universal theme switcher
+        // Keep code box in VS Code Mac dark mode across all themes
         window.addEventListener('themechange', (e) => {
-            const isDark = e.detail ? e.detail.isDark : (document.documentElement.getAttribute('data-theme') !== 'light');
             if (typeof monaco !== 'undefined' && monaco.editor) {
-                monaco.editor.setTheme(isDark ? 'antigravity-dark' : 'vs');
+                monaco.editor.setTheme('vscode-mac-dark');
             }
         });
 
@@ -1538,13 +1608,12 @@
         }
 
         function normalizeLanguage(lang) {
-            if (!lang) return 'c';
+            if (!lang) return 'cpp';
             const l = String(lang).trim().toLowerCase();
-            if (l === 'c++' || l === 'cpp') return 'cpp';
+            if (l === 'c' || l === 'c++' || l === 'cpp') return 'cpp';
             if (l === 'java') return 'java';
             if (l === 'python' || l === 'py') return 'python';
             if (l === 'javascript' || l === 'js') return 'javascript';
-            if (l === 'c') return 'c';
             return l;
         }
 
@@ -1784,21 +1853,89 @@
 
             activeQuestionId = questions[0].id;
 
-            // Init Monaco for all questions
+            // Init Monaco and preload all language grammars upfront
             require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs' } });
-            require(['vs/editor/editor.main'], function () {
+            require([
+                'vs/editor/editor.main',
+                'vs/basic-languages/java/java',
+                'vs/basic-languages/cpp/cpp',
+                'vs/basic-languages/python/python',
+                'vs/basic-languages/javascript/javascript'
+            ], function (editorMain, javaDef, cppDef, pyDef, jsDef) {
                 try {
-                    const antigravityDarkTheme = {
+                    // Explicitly register Monaco language tokens for instant syntax highlighting
+                    if (javaDef && javaDef.language) {
+                        try { monaco.languages.register({ id: 'java' }); } catch (_) {}
+                        try { monaco.languages.setMonarchTokensProvider('java', javaDef.language); } catch (_) {}
+                        if (javaDef.conf) try { monaco.languages.setLanguageConfiguration('java', javaDef.conf); } catch (_) {}
+                    }
+                    if (cppDef && cppDef.language) {
+                        try { monaco.languages.register({ id: 'cpp' }); } catch (_) {}
+                        try { monaco.languages.setMonarchTokensProvider('cpp', cppDef.language); } catch (_) {}
+                        if (cppDef.conf) try { monaco.languages.setLanguageConfiguration('cpp', cppDef.conf); } catch (_) {}
+                    }
+                    if (pyDef && pyDef.language) {
+                        try { monaco.languages.register({ id: 'python' }); } catch (_) {}
+                        try { monaco.languages.setMonarchTokensProvider('python', pyDef.language); } catch (_) {}
+                        if (pyDef.conf) try { monaco.languages.setLanguageConfiguration('python', pyDef.conf); } catch (_) {}
+                    }
+                    if (jsDef && jsDef.language) {
+                        try { monaco.languages.register({ id: 'javascript' }); } catch (_) {}
+                        try { monaco.languages.setMonarchTokensProvider('javascript', jsDef.language); } catch (_) {}
+                        if (jsDef.conf) try { monaco.languages.setLanguageConfiguration('javascript', jsDef.conf); } catch (_) {}
+                    }
+
+                    const vsCodeMacDarkTheme = {
                         base: 'vs-dark',
                         inherit: true,
                         rules: [
-                            // Keywords & Control Flow (Sleek Purple for control, IDE Blue for declarations)
+                            // VS Code Mac Standard Keywords & Declarations
                             { token: 'keyword', foreground: '569cd6' },
                             { token: 'keyword.control', foreground: 'c586c0' },
-                            { token: 'keyword.control.c', foreground: 'c586c0' },
-                            { token: 'keyword.control.cpp', foreground: 'c586c0' },
                             { token: 'keyword.operator', foreground: '569cd6' },
                             { token: 'keyword.other', foreground: '569cd6' },
+
+                            // Java Language Specific Token Matchers
+                            { token: 'keyword.public', foreground: '569cd6' },
+                            { token: 'keyword.private', foreground: '569cd6' },
+                            { token: 'keyword.protected', foreground: '569cd6' },
+                            { token: 'keyword.static', foreground: '569cd6' },
+                            { token: 'keyword.void', foreground: '569cd6' },
+                            { token: 'keyword.class', foreground: '569cd6' },
+                            { token: 'keyword.new', foreground: '569cd6' },
+                            { token: 'keyword.final', foreground: '569cd6' },
+                            { token: 'keyword.abstract', foreground: '569cd6' },
+                            { token: 'keyword.extends', foreground: '569cd6' },
+                            { token: 'keyword.implements', foreground: '569cd6' },
+                            { token: 'keyword.interface', foreground: '569cd6' },
+                            { token: 'keyword.package', foreground: 'c586c0' },
+                            { token: 'keyword.import', foreground: 'c586c0' },
+                            { token: 'keyword.return', foreground: 'c586c0' },
+                            { token: 'keyword.this', foreground: '569cd6' },
+                            { token: 'keyword.super', foreground: '569cd6' },
+                            { token: 'keyword.int', foreground: '569cd6' },
+                            { token: 'keyword.float', foreground: '569cd6' },
+                            { token: 'keyword.double', foreground: '569cd6' },
+                            { token: 'keyword.char', foreground: '569cd6' },
+                            { token: 'keyword.boolean', foreground: '569cd6' },
+                            { token: 'keyword.byte', foreground: '569cd6' },
+                            { token: 'keyword.short', foreground: '569cd6' },
+                            { token: 'keyword.long', foreground: '569cd6' },
+                            { token: 'keyword.const', foreground: '569cd6' },
+                            { token: 'keyword.if', foreground: 'c586c0' },
+                            { token: 'keyword.else', foreground: 'c586c0' },
+                            { token: 'keyword.for', foreground: 'c586c0' },
+                            { token: 'keyword.while', foreground: 'c586c0' },
+                            { token: 'keyword.do', foreground: 'c586c0' },
+                            { token: 'keyword.switch', foreground: 'c586c0' },
+                            { token: 'keyword.case', foreground: 'c586c0' },
+                            { token: 'keyword.break', foreground: 'c586c0' },
+                            { token: 'keyword.continue', foreground: 'c586c0' },
+                            { token: 'keyword.try', foreground: 'c586c0' },
+                            { token: 'keyword.catch', foreground: 'c586c0' },
+                            { token: 'keyword.finally', foreground: 'c586c0' },
+                            { token: 'keyword.throw', foreground: 'c586c0' },
+                            { token: 'keyword.throws', foreground: 'c586c0' },
 
                             // C/C++ Preprocessor Directives (#include, #define, etc.)
                             { token: 'keyword.directive', foreground: 'c586c0' },
@@ -1859,46 +1996,42 @@
                             { token: 'delimiter.bracket', foreground: 'd4d4d4' },
                             { token: 'delimiter.parenthesis', foreground: 'd4d4d4' },
                             { token: 'punctuation', foreground: 'd4d4d4' },
-
-                            // Web / Tags / Attributes
-                            { token: 'tag', foreground: '569cd6' },
-                            { token: 'tag.id', foreground: '4ec9b0' },
-                            { token: 'tag.class', foreground: '4ec9b0' },
-                            { token: 'attribute.name', foreground: '9cdcfe' },
-                            { token: 'attribute.value', foreground: 'ce9178' }
+                            { token: 'support.class', foreground: '4ec9b0' },
+                            { token: 'support.type', foreground: '4ec9b0' },
+                            { token: 'entity.name.type', foreground: '4ec9b0' },
+                            { token: 'entity.name.class', foreground: '4ec9b0' },
+                            { token: 'meta.function-call', foreground: 'dcdcaa' },
+                            { token: '', foreground: 'd4d4d4' }
                         ],
                         colors: {
-                            'editor.background': '#181818',
+                            'editor.background': '#1e1e1e',
                             'editor.foreground': '#d4d4d4',
-                            'editorLineNumber.foreground': '#6e7681',
+                            'editorLineNumber.foreground': '#858585',
                             'editorLineNumber.activeForeground': '#c6c6c6',
-                            'editorCursor.foreground': '#58a6ff',
+                            'editorCursor.foreground': '#aeafad',
                             'editor.selectionBackground': '#264f78',
-                            'editor.inactiveSelectionBackground': '#264f7855',
+                            'editor.inactiveSelectionBackground': '#3a3d41',
                             'editor.selectionHighlightBackground': '#add6ff26',
-                            'editor.wordHighlightBackground': '#575757b8',
-                            'editor.wordHighlightStrongBackground': '#004972b8',
-                            'editor.findMatchBackground': '#515c6a',
-                            'editor.findMatchHighlightBackground': '#ea5c0055',
-                            'editor.lineHighlightBackground': '#22222266',
+                            'editor.lineHighlightBackground': '#2a2d2e',
                             'editor.lineHighlightBorder': '#00000000',
                             'editorIndentGuide.background': '#404040',
                             'editorIndentGuide.activeBackground': '#707070',
                             'editorBracketMatch.background': '#0064001a',
                             'editorBracketMatch.border': '#888888',
-                            'editorGutter.background': '#181818',
-                            'editorWidget.background': '#1f1f1f',
-                            'editorWidget.border': '#333333',
-                            'editorSuggestWidget.background': '#1f1f1f',
-                            'editorSuggestWidget.border': '#333333',
+                            'editorGutter.background': '#1e1e1e',
+                            'editorWidget.background': '#252526',
+                            'editorWidget.border': '#454545',
+                            'editorSuggestWidget.background': '#252526',
+                            'editorSuggestWidget.border': '#454545',
                             'editorSuggestWidget.foreground': '#d4d4d4',
                             'editorSuggestWidget.selectedBackground': '#04395e',
                             'editorSuggestWidget.highlightForeground': '#2aaaff'
                         }
                     };
 
-                    monaco.editor.defineTheme('antigravity-dark', antigravityDarkTheme);
-                    monaco.editor.defineTheme('cl-vibrant-dark', antigravityDarkTheme);
+                    monaco.editor.defineTheme('vscode-mac-dark', vsCodeMacDarkTheme);
+                    monaco.editor.defineTheme('antigravity-dark', vsCodeMacDarkTheme);
+                    monaco.editor.defineTheme('cl-vibrant-dark', vsCodeMacDarkTheme);
                 } catch (e) {
                     console.warn('Monaco theme definition notice:', e);
                 }
@@ -2178,37 +2311,66 @@
 
         function initEditor(q) {
             if (typeof monaco === 'undefined' || !monaco.editor) {
-                require(['vs/editor/editor.main'], function () {
+                require([
+                    'vs/editor/editor.main',
+                    'vs/basic-languages/java/java',
+                    'vs/basic-languages/cpp/cpp',
+                    'vs/basic-languages/python/python',
+                    'vs/basic-languages/javascript/javascript'
+                ], function (editorMain, javaDef, cppDef, pyDef, jsDef) {
+                    if (javaDef && javaDef.language) {
+                        try { monaco.languages.register({ id: 'java' }); } catch (_) {}
+                        try { monaco.languages.setMonarchTokensProvider('java', javaDef.language); } catch (_) {}
+                    }
+                    if (cppDef && cppDef.language) {
+                        try { monaco.languages.register({ id: 'cpp' }); } catch (_) {}
+                        try { monaco.languages.setMonarchTokensProvider('cpp', cppDef.language); } catch (_) {}
+                    }
+                    if (pyDef && pyDef.language) {
+                        try { monaco.languages.register({ id: 'python' }); } catch (_) {}
+                        try { monaco.languages.setMonarchTokensProvider('python', pyDef.language); } catch (_) {}
+                    }
+                    if (jsDef && jsDef.language) {
+                        try { monaco.languages.register({ id: 'javascript' }); } catch (_) {}
+                        try { monaco.languages.setMonarchTokensProvider('javascript', jsDef.language); } catch (_) {}
+                    }
                     initEditor(q);
                 });
                 return;
             }
             const state = questionState[q.id];
-            const monacoLang = normalizeLanguage(q.language);
+            let monacoLang = normalizeLanguage(q.language);
             const initialCode = (q.userSubmission && q.userSubmission.code) ? q.userSubmission.code : '// Write your code here\n';
 
-            const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
-            const initialTheme = isDark ? 'antigravity-dark' : 'vs';
+            // Intelligent auto-detection from existing code
+            if (/public\s+class\s+\w+|public\s+static\s+void\s+main|System\.(out|err)\./.test(initialCode)) {
+                monacoLang = 'java';
+            } else if (/#include\s*<|std::|int\s+main\s*\(/.test(initialCode)) {
+                monacoLang = 'cpp';
+            } else if (/def\s+\w+\(.*\):|import\s+sys|print\s*\(/.test(initialCode) && !initialCode.includes('System.out') && !initialCode.includes(';')) {
+                monacoLang = 'python';
+            }
 
+            // Always use VS Code Mac Dark theme in both light mode and dark mode
             state.editor = monaco.editor.create(document.getElementById(`editor-${q.id}`), {
                 value: initialCode,
                 language: monacoLang,
-                theme: initialTheme,
-                fontSize: 14,
-                lineHeight: 23,
-                letterSpacing: 0.3,
-                fontWeight: "450",
-                fontLigatures: true,
+                theme: 'vscode-mac-dark',
+                fontSize: 13.5,
+                lineHeight: 22,
+                letterSpacing: 0,
+                fontWeight: "400",
+                fontLigatures: false,
                 minimap: { enabled: false },
                 scrollBeyondLastLine: false,
                 automaticLayout: true,
-                padding: { top: 16, bottom: 16 },
-                fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'SF Mono', Menlo, Monaco, Consolas, monospace",
+                padding: { top: 14, bottom: 14 },
+                fontFamily: "Menlo, Monaco, -apple-system, BlinkMacSystemFont, 'SF Mono', 'Courier New', monospace",
                 roundedSelection: true,
                 cursorBlinking: 'smooth',
                 cursorSmoothCaretAnimation: "on",
                 smoothScrolling: true,
-                renderLineHighlight: 'all',
+                renderLineHighlight: 'line',
                 lineNumbersMinChars: 3,
                 bracketPairColorization: { enabled: true },
                 guides: {
@@ -2221,6 +2383,15 @@
                 tabSize: 4,
                 insertSpaces: true
             });
+
+            // Immediately reinforce language tokenization
+            try {
+                if (state.editor && state.editor.getModel()) {
+                    monaco.editor.setModelLanguage(state.editor.getModel(), monacoLang);
+                }
+            } catch (err) {
+                console.warn('Monaco setModelLanguage notice:', err);
+            }
 
             // Restore previous terminal output if already submitted
             if (q.userSubmission) {
@@ -2257,9 +2428,13 @@
             }
 
             // Filename input handling
-            const fileExt = getFileExtension(q.language);
+            const detectedExt = monacoLang === 'java' ? 'java' : (monacoLang === 'python' ? 'py' : (monacoLang === 'javascript' ? 'js' : 'cpp'));
+            const fileExt = getFileExtension(q.language) || detectedExt;
             const filenameInput = document.getElementById(`filename-${q.id}`);
             if (filenameInput) {
+                if (monacoLang === 'java' && filenameInput.value.endsWith('.c')) {
+                    filenameInput.value = filenameInput.value.replace(/\.c$/, '.java');
+                }
                 const resizeInput = () => {
                     filenameInput.style.width = Math.max(80, Math.min(220, (filenameInput.value.length + 1) * 8.5)) + 'px';
                 };
@@ -2272,6 +2447,19 @@
                     filenameInput.value = val;
                     state.filename = val;
                     resizeInput();
+
+                    // Switch Monaco model language if extension changed
+                    const ext = val.split('.').pop().toLowerCase();
+                    let targetLang = null;
+                    if (ext === 'java') targetLang = 'java';
+                    else if (ext === 'py') targetLang = 'python';
+                    else if (ext === 'js' || ext === 'javascript') targetLang = 'javascript';
+                    else if (ext === 'c' || ext === 'cpp' || ext === 'cc') targetLang = 'cpp';
+
+                    if (targetLang && state.editor && state.editor.getModel()) {
+                        monaco.editor.setModelLanguage(state.editor.getModel(), targetLang);
+                        state.language = targetLang;
+                    }
                     showMsg(q.id, `File renamed to ${val}`, 'success');
                 });
                 filenameInput.addEventListener('keydown', (e) => {
@@ -2280,6 +2468,23 @@
                     }
                 });
             }
+
+            // Auto-detect Java when student types Java code into default editor
+            state.editor.onDidChangeModelContent(() => {
+                const curModel = state.editor.getModel();
+                if (curModel && curModel.getLanguageId() !== 'java') {
+                    const code = state.editor.getValue();
+                    if (/public\s+class\s+\w+|public\s+static\s+void\s+main|System\.(out|err)\./.test(code)) {
+                        monaco.editor.setModelLanguage(curModel, 'java');
+                        state.language = 'java';
+                        if (filenameInput && (filenameInput.value.endsWith('.c') || filenameInput.value.endsWith('.cpp'))) {
+                            filenameInput.value = filenameInput.value.replace(/\.(c|cpp)$/, '.java');
+                            state.filename = filenameInput.value;
+                            filenameInput.style.width = Math.max(80, Math.min(220, (filenameInput.value.length + 1) * 8.5)) + 'px';
+                        }
+                    }
+                }
+            });
 
             // Check if this is genuinely first-ever open for this student on this question
             const currentStudentId = window._currentStudentId;

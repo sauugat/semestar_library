@@ -408,16 +408,8 @@ body.dark-mode span:not([class*="mtk"]):not([class*="token"]):not([class*="cm-"]
   color: inherit;
 }
 
-/* Monaco Editor token syntax protection (VS Code Dark+ Palette) */
-.monaco-editor span[class*="mtk"],
-[data-theme="dark"] .monaco-editor span[class*="mtk"],
-body.dark-mode .monaco-editor span[class*="mtk"],
-.monaco-editor .view-line span,
-[data-theme="dark"] .monaco-editor .view-line span,
-body.dark-mode .monaco-editor .view-line span {
-  color: unset; /* Prevent global dark mode typography from overriding Monaco token spans */
-}
-
+/* Monaco owns its generated .mtk* token colors. Do not override them here:
+   even color: unset wins over the editor theme and removes syntax highlighting. */
 
 [data-theme="dark"] label, body.dark-mode label,
 [data-theme="dark"] .meta-text, body.dark-mode .meta-text,

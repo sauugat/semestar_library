@@ -16801,3 +16801,40 @@ body:not(.dark-mode) .dash-post-btn {
 .dash-post-btn:hover {
   opacity: 0.9 !important;
 }
+
+/* Library Subject Drawer & Preview 'Into' (Close / ✕) Button */
+.drawer-close,
+#drawerClose,
+.drawer-sheet .drawer-close,
+.preview-action-btn.close-btn,
+[data-theme="dark"] .drawer-close,
+body.dark-mode .drawer-close,
+[data-theme="dark"] #drawerClose,
+body.dark-mode #drawerClose,
+[data-theme="dark"] .preview-action-btn.close-btn,
+body.dark-mode .preview-action-btn.close-btn {
+  background: #e5e5ea !important;
+  color: #000000 !important;
+  border: 1px solid rgba(0, 0, 0, 0.15) !important;
+}
+
+.drawer-close:hover,
+#drawerClose:hover,
+.drawer-sheet .drawer-close:hover,
+.preview-action-btn.close-btn:hover,
+[data-theme="dark"] .drawer-close:hover,
+body.dark-mode .drawer-close:hover,
+[data-theme="dark"] #drawerClose:hover,
+body.dark-mode #drawerClose:hover,
+[data-theme="dark"] .preview-action-btn.close-btn:hover,
+body.dark-mode .preview-action-btn.close-btn:hover {
+  background: #d4d4d8 !important;
+  color: #000000 !important;
+}
+
+.preview-action-btn.close-btn svg,
+[data-theme="dark"] .preview-action-btn.close-btn svg,
+body.dark-mode .preview-action-btn.close-btn svg {
+  stroke: #000000 !important;
+  color: #000000 !important;
+}

@@ -177,48 +177,72 @@
             </div>
           </div>
           <div class="wide-card-preview">
-            <!-- Apple Floating Interactive Mock Post inside Card -->
-            <div class="apple-mock-post">
-              <div class="apple-payload-pill">
-                <span class="payload-dot pulse-dot"></span>
-                <span>CLOUD STREAM</span>
-                <span class="payload-sync-indicator">LIVE SYNC</span>
-              </div>
-              <div class="mock-post-header-row">
-                <div class="apple-avatar">A</div>
-                <div class="mock-user-meta">
-                  <strong>Aayush Shrestha</strong>
-                  <span class="mock-badge-pill">Sem 3</span>
-                  <span class="mock-time-tag">&bull; 10m ago</span>
+            <!-- Actual Website Component: Feed Post Card (dashboard.html) -->
+            <article class="feed-card social-post-card post-card notice bento-preview-post">
+              <a href="portal.html" class="post-avatar" aria-label="View Aayush's profile">A</a>
+              <div class="post-main post-body">
+                <header class="post-header">
+                  <div class="post-user-info">
+                    <div class="post-author-row">
+                      <a href="portal.html" class="post-author-name">Aayush Shrestha</a>
+                      <span class="post-verified-badge post-admin-badge" title="Verified Note">
+                        <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
+                        Verified
+                      </span>
+                    </div>
+                    <div class="post-meta-row">
+                      <span class="post-student-handle">@aayush</span>
+                      <span class="post-meta-sep">&middot;</span>
+                      <time class="post-timestamp">10m ago</time>
+                    </div>
+                  </div>
+                </header>
+                <div class="post-content">
+                  <h3 class="post-title">Database Systems &middot; Chapter 4 Normalization</h3>
+                  <div class="post-tags">
+                    <span class="post-tag">Semester III</span>
+                    <span class="post-tag">DBMS</span>
+                  </div>
                 </div>
+                <div class="file-attachment bento-attachment">
+                  <div class="file-icon pdf">
+                    <span>PDF</span>
+                  </div>
+                  <div class="file-info">
+                    <p class="file-name" title="DBMS_Ch4_CheatSheet.pdf">DBMS_Ch4_CheatSheet.pdf</p>
+                    <span class="file-meta">4.2 MB &middot; PDF Resource</span>
+                  </div>
+                  <div class="file-actions">
+                    <a href="library.html" class="file-action" title="Preview file">
+                      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                      <span>View</span>
+                    </a>
+                    <a href="library.html" class="file-action primary" title="Download">
+                      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                      <span>Get</span>
+                    </a>
+                  </div>
+                </div>
+                <footer class="post-actions post-footer">
+                  <button type="button" class="action-btn like-btn liked" id="mockLikeBtn" title="React with Heart">
+                    <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.8"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                    <span class="like-count" id="mockLikeCount">42</span>
+                  </button>
+                  <button type="button" class="action-btn comment-btn" title="Replies">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 8.4 8.4 0 0 1-3.5-.75L3 21l1.8-5.4A8.4 8.4 0 0 1 4 12.5 8.5 8.5 0 1 1 21 11.5z"/></svg>
+                    <span class="comment-count">14</span>
+                  </button>
+                  <button type="button" class="action-btn share-btn" title="Share">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13"/></svg>
+                  </button>
+                </footer>
               </div>
-              <div class="mock-caption">
-                Uploaded Chapter 4 - Database Normalization handwritten cheat sheet ⚡
-              </div>
-              <!-- Streaming animated progress beam -->
-              <div class="mock-sync-bar">
-                <div class="sync-bar-progress"></div>
-              </div>
-              <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 4px;">
-                <span class="apple-file-pill">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                    style="width: 12px; height: 12px;">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                    <polyline points="14 2 14 8 20 8"></polyline>
-                  </svg>
-                  DBMS_Ch4_Notes.pdf
-                </span>
-                <button type="button" class="apple-like-btn" id="mockLikeBtn" title="React with Heart">
-                  <span class="heart-icon">&hearts;</span>
-                  <span id="mockLikeCount">42</span>
-                </button>
-              </div>
-            </div>
+            </article>
           </div>
         </div>
       </div>
 
-      <!-- Card 2: Tall Vertical Bento Shape (Chrono Watch Widget) -->
+      <!-- Card 2: Tall Vertical Bento Shape (Routine & Schedule Cards) -->
       <div class="poster-card bento-shape-tall tilt-card apple-card bento-glow-card" data-card-idx="1">
         <div class="poster-card-top">
           <div class="poster-icon-box apple-icon-box">
@@ -235,33 +259,50 @@
           Never miss a class or exam. View your weekly schedule and get countdown alerts for upcoming examinations.
         </p>
 
-        <!-- Monochromatic Chrono Countdown Widget with Radar Scan Line -->
+        <!-- Actual Website Component: Examination Schedule Cards (routine.html) -->
         <div class="card-portion-wrap">
-          <div class="apple-countdown-box">
-            <div class="chrono-radar-sweep"></div>
-            <div class="countdown-heading">
-              <span class="countdown-pulse-dot sonar-pulse"></span>
-              <span>Next Exam: Operating Systems</span>
+          <div class="exam-info bento-exam-info">
+            <div class="exam-info-item">
+              <span class="info-label">Routine</span>
+              <strong>2083</strong>
             </div>
-            <div class="countdown-digits-strip">
-              <div class="digit-box"><span id="cdDays">18</span><small>Days</small></div>
-              <span class="digit-colon">:</span>
-              <div class="digit-box"><span id="cdHours">09</span><small>Hrs</small></div>
-              <span class="digit-colon">:</span>
-              <div class="digit-box"><span id="cdMins">42</span><small>Min</small></div>
-              <span class="digit-colon">:</span>
-              <div class="digit-box"><span id="cdSecs">15</span><small>Sec</small></div>
+            <div class="exam-info-item">
+              <span class="info-label">Program</span>
+              <strong>BIT</strong>
             </div>
-            <div class="apple-routine-submeta">
-              <span>Hall 3B &bull; Gandaki University</span>
-              <span class="meta-bullet">&bull;</span>
-              <span>08:00 AM</span>
+            <div class="exam-info-item">
+              <span class="info-label">Semesters</span>
+              <strong>II &middot; IV &middot; VI</strong>
             </div>
           </div>
+
+          <article class="exam-row bento-exam-row" data-semester="IV">
+            <div class="exam-date">
+              <span class="date-day">14</span>
+              <span class="date-month">04 / 2083</span>
+            </div>
+            <div class="exam-details">
+              <span class="semester-tag">Semester IV</span>
+              <h2>Operating Systems</h2>
+              <p>08:00 AM – 11:00 AM &middot; Hall 3B</p>
+            </div>
+          </article>
+
+          <article class="exam-row bento-exam-row" data-semester="IV">
+            <div class="exam-date">
+              <span class="date-day">18</span>
+              <span class="date-month">04 / 2083</span>
+            </div>
+            <div class="exam-details">
+              <span class="semester-tag">Semester IV</span>
+              <h2>Database Management Systems</h2>
+              <p>08:00 AM – 11:00 AM &middot; Hall 2A</p>
+            </div>
+          </article>
         </div>
 
         <div class="poster-card-footer">
-          <a href="library.html" class="apple-card-link">
+          <a href="routine.html" class="apple-card-link">
             <span>View Full Schedule</span>
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
               <polyline points="9 18 15 12 9 6" />
@@ -285,26 +326,29 @@
 
         <h3 class="poster-card-title apple-card-title">University Notices</h3>
         <p class="poster-card-text apple-card-text">Stay updated with official Gandaki University circulars,
-          registration deadlines, and circulars.</p>
+          registration deadlines, and announcements.</p>
 
-        <!-- Mini Notice Preview Portion -->
+        <!-- Actual Website Component: Notice Detail Card (notices.html) -->
         <div class="card-portion-wrap">
-          <div class="mini-notice-box apple-notice-box">
-            <div class="mini-notice-top">
-              <span class="notice-badge-urgent shimmer-badge">CIRCULAR #2025-08</span>
+          <div class="detail-section-card bento-notice-card">
+            <div class="section-card-header">
+              <span class="notice-badge-urgent">CIRCULAR #2025-08</span>
               <span class="notice-date">TODAY</span>
             </div>
-            <p class="mini-notice-headline">Semester Exam Registration & Form Submission Deadline</p>
+            <h3 class="section-card-title">Semester Exam Registration Deadline</h3>
+            <p class="section-body-text">
+              All students of the BIT program are requested to complete examination registration forms before the final deadline.
+            </p>
             <div class="mini-notice-meta">
               <span>EXAM CONTROLLER OFFICE</span>
               <span class="notice-dot-sep">&bull;</span>
-              <span class="notice-status-open live-pulse-text">ACTIVE</span>
+              <span class="notice-status-open">ACTIVE</span>
             </div>
           </div>
         </div>
 
         <div class="poster-card-footer">
-          <a href="library.html" class="apple-card-link">
+          <a href="notices.html" class="apple-card-link">
             <span>Explore Notices</span>
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
               <polyline points="9 18 15 12 9 6" />
@@ -335,41 +379,40 @@
           <div class="credits-badge-pill apple-credits-pill shimmer-credits">126.0 TOTAL CREDITS</div>
         </div>
 
-        <!-- Interactive Clickable Semester Progress Nodes -->
+        <!-- Actual Website Component: Semester Syllabus Card (syllabus.html) -->
         <div class="card-portion-wrap">
           <div class="poster-roadmap-nodes apple-roadmap-nodes" id="semesterRoadmap">
-            <button class="roadmap-pill active"
-              onclick="switchSemNode(this, 'Year 1 &middot; 5 Core Courses (Math, Physics, C, Digital Logic, English)')">Sem
-              I</button>
+            <button class="roadmap-pill active" onclick="switchSemNode(this, 'Year 2 &middot; Semester IV', 'Operating Systems (BIT 201)', 'Database Management Systems (BIT 202)', 'Computer Networks (BIT 203)', '+2 more courses', '16.0 Credits')">Sem IV</button>
             <span class="roadmap-sep">&rarr;</span>
-            <button class="roadmap-pill"
-              onclick="switchSemNode(this, 'Year 1 &middot; 5 Core Courses (OOP in C++, DSA, Stats, Microprocessor, Discrete Math)')">Sem
-              II</button>
+            <button class="roadmap-pill" onclick="switchSemNode(this, 'Year 1 &middot; Semester I', 'Calculus &amp; Linear Algebra', 'Physics for Computing', 'Computer Fundamentals &amp; C', '+2 more courses', '15.5 Credits')">Sem I</button>
             <span class="roadmap-sep">&rarr;</span>
-            <button class="roadmap-pill"
-              onclick="switchSemNode(this, 'Year 2 &middot; 5 Core Courses (Database Systems, OS, Computer Networks, Software Eng, Web Tech)')">Sem
-              III</button>
+            <button class="roadmap-pill" onclick="switchSemNode(this, 'Year 1 &middot; Semester II', 'Object-Oriented Programming (C++)', 'Data Structures &amp; Algorithms', 'Discrete Mathematics', '+2 more courses', '16.0 Credits')">Sem II</button>
             <span class="roadmap-sep">&rarr;</span>
-            <button class="roadmap-pill"
-              onclick="switchSemNode(this, 'Year 2 &middot; 5 Core Courses (Java, AI, Computer Architecture, Minor Project, Numerical Methods)')">Sem
-              IV</button>
+            <button class="roadmap-pill" onclick="switchSemNode(this, 'Year 2 &middot; Semester III', 'Microprocessors &amp; Interfacing', 'Numerical Methods', 'Web Technology I', '+2 more courses', '16.0 Credits')">Sem III</button>
             <span class="roadmap-sep">&rarr;</span>
-            <button class="roadmap-pill"
-              onclick="switchSemNode(this, 'Year 3 &middot; 5 Core Courses (Web Tech II, Network Security, Mobile App, Cloud Computing)')">Sem
-              V</button>
+            <button class="roadmap-pill" onclick="switchSemNode(this, 'Year 3 &middot; Semester V', 'Software Engineering', 'Artificial Intelligence', 'Web Technology II', '+2 more courses', '16.0 Credits')">Sem V</button>
             <span class="roadmap-sep">&rarr;</span>
-            <button class="roadmap-pill"
-              onclick="switchSemNode(this, 'Year 3 &middot; 5 Core Courses (Data Mining, Distributed Systems, Compiler Design, Elective I)')">Sem
-              VI</button>
+            <button class="roadmap-pill" onclick="switchSemNode(this, 'Year 3 &middot; Semester VI', 'Data Mining &amp; Warehousing', 'Compiler Design', 'Distributed Systems', '+2 more courses', '16.0 Credits')">Sem VI</button>
           </div>
 
-          <div class="semester-live-desc apple-sem-desc" id="semesterLiveDesc">
-            Year 1 &middot; 5 Core Courses (Math, Physics, C, Digital Logic, English)
+          <div class="syllabus-sem-card bento-syllabus-card">
+            <div class="sem-card-header">
+              <div class="sem-pill-tag" id="semCardTag">Semester IV</div>
+              <span class="sem-credits-pill" id="semCardCredits">16.0 Credits</span>
+            </div>
+            <h3 class="sem-card-title" id="semCardTitle">Year 2 &middot; Semester IV</h3>
+            <p class="sem-card-desc">5 Prescribed Courses</p>
+            <ul class="sem-preview-list" id="semCardList">
+              <li>Operating Systems (BIT 201)</li>
+              <li>Database Management Systems (BIT 202)</li>
+              <li>Computer Networks (BIT 203)</li>
+              <li class="preview-more">+2 more courses</li>
+            </ul>
           </div>
         </div>
 
         <div class="poster-card-footer">
-          <a href="library.html" class="apple-card-link">
+          <a href="syllabus.html" class="apple-card-link">
             <span>Explore Complete 8 Semesters</span>
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
               <polyline points="9 18 15 12 9 6" />
@@ -378,7 +421,7 @@
         </div>
       </div>
 
-      <!-- Card 5: Wide Panoramic Monochromatic Animated iMessage Chat Card -->
+      <!-- Card 5: Wide Panoramic Monochromatic Animated Realtime Chat Card -->
       <div class="poster-card bento-shape-wide tilt-card apple-card bento-glow-card" data-card-idx="4">
         <div class="wide-card-layout">
           <div class="wide-card-content">
@@ -397,7 +440,7 @@
               collaborate in real time.
             </p>
             <div class="poster-card-footer">
-              <a href="library.html" class="poster-card-link apple-card-link">
+              <a href="chat.html" class="poster-card-link apple-card-link">
                 <span>Open Class Chat</span>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
                   stroke-linejoin="round" style="width: 14px; height: 14px;">
@@ -407,34 +450,65 @@
             </div>
           </div>
           <div class="wide-card-preview">
-            <!-- Monochromatic Animated iMessage Mockup -->
-            <div class="apple-mock-chat">
-              <div class="mock-chat-header">
-                <div class="mock-chat-avatar">
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="#fff">
-                    <path
-                      d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-                  </svg>
+            <!-- Actual Website Component: Realtime Class Chat (chat.html) -->
+            <div class="im-app bento-chat-preview">
+              <header class="im-header">
+                <div class="im-header-side">
+                  <div class="im-mock-avatar">GU</div>
                 </div>
-                <div class="mock-chat-title">
-                  <span>Class Group Chat</span>
-                  <small><span class="mock-online-dot"></span> 60 Active</small>
+                <div class="im-header-center">
+                  <div class="im-contact-title-row">
+                    <span class="im-contact-name">Class Group Chat</span>
+                  </div>
+                  <div class="im-chat-submeta">60 members &middot; 14 online</div>
                 </div>
-              </div>
-              <div class="mock-chat-bubble incoming animate-pop-1">
-                <span>Anyone have the Math assignment formulas? 📐</span>
-                <span class="mock-time">10:42 AM</span>
-              </div>
-              <div class="mock-chat-bubble outgoing animate-pop-2">
-                <span>Sent it in the Library! Check Chapter 3 pdf ✨</span>
-                <div class="mock-tapback-pill">&#10084;&#65039; 1</div>
-                <span class="mock-time">10:43 AM &bull; Delivered</span>
-              </div>
-              <div class="mock-typing-indicator animate-pop-3">
-                <div class="typing-dot"></div>
-                <div class="typing-dot"></div>
-                <div class="typing-dot"></div>
-              </div>
+                <div class="im-header-side right">
+                  <span class="im-status-pill">LIVE</span>
+                </div>
+              </header>
+
+              <main class="im-feed bento-feed">
+                <div class="im-feed-inner">
+                  <div class="im-row other cluster-start">
+                    <div class="im-msg-avatar">AK</div>
+                    <div class="im-msg-content-wrap">
+                      <span class="im-msg-sender-name">Ankit K.</span>
+                      <div class="im-bubble">
+                        Anyone have the Operating Systems Unit 4 handwritten notes? 📐
+                      </div>
+                      <div class="im-time-meta">10:42 AM</div>
+                    </div>
+                  </div>
+
+                  <div class="im-row self cluster-start">
+                    <div class="im-msg-content-wrap">
+                      <div class="im-bubble">
+                        Uploaded to Library! Check DBMS &amp; OS section ✨
+                      </div>
+                      <div class="im-time-meta">10:43 AM &middot; Delivered</div>
+                    </div>
+                  </div>
+
+                  <div class="im-typing-indicator" style="display: flex;">
+                    <div class="typing-dots">
+                      <span></span><span></span><span></span>
+                    </div>
+                    <span class="typing-text">Pooja is typing...</span>
+                  </div>
+                </div>
+              </main>
+
+              <footer class="im-composer bento-composer">
+                <div class="im-composer-inner">
+                  <div class="im-mock-input">Type a message to Batch 2025...</div>
+                  <div class="im-mock-send">
+                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5">
+                      <line x1="22" y1="2" x2="11" y2="13"></line>
+                      <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                    </svg>
+                  </div>
+                </div>
+              </footer>
             </div>
           </div>
         </div>
@@ -451,7 +525,7 @@
           radar, and credential vaulting.</p>
       </div>
 
-      <!-- Card 6: Monochromatic Smart Search Engine (Col 1) -->
+      <!-- Card 6: Monochromatic Smart Search Engine (library.html components) -->
       <div class="poster-card bento-shape-tall tilt-card apple-card bento-glow-card" data-card-idx="5">
         <div class="poster-card-top">
           <div class="poster-icon-box apple-icon-box">
@@ -465,12 +539,12 @@
         </div>
         <h3 class="poster-card-title apple-card-title">Instant Smart Search</h3>
         <p class="poster-card-desc apple-card-text">
-          Debounced AI-ready indexing across every note, chapter, and semester syllabus in sub-milliseconds.
+          Debounced indexing across every note, chapter, and semester syllabus in sub-milliseconds.
         </p>
 
-        <!-- Monochromatic Animated Search Box Widget -->
+        <!-- Actual Website Component: Library Search & Clean File Items (library.html) -->
         <div class="card-portion-wrap">
-          <div class="apple-mock-search">
+          <div class="bento-search-box">
             <div class="mock-search-input-box">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"
                 stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.8;">
@@ -486,32 +560,28 @@
               <span class="mock-filter-chip">Syllabus</span>
               <span class="mock-filter-chip">Lab Code</span>
             </div>
-            <div class="mock-search-results-list">
-              <div class="mock-search-result-item">
-                <div class="result-item-left">
-                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <polyline points="14 2 14 8 20 8" />
-                  </svg>
-                  <div>
-                    <div class="result-item-title">Database Normalization Cheat Sheet</div>
-                    <div class="result-item-sub">Sem 3 &bull; 4.2 MB &bull; PDF</div>
+            <div class="search-results-section bento-search-results">
+              <div class="clean-file-item">
+                <div class="clean-file-left">
+                  <div class="file-icon pdf"><span>PDF</span></div>
+                  <div style="min-width: 0;">
+                    <p class="clean-file-title">Database Normalization Cheat Sheet</p>
+                    <p class="clean-file-meta">
+                      <strong>Database Systems</strong> &middot; Unit 4 &middot; By Aayush
+                    </p>
                   </div>
                 </div>
-                <span class="result-item-badge">99.8%</span>
+                <span class="file-action primary" style="padding: 4px 10px; font-size: 11px;">Get</span>
               </div>
-              <div class="mock-search-result-item">
-                <div class="result-item-left">
-                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-                  </svg>
-                  <div>
-                    <div class="result-item-title">SQL Lab Solutions &amp; Queries</div>
-                    <div class="result-item-sub">Sem 3 &bull; Chapter 4</div>
+              <div class="search-chapter-item">
+                <div style="min-width: 0;">
+                  <div style="display:flex; align-items:center; gap:6px; margin-bottom:2px;">
+                    <span class="course-code-badge">BIT 202</span>
+                    <span style="font-size:11px; color:#8e8e93;">DBMS &middot; Sem IV</span>
                   </div>
+                  <p style="font-size:13px; font-weight:700; margin:0; color:#fff;">Unit 4: Relational Database Design</p>
                 </div>
-                <span class="result-item-badge">98.4%</span>
+                <span class="open-label" style="font-size:11.5px; font-weight:700;">Open &rarr;</span>
               </div>
             </div>
           </div>
@@ -527,7 +597,7 @@
         </div>
       </div>
 
-      <!-- Card 7: Monochromatic Live Notification & Radar (Col 2) -->
+      <!-- Card 7: Live Notification Hub (dashboard.html notifications) -->
       <div class="poster-card bento-shape-compact tilt-card apple-card bento-glow-card" data-card-idx="6">
         <div class="poster-card-top">
           <div class="poster-icon-box apple-icon-box">
@@ -545,40 +615,36 @@
           Instant peer interactions, comments, likes on your shared files, and official administrative notices.
         </p>
 
-        <!-- Monochromatic Radar & Alerts Widget -->
+        <!-- Actual Website Component: Live Activity Notifications (dashboard.html) -->
         <div class="card-portion-wrap">
-          <div class="apple-mock-radar-card">
-            <div class="radar-sweep-canvas"></div>
+          <div class="bento-notif-box">
             <div class="mock-radar-header-row">
               <span class="radar-status-badge">
                 <span class="radar-beacon-dot"></span>
-                RADAR ACTIVE
+                LIVE RADAR
               </span>
-              <span style="font-size: 11px; color: rgba(255,255,255,0.5);">POLLING LIVE</span>
+              <span style="font-size: 11px; color: rgba(255,255,255,0.5);">INSTANT SYNC</span>
             </div>
-            <div class="mock-notif-stream">
-              <div class="mock-notif-card-item">
-                <div class="mock-notif-item-icon">
-                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
-                    <path
-                      d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                  </svg>
+            <div class="bento-notif-stream">
+              <div class="bento-notif-item">
+                <div class="bento-notif-avatar">A</div>
+                <div class="bento-notif-content">
+                  <p><strong>Aayush Shrestha</strong> reacted to your note <em>DBMS Cheat Sheet</em></p>
+                  <time>2 mins ago</time>
                 </div>
-                <div class="mock-notif-item-content">
-                  <div class="mock-notif-item-msg"><strong>Aayush</strong> liked your DSA Cheatsheet</div>
-                  <div class="mock-notif-item-time">2 mins ago</div>
-                </div>
-                <div class="mock-notif-item-ping"></div>
               </div>
-              <div class="mock-notif-card-item">
-                <div class="mock-notif-item-icon">
-                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                  </svg>
+              <div class="bento-notif-item">
+                <div class="bento-notif-avatar">P</div>
+                <div class="bento-notif-content">
+                  <p><strong>Pooja Thapa</strong> commented: "This solves all BCNF questions!"</p>
+                  <time>12 mins ago</time>
                 </div>
-                <div class="mock-notif-item-content">
-                  <div class="mock-notif-item-msg"><strong>Pooja</strong> commented on Microprocessor Lab</div>
-                  <div class="mock-notif-item-time">12 mins ago</div>
+              </div>
+              <div class="bento-notif-item">
+                <div class="bento-notif-avatar seal">GU</div>
+                <div class="bento-notif-content">
+                  <p><strong>Exam Office</strong> issued <em>CIRCULAR #2025-08 Deadline</em></p>
+                  <time>1 hour ago</time>
                 </div>
               </div>
             </div>
@@ -586,7 +652,7 @@
         </div>
 
         <div class="poster-card-footer">
-          <a href="library.html" class="apple-card-link">
+          <a href="dashboard.html" class="apple-card-link">
             <span>View Notifications</span>
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
               <polyline points="9 18 15 12 9 6" />
@@ -595,7 +661,7 @@
         </div>
       </div>
 
-      <!-- Card 8: Monochromatic Account Security Vault (Span 2) -->
+      <!-- Card 8: Monochromatic Account Security Vault (settings.html components) -->
       <div class="poster-card bento-shape-wide tilt-card apple-card bento-glow-card" data-card-idx="7">
         <div class="wide-card-layout">
           <div class="wide-card-content">
@@ -614,7 +680,7 @@
               Manage your credentials with server-side bcrypt cryptographic re-verification. Zero plaintext storage.
             </p>
             <div class="poster-card-footer">
-              <a href="library.html" class="poster-card-link apple-card-link">
+              <a href="settings.html" class="poster-card-link apple-card-link">
                 <span>Manage Credentials</span>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
                   stroke-linejoin="round" style="width: 14px; height: 14px;">
@@ -624,19 +690,19 @@
             </div>
           </div>
           <div class="wide-card-preview">
-            <!-- Monochromatic Password Vault Widget -->
-            <div class="apple-mock-vault-wide">
+            <!-- Actual Website Component: Account Security & Hash Verification (settings.html) -->
+            <div class="bento-vault-preview">
               <div class="vault-col-left">
                 <div class="vault-metric-row">
-                  <span>Cryptographic Entropy</span>
-                  <strong style="color: #ffffff;">256-Bit Salted</strong>
+                  <span>Password Security</span>
+                  <strong style="color: #ffffff;">bcrypt 10 Rounds</strong>
                 </div>
                 <div class="vault-strength-track">
                   <div class="vault-strength-bar"></div>
                 </div>
-                <div class="vault-metric-row" style="margin-top: 4px;">
-                  <span style="font-size: 11px;">Re-Authentication Gate</span>
-                  <span class="vault-auth-pill">&#10003; BCRYPT VERIFIED</span>
+                <div class="vault-metric-row" style="margin-top: 8px;">
+                  <span style="font-size: 11px;">Cookie Protection</span>
+                  <span class="vault-auth-pill">&#10003; httpOnly &middot; SameSite</span>
                 </div>
               </div>
               <div class="vault-col-right">
@@ -644,8 +710,8 @@
                   <span style="opacity: 0.5;">HASH:</span>
                   <span>$2b$10$wK4...9a8f</span>
                 </div>
-                <div style="font-size: 10.5px; opacity: 0.6;">
-                  Status: Verified &bull; SHA-256 / bcrypt
+                <div style="font-size: 10.5px; opacity: 0.6; margin-top: 6px;">
+                  Zero Plaintext &middot; Session-Gated Endpoints
                 </div>
               </div>
             </div>
@@ -718,6 +784,7 @@
 
   <!-- ==========================================================================
        SHOWCASE STAGE 1: KYANA AI ACADEMIC INTELLIGENCE (FREE-STANDING)
+       Directly mirrors public/chatbot.html components and design
        ========================================================================== -->
   <section class="ag-showcase-stage" id="kyanaFreeShowcase">
     <div class="ag-stage-header">
@@ -731,8 +798,19 @@
       </p>
     </div>
 
-    <!-- Free-Standing Kyana Canvas -->
+    <!-- Free-Standing Kyana Canvas (Mirrors chatbot.html) -->
     <div class="free-kyana-canvas">
+      <!-- Minimal Hero Greeting from chatbot.html -->
+      <div class="sla-welcome-hero" style="margin-bottom: 24px;">
+        <div class="sla-welcome-sparkle">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+          </svg>
+        </div>
+        <h2 id="slaHeroGreeting">Hi, I am Kyana</h2>
+        <p>Your BIT study companion. Ask about notes, code, concepts, or what’s new.</p>
+      </div>
+
       <!-- Topic Filter Rail -->
       <div class="free-kyana-topics" id="kyanaTopicChips">
         <button type="button" class="free-topic-btn active" data-topic="dbms">DBMS Normalization &amp; BCNF</button>
@@ -741,24 +819,24 @@
         <button type="button" class="free-topic-btn" data-topic="graph">Data Structures (BFS vs DFS)</button>
       </div>
 
-      <!-- Dialogue Stage -->
-      <div class="free-chat-stage">
+      <!-- Messages Conversation Area (chatbot.html .sla-chat-messages & .sla-msg-row) -->
+      <div class="sla-chat-messages bento-sla-messages">
         <!-- Student Query Bubble Row -->
-        <div class="free-user-bubble-row">
-          <div class="free-user-bubble">
+        <div class="sla-msg-row sla-user">
+          <div class="sla-msg-bubble">
             <span id="kyanaPromptText">Explain 3NF vs BCNF with a quick example</span>
           </div>
         </div>
 
         <!-- Kyana AI Answer Row -->
-        <div class="free-ai-bubble-row">
-          <div class="free-ai-avatar">KA</div>
-          <div class="free-ai-content">
-            <div class="free-ai-header-tag">
+        <div class="sla-msg-row sla-ai">
+          <div class="sla-msg-avatar">KA</div>
+          <div class="sla-msg-bubble">
+            <div class="sla-bubble-header">
               <span class="kyana-ai-pulse-dot"></span>
               <span>KYANA AI &bull; B.TECH CSE CURRICULUM COPILOT</span>
             </div>
-            <div class="free-ai-main-text" id="kyanaResponseText">
+            <div class="sla-ai-text" id="kyanaResponseText">
               <strong>3NF</strong> requires no transitive functional dependency. <strong>BCNF</strong> is stronger: for every non-trivial functional dependency <em>X &rarr; Y</em>, <em>X</em> must be a candidate super-key.
             </div>
             <div class="free-ai-points-grid" id="kyanaPointsList">
@@ -773,20 +851,20 @@
         </div>
       </div>
 
-      <!-- Prompt Input Bar Mockup -->
-      <div class="free-prompt-mock-bar" onclick="window.location.href='chatbot.html'">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="opacity: 0.6;">
-          <circle cx="11" cy="11" r="8"></circle>
-          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-        </svg>
-        <div class="free-prompt-mock-input">Ask Kyana anything about your Gandaki University syllabus...</div>
-        <button type="button" class="free-prompt-send-btn">
-          <span>Ask Kyana</span>
-          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5">
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-            <polyline points="12 5 19 12 12 19"></polyline>
-          </svg>
-        </button>
+      <!-- Input Footer Capsule (chatbot.html .sla-input-capsule) -->
+      <div class="sla-panel-footer" style="margin-top: 20px;">
+        <form class="sla-input-capsule" onclick="window.location.href='chatbot.html'">
+          <textarea class="sla-input-textarea" placeholder="Ask Kyana AI a question…" rows="1" readonly>Ask Kyana anything about your Gandaki University syllabus…</textarea>
+          <button type="button" class="sla-send-btn" title="Ask Kyana">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+          </button>
+        </form>
+        <div class="sla-disclaimer-text">
+          BIT notes, coding help, and live search in one place.
+        </div>
       </div>
 
       <!-- Clearance Bar -->
@@ -804,6 +882,7 @@
 
   <!-- ==========================================================================
        SHOWCASE STAGE 2: ONLINE CLOUD COMPILER & CODE LAB (FREE-STANDING)
+       Directly mirrors public/code-lab/index.html components and design
        ========================================================================== -->
   <section class="ag-showcase-stage" id="compilerFreeShowcase">
     <div class="ag-stage-header">
@@ -820,7 +899,7 @@
       </p>
     </div>
 
-    <!-- Free-Standing Developer Workbench -->
+    <!-- Free-Standing Developer Workbench (Mirrors code-lab/index.html) -->
     <div class="free-compiler-workbench">
       <div class="free-compiler-topbar">
         <div style="display: flex; align-items: center; gap: 8px;">
@@ -839,9 +918,12 @@
         <span style="font-size: 11px; font-weight: 700; color: #a1a1a6; letter-spacing: 0.04em;">ISOLATED RUNTIME</span>
       </div>
 
-      <!-- Split Layout: Editor & Terminal Pane -->
-      <div class="free-compiler-split">
-        <!-- Editor Left -->
+      <!-- Actual Code Lab Editor Container (.codelab-editor-wrap) -->
+      <div class="codelab-editor-wrap bento-editor-wrap">
+        <div class="codelab-editor-label">
+          <span class="dot"></span>
+          <span id="compilerLangLabel">C++ 13 (GCC 13.2) &middot; main.cpp</span>
+        </div>
         <div class="free-compiler-editor" id="compilerCodeSnippet">
           <div class="compiler-code-line"><span class="compiler-ln">1</span><span><span class="compiler-kw">#include</span> <span class="compiler-str">&lt;iostream&gt;</span></span></div>
           <div class="compiler-code-line"><span class="compiler-ln">2</span><span><span class="compiler-kw">using namespace</span> std;</span></div>
@@ -851,22 +933,34 @@
           <div class="compiler-code-line"><span class="compiler-ln">6</span><span>    <span class="compiler-kw">return</span> 0;</span></div>
           <div class="compiler-code-line"><span class="compiler-ln">7</span><span>}</span></div>
         </div>
+      </div>
 
-        <!-- Terminal Right -->
-        <div class="free-compiler-terminal-pane">
-          <div class="free-terminal-header">
-            <span>TERMINAL STDOUT</span>
-            <button type="button" class="free-compiler-run-btn" id="compilerDemoRunBtn">
-              <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
-                <polygon points="5 3 19 12 5 21 5 3"></polygon>
-              </svg>
-              <span>RUN CODE</span>
-            </button>
-          </div>
-          <div class="free-terminal-body" id="compilerDemoOutput">
-            <span class="compiler-term-success">&gt; Compilation finished in 0.04s (exit code 0)</span><br>
-            <span>Output: Gandaki University Code Lab Active!</span>
-          </div>
+      <!-- Actual Code Lab Stdin (.codelab-stdin-wrap) -->
+      <div class="codelab-stdin-wrap" style="margin-top: 14px;">
+        <div class="codelab-stdin-label">CUSTOM INPUT / STDIN</div>
+        <div class="codelab-stdin" style="color: #a1a1a6; font-size: 12.5px;">No standard input required for this routine</div>
+      </div>
+
+      <!-- Actual Code Lab Run Actions (.codelab-actions) -->
+      <div class="codelab-actions" style="margin-top: 16px;">
+        <button type="button" class="codelab-run-btn" id="compilerDemoRunBtn">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+          <span class="btn-label">Run Code</span>
+        </button>
+        <span style="font-size: 12px; color: #8e8e93;">Cloud container sandbox &middot; Instant compilation</span>
+      </div>
+
+      <!-- Actual Code Lab Output (.codelab-output-wrap) -->
+      <div class="codelab-output-wrap" style="margin-top: 16px;">
+        <div class="codelab-output-header">
+          <span class="codelab-output-title">OUTPUT</span>
+          <span class="codelab-exit-badge success">exit: 0</span>
+        </div>
+        <div class="codelab-output-body" id="compilerDemoOutput">
+          <div class="compiler-term-success">&gt; Compilation finished in 0.04s (exit code 0)</div>
+          <div style="margin-top: 4px; color: #ffffff; font-family: monospace;">Output: Gandaki University Code Lab Active!</div>
         </div>
       </div>
     </div>
@@ -885,6 +979,7 @@
 
   <!-- ==========================================================================
        SHOWCASE STAGE 3: LIVE PEER POST STATUS & ACADEMIC FEED (AT LAST)
+       Directly mirrors public/dashboard.html post cards and composer
        ========================================================================== -->
   <section class="ag-showcase-stage" id="postStatusFreeShowcase">
     <div class="ag-stage-header">
@@ -901,70 +996,98 @@
       </p>
     </div>
 
-    <!-- Free-Standing Social Feed Canvas -->
+    <!-- Free-Standing Social Feed Canvas (Mirrors dashboard.html) -->
     <div class="free-feed-container">
-      <!-- Composer Bar -->
-      <div class="free-composer-strip" onclick="window.location.href='portal.html'" title="Create a Post">
-        <div class="free-composer-avatar">GU</div>
-        <div class="free-composer-input">Post a status update, note, or question to Batch 2025...</div>
-        <button type="button" class="free-composer-action-btn">PUBLISH</button>
+      <!-- Actual Status Composer Bar (.dashboard-composer-strip) -->
+      <div class="dashboard-post-composer-bar" onclick="window.location.href='portal.html'" title="Create a Post">
+        <div class="dash-avatar">GU</div>
+        <div class="dash-composer-placeholder">Share notes, status or question with Batch 2025...</div>
+        <button type="button" class="dash-post-btn">Post</button>
       </div>
 
-      <!-- Verified Student Post Card -->
-      <div class="free-post-card">
-        <div class="free-post-header">
-          <div class="free-post-author-row">
-            <div class="free-composer-avatar" style="background: rgba(255,255,255,0.15); color: #fff;">SS</div>
-            <div>
-              <div class="free-post-author-name">Saugat Sharma</div>
-              <div class="free-post-author-meta">Gandaki University &bull; B.Tech CSE &bull; 10m ago</div>
+      <!-- Actual Website Component: Verified Status Post Card (dashboard.html) -->
+      <article class="feed-card social-post-card post-card status-post-card notice" data-post-id="101">
+        <a href="portal.html" class="post-avatar" aria-label="View Saugat Sharma's profile">SS</a>
+        <div class="post-main post-body">
+          <header class="post-header">
+            <div class="post-user-info">
+              <div class="post-author-row">
+                <a href="portal.html" class="post-author-name">Saugat Sharma</a>
+                <span class="post-verified-badge post-admin-badge" title="Verified System Administrator">
+                  <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
+                  Admin
+                </span>
+              </div>
+              <div class="post-meta-row">
+                <span class="post-student-handle">@saugat</span>
+                <span class="post-meta-sep">&middot;</span>
+                <time class="post-timestamp">10m ago</time>
+              </div>
+            </div>
+          </header>
+
+          <div class="post-content">
+            <div class="post-content-unclamped">
+              <p class="status-post-text">
+                Just finalized the comprehensive Operating Systems Unit 4 (Memory Management, Virtual Paging &amp; TLB Hits) handwritten revision notes with previous year question solutions. Download and review before tomorrow's lecture:
+              </p>
             </div>
           </div>
-          <span class="ag-stage-badge" style="padding: 3px 10px; font-size: 10px;">VERIFIED NOTE</span>
-        </div>
 
-        <p class="free-post-caption">
-          Just finalized the comprehensive Operating Systems Unit 4 (Memory Management, Virtual Paging &amp; TLB Hits) handwritten revision notes with previous year question solutions. Download and review before tomorrow's lecture:
-        </p>
-
-        <!-- Downloadable Attachment Asset -->
-        <div class="free-post-attachment-box" onclick="window.location.href='portal.html'">
-          <div class="free-post-attachment-info">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-              <polyline points="14 2 14 8 20 8"></polyline>
-            </svg>
-            <span>OS_Unit4_Paging_Solutions.pdf (3.4 MB)</span>
+          <!-- Downloadable File Attachment Asset (from dashboard.html) -->
+          <div class="file-attachment" style="margin-top: 14px;">
+            <div class="file-icon pdf">
+              <span>PDF</span>
+            </div>
+            <div class="file-info">
+              <p class="file-name" title="OS_Unit4_Paging_Solutions.pdf">OS_Unit4_Paging_Solutions.pdf</p>
+              <span class="file-meta">3.4 MB &middot; PDF Resource</span>
+            </div>
+            <div class="file-actions">
+              <a href="portal.html" class="file-action" title="Preview file">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                <span>View</span>
+              </a>
+              <a href="portal.html" class="file-action primary" title="Download">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                <span>Get</span>
+              </a>
+            </div>
           </div>
-          <span class="free-attachment-dl-pill">Download Note &darr;</span>
-        </div>
 
-        <!-- Interactive Engagement Deck -->
-        <div class="free-post-actions-deck">
-          <button type="button" class="post-interactive-like-btn" id="postDemoLikeBtn" title="React with Heart">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" id="postDemoHeartIcon">
-              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
-            </svg>
-            <span id="postDemoLikeCount">42</span>
-          </button>
-          <button type="button" class="post-comment-btn" onclick="window.location.href='portal.html'" title="Comments">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-            </svg>
-            <span>8 comments</span>
-          </button>
-          <button type="button" class="post-share-btn" id="postDemoShareBtn" title="Share link">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="18" cy="5" r="3"></circle>
-              <circle cx="6" cy="12" r="3"></circle>
-              <circle cx="18" cy="19" r="3"></circle>
-              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
-              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
-            </svg>
-            <span id="postDemoShareText">Share</span>
-          </button>
+          <!-- Post Footer Actions (from dashboard.html) -->
+          <footer class="post-actions post-footer" style="margin-top: 16px;">
+            <button type="button" class="action-btn like-btn liked" id="postDemoLikeBtn" title="React with Heart">
+              <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.8"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>
+              <span class="like-count" id="postDemoLikeCount">42</span>
+            </button>
+            <button type="button" class="action-btn comment-btn" onclick="window.location.href='portal.html'" title="Comments">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 8.4 8.4 0 0 1-3.5-.75L3 21l1.8-5.4A8.4 8.4 0 0 1 4 12.5 8.5 8.5 0 1 1 21 11.5z"/></svg>
+              <span class="comment-count">8</span>
+            </button>
+            <button type="button" class="action-btn share-btn" id="postDemoShareBtn" title="Share link">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13"/></svg>
+            </button>
+          </footer>
+
+          <!-- Replies Drawer Preview (from dashboard.html) -->
+          <div class="post-comments-drawer open" style="margin-top: 14px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 12px;">
+            <div class="post-comments-header-row" style="margin-bottom: 8px;">
+              <span class="post-comments-title" style="font-size: 12px; font-weight: 700; color: #a1a1a6;">Replies (1)</span>
+            </div>
+            <div class="post-comment-preview-item" style="display: flex; gap: 10px; align-items: flex-start;">
+              <div class="comment-avatar" style="width: 28px; height: 28px; border-radius: 50%; background: #222; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #fff; flex-shrink: 0;">A</div>
+              <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 8px 12px; flex: 1;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                  <strong style="font-size: 12.5px; color: #fff;">Aayush Shrestha</strong>
+                  <time style="font-size: 10.5px; color: #8e8e93;">5m ago</time>
+                </div>
+                <p style="font-size: 12.5px; color: #d1d1d6; margin: 0; line-height: 1.4;">These paging formulas are super clear. Thanks for sharing!</p>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      </article>
 
       <!-- Clearance Bar -->
       <div class="free-stage-clearance-bar">
@@ -1277,16 +1400,27 @@
       }
     }
 
-    // 6. Interactive Semester Node Switcher with Dynamic Fade-Flip
-    function switchSemNode(btn, descText) {
+    // 6. Interactive Semester Node Switcher with Dynamic Card Update (syllabus.html preview)
+    function switchSemNode(btn, semTag, c1, c2, c3, moreCount, credits) {
       document.querySelectorAll('#semesterRoadmap .roadmap-pill').forEach(el => el.classList.remove('active'));
       btn.classList.add('active');
-      const descEl = document.getElementById('semesterLiveDesc');
-      if (descEl) {
-        descEl.textContent = descText;
-        descEl.style.animation = 'none';
-        descEl.offsetHeight; // trigger reflow
-        descEl.style.animation = 'appleHeroReveal 0.35s cubic-bezier(0.16, 1, 0.3, 1) both';
+      const tagEl = document.getElementById('semCardTag');
+      const titleEl = document.getElementById('semCardTitle');
+      const creditsEl = document.getElementById('semCardCredits');
+      const listEl = document.getElementById('semCardList');
+      if (tagEl && semTag) {
+        const parts = semTag.split('·');
+        tagEl.textContent = (parts[1] || parts[0]).trim();
+      }
+      if (titleEl && semTag) titleEl.innerHTML = semTag;
+      if (creditsEl && credits) creditsEl.textContent = credits;
+      if (listEl && c1) {
+        listEl.innerHTML = `
+          <li>${c1}</li>
+          <li>${c2}</li>
+          <li>${c3}</li>
+          <li class="preview-more">${moreCount}</li>
+        `;
       }
     }
 
@@ -1488,6 +1622,16 @@
           currentLang = lang;
           tabs.forEach(t => t.classList.remove('active'));
           tab.classList.add('active');
+
+          const labelEl = document.getElementById('compilerLangLabel');
+          if (labelEl) {
+            const labels = {
+              cpp: 'C++ 13 (GCC 13.2) · main.cpp',
+              python: 'Python 3 (v3.12) · evaluate.py',
+              js: 'JavaScript (Node.js 20) · app.js'
+            };
+            labelEl.textContent = labels[lang] || lang;
+          }
 
           if (codeSnippetEl) {
             codeSnippetEl.innerHTML = snippets[lang].code.trim();

@@ -14981,44 +14981,169 @@ body:not(.dark-mode) .free-terminal-header {
 body:not(.dark-mode) .free-compiler-run-btn {
   background: #000000;
   color: #ffffff;
-  border-color:/* ==========================================================================
+  border-color: #000000;
+}
+
+/* ==========================================================================
    AUTHENTIC WEBSITE COMPONENT STYLES FOR BENTO TEMPLATES & SHOWCASES
    Strictly Monochrome / Grayscale (Black, White, Grayscale)
    Mirrors dashboard.html, routine.html, notices.html, syllabus.html, chat.html,
    chatbot.html, code-lab/index.html, and settings.html
    ========================================================================== */
 
+/* Shared Bento Animations & Indicator Badges */
+@keyframes bentoBeaconPulse {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7); }
+  70% { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(255, 255, 255, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
+}
+
+@keyframes bentoPostFloat {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes bentoScanline {
+  0% { transform: translateX(-100%); }
+  50%, 100% { transform: translateX(100%); }
+}
+
+@keyframes bentoTypingBounce {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.35; }
+  40% { transform: translateY(-5px); opacity: 1; }
+}
+
+.bento-live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+  margin-left: auto;
+}
+
+body:not(.dark-mode) .bento-live-badge {
+  background: #f2f2f7;
+  border-color: rgba(0, 0, 0, 0.12);
+  color: #000000;
+}
+
+.bento-beacon-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ffffff;
+  display: inline-block;
+  animation: bentoBeaconPulse 2s infinite ease-in-out;
+}
+
+body:not(.dark-mode) .bento-beacon-dot {
+  background: #000000;
+}
+
 /* 1. Bento Grid Card 1: Feed Post Card Preview (.bento-preview-post) */
 .bento-preview-post {
-  background: rgba(18, 19, 24, 0.85) !important;
-  border: 1px solid rgba(255, 255, 255, 0.14) !important;
-  border-radius: 18px !important;
-  padding: 20px 22px 18px !important;
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45) !important;
+  background: rgba(18, 19, 24, 0.95) !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  border-radius: 20px !important;
+  padding: 22px 24px 20px !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.48), 0 0 0 1px rgba(255, 255, 255, 0.04) !important;
   margin: 0 !important;
   width: 100% !important;
   max-width: 440px !important;
+  animation: bentoPostFloat 6s ease-in-out infinite !important;
   transition: transform 0.25s ease, border-color 0.25s ease !important;
 }
 
 body:not(.dark-mode) .bento-preview-post {
   background: #ffffff !important;
   border-color: rgba(0, 0, 0, 0.12) !important;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.08) !important;
 }
 
 .bento-preview-post:hover {
-  border-color: rgba(255, 255, 255, 0.28) !important;
-  transform: translateY(-2px) !important;
+  border-color: rgba(255, 255, 255, 0.35) !important;
+  transform: translateY(-4px) !important;
 }
 
-.bento-preview-post .post-avatar {
+body:not(.dark-mode) .bento-preview-post:hover {
+  border-color: rgba(0, 0, 0, 0.25) !important;
+}
+
+.bento-post-top-strip {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  margin-bottom: 12px !important;
+  padding-bottom: 10px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+body:not(.dark-mode) .bento-post-top-strip {
+  border-bottom-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+.bento-verified-stream-pill {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  font-size: 10px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.05em !important;
+  color: #ffffff !important;
+}
+
+body:not(.dark-mode) .bento-verified-stream-pill {
+  color: #111111 !important;
+}
+
+.bento-post-sem-badge {
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  padding: 2px 8px !important;
+  border-radius: 9999px !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  color: #ffffff !important;
+}
+
+body:not(.dark-mode) .bento-post-sem-badge {
+  background: #f2f2f7 !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+  color: #111111 !important;
+}
+
+.post-header-main {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  margin-bottom: 10px !important;
+}
+
+.bento-avatar {
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 50% !important;
   background: #222329 !important;
   color: #ffffff !important;
-  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  font-weight: 800 !important;
+  font-size: 15px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.18) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35) !important;
+  text-decoration: none !important;
+  flex-shrink: 0 !important;
 }
 
-body:not(.dark-mode) .bento-preview-post .post-avatar {
+body:not(.dark-mode) .bento-avatar {
   background: #111111 !important;
   color: #ffffff !important;
   border-color: #111111 !important;
@@ -15026,8 +15151,9 @@ body:not(.dark-mode) .bento-preview-post .post-avatar {
 
 .bento-preview-post .post-author-name {
   color: #ffffff !important;
-  font-size: 14.5px !important;
+  font-size: 14px !important;
   font-weight: 700 !important;
+  text-decoration: none !important;
 }
 
 body:not(.dark-mode) .bento-preview-post .post-author-name {
@@ -15035,16 +15161,17 @@ body:not(.dark-mode) .bento-preview-post .post-author-name {
 }
 
 .bento-preview-post .post-verified-badge {
-  background: rgba(255, 255, 255, 0.12) !important;
+  background: rgba(255, 255, 255, 0.14) !important;
   color: #ffffff !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
-  font-size: 10.5px !important;
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  font-size: 10px !important;
   font-weight: 700 !important;
   padding: 2px 7px !important;
   border-radius: 9999px !important;
   display: inline-flex !important;
   align-items: center !important;
-  gap: 4px !important;
+  gap: 3px !important;
+  margin-left: 6px !important;
 }
 
 body:not(.dark-mode) .bento-preview-post .post-verified-badge {
@@ -15053,8 +15180,22 @@ body:not(.dark-mode) .bento-preview-post .post-verified-badge {
   border-color: #000000 !important;
 }
 
+.bento-preview-post .post-meta-row {
+  display: flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  font-size: 11px !important;
+  color: #8e8e93 !important;
+  margin-top: 1px !important;
+}
+
+.bento-preview-post .post-program-tag {
+  color: #a1a1a6 !important;
+  font-weight: 600 !important;
+}
+
 .bento-preview-post .post-title {
-  font-size: 13.5px !important;
+  font-size: 14px !important;
   font-weight: 700 !important;
   color: #ffffff !important;
   margin: 8px 0 6px !important;
@@ -15065,10 +15206,21 @@ body:not(.dark-mode) .bento-preview-post .post-title {
   color: #111111 !important;
 }
 
+.bento-post-excerpt {
+  font-size: 12px !important;
+  line-height: 1.5 !important;
+  color: #a1a1a6 !important;
+  margin: 0 0 10px !important;
+}
+
+body:not(.dark-mode) .bento-post-excerpt {
+  color: #48484a !important;
+}
+
 .bento-preview-post .post-tags {
   display: flex !important;
   gap: 6px !important;
-  margin-bottom: 10px !important;
+  margin-bottom: 12px !important;
 }
 
 .bento-preview-post .post-tag {
@@ -15088,8 +15240,8 @@ body:not(.dark-mode) .bento-preview-post .post-tag {
 }
 
 .bento-attachment {
-  background: rgba(255, 255, 255, 0.04) !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
   border-radius: 12px !important;
   padding: 10px 14px !important;
   display: flex !important;
@@ -15179,16 +15331,16 @@ body:not(.dark-mode) .bento-attachment .file-action.primary {
   border-color: #000000 !important;
 }
 
-.bento-preview-post .post-actions {
+.bento-post-footer {
   display: flex !important;
   align-items: center !important;
-  gap: 16px !important;
-  margin-top: 12px !important;
-  padding-top: 10px !important;
+  gap: 18px !important;
+  margin-top: 14px !important;
+  padding-top: 12px !important;
   border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 
-body:not(.dark-mode) .bento-preview-post .post-actions {
+body:not(.dark-mode) .bento-post-footer {
   border-top-color: rgba(0, 0, 0, 0.08) !important;
 }
 
@@ -15203,11 +15355,12 @@ body:not(.dark-mode) .bento-preview-post .post-actions {
   gap: 5px !important;
   cursor: pointer !important;
   padding: 4px 0 !important;
-  transition: color 0.2s ease !important;
+  transition: color 0.2s ease, transform 0.15s ease !important;
 }
 
 .bento-preview-post .action-btn:hover {
   color: #ffffff !important;
+  transform: scale(1.08) !important;
 }
 
 body:not(.dark-mode) .bento-preview-post .action-btn:hover {
@@ -15223,6 +15376,54 @@ body:not(.dark-mode) .bento-preview-post .action-btn.liked {
 }
 
 /* 2. Bento Grid Card 2: Exam Routine & Schedule (routine.html) */
+.bento-routine-filter-bar {
+  display: flex !important;
+  gap: 6px !important;
+  margin-bottom: 12px !important;
+}
+
+.bento-routine-tab {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #8e8e93 !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  padding: 4px 12px !important;
+  border-radius: 9999px !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+}
+
+body:not(.dark-mode) .bento-routine-tab {
+  background: #f2f2f7 !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+  color: #636366 !important;
+}
+
+.bento-routine-tab:hover {
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+body:not(.dark-mode) .bento-routine-tab:hover {
+  color: #000000 !important;
+  border-color: rgba(0, 0, 0, 0.25) !important;
+}
+
+.bento-routine-tab.active {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border-color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(255, 255, 255, 0.25) !important;
+}
+
+body:not(.dark-mode) .bento-routine-tab.active {
+  background: #000000 !important;
+  color: #ffffff !important;
+  border-color: #000000 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+}
+
 .bento-exam-info {
   display: flex !important;
   align-items: center !important;
@@ -15267,12 +15468,14 @@ body:not(.dark-mode) .bento-exam-info strong {
   display: flex !important;
   align-items: center !important;
   gap: 14px !important;
-  background: rgba(255, 255, 255, 0.03) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
   border-radius: 14px !important;
   padding: 12px 14px !important;
   margin-bottom: 10px !important;
   transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease !important;
+  min-height: unset !important;
+  grid-template-columns: unset !important;
 }
 
 body:not(.dark-mode) .bento-exam-row {
@@ -15282,101 +15485,184 @@ body:not(.dark-mode) .bento-exam-row {
 }
 
 .bento-exam-row:hover {
-  background: rgba(255, 255, 255, 0.06) !important;
-  border-color: rgba(255, 255, 255, 0.2) !important;
-  transform: translateY(-1px) !important;
+  background: rgba(255, 255, 255, 0.07) !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+  transform: translateY(-2px) !important;
 }
 
 body:not(.dark-mode) .bento-exam-row:hover {
   background: #fcfcfd !important;
-  border-color: rgba(0, 0, 0, 0.18) !important;
+  border-color: rgba(0, 0, 0, 0.2) !important;
 }
 
-.bento-exam-row .exam-date {
+.bento-ticket-date {
   display: flex !important;
   flex-direction: column !important;
   align-items: center !important;
   justify-content: center !important;
-  min-width: 48px !important;
-  padding: 6px 8px !important;
-  background: rgba(255, 255, 255, 0.06) !important;
-  border-radius: 10px !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  min-width: 58px !important;
+  padding: 8px 10px !important;
+  background: rgba(255, 255, 255, 0.07) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  border-radius: 12px !important;
+  text-align: center !important;
+  flex-shrink: 0 !important;
 }
 
-body:not(.dark-mode) .bento-exam-row .exam-date {
+body:not(.dark-mode) .bento-ticket-date {
   background: #f2f2f7 !important;
   border-color: rgba(0, 0, 0, 0.1) !important;
 }
 
-.bento-exam-row .date-day {
-  font-size: 16px !important;
+.bento-date-day {
+  font-size: 20px !important;
   font-weight: 800 !important;
   color: #ffffff !important;
   line-height: 1 !important;
+  letter-spacing: -0.02em !important;
 }
 
-body:not(.dark-mode) .bento-exam-row .date-day {
+body:not(.dark-mode) .bento-date-day {
   color: #111111 !important;
 }
 
-.bento-exam-row .date-month {
-  font-size: 9.5px !important;
-  font-weight: 600 !important;
-  color: #8e8e93 !important;
+.bento-date-month {
+  font-size: 9px !important;
+  font-weight: 700 !important;
+  color: #a1a1a6 !important;
   margin-top: 3px !important;
-  white-space: nowrap !important;
+  letter-spacing: 0.05em !important;
 }
 
-.bento-exam-row .exam-details {
+.bento-date-year {
+  font-size: 9px !important;
+  font-weight: 600 !important;
+  color: #71717a !important;
+}
+
+.bento-ticket-details {
   flex: 1 !important;
   min-width: 0 !important;
+  padding: 0 !important;
 }
 
-.bento-exam-row .semester-tag {
+.bento-ticket-meta-row {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 6px !important;
+  margin-bottom: 4px !important;
+}
+
+.bento-countdown-chip {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  font-size: 9.5px !important;
+  font-weight: 800 !important;
+  padding: 2px 7px !important;
+  border-radius: 9999px !important;
+  background: #ffffff !important;
+  color: #000000 !important;
+  letter-spacing: 0.04em !important;
+}
+
+body:not(.dark-mode) .bento-countdown-chip {
+  background: #000000 !important;
+  color: #ffffff !important;
+}
+
+.bento-status-tag {
+  display: inline-flex !important;
+  align-items: center !important;
+  font-size: 9.5px !important;
+  font-weight: 700 !important;
+  padding: 2px 7px !important;
+  border-radius: 9999px !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #d1d1d6 !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+}
+
+body:not(.dark-mode) .bento-status-tag {
+  background: #f2f2f7 !important;
+  color: #3a3a3c !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+.bento-course-code {
   font-size: 10px !important;
   font-weight: 700 !important;
-  text-transform: uppercase !important;
-  letter-spacing: 0.04em !important;
-  color: #a1a1a6 !important;
-  display: inline-block !important;
-  margin-bottom: 2px !important;
+  color: #8e8e93 !important;
+  font-family: monospace !important;
 }
 
-.bento-exam-row h2 {
+.bento-ticket-title {
   font-size: 13.5px !important;
   font-weight: 700 !important;
   color: #ffffff !important;
-  margin: 0 !important;
+  margin: 0 0 4px !important;
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
 }
 
-body:not(.dark-mode) .bento-exam-row h2 {
+body:not(.dark-mode) .bento-ticket-title {
   color: #111111 !important;
 }
 
-.bento-exam-row p {
+.bento-ticket-submeta {
+  display: flex !important;
+  align-items: center !important;
+  gap: 5px !important;
   font-size: 11px !important;
   color: #8e8e93 !important;
-  margin: 2px 0 0 !important;
+}
+
+.bento-ticket-submeta .meta-dot {
+  opacity: 0.5 !important;
 }
 
 /* 3. Bento Grid Card 3: Official Notice (notices.html) */
 .bento-notice-card {
+  position: relative !important;
+  overflow: hidden !important;
   background: rgba(255, 255, 255, 0.03) !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
-  border-radius: 16px !important;
-  padding: 16px 18px !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  border-radius: 18px !important;
+  padding: 18px 20px !important;
   display: flex !important;
   flex-direction: column !important;
   gap: 10px !important;
+  transition: transform 0.25s ease, border-color 0.25s ease !important;
 }
 
 body:not(.dark-mode) .bento-notice-card {
   background: #ffffff !important;
   border-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+.bento-notice-card:hover {
+  transform: translateY(-2px) !important;
+  border-color: rgba(255, 255, 255, 0.28) !important;
+}
+
+body:not(.dark-mode) .bento-notice-card:hover {
+  border-color: rgba(0, 0, 0, 0.22) !important;
+}
+
+.bento-notice-glow-bar {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  height: 2px !important;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent) !important;
+  animation: bentoScanline 3.5s ease-in-out infinite !important;
+}
+
+body:not(.dark-mode) .bento-notice-glow-bar {
+  background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.6), transparent) !important;
 }
 
 .bento-notice-card .section-card-title {
@@ -15402,14 +15688,49 @@ body:not(.dark-mode) .bento-notice-card .section-body-text {
   color: #48484a !important;
 }
 
+.bento-notice-attachment-chip {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 8px 12px !important;
+  border-radius: 10px !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  font-size: 11px !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  margin-top: 4px !important;
+}
+
+body:not(.dark-mode) .bento-notice-attachment-chip {
+  background: #f7f7f9 !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  color: #111111 !important;
+}
+
+.bento-notice-check {
+  margin-left: auto !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.14) !important;
+  padding: 2px 7px !important;
+  border-radius: 9999px !important;
+}
+
+body:not(.dark-mode) .bento-notice-check {
+  background: #000000 !important;
+  color: #ffffff !important;
+}
+
 /* 4. Bento Grid Card 4: Syllabus Architecture Card (syllabus.html) */
 .bento-syllabus-card {
   background: rgba(255, 255, 255, 0.03) !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
-  border-radius: 16px !important;
-  padding: 18px 20px !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  border-radius: 18px !important;
+  padding: 20px 22px !important;
   margin-top: 14px !important;
-  transition: border-color 0.25s ease !important;
+  transition: border-color 0.25s ease, transform 0.25s ease !important;
 }
 
 body:not(.dark-mode) .bento-syllabus-card {
@@ -15417,11 +15738,26 @@ body:not(.dark-mode) .bento-syllabus-card {
   border-color: rgba(0, 0, 0, 0.1) !important;
 }
 
+.bento-syllabus-card:hover {
+  border-color: rgba(255, 255, 255, 0.25) !important;
+  transform: translateY(-2px) !important;
+}
+
+body:not(.dark-mode) .bento-syllabus-card:hover {
+  border-color: rgba(0, 0, 0, 0.2) !important;
+}
+
 .bento-syllabus-card .sem-card-header {
   display: flex !important;
   justify-content: space-between !important;
   align-items: center !important;
   margin-bottom: 8px !important;
+}
+
+.bento-syllabus-card .sem-card-header-left {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
 }
 
 .bento-syllabus-card .sem-pill-tag {
@@ -15446,6 +15782,22 @@ body:not(.dark-mode) .bento-syllabus-card .sem-pill-tag {
   color: #8e8e93 !important;
 }
 
+.sem-phase-pill {
+  font-size: 10.5px !important;
+  font-weight: 700 !important;
+  padding: 3px 9px !important;
+  border-radius: 9999px !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  color: #d1d1d6 !important;
+}
+
+body:not(.dark-mode) .sem-phase-pill {
+  background: #f2f2f7 !important;
+  color: #3a3a3c !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+}
+
 .bento-syllabus-card .sem-card-title {
   font-size: 15px !important;
   font-weight: 700 !important;
@@ -15460,60 +15812,139 @@ body:not(.dark-mode) .bento-syllabus-card .sem-card-title {
 .bento-syllabus-card .sem-card-desc {
   font-size: 12px !important;
   color: #8e8e93 !important;
-  margin: 0 0 10px !important;
+  margin: 0 0 12px !important;
 }
 
-.bento-syllabus-card .sem-preview-list {
-  list-style: none !important;
-  padding: 0 !important;
-  margin: 0 !important;
+.bento-syllabus-courses-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important;
+  gap: 8px !important;
+  margin: 12px 0 14px !important;
+}
+
+.bento-course-item {
   display: flex !important;
-  flex-direction: column !important;
-  gap: 5px !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  padding: 8px 12px !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 10px !important;
+  font-size: 11.5px !important;
 }
 
-.bento-syllabus-card .sem-preview-list li {
-  font-size: 12px !important;
-  color: #d1d1d6 !important;
-  position: relative !important;
-  padding-left: 14px !important;
+body:not(.dark-mode) .bento-course-item {
+  background: #f9f9fb !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
 }
 
-body:not(.dark-mode) .bento-syllabus-card .sem-preview-list li {
-  color: #3a3a3c !important;
-}
-
-.bento-syllabus-card .sem-preview-list li::before {
-  content: "·" !important;
-  position: absolute !important;
-  left: 4px !important;
-  top: -1px !important;
-  font-size: 14px !important;
+.bento-course-bullet {
+  font-size: 9px !important;
   color: #8e8e93 !important;
+  margin-right: 4px !important;
 }
 
-.bento-syllabus-card .sem-preview-list li.preview-more {
-  color: #8e8e93 !important;
+.bento-course-name {
   font-weight: 600 !important;
+  color: #ffffff !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  flex: 1 !important;
+}
+
+body:not(.dark-mode) .bento-course-name {
+  color: #111111 !important;
+}
+
+.bento-course-pill {
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  color: #8e8e93 !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  padding: 2px 6px !important;
+  border-radius: 6px !important;
+  white-space: nowrap !important;
+}
+
+body:not(.dark-mode) .bento-course-pill {
+  background: #eeeeee !important;
+  color: #555555 !important;
+}
+
+.bento-syllabus-meter-wrap {
+  margin-top: 10px !important;
+  padding-top: 12px !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+body:not(.dark-mode) .bento-syllabus-meter-wrap {
+  border-top-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+.bento-meter-labels {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  font-size: 11px !important;
+  color: #a1a1a6 !important;
+  margin-bottom: 6px !important;
+}
+
+body:not(.dark-mode) .bento-meter-labels {
+  color: #636366 !important;
+}
+
+.bento-meter-track {
+  height: 6px !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-radius: 9999px !important;
+  overflow: hidden !important;
+}
+
+body:not(.dark-mode) .bento-meter-track {
+  background: #e5e5ea !important;
+}
+
+.bento-meter-fill {
+  height: 100% !important;
+  background: #ffffff !important;
+  border-radius: 9999px !important;
+  transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+body:not(.dark-mode) .bento-meter-fill {
+  background: #000000 !important;
 }
 
 /* 5. Bento Grid Card 5: Realtime Chat Preview (.bento-chat-preview) */
 .bento-chat-preview {
   background: #0d0e12 !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
-  border-radius: 18px !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  border-radius: 20px !important;
   overflow: hidden !important;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45) !important;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5) !important;
   display: flex !important;
   flex-direction: column !important;
   max-width: 440px !important;
   width: 100% !important;
+  transition: transform 0.25s ease, border-color 0.25s ease !important;
 }
 
 body:not(.dark-mode) .bento-chat-preview {
   background: #ffffff !important;
   border-color: rgba(0, 0, 0, 0.1) !important;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08) !important;
+}
+
+.bento-chat-preview:hover {
+  transform: translateY(-2px) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+body:not(.dark-mode) .bento-chat-preview:hover {
+  border-color: rgba(0, 0, 0, 0.22) !important;
 }
 
 .bento-chat-preview .im-header {
@@ -15559,6 +15990,23 @@ body:not(.dark-mode) .bento-chat-preview .im-contact-name {
   color: #111111 !important;
 }
 
+.bento-batch-pill {
+  font-size: 9.5px !important;
+  font-weight: 700 !important;
+  padding: 2px 7px !important;
+  border-radius: 9999px !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  color: #d1d1d6 !important;
+  margin-left: 6px !important;
+}
+
+body:not(.dark-mode) .bento-batch-pill {
+  background: #f2f2f7 !important;
+  color: #3a3a3c !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+}
+
 .bento-chat-preview .im-chat-submeta {
   font-size: 10.5px !important;
   color: #8e8e93 !important;
@@ -15572,6 +16020,9 @@ body:not(.dark-mode) .bento-chat-preview .im-contact-name {
   background: #ffffff !important;
   color: #000000 !important;
   letter-spacing: 0.05em !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
 }
 
 body:not(.dark-mode) .bento-chat-preview .im-status-pill {
@@ -15656,6 +16107,18 @@ body:not(.dark-mode) .bento-feed .im-row.self .im-bubble {
   text-align: right !important;
 }
 
+.typing-dots span {
+  animation: bentoTypingBounce 1.4s infinite ease-in-out both !important;
+}
+
+.typing-dots span:nth-child(1) {
+  animation-delay: -0.32s !important;
+}
+
+.typing-dots span:nth-child(2) {
+  animation-delay: -0.16s !important;
+}
+
 .bento-composer {
   padding: 10px 14px !important;
   background: rgba(255, 255, 255, 0.02) !important;
@@ -15670,16 +16133,39 @@ body:not(.dark-mode) .bento-composer {
 .bento-composer .im-composer-inner {
   display: flex !important;
   align-items: center !important;
-  gap: 10px !important;
+  gap: 8px !important;
   background: rgba(255, 255, 255, 0.05) !important;
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
   border-radius: 9999px !important;
-  padding: 6px 14px !important;
+  padding: 6px 12px !important;
 }
 
 body:not(.dark-mode) .bento-composer .im-composer-inner {
   background: #ffffff !important;
   border-color: rgba(0, 0, 0, 0.12) !important;
+}
+
+.im-plus-btn {
+  width: 22px !important;
+  height: 22px !important;
+  border-radius: 50% !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  color: #ffffff !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  flex-shrink: 0 !important;
+  padding: 0 !important;
+}
+
+body:not(.dark-mode) .im-plus-btn {
+  background: #f2f2f7 !important;
+  color: #000000 !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
 }
 
 .bento-composer .im-mock-input {

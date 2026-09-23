@@ -147,7 +147,7 @@
     <!-- Apple Bento Feature Showcase Grid -->
     <div class="poster-bento-grid dynamic-shapes-grid apple-bento-grid" id="posterGrid">
 
-      <!-- Card 1: Wide Panorama Hero Card (2 Columns Wide) -->
+      <!-- Card 1: Wide Panorama Hero Card (Subject Notes & Community Feed) -->
       <div class="poster-card bento-shape-wide tilt-card apple-card bento-glow-card" data-card-idx="0">
         <div class="wide-card-layout">
           <div class="wide-card-content">
@@ -160,6 +160,7 @@
                 </svg>
               </div>
               <span class="apple-pill-tag kinetic-tag">STAT SYNC &bull; 01</span>
+              <span class="bento-live-badge"><span class="bento-beacon-dot"></span>LIVE STREAM</span>
             </div>
             <h3 class="poster-card-title apple-card-title">Subject Notes &amp; Community Feed</h3>
             <p class="poster-card-desc apple-card-text">
@@ -177,66 +178,83 @@
             </div>
           </div>
           <div class="wide-card-preview">
-            <!-- Actual Website Component: Feed Post Card (dashboard.html) -->
+            <!-- Actual Website Component: Feed Post Card (dashboard.html & portal.html) -->
             <article class="feed-card social-post-card post-card notice bento-preview-post">
-              <a href="portal.html" class="post-avatar" aria-label="View Aayush's profile">A</a>
-              <div class="post-main post-body">
-                <header class="post-header">
-                  <div class="post-user-info">
-                    <div class="post-author-row">
-                      <a href="portal.html" class="post-author-name">Aayush Shrestha</a>
-                      <span class="post-verified-badge post-admin-badge" title="Verified Note">
-                        <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
-                        Verified
-                      </span>
-                    </div>
-                    <div class="post-meta-row">
-                      <span class="post-student-handle">@aayush</span>
-                      <span class="post-meta-sep">&middot;</span>
-                      <time class="post-timestamp">10m ago</time>
-                    </div>
-                  </div>
-                </header>
-                <div class="post-content">
-                  <h3 class="post-title">Database Systems &middot; Chapter 4 Normalization</h3>
-                  <div class="post-tags">
-                    <span class="post-tag">Semester III</span>
-                    <span class="post-tag">DBMS</span>
-                  </div>
-                </div>
-                <div class="file-attachment bento-attachment">
-                  <div class="file-icon pdf">
-                    <span>PDF</span>
-                  </div>
-                  <div class="file-info">
-                    <p class="file-name" title="DBMS_Ch4_CheatSheet.pdf">DBMS_Ch4_CheatSheet.pdf</p>
-                    <span class="file-meta">4.2 MB &middot; PDF Resource</span>
-                  </div>
-                  <div class="file-actions">
-                    <a href="library.html" class="file-action" title="Preview file">
-                      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                      <span>View</span>
-                    </a>
-                    <a href="library.html" class="file-action primary" title="Download">
-                      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-                      <span>Get</span>
-                    </a>
-                  </div>
-                </div>
-                <footer class="post-actions post-footer">
-                  <button type="button" class="action-btn like-btn liked" id="mockLikeBtn" title="React with Heart">
-                    <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.8"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>
-                    <span class="like-count" id="mockLikeCount">42</span>
-                  </button>
-                  <button type="button" class="action-btn comment-btn" title="Replies">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 8.4 8.4 0 0 1-3.5-.75L3 21l1.8-5.4A8.4 8.4 0 0 1 4 12.5 8.5 8.5 0 1 1 21 11.5z"/></svg>
-                    <span class="comment-count">14</span>
-                  </button>
-                  <button type="button" class="action-btn share-btn" title="Share">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13"/></svg>
-                  </button>
-                </footer>
+              <div class="bento-post-top-strip">
+                <span class="bento-verified-stream-pill"><span class="bento-dot-pulse"></span>VERIFIED NOTE STREAM</span>
+                <span class="bento-post-sem-badge">SEMESTER III &bull; DBMS</span>
               </div>
+              <div class="post-header-main">
+                <a href="portal.html" class="post-avatar bento-avatar" aria-label="View Aayush's profile">A</a>
+                <div class="post-user-info">
+                  <div class="post-author-row">
+                    <a href="portal.html" class="post-author-name">Aayush Shrestha</a>
+                    <span class="post-verified-badge" title="Verified Note Author">
+                      <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
+                      Verified
+                    </span>
+                  </div>
+                  <div class="post-meta-row">
+                    <span class="post-student-handle">@aayush</span>
+                    <span class="post-meta-sep">&middot;</span>
+                    <time class="post-timestamp">10m ago</time>
+                    <span class="post-meta-sep">&middot;</span>
+                    <span class="post-program-tag">BIT Gandaki Univ</span>
+                  </div>
+                </div>
+              </div>
+              <div class="post-content">
+                <h3 class="post-title">Database Systems &middot; Chapter 4 Normalization</h3>
+                <p class="bento-post-excerpt">
+                  Complete handwritten breakdown with functional dependency proofs, 1NF to BCNF algorithms, and worked past exam questions.
+                </p>
+                <div class="post-tags">
+                  <span class="post-tag">Semester III</span>
+                  <span class="post-tag">DBMS</span>
+                  <span class="post-tag">BIT 202</span>
+                </div>
+              </div>
+              <div class="file-attachment bento-attachment">
+                <div class="file-icon pdf">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                  </svg>
+                  <span>PDF</span>
+                </div>
+                <div class="file-info">
+                  <p class="file-name" title="DBMS_Ch4_CheatSheet.pdf">DBMS_Ch4_CheatSheet.pdf</p>
+                  <span class="file-meta">4.2 MB &middot; Verified Resource &middot; 1.4k Reads</span>
+                </div>
+                <div class="file-actions">
+                  <a href="library.html" class="file-action" title="Preview file">
+                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <span>View</span>
+                  </a>
+                  <a href="library.html" class="file-action primary" title="Download file">
+                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                    <span>Get</span>
+                  </a>
+                </div>
+              </div>
+              <footer class="post-actions post-footer bento-post-footer">
+                <button type="button" class="action-btn like-btn liked" id="mockLikeBtn" title="React with Heart" onclick="handleMockLike(this)">
+                  <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.8"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                  <span class="like-count" id="mockLikeCount">42</span>
+                </button>
+                <button type="button" class="action-btn comment-btn" title="Replies">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 8.4 8.4 0 0 1-3.5-.75L3 21l1.8-5.4A8.4 8.4 0 0 1 4 12.5 8.5 8.5 0 1 1 21 11.5z"/></svg>
+                  <span class="comment-count">14</span>
+                </button>
+                <button type="button" class="action-btn bookmark-btn" title="Save to bookmarks">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+                </button>
+                <button type="button" class="action-btn share-btn" title="Share link">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13"/></svg>
+                </button>
+              </footer>
             </article>
           </div>
         </div>
@@ -253,6 +271,7 @@
             </svg>
           </div>
           <span class="apple-pill-tag">Timeline &bull; 02</span>
+          <span class="bento-live-badge"><span class="bento-beacon-dot"></span>ROUTINE 2083</span>
         </div>
         <h3 class="poster-card-title apple-card-title">Exam Routines &amp; Timetable</h3>
         <p class="poster-card-desc apple-card-text">
@@ -261,6 +280,13 @@
 
         <!-- Actual Website Component: Examination Schedule Cards (routine.html) -->
         <div class="card-portion-wrap">
+          <!-- Interactive Semester Filter Tabs directly from routine.html -->
+          <div class="bento-routine-filter-bar" id="bentoRoutineFilterBar">
+            <button type="button" class="bento-routine-tab active" onclick="switchBentoRoutine('IV', this)">Sem IV</button>
+            <button type="button" class="bento-routine-tab" onclick="switchBentoRoutine('II', this)">Sem II</button>
+            <button type="button" class="bento-routine-tab" onclick="switchBentoRoutine('VI', this)">Sem VI</button>
+          </div>
+
           <div class="exam-info bento-exam-info">
             <div class="exam-info-item">
               <span class="info-label">Routine</span>
@@ -271,34 +297,58 @@
               <strong>BIT</strong>
             </div>
             <div class="exam-info-item">
-              <span class="info-label">Semesters</span>
-              <strong>II &middot; IV &middot; VI</strong>
+              <span class="info-label">Status</span>
+              <strong id="bentoRoutineStatus">Confirmed</strong>
             </div>
           </div>
 
-          <article class="exam-row bento-exam-row" data-semester="IV">
-            <div class="exam-date">
-              <span class="date-day">14</span>
-              <span class="date-month">04 / 2083</span>
-            </div>
-            <div class="exam-details">
-              <span class="semester-tag">Semester IV</span>
-              <h2>Operating Systems</h2>
-              <p>08:00 AM – 11:00 AM &middot; Hall 3B</p>
-            </div>
-          </article>
+          <div id="bentoExamRowsWrap">
+            <!-- Exam 1 Ticket -->
+            <article class="exam-row bento-exam-row" data-semester="IV">
+              <div class="bento-ticket-date">
+                <span class="bento-date-day">14</span>
+                <span class="bento-date-month">BAISHAKH</span>
+                <span class="bento-date-year">2083</span>
+              </div>
+              <div class="exam-details bento-ticket-details">
+                <div class="bento-ticket-meta-row">
+                  <span class="bento-countdown-chip"><span class="bento-beacon-dot"></span>STARTS IN 3 DAYS</span>
+                  <span class="bento-course-code">BIT 201</span>
+                </div>
+                <h2 class="bento-ticket-title">Operating Systems</h2>
+                <div class="bento-ticket-submeta">
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  <span>08:00 AM – 11:00 AM</span>
+                  <span class="meta-dot">&bull;</span>
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                  <span>Hall 3B</span>
+                </div>
+              </div>
+            </article>
 
-          <article class="exam-row bento-exam-row" data-semester="IV">
-            <div class="exam-date">
-              <span class="date-day">18</span>
-              <span class="date-month">04 / 2083</span>
-            </div>
-            <div class="exam-details">
-              <span class="semester-tag">Semester IV</span>
-              <h2>Database Management Systems</h2>
-              <p>08:00 AM – 11:00 AM &middot; Hall 2A</p>
-            </div>
-          </article>
+            <!-- Exam 2 Ticket -->
+            <article class="exam-row bento-exam-row" data-semester="IV">
+              <div class="bento-ticket-date">
+                <span class="bento-date-day">18</span>
+                <span class="bento-date-month">BAISHAKH</span>
+                <span class="bento-date-year">2083</span>
+              </div>
+              <div class="exam-details bento-ticket-details">
+                <div class="bento-ticket-meta-row">
+                  <span class="bento-status-tag">SCHEDULED</span>
+                  <span class="bento-course-code">BIT 202</span>
+                </div>
+                <h2 class="bento-ticket-title">Database Management Systems</h2>
+                <div class="bento-ticket-submeta">
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  <span>08:00 AM – 11:00 AM</span>
+                  <span class="meta-dot">&bull;</span>
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                  <span>Hall 2A</span>
+                </div>
+              </div>
+            </article>
+          </div>
         </div>
 
         <div class="poster-card-footer">
@@ -311,7 +361,7 @@
         </div>
       </div>
 
-      <!-- Card 3: Compact Square Notice Card (1 Column) -->
+      <!-- Card 3: Compact Square Notice Card (University Notices) -->
       <div class="poster-card bento-shape-compact tilt-card apple-card bento-glow-card" data-card-idx="2">
         <div class="poster-card-top">
           <div class="poster-icon-box apple-icon-box">
@@ -322,6 +372,7 @@
             </svg>
           </div>
           <div class="apple-pill-tag kinetic-tag">OFFICIAL DISPATCH</div>
+          <span class="bento-live-badge"><span class="bento-beacon-dot"></span>ACTIVE</span>
         </div>
 
         <h3 class="poster-card-title apple-card-title">University Notices</h3>
@@ -331,18 +382,27 @@
         <!-- Actual Website Component: Notice Detail Card (notices.html) -->
         <div class="card-portion-wrap">
           <div class="detail-section-card bento-notice-card">
+            <div class="bento-notice-glow-bar"></div>
             <div class="section-card-header">
               <span class="notice-badge-urgent">CIRCULAR #2025-08</span>
-              <span class="notice-date">TODAY</span>
+              <span class="notice-date">TODAY &middot; 10:00 AM</span>
             </div>
-            <h3 class="section-card-title">Semester Exam Registration Deadline</h3>
+            <h3 class="section-card-title">Semester Exam Registration &amp; Form Submission Deadline</h3>
             <p class="section-body-text">
-              All students of the BIT program are requested to complete examination registration forms before the final deadline.
+              All students of the BIT program are requested to complete examination registration forms before the final deadline. Late submissions will incur additional fees.
             </p>
+            <div class="bento-notice-attachment-chip">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+              </svg>
+              <span>Circular_Notice_2025_08.pdf (1.4 MB)</span>
+              <span class="bento-notice-check">&#10003; Signed</span>
+            </div>
             <div class="mini-notice-meta">
               <span>EXAM CONTROLLER OFFICE</span>
               <span class="notice-dot-sep">&bull;</span>
-              <span class="notice-status-open">ACTIVE</span>
+              <span class="notice-status-open">GANDAKI UNIVERSITY</span>
             </div>
           </div>
         </div>
@@ -357,7 +417,7 @@
         </div>
       </div>
 
-      <!-- Card 4: Wide Panoramic Roadmap Card (2 Columns Wide) -->
+      <!-- Card 4: Wide Panoramic Roadmap Card (Syllabus Architecture) -->
       <div class="poster-card bento-shape-wide tilt-card apple-card bento-glow-card" data-card-idx="3">
         <div class="poster-card-top">
           <div class="poster-icon-box apple-icon-box">
@@ -382,32 +442,61 @@
         <!-- Actual Website Component: Semester Syllabus Card (syllabus.html) -->
         <div class="card-portion-wrap">
           <div class="poster-roadmap-nodes apple-roadmap-nodes" id="semesterRoadmap">
-            <button class="roadmap-pill active" onclick="switchSemNode(this, 'Year 2 &middot; Semester IV', 'Operating Systems (BIT 201)', 'Database Management Systems (BIT 202)', 'Computer Networks (BIT 203)', '+2 more courses', '16.0 Credits')">Sem IV</button>
+            <button class="roadmap-pill active" onclick="switchSemNode(this, 'Year 2 &middot; Semester IV', 'Operating Systems', 'Database Management Systems', 'Computer Networks', 'Software Engineering', '16.0 Credits', '50.8%', '64.0')">Sem IV</button>
             <span class="roadmap-sep">&rarr;</span>
-            <button class="roadmap-pill" onclick="switchSemNode(this, 'Year 1 &middot; Semester I', 'Calculus &amp; Linear Algebra', 'Physics for Computing', 'Computer Fundamentals &amp; C', '+2 more courses', '15.5 Credits')">Sem I</button>
+            <button class="roadmap-pill" onclick="switchSemNode(this, 'Year 1 &middot; Semester I', 'Calculus &amp; Linear Algebra', 'Physics for Computing', 'Computer Fundamentals &amp; C', 'Digital Logic Systems', '15.5 Credits', '12.3%', '15.5')">Sem I</button>
             <span class="roadmap-sep">&rarr;</span>
-            <button class="roadmap-pill" onclick="switchSemNode(this, 'Year 1 &middot; Semester II', 'Object-Oriented Programming (C++)', 'Data Structures &amp; Algorithms', 'Discrete Mathematics', '+2 more courses', '16.0 Credits')">Sem II</button>
+            <button class="roadmap-pill" onclick="switchSemNode(this, 'Year 1 &middot; Semester II', 'Object-Oriented Programming (C++)', 'Data Structures &amp; Algorithms', 'Discrete Mathematics', 'Microprocessor Architecture', '16.0 Credits', '25.0%', '31.5')">Sem II</button>
             <span class="roadmap-sep">&rarr;</span>
-            <button class="roadmap-pill" onclick="switchSemNode(this, 'Year 2 &middot; Semester III', 'Microprocessors &amp; Interfacing', 'Numerical Methods', 'Web Technology I', '+2 more courses', '16.0 Credits')">Sem III</button>
+            <button class="roadmap-pill" onclick="switchSemNode(this, 'Year 2 &middot; Semester III', 'Microprocessors &amp; Interfacing', 'Numerical Methods', 'Web Technology I', 'Computer Organization', '16.0 Credits', '37.7%', '47.5')">Sem III</button>
             <span class="roadmap-sep">&rarr;</span>
-            <button class="roadmap-pill" onclick="switchSemNode(this, 'Year 3 &middot; Semester V', 'Software Engineering', 'Artificial Intelligence', 'Web Technology II', '+2 more courses', '16.0 Credits')">Sem V</button>
+            <button class="roadmap-pill" onclick="switchSemNode(this, 'Year 3 &middot; Semester V', 'Software Engineering II', 'Artificial Intelligence', 'Web Technology II', 'Operating Systems Lab', '16.0 Credits', '63.5%', '80.0')">Sem V</button>
             <span class="roadmap-sep">&rarr;</span>
-            <button class="roadmap-pill" onclick="switchSemNode(this, 'Year 3 &middot; Semester VI', 'Data Mining &amp; Warehousing', 'Compiler Design', 'Distributed Systems', '+2 more courses', '16.0 Credits')">Sem VI</button>
+            <button class="roadmap-pill" onclick="switchSemNode(this, 'Year 3 &middot; Semester VI', 'Data Mining &amp; Warehousing', 'Compiler Design', 'Distributed Systems', 'Cloud Computing', '16.0 Credits', '76.2%', '96.0')">Sem VI</button>
           </div>
 
           <div class="syllabus-sem-card bento-syllabus-card">
             <div class="sem-card-header">
-              <div class="sem-pill-tag" id="semCardTag">Semester IV</div>
-              <span class="sem-credits-pill" id="semCardCredits">16.0 Credits</span>
+              <div class="sem-card-header-left">
+                <div class="sem-pill-tag" id="semCardTag">Semester IV</div>
+                <span class="sem-credits-pill" id="semCardCredits">16.0 Credits</span>
+              </div>
+              <span class="sem-phase-pill" id="semCardPhase">Year 2 &middot; Core Engineering</span>
             </div>
             <h3 class="sem-card-title" id="semCardTitle">Year 2 &middot; Semester IV</h3>
-            <p class="sem-card-desc">5 Prescribed Courses</p>
-            <ul class="sem-preview-list" id="semCardList">
-              <li>Operating Systems (BIT 201)</li>
-              <li>Database Management Systems (BIT 202)</li>
-              <li>Computer Networks (BIT 203)</li>
-              <li class="preview-more">+2 more courses</li>
-            </ul>
+            <p class="sem-card-desc">5 Prescribed Courses &bull; Theory &amp; Practical Laboratory Requirements</p>
+            <div class="bento-syllabus-courses-grid" id="semCardCoursesGrid">
+              <div class="bento-course-item">
+                <span class="bento-course-bullet">&#9670;</span>
+                <span class="bento-course-name">Operating Systems</span>
+                <span class="bento-course-pill">BIT 201 &middot; 3 Cr</span>
+              </div>
+              <div class="bento-course-item">
+                <span class="bento-course-bullet">&#9670;</span>
+                <span class="bento-course-name">Database Management Systems</span>
+                <span class="bento-course-pill">BIT 202 &middot; 3 Cr</span>
+              </div>
+              <div class="bento-course-item">
+                <span class="bento-course-bullet">&#9670;</span>
+                <span class="bento-course-name">Computer Networks</span>
+                <span class="bento-course-pill">BIT 203 &middot; 3 Cr</span>
+              </div>
+              <div class="bento-course-item">
+                <span class="bento-course-bullet">&#9670;</span>
+                <span class="bento-course-name">Software Engineering</span>
+                <span class="bento-course-pill">BIT 204 &middot; 3 Cr</span>
+              </div>
+            </div>
+            <!-- Progress Meter -->
+            <div class="bento-syllabus-meter-wrap">
+              <div class="bento-meter-labels">
+                <span id="bentoMeterCompletionText">Degree Progress: 64.0 / 126.0 Credits</span>
+                <strong id="bentoMeterPercent">50.8%</strong>
+              </div>
+              <div class="bento-meter-track">
+                <div class="bento-meter-fill" id="bentoMeterFill" style="width: 50.8%;"></div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -433,6 +522,7 @@
                 </svg>
               </div>
               <span class="apple-pill-tag kinetic-tag">REALTIME CHAT &bull; 05</span>
+              <span class="bento-live-badge"><span class="bento-beacon-dot"></span>ACTIVE HUB</span>
             </div>
             <h3 class="poster-card-title apple-card-title">Class-Wide Group Chat</h3>
             <p class="poster-card-desc apple-card-text">
@@ -459,11 +549,12 @@
                 <div class="im-header-center">
                   <div class="im-contact-title-row">
                     <span class="im-contact-name">Class Group Chat</span>
+                    <span class="bento-batch-pill">Batch 2025</span>
                   </div>
-                  <div class="im-chat-submeta">60 members &middot; 14 online</div>
+                  <div class="im-chat-submeta">60 members &middot; 14 online now</div>
                 </div>
                 <div class="im-header-side right">
-                  <span class="im-status-pill">LIVE</span>
+                  <span class="im-status-pill"><span class="bento-beacon-dot"></span>LIVE</span>
                 </div>
               </header>
 
@@ -472,7 +563,7 @@
                   <div class="im-row other cluster-start">
                     <div class="im-msg-avatar">AK</div>
                     <div class="im-msg-content-wrap">
-                      <span class="im-msg-sender-name">Ankit K.</span>
+                      <span class="im-msg-sender-name">Ankit K. &middot; Student</span>
                       <div class="im-bubble">
                         Anyone have the Operating Systems Unit 4 handwritten notes? 📐
                       </div>
@@ -485,7 +576,7 @@
                       <div class="im-bubble">
                         Uploaded to Library! Check DBMS &amp; OS section ✨
                       </div>
-                      <div class="im-time-meta">10:43 AM &middot; Delivered</div>
+                      <div class="im-time-meta">10:43 AM &middot; Delivered &#10003;&#10003;</div>
                     </div>
                   </div>
 
@@ -500,6 +591,7 @@
 
               <footer class="im-composer bento-composer">
                 <div class="im-composer-inner">
+                  <button type="button" class="im-plus-btn" title="Add attachment">+</button>
                   <div class="im-mock-input">Type a message to Batch 2025...</div>
                   <div class="im-mock-send">
                     <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -1348,25 +1440,18 @@
     }, 1000);
 
     // 5. Interactive Like Button with Apple Heart Particle Cannon
-    const mockLikeBtn = document.getElementById('mockLikeBtn');
-    const mockLikeCount = document.getElementById('mockLikeCount');
-    let liked = false;
-
-    if (mockLikeBtn && mockLikeCount) {
-      mockLikeBtn.addEventListener('click', (e) => {
-        let count = parseInt(mockLikeCount.textContent, 10) || 42;
-        if (!liked) {
-          count++;
-          mockLikeBtn.classList.add('liked');
-          liked = true;
-          spawnHeartParticles(mockLikeBtn);
-        } else {
-          count--;
-          mockLikeBtn.classList.remove('liked');
-          liked = false;
-        }
-        mockLikeCount.textContent = count;
-      });
+    function handleMockLike(btn) {
+      const countEl = document.getElementById('mockLikeCount');
+      let count = parseInt(countEl.textContent, 10) || 42;
+      if (!btn.classList.contains('liked')) {
+        count++;
+        btn.classList.add('liked');
+        spawnHeartParticles(btn);
+      } else {
+        count--;
+        btn.classList.remove('liked');
+      }
+      if (countEl) countEl.textContent = count;
     }
 
     function spawnHeartParticles(targetBtn) {
@@ -1400,27 +1485,133 @@
       }
     }
 
-    // 6. Interactive Semester Node Switcher with Dynamic Card Update (syllabus.html preview)
-    function switchSemNode(btn, semTag, c1, c2, c3, moreCount, credits) {
+    // 6a. Interactive Bento Routine Switcher (routine.html preview)
+    const bentoRoutineMap = {
+      'IV': {
+        status: 'Confirmed',
+        exams: [
+          { day: '14', month: 'BAISHAKH', year: '2083', tag: 'STARTS IN 3 DAYS', urgent: true, code: 'BIT 201', title: 'Operating Systems', time: '08:00 AM – 11:00 AM', hall: 'Hall 3B' },
+          { day: '18', month: 'BAISHAKH', year: '2083', tag: 'SCHEDULED', urgent: false, code: 'BIT 202', title: 'Database Management Systems', time: '08:00 AM – 11:00 AM', hall: 'Hall 2A' }
+        ]
+      },
+      'II': {
+        status: 'Confirmed',
+        exams: [
+          { day: '15', month: 'BAISHAKH', year: '2083', tag: 'STARTS IN 4 DAYS', urgent: true, code: 'BIT 103', title: 'Data Structures & Algorithms', time: '08:00 AM – 11:00 AM', hall: 'Hall 1A' },
+          { day: '19', month: 'BAISHAKH', year: '2083', tag: 'SCHEDULED', urgent: false, code: 'BIT 104', title: 'Object-Oriented Programming (C++)', time: '08:00 AM – 11:00 AM', hall: 'Hall 1B' }
+        ]
+      },
+      'VI': {
+        status: 'Active',
+        exams: [
+          { day: '16', month: 'BAISHAKH', year: '2083', tag: 'STARTS IN 5 DAYS', urgent: true, code: 'BIT 301', title: 'Compiler Design & Automata', time: '08:00 AM – 11:00 AM', hall: 'Hall 4A' },
+          { day: '20', month: 'BAISHAKH', year: '2083', tag: 'SCHEDULED', urgent: false, code: 'BIT 302', title: 'Data Mining & Warehousing', time: '08:00 AM – 11:00 AM', hall: 'Hall 4B' }
+        ]
+      }
+    };
+
+    function switchBentoRoutine(sem, btn) {
+      document.querySelectorAll('#bentoRoutineFilterBar .bento-routine-tab').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      const data = bentoRoutineMap[sem];
+      if (!data) return;
+      const statusEl = document.getElementById('bentoRoutineStatus');
+      if (statusEl) statusEl.textContent = data.status;
+      const wrap = document.getElementById('bentoExamRowsWrap');
+      if (!wrap) return;
+
+      wrap.style.opacity = '0';
+      wrap.style.transform = 'translateY(4px)';
+      wrap.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+
+      setTimeout(() => {
+        let html = '';
+        data.exams.forEach(ex => {
+          const badgeClass = ex.urgent ? 'bento-countdown-chip' : 'bento-status-tag';
+          const dot = ex.urgent ? '<span class="bento-beacon-dot"></span>' : '';
+          html += `
+            <article class="exam-row bento-exam-row" data-semester="${sem}">
+              <div class="bento-ticket-date">
+                <span class="bento-date-day">${ex.day}</span>
+                <span class="bento-date-month">${ex.month}</span>
+                <span class="bento-date-year">${ex.year}</span>
+              </div>
+              <div class="exam-details bento-ticket-details">
+                <div class="bento-ticket-meta-row">
+                  <span class="${badgeClass}">${dot}${ex.tag}</span>
+                  <span class="bento-course-code">${ex.code}</span>
+                </div>
+                <h2 class="bento-ticket-title">${ex.title}</h2>
+                <div class="bento-ticket-submeta">
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  <span>${ex.time}</span>
+                  <span class="meta-dot">&bull;</span>
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                  <span>${ex.hall}</span>
+                </div>
+              </div>
+            </article>
+          `;
+        });
+        wrap.innerHTML = html;
+        wrap.style.opacity = '1';
+        wrap.style.transform = 'translateY(0)';
+      }, 150);
+    }
+
+    // 6b. Interactive Semester Node Switcher with Dynamic Card Update (syllabus.html preview)
+    function switchSemNode(btn, semTag, c1, c2, c3, c4, credits, pct, completedCredits) {
       document.querySelectorAll('#semesterRoadmap .roadmap-pill').forEach(el => el.classList.remove('active'));
       btn.classList.add('active');
       const tagEl = document.getElementById('semCardTag');
       const titleEl = document.getElementById('semCardTitle');
       const creditsEl = document.getElementById('semCardCredits');
-      const listEl = document.getElementById('semCardList');
+      const phaseEl = document.getElementById('semCardPhase');
+      const gridEl = document.getElementById('semCardCoursesGrid');
+      const meterFill = document.getElementById('bentoMeterFill');
+      const meterPercent = document.getElementById('bentoMeterPercent');
+      const meterText = document.getElementById('bentoMeterCompletionText');
+
       if (tagEl && semTag) {
         const parts = semTag.split('·');
         tagEl.textContent = (parts[1] || parts[0]).trim();
       }
       if (titleEl && semTag) titleEl.innerHTML = semTag;
       if (creditsEl && credits) creditsEl.textContent = credits;
-      if (listEl && c1) {
-        listEl.innerHTML = `
-          <li>${c1}</li>
-          <li>${c2}</li>
-          <li>${c3}</li>
-          <li class="preview-more">${moreCount}</li>
+      if (phaseEl && semTag) {
+        if (semTag.includes('Year 1')) phaseEl.textContent = 'Year 1 · Foundation Phase';
+        else if (semTag.includes('Year 2')) phaseEl.textContent = 'Year 2 · Core Engineering';
+        else if (semTag.includes('Year 3')) phaseEl.textContent = 'Year 3 · Advanced Algorithms';
+        else phaseEl.textContent = 'Year 4 · Capstone & Electives';
+      }
+      if (gridEl && c1) {
+        gridEl.innerHTML = `
+          <div class="bento-course-item">
+            <span class="bento-course-bullet">&#9670;</span>
+            <span class="bento-course-name">${c1}</span>
+            <span class="bento-course-pill">Core &middot; 3 Cr</span>
+          </div>
+          <div class="bento-course-item">
+            <span class="bento-course-bullet">&#9670;</span>
+            <span class="bento-course-name">${c2}</span>
+            <span class="bento-course-pill">Core &middot; 3 Cr</span>
+          </div>
+          <div class="bento-course-item">
+            <span class="bento-course-bullet">&#9670;</span>
+            <span class="bento-course-name">${c3}</span>
+            <span class="bento-course-pill">Core &middot; 3 Cr</span>
+          </div>
+          <div class="bento-course-item">
+            <span class="bento-course-bullet">&#9670;</span>
+            <span class="bento-course-name">${c4}</span>
+            <span class="bento-course-pill">Lab &middot; 3 Cr</span>
+          </div>
         `;
+      }
+      if (meterFill && pct) meterFill.style.width = pct;
+      if (meterPercent && pct) meterPercent.textContent = pct;
+      if (meterText && completedCredits) {
+        meterText.textContent = `Degree Progress: ${completedCredits} / 126.0 Credits`;
       }
     }
 

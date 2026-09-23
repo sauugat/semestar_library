@@ -4106,37 +4106,23 @@ body.landing .apple-univ-tag:hover {
   transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.tilt-card:hover .wide-card-preview {
-  transform: translateZ(28px);
+/* Subtle Depth Layering on Internal Elements */
+.tilt-card:hover .wide-card-preview,
+.tilt-card:hover .mock-chat-bubble.outgoing,
+.tilt-card:hover .mock-tapback-pill,
+.tilt-card:hover .apple-mock-post,
+.tilt-card:hover .apple-countdown-box,
+.tilt-card:hover .apple-pill-tag {
+  transform: none;
 }
 
 .tilt-card:hover .apple-mock-chat {
-  transform: translateZ(35px);
-  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.22);
-}
-
-.tilt-card:hover .mock-chat-bubble.outgoing {
-  transform: translateZ(22px);
-}
-
-.tilt-card:hover .mock-tapback-pill {
-  transform: translateZ(30px);
-}
-
-.tilt-card:hover .apple-mock-post {
-  transform: translateZ(28px);
-}
-
-.tilt-card:hover .apple-countdown-box {
-  transform: translateZ(28px);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
 }
 
 .tilt-card:hover .poster-icon-box {
-  transform: translateZ(25px) scale(1.1);
-}
-
-.tilt-card:hover .apple-pill-tag {
-  transform: translateZ(18px);
+  transform: translateY(-1px);
 }
 
 .apple-card.bento-shape-wide {
@@ -4188,8 +4174,8 @@ body.landing .apple-univ-tag:hover {
 }
 
 .apple-card:hover .apple-icon-box {
-  transform: scale(1.12) rotate(-4deg);
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35);
+  transform: scale(1.04);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.28);
 }
 
 .apple-icon-box svg {

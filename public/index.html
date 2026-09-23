@@ -900,14 +900,14 @@
       });
     });
 
-    // 3. Apple 3D Perspective Flip & Gyro Tilt Engine
+    // 3. Apple Bento Card Subtle Micro-Interaction Engine
     const tiltCards = document.querySelectorAll('.tilt-card');
     tiltCards.forEach(card => {
       let isHovered = false;
 
       card.addEventListener('mouseenter', () => {
         isHovered = true;
-        card.style.transition = 'transform 0.1s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.2s ease-out, border-color 0.2s ease';
+        card.style.transition = 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, border-color 0.2s ease';
       });
 
       card.addEventListener('mousemove', (e) => {
@@ -918,22 +918,21 @@
         const centerX = rect.width / 2;
         const centerY = rect.height / 2;
 
-        // Dynamic 3D perspective flip calculation (up to 12.5 deg of 3D spatial rotation)
+        // Subtle micro-tilt (gentle 1.2 deg max without aggressive wobble or popout)
         const percentX = (x - centerX) / centerX;
         const percentY = (y - centerY) / centerY;
 
-        const rotateX = percentY * -12.5;
-        const rotateY = percentX * 12.5;
-        const liftZ = 22;
+        const rotateX = percentY * -1.2;
+        const rotateY = percentX * 1.2;
 
-        card.style.transform = `perspective(850px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) translateZ(${liftZ}px) scale3d(1.025, 1.025, 1.025)`;
-        card.style.boxShadow = `${(-rotateY * 2.5).toFixed(1)}px ${(rotateX * 2.5 + 24).toFixed(1)}px 50px rgba(0, 0, 0, 0.16), 0 4px 12px rgba(0, 0, 0, 0.06)`;
+        card.style.transform = `perspective(1000px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) translateY(-2px)`;
+        card.style.boxShadow = '0 10px 24px rgba(0, 0, 0, 0.25)';
       });
 
       card.addEventListener('mouseleave', () => {
         isHovered = false;
-        card.style.transition = 'transform 0.65s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.65s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.35s ease';
-        card.style.transform = 'perspective(850px) rotateX(0deg) rotateY(0deg) translateZ(0px) scale3d(1, 1, 1)';
+        card.style.transition = 'transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease';
+        card.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) translateY(0px)';
         card.style.boxShadow = '';
       });
     });

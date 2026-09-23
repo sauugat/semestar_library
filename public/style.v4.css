@@ -403,9 +403,21 @@ html.dark {
   color: var(--text-primary);
 }
 
-[data-theme="dark"] span, body.dark-mode span {
+[data-theme="dark"] span:not([class*="mtk"]):not([class*="token"]):not([class*="cm-"]):not([class*="syn-"]):not([class*="hljs-"]):not([class*="monaco-"]),
+body.dark-mode span:not([class*="mtk"]):not([class*="token"]):not([class*="cm-"]):not([class*="syn-"]):not([class*="hljs-"]):not([class*="monaco-"]) {
   color: inherit;
 }
+
+/* Monaco Editor token syntax protection (VS Code Dark+ Palette) */
+.monaco-editor span[class*="mtk"],
+[data-theme="dark"] .monaco-editor span[class*="mtk"],
+body.dark-mode .monaco-editor span[class*="mtk"],
+.monaco-editor .view-line span,
+[data-theme="dark"] .monaco-editor .view-line span,
+body.dark-mode .monaco-editor .view-line span {
+  color: unset; /* Prevent global dark mode typography from overriding Monaco token spans */
+}
+
 
 [data-theme="dark"] label, body.dark-mode label,
 [data-theme="dark"] .meta-text, body.dark-mode .meta-text,
@@ -1750,15 +1762,25 @@ body.dark-mode .cl-mode-tab-btn.active {
 }
 .cl-tab-bar .cl-tab-btn,
 .cl-tab-bar .cl-tab-add-btn {
-  flex-shrink: 0 !important;
-  white-space: nowrap !important;
-  max-width: 100% !important;
-}
-.cl-tab-bar .cl-tab-title-text {
-  max-width: 240px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  max-width: 260px !important;
+  min-width: 0 !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
   white-space: nowrap !important;
+  flex-shrink: 0 !important;
+  border-radius: 980px !important;
+}
+.cl-tab-bar .cl-tab-title-text {
+  display: inline-block !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  vertical-align: middle !important;
 }
 
 [data-theme="dark"] .cl-tab-bar,
@@ -2265,9 +2287,12 @@ body.dark-mode .syn-type {
 }
 
 .token.function,
+.token.builtin,
 .syn-fn,
 [data-theme="dark"] .token.function,
 body.dark-mode .token.function,
+[data-theme="dark"] .token.builtin,
+body.dark-mode .token.builtin,
 [data-theme="dark"] .syn-fn,
 body.dark-mode .syn-fn {
   color: #dcdcaa !important;

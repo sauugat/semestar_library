@@ -390,11 +390,100 @@
         paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs' }
       });
 
-      require(['vs/editor/editor.main'], function () {
+      require(['vs/editor/editor.main', 'vs/basic-languages/cpp/cpp'], function (monacoMain, cppLang) {
+        try {
+          if (cppLang && cppLang.language && cppLang.language.tokenizer && cppLang.language.tokenizer.root) {
+            if (!cppLang.language._hasCustomFnRule) {
+              cppLang.language._hasCustomFnRule = true;
+              cppLang.language.tokenizer.root.unshift([
+                /[a-zA-Z_]\w*(?=\s*\()/,
+                {
+                  cases: {
+                    '@keywords': { token: 'keyword.$0' },
+                    '@default': 'function'
+                  }
+                }
+              ]);
+            }
+            monaco.languages.setMonarchTokensProvider('cpp', cppLang.language);
+            monaco.languages.setMonarchTokensProvider('c', cppLang.language);
+          }
+        } catch (tokErr) {
+          console.warn('Monaco tokenizer augmentation notice:', tokErr);
+        }
+
+        try {
+          monaco.editor.defineTheme('cl-vibrant-dark', {
+            base: 'vs-dark',
+            inherit: true,
+            rules: [
+              { token: '', foreground: 'd4d4d4' },
+              { token: 'keyword', foreground: '569cd6' },
+              { token: 'keyword.control', foreground: '569cd6' },
+              { token: 'keyword.directive', foreground: 'c586c0' },
+              { token: 'keyword.directive.include', foreground: 'c586c0' },
+              { token: 'keyword.directive.include.begin', foreground: 'c586c0' },
+              { token: 'keyword.directive.include.end', foreground: 'c586c0' },
+              { token: 'string.include.identifier', foreground: 'ce9178' },
+              { token: 'keyword.public', foreground: '569cd6' },
+              { token: 'keyword.private', foreground: '569cd6' },
+              { token: 'keyword.protected', foreground: '569cd6' },
+              { token: 'keyword.static', foreground: '569cd6' },
+              { token: 'keyword.void', foreground: '569cd6' },
+              { token: 'keyword.class', foreground: '569cd6' },
+              { token: 'keyword.package', foreground: '569cd6' },
+              { token: 'keyword.import', foreground: 'c586c0' },
+              { token: 'keyword.return', foreground: '569cd6' },
+              { token: 'keyword.if', foreground: '569cd6' },
+              { token: 'keyword.else', foreground: '569cd6' },
+              { token: 'keyword.for', foreground: '569cd6' },
+              { token: 'keyword.while', foreground: '569cd6' },
+              { token: 'keyword.do', foreground: '569cd6' },
+              { token: 'keyword.switch', foreground: '569cd6' },
+              { token: 'keyword.case', foreground: '569cd6' },
+              { token: 'keyword.break', foreground: '569cd6' },
+              { token: 'keyword.continue', foreground: '569cd6' },
+              { token: 'string', foreground: 'ce9178' },
+              { token: 'string.escape', foreground: 'd7ba7d' },
+              { token: 'number', foreground: 'b5cea8' },
+              { token: 'number.float', foreground: 'b5cea8' },
+              { token: 'number.hex', foreground: 'b5cea8' },
+              { token: 'number.octal', foreground: 'b5cea8' },
+              { token: 'number.binary', foreground: 'b5cea8' },
+              { token: 'comment', foreground: '6a9955', fontStyle: 'italic' },
+              { token: 'comment.doc', foreground: '6a9955', fontStyle: 'italic' },
+              { token: 'type', foreground: '4ec9b0' },
+              { token: 'type.identifier', foreground: '4ec9b0' },
+              { token: 'class', foreground: '4ec9b0' },
+              { token: 'function', foreground: 'dcdcaa' },
+              { token: 'identifier', foreground: '9cdcfe' },
+              { token: 'delimiter', foreground: 'd4d4d4' },
+              { token: 'delimiter.parenthesis', foreground: 'd4d4d4' },
+              { token: 'delimiter.curly', foreground: 'd4d4d4' },
+              { token: 'delimiter.square', foreground: 'd4d4d4' },
+              { token: 'operator', foreground: 'd4d4d4' },
+              { token: 'variable', foreground: '9cdcfe' },
+              { token: 'constant', foreground: '4fc1ff' }
+            ],
+            colors: {
+              'editor.background': '#1e1e1e',
+              'editor.foreground': '#d4d4d4',
+              'editorLineNumber.foreground': '#858585',
+              'editorLineNumber.activeForeground': '#c6c6c6',
+              'editorCursor.foreground': '#aeafad',
+              'editor.selectionBackground': '#264f78',
+              'editor.inactiveSelectionBackground': '#3a3d41'
+            }
+          });
+          monaco.editor.setTheme('cl-vibrant-dark');
+        } catch (e) {
+          console.warn('Monaco theme definition notice:', e);
+        }
+
         editor = monaco.editor.create(document.getElementById('codelab-monaco'), {
-          value: '#include <stdio.h>\n\nint main() {\n    printf("Hello, World!\\n");\n    return 0;\n}\n',
+          value: '#include <stdio.h>\n\nint main() {\n    // Print welcome message\n    printf("Hello, World!\\n");\n    return 0;\n}\n',
           language: 'cpp',
-          theme: 'vs-dark',
+          theme: 'cl-vibrant-dark',
           fontSize: 14,
           lineHeight: 24,
           fontFamily: "'SF Mono', Menlo, Monaco, Consolas, 'Courier New', monospace",

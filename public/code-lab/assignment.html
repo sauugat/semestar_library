@@ -196,16 +196,23 @@
             font-weight: 600;
             cursor: pointer;
             white-space: nowrap;
-            max-width: 100%;
+            max-width: 260px;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex-shrink: 0;
             font-family: var(--apple-font);
             transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
         }
 
         .cl-tab-title-text {
-            max-width: 240px;
+            display: inline-block;
+            max-width: 100%;
+            min-width: 0;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+            vertical-align: middle;
         }
 
         .cl-tab-btn:hover {
@@ -1721,16 +1728,56 @@
 
             // Init Monaco for all questions
             require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs' } });
-            require(['vs/editor/editor.main'], function () {
+            require(['vs/editor/editor.main', 'vs/basic-languages/cpp/cpp', 'vs/basic-languages/java/java'], function (monacoMain, cppLang, javaLang) {
+                try {
+                    // Augment C/C++ monarch tokenizer to recognize functions (printf, main, etc.) and directives
+                    if (cppLang && cppLang.language && cppLang.language.tokenizer && cppLang.language.tokenizer.root) {
+                        if (!cppLang.language._hasCustomFnRule) {
+                            cppLang.language._hasCustomFnRule = true;
+                            cppLang.language.tokenizer.root.unshift([
+                                /[a-zA-Z_]\w*(?=\s*\()/,
+                                {
+                                    cases: {
+                                        '@keywords': { token: 'keyword.$0' },
+                                        '@default': 'function'
+                                    }
+                                }
+                            ]);
+                        }
+                        monaco.languages.setMonarchTokensProvider('cpp', cppLang.language);
+                        monaco.languages.setMonarchTokensProvider('c', cppLang.language);
+                    }
+                    if (javaLang && javaLang.language && javaLang.language.tokenizer && javaLang.language.tokenizer.root) {
+                        if (!javaLang.language._hasCustomFnRule) {
+                            javaLang.language._hasCustomFnRule = true;
+                            javaLang.language.tokenizer.root.unshift([
+                                /[a-zA-Z_]\w*(?=\s*\()/,
+                                {
+                                    cases: {
+                                        '@keywords': { token: 'keyword.$0' },
+                                        '@default': 'function'
+                                    }
+                                }
+                            ]);
+                        }
+                        monaco.languages.setMonarchTokensProvider('java', javaLang.language);
+                    }
+                } catch (tokErr) {
+                    console.warn('Monaco tokenizer augmentation notice:', tokErr);
+                }
+
                 try {
                     monaco.editor.defineTheme('cl-vibrant-dark', {
                         base: 'vs-dark',
                         inherit: true,
                         rules: [
+                            { token: '', foreground: 'd4d4d4' },
                             { token: 'keyword', foreground: '569cd6' },
-                            { token: 'keyword.control', foreground: 'c586c0' },
+                            { token: 'keyword.control', foreground: '569cd6' },
                             { token: 'keyword.directive', foreground: 'c586c0' },
                             { token: 'keyword.directive.include', foreground: 'c586c0' },
+                            { token: 'keyword.directive.include.begin', foreground: 'c586c0' },
+                            { token: 'keyword.directive.include.end', foreground: 'c586c0' },
                             { token: 'string.include.identifier', foreground: 'ce9178' },
                             { token: 'keyword.public', foreground: '569cd6' },
                             { token: 'keyword.private', foreground: '569cd6' },
@@ -1740,21 +1787,23 @@
                             { token: 'keyword.class', foreground: '569cd6' },
                             { token: 'keyword.package', foreground: '569cd6' },
                             { token: 'keyword.import', foreground: 'c586c0' },
-                            { token: 'keyword.return', foreground: 'c586c0' },
-                            { token: 'keyword.if', foreground: 'c586c0' },
-                            { token: 'keyword.else', foreground: 'c586c0' },
-                            { token: 'keyword.for', foreground: 'c586c0' },
-                            { token: 'keyword.while', foreground: 'c586c0' },
-                            { token: 'keyword.do', foreground: 'c586c0' },
-                            { token: 'keyword.switch', foreground: 'c586c0' },
-                            { token: 'keyword.case', foreground: 'c586c0' },
-                            { token: 'keyword.break', foreground: 'c586c0' },
-                            { token: 'keyword.continue', foreground: 'c586c0' },
+                            { token: 'keyword.return', foreground: '569cd6' },
+                            { token: 'keyword.if', foreground: '569cd6' },
+                            { token: 'keyword.else', foreground: '569cd6' },
+                            { token: 'keyword.for', foreground: '569cd6' },
+                            { token: 'keyword.while', foreground: '569cd6' },
+                            { token: 'keyword.do', foreground: '569cd6' },
+                            { token: 'keyword.switch', foreground: '569cd6' },
+                            { token: 'keyword.case', foreground: '569cd6' },
+                            { token: 'keyword.break', foreground: '569cd6' },
+                            { token: 'keyword.continue', foreground: '569cd6' },
                             { token: 'string', foreground: 'ce9178' },
                             { token: 'string.escape', foreground: 'd7ba7d' },
                             { token: 'number', foreground: 'b5cea8' },
                             { token: 'number.float', foreground: 'b5cea8' },
                             { token: 'number.hex', foreground: 'b5cea8' },
+                            { token: 'number.octal', foreground: 'b5cea8' },
+                            { token: 'number.binary', foreground: 'b5cea8' },
                             { token: 'comment', foreground: '6a9955', fontStyle: 'italic' },
                             { token: 'comment.doc', foreground: '6a9955', fontStyle: 'italic' },
                             { token: 'type', foreground: '4ec9b0' },
@@ -1780,6 +1829,7 @@
                             'editor.inactiveSelectionBackground': '#3a3d41'
                         }
                     });
+                    monaco.editor.setTheme('cl-vibrant-dark');
                 } catch (e) {
                     console.warn('Monaco theme definition notice:', e);
                 }
@@ -1803,6 +1853,7 @@
             const tab = document.createElement('button');
             tab.className = 'cl-tab-btn' + (isFirst ? ' active' : '');
             tab.id = `tab-btn-${q.id}`;
+            tab.setAttribute('title', `Q${q.questionNumber}: ${displayTitle}`);
             tab.innerHTML = `
               ${q.userSubmission ? '<span class="cl-tab-check">✓</span>' : ''}
               <span class="cl-tab-title-text">Q${q.questionNumber}: ${escapeHtml(displayTitle)}</span>
@@ -1946,10 +1997,12 @@
             if (titleInput) {
                 titleInput.addEventListener('input', () => {
                     const val = titleInput.value.trim();
+                    const newTitle = `Q${q.questionNumber}: ${val || ('Question ' + q.questionNumber)}`;
                     const tabTitleSpan = tab.querySelector('.cl-tab-title-text');
                     if (tabTitleSpan) {
-                        tabTitleSpan.textContent = `Q${q.questionNumber}: ${val || ('Question ' + q.questionNumber)}`;
+                        tabTitleSpan.textContent = newTitle;
                     }
+                    tab.setAttribute('title', newTitle);
                     q.title = val || `Question ${q.questionNumber}`;
                 });
             }

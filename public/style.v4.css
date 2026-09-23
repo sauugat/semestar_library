@@ -16838,3 +16838,63 @@ body.dark-mode .preview-action-btn.close-btn svg {
   stroke: #000000 !important;
   color: #000000 !important;
 }
+
+/* ─── ANTIGRAVITY IDE CODE BOX THEME ─── */
+.cl-editor-window,
+[data-theme="dark"] .cl-editor-window,
+body.dark-mode .cl-editor-window {
+  background: #181818 !important;
+  background-color: #181818 !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55) !important;
+}
+
+.cl-window-titlebar,
+.cl-editor-window .cl-window-titlebar,
+[data-theme="dark"] .cl-editor-window .cl-window-titlebar,
+body.dark-mode .cl-editor-window .cl-window-titlebar {
+  background: #1f1f1f !important;
+  background-color: #1f1f1f !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.monaco-slot,
+[data-theme="dark"] .monaco-slot,
+body.dark-mode .monaco-slot {
+  background: #181818 !important;
+  background-color: #181818 !important;
+}
+
+.cl-output-box,
+[data-theme="dark"] .cl-output-box,
+body.dark-mode .cl-output-box {
+  background: #181818 !important;
+  background-color: #181818 !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35) !important;
+}
+
+.cl-output-bar,
+[data-theme="dark"] .cl-output-bar,
+body.dark-mode .cl-output-bar {
+  background: #1f1f1f !important;
+  background-color: #1f1f1f !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: #d4d4d4 !important;
+}
+
+.cl-output-content,
+[data-theme="dark"] .cl-output-content,
+body.dark-mode .cl-output-content {
+  background: #181818 !important;
+  background-color: #181818 !important;
+}
+
+.cl-output-content pre,
+[data-theme="dark"] .cl-output-content pre,
+body.dark-mode .cl-output-content pre {
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'SF Mono', Consolas, monospace !important;
+  color: #d4d4d4 !important;
+}

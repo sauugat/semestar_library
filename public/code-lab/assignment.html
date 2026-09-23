@@ -511,7 +511,7 @@
         .monaco-slot {
             width: 100%;
             height: 420px;
-            background: #1e1e2e;
+            background: #0d1117;
         }
 
         /* ── Action Control Bar ── */
@@ -1453,22 +1453,22 @@
         }
 
         function normalizeLanguage(lang) {
-            if (!lang) return 'c';
+            if (!lang) return 'cpp';
             const l = String(lang).trim().toLowerCase();
-            if (l === 'c++' || l === 'cpp') return 'cpp';
+            if (l === 'c' || l === 'c++' || l === 'cpp') return 'cpp';
             if (l === 'java') return 'java';
             if (l === 'python' || l === 'py') return 'python';
             if (l === 'javascript' || l === 'js') return 'javascript';
-            if (l === 'c') return 'c';
             return l;
         }
 
         function getFileExtension(lang) {
-            const l = normalizeLanguage(lang);
-            if (l === 'cpp') return 'cpp';
+            const l = String(lang || '').trim().toLowerCase();
+            if (l === 'cpp' || l === 'c++') return 'cpp';
+            if (l === 'c') return 'c';
             if (l === 'java') return 'java';
-            if (l === 'python') return 'py';
-            if (l === 'javascript') return 'js';
+            if (l === 'python' || l === 'py') return 'py';
+            if (l === 'javascript' || l === 'js') return 'js';
             return 'c';
         }
 
@@ -1709,6 +1709,14 @@
                         rules: [
                             { token: 'keyword', foreground: 'f43f5e', fontStyle: 'bold' },
                             { token: 'keyword.control', foreground: 'f43f5e', fontStyle: 'bold' },
+                            { token: 'keyword.public', foreground: 'f43f5e', fontStyle: 'bold' },
+                            { token: 'keyword.private', foreground: 'f43f5e', fontStyle: 'bold' },
+                            { token: 'keyword.protected', foreground: 'f43f5e', fontStyle: 'bold' },
+                            { token: 'keyword.static', foreground: 'f43f5e', fontStyle: 'bold' },
+                            { token: 'keyword.void', foreground: 'f43f5e', fontStyle: 'bold' },
+                            { token: 'keyword.class', foreground: 'f43f5e', fontStyle: 'bold' },
+                            { token: 'keyword.package', foreground: 'f43f5e', fontStyle: 'bold' },
+                            { token: 'keyword.import', foreground: 'f43f5e', fontStyle: 'bold' },
                             { token: 'string', foreground: '7ee787' },
                             { token: 'string.escape', foreground: '38bdf8' },
                             { token: 'number', foreground: '79c0ff' },
@@ -2018,8 +2026,11 @@
                 return;
             }
             const state = questionState[q.id];
-            const monacoLang = normalizeLanguage(q.language);
+            let monacoLang = normalizeLanguage(q.language);
             const initialCode = (q.userSubmission && q.userSubmission.code) ? q.userSubmission.code : '// Write your code here\n';
+            if (/public\s+class\s+\w+|public\s+static\s+void\s+main|System\.(out|err)\./.test(initialCode)) {
+                monacoLang = 'java';
+            }
 
             state.editor = monaco.editor.create(document.getElementById(`editor-${q.id}`), {
                 value: initialCode,
@@ -2092,6 +2103,18 @@
                     filenameInput.value = val;
                     state.filename = val;
                     resizeInput();
+
+                    const ext = val.split('.').pop().toLowerCase();
+                    let targetLang = null;
+                    if (ext === 'java') targetLang = 'java';
+                    else if (ext === 'py') targetLang = 'python';
+                    else if (ext === 'js' || ext === 'javascript') targetLang = 'javascript';
+                    else if (ext === 'c' || ext === 'cpp' || ext === 'cc') targetLang = 'cpp';
+
+                    if (targetLang && state.editor && state.editor.getModel()) {
+                        monaco.editor.setModelLanguage(state.editor.getModel(), targetLang);
+                        state.language = targetLang;
+                    }
                     showMsg(q.id, `File renamed to ${val}`, 'success');
                 });
                 filenameInput.addEventListener('keydown', (e) => {

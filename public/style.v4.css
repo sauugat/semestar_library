@@ -593,8 +593,6 @@ body.dark-mode #downloadBtn:not(:disabled),
 body.dark-mode .cl-run-btn,
 [data-theme="dark"] .codelab-run-btn,
 body.dark-mode .codelab-run-btn,
-[data-theme="dark"] .cl-window-run-btn,
-body.dark-mode .cl-window-run-btn,
 [data-theme="dark"] #primaryRunBtn,
 body.dark-mode #primaryRunBtn,
 [data-theme="dark"] .btn-run-black,
@@ -689,8 +687,6 @@ body.dark-mode .cl-view-report-btn,
 body.dark-mode .btn-run-black,
 [data-theme="dark"] #primaryRunBtn,
 body.dark-mode #primaryRunBtn,
-[data-theme="dark"] .cl-window-run-btn,
-body.dark-mode .cl-window-run-btn,
 [data-theme="dark"] .cl-create-btn,
 body.dark-mode .cl-create-btn,
 [data-theme="dark"] .cl-filter-tab.active,
@@ -710,8 +706,6 @@ body.dark-mode .cl-view-report-btn *,
 body.dark-mode .btn-run-black *,
 [data-theme="dark"] #primaryRunBtn *,
 body.dark-mode #primaryRunBtn *,
-[data-theme="dark"] .cl-window-run-btn *,
-body.dark-mode .cl-window-run-btn *,
 [data-theme="dark"] .cl-create-btn *,
 body.dark-mode .cl-create-btn * {
   color: var(--fill-active-text, #0a0a0a) !important;
@@ -741,8 +735,6 @@ body.dark-mode #downloadBtn:hover:not(:disabled),
 body.dark-mode .cl-run-btn:hover:not(:disabled),
 [data-theme="dark"] .codelab-run-btn:hover:not(:disabled),
 body.dark-mode .codelab-run-btn:hover:not(:disabled),
-[data-theme="dark"] .cl-window-run-btn:hover:not(:disabled),
-body.dark-mode .cl-window-run-btn:hover:not(:disabled),
 [data-theme="dark"] #primaryRunBtn:hover,
 body.dark-mode #primaryRunBtn:hover,
 [data-theme="dark"] .btn-run-black:hover,
@@ -961,8 +953,6 @@ body.dark-mode .clean-unit-row,
 body.dark-mode .cl-desc-card,
 [data-theme="dark"] .cl-student-question-box,
 body.dark-mode .cl-student-question-box,
-[data-theme="dark"] .cl-editor-window,
-body.dark-mode .cl-editor-window,
 [data-theme="dark"] .cl-pdf-side-pane,
 body.dark-mode .cl-pdf-side-pane,
 [data-theme="dark"] .cl-create-card,
@@ -2049,28 +2039,97 @@ body.dark-mode #modalAssignSubject {
   color: var(--text-primary) !important;
 }
 
-/* ─── CODE EDITOR SURROUNDINGS ─── */
+/* ─── CODE EDITOR SURROUNDINGS (KEPT SAME IN DARK MODE AS LIGHT MODE) ─── */
+[data-theme="dark"] .cl-editor-window,
+body.dark-mode .cl-editor-window {
+  background: #1e1e2e !important;
+  background-color: #1e1e2e !important;
+  border: 1.5px solid rgba(0, 0, 0, 0.18) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.14) !important;
+}
+
 [data-theme="dark"] .cl-editor-window .cl-window-titlebar,
 body.dark-mode .cl-editor-window .cl-window-titlebar,
 [data-theme="dark"] .cl-window-titlebar,
-body.dark-mode .cl-window-titlebar,
-[data-theme="dark"] .codelab-editor-label,
-body.dark-mode .codelab-editor-label {
-  background: var(--bg-surface) !important;
-  border-bottom: 1px solid var(--border) !important;
-  color: var(--text-primary) !important;
+body.dark-mode .cl-window-titlebar {
+  background: #181825 !important;
+  background-color: #181825 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07) !important;
 }
 
 [data-theme="dark"] .cl-window-file,
 body.dark-mode .cl-window-file {
-  background: var(--bg-surface-raised) !important;
-  border: 1px solid var(--border) !important;
-  color: var(--text-primary) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 6px !important;
+  color: #cdd6f4 !important;
 }
 
 [data-theme="dark"] .cl-filename-input,
 body.dark-mode .cl-filename-input {
-  color: var(--text-primary) !important;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  color: #cdd6f4 !important;
+  font-family: Menlo, Monaco, Consolas, 'SF Mono', 'Courier New', monospace !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+}
+
+[data-theme="dark"] .cl-window-run-btn,
+body.dark-mode .cl-window-run-btn {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  color: #111113 !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  border-radius: 980px !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25) !important;
+}
+
+[data-theme="dark"] .cl-window-run-btn *,
+body.dark-mode .cl-window-run-btn * {
+  color: #111113 !important;
+}
+
+[data-theme="dark"] .cl-window-run-btn .key-shortcut,
+body.dark-mode .cl-window-run-btn .key-shortcut {
+  background: rgba(0, 0, 0, 0.08) !important;
+  color: #555558 !important;
+}
+
+[data-theme="dark"] .cl-window-run-btn:hover:not(:disabled),
+body.dark-mode .cl-window-run-btn:hover:not(:disabled) {
+  background: #f4f4f6 !important;
+  color: #111113 !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35) !important;
+}
+
+[data-theme="dark"] .monaco-slot,
+body.dark-mode .monaco-slot {
+  background: #0d1117 !important;
+}
+
+[data-theme="dark"] .cl-output-box,
+body.dark-mode .cl-output-box {
+  background: #181825 !important;
+  background-color: #181825 !important;
+  border: 1.5px solid rgba(0, 0, 0, 0.18) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12) !important;
+}
+
+[data-theme="dark"] .cl-output-bar,
+body.dark-mode .cl-output-bar {
+  background: #11111b !important;
+  background-color: #11111b !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: #a6adc8 !important;
 }
 
 /* Authentic macOS Window Traffic-Light Dots (Preserved across all themes & dark mode) */

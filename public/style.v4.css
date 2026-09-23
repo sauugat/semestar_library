@@ -7067,7 +7067,8 @@ body.dark-mode .fb-card:hover {
   padding-top: 10px;
   color: var(--text-muted, #86868b);
   font-size: 13px;
-  border-top: 1px solid var(--border-color, rgba(0, 0, 0, 0.06));
+  border: none;
+  border-top: none;
 }
 
 .post-actions .action-btn {
@@ -7076,7 +7077,8 @@ body.dark-mode .fb-card:hover {
   gap: 6px;
   cursor: pointer;
   background: none;
-  border: none;
+  border: none !important;
+  box-shadow: none !important;
   padding: 4px 0;
   color: inherit;
   font-size: 13px;
@@ -7084,6 +7086,17 @@ body.dark-mode .fb-card:hover {
   transition: color 0.15s ease, transform 0.1s ease;
   user-select: none;
   outline: none;
+}
+
+[data-theme="dark"] .post-actions .action-btn,
+body.dark-mode .post-actions .action-btn,
+[data-theme="dark"] .post-actions .action-btn:hover,
+body.dark-mode .post-actions .action-btn:hover,
+[data-theme="dark"] .post-actions .action-btn.liked,
+body.dark-mode .post-actions .action-btn.liked {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 .post-actions .action-btn svg {
@@ -7298,8 +7311,10 @@ body.dark-mode .post-comments-close-btn:hover {
   font-style: italic;
 }
 
-body.dark-mode .post-actions {
-  border-color: rgba(255, 255, 255, 0.08);
+body.dark-mode .post-actions,
+[data-theme="dark"] .post-actions {
+  border: none !important;
+  border-top: none !important;
 }
 
 body.dark-mode .post-comments-drawer {

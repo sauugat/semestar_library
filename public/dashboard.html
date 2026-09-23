@@ -526,7 +526,7 @@
       margin: 0;
     }
 
-    body.dash .feed .post-card .post-footer {
+    body.dash .feed .post-card :is(.post-footer, .post-actions, .post-engage-bar) {
       display: flex;
       flex-wrap: wrap;
       align-items: center;
@@ -534,24 +534,46 @@
       margin-top: 8px !important;
       padding-top: 0 !important;
       border: 0 !important;
+      border-top: 0 !important;
+      box-shadow: none !important;
       color: var(--text-muted);
       font-size: 13px;
     }
 
-    body.dash .feed .post-card .post-footer :is(.like-btn, .comment-btn, .share-btn) {
+    body.dash .feed .post-card :is(.post-footer, .post-actions, .post-engage-bar) :is(.like-btn, .comment-btn, .share-btn, .action-btn, .post-action-btn) {
       padding: 6px 0 !important;
       border: 0 !important;
+      border-width: 0 !important;
+      border-color: transparent !important;
       background: transparent !important;
+      background-color: transparent !important;
       color: var(--text-muted) !important;
-      box-shadow: none;
+      box-shadow: none !important;
+      outline: none !important;
     }
 
-    body.dash .feed .post-card .post-footer .like-btn.liked,
-    body.dash .feed .post-card .post-footer .post-action-btn:hover {
+    body.dash .feed .post-card :is(.post-footer, .post-actions, .post-engage-bar) :is(.like-btn, .comment-btn, .share-btn, .action-btn, .post-action-btn):hover,
+    body.dash .feed .post-card :is(.post-footer, .post-actions, .post-engage-bar) :is(.like-btn, .comment-btn, .share-btn, .action-btn, .post-action-btn):focus,
+    body.dash .feed .post-card :is(.post-footer, .post-actions, .post-engage-bar) :is(.like-btn, .comment-btn, .share-btn, .action-btn, .post-action-btn):active {
+      border: 0 !important;
+      border-width: 0 !important;
+      border-color: transparent !important;
+      background: transparent !important;
+      background-color: transparent !important;
+      box-shadow: none !important;
+      outline: none !important;
+    }
+
+    body.dash .feed .post-card :is(.post-footer, .post-actions, .post-engage-bar) .like-btn.liked,
+    body.dash .feed .post-card :is(.post-footer, .post-actions, .post-engage-bar) :is(.post-action-btn, .action-btn):hover {
+      border: 0 !important;
+      border-color: transparent !important;
+      background: transparent !important;
+      background-color: transparent !important;
       color: var(--text-primary) !important;
     }
 
-    body.dash .feed .post-card .like-btn.liked svg {
+    body.dash .feed .post-card :is(.post-footer, .post-actions, .post-engage-bar) .like-btn.liked svg {
       fill: currentColor !important;
       stroke: currentColor !important;
     }
@@ -1981,7 +2003,7 @@
               `}
             </div>
             ${attachmentUrl ? `<div class="post-image"><img src="${attachmentUrl}" alt="Image attached by ${escapeHtml(post.name)}" loading="lazy" decoding="async" tabindex="0" role="button" aria-label="Open full image" aria-haspopup="dialog" onerror="this.hidden = true; this.nextElementSibling.hidden = false;"><a class="status-post-attachment" href="${attachmentUrl}" target="_blank" rel="noopener noreferrer" hidden>View attachment ↗</a></div>` : ''}
-            <footer class="post-actions">
+            <footer class="post-actions post-footer">
               <button type="button" class="action-btn like-btn ${post.liked_by_me ? 'liked' : ''}" data-liked="${post.liked_by_me}" aria-pressed="${post.liked_by_me}" aria-label="${post.liked_by_me ? 'Unlike' : 'Like'} post" onclick="toggleStatusLike(${post.id}, this)">
                 <svg viewBox="0 0 24 24" fill="${post.liked_by_me ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/>

@@ -2238,13 +2238,18 @@
     }
 
     /* 8. ATTACHMENT MENU & EMOJI PICKER POPUPS */
-    .im-attachment-menu-wrap,
+    .im-attachment-menu-wrap {
+      position: relative !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+    }
     .im-emoji-menu-wrap {
       position: relative !important;
     }
     .im-attachment-popup {
       position: absolute !important;
-      bottom: 50px !important;
+      bottom: calc(100% + 10px) !important;
       left: 0 !important;
       background: #18181b !important;
       border: 1px solid rgba(255, 255, 255, 0.14) !important;
@@ -2253,10 +2258,14 @@
       padding: 8px !important;
       min-width: 210px !important;
       z-index: 100 !important;
-      display: flex !important;
+      display: none !important;
       flex-direction: column !important;
       gap: 4px !important;
       backdrop-filter: blur(16px) !important;
+      -webkit-backdrop-filter: blur(16px) !important;
+    }
+    .im-attachment-popup.show {
+      display: flex !important;
     }
     .im-attachment-item {
       display: flex !important;
@@ -2861,7 +2870,7 @@
                 <line x1="5" y1="12" x2="19" y2="12" />
               </svg>
             </button>
-            <div id="attachmentPopup" class="im-attachment-popup" style="display: none;" onclick="event.stopPropagation()">
+            <div id="attachmentPopup" class="im-attachment-popup" onclick="event.stopPropagation()">
               <div class="im-attachment-item" onclick="triggerFileInput('image/*,video/*')">
                 <span class="im-att-icon">📷</span>
                 <div class="im-att-text">
@@ -3108,7 +3117,7 @@
       if (e) e.stopPropagation();
       const drawer = document.getElementById('emojiPickerDrawer');
       const attPopup = document.getElementById('attachmentPopup');
-      if (attPopup) attPopup.style.display = 'none';
+      if (attPopup) attPopup.classList.remove('show');
       if (!drawer) return;
       const isHidden = drawer.style.display === 'none' || !drawer.style.display;
       drawer.style.display = isHidden ? 'block' : 'none';
@@ -3131,13 +3140,12 @@
       const drawer = document.getElementById('emojiPickerDrawer');
       if (drawer) drawer.style.display = 'none';
       if (!popup) return;
-      const isHidden = popup.style.display === 'none' || !popup.style.display;
-      popup.style.display = isHidden ? 'flex' : 'none';
+      popup.classList.toggle('show');
     }
 
     function triggerFileInput(acceptTypes) {
       const popup = document.getElementById('attachmentPopup');
-      if (popup) popup.style.display = 'none';
+      if (popup) popup.classList.remove('show');
       const fileInput = document.getElementById('hiddenFileInput');
       if (!fileInput) return;
       fileInput.accept = acceptTypes;
@@ -3146,7 +3154,7 @@
 
     document.addEventListener('click', () => {
       const p1 = document.getElementById('attachmentPopup');
-      if (p1) p1.style.display = 'none';
+      if (p1) p1.classList.remove('show');
       const p2 = document.getElementById('emojiPickerDrawer');
       if (p2) p2.style.display = 'none';
       document.querySelectorAll('.emoji-picker-popup').forEach(p => p.style.display = 'none');

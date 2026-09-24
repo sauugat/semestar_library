@@ -28,123 +28,167 @@
     :root {
       --bg: #f8f9fa;
       --surface: #ffffff;
-      --border: rgba(0, 0, 0, 0.13);
-      --border-focus: #111827;
+      --surface-hover: #f3f4f6;
+      --border: rgba(0, 0, 0, 0.12);
+      --border-focus: #0071e3;
       --text: #111827;
-      --text-muted: #4b5563;
+      --text-muted: #6b7280;
       --accent: #0071e3;
-      --radius: 18px;
+      --accent-hover: #0077ed;
+      --dropzone-bg: #f9fafb;
+      --dropzone-hover: #f3f4f6;
+      --dropzone-border: rgba(0, 0, 0, 0.16);
+      --card-shadow: 0 8px 30px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
+      --radius: 20px;
+    }
+
+    html[data-theme="dark"],
+    body.dark-mode {
+      --bg: #0a0a0a;
+      --surface: #171717;
+      --surface-hover: #222222;
+      --border: rgba(255, 255, 255, 0.12);
+      --border-focus: #0071e3;
+      --text: #f5f5f7;
+      --text-muted: #8e8e93;
+      --accent: #0071e3;
+      --accent-hover: #0077ed;
+      --dropzone-bg: #1c1c1e;
+      --dropzone-hover: #242426;
+      --dropzone-border: rgba(255, 255, 255, 0.16);
+      --card-shadow: 0 12px 40px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.06);
+    }
+
+    * {
+      box-sizing: border-box;
     }
 
     body.dash {
       background: var(--bg);
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
       color: var(--text);
       -webkit-font-smoothing: antialiased;
-    }
-
-    /* Top Navigation Header Upload CTA Button */
-    .upload-cta-btn {
-      display: inline-flex !important;
-      align-items: center !important;
-      gap: 7px !important;
-      padding: 8px 16px !important;
-      border-radius: 980px !important;
-      background: #111827 !important;
-      color: #ffffff !important;
-      font-size: 13px !important;
-      font-weight: 700 !important;
-      text-decoration: none !important;
-      border: 1.5px solid #111827 !important;
-      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15) !important;
-      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
-    }
-
-    .upload-cta-btn svg {
-      transition: transform 0.2s ease;
-      stroke-width: 2.4px;
-    }
-
-    .upload-cta-btn:hover {
-      background: #000000 !important;
-      transform: translateY(-2px) !important;
-      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25) !important;
-    }
-
-    .upload-cta-btn:hover svg {
-      transform: translateY(-2px);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      margin: 0;
+      padding: 0;
+      transition: background 0.25s ease, color 0.25s ease;
     }
 
     .upload-container {
-      max-width: 580px;
-      margin: 32px auto 100px;
-      padding: 0 16px;
+      width: 100%;
+      max-width: 600px;
+      margin: 40px auto 60px;
+      padding: 0 20px;
+      box-sizing: border-box;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: stretch;
     }
 
     .upload-card-clean {
       background: var(--surface);
-      border: 1.5px solid var(--border);
+      border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 34px 32px;
-      box-shadow: 0 4px 24px -2px rgba(0,0,0,0.06);
+      padding: 34px 30px;
+      box-shadow: var(--card-shadow);
+      box-sizing: border-box;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .upload-card-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      margin-bottom: 22px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .upload-header-icon-wrap {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      background: rgba(0, 113, 227, 0.12);
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      border: 1px solid rgba(0, 113, 227, 0.22);
+    }
+
+    .upload-header-text {
+      flex: 1;
+      min-width: 0;
     }
 
     .upload-head-title {
-      font-size: 22px;
+      font-size: 20px;
       font-weight: 800;
-      letter-spacing: -0.025em;
+      letter-spacing: -0.02em;
       margin: 0 0 4px;
       color: var(--text);
+      line-height: 1.25;
     }
 
     .upload-head-sub {
       font-size: 13px;
       color: var(--text-muted);
-      margin: 0 0 24px;
+      margin: 0;
+      line-height: 1.4;
     }
 
     /* Minimal Dropzone with stylized Icon */
     .clean-dropzone {
-      border: 2px dashed rgba(0, 0, 0, 0.16);
-      border-radius: 14px;
-      padding: 28px 16px;
+      border: 2px dashed var(--dropzone-border);
+      border-radius: 16px;
+      padding: 28px 18px;
       text-align: center;
       cursor: pointer;
-      background: #fafafa;
-      transition: all 0.2s;
+      background: var(--dropzone-bg);
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
       margin-bottom: 22px;
       display: flex;
       flex-direction: column;
       align-items: center;
+      justify-content: center;
       gap: 8px;
+      box-sizing: border-box;
+      width: 100%;
     }
 
     .clean-dropzone:hover, .clean-dropzone.dragover {
-      border-color: #111827;
-      background: #f4f4f5;
+      border-color: var(--accent);
+      background: var(--dropzone-hover);
     }
 
     .dropzone-icon-circle {
       width: 48px;
       height: 48px;
       border-radius: 50%;
-      background: #111827;
+      background: var(--accent);
       color: #ffffff;
       display: flex;
       align-items: center;
       justify-content: center;
       margin-bottom: 4px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      box-shadow: 0 4px 14px rgba(0, 113, 227, 0.32);
       transition: transform 0.2s ease;
     }
 
     .clean-dropzone:hover .dropzone-icon-circle {
-      transform: translateY(-3px) scale(1.05);
-      background: #000000;
+      transform: translateY(-2px) scale(1.05);
     }
 
     .dropzone-label {
-      font-size: 14px;
+      font-size: 14.5px;
       font-weight: 700;
       color: var(--text);
     }
@@ -152,15 +196,18 @@
     .dropzone-hint {
       font-size: 12px;
       color: var(--text-muted);
+      line-height: 1.4;
     }
 
     /* File Queue Section */
     .file-queue-section {
-      background: #f9fafb;
-      border: 1.5px solid var(--border);
+      background: var(--dropzone-bg);
+      border: 1px solid var(--border);
       border-radius: 14px;
       padding: 14px;
       margin-bottom: 20px;
+      box-sizing: border-box;
+      width: 100%;
     }
 
     .file-queue-header {
@@ -169,7 +216,7 @@
       justify-content: space-between;
       margin-bottom: 10px;
       padding-bottom: 8px;
-      border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+      border-bottom: 1px solid var(--border);
     }
 
     .file-queue-title {
@@ -185,19 +232,19 @@
       font-size: 12px;
       font-weight: 700;
       cursor: pointer;
-      padding: 2px 6px;
+      padding: 2px 8px;
       border-radius: 6px;
       transition: background 0.15s;
     }
 
     .btn-clear-all:hover {
-      background: rgba(239, 68, 68, 0.1);
+      background: rgba(239, 68, 68, 0.12);
     }
 
     .file-queue-list {
       display: flex;
       flex-direction: column;
-      gap: 7px;
+      gap: 8px;
       max-height: 200px;
       overflow-y: auto;
       padding-right: 4px;
@@ -207,13 +254,14 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 10px;
+      gap: 12px;
       padding: 9px 12px;
-      background: #ffffff;
-      border: 1px solid rgba(0, 0, 0, 0.08);
+      background: var(--surface);
+      border: 1px solid var(--border);
       border-radius: 10px;
       font-size: 13px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+      box-sizing: border-box;
+      width: 100%;
     }
 
     .file-queue-left {
@@ -221,6 +269,7 @@
       align-items: center;
       gap: 9px;
       min-width: 0;
+      flex: 1;
     }
 
     .file-type-pill {
@@ -240,13 +289,21 @@
     .badge-ppt { background: #ffedd5; color: #c2410c; }
     .badge-other { background: #f3f4f6; color: #4b5563; }
 
+    [data-theme="dark"] .badge-pdf, body.dark-mode .badge-pdf { background: rgba(239, 68, 68, 0.18); color: #f87171; }
+    [data-theme="dark"] .badge-doc, body.dark-mode .badge-doc { background: rgba(59, 130, 246, 0.18); color: #60a5fa; }
+    [data-theme="dark"] .badge-img, body.dark-mode .badge-img { background: rgba(16, 185, 129, 0.18); color: #34d399; }
+    [data-theme="dark"] .badge-zip, body.dark-mode .badge-zip { background: rgba(168, 85, 247, 0.18); color: #c084fc; }
+    [data-theme="dark"] .badge-ppt, body.dark-mode .badge-ppt { background: rgba(249, 115, 22, 0.18); color: #fb923c; }
+    [data-theme="dark"] .badge-other, body.dark-mode .badge-other { background: #2a2a2a; color: #d1d5db; }
+
     .file-queue-name {
       font-weight: 600;
       color: var(--text);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      max-width: 280px;
+      flex: 1;
+      min-width: 0;
     }
 
     .file-queue-size {
@@ -258,71 +315,131 @@
     .file-queue-remove {
       background: none;
       border: none;
-      color: #9ca3af;
+      color: var(--text-muted);
       font-size: 18px;
       line-height: 1;
       cursor: pointer;
-      padding: 2px 6px;
-      border-radius: 4px;
+      width: 26px;
+      height: 26px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      border-radius: 6px;
       transition: all 0.15s;
+      flex-shrink: 0;
     }
 
     .file-queue-remove:hover {
       color: #ef4444;
-      background: #fee2e2;
+      background: rgba(239, 68, 68, 0.12);
+    }
+
+    .clean-grid-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    @media (max-width: 540px) {
+      .clean-grid-row {
+        grid-template-columns: 1fr;
+        gap: 0;
+      }
     }
 
     .clean-field {
       margin-bottom: 18px;
+      width: 100%;
+      box-sizing: border-box;
     }
 
     .clean-label {
-      display: block;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
       font-size: 12px;
       font-weight: 700;
-      color: #374151;
+      color: var(--text-muted);
       text-transform: uppercase;
-      letter-spacing: 0.03em;
-      margin-bottom: 6px;
+      letter-spacing: 0.04em;
+      margin-bottom: 7px;
+      line-height: 1.3;
+    }
+
+    .clean-label span {
+      font-weight: normal;
+      text-transform: none;
+      letter-spacing: normal;
     }
 
     .clean-input, .clean-select {
       width: 100%;
+      box-sizing: border-box;
       padding: 12px 14px;
       border: 1.5px solid var(--border);
-      border-radius: 10px;
-      font-size: 13.5px;
+      border-radius: 12px;
+      font-size: 14px;
       font-family: inherit;
       color: var(--text);
-      background: #ffffff;
+      background: var(--surface);
       outline: none;
-      transition: all 0.2s;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      display: block;
+    }
+
+    .clean-select {
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' width='16' height='16' fill='none' stroke='%23888888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' xmlns='http://www.w3.org/2000/svg'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      background-size: 16px;
+      padding-right: 40px;
     }
 
     .clean-input:focus, .clean-select:focus {
-      border-color: #111827;
-      box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.06);
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.16);
     }
 
     .clean-select:disabled {
-      background: #f9fafb;
-      color: #9ca3af;
+      background-color: var(--dropzone-bg);
+      color: var(--text-muted);
       cursor: not-allowed;
+      opacity: 0.65;
+    }
+
+    .clean-select option {
+      background: var(--surface);
+      color: var(--text);
+    }
+
+    [data-theme="dark"] .clean-select option,
+    body.dark-mode .clean-select option {
+      background: #171717;
+      color: #f5f5f7;
     }
 
     .btn-submit-clean {
       width: 100%;
-      padding: 13px;
-      border-radius: 10px;
-      background: #111827;
+      box-sizing: border-box;
+      padding: 14px 20px;
+      border-radius: 12px;
+      background: var(--accent);
       color: #ffffff;
-      font-size: 14px;
+      font-size: 14.5px;
       font-weight: 700;
       border: none;
       cursor: pointer;
       margin-top: 10px;
-      box-shadow: 0 4px 14px rgba(0,0,0,0.12);
-      transition: all 0.2s;
+      box-shadow: 0 4px 14px rgba(0, 113, 227, 0.3);
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -330,40 +447,54 @@
     }
 
     .btn-submit-clean:hover {
-      background: #000000;
+      background: var(--accent-hover);
       transform: translateY(-1px);
-      box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+      box-shadow: 0 6px 20px rgba(0, 113, 227, 0.42);
+    }
+
+    .btn-submit-clean:active {
+      transform: scale(0.99);
     }
 
     .btn-submit-clean:disabled {
-      background: #9ca3af;
+      background: var(--border);
+      color: var(--text-muted);
       cursor: not-allowed;
       transform: none;
+      box-shadow: none;
+    }
+
+    #statusMsg {
+      font-size: 13px;
+      text-align: center;
+      margin-top: 14px;
+      font-weight: 600;
+      min-height: 20px;
     }
 
     @media (max-width: 768px) {
       .upload-container {
-        margin: 16px auto 90px;
-        padding: 0 12px;
+        margin: 20px auto 80px;
+        padding: 0 16px;
         max-width: 100%;
       }
 
       .upload-card-clean {
-        padding: 22px 16px;
-        border-radius: 14px;
+        padding: 24px 20px;
+        border-radius: 16px;
       }
 
       .clean-dropzone {
-        padding: 20px 12px;
+        padding: 24px 16px;
       }
 
       .clean-input, .clean-select {
-        min-height: 46px;
+        min-height: 48px;
         font-size: 16px !important; /* Prevents iOS auto-zoom */
       }
 
       .btn-submit-clean {
-        min-height: 48px;
+        min-height: 50px;
         font-size: 15px;
       }
 
@@ -373,17 +504,37 @@
     }
 
     @media (max-width: 480px) {
+      .upload-container {
+        margin: 12px auto 60px;
+        padding: 0 12px;
+      }
+
+      .upload-card-clean {
+        padding: 20px 16px;
+        border-radius: 14px;
+      }
+
+      .upload-card-header {
+        gap: 12px;
+        margin-bottom: 18px;
+        padding-bottom: 14px;
+      }
+
+      .upload-header-icon-wrap {
+        width: 38px;
+        height: 38px;
+      }
+
       .upload-head-title {
-        font-size: 19px;
+        font-size: 18px;
       }
 
       .upload-head-sub {
         font-size: 12px;
-        margin-bottom: 18px;
       }
 
       .clean-dropzone {
-        padding: 18px 10px;
+        padding: 20px 12px;
       }
     }
   </style>
@@ -394,7 +545,10 @@
 
   <!-- Slim Header -->
   <header class="dash-header">
-    <a href="dashboard.html" class="lib-wordmark">Semester Library</a>
+    <div class="dash-header-left">
+      <a href="dashboard.html" class="lib-wordmark">Semester Library</a>
+      <span class="apple-univ-tag">GU</span>
+    </div>
 
     <nav class="dash-header-nav">
       <a href="dashboard.html" class="header-nav-item">Feed</a>
@@ -406,6 +560,24 @@
     </nav>
 
     <div class="dash-header-actions">
+      <button type="button" class="theme-toggle-btn dash-theme-btn" id="themeToggleBtn" aria-label="Toggle theme" title="Toggle theme">
+        <span class="theme-toggle-track">
+          <svg class="theme-icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+          <svg class="theme-icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </span>
+      </button>
       <a href="profile.html" class="dash-profile-chip" title="View Profile">
         <div class="dash-profile-avatar" id="headerAvatar">·</div>
         <span class="dash-profile-label" id="headerProfileName">Profile</span>
@@ -415,8 +587,17 @@
 
   <main class="upload-container">
     <div class="upload-card-clean">
-      <h1 class="upload-head-title">Share Study Material</h1>
-      <p class="upload-head-sub">Publish notes, slide decks, or assignments directly to your semester library.</p>
+      <div class="upload-card-header">
+        <div class="upload-header-icon-wrap">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+          </svg>
+        </div>
+        <div class="upload-header-text">
+          <h1 class="upload-head-title">Share Study Material</h1>
+          <p class="upload-head-sub">Publish notes, slide decks, or assignments directly to your semester library.</p>
+        </div>
+      </div>
 
       <form id="uploadForm">
         
@@ -447,21 +628,22 @@
           <input type="text" id="titleInput" class="clean-input" placeholder="e.g. Chapter 2 Digital Logic Notes" maxlength="100">
         </div>
 
-        <!-- Semester -->
-        <div class="clean-field">
-          <label class="clean-label" for="semesterSelect">Semester</label>
-          <select id="semesterSelect" class="clean-select" required>
-            <option value="">Select Semester…</option>
-          </select>
-        </div>
+        <!-- Semester & Course Row -->
+        <div class="clean-grid-row">
+          <div class="clean-field">
+            <label class="clean-label" for="semesterSelect">Semester</label>
+            <select id="semesterSelect" class="clean-select" required>
+              <option value="">Select Semester…</option>
+            </select>
+          </div>
 
-        <!-- Subject -->
-        <div class="clean-field">
-          <label class="clean-label" for="subjectSelect">Subject / Course</label>
-          <select id="subjectSelect" class="clean-select" disabled required>
-            <option value="">Choose semester first</option>
-          </select>
-          <input type="text" id="customSubInput" class="clean-input" placeholder="Enter custom subject" style="display:none; margin-top:8px;">
+          <div class="clean-field">
+            <label class="clean-label" for="subjectSelect">Subject / Course</label>
+            <select id="subjectSelect" class="clean-select" disabled required>
+              <option value="">Choose semester first</option>
+            </select>
+            <input type="text" id="customSubInput" class="clean-input" placeholder="Enter custom subject" style="display:none; margin-top:8px;">
+          </div>
         </div>
 
         <!-- Chapter / Unit -->

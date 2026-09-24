@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
 <head>
+  <script src="/theme.js"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Settings — Semester Library</title>
@@ -21,7 +22,7 @@
     fetch('/api/me').then(r => { if (!r.ok) showAuthModal(true); }).catch(() => showAuthModal(true));
   </script>
   <link rel="stylesheet" href="auth-modal.css">
-  <script src="theme.js" defer></script>
+  <link rel="stylesheet" href="/theme-overrides.css">
 </head>
 <body class="dash profile-body">
 

@@ -2,6 +2,7 @@
 <html lang="en" data-theme="dark">
 
 <head>
+  <script src="/theme.js"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Curriculum Library — Semester Library</title>
@@ -31,7 +32,6 @@
       } catch (e) {}
     })();
   </script>
-  <script src="theme.js" defer></script>
 
   <script>
     // Library is now publicly accessible for browsing. Authentication is checked before viewing/downloading files.
@@ -75,7 +75,7 @@
       --bg: var(--bg-base, #0a0a0a);
       --surface: var(--bg-surface-raised, #202020);
       --surface-glass: rgba(22, 22, 22, 0.92);
-      --border: var(--border, #333333);
+      --border: #404040;
       --border-hover: var(--border-strong, #4a4a4a);
       --text: var(--text-primary, #f5f5f5);
       --text-muted: var(--text-secondary, #a3a3a3);
@@ -2348,6 +2348,7 @@
     }
   </style>
   <link rel="stylesheet" href="auth-modal.css">
+  <link rel="stylesheet" href="/theme-overrides.css">
 </head>
 
 <body class="dash">

@@ -2,6 +2,7 @@
 <html lang="en" data-theme="dark">
 
 <head>
+  <script src="/theme.js"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Code Compiler — Semester Library</title>
@@ -1378,6 +1379,7 @@
       transform: translateX(-50%) translateY(0);
     }
   </style>
+  <link rel="stylesheet" href="/theme-overrides.css">
 </head>
 
 <body class="dash">
@@ -1765,10 +1767,8 @@
     let autoRunTimer = null;
     let consoleLogCount = 0;
     const activePanes = new Set(['html', 'css', 'js']);
-    let isDark = localStorage.getItem('compiler-theme') !== 'light';
+    let isDark = window.SemesterTheme.isDark();
 
-    // Apply saved theme immediately (before paint)
-    if (isDark) document.documentElement.setAttribute('data-theme', 'dark');
 
     // CodeMirror instances
     let cmSingle, cmHtml, cmCss, cmJs;
@@ -2308,17 +2308,16 @@ ${jsCode}
 
     function applyTheme(dark) {
       isDark = dark;
-      document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
       themeIconMoon.style.display = dark ? 'none' : 'inline';
       themeIconSun.style.display = dark ? 'inline' : 'none';
       themeLabel.textContent = dark ? 'Light' : 'Dark';
       themeToggleBtn.classList.toggle('active', dark);
-      try { localStorage.setItem('compiler-theme', dark ? 'dark' : 'light'); } catch (_) { }
     }
     // Init theme icons on load
     applyTheme(isDark);
 
-    themeToggleBtn.addEventListener('click', () => applyTheme(!isDark));
+    themeToggleBtn.addEventListener('click', () => window.SemesterTheme.toggle());
+    window.addEventListener('themechange', event => applyTheme(event.detail.isDark));
 
     // ── Interactive Terminal & WebSocket Live Runner ───────
     let term = null;

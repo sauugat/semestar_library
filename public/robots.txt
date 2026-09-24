@@ -1,15 +1,24 @@
 User-agent: *
 Allow: /
+Allow: /library
 Allow: /syllabus
 Allow: /routine
 Allow: /about
+Allow: /semesters
+Allow: /semester/
+Allow: /notices
+Allow: /assignments
+Allow: /code-lab
+Allow: /privacy
+Allow: /terms
+
 Disallow: /dashboard
 Disallow: /profile
 Disallow: /chat
 Disallow: /chatbot
 Disallow: /files
-Disallow: /library
 Disallow: /login
+Disallow: /settings
 Disallow: /api/
 
 Sitemap: https://semestar-library.vercel.app/sitemap.xml

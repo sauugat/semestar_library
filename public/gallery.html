@@ -2,6 +2,7 @@
 <html lang="en" data-theme="dark">
 
 <head>
+  <script src="/theme.js"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Media Archive · Gandaki University — Antigravity Visuals</title>
@@ -886,6 +887,7 @@
     }
   </style>
   <link rel="stylesheet" href="auth-modal.css">
+  <link rel="stylesheet" href="/theme-overrides.css">
 </head>
 
 <body class="gallery-page-body">
@@ -1675,10 +1677,6 @@
       if (e.key === 'ArrowRight') nextHud();
     });
 
-    // Theme state synchronization (default is dark mode)
-    if (localStorage.getItem('theme') !== 'light') {
-      document.body.classList.add('dark-mode');
-    }
 
     // Initialize View
     buildMarquee();

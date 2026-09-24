@@ -2,6 +2,7 @@
 <html lang="en" data-theme="dark">
 
 <head>
+  <script src="/theme.js"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Student Profile — Semester Library</title>
@@ -26,7 +27,7 @@
     fetch('/api/profile').then(r => { if (!r.ok) showAuthModal(true); }).catch(() => showAuthModal(true));
   </script>
   <link rel="stylesheet" href="auth-modal.css">
-  <script src="theme.js" defer></script>
+  <link rel="stylesheet" href="/theme-overrides.css">
 </head>
 
 <body class="dash profile-body">
@@ -267,8 +268,7 @@
           </svg>
           Log Out
         </button>
-        <button class="account-logout-btn" onclick="location.href='settings.html'"
-          style="background: transparent; border-color: var(--ap-border); color: var(--ap-text-primary);">
+        <button class="account-logout-btn account-password-btn" onclick="location.href='settings.html'">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
             stroke-linejoin="round" width="16" height="16">
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
@@ -744,7 +744,10 @@
 
     // Render Posts Uploaded by User
     function renderPost(f) {
-      const badge = getFileBadge(f.originalName);
+      const badge = getFileBadge(f.originalName || 'file');
+      const initial = escapeHtml((f.uploaderName || 'Student').charAt(0).toUpperCase());
+      const subjectTag = f.subject ? `<span class="post-pill-tag">${escapeHtml(f.subject)}</span>` : '';
+      const chapterTag = f.chapter ? `<span class="post-pill-tag">${escapeHtml(f.chapter)}</span>` : '';
       const uploaderRole = f.uploaderRole || 'student';
       let verifiedBadgeHtml = `<span class="post-verified-badge" title="Verified Gandaki University Student">
           <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
@@ -862,10 +865,28 @@
       `;
     }
 
+    function showListError(containerId, message, retry) {
+      const container = document.getElementById(containerId);
+      const notice = document.createElement('div');
+      notice.className = 'profile-list-error';
+      notice.setAttribute('role', 'status');
+      const text = document.createElement('p');
+      text.textContent = message;
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'profile-secondary-btn';
+      button.textContent = 'Try again';
+      button.addEventListener('click', retry);
+      notice.append(text, button);
+      container.replaceChildren(notice);
+    }
+
     async function loadUserFiles(studentId) {
       try {
         const res = await fetch(`/api/profile/${studentId}/files`);
         const files = await res.json();
+        if (!res.ok) throw new Error(files.message || 'Could not load shared resources.');
+        if (!Array.isArray(files)) throw new Error('Unexpected resources response.');
         const container = document.getElementById('userFilesList');
         if (!files.length) {
           container.innerHTML = '<p class="empty-state">No files uploaded yet.</p>';
@@ -874,6 +895,7 @@
         container.innerHTML = files.map(renderPost).join('');
       } catch (err) {
         console.error('Error loading files:', err);
+        showListError('userFilesList', 'Could not load shared resources. Please try again.', () => loadUserFiles(studentId));
       }
     }
 
@@ -881,6 +903,7 @@
       try {
         const res = await fetch('/api/students/suggested');
         const classmates = await res.json();
+        if (!res.ok || !Array.isArray(classmates)) throw new Error(classmates.message || 'Could not load classmates.');
         const container = document.getElementById('classmatesGrid');
         if (!classmates.length) {
           container.innerHTML = '<p class="empty-state">No other students registered yet.</p>';
@@ -907,6 +930,7 @@
         }).join('');
       } catch (err) {
         console.error('Error loading classmates:', err);
+        showListError('classmatesGrid', 'Could not load classmates. Please try again.', loadClassmates);
       }
     }
 
@@ -997,6 +1021,7 @@
       try {
         const res = await fetch(`/api/profile/${currentProfile.studentId}/${type}`);
         const users = await res.json();
+        if (!res.ok || !Array.isArray(users)) throw new Error(users.message || 'Could not load this list.');
         if (!users.length) {
           list.innerHTML = `<p class="empty-state">No ${type} yet.</p>`;
           return;
@@ -1018,6 +1043,7 @@
         }).join('');
       } catch (err) {
         console.error('Error fetching follow list:', err);
+        showListError('followModalList', 'Could not load this list. Please try again.', () => openFollowersModal(type));
       }
     }
 

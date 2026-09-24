@@ -1,0 +1,292 @@
+/* Shared theme corrections. Loaded after page styles; editor token colors and
+   user media are deliberately outside these component rules. */
+@media screen {
+  :root { color-scheme: light; }
+  html[data-theme="dark"], html[data-theme="dark"] body {
+    color-scheme: dark;
+    --bg-base: #0a0a0a;
+    --bg-app: #0a0a0a;
+    --bg-primary: #0a0a0a;
+    --bg-surface: #171717;
+    --bg-secondary: #171717;
+    --bg-surface-raised: #242424;
+    --bg-tertiary: #242424;
+    --bg-input: #202020;
+    --border: rgba(255, 255, 255, 0.10);
+    --border-color: rgba(255, 255, 255, 0.10);
+    --border-strong: #606060;
+    --text-primary: #f5f5f5;
+    --text-secondary: #b5b5b5;
+    --text-muted: #b5b5b5;
+    --text-disabled: #929292;
+    --text-subtle: #b5b5b5;
+    --text-caption: #b5b5b5;
+    --accent: #f5f5f5;
+    --accent-color: #f5f5f5;
+    --accent-blue: #f5f5f5;
+    --success: #f5f5f5;
+    --danger: #f5f5f5;
+    --warning: #c7c7c7;
+    --fill-active: #f5f5f5;
+    --fill-active-text: #111111;
+    --bg: #0a0a0a;
+    --surface: #171717;
+    --surface-glass: rgba(23, 23, 23, 0.96);
+    --text: #f5f5f5;
+    --ink: #f5f5f5;
+    --muted: #b5b5b5;
+    --paper: #171717;
+    --line: #606060;
+    --line-light: #404040;
+    --ceramic-bg: #0a0a0a;
+    --ceramic-surface: #171717;
+    --ceramic-card-hover: #242424;
+    --ceramic-border: #404040;
+    --ceramic-border-hover: #606060;
+    --ceramic-border-focus: #f5f5f5;
+    --text-main: #f5f5f5;
+    --text-sub: #b5b5b5;
+    --chip-bg: #242424;
+    --chip-text: #f5f5f5;
+    --cl-card-bg: #171717;
+    --cl-subtle-bg: #242424;
+    --cl-text-primary: #f5f5f5;
+    --cl-text-secondary: #b5b5b5;
+    --cl-text-muted: #b5b5b5;
+    --cl-border: #404040;
+    --cl-border-hover: #606060;
+    --cl-accent: #f5f5f5;
+    --cl-success: #f5f5f5;
+    --cl-danger: #f5f5f5;
+    --cl-primary: #f5f5f5;
+    --cl-dark: #f5f5f5;
+    --cl-gray-dark: #d0d0d0;
+    --cl-gray: #b5b5b5;
+    --cl-bg-light: #171717;
+    --cl-white: #242424;
+    --sla-bg-dark: #0a0a0a;
+    --sla-bg-mid: #171717;
+    --sla-bg-deep: #202020;
+    --sla-bg-card: #171717;
+    --sla-bg-card-hover: #242424;
+    --sla-purple-core: #f5f5f5;
+    --sla-lavender: #d0d0d0;
+    --sla-violet: #b5b5b5;
+    --sla-violet-deep: #606060;
+    --sla-violet-dark: #404040;
+    --sla-text-white: #f5f5f5;
+    --sla-text-body: #dedede;
+    --sla-text-muted: #b5b5b5;
+    --sla-text-subtle: #b5b5b5;
+    --sla-border-glass: #404040;
+    --sla-border-glow: #606060;
+    --sla-glow-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    --ap-accent-blue-hover: #dedede;
+    --ap-accent-blue-active: #c7c7c7;
+    --ap-accent-blue-subtle: #242424;
+    --ap-text-quaternary: #b5b5b5;
+  }
+
+  html[data-theme="dark"] body { background-color: #0a0a0a !important; color: #f5f5f5 !important; }
+  html[data-theme="dark"] :is(input, select, textarea):not(:where(.monaco-editor *, .CodeMirror *, .xterm *)) {
+    color: #f5f5f5 !important;
+    background-color: #202020 !important;
+    border-color: rgba(255, 255, 255, 0.20) !important;
+    caret-color: #f5f5f5;
+    accent-color: #dedede;
+  }
+  html[data-theme="dark"] :is(input, textarea)::placeholder { color: #b5b5b5 !important; opacity: 1; }
+  html[data-theme="dark"] :is(option, optgroup) { background: #202020; color: #f5f5f5; }
+  html[data-theme="dark"] :is(button, a, input, textarea, select):focus-visible {
+    outline: 2px solid #dedede !important;
+    outline-offset: 3px;
+  }
+
+  /* Dialogs, drawers and menus: paired surface/foreground colors. */
+  html[data-theme="dark"] body :is(
+    .modal-card, .modal-header, .modal-footer, .apple-confirm-card,
+    .apple-signin-card, .auth-modal-close-btn, .confirm-file-preview-list,
+    .drawer-sheet, .drawer-header, .drawer-preview-pane, .emoji-picker-popup,
+    .im-confirm-card, .im-confirm-icon, .im-confirm-btn.cancel,
+    .cl-modal-card, .cl-create-modal-card, .cl-create-modal-header, .cl-create-modal-footer,
+    .cl-modal-close-btn, .cl-create-modal-close, .cl-denied-card, .cl-denied-close-x,
+    .cl-sim-modal-card, .cl-sim-modal-header, .cl-sim-modal-close,
+    .cl-dropdown-menu, .cl-dropdown-trigger, .cl-creation-mode-tabs,
+    .cl-question-block, .cl-student-question-box, .cl-pdf-side-pane, .cl-pdf-pane-header,
+    .cl-pdf-upload-box, .cl-pdf-selected-badge, .cl-pdf-icon-pill,
+    .file-queue-section, .file-queue-item, .clean-dropzone, .modal-close-btn,
+    .ag-hud-lightbox, .ag-hud-frame, .ag-hud-console, .ag-hud-nav-btn, .ag-hud-close-btn
+  ) { background: #171717 !important; color: #f5f5f5 !important; border-color: rgba(255, 255, 255, 0.10) !important; box-shadow: none !important; }
+
+  /* Content panels across Library, Code Lab, Gallery, and legal pages. */
+  html[data-theme="dark"] body :is(
+    .cl-desc-card, .cl-explanation-box, .cl-filter-toolbar, .cl-view-switcher,
+    .cl-subject-card, .cl-empty-state, .cl-assign-item-card, .cl-student-card,
+    .cl-student-header, .cl-student-header-btn, .cl-student-drawer, .cl-task-card,
+    .cl-assignment-banner, .cl-similarity-banner, .cl-similarity-item,
+    .cl-q-list, .cl-q-row, .cl-q-item-wrap, .cl-grading-strip, .cl-grade-notice,
+    .cl-seg-control, .cl-teacher-bottom-bar, .cl-bottom-check-pill,
+    .clean-unit-row, .clean-unit-head, .clean-unit-body, .clean-file-item.active-viewing,
+    .ag-nav-blur, .ag-telemetry-badge, .ag-marquee-card, .ag-deck-capsule,
+    .ag-search-kbd, .ag-card-viewport, .ag-card-category-tag,
+    .page, .cover-section, .grading-box, .question-description, .question-section,
+    .stat-box, .flagged-banner, .clock-warning-banner, #report
+  ) { background: #171717 !important; color: #f5f5f5 !important; border-color: rgba(255, 255, 255, 0.10) !important; box-shadow: none !important; }
+
+  html[data-theme="dark"] body :is(
+    .cl-status-pill, .cl-subject-pill, .cl-sem-pill, .cl-sub-count-chip,
+    .cl-sub-fraction-badge, .cl-eval-pill, .cl-task-pts-badge, .cl-meta-pill,
+    .cl-meta-tag, .cl-similarity-badge, .cl-similarity-count-tag, .cl-similarity-score-pill,
+    .cl-report-status-badge, .attachment-meta, .post-pill-tag, .assignment-header-badge,
+    .badge-pdf, .badge-zip, .badge-ppt, .badge-other, .confirm-badge, .feature-tag,
+    .course-code-badge, .cl-output-status-pill
+  ) { color: #dedede !important; background: #242424 !important; border-color: rgba(255, 255, 255, 0.20) !important; }
+
+  html[data-theme="dark"] body :is(
+    .modal-title, .modal-header h2, .modal-header h3, .modal-subtitle, .modal-label,
+    .cl-modal-title, .cl-modal-body, .cl-create-modal-title, .cl-create-modal-subtitle,
+    .cl-label, .cl-section-title, .cl-question-title, .file-queue-name,
+    .cl-student-name, .cl-task-title, .cl-q-title, .cl-subject-name, .cl-assignment-title,
+    .confirm-title, .confirm-desc, .apple-confirm-title, .apple-confirm-desc
+  ) { color: #f5f5f5 !important; }
+
+  html[data-theme="dark"] body :is(
+    .btn-modal-cancel, .btn-confirm-cancel, .cl-cancel-btn, .cl-add-btn, .cl-remove-btn,
+    .cl-btn-secondary, .cl-btn-glass, .cl-crumb-link, .cl-tool-link, .cl-copy-btn,
+    .cl-grade-draft-btn, .cl-mark-all-btn, .cl-pdf-tool-btn, .preview-action-btn,
+    .preview-mobile-back-btn, .btn-file-view, .btn-file-delete, .btn-unit-delete-all,
+    .batch-btn-toggle, .ag-inspect-btn, .cl-modal-btn.cancel
+  ) { color: #f5f5f5 !important; background: #242424 !important; border-color: rgba(255, 255, 255, 0.20) !important; }
+
+  html[data-theme="dark"] body :is(
+    .btn-confirm-danger, .batch-btn-delete-action, .cl-btn-pro, .cl-btn-run,
+    .cl-window-run-btn, .cl-create-btn, .cl-modal-btn:not(.cancel),
+    .cl-btn-save-grade, .cl-btn-bulk-release, .cl-view-btn.active,
+    .cl-mode-tab-btn.active, .cl-seg-btn.active
+  ) { color: #111111 !important; background: #f5f5f5 !important; border-color: #f5f5f5 !important; }
+  html[data-theme="dark"] body :is(.cl-btn-pro, .cl-btn-run, .cl-window-run-btn, .cl-create-btn, .cl-modal-btn:not(.cancel), .cl-btn-save-grade, .cl-btn-bulk-release) :is(span, svg) { color: #111111 !important; }
+
+  html[data-theme="dark"] body :is(.cl-grade-toast, .modal-status-msg, .cl-modal-error-icon) {
+    color: #f5f5f5 !important; background: #242424 !important; border-color: rgba(255, 255, 255, 0.20) !important;
+  }
+  html[data-theme="dark"] body :is(.cl-dot, .cl-dot-red, .cl-dot-yellow, .cl-dot-green) { background: #a3a3a3 !important; }
+  html[data-theme="dark"] body :is(.im-app, .im-feed, .im-header, .im-composer) { background: #0a0a0a !important; border-color: rgba(255, 255, 255, 0.10) !important; }
+  html[data-theme="dark"] body :is(.im-input-capsule, .im-attachment-chip, #replyPreview, .im-typing-indicator) { background: #242424 !important; color: #f5f5f5 !important; border-color: rgba(255, 255, 255, 0.10) !important; }
+  html[data-theme="dark"] body .im-row.other .im-bubble { background: #242424 !important; color: #f5f5f5 !important; }
+  html[data-theme="dark"] body .im-row.self .im-bubble { background: #dedede !important; color: #111111 !important; }
+  html[data-theme="dark"] body .im-row.self .im-bubble :is(p, a, span):not([class*="token"]) { color: #111111 !important; }
+  html[data-theme="dark"] body :is(.sla-panel, .sla-panel-header, .sla-panel-footer, .sla-input-capsule, .sla-suggestion-chip, .sla-action-pill) { background: #171717 !important; color: #f5f5f5 !important; border-color: rgba(255, 255, 255, 0.10) !important; }
+  html[data-theme="dark"] body :is(.sla-panel::before, .sla-panel::after, .sla-glow-orb, .sla-ambient-glow) { background: none !important; }
+
+  /* Components found during the rendered page audit. */
+  html[data-theme="dark"] body :is(
+    .detail-section-card, .section-card-header, .profile-account-section,
+    .syllabus-year-card, .syllabus-sem-card, .course-list-card,
+    .portal-nav-blur, .portal-telemetry-badge, .portal-metric-card, .portal-deck-capsule,
+    .portal-card, .portal-wordmark-badge, .not-found-card,
+    .cl-card, .cl-assignment-card, .cl-player-card,
+    .apple-roadmap-nodes, .clean-file-item, .dashboard-post-composer-bar,
+    .ag-photo-card, .sla-msg-bubble
+  ) { background: #171717 !important; color: #f5f5f5 !important; border-color: rgba(255, 255, 255, 0.10) !important; box-shadow: none !important; }
+  html[data-theme="dark"] body :is(
+    .apple-card-link, .roadmap-pill, .bento-routine-tab, .year-credits-badge,
+    .cl-q-badge, .cl-open-pill, .cl-time-badge, .profile-secondary-btn,
+    .profile-tab, .portal-chip-btn, .nf-btn.secondary, .cl-add-tc-btn
+  ) { background: #242424 !important; color: #dedede !important; border-color: rgba(255, 255, 255, 0.20) !important; }
+  html[data-theme="dark"] body :is(
+    .roadmap-pill.active, .bento-routine-tab.active, .portal-chip-btn.active,
+    .nf-btn.primary, .cl-submit-btn, .ag-hud-btn-primary
+  ) { background: #f5f5f5 !important; color: #111111 !important; border-color: #f5f5f5 !important; }
+  html[data-theme="dark"] body :is(
+    .file-meta, .like-count, .bento-date-year, .roadmap-sep, .cl-card-meta,
+    .cl-card-meta span, .cl-player-footer, .ag-nav-links a, .ag-nav-menu a,
+    .portal-nav-link, .portal-hero-subtext, .not-found-desc, #q-counter
+  ) { color: #b5b5b5 !important; }
+  html[data-theme="dark"] body :is(.cl-testcases-wrapper, .cl-pdf-upload-box, .cl-pdf-selected-badge) :is(span, label, div) { color: #dedede !important; }
+  html[data-theme="dark"] body #report > p { color: #f5f5f5 !important; }
+  html[data-theme="dark"] body :is(.btn-file-get, .attach-btn-download, .file-action.primary, .cl-sub-link-btn) :is(span, svg) { color: #111111 !important; }
+  html[data-theme="dark"] body :is(.portal-title-gradient, .ag-title-gradient) {
+    background: none !important; color: #f5f5f5 !important; -webkit-text-fill-color: #f5f5f5 !important;
+  }
+  html[data-theme="dark"] body :is(.portal-ambient-canvas, .portal-light-aura, .portal-grid-mesh) { background: none !important; }
+}
+
+/* A surface or spacing already separates these cards; keep outlines quiet.
+   Control borders, selected indicators, focus rings and table rules remain. */
+@media screen {
+  :root {
+    --outline-soft: rgba(20, 25, 35, 0.09);
+    --outline-hover: rgba(20, 25, 35, 0.19);
+  }
+  html[data-theme="dark"] {
+    --outline-soft: rgba(255, 255, 255, 0.08);
+    --outline-hover: rgba(255, 255, 255, 0.18);
+  }
+  html:root body :is(.course-card-minimal, .feed-card, .social-post-card,
+    .profile-hero-card, .classmate-card, .profile-account-section,
+    .cl-subject-card, .cl-assign-item-card, .cl-assignment-card,
+    .cl-student-card, .cl-task-card, .detail-section-card,
+    .syllabus-year-card, .syllabus-sem-card, .course-list-card,
+    .portal-card, .portal-metric-card, .ag-photo-card) {
+    border-width: 1px !important;
+    border-color: var(--outline-soft) !important;
+    box-shadow: none !important;
+  }
+  html:root body :is(.course-card-minimal, .classmate-card, .cl-subject-card,
+    .cl-assign-item-card, .portal-card):hover {
+    border-color: var(--outline-hover) !important;
+  }
+  html:root body :is(.profile-tag-pill, .social-chip, .course-code-badge, .course-files-pill,
+    .post-pill-tag, .cl-meta-tag, .cl-subject-pill, .cl-sem-pill,
+    .cl-sub-count-chip, .cl-task-pts-badge, .cl-q-badge,
+    .sem-btn:not(.active), .admin-accolade-ribbon,
+    .attachment-meta, .assignment-header-badge, .post-action-btn,
+    .cl-status-pill, .cl-eval-pill, .cl-time-badge) {
+    border-color: transparent !important;
+    box-shadow: none !important;
+  }
+  html:root body :is(.profile-tabs-nav, .profile-stats-strip, .profile-stat-box,
+    .section-card-header, .post-engage-bar, .post-attachment-card, .dash-header,
+    .cl-hero-banner, .cl-feed-toolbar) {
+    border-color: var(--outline-soft) !important;
+  }
+  html:root body .profile-stat-box { border-right: 0; }
+  html:root body .profile-tab { border-color: transparent !important; box-shadow: none; }
+  .profile-list-error { grid-column: 1 / -1; padding: 24px; text-align: center; color: var(--text-secondary); }
+  .account-password-btn { background: transparent; border-color: var(--ap-border); color: var(--ap-text-primary); }
+
+  /* Profile uses paired colors so both regular and admin profiles switch. */
+  html[data-theme="dark"] body :is(.profile-hero-card, .classmate-card, .profile-account-section) {
+    background: #171717 !important; color: #f5f5f5 !important;
+  }
+  html[data-theme="dark"] body :is(.profile-name, .classmate-name, .follow-user-name,
+    .profile-stat-box strong, .profile-account-section h3, .form-group label) { color: #f5f5f5 !important; }
+  html[data-theme="dark"] body :is(.profile-handle, .profile-bio, .classmate-sub,
+    .classmate-files-count, .follow-user-sub, .profile-stat-box span,
+    .profile-account-section p, .form-hint) { color: #b5b5b5 !important; }
+  html[data-theme="dark"] body :is(.profile-stats-strip, .profile-tag-pill, .social-chip,
+    .classmate-avatar, .follow-user-avatar, .profile-avatar-large, .avatar-edit-badge) {
+    background: #242424 !important; color: #f5f5f5 !important;
+  }
+  html[data-theme="dark"] body :is(.profile-avatar-large, .avatar-edit-badge) { border-color: #171717; }
+  html[data-theme="dark"] body :is(.profile-tag-pill svg, .social-chip svg) { color: inherit; }
+  html[data-theme="dark"] body :is(.classmate-follow-btn, .profile-primary-btn,
+    .profile-follow-btn, .btn-save) {
+    background: #f5f5f5 !important; color: #111111 !important; border-color: transparent !important;
+  }
+  html[data-theme="dark"] body :is(.classmate-follow-btn.following, .profile-follow-btn.following,
+    .account-logout-btn, .profile-secondary-btn, .btn-cancel, .modal-close) {
+    background: #242424 !important; color: #f5f5f5 !important;
+    border-color: var(--outline-hover) !important; box-shadow: none !important;
+  }
+  html[data-theme="dark"] body :is(.account-logout-btn, .profile-secondary-btn,
+    .classmate-follow-btn.following, .profile-follow-btn.following, .btn-cancel, .modal-close):hover {
+    background: #303030 !important;
+  }
+  html[data-theme="dark"] body :is(.follow-user-row:hover, .profile-stat-box.stat-interactive:hover) {
+    background: #303030 !important;
+  }
+  html:root[data-theme="dark"] body .profile-tab { background: transparent !important; color: #b5b5b5 !important; border-color: transparent !important; }
+  html:root[data-theme="dark"] body .profile-tab:hover { background: #242424 !important; color: #f5f5f5 !important; }
+  html:root[data-theme="dark"] body .profile-tab.active { background: #f5f5f5 !important; color: #111111 !important; }
+}

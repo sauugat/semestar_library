@@ -44,7 +44,7 @@
   }
 
   function updateThemeColorMeta(isDark) {
-    const color = isDark ? '#0f1115' : '#ffffff';
+    const color = isDark ? '#0a0a0a' : '#ffffff';
     let meta = document.querySelector('meta[name="theme-color"]');
     if (!meta) {
       meta = document.createElement('meta');
@@ -86,6 +86,7 @@
   }
 
   function setTheme(theme) {
+    if (theme !== 'light' && theme !== 'dark') return;
     try {
       localStorage.setItem(THEME_KEY, theme);
     } catch (e) {}
@@ -124,6 +125,7 @@
       </span>
     `;
     btn.addEventListener('click', toggleTheme);
+    btn._themeBound = true;
     return btn;
   }
 

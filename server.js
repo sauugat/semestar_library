@@ -343,6 +343,36 @@ app.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
+app.get('/privacy', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'privacy.html'));
+});
+
+app.get(['/terms', '/termsandconditions'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'termsandconditions.html'));
+});
+
+// Google Search Console Site Verification Protection
+app.get('/google:hash.html', (req, res, next) => {
+  const file = `google${req.params.hash}.html`;
+  const filePath = path.join(__dirname, 'public', file);
+  if (fs.existsSync(filePath)) {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    return res.sendFile(filePath);
+  }
+  next();
+});
+
+// Explicit SEO routes for search console submissions and crawlers
+app.get('/sitemap.xml', (req, res) => {
+  res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+  res.sendFile(path.join(__dirname, 'public', 'sitemap.xml'));
+});
+
+app.get('/robots.txt', (req, res) => {
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.sendFile(path.join(__dirname, 'public', 'robots.txt'));
+});
+
 // Serve persistent post images on every instance, including fresh Vercel functions.
 app.use('/uploads/posts', require('./routes/post-images')(db));
 

@@ -1,0 +1,572 @@
+================================================================================
+                    SEMESTER LIBRARY - COMPREHENSIVE PROJECT DOCUMENTATION
+================================================================================
+Platform Name  : Semester Library
+Target Audience: Gandaki University Students (Faculty of Science & Technology / BIT)
+Canonical URL  : https://semestar-library.vercel.app/
+Repository     : https://github.com/sauugat/semestar_library.git
+Version        : 1.0.0
+Author         : Saugat & Contributors
+License        : Academic / Proprietary
+Documentation Date: 2026-09-24
+
+================================================================================
+1. EXECUTIVE SUMMARY & PURPOSE
+================================================================================
+Semester Library is an all-in-one academic and developer platform created 
+specifically for Gandaki University students (primarily Bachelor of Information 
+Technology - BIT). 
+
+It centralizes curriculum syllabus breakdowns, semester-wise lecture notes, 
+PowerPoint slides, official exam routines, campus notices, an interactive 
+programming playground ("Code Lab") with an online compiler and assignment 
+grading system, real-time peer group chat, and an AI-powered academic assistant 
+("Semester AI") that can search through uploaded lecture documents.
+
+================================================================================
+2. COMPLETE TECHNOLOGY STACK
+================================================================================
+
+A. RUNTIME & BACKEND
+--------------------------------------------------------------------------------
+- Environment: Node.js (>= 22.13.0)
+- Backend Framework: Express.js (v4.19.2)
+- Session Handling: express-session (v1.18.0)
+- Session Persistence: connect-pg-simple (v10.0.0) - stores sessions directly
+  inside PostgreSQL so login state persists across serverless instances
+- Password Hashing: bcryptjs (v2.4.3) - salted password hashing
+- File Uploads: Multer (v1.4.5-lts.2) - multipart/form-data upload handling
+- Rate Limiting: express-rate-limit (v8.7.0) - protects auth and AI endpoints
+- WebSockets: ws (v8.21.3) - bidirectional live terminal runner and streaming
+- Hosting & Infrastructure: Vercel Serverless Functions via api/index.js 
+  and vercel.json rewrites
+
+B. DATABASE & STORAGE LAYER (DUAL-ENGINE SYSTEM)
+--------------------------------------------------------------------------------
+- Dual Database Architecture (db.js):
+  1. Primary Production Database:
+     Neon Database (Serverless PostgreSQL)
+     Driver: @neondatabase/serverless with pg pool over WebSockets.
+  2. Fallback / Development Database:
+     Turso Database / LibSQL (@libsql/client) or local SQLite (database.db).
+  3. Dynamic Query Translation:
+     Automated SQL parameter conversion from SQLite '?' to Postgres '$1, $2, ...'.
+- Object & File Storage:
+  Supabase Cloud Storage bucket ('library_files' & 'posts') with fallback 
+  to local /uploads/ directory.
+- Real-Time Messaging Engine:
+  Supabase Realtime Broadcast Channels ('public:chat_messages').
+
+C. FRONTEND & CLIENT-SIDE ARCHITECTURE
+--------------------------------------------------------------------------------
+- Languages: Vanilla Semantic HTML5, Modern CSS3 with CSS Variables, ES6+ JavaScript.
+- Design Aesthetics:
+  - Dark-mode first design inspired by Apple, Linear, and Vercel.
+  - Neutral monochrome palette (#0a0a0a, #171717, #242424).
+  - Smooth glassmorphism (backdrop-filter: blur(16px)), subtle borders, 
+    magnetic buttons, and bento grid layout.
+- Theme Engine (theme.js & theme-overrides.css):
+  - Instant anti-FOUC (Flash of Unstyled Content) execution in <head>.
+  - Dark / Light mode switching with localStorage persistence.
+- Typography (Google Fonts):
+  - Plus Jakarta Sans, Outfit (Headings & Brand)
+  - Inter (Body and UI text)
+  - Fira Code, JetBrains Mono (Code editors, terminal output, snippets)
+- Progressive Web App (PWA):
+  - Service Worker (sw.js) for background caching and offline reliability.
+  - Web App Manifest (manifest.json) for desktop and mobile home-screen install.
+  - Apple touch icons and mobile web app capability headers.
+
+D. INTEGRATED CLIENT & PARSING LIBRARIES
+--------------------------------------------------------------------------------
+- Monaco Editor (vs/loader.js): Full VS Code browser code editor with syntax
+  coloring, auto-indentation, and multi-language support.
+- PDF.js (pdfjs-dist 6.3.289): In-browser canvas rendering for PDF note previews.
+- Mammoth.js (v1.12.1): Extracts and renders Microsoft Word (.docx) documents.
+- Node PPTX Parser (v1.0.1) & PPTXGenJS (v4.0.1): PowerPoint slide parsing 
+  and client-side presentation creation.
+- LibreOffice Convert (v1.8.2): Server-side document conversion.
+- KaTeX: Mathematical formulas and LaTeX equation typesetting.
+- Prism.js: Syntax highlighting for forum posts and chat messages.
+- Paiza.io API: Cloud compilation runner for remote code execution.
+- Google AdSense: Monetization integration (ca-pub-4235996544350022).
+
+================================================================================
+3. COMPLETE CATALOG OF WEBSITE PAGES & ROUTES
+================================================================================
+
+A. PUBLIC & ACADEMIC PAGES (PUBLIC ACCESS)
+--------------------------------------------------------------------------------
+1.  / (Homepage)
+    File: public/index.html
+    Features: Apple-inspired bento grid, instant note search, routine widget,
+    syllabus quick jump, community highlights, and Google AdSense integration.
+
+2.  /library
+    File: public/library.html
+    Features: The complete curriculum notes library. Allows browsing subjects,
+    filtering by semester and chapter, inline PDF/Word previews, and download
+    tracking without requiring sign-in for browsing.
+
+3.  /syllabus
+    File: public/syllabus.html
+    Features: Gandaki University BIT syllabus breakdown. Shows credit hours,
+    course objectives, unit-wise syllabus content, and recommended textbooks.
+
+4.  /routine
+    File: public/routine.html
+    Features: Official exam routine table. Semester filters (1 to 8), exam time
+    countdown, printable format, and anti-flash theme script.
+
+5.  /semesters
+    File: public/semesters.html
+    Features: Semester directory showcasing cards for Semesters 1 through 8 with
+    subject count and quick links.
+
+6.  /semester/:id (Semesters 1 - 8)
+    File: public/semester.html
+    Features: Dynamic individual semester landing page listing all registered
+    courses, syllabus details, and direct lecture notes for that specific term.
+
+7.  /notices
+    File: public/notices.html
+    Features: Official campus and university department announcements, exam notices,
+    and event alerts.
+
+8.  /about
+    File: public/about.html
+    Features: Detailed background of Semester Library, the creators, vision,
+    Gandaki University BIT curriculum scope, and institutional mission.
+
+9.  /compiler
+    File: public/compiler.html
+    Features: Standalone browser IDE with live interactive terminal. Write and run
+    C, C++, Java, and Python with live stdin/stdout and ANSI colors.
+
+10. /gallery
+    File: public/gallery.html
+    Features: Visual campus memories, tech events, university moments, and student
+    showcase photo gallery.
+
+11. /privacy
+    File: public/privacy.html
+    Features: Comprehensive privacy policy explaining data collection, cookies,
+    authentication, and user privacy protections.
+
+12. /terms (or /termsandconditions)
+    File: public/termsandconditions.html
+    Features: Terms and conditions covering user conduct, academic integrity,
+    uploaded materials copyright, and platform usage.
+
+13. Custom 404 Not Found Page
+    File: public/404.html
+    Features: Retro voxel 404 animation, error feedback, search bar, and direct
+    quick-navigation buttons.
+
+B. AUTHENTICATED STUDENT & COMMUNITY PAGES
+--------------------------------------------------------------------------------
+14. /login
+    File: public/login.html
+    Features: Student sign in, new account registration, and password recovery.
+
+15. /dashboard
+    File: public/dashboard.html
+    Features: Student private workspace showing current enrolled semester subjects,
+    recent note uploads, quick stats, announcements, and peer feed.
+
+16. /files
+    File: public/files.html
+    Features: File upload center for students. Allows uploading lecture notes,
+    slides, and assignments with metadata (subject, semester, chapter) and file deletion.
+
+17. /profile (or /profile/:studentId)
+    File: public/profile.html
+    Features: Public and private student profiles showing bio, semester badge,
+    uploaded study contributions, follower/following counts, and avatar customizer.
+
+18. /settings
+    File: public/settings.html
+    Features: User profile management, password updates, theme settings,
+    and notification preferences.
+
+19. /chat
+    File: public/chat.html
+    Features: Campus community group chat. Real-time peer messaging powered by
+    Supabase Realtime Broadcast, file and image attachments, and online indicators.
+
+20. /chatbot (or /assistant)
+    File: public/chatbot.html
+    Features: "Semester AI" assistant interface. Offers streaming AI responses,
+    syllabus lookups, full-text note searches, and interactive code debugging.
+
+C. CODE LAB & ASSIGNMENT PLATFORM (public/code-lab/)
+--------------------------------------------------------------------------------
+21. /code-lab (or /assignments)
+    File: public/code-lab/subjects.html
+    Features: Programming subjects hub (C Programming, OOP in C++, Java, Python,
+    Data Structures, Web Tech). Shows total active assignments and deadlines.
+
+22. /code-lab/compiler
+    File: public/code-lab/index.html
+    Features: Full-featured Monaco code editor studio with theme switcher,
+    multi-file support, stdin console, terminal output, and AI code explanation.
+
+23. /code-lab/assignments.html
+    File: public/code-lab/assignments.html
+    Features: Assignment problem list for a specific programming course with
+    difficulty tags, due dates, test cases count, and submission status.
+
+24. /code-lab/assignment.html
+    File: public/code-lab/assignment.html
+    Features: Student code workspace for an assignment. Reads problem statement,
+    provides starter code in Monaco editor, tests with inputs, and submits.
+
+25. /code-lab/my-submissions.html
+    File: public/code-lab/my-submissions.html
+    Features: Personal history of submitted assignments, compiler verdict, scores,
+    execution times, and teacher feedback.
+
+26. /code-lab/submissions.html
+    File: public/code-lab/submissions.html
+    Features: Teacher/Instructor grading console to review student submissions,
+    test code against hidden test cases, enter marks, and leave feedback.
+
+27. /code-lab/create.html
+    File: public/code-lab/create.html
+    Features: Instructor assignment creation suite. Define problem title, markdown
+    description, boilerplate starter code, visible & hidden test cases, and deadlines.
+
+28. /code-lab/report.html
+    File: public/code-lab/report.html
+    Features: Automated lab report generator. Formats code, problem description,
+    and execution outputs into clean lab reports ready for PDF print.
+
+29. /code-lab/timelapse.html
+    File: public/code-lab/timelapse.html
+    Features: Keystroke playback and timelapse animation replaying code as it
+    was typed step-by-step.
+
+30. /code-lab/events.html
+    File: public/code-lab/events.html
+    Features: Campus hackathons, time-limited coding contests, and leaderboards.
+
+================================================================================
+4. COMPLETE API ENDPOINTS CATALOG
+================================================================================
+
+A. AUTHENTICATION & SESSION MANAGEMENT
+- POST /api/register
+  Registers a new student account (name, student ID, email, password, semester).
+- POST /api/login
+  Verifies password with bcryptjs and establishes an express-session cookie.
+- POST /api/logout
+  Destroys session and clears cookies.
+- GET  /api/me
+  Returns currently authenticated user profile and permissions.
+- POST /api/reset-password
+  Handles password reset requests.
+
+B. STUDENT PROFILES & COMMUNITY GRAPH
+- GET  /api/profile
+  Returns logged-in student's full profile data.
+- GET  /api/profile/:studentId
+  Returns public profile, stats, and uploaded notes for any student.
+- POST /api/profile/update
+  Updates bio, phone, semester, and social handles.
+- POST /api/profile/avatar
+  Uploads student profile picture to Supabase storage.
+- GET  /api/api/avatar/:filename
+  Serves or redirects to user avatar image.
+- GET  /api/profile/:studentId/followers
+  Retrieves list of followers for a user.
+- GET  /api/profile/:studentId/following
+  Retrieves list of accounts a user follows.
+- POST /api/profile/:studentId/follow
+  Toggles follow/unfollow status.
+- GET  /api/students/suggested
+  Returns classmate suggestions based on semester and mutual connections.
+
+C. FILE & CURRICULUM LIBRARY APIS
+- GET  /api/files
+  Fetches files filtered for the student's enrolled semester.
+- POST /api/files/upload
+  Multipart upload for study notes, slides, and past papers. Automatically
+  triggers text extraction and indexing into the search database.
+- GET  /api/files/:id/view
+  Securely redirects or streams file for in-browser preview.
+- GET  /api/files/:id/download (or /api/files/download/:id)
+  Increments download counter and serves file with attachment header.
+- DELETE /api/files/:id
+  Deletes file record and removes asset from Supabase storage (owner/admin only).
+- GET  /api/library/subjects
+  Returns distinct list of subjects with file counts.
+- GET  /api/library/subjects/:subject/chapters
+  Returns list of chapters available for a subject.
+- GET  /api/library/files
+  Public endpoint to query library files with subject, semester, and search filters.
+- GET  /api/library/stats
+  Returns aggregate platform statistics (total files, downloads, subjects).
+- GET  /api/search
+  Unified multi-table search querying notes, subjects, and student directories.
+
+D. COMMUNITY POSTS & FEED (routes/posts.js)
+- GET  /api/posts
+  Retrieves community feed with cursor-based pagination (newest first).
+- POST /api/posts
+  Creates a new post (text, resource link, or assignment) with optional image upload.
+- DELETE /api/posts/:id
+  Deletes post and cascades removal of likes, comments, and stored images.
+- POST /api/posts/:id/like
+  Idempotent like toggle for posts.
+- GET  /api/posts/:id/comments
+  Returns chronologically ordered comments for a post.
+- POST /api/posts/:id/comments
+  Adds a new comment to a post and increments comment counter.
+
+E. REAL-TIME COMMUNITY GROUP CHAT
+- GET  /api/chat/messages
+  Loads recent community chat messages history.
+- POST /api/chat/messages
+  Saves a new chat message and broadcasts payload via Supabase Realtime channel.
+- POST /api/chat/attachment
+  Uploads file or image attachment for chat.
+- GET  /api/chat/attachment/:filename
+  Retrieves uploaded chat media.
+- GET  /api/chat/config
+  Returns client configuration for connecting to Supabase Realtime channel.
+
+F. AI STUDY ASSISTANT ("SEMESTER AI") (ai-assistant.js & lib/)
+- POST /api/chat/ai
+  Full Server-Sent Events (SSE) streaming chat endpoint connecting to Google
+  Gemini 3.1 Flash Lite or OpenRouter. Features autonomous tool calling.
+- GET  /api/ai/suggestions
+  Provides contextual study prompts and trending subject suggestions.
+
+G. CODE LAB & ONLINE COMPILER (routes/code-lab/)
+- POST /api/code-lab/run
+  Executes C, C++, Java, or Python code via the Paiza.io cloud runner.
+- POST /api/code-lab/explain
+  AI analysis of code snippets, logic bugs, or syntax errors.
+- WS   /api/compiler/live
+  Bidirectional interactive WebSocket terminal server. Spawns sandboxed
+  processes with live interactive stdin/stdout, execution timeouts, and ANSI colors.
+- GET  /api/code-lab/assignments
+  Returns assignment problems filtered by programming subject.
+- POST /api/code-lab/assignments
+  Creates a new assignment (instructor/admin only).
+- POST /api/code-lab/submit
+  Submits student code and executes against test cases.
+- GET  /api/code-lab/submissions
+  Fetches submission records with test results and grades.
+
+H. ROUTINES, NOTICES & NOTIFICATIONS
+- GET  /api/routine
+  Fetches the complete exam timetable dataset.
+- GET  /api/notifications
+  Retrieves student notifications (likes, comments, new notes, assignment alerts).
+- GET  /api/notifications/unread-count
+  Returns unread notification badge count.
+- POST /api/notifications/:id/read
+  Marks an individual notification as read.
+- POST /api/notifications/read-all
+  Marks all user notifications as read.
+
+================================================================================
+5. AI ASSISTANT ("SEMESTER AI") ARCHITECTURE & RETRIEVAL
+================================================================================
+Semester AI is engineered specifically for academic accuracy and zero hallucinations:
+
+A. Core Models
+- Primary: gemini-3.1-flash-lite (fast, low latency, high token capacity).
+- Complex Queries: gemini-3.1-pro-preview (advanced reasoning).
+- Provider Fallback: OpenRouter REST API contract without bloated SDK dependencies.
+
+B. Grounded Autonomous Tool Calling (lib/chat-tools.js)
+The model has access to 4 specialized backend tools:
+1. search_notes: Searches indexed full-text lecture notes and PDF contents.
+2. get_syllabus: Queries official course unit contents from syllabus-data.json.
+3. get_routine: Queries examination schedules and dates.
+4. web_search: Fetches live external documentation or recent tech developments.
+
+C. Full-Text Document Ingestion Engine (lib/note-search.js)
+When notes are uploaded:
+- PDF files are read via pdfjs-dist.
+- Word documents are parsed via mammoth.
+- Presentations are extracted via node-pptx-parser.
+- Text is normalized and indexed into note_search_documents table:
+  - In PostgreSQL: Stored as TSVECTOR with GIN Index (to_tsvector('english', content)).
+  - In SQLite: Stored in an FTS5 virtual table (tokenize='porter unicode61').
+
+================================================================================
+6. DATABASE SCHEMAS & DATA MODELS
+================================================================================
+
+- students:
+  id, student_id (unique roll), name, email, password_hash, semester,
+  avatar_url, bio, role ('student', 'admin', 'instructor'), created_at.
+
+- files:
+  id, student_id, original_name, stored_name, subject, semester, chapter,
+  file_type, file_size, download_count, created_at.
+
+- note_search_documents:
+  id (FK -> files.id ON DELETE CASCADE), content, extraction_status,
+  extraction_error, indexed_at, content_truncated, search_vector (TSVECTOR).
+
+- posts:
+  id, student_id, post_type ('text', 'resource', 'assignment'), content,
+  attachment_url, attachment_type, likes_count, comments_count, created_at.
+
+- post_likes:
+  id, post_id, student_id, created_at (UNIQUE on post_id + student_id).
+
+- post_comments:
+  id, post_id, student_id, content, created_at.
+
+- chat_messages:
+  id, student_id, message, attachment_url, attachment_type, created_at.
+
+- code_lab_assignments:
+  id, title, subject, language, description, starter_code, test_cases (JSON),
+  due_date, created_by, created_at.
+
+- code_lab_submissions:
+  id, assignment_id, student_id, code, language, status ('passed', 'failed'),
+  score, test_results (JSON), execution_time, created_at.
+
+- notifications:
+  id, recipient_id, actor_id, type, title, message, link, is_read, created_at.
+
+- followers:
+  id, follower_id, following_id, created_at (UNIQUE constraint).
+
+- session (PostgreSQL connect-pg-simple):
+  sid, sess (JSON), expire.
+
+================================================================================
+7. SEO, SEARCH CONSOLE & SOCIAL SHARING (OPEN GRAPH)
+================================================================================
+
+A. SITEMAP SUBMISSION-READY STRUCTURE (public/sitemap.xml)
+- Fully validated against the W3C Sitemaps Schema (0.9).
+- Includes ISO-8601 <lastmod> dates (2026-09-24) for every public crawlable route.
+- Mapped canonical URLs:
+  - Priority 1.0 (daily)  : /
+  - Priority 0.9 (daily)  : /library, /notices
+  - Priority 0.9 (weekly) : /syllabus
+  - Priority 0.8 (weekly) : /routine, /semesters
+  - Priority 0.7 (weekly) : /assignments
+  - Priority 0.7 (monthly): /about
+  - Priority 0.6 (monthly): /semester/1 through /semester/8
+  - Priority 0.3 (yearly) : /privacy, /terms
+- Served with explicit Content-Type: application/xml; charset=utf-8.
+
+B. ROBOTS CONFIGURATION (public/robots.txt)
+- Allows search engine bots to crawl all public academic pages (/library, /syllabus,
+  /routine, /semesters, /semester/, /notices, /assignments, /code-lab, /privacy, /terms).
+- Disallows private/authenticated endpoints (/dashboard, /profile, /files, /chat,
+  /chatbot, /login, /settings, /api/) to prevent Search Console index warnings.
+- Explicitly references the sitemap:
+  Sitemap: https://semestar-library.vercel.app/sitemap.xml
+
+C. GOOGLE SEARCH CONSOLE VERIFICATION SAFEGUARDS
+- HTML Verification File:
+  public/googlef8be9396b0363a54.html preserved intact in public root.
+- Route Guard in server.js:
+  Explicit route handler app.get('/google:hash.html') guarantees a 200 OK
+  and text/html header with zero interference from 404 or auth rewrites.
+- Verification Meta Tags in public/index.html:
+  <meta name="google-site-verification" content="f8be9396b0363a54">
+  <meta name="google-site-verification" content="googlef8be9396b0363a54">
+  Both HTML file upload and HTML tag verification pass simultaneously.
+
+D. OPEN GRAPH & SOCIAL SHARE METADATA
+Every public HTML page includes modern Open Graph and Twitter Card tags:
+- og:type = "website"
+- og:url = "https://semestar-library.vercel.app/"
+- og:title = "Semester Library — Gandaki University Notes, Syllabus & Routines"
+- og:description = "Academic resource platform for Gandaki University students..."
+- og:image = "https://semestar-library.vercel.app/bg.jpg"
+- twitter:card = "summary_large_image"
+- Structured Data: Schema.org WebSite JSON-LD graph.
+
+================================================================================
+8. PROJECT DIRECTORY STRUCTURE
+================================================================================
+/Users/sauu_gat/semester-library/
+├── api/
+│   └── index.js                   # Vercel Serverless Function entry point
+├── lib/
+│   ├── chat-http.js               # AI streaming HTTP helper
+│   ├── chat-mode.js               # Mode classifier for user intent
+│   ├── chat-personality.js        # Semester AI system prompt & personality
+│   ├── chat-provider.js          # Gemini & OpenRouter streaming connector
+│   ├── chat-tools.js              # Tool definitions & execution functions
+│   ├── chat-topics.js             # Topic detection & course tagging
+│   ├── note-search.js             # PDF/Word/PPTX text extraction & FTS indexer
+│   └── posts.js                   # Posts validation & formatting helpers
+├── routes/
+│   ├── code-lab/
+│   │   ├── assignments.js         # Code Lab assignments CRUD & test evaluations
+│   │   ├── explain.js             # AI code explanation route
+│   │   └── run.js                 # Remote Paiza.io code execution runner
+│   ├── post-images.js             # Persistent image handler for community posts
+│   └── posts.js                   # Community posts, comments, likes router
+├── public/
+│   ├── code-lab/                  # Interactive Code Lab sub-application
+│   │   ├── assignment.html        # Assignment solving workspace (Monaco)
+│   │   ├── assignments.html       # Assignments listings
+│   │   ├── create.html            # Teacher assignment creator
+│   │   ├── events.html            # Hackathons and contests
+│   │   ├── index.html             # Code Lab IDE & studio
+│   │   ├── my-submissions.html    # Personal submission records
+│   │   ├── report-generator.js    # Client-side PDF/lab report compiler
+│   │   ├── report.html            # Lab report view & printer
+│   │   ├── subjects.html          # Programming subjects catalogue
+│   │   ├── submissions.html       # Teacher grading hub
+│   │   ├── timelapse.html         # Code keystroke timelapse replayer
+│   │   └── utils.js               # Common Code Lab utility functions
+│   ├── 404.html                   # Retro voxel 404 Not Found page
+│   ├── about.html                 # About Semester Library & creators
+│   ├── chat.html                  # Community peer group chat (Supabase Realtime)
+│   ├── chatbot.html               # Semester AI assistant interface
+│   ├── compiler.html              # Standalone online compiler (C, C++, Java, Py)
+│   ├── dashboard.html             # Student private dashboard
+│   ├── files.html                 # Student note upload & file management
+│   ├── gallery.html               # University life photo gallery
+│   ├── googlef8be9396b0363a54.html# Google Search Console verification token file
+│   ├── index.html                 # Primary landing page (Apple bento grid)
+│   ├── library.html               # Notes & curriculum library
+│   ├── login.html                 # Authentication (Login/Register/Reset)
+│   ├── notices.html               # Department notices and announcements
+│   ├── portal.html                # Student hub portal
+│   ├── privacy.html               # Privacy Policy
+│   ├── profile.html               # User public and private profiles
+│   ├── robots.txt                 # Search engine bot crawling instructions
+│   ├── routine.html               # Exam routine timetable & countdown
+│   ├── semester.html              # Dynamic single semester details page
+│   ├── semesters.html             # Semesters directory (1 to 8)
+│   ├── settings.html              # User account & preferences settings
+│   ├── sitemap.xml                # Search Console submission-ready sitemap
+│   ├── style.v4.css               # Main application design system stylesheet
+│   ├── sw.js                      # Progressive Web App (PWA) Service Worker
+│   ├── syllabus-data.json         # Raw BIT curriculum JSON database
+│   ├── syllabus-helper.js         # Syllabus parsing & search utilities
+│   ├── syllabus.html              # Syllabus & course units page
+│   ├── termsandconditions.html    # Terms of Service
+│   ├── theme-overrides.css        # Universal shared theme token rules
+│   └── theme.js                   # Anti-FOUC theme detector & switcher
+├── scripts/
+│   └── reindex-notes.js           # CLI batch indexer for uploaded documents
+├── tests/                         # Node.js native test suites
+├── ai-assistant.js                # AI Assistant core module & caching
+├── database.db                    # Local SQLite development database
+├── db.js                          # Universal DB abstraction (Neon Postgres & SQLite)
+├── package.json                   # Project metadata and dependencies
+├── server.js                      # Main Express server and WebSocket runner
+├── syllabus-data.json             # BIT curriculum database
+└── vercel.json                    # Vercel deployment rewrites configuration
+
+================================================================================
+                            END OF DOCUMENTATION
+================================================================================

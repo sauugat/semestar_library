@@ -1886,6 +1886,831 @@
         font-size: 15px !important;
       }
     }
+
+    /* ==========================================================================
+       MODERN TELEGRAM / WHATSAPP CLASS GROUP CHAT UI OVERHAUL
+       ========================================================================== */
+
+    /* 1. MESSAGE BUBBLE STYLING & SHAPES */
+    .im-bubble {
+      position: relative !important;
+      font-size: 14.5px !important;
+      line-height: 1.48 !important;
+      padding: 9px 13px !important;
+      word-break: break-word !important;
+      overflow-wrap: break-word !important;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25) !important;
+      transition: background 0.15s ease, transform 0.15s ease !important;
+    }
+
+    /* Own Messages (Self) - Vibrant modern accent */
+    .im-row.self .im-bubble {
+      background: linear-gradient(135deg, #1d4ed8, #2563eb) !important;
+      color: #ffffff !important;
+      border: 1px solid rgba(255, 255, 255, 0.12) !important;
+      border-radius: 18px 18px 4px 18px !important;
+    }
+    [data-theme="dark"] .im-row.self .im-bubble,
+    body.dark-mode .im-row.self .im-bubble {
+      background: linear-gradient(135deg, #1e40af, #2563eb) !important;
+      color: #ffffff !important;
+      border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    }
+    .im-row.self .im-bubble a,
+    .im-row.self .im-bubble .link-highlight {
+      color: #bae6fd !important;
+      text-decoration: underline !important;
+    }
+
+    /* Other People's Messages - Neutral dark gray contrast */
+    .im-row.other .im-bubble {
+      background: #f0f2f5 !important;
+      color: #111827 !important;
+      border: 1px solid rgba(0, 0, 0, 0.08) !important;
+      border-radius: 18px 18px 18px 4px !important;
+    }
+    [data-theme="dark"] .im-row.other .im-bubble,
+    body.dark-mode .im-row.other .im-bubble {
+      background: #1f1f23 !important;
+      color: #f3f4f6 !important;
+      border: 1px solid rgba(255, 255, 255, 0.08) !important;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35) !important;
+    }
+    [data-theme="dark"] .im-row.other .im-bubble a,
+    [data-theme="dark"] .im-row.other .im-bubble .link-highlight {
+      color: #38bdf8 !important;
+      text-decoration: underline !important;
+    }
+
+    /* Asymmetric Grouped Corner Radii (Speech Bubble Logic) */
+    /* Self (Right side: sharp corner on bottom-right) */
+    .im-row.self.group-top .im-bubble { border-radius: 18px 18px 6px 18px !important; }
+    .im-row.self.group-mid .im-bubble { border-radius: 18px 6px 6px 18px !important; }
+    .im-row.self.group-bottom .im-bubble { border-radius: 18px 6px 4px 18px !important; }
+    .im-row.self.solo .im-bubble { border-radius: 18px 18px 4px 18px !important; }
+
+    /* Other (Left side: sharp corner on bottom-left) */
+    .im-row.other.group-top .im-bubble { border-radius: 18px 18px 18px 6px !important; }
+    .im-row.other.group-mid .im-bubble { border-radius: 6px 18px 18px 6px !important; }
+    .im-row.other.group-bottom .im-bubble { border-radius: 4px 18px 18px 18px !important; }
+    .im-row.other.solo .im-bubble { border-radius: 18px 18px 18px 4px !important; }
+
+    /* Max bubble width constraint */
+    .im-msg-content-wrap,
+    .im-row.self .im-msg-content-wrap,
+    .im-row.other .im-msg-content-wrap {
+      max-width: min(74%, 540px) !important;
+      min-width: 60px !important;
+    }
+    @media (max-width: 600px) {
+      .im-msg-content-wrap,
+      .im-row.self .im-msg-content-wrap,
+      .im-row.other .im-msg-content-wrap {
+        max-width: 84% !important;
+      }
+    }
+
+    /* 2. SPACING AND MESSAGE GROUPING */
+    .im-row {
+      margin-bottom: 2px !important;
+      margin-top: 1px !important;
+      align-items: flex-end !important;
+    }
+    .im-row.cluster-start {
+      margin-top: 14px !important;
+    }
+
+    .im-msg-avatar {
+      width: 32px !important;
+      height: 32px !important;
+      min-width: 32px !important;
+      border-radius: 50% !important;
+      overflow: hidden !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      font-size: 13px !important;
+      font-weight: 600 !important;
+      background: #2a2a2e !important;
+      color: #f3f4f6 !important;
+      border: 1px solid rgba(255, 255, 255, 0.1) !important;
+      flex-shrink: 0 !important;
+      margin-bottom: 2px !important;
+    }
+    .im-msg-avatar.spacer {
+      visibility: hidden !important;
+      background: transparent !important;
+      border: none !important;
+    }
+
+    .im-msg-sender-name {
+      font-size: 12px !important;
+      font-weight: 600 !important;
+      margin: 0 0 4px 4px !important;
+      letter-spacing: -0.1px !important;
+    }
+
+    /* 3. MESSAGE STATUS INDICATORS */
+    .im-time-meta {
+      display: flex !important;
+      align-items: center !important;
+      gap: 3px !important;
+      font-size: 10.5px !important;
+      margin-top: 3px !important;
+      color: #9ca3af !important;
+      user-select: none !important;
+    }
+    .im-row.self .im-time-meta {
+      justify-content: flex-end !important;
+      color: rgba(255, 255, 255, 0.72) !important;
+    }
+    .im-status-icon {
+      display: inline-flex !important;
+      align-items: center !important;
+      vertical-align: middle !important;
+    }
+    .im-status-icon.sending {
+      animation: pulseSending 1.2s infinite ease-in-out;
+      color: #93c5fd !important;
+    }
+    .im-status-icon.read {
+      color: #38bdf8 !important;
+    }
+    @keyframes pulseSending {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 1; }
+    }
+
+    /* 4. DATE SEPARATORS */
+    .im-date-stamp {
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      margin: 16px auto 10px auto !important;
+      padding: 4px 14px !important;
+      font-size: 11px !important;
+      font-weight: 600 !important;
+      letter-spacing: 0.5px !important;
+      text-transform: uppercase !important;
+      color: #9ca3af !important;
+      background: rgba(255, 255, 255, 0.08) !important;
+      backdrop-filter: blur(10px) !important;
+      -webkit-backdrop-filter: blur(10px) !important;
+      border: 1px solid rgba(255, 255, 255, 0.1) !important;
+      border-radius: 9999px !important;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3) !important;
+    }
+
+    /* 5. REPLY / QUOTE UI */
+    .im-quote-box {
+      display: flex !important;
+      flex-direction: column !important;
+      background: rgba(0, 0, 0, 0.22) !important;
+      border-left: 3px solid #38bdf8 !important;
+      padding: 6px 9px !important;
+      border-radius: 5px !important;
+      margin-bottom: 7px !important;
+      cursor: pointer !important;
+      transition: background 0.15s ease !important;
+      user-select: none !important;
+    }
+    .im-quote-box:hover {
+      background: rgba(0, 0, 0, 0.35) !important;
+    }
+    .im-quote-sender {
+      font-size: 11.5px !important;
+      font-weight: 700 !important;
+      margin-bottom: 2px !important;
+    }
+    .im-quote-snippet {
+      font-size: 12.5px !important;
+      color: rgba(255, 255, 255, 0.85) !important;
+      white-space: nowrap !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+      max-width: 100% !important;
+    }
+    @keyframes highlightFlash {
+      0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(56, 189, 248, 0); }
+      35% { transform: scale(1.02); box-shadow: 0 0 0 5px rgba(56, 189, 248, 0.7); }
+      100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(56, 189, 248, 0); }
+    }
+    .im-highlight-flash {
+      animation: highlightFlash 1.4s ease-out !important;
+    }
+
+    /* 6. TYPING INDICATOR */
+    .im-typing-indicator {
+      display: flex !important;
+      align-items: center !important;
+      gap: 8px !important;
+      padding: 6px 14px !important;
+      margin: 4px 0 8px 12px !important;
+      max-width: fit-content !important;
+      background: rgba(255, 255, 255, 0.06) !important;
+      border: 1px solid rgba(255, 255, 255, 0.08) !important;
+      border-radius: 18px !important;
+      backdrop-filter: blur(8px) !important;
+    }
+    .typing-dots {
+      display: flex !important;
+      gap: 4px !important;
+      align-items: center !important;
+    }
+    .typing-dots span {
+      width: 6px !important;
+      height: 6px !important;
+      background: #38bdf8 !important;
+      border-radius: 50% !important;
+      animation: typingBounce 1.4s infinite ease-in-out both !important;
+    }
+    .typing-dots span:nth-child(1) { animation-delay: -0.32s !important; }
+    .typing-dots span:nth-child(2) { animation-delay: -0.16s !important; }
+    @keyframes typingBounce {
+      0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+      40% { transform: scale(1.15); opacity: 1; }
+    }
+    .typing-text {
+      font-size: 12px !important;
+      color: #9ca3af !important;
+      font-weight: 500 !important;
+    }
+
+    /* Presence Dot in Header */
+    .online-pulse-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #10b981;
+      display: inline-block;
+      margin-right: 4px;
+      box-shadow: 0 0 6px #10b981;
+      animation: pulseGreen 2s infinite;
+    }
+    @keyframes pulseGreen {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.25); opacity: 0.6; }
+    }
+    .im-header-center {
+      cursor: pointer !important;
+      padding: 4px 10px !important;
+      border-radius: 8px !important;
+      transition: background 0.15s ease !important;
+    }
+    .im-header-center:hover {
+      background: rgba(255, 255, 255, 0.05) !important;
+    }
+    .im-icon-action-btn {
+      background: var(--bg-surface-raised, #202020) !important;
+      border: 1px solid var(--border-strong, #4a4a4a) !important;
+      color: var(--text-primary, #f5f5f5) !important;
+      width: 34px !important;
+      height: 34px !important;
+      border-radius: 8px !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      cursor: pointer !important;
+      transition: background 0.15s, border-color 0.15s !important;
+    }
+    .im-icon-action-btn:hover {
+      background: var(--bg-surface, #2a2a2a) !important;
+      border-color: #666666 !important;
+    }
+
+    /* 7. IMAGE & DOCUMENT CARDS */
+    .im-media-box {
+      border-radius: 12px !important;
+      overflow: hidden !important;
+      cursor: pointer !important;
+      position: relative !important;
+      background: #18181b !important;
+      border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    }
+    .im-media-box.loading-skeleton {
+      min-height: 180px !important;
+      min-width: 220px !important;
+      background: linear-gradient(90deg, #18181b 25%, #27272a 50%, #18181b 75%) !important;
+      background-size: 200% 100% !important;
+      animation: shimmer 1.5s infinite !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+    }
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    .im-file-card {
+      display: flex !important;
+      align-items: center !important;
+      gap: 10px !important;
+      padding: 10px 12px !important;
+      background: rgba(0, 0, 0, 0.25) !important;
+      border: 1px solid rgba(255, 255, 255, 0.12) !important;
+      border-radius: 10px !important;
+      cursor: pointer !important;
+      margin-top: 6px !important;
+      transition: background 0.15s ease !important;
+    }
+    .im-file-card:hover {
+      background: rgba(0, 0, 0, 0.4) !important;
+    }
+    .im-file-icon {
+      font-size: 22px !important;
+      flex-shrink: 0 !important;
+    }
+    .im-file-info {
+      flex: 1 !important;
+      min-width: 0 !important;
+    }
+    .im-file-name {
+      font-size: 13px !important;
+      font-weight: 600 !important;
+      color: #ffffff !important;
+      white-space: nowrap !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+    }
+    .im-file-ext {
+      font-size: 11px !important;
+      color: #9ca3af !important;
+    }
+
+    /* 8. ATTACHMENT MENU & EMOJI PICKER POPUPS */
+    .im-attachment-menu-wrap,
+    .im-emoji-menu-wrap {
+      position: relative !important;
+    }
+    .im-attachment-popup {
+      position: absolute !important;
+      bottom: 50px !important;
+      left: 0 !important;
+      background: #18181b !important;
+      border: 1px solid rgba(255, 255, 255, 0.14) !important;
+      border-radius: 14px !important;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
+      padding: 8px !important;
+      min-width: 210px !important;
+      z-index: 100 !important;
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 4px !important;
+      backdrop-filter: blur(16px) !important;
+    }
+    .im-attachment-item {
+      display: flex !important;
+      align-items: center !important;
+      gap: 10px !important;
+      padding: 8px 10px !important;
+      border-radius: 8px !important;
+      cursor: pointer !important;
+      transition: background 0.15s ease !important;
+    }
+    .im-attachment-item:hover {
+      background: rgba(255, 255, 255, 0.08) !important;
+    }
+    .im-att-icon {
+      font-size: 18px !important;
+      width: 28px !important;
+      height: 28px !important;
+      border-radius: 8px !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      background: rgba(255, 255, 255, 0.06) !important;
+    }
+    .im-att-title {
+      font-size: 13px !important;
+      font-weight: 600 !important;
+      color: #f3f4f6 !important;
+    }
+    .im-att-desc {
+      font-size: 10.5px !important;
+      color: #9ca3af !important;
+    }
+
+    /* Emoji Drawer */
+    .im-emoji-toggle-btn {
+      background: transparent !important;
+      border: none !important;
+      color: #9ca3af !important;
+      cursor: pointer !important;
+      padding: 6px !important;
+      border-radius: 50% !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      transition: color 0.15s, background 0.15s !important;
+    }
+    .im-emoji-toggle-btn:hover {
+      color: #f3f4f6 !important;
+      background: rgba(255, 255, 255, 0.08) !important;
+    }
+    .im-emoji-drawer {
+      position: absolute !important;
+      bottom: 52px !important;
+      right: 44px !important;
+      background: #18181b !important;
+      border: 1px solid rgba(255, 255, 255, 0.14) !important;
+      border-radius: 14px !important;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
+      padding: 10px !important;
+      width: 280px !important;
+      max-height: 240px !important;
+      overflow-y: auto !important;
+      z-index: 100 !important;
+      backdrop-filter: blur(16px) !important;
+    }
+    .im-emoji-grid {
+      display: grid !important;
+      grid-template-columns: repeat(6, 1fr) !important;
+      gap: 6px !important;
+      text-align: center !important;
+    }
+    .im-emoji-btn {
+      font-size: 20px !important;
+      cursor: pointer !important;
+      padding: 4px !important;
+      border-radius: 6px !important;
+      transition: transform 0.1s, background 0.1s !important;
+      user-select: none !important;
+    }
+    .im-emoji-btn:hover {
+      transform: scale(1.2) !important;
+      background: rgba(255, 255, 255, 0.1) !important;
+    }
+
+    /* 9. SCROLL BUTTON & TOP LOADER */
+    .im-scroll-bottom-btn {
+      position: absolute !important;
+      right: 18px !important;
+      bottom: 80px !important;
+      width: 40px !important;
+      height: 40px !important;
+      border-radius: 50% !important;
+      background: #1f1f23 !important;
+      border: 1px solid rgba(255, 255, 255, 0.15) !important;
+      color: #f3f4f6 !important;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4) !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      cursor: pointer !important;
+      z-index: 40 !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+      transform: translateY(10px) !important;
+      transition: opacity 0.2s, transform 0.2s, background 0.15s !important;
+    }
+    .im-scroll-bottom-btn.visible {
+      opacity: 1 !important;
+      pointer-events: auto !important;
+      transform: translateY(0) !important;
+    }
+    .im-scroll-bottom-btn:hover {
+      background: #27272a !important;
+    }
+    .im-unread-badge {
+      position: absolute !important;
+      top: -4px !important;
+      right: -4px !important;
+      background: #2563eb !important;
+      color: #ffffff !important;
+      font-size: 11px !important;
+      font-weight: 700 !important;
+      min-width: 18px !important;
+      height: 18px !important;
+      border-radius: 9px !important;
+      padding: 0 4px !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      border: 2px solid #121214 !important;
+    }
+    .im-top-loader {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 8px !important;
+      padding: 10px 0 !important;
+      font-size: 12px !important;
+      color: #9ca3af !important;
+    }
+
+    /* 10. PINNED ANNOUNCEMENT & SEARCH BAR & SLIDEOVER */
+    .im-pinned-banner {
+      display: flex !important;
+      align-items: center !important;
+      gap: 10px !important;
+      padding: 8px 16px !important;
+      background: rgba(30, 58, 138, 0.35) !important;
+      border-bottom: 1px solid rgba(59, 130, 246, 0.3) !important;
+      backdrop-filter: blur(10px) !important;
+      z-index: 30 !important;
+      animation: slideDown 0.2s ease-out !important;
+    }
+    .im-pinned-icon {
+      font-size: 16px !important;
+      flex-shrink: 0 !important;
+    }
+    .im-pinned-content {
+      flex: 1 !important;
+      min-width: 0 !important;
+      cursor: pointer !important;
+    }
+    .im-pinned-label {
+      font-size: 9.5px !important;
+      font-weight: 800 !important;
+      letter-spacing: 0.6px !important;
+      color: #60a5fa !important;
+    }
+    .im-pinned-text {
+      font-size: 12.5px !important;
+      color: #f3f4f6 !important;
+      white-space: nowrap !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+    }
+    .im-pinned-close {
+      background: transparent !important;
+      border: none !important;
+      color: #9ca3af !important;
+      font-size: 18px !important;
+      cursor: pointer !important;
+      padding: 2px 6px !important;
+      border-radius: 4px !important;
+    }
+    .im-pinned-close:hover {
+      color: #ffffff !important;
+    }
+
+    /* In-chat search bar */
+    .im-search-bar {
+      display: flex !important;
+      align-items: center !important;
+      gap: 8px !important;
+      padding: 8px 16px !important;
+      background: #18181b !important;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+      z-index: 30 !important;
+      animation: slideDown 0.2s ease-out !important;
+    }
+    .im-search-bar input {
+      flex: 1 !important;
+      background: #27272a !important;
+      border: 1px solid rgba(255, 255, 255, 0.1) !important;
+      border-radius: 8px !important;
+      padding: 6px 10px !important;
+      color: #ffffff !important;
+      font-size: 13px !important;
+      outline: none !important;
+    }
+    .im-search-bar input:focus {
+      border-color: #3b82f6 !important;
+    }
+    .im-search-count {
+      font-size: 11px !important;
+      color: #9ca3af !important;
+      font-weight: 600 !important;
+      white-space: nowrap !important;
+    }
+    .im-search-nav-btn {
+      background: rgba(255, 255, 255, 0.08) !important;
+      border: none !important;
+      color: #f3f4f6 !important;
+      width: 24px !important;
+      height: 24px !important;
+      border-radius: 6px !important;
+      cursor: pointer !important;
+      font-size: 10px !important;
+    }
+    .im-search-close-btn {
+      background: transparent !important;
+      border: none !important;
+      color: #9ca3af !important;
+      font-size: 18px !important;
+      cursor: pointer !important;
+      padding: 0 4px !important;
+    }
+    mark.search-highlight {
+      background: #facc15 !important;
+      color: #000000 !important;
+      border-radius: 2px !important;
+      padding: 1px 2px !important;
+    }
+    mark.search-highlight.active-match {
+      background: #f97316 !important;
+      color: #ffffff !important;
+    }
+
+    /* Group Info Slide-over Modal */
+    .im-slideover-overlay {
+      position: fixed !important;
+      inset: 0 !important;
+      background: rgba(0, 0, 0, 0.6) !important;
+      backdrop-filter: blur(8px) !important;
+      z-index: 2000 !important;
+      display: flex !important;
+      justify-content: flex-end !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+      transition: opacity 0.25s ease !important;
+    }
+    .im-slideover-overlay.active {
+      opacity: 1 !important;
+      pointer-events: auto !important;
+    }
+    .im-slideover-panel {
+      width: min(380px, 90vw) !important;
+      height: 100% !important;
+      background: #141416 !important;
+      border-left: 1px solid rgba(255, 255, 255, 0.1) !important;
+      box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5) !important;
+      display: flex !important;
+      flex-direction: column !important;
+      transform: translateX(100%) !important;
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    }
+    .im-slideover-overlay.active .im-slideover-panel {
+      transform: translateX(0) !important;
+    }
+    .im-slideover-header {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      padding: 16px 20px !important;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    }
+    .im-slideover-header h3 {
+      font-size: 16px !important;
+      font-weight: 700 !important;
+      color: #ffffff !important;
+    }
+    .im-slideover-close {
+      background: transparent !important;
+      border: none !important;
+      font-size: 24px !important;
+      color: #9ca3af !important;
+      cursor: pointer !important;
+      line-height: 1 !important;
+    }
+    .im-slideover-body {
+      padding: 20px !important;
+      overflow-y: auto !important;
+      flex: 1 !important;
+    }
+    .group-hero {
+      text-align: center !important;
+      padding-bottom: 20px !important;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    }
+    .group-hero-avatar {
+      font-size: 40px !important;
+      width: 72px !important;
+      height: 72px !important;
+      border-radius: 50% !important;
+      background: linear-gradient(135deg, #1e3a8a, #2563eb) !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      margin: 0 auto 12px auto !important;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3) !important;
+    }
+    .group-hero-title {
+      font-size: 17px !important;
+      font-weight: 700 !important;
+      color: #ffffff !important;
+      margin-bottom: 4px !important;
+    }
+    .group-hero-desc {
+      font-size: 12px !important;
+      color: #9ca3af !important;
+      margin-bottom: 12px !important;
+    }
+    .group-hero-stats {
+      display: flex !important;
+      justify-content: center !important;
+      gap: 8px !important;
+    }
+    .stat-pill {
+      font-size: 11px !important;
+      font-weight: 600 !important;
+      padding: 3px 10px !important;
+      border-radius: 20px !important;
+      background: rgba(255, 255, 255, 0.08) !important;
+      color: #d1d5db !important;
+    }
+    .stat-pill.online {
+      background: rgba(16, 185, 129, 0.15) !important;
+      color: #10b981 !important;
+      border: 1px solid rgba(16, 185, 129, 0.3) !important;
+    }
+    .group-members-section {
+      margin-top: 20px !important;
+    }
+    .section-title-row {
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 10px !important;
+      margin-bottom: 14px !important;
+    }
+    .section-title-row h4 {
+      font-size: 13px !important;
+      font-weight: 700 !important;
+      text-transform: uppercase !important;
+      letter-spacing: 0.5px !important;
+      color: #9ca3af !important;
+    }
+    .member-search-input {
+      width: 100% !important;
+      background: #202024 !important;
+      border: 1px solid rgba(255, 255, 255, 0.1) !important;
+      border-radius: 8px !important;
+      padding: 7px 12px !important;
+      font-size: 12.5px !important;
+      color: #ffffff !important;
+      outline: none !important;
+    }
+    .members-list {
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 8px !important;
+    }
+    .member-item {
+      display: flex !important;
+      align-items: center !important;
+      gap: 10px !important;
+      padding: 8px !important;
+      border-radius: 8px !important;
+      transition: background 0.15s ease !important;
+    }
+    .member-item:hover {
+      background: rgba(255, 255, 255, 0.05) !important;
+    }
+    .member-avatar {
+      width: 34px !important;
+      height: 34px !important;
+      border-radius: 50% !important;
+      background: #27272a !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      font-weight: 700 !important;
+      font-size: 13px !important;
+      color: #ffffff !important;
+      position: relative !important;
+      overflow: hidden !important;
+    }
+    .member-avatar img {
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: cover !important;
+    }
+    .member-info {
+      flex: 1 !important;
+      min-width: 0 !important;
+    }
+    .member-name {
+      font-size: 13.5px !important;
+      font-weight: 600 !important;
+      color: #f3f4f6 !important;
+      display: flex !important;
+      align-items: center !important;
+      gap: 6px !important;
+    }
+    .member-badge {
+      font-size: 9px !important;
+      font-weight: 700 !important;
+      padding: 1px 5px !important;
+      border-radius: 4px !important;
+      text-transform: uppercase !important;
+      background: rgba(255, 255, 255, 0.1) !important;
+      color: #9ca3af !important;
+    }
+    .member-badge.admin {
+      background: rgba(239, 68, 68, 0.15) !important;
+      color: #f87171 !important;
+    }
+    .member-sub {
+      font-size: 11px !important;
+      color: #9ca3af !important;
+    }
+    .member-status-dot {
+      width: 8px !important;
+      height: 8px !important;
+      border-radius: 50% !important;
+      background: #6b7280 !important;
+    }
+    .member-status-dot.online {
+      background: #10b981 !important;
+      box-shadow: 0 0 6px #10b981 !important;
+    }
+
+    @keyframes slideDown {
+      from { transform: translateY(-100%); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="auth-modal.css">
@@ -1900,21 +2725,30 @@
 
     <header class="im-header">
       <div class="im-header-side">
-        <a href="dashboard.html" class="im-back-btn">
+        <a href="dashboard.html" class="im-back-btn" title="Back to Dashboard">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="15 18 9 12 15 6" />
           </svg>
         </a>
       </div>
 
-      <div class="im-header-center" onclick="location.href='dashboard.html'">
+      <div class="im-header-center" id="headerGroupInfoBtn" onclick="openGroupInfo()" title="Click to view class members & group info">
         <div class="im-contact-title-row">
           <span class="im-contact-name">Class Group Chat</span>
         </div>
-        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">40 members</div>
+        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px; display: flex; align-items: center; justify-content: center;">
+          <span class="online-pulse-dot"></span>
+          <span id="memberCountText">40 members</span>&nbsp;•&nbsp;<span id="onlineCountText" style="color: #10b981; font-weight: 600;">1 online</span>
+        </div>
       </div>
 
       <div class="im-header-side right" style="display: flex; align-items: center; gap: 8px;">
+        <button type="button" class="im-icon-action-btn" id="searchToggleBtn" onclick="toggleChatSearch()" title="Search in chat" aria-label="Search in chat">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+        </button>
         <button type="button" class="theme-toggle-btn dash-theme-btn" id="themeToggleBtn" aria-label="Toggle theme" title="Toggle theme">
           <span class="theme-toggle-track">
             <svg class="theme-icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -1939,10 +2773,36 @@
       </div>
     </header>
 
+    <!-- Pinned Announcement Banner -->
+    <div id="pinnedBanner" class="im-pinned-banner" style="display: none;">
+      <div class="im-pinned-icon">📌</div>
+      <div class="im-pinned-content" onclick="jumpToPinnedMessage()">
+        <div class="im-pinned-label">PINNED ANNOUNCEMENT</div>
+        <div class="im-pinned-text" id="pinnedBannerText">Notice text...</div>
+      </div>
+      <button type="button" class="im-pinned-close" onclick="dismissPinnedBanner(event)" title="Dismiss banner">×</button>
+    </div>
+
+    <!-- In-Chat Search Bar -->
+    <div id="inChatSearchBar" class="im-search-bar" style="display: none;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="chatSearchInput" placeholder="Search messages in chat..." oninput="handleChatSearch(this.value)">
+      <span id="searchMatchesCount" class="im-search-count"></span>
+      <button type="button" class="im-search-nav-btn" onclick="navSearch(-1)" title="Previous match">▲</button>
+      <button type="button" class="im-search-nav-btn" onclick="navSearch(1)" title="Next match">▼</button>
+      <button type="button" class="im-search-close-btn" onclick="closeChatSearch()" title="Close search">×</button>
+    </div>
+
     <div id="chatError"></div>
 
     <main class="im-feed" id="chatFeed">
       <div class="im-feed-inner" id="feedInner">
+        <!-- Top Loading Indicator for older messages -->
+        <div id="topLoadingIndicator" class="im-top-loader" style="display: none;">
+          <div class="im-loading-spinner small"></div>
+          <span>Loading earlier messages...</span>
+        </div>
+
         <!-- Initial Loading State -->
         <div class="im-loading-box" id="loadingNotice">
           <div class="im-loading-spinner"></div>
@@ -1960,9 +2820,13 @@
         </div>
       </div>
 
-      <!-- New Messages Pill -->
-      <div id="newMessagesPill" class="im-new-messages-pill" onclick="scrollToBottom(true)">
-        New Messages ↓
+      <!-- Floating Scroll to Bottom Button -->
+      <div id="scrollToBottomBtn" class="im-scroll-bottom-btn" onclick="scrollToBottom(true)" title="Scroll to bottom">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <polyline points="19 12 12 19 5 12"></polyline>
+        </svg>
+        <span id="unreadCountBadge" class="im-unread-badge" style="display: none;">0</span>
       </div>
     </main>
 
@@ -1982,23 +2846,64 @@
         </div>
 
         <div id="replyPreview">
-          <div style="font-weight: 600; color: #000; margin-bottom: 2px;" id="replyPreviewName"></div>
-          <div id="replyPreviewText" style="color: #666; font-size: 13px;"></div>
+          <div style="font-weight: 600; color: #38bdf8; margin-bottom: 2px;" id="replyPreviewName"></div>
+          <div id="replyPreviewText" style="color: var(--text-secondary); font-size: 13px;"></div>
           <div id="replyPreviewClose" onclick="cancelReply()">×</div>
         </div>
 
         <div class="im-controls">
-          <!-- (+) Plus Button to Directly Upload Files -->
-          <button class="im-plus-upload-btn" onclick="document.getElementById('hiddenFileInput').click()"
-            title="Attach Photo or Video">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-          </button>
-          <input type="file" id="hiddenFileInput" accept="image/*,video/*" style="display:none"
-            onchange="handleFileSelected(event)">
+          <!-- (+) Plus Button with Popup Menu -->
+          <div class="im-attachment-menu-wrap">
+            <button type="button" class="im-plus-upload-btn" id="plusAttachmentBtn" onclick="toggleAttachmentMenu(event)"
+              title="Attach media or document">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+            </button>
+            <div id="attachmentPopup" class="im-attachment-popup" style="display: none;" onclick="event.stopPropagation()">
+              <div class="im-attachment-item" onclick="triggerFileInput('image/*,video/*')">
+                <span class="im-att-icon">📷</span>
+                <div class="im-att-text">
+                  <div class="im-att-title">Photos & Videos</div>
+                  <div class="im-att-desc">Images, GIFs, clips</div>
+                </div>
+              </div>
+              <div class="im-attachment-item" onclick="triggerFileInput('.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip')">
+                <span class="im-att-icon">📄</span>
+                <div class="im-att-text">
+                  <div class="im-att-title">Document / PDF</div>
+                  <div class="im-att-desc">PDF, Word, Slides, ZIP</div>
+                </div>
+              </div>
+              <div class="im-attachment-item" onclick="triggerFileInput('.txt,.c,.cpp,.py,.java,.js,.html,.css,.json')">
+                <span class="im-att-icon">💻</span>
+                <div class="im-att-text">
+                  <div class="im-att-title">Code / Text</div>
+                  <div class="im-att-desc">Source code or raw text</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <input type="file" id="hiddenFileInput" style="display:none" onchange="handleFileSelected(event)">
+
           <div class="im-input-capsule">
+            <!-- Emoji Picker Toggle Button -->
+            <div class="im-emoji-menu-wrap">
+              <button type="button" class="im-emoji-toggle-btn" id="emojiToggleBtn" onclick="toggleEmojiDrawer(event)" title="Choose emoji">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+                  <line x1="9" y1="9" x2="9.01" y2="9"></line>
+                  <line x1="15" y1="9" x2="15.01" y2="9"></line>
+                </svg>
+              </button>
+              <div id="emojiPickerDrawer" class="im-emoji-drawer" style="display: none;" onclick="event.stopPropagation()">
+                <div style="font-size: 11px; font-weight: 700; color: #9ca3af; text-transform: uppercase; margin-bottom: 8px;">Quick Emojis</div>
+                <div class="im-emoji-grid" id="emojiGrid"></div>
+              </div>
+            </div>
+
             <textarea class="im-textarea" id="chatTextarea" placeholder="Write a message..." rows="1" maxlength="2000"
               oninput="handleInputState()" onkeydown="handleKeyAction(event)"></textarea>
 
@@ -2081,8 +2986,35 @@
       <div class="im-confirm-title">Delete message?</div>
       <div class="im-confirm-desc">This message will be removed for everyone in this group chat.</div>
       <div class="im-confirm-actions">
-        <button type="button" class="im-confirm-btn cancel" onclick="closeDeleteConfirm()">Cancel</button>
-        <button type="button" class="im-confirm-btn delete" id="confirmDeleteBtn" onclick="executeDeleteMessage()">Delete</button>
+        <button type="button" class="im-confirm-btn cancel" onclick="closeDeleteConfirm()">Cancel</  </div>
+
+  <!-- GROUP INFO SLIDEOVER MODAL -->
+  <div class="im-slideover-overlay" id="groupInfoModal" onclick="closeGroupInfo(event)">
+    <div class="im-slideover-panel" onclick="event.stopPropagation()">
+      <div class="im-slideover-header">
+        <h3>Class Group Info</h3>
+        <button type="button" class="im-slideover-close" onclick="closeGroupInfo()">×</button>
+      </div>
+      <div class="im-slideover-body">
+        <div class="group-hero">
+          <div class="group-hero-avatar">🎓</div>
+          <div class="group-hero-title">Class Group Chat</div>
+          <div class="group-hero-desc">Academic hub & student discussion space</div>
+          <div class="group-hero-stats">
+            <span class="stat-pill" id="modalTotalMembers">40 Members</span>
+            <span class="stat-pill online" id="modalOnlineCount">1 Online</span>
+          </div>
+        </div>
+
+        <div class="group-members-section">
+          <div class="section-title-row">
+            <h4>Class Members</h4>
+            <input type="text" class="member-search-input" id="memberFilterInput" placeholder="Filter members..." oninput="filterMembersList(this.value)">
+          </div>
+          <div class="members-list" id="groupMembersList">
+            <div style="text-align: center; color: #6b7280; padding: 20px; font-size: 13px;">Loading members...</div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -2090,13 +3022,33 @@
   <script>
     let currentStudent = null;
     let lastMessageId = 0;
+    let oldestMessageId = null;
+    let hasMoreOlder = true;
     let isFetching = false;
+    let isFetchingOlder = false;
+    let unreadCount = 0;
     let lastDateString = null;
-    let toastTimer = null;
     let myLastReadId = 0;
     let readReceiptsMap = {};
+    let pinnedMessage = null;
+    let allMembers = [];
+    let searchMatches = [];
+    let currentSearchIndex = -1;
+
     const textarea = document.getElementById('chatTextarea');
     const sendBtn = document.getElementById('sendBtn');
+
+    // Deterministic sender colors for group chat
+    const SENDER_COLORS = [
+      '#38bdf8', '#a78bfa', '#f472b6', '#34d399', '#fbbf24',
+      '#60a5fa', '#f87171', '#4ade80', '#e879f9', '#2dd4bf'
+    ];
+    function getSenderColor(name) {
+      if (!name) return '#38bdf8';
+      let hash = 0;
+      for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+      return SENDER_COLORS[Math.abs(hash) % SENDER_COLORS.length];
+    }
 
     // Typing state & active typers
     let lastTypingSent = 0;
@@ -2126,6 +3078,80 @@
       document.getElementById('chatTextarea').focus();
     };
 
+    function scrollToQuotedMessage(id) {
+      const el = document.getElementById(`msg-row-${id}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('im-highlight-flash');
+        setTimeout(() => el.classList.remove('im-highlight-flash'), 1600);
+      } else {
+        showError('Message is earlier in history.');
+      }
+    }
+
+    // Quick Emoji Drawer
+    const QUICK_EMOJIS = ['👍', '❤️', '😂', '🔥', '🎉', '👏', '🙏', '🙌', '✨', '💯', '🤔', '😎', '📚', '✅', '💡', '🚀', '👀', '🤝', '💪', '🎯', '⚡', '🎓', '😮', '😢'];
+    function initEmojiDrawer() {
+      const grid = document.getElementById('emojiGrid');
+      if (!grid) return;
+      grid.innerHTML = '';
+      QUICK_EMOJIS.forEach(emoji => {
+        const span = document.createElement('span');
+        span.className = 'im-emoji-btn';
+        span.textContent = emoji;
+        span.onclick = () => insertEmoji(emoji);
+        grid.appendChild(span);
+      });
+    }
+
+    function toggleEmojiDrawer(e) {
+      if (e) e.stopPropagation();
+      const drawer = document.getElementById('emojiPickerDrawer');
+      const attPopup = document.getElementById('attachmentPopup');
+      if (attPopup) attPopup.style.display = 'none';
+      if (!drawer) return;
+      const isHidden = drawer.style.display === 'none' || !drawer.style.display;
+      drawer.style.display = isHidden ? 'block' : 'none';
+    }
+
+    function insertEmoji(emoji) {
+      const start = textarea.selectionStart ?? textarea.value.length;
+      const end = textarea.selectionEnd ?? textarea.value.length;
+      const val = textarea.value;
+      textarea.value = val.substring(0, start) + emoji + val.substring(end);
+      textarea.selectionStart = textarea.selectionEnd = start + emoji.length;
+      handleInputState();
+      textarea.focus();
+    }
+
+    // Attachment Menu Popup
+    function toggleAttachmentMenu(e) {
+      if (e) e.stopPropagation();
+      const popup = document.getElementById('attachmentPopup');
+      const drawer = document.getElementById('emojiPickerDrawer');
+      if (drawer) drawer.style.display = 'none';
+      if (!popup) return;
+      const isHidden = popup.style.display === 'none' || !popup.style.display;
+      popup.style.display = isHidden ? 'flex' : 'none';
+    }
+
+    function triggerFileInput(acceptTypes) {
+      const popup = document.getElementById('attachmentPopup');
+      if (popup) popup.style.display = 'none';
+      const fileInput = document.getElementById('hiddenFileInput');
+      if (!fileInput) return;
+      fileInput.accept = acceptTypes;
+      fileInput.click();
+    }
+
+    document.addEventListener('click', () => {
+      const p1 = document.getElementById('attachmentPopup');
+      if (p1) p1.style.display = 'none';
+      const p2 = document.getElementById('emojiPickerDrawer');
+      if (p2) p2.style.display = 'none';
+      document.querySelectorAll('.emoji-picker-popup').forEach(p => p.style.display = 'none');
+    });
+
     function handleInputState() {
       textarea.style.height = 'auto';
       textarea.style.height = Math.min(textarea.scrollHeight, 140) + 'px';
@@ -2139,7 +3165,7 @@
         sendBtn.classList.remove('ready');
       }
 
-      // Typing indicator throttle (at most once every 2 seconds)
+      // Typing indicator throttle
       if (hasText) {
         const now = Date.now();
         if (now - lastTypingSent > 2000) {
@@ -2180,6 +3206,8 @@
           })
           .catch(() => { });
 
+        initEmojiDrawer();
+        loadPinnedMessage();
         startPolling();
       })
       .catch(() => {
@@ -2190,11 +3218,6 @@
     function handleFileSelected(e) {
       const file = e.target.files[0];
       if (!file) return removeAttachedFile();
-
-      if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
-        showError('Only images and videos are supported.');
-        return removeAttachedFile();
-      }
 
       if (file.size > 25 * 1024 * 1024) {
         showError('Maximum file size is 25 MB.');
@@ -2238,7 +3261,7 @@
 
       const row = document.createElement('div');
       row.id = tempId;
-      row.className = 'im-row self solo temp-msg';
+      row.className = 'im-row self solo temp-msg cluster-start';
 
       const col = document.createElement('div');
       col.className = 'im-msg-content-wrap';
@@ -2262,10 +3285,12 @@
           const videoElem = document.createElement('video');
           videoElem.src = URL.createObjectURL(file);
           mediaElem.appendChild(videoElem);
-        } else {
+        } else if (file.type.startsWith('image/')) {
           const imgElem = document.createElement('img');
           imgElem.src = URL.createObjectURL(file);
           mediaElem.appendChild(imgElem);
+        } else {
+          mediaElem.innerHTML = `<div class="im-file-card"><div class="im-file-icon">📄</div><div class="im-file-info"><div class="im-file-name">${escapeHtml(file.name)}</div><div class="im-file-ext">Uploading...</div></div></div>`;
         }
         bubble.appendChild(mediaElem);
       }
@@ -2273,11 +3298,11 @@
 
       const timeMeta = document.createElement('div');
       timeMeta.className = 'im-time-meta';
-      timeMeta.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align: middle; margin-right: 2px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Sending...`;
+      timeMeta.innerHTML = `<span class="im-status-icon sending"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span> Sending...`;
       col.appendChild(timeMeta);
 
       row.appendChild(col);
-      
+
       const typingEl = document.getElementById('typingIndicator');
       if (typingEl) {
         container.insertBefore(row, typingEl);
@@ -2419,10 +3444,11 @@
           if (messages && messages.length > 0) {
             const emptyElem = document.getElementById('emptyNotice');
             if (emptyElem) emptyElem.remove();
-            
+
             renderMessages(messages);
             lastMessageId = messages[messages.length - 1].id;
-            
+            oldestMessageId = messages[0].id;
+
             scrollToBottom(true, false);
             markAsRead(lastMessageId);
           } else {
@@ -2462,12 +3488,18 @@
             const emptyElem = document.getElementById('emptyNotice');
             if (emptyElem) emptyElem.remove();
 
-            // Remove any temporary optimistic messages
             document.querySelectorAll('.temp-msg').forEach(el => el.remove());
 
+            const isNear = isNearBottom();
             renderMessages(messages);
             lastMessageId = Math.max(lastMessageId, messages[messages.length - 1].id);
-            scrollToBottom(true);
+
+            if (isNear) {
+              scrollToBottom(true);
+            } else {
+              unreadCount += messages.length;
+              updateUnreadBadge();
+            }
             markAsRead(lastMessageId);
           }
         }
@@ -2478,14 +3510,49 @@
       }
     }
 
+    // Infinite scroll up to fetch older messages
+    async function fetchOlderMessages() {
+      if (isFetchingOlder || !hasMoreOlder || !oldestMessageId) return;
+      isFetchingOlder = true;
+      const loader = document.getElementById('topLoadingIndicator');
+      if (loader) loader.style.display = 'flex';
+
+      try {
+        const res = await fetch(`/api/chat/messages?before=${oldestMessageId}&limit=30`);
+        if (res.ok) {
+          const data = await res.json();
+          const older = Array.isArray(data) ? data : (data.messages || []);
+          if (older.length < 30) {
+            hasMoreOlder = false;
+          }
+          if (older.length > 0) {
+            const feed = document.getElementById('chatFeed');
+            const prevScrollHeight = feed.scrollHeight;
+
+            renderMessages(older, true);
+            oldestMessageId = Math.min(...older.map(m => m.id), oldestMessageId);
+
+            requestAnimationFrame(() => {
+              feed.scrollTop = feed.scrollHeight - prevScrollHeight;
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Fetch older messages error:', err);
+      } finally {
+        isFetchingOlder = false;
+        if (loader) loader.style.display = 'none';
+      }
+    }
+
     // Typing Event Handler
     function handleTypingEvent(data) {
       if (!currentStudent || data.studentId === currentStudent.studentId) return;
-      
+
       if (activeTypers.has(data.studentId)) {
         clearTimeout(activeTypers.get(data.studentId).timer);
       }
-      
+
       const timer = setTimeout(() => {
         activeTypers.delete(data.studentId);
         updateTypingUI();
@@ -2520,7 +3587,7 @@
       }
     }
 
-    // Supabase Realtime Setup
+    // Supabase Realtime Setup with Presence Tracking
     async function initRealtime() {
       try {
         const res = await fetch('/api/chat/config');
@@ -2529,24 +3596,34 @@
         if (!url || !key) return;
 
         const supabaseClient = supabase.createClient(url, key);
-        const channel = supabaseClient.channel('public:chat_messages');
-
-        channel.on('broadcast', { event: 'new_message' }, (payload) => {
-          const msg = payload.payload;
-          if (msg.id > lastMessageId) {
-            const emptyElem = document.getElementById('emptyNotice');
-            if (emptyElem) emptyElem.remove();
-
-            // Remove sender's temporary optimistic message if present
-            document.querySelectorAll('.temp-msg').forEach(el => el.remove());
-
-            // Render new message and auto-scroll
-            renderMessages([msg]);
-            lastMessageId = msg.id;
-            scrollToBottom(true);
-            markAsRead(lastMessageId);
+        const channel = supabaseClient.channel('public:chat_messages', {
+          config: {
+            presence: { key: currentStudent ? String(currentStudent.studentId) : 'guest' }
           }
-        })
+        });
+
+        channel
+          .on('broadcast', { event: 'new_message' }, (payload) => {
+            const msg = payload.payload;
+            if (msg.id > lastMessageId) {
+              const emptyElem = document.getElementById('emptyNotice');
+              if (emptyElem) emptyElem.remove();
+
+              document.querySelectorAll('.temp-msg').forEach(el => el.remove());
+
+              const isNear = isNearBottom();
+              renderMessages([msg]);
+              lastMessageId = msg.id;
+
+              if (isNear) {
+                scrollToBottom(true);
+              } else {
+                unreadCount++;
+                updateUnreadBadge();
+              }
+              markAsRead(lastMessageId);
+            }
+          })
           .on('broadcast', { event: 'delete_message' }, (payload) => {
             removeMessageElement(payload.payload.messageId);
           })
@@ -2564,7 +3641,26 @@
               updateReadReceiptsUI();
             }
           })
-          .subscribe();
+          .on('broadcast', { event: 'pin_message' }, () => {
+            loadPinnedMessage();
+          })
+          .on('presence', { event: 'sync' }, () => {
+            const state = channel.presenceState();
+            const count = Object.keys(state).length || 1;
+            const onlineEl = document.getElementById('onlineCountText');
+            if (onlineEl) onlineEl.textContent = `${count} online`;
+            const modalCountEl = document.getElementById('modalOnlineCount');
+            if (modalCountEl) modalCountEl.textContent = `${count} Online`;
+          })
+          .subscribe(async (status) => {
+            if (status === 'SUBSCRIBED' && currentStudent) {
+              await channel.track({
+                studentId: currentStudent.studentId,
+                name: currentStudent.name,
+                onlineAt: new Date().toISOString()
+              });
+            }
+          });
       } catch (e) {
         console.error('Realtime init error:', e);
       }
@@ -2573,7 +3669,6 @@
     function startPolling() {
       fetchInitialMessages().then(() => {
         initRealtime();
-        // Reliable fallback polling interval (every 2.5s) to guarantee messages sync continuously
         setInterval(fetchNewMessages, 2500);
       });
     }
@@ -2603,10 +3698,9 @@
       return `${dayName.toUpperCase()}, ${dateNum} ${monthName.toUpperCase()}`;
     }
 
-    // Auto-highlight phone numbers and links
     function escapeHtml(text) {
       const div = document.createElement('div');
-      div.textContent = text;
+      div.textContent = text || '';
       return div.innerHTML;
     }
 
@@ -2617,17 +3711,29 @@
       return safe;
     }
 
-    // Render Messages
-    function renderMessages(messages) {
+    function getReceiptIconHtml(msgId) {
+      const readIds = Object.values(readReceiptsMap);
+      const maxRead = readIds.length > 0 ? Math.max(...readIds) : 0;
+      const isRead = msgId <= maxRead;
+      if (isRead) {
+        return `<span class="im-status-icon read" title="Read"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.5"><polyline points="18 6 7 17 2 12"/></svg><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.5" style="margin-left:-8px;"><polyline points="18 6 7 17 2 12"/></svg></span>`;
+      }
+      return `<span class="im-status-icon delivered" title="Delivered"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 6 7 17 2 12"/></svg><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-left:-8px;"><polyline points="18 6 7 17 2 12"/></svg></span>`;
+    }
+
+    // Render Messages with Grouping, Asymmetric Radii & Document Cards
+    function renderMessages(messages, prepend = false) {
       const container = document.getElementById('feedInner');
       const typingEl = document.getElementById('typingIndicator');
+      const topLoader = document.getElementById('topLoadingIndicator');
       const loadingEl = document.getElementById('loadingNotice');
       if (loadingEl) loadingEl.remove();
       const emptyEl = document.getElementById('emptyNotice');
       if (emptyEl) emptyEl.remove();
 
+      const fragment = document.createDocumentFragment();
+
       messages.forEach((msg, idx) => {
-        // Prevent duplicate rendering
         if (document.getElementById(`msg-row-${msg.id}`)) return;
 
         const isSelf = currentStudent && msg.studentId === currentStudent.studentId;
@@ -2636,19 +3742,24 @@
         const prev = idx > 0 ? messages[idx - 1] : null;
         const next = idx < messages.length - 1 ? messages[idx + 1] : null;
 
-        const samePrev = prev && prev.studentId === msg.studentId;
-        const sameNext = next && next.studentId === msg.studentId;
-
-        // Group Date Stamp (Gap > 20 mins)
         const msgTimestamp = new Date(msg.createdAt).getTime();
-        if (!lastDateString || msgTimestamp - lastDateString > 20 * 60 * 1000) {
-          const dateElem = document.createElement('div');
-          dateElem.className = 'im-date-stamp';
-          dateElem.textContent = formatStamp(msg.createdAt);
-          if (typingEl) container.insertBefore(dateElem, typingEl);
-          else container.appendChild(dateElem);
+        const prevTimestamp = prev ? new Date(prev.createdAt).getTime() : 0;
+        const nextTimestamp = next ? new Date(next.createdAt).getTime() : 0;
+
+        const samePrev = prev && prev.studentId === msg.studentId && Math.abs(msgTimestamp - prevTimestamp) < 5 * 60 * 1000;
+        const sameNext = next && next.studentId === msg.studentId && Math.abs(nextTimestamp - msgTimestamp) < 5 * 60 * 1000;
+
+        // Date divider (Gap > 20 mins or change in day)
+        if (!prepend) {
+          const msgDate = new Date(msg.createdAt).toDateString();
+          if (!lastDateString || lastDateString !== msgDate) {
+            const dateElem = document.createElement('div');
+            dateElem.className = 'im-date-stamp';
+            dateElem.textContent = formatStamp(msg.createdAt);
+            fragment.appendChild(dateElem);
+            lastDateString = msgDate;
+          }
         }
-        lastDateString = msgTimestamp;
 
         let posClass = 'solo';
         if (!samePrev && sameNext) posClass = 'group-top';
@@ -2658,24 +3769,29 @@
         const row = document.createElement('div');
         row.id = `msg-row-${msg.id}`;
         row.dataset.messageId = msg.id;
-        row.className = `im-row ${isSelf ? 'self' : 'other'} ${posClass}${!samePrev ? ' cluster-start' : ''}${sameNext ? ' grouped' : ''}`;
+        row.className = `im-row ${isSelf ? 'self' : 'other'} ${posClass}${!samePrev ? ' cluster-start' : ''}`;
 
         // Left Avatar (Incoming Only)
         if (!isSelf) {
           const avatarElem = document.createElement('div');
-          avatarElem.className = 'im-msg-avatar';
-          if (msg.avatarUrl) {
-            const img = document.createElement('img');
-            img.src = msg.avatarUrl;
-            img.alt = msg.name;
-            avatarElem.appendChild(img);
+          if (sameNext) {
+            // Spacer to keep group bubbles aligned while avatar sits on bottom-most message
+            avatarElem.className = 'im-msg-avatar spacer';
+            avatarElem.setAttribute('aria-hidden', 'true');
           } else {
-            avatarElem.textContent = (msg.name || 'S').charAt(0).toUpperCase();
+            avatarElem.className = 'im-msg-avatar';
+            if (msg.avatarUrl) {
+              const img = document.createElement('img');
+              img.src = msg.avatarUrl;
+              img.alt = msg.name;
+              avatarElem.appendChild(img);
+            } else {
+              avatarElem.textContent = (msg.name || 'S').charAt(0).toUpperCase();
+            }
           }
           row.appendChild(avatarElem);
         }
 
-        // Column
         const col = document.createElement('div');
         col.className = 'im-msg-content-wrap';
 
@@ -2683,25 +3799,34 @@
         if (!isSelf && !samePrev) {
           const nameElem = document.createElement('div');
           nameElem.className = 'im-msg-sender-name';
+          nameElem.style.color = getSenderColor(msg.name);
           nameElem.textContent = msg.name;
           col.appendChild(nameElem);
         }
 
-        // Bubble
         const hasText = !!msg.text;
         const hasMedia = !!msg.attachmentName;
 
         const bubbleElem = document.createElement('div');
         bubbleElem.className = `im-bubble${!hasText && hasMedia ? ' media-only' : ''}`;
 
+        // Quoted Reply Preview
         if (msg.replyToId && msg.replySender) {
           const quoteDiv = document.createElement('div');
-          quoteDiv.style.cssText = 'background: rgba(0,0,0,0.1); border-left: 3px solid ' + (isSelf ? 'white' : '#007aff') + '; padding: 5px 8px; border-radius: 4px; font-size: 0.85em; margin-bottom: 6px; opacity: 0.9; cursor: pointer;';
-          quoteDiv.innerHTML = '<div style="font-weight: 600; margin-bottom: 2px;">' + escapeHtml(msg.replySender) + '</div>' +
-            '<div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">' + escapeHtml(msg.replyText || 'Attachment') + '</div>';
+          quoteDiv.className = 'im-quote-box';
+          quoteDiv.title = 'Click to jump to original message';
+          quoteDiv.onclick = (e) => {
+            e.stopPropagation();
+            scrollToQuotedMessage(msg.replyToId);
+          };
+          quoteDiv.innerHTML = `
+            <div class="im-quote-sender" style="color: ${getSenderColor(msg.replySender)}">${escapeHtml(msg.replySender)}</div>
+            <div class="im-quote-snippet">${escapeHtml(msg.replyText || 'Attachment')}</div>
+          `;
           bubbleElem.appendChild(quoteDiv);
         }
 
+        // Text Content
         if (hasText) {
           const textSpan = document.createElement('span');
           textSpan.innerHTML = formatMessageBody(msg.text);
@@ -2709,49 +3834,90 @@
           bubbleElem.appendChild(textSpan);
         }
 
-        // Media Attachment
+        // Attachments (Images, Videos, or Document Cards)
         if (hasMedia) {
-          const mediaElem = document.createElement('div');
-          mediaElem.className = 'im-media-box';
           const fileUrl = `/api/chat/attachment/${msg.attachmentName}`;
-          const origName = msg.attachmentOriginalName || 'Photo';
+          const origName = msg.attachmentOriginalName || 'File Attachment';
+          const mime = (msg.attachmentMimeType || '').toLowerCase();
+          const isImage = mime.startsWith('image/');
+          const isVideo = mime.startsWith('video/');
 
-          if (msg.attachmentMimeType && msg.attachmentMimeType.startsWith('video/')) {
+          if (isImage) {
+            const mediaElem = document.createElement('div');
+            mediaElem.className = 'im-media-box loading-skeleton';
+            const imgElem = document.createElement('img');
+            imgElem.src = fileUrl;
+            imgElem.alt = origName;
+            imgElem.loading = 'lazy';
+            imgElem.onload = () => {
+              mediaElem.classList.remove('loading-skeleton');
+              if (isNearBottom()) scrollToBottom(false);
+            };
+            imgElem.onclick = () => openLightbox(fileUrl, origName);
+            mediaElem.appendChild(imgElem);
+            bubbleElem.appendChild(mediaElem);
+          } else if (isVideo) {
+            const mediaElem = document.createElement('div');
+            mediaElem.className = 'im-media-box';
             const videoElem = document.createElement('video');
             videoElem.src = fileUrl;
             videoElem.controls = true;
             videoElem.setAttribute('playsinline', '');
             videoElem.setAttribute('preload', 'metadata');
             mediaElem.appendChild(videoElem);
+            bubbleElem.appendChild(mediaElem);
           } else {
-            const imgElem = document.createElement('img');
-            imgElem.src = fileUrl;
-            imgElem.alt = origName;
-            imgElem.loading = 'lazy';
-            imgElem.onload = () => {
-              if (isNearBottom()) scrollToBottom(false);
+            // Document card
+            const ext = origName.split('.').pop().toLowerCase();
+            let icon = '📄';
+            if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) icon = '📦';
+            else if (['c', 'cpp', 'py', 'java', 'js', 'html', 'css', 'json', 'sql', 'sh', 'ts'].includes(ext)) icon = '💻';
+            else if (['pdf'].includes(ext)) icon = '📕';
+            else if (['doc', 'docx'].includes(ext)) icon = '📘';
+            else if (['xls', 'xlsx'].includes(ext)) icon = '📗';
+            else if (['ppt', 'pptx'].includes(ext)) icon = '📙';
+
+            const card = document.createElement('div');
+            card.className = 'im-file-card';
+            card.title = `Click to download ${origName}`;
+            card.onclick = () => {
+              const link = document.createElement('a');
+              link.href = fileUrl;
+              link.download = origName;
+              link.target = '_blank';
+              link.click();
             };
-            imgElem.onclick = () => openLightbox(fileUrl, origName);
-            mediaElem.appendChild(imgElem);
+            card.innerHTML = `
+              <div class="im-file-icon">${icon}</div>
+              <div class="im-file-info">
+                <div class="im-file-name">${escapeHtml(origName)}</div>
+                <div class="im-file-ext">${ext.toUpperCase()} Document • Tap to download</div>
+              </div>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color: #9ca3af; flex-shrink: 0;">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+            `;
+            bubbleElem.appendChild(card);
           }
-          bubbleElem.appendChild(mediaElem);
         }
 
         col.appendChild(bubbleElem);
 
-        // Timestamp under message
+        // Timestamp & Status Indicator under message
         const timeMeta = document.createElement('div');
         timeMeta.className = 'im-time-meta';
         if (isSelf) {
-          timeMeta.innerHTML = `${formatTime(msg.createdAt)} <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align: middle; margin-left: 2px;"><polyline points="18 6 7 17 2 12"/><polyline points="22 6 11 17 6 12"/></svg>`;
+          timeMeta.innerHTML = `${formatTime(msg.createdAt)} ${getReceiptIconHtml(msg.id)}`;
         } else {
           timeMeta.textContent = formatTime(msg.createdAt);
         }
         col.appendChild(timeMeta);
 
-        // Action buttons container
+        // Hover Action Buttons Container
         const actionDiv = document.createElement('div');
-        actionDiv.style.cssText = 'position: absolute; ' + (isSelf ? 'left: -88px;' : 'right: -88px;') + ' top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 4px; z-index: 15;';
+        actionDiv.style.cssText = 'position: absolute; ' + (isSelf ? 'left: -110px;' : 'right: -110px;') + ' top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 4px; z-index: 15;';
 
         const reactBtn = document.createElement('button');
         reactBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>';
@@ -2765,6 +3931,15 @@
         replyBtn.title = 'Reply';
         replyBtn.onclick = () => window.initReply(msg.id, msg.name, msg.text);
 
+        const pinBtn = document.createElement('button');
+        pinBtn.innerHTML = '<span style="font-size: 11px;">📌</span>';
+        pinBtn.className = 'msg-pin-btn';
+        pinBtn.title = 'Pin announcement';
+        pinBtn.onclick = (e) => {
+          e.stopPropagation();
+          pinChatMessage(msg.id);
+        };
+
         if (canDelete) {
           const deleteBtn = document.createElement('button');
           deleteBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>';
@@ -2777,20 +3952,24 @@
 
           if (isSelf) {
             actionDiv.appendChild(deleteBtn);
+            actionDiv.appendChild(pinBtn);
             actionDiv.appendChild(replyBtn);
             actionDiv.appendChild(reactBtn);
           } else {
             actionDiv.appendChild(reactBtn);
             actionDiv.appendChild(replyBtn);
+            actionDiv.appendChild(pinBtn);
             actionDiv.appendChild(deleteBtn);
           }
         } else {
           if (isSelf) {
+            actionDiv.appendChild(pinBtn);
             actionDiv.appendChild(replyBtn);
             actionDiv.appendChild(reactBtn);
           } else {
             actionDiv.appendChild(reactBtn);
             actionDiv.appendChild(replyBtn);
+            actionDiv.appendChild(pinBtn);
           }
         }
 
@@ -2806,22 +3985,23 @@
           renderReactions(msg.id, msg.reactions);
         }
 
-        // Read Receipt slot (only for self messages)
-        if (isSelf) {
-          const readDiv = document.createElement('div');
-          readDiv.className = 'read-receipt';
-          readDiv.id = `read-receipt-${msg.id}`;
-          col.appendChild(readDiv);
-        }
-
         row.appendChild(col);
-        
-        if (typingEl) {
-          container.insertBefore(row, typingEl);
-        } else {
-          container.appendChild(row);
-        }
+        fragment.appendChild(row);
       });
+
+      if (prepend) {
+        if (topLoader) {
+          topLoader.after(fragment);
+        } else {
+          container.prepend(fragment);
+        }
+      } else {
+        if (typingEl) {
+          container.insertBefore(fragment, typingEl);
+        } else {
+          container.appendChild(fragment);
+        }
+      }
 
       updateReadReceiptsUI();
     }
@@ -2833,13 +4013,13 @@
         picker = document.createElement('div');
         picker.className = 'emoji-picker-popup';
         picker.innerHTML = `
-        <span onclick="sendReaction(${msgId}, '👍')">👍</span>
-        <span onclick="sendReaction(${msgId}, '❤️')">❤️</span>
-        <span onclick="sendReaction(${msgId}, '😂')">😂</span>
-        <span onclick="sendReaction(${msgId}, '😮')">😮</span>
-        <span onclick="sendReaction(${msgId}, '😢')">😢</span>
-        <span onclick="sendReaction(${msgId}, '🔥')">🔥</span>
-      `;
+          <span onclick="sendReaction(${msgId}, '👍')">👍</span>
+          <span onclick="sendReaction(${msgId}, '❤️')">❤️</span>
+          <span onclick="sendReaction(${msgId}, '😂')">😂</span>
+          <span onclick="sendReaction(${msgId}, '😮')">😮</span>
+          <span onclick="sendReaction(${msgId}, '😢')">😢</span>
+          <span onclick="sendReaction(${msgId}, '🔥')">🔥</span>
+        `;
         row.querySelector('.im-msg-content-wrap').appendChild(picker);
       }
       picker.style.display = picker.style.display === 'flex' ? 'none' : 'flex';
@@ -2908,54 +4088,306 @@
     }
 
     function updateReadReceiptsUI() {
-      document.querySelectorAll('.read-receipt').forEach(el => el.innerHTML = '');
-
       const readIds = Object.values(readReceiptsMap);
       if (readIds.length === 0) return;
+      const maxRead = Math.max(...readIds);
 
-      const maxReadId = Math.max(...readIds);
-      const readDiv = document.getElementById(`read-receipt-${maxReadId}`);
-      if (readDiv) {
-        readDiv.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#007aff" stroke-width="2.5" style="vertical-align: middle;"><polyline points="20 6 9 17 4 12"/></svg><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#007aff" stroke-width="2.5" style="vertical-align: middle; margin-left:-8px;"><polyline points="20 6 9 17 4 12"/></svg> Read`;
-      }
+      document.querySelectorAll('.im-row.self').forEach(row => {
+        const msgId = parseInt(row.dataset.messageId, 10);
+        if (msgId && msgId <= maxRead) {
+          const statusIcon = row.querySelector('.im-status-icon');
+          if (statusIcon && !statusIcon.classList.contains('read')) {
+            statusIcon.className = 'im-status-icon read';
+            statusIcon.title = 'Read';
+            statusIcon.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.5"><polyline points="18 6 7 17 2 12"/></svg><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.5" style="margin-left:-8px;"><polyline points="18 6 7 17 2 12"/></svg>`;
+          }
+        }
+      });
     }
 
-    document.addEventListener('click', (e) => {
-      if (!e.target.closest('.msg-reaction-btn') && !e.target.closest('.emoji-picker-popup')) {
-        document.querySelectorAll('.emoji-picker-popup').forEach(p => p.style.display = 'none');
-      }
-    });
-
-    // Auto-Scroll Downwards
+    // Scroll Behavior & Floating Scroll Button
     function isNearBottom() {
       const feed = document.getElementById('chatFeed');
       if (!feed) return true;
       return feed.scrollHeight - feed.scrollTop - feed.clientHeight < 160;
     }
 
+    function updateUnreadBadge() {
+      const badge = document.getElementById('unreadCountBadge');
+      if (!badge) return;
+      if (unreadCount > 0) {
+        badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+        badge.style.display = 'flex';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+
     function scrollToBottom(force = false, smooth = true) {
       const feed = document.getElementById('chatFeed');
-      const pill = document.getElementById('newMessagesPill');
+      const btn = document.getElementById('scrollToBottomBtn');
       if (!feed) return;
 
       if (!force && !isNearBottom()) {
-        if (pill) pill.classList.add('visible');
+        if (btn) btn.classList.add('visible');
         return;
       }
 
       requestAnimationFrame(() => {
         feed.scrollTo({ top: feed.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
-        if (pill) pill.classList.remove('visible');
+        if (btn) btn.classList.remove('visible');
+        unreadCount = 0;
+        updateUnreadBadge();
       });
     }
 
-    document.getElementById('chatFeed').addEventListener('scroll', (e) => {
-      const feed = e.target;
-      if (feed.scrollTop >= feed.scrollHeight - feed.clientHeight - 60) {
-        const pill = document.getElementById('newMessagesPill');
-        if (pill) pill.classList.remove('visible');
+    const feedElem = document.getElementById('chatFeed');
+    if (feedElem) {
+      feedElem.addEventListener('scroll', () => {
+        const isScrolledUp = feedElem.scrollHeight - feedElem.scrollTop - feedElem.clientHeight > 180;
+        const btn = document.getElementById('scrollToBottomBtn');
+        if (btn) {
+          if (isScrolledUp) btn.classList.add('visible');
+          else {
+            btn.classList.remove('visible');
+            unreadCount = 0;
+            updateUnreadBadge();
+          }
+        }
+
+        // Infinite scroll-up detection (when within 60px of the top)
+        if (feedElem.scrollTop < 60 && !isFetchingOlder && hasMoreOlder) {
+          fetchOlderMessages();
+        }
+      });
+    }
+
+    // Pinned Announcement Banner Logic
+    async function loadPinnedMessage() {
+      try {
+        const res = await fetch('/api/chat/pinned');
+        if (res.ok) {
+          const data = await res.json();
+          pinnedMessage = data;
+          const banner = document.getElementById('pinnedBanner');
+          const bannerText = document.getElementById('pinnedBannerText');
+          if (banner && bannerText && data && data.id) {
+            bannerText.textContent = data.text || (data.attachmentOriginalName ? `📎 ${data.attachmentOriginalName}` : 'Pinned announcement');
+            banner.style.display = 'flex';
+          }
+        }
+      } catch (err) {
+        console.warn('Could not load pinned message:', err);
       }
-    });
+    }
+
+    function jumpToPinnedMessage() {
+      if (!pinnedMessage || !pinnedMessage.id) return;
+      scrollToQuotedMessage(pinnedMessage.id);
+    }
+
+    function dismissPinnedBanner(e) {
+      if (e) e.stopPropagation();
+      const banner = document.getElementById('pinnedBanner');
+      if (banner) banner.style.display = 'none';
+    }
+
+    async function pinChatMessage(msgId) {
+      try {
+        const res = await fetch(`/api/chat/pinned/${msgId}`, { method: 'POST' });
+        const data = await res.json();
+        if (res.ok) {
+          showError('📌 Message pinned as announcement!');
+          loadPinnedMessage();
+        } else {
+          showError(data.error || 'Failed to pin message');
+        }
+      } catch (err) {
+        showError('Network error while pinning message');
+      }
+    }
+
+    // In-Chat Search Logic
+    function toggleChatSearch() {
+      const searchBar = document.getElementById('inChatSearchBar');
+      if (!searchBar) return;
+      const isHidden = searchBar.style.display === 'none' || !searchBar.style.display;
+      searchBar.style.display = isHidden ? 'flex' : 'none';
+      if (isHidden) {
+        document.getElementById('chatSearchInput').focus();
+      } else {
+        closeChatSearch();
+      }
+    }
+
+    function closeChatSearch() {
+      const searchBar = document.getElementById('inChatSearchBar');
+      if (searchBar) searchBar.style.display = 'none';
+      const input = document.getElementById('chatSearchInput');
+      if (input) input.value = '';
+      clearSearchHighlights();
+    }
+
+    function clearSearchHighlights() {
+      document.querySelectorAll('mark.search-highlight').forEach(mark => {
+        const parent = mark.parentNode;
+        parent.replaceChild(document.createTextNode(mark.textContent), mark);
+        parent.normalize();
+      });
+      searchMatches = [];
+      currentSearchIndex = -1;
+      const countEl = document.getElementById('searchMatchesCount');
+      if (countEl) countEl.textContent = '';
+    }
+
+    function handleChatSearch(term) {
+      clearSearchHighlights();
+      const cleanTerm = (term || '').trim().toLowerCase();
+      if (!cleanTerm || cleanTerm.length < 2) return;
+
+      const bubbles = document.querySelectorAll('.im-bubble span');
+      bubbles.forEach(span => {
+        const original = span.textContent;
+        const lower = original.toLowerCase();
+        if (lower.includes(cleanTerm)) {
+          let lastIdx = 0;
+          const frag = document.createDocumentFragment();
+          let idx = lower.indexOf(cleanTerm, lastIdx);
+
+          while (idx !== -1) {
+            frag.appendChild(document.createTextNode(original.substring(lastIdx, idx)));
+            const mark = document.createElement('mark');
+            mark.className = 'search-highlight';
+            mark.textContent = original.substring(idx, idx + cleanTerm.length);
+            frag.appendChild(mark);
+            searchMatches.push(mark);
+            lastIdx = idx + cleanTerm.length;
+            idx = lower.indexOf(cleanTerm, lastIdx);
+          }
+          frag.appendChild(document.createTextNode(original.substring(lastIdx)));
+          span.innerHTML = '';
+          span.appendChild(frag);
+        }
+      });
+
+      if (searchMatches.length > 0) {
+        currentSearchIndex = 0;
+        updateSearchNav();
+      } else {
+        const countEl = document.getElementById('searchMatchesCount');
+        if (countEl) countEl.textContent = '0 found';
+      }
+    }
+
+    function navSearch(delta) {
+      if (searchMatches.length === 0) return;
+      currentSearchIndex += delta;
+      if (currentSearchIndex < 0) currentSearchIndex = searchMatches.length - 1;
+      if (currentSearchIndex >= searchMatches.length) currentSearchIndex = 0;
+      updateSearchNav();
+    }
+
+    function updateSearchNav() {
+      searchMatches.forEach(m => m.classList.remove('active-match'));
+      if (currentSearchIndex >= 0 && currentSearchIndex < searchMatches.length) {
+        const active = searchMatches[currentSearchIndex];
+        active.classList.add('active-match');
+        active.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const countEl = document.getElementById('searchMatchesCount');
+        if (countEl) countEl.textContent = `${currentSearchIndex + 1} / ${searchMatches.length}`;
+      }
+    }
+
+    // Group Info Slide-over Modal Logic
+    async function openGroupInfo() {
+      const modal = document.getElementById('groupInfoModal');
+      if (modal) modal.classList.add('active');
+
+      try {
+        const res = await fetch('/api/chat/members');
+        if (res.ok) {
+          allMembers = await res.json();
+          renderMembersList(allMembers);
+          const totalEl = document.getElementById('modalTotalMembers');
+          if (totalEl) totalEl.textContent = `${allMembers.length} Members`;
+          const countText = document.getElementById('memberCountText');
+          if (countText) countText.textContent = `${allMembers.length} members`;
+        }
+      } catch (err) {
+        console.warn('Failed to load group members:', err);
+      }
+    }
+
+    function closeGroupInfo(e) {
+      if (e && e.target && e.target !== e.currentTarget && !e.target.classList.contains('im-slideover-close')) return;
+      const modal = document.getElementById('groupInfoModal');
+      if (modal) modal.classList.remove('active');
+    }
+
+    function filterMembersList(query) {
+      const q = (query || '').toLowerCase().trim();
+      if (!q) {
+        renderMembersList(allMembers);
+        return;
+      }
+      const filtered = allMembers.filter(m =>
+        (m.name && m.name.toLowerCase().includes(q)) ||
+        (m.semester && `sem ${m.semester}`.includes(q)) ||
+        (m.role && m.role.toLowerCase().includes(q))
+      );
+      renderMembersList(filtered);
+    }
+
+    function renderMembersList(members) {
+      const listEl = document.getElementById('groupMembersList');
+      if (!listEl) return;
+      listEl.innerHTML = '';
+
+      if (!members || members.length === 0) {
+        listEl.innerHTML = '<div style="text-align: center; color: #6b7280; padding: 20px; font-size: 13px;">No members found.</div>';
+        return;
+      }
+
+      members.forEach(m => {
+        const item = document.createElement('div');
+        item.className = 'member-item';
+
+        const avatar = document.createElement('div');
+        avatar.className = 'member-avatar';
+        if (m.avatarUrl) {
+          avatar.innerHTML = `<img src="${m.avatarUrl}" alt="${escapeHtml(m.name)}">`;
+        } else {
+          avatar.textContent = (m.name || 'S').charAt(0).toUpperCase();
+        }
+
+        const info = document.createElement('div');
+        info.className = 'member-info';
+
+        const nameRow = document.createElement('div');
+        nameRow.className = 'member-name';
+        nameRow.innerHTML = `<span>${escapeHtml(m.name)}</span>`;
+        if (m.isAdmin) {
+          nameRow.innerHTML += `<span class="member-badge admin">ADMIN</span>`;
+        } else if (m.semester) {
+          nameRow.innerHTML += `<span class="member-badge">SEM ${m.semester}</span>`;
+        }
+
+        const sub = document.createElement('div');
+        sub.className = 'member-sub';
+        sub.textContent = m.lastActive ? `Active ${formatTime(m.lastActive)}` : 'Class Member';
+
+        info.appendChild(nameRow);
+        info.appendChild(sub);
+
+        const statusDot = document.createElement('div');
+        statusDot.className = 'member-status-dot online';
+
+        item.appendChild(avatar);
+        item.appendChild(info);
+        item.appendChild(statusDot);
+        listEl.appendChild(item);
+      });
+    }
 
     // Lightbox & Zoom Functions
     function openLightbox(url, filename = 'Image Preview') {
@@ -3094,6 +4526,12 @@
           executeDeleteMessage();
           return;
         }
+      }
+
+      const infoModal = document.getElementById('groupInfoModal');
+      if (infoModal && infoModal.classList.contains('active') && e.key === 'Escape') {
+        closeGroupInfo();
+        return;
       }
 
       const modal = document.getElementById('lightboxModal');

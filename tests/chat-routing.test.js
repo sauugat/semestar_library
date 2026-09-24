@@ -38,13 +38,13 @@ test('short semester follow-up inherits lookup but new academic question does no
 test('real timetable query returns only requested semester and no synthetic records',async()=>{
   const client=createClient({url:'file::memory:'});
   try {
-    await client.executeMultiple('CREATE TABLE exam_schedule (subject TEXT, examDate TEXT, day TEXT, time TEXT, semester TEXT, type TEXT);');
-    for(const semester of ['II','III','Semester 3','IV']) await client.execute({sql:'INSERT INTO exam_schedule VALUES (?,?,?,?,?,?)',args:['DBMS','2026-09-22','Tuesday','10:00',semester,'Exam']});
+    await client.executeMultiple(require('../lib/routine').routineSchema(false));
+    for(const semester of [2,3,3,4]) await client.execute({sql:'INSERT INTO routine (subject_name, exam_date, calendar, weekday, exam_time, semester, exam_type) VALUES (?,?,?,?,?,?,?)',args:['DBMS','2026/09/22','AD','Tuesday','10:00',semester,'Exam']});
     const db={all:async(sql,...args)=>(await client.execute({sql,args})).rows};
     const {executeTool}=createTools(db,routeQuery('semester 3 routine'));
     const result=await executeTool('get_routine',{semester:2});
     assert.equal(result.semester,3);
-    assert.deepEqual(result.routine.map(r=>r.semester),['III','Semester 3']);
+    assert.deepEqual(result.routine.map(r=>r.semester),[3,3]);
     const missing=await createTools(db,routeQuery('semester 8 routine')).executeTool('get_routine',{semester:8});
     assert.deepEqual(missing.routine,[]);
   } finally {client.close();}

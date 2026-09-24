@@ -224,6 +224,32 @@ function transaction(fn) {
   };
 }
 
+// Use one connection for every statement in a migration, including rollback.
+// The older transaction(fn) API above is retained for existing callers.
+async function withTransaction(callback) {
+  const { createTransactionAdapter } = require('./lib/db-transaction');
+  const client = isPostgres ? await pgPool.connect() : await libsqlClient.transaction('write');
+  try {
+    if (isPostgres) await client.query('BEGIN');
+    const result = await callback(createTransactionAdapter(client, isPostgres));
+    if (isPostgres) await client.query('COMMIT');
+    else await client.commit();
+    return result;
+  } catch (err) {
+    if (isPostgres) await client.query('ROLLBACK');
+    else await client.rollback();
+    throw err;
+  } finally {
+    if (isPostgres) client.release();
+    else client.close();
+  }
+}
+
+async function close() {
+  if (pgPool) await pgPool.end();
+  if (libsqlClient) libsqlClient.close();
+}
+
 const DEFAULT_STUDENTS = [
   { studentId: "26020230", name: "Aashrita Lamichhane", password: "aashrita230", role: "student" },
   { studentId: "26020231", name: "Anisha Gurung", password: "anisha231", role: "student" },
@@ -828,40 +854,8 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
         console.log('[DB Engine]: Seeding complete!');
       }
 
-      const countExamsRow = await get('SELECT COUNT(*) AS c FROM exam_schedule');
-      const examCount = Number(countExamsRow?.c || countExamsRow?.count || 0);
+      await require('./lib/routine').ensureRoutineSchema({ exec, isPostgres });
 
-      if (examCount === 0) {
-        console.log('[DB Engine]: Fresh database detected. Seeding exam schedules...');
-        const routineExams = [
-          { semester: 'II', semNum: 2, date: '2083/05/17', time: 'CIT121', subject: 'Discrete Mathematics', type: 'Examination' },
-          { semester: 'II', semNum: 2, date: '2083/05/23', time: 'CIT122', subject: 'Computer Programming II (Java)', type: 'Examination' },
-          { semester: 'II', semNum: 2, date: '2083/05/26', time: 'ELX121', subject: 'Digital Logic', type: 'Examination' },
-          { semester: 'II', semNum: 2, date: '2083/05/30', time: 'CIT123', subject: 'Web Technology I', type: 'Examination' },
-          { semester: 'II', semNum: 2, date: '2083/06/02', time: 'BSM121', subject: 'Mathematics-II', type: 'Examination' },
-          { semester: 'IV', semNum: 4, date: '2083/06/05', time: 'CIT222', subject: 'Management Information System', type: 'Examination' },
-          { semester: 'IV', semNum: 4, date: '2083/06/09', time: 'CIT221', subject: 'Operating Systems', type: 'Examination' },
-          { semester: 'IV', semNum: 4, date: '2083/06/13', time: 'CIT223', subject: 'Data Communication and Computer Networks', type: 'Examination' },
-          { semester: 'IV', semNum: 4, date: '2083/06/16', time: 'BSM221', subject: 'Fundamentals of Probability and Statistics', type: 'Examination' },
-          { semester: 'IV', semNum: 4, date: '2083/06/21', time: 'CIT224', subject: 'Computer Graphics Technology', type: 'Examination' },
-          { semester: 'VI', semNum: 6, date: '2083/05/22', time: 'CIT321', subject: 'Human Computer Interface and UI Design', type: 'Examination' },
-          { semester: 'VI', semNum: 6, date: '2083/05/25', time: 'CIT323', subject: 'Artificial Intelligence', type: 'Examination' },
-          { semester: 'VI', semNum: 6, date: '2083/05/31', time: 'BCT322', subject: 'Financial Accounting', type: 'Examination' },
-          { semester: 'VI', semNum: 6, date: '2083/06/05', time: 'BCT321', subject: 'IT Project Management', type: 'Examination' },
-          { semester: 'VI', semNum: 6, date: '2083/06/08', time: 'CIT322', subject: 'Digital Forensic Security Technologies', type: 'Examination' },
-          { semester: 'VIII', semNum: 8, date: '2083/05/16', time: 'CIT421', subject: 'Big Data Technologies', type: 'Examination' },
-          { semester: 'VIII', semNum: 8, date: '2083/05/18', time: 'BCT421', subject: 'Society, IT and Law', type: 'Examination' },
-          { semester: 'VIII', semNum: 8, date: '2083/05/22', time: 'Elective', subject: 'IoT and Smart Technologies / E-Business and E-Commerce', type: 'Examination' }
-        ];
-
-        for (const e of routineExams) {
-          await run(
-            `INSERT INTO exam_schedule (subject, examDate, day, time, semester, type) VALUES (?, ?, ?, ?, ?, ?)`,
-            e.subject, e.date, e.day, e.time, e.semester, e.type
-          );
-        }
-        console.log('[DB Engine]: Exam schedules seeded!');
-      }
     } catch (err) {
       console.error('[DB Engine]: Schema initialization error:', err);
     }
@@ -919,7 +913,9 @@ async function deleteFileBlob(filename) {
   }
 }
 
-initSchema().catch(err => console.error('[DB Engine]: Schema init fatal error:', err));
+if (process.env.SEMESTER_DB_SKIP_INIT !== '1') {
+  initSchema().catch(err => console.error('[DB Engine]: Schema init fatal error:', err));
+}
 
 module.exports = {
   query,
@@ -929,6 +925,8 @@ module.exports = {
   exec,
   prepare,
   transaction,
+  withTransaction,
+  close,
   initSchema,
   saveFileBlob,
   getFileBlob,

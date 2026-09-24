@@ -636,25 +636,26 @@
             monthYear = `${dashParts[1]} / ${dashParts[0]}`;
           } else {
             day = dateStr;
-            monthYear = '2083';
+            monthYear = '';
           }
         }
 
-        const codeOrTime = r.time || '11:30 AM';
+        const subjectCode = r.subject_code || '';
+        const examMeta = [r.type || 'Examination', r.time, r.day, r.room ? `Room ${r.room}` : ''].filter(Boolean).join(' · ');
         const routineUrl = `routine.html?semester=${encodeURIComponent(r.semester)}`;
 
         item.innerHTML = `
           <div class="sla-routine-date-box">
             <span class="sla-routine-day">${escapeHtml(day)}</span>
-            <span class="sla-routine-month">${escapeHtml(monthYear)}</span>
+            <span class="sla-routine-month">${escapeHtml(monthYear)} ${escapeHtml(r.calendar || 'Calendar unconfirmed')}</span>
           </div>
           <div class="sla-routine-info">
             <div class="sla-routine-tags">
               <span class="sla-routine-sem-tag">Semester ${escapeHtml(r.semester)}</span>
-              ${codeOrTime.startsWith('CIT') || codeOrTime.startsWith('BSM') || codeOrTime.startsWith('ELX') || codeOrTime.startsWith('BCT') ? `<span class="sla-routine-code-tag">${escapeHtml(codeOrTime)}</span>` : ''}
+              ${subjectCode ? `<span class="sla-routine-code-tag">${escapeHtml(subjectCode)}</span>` : ''}
             </div>
             <h4 class="sla-routine-title">${escapeHtml(r.subject)}</h4>
-            <p class="sla-routine-time-sub">${escapeHtml(r.type || 'Examination')}${r.day ? ' · ' + escapeHtml(r.day) : ''}</p>
+            <p class="sla-routine-time-sub">${escapeHtml(examMeta)}</p>
           </div>
           <a href="${routineUrl}" class="sla-routine-open-btn" title="Open Routine Page">
             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>

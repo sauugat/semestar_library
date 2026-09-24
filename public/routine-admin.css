@@ -1,0 +1,82 @@
+/* Routine-only additions to style.v4.css. No styles leak to other pages. */
+.routine-page {
+  --routine-surface: var(--ap-surface, #fff);
+  --routine-text: var(--ap-text-primary, #1d1d1f);
+  --routine-muted: var(--ap-text-secondary, #616168);
+  --routine-line: rgba(25, 25, 30, .12);
+  --routine-fill: #f5f5f7;
+  --routine-action: #1d1d1f;
+  --routine-action-text: #fff;
+}
+html[data-theme="dark"] .routine-page {
+  --routine-surface: #171717;
+  --routine-text: #f5f5f5;
+  --routine-muted: #b5b5b5;
+  --routine-line: rgba(255,255,255,.12);
+  --routine-fill: #242424;
+  --routine-action: #f5f5f5;
+  --routine-action-text: #111;
+}
+.routine-page [hidden] { display: none !important; }
+.routine-page .routine-admin { margin-top: 48px; padding: 24px; border: 1px solid var(--routine-line); border-radius: 20px; background: var(--routine-surface); color: var(--routine-text); }
+.routine-page .routine-admin-heading { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
+.routine-page .routine-admin-heading h2 { margin: 0; font-size: 24px; color: var(--routine-text); }
+.routine-page .routine-admin-heading p:not(.routine-eyebrow) { margin: 8px 0 0; color: var(--routine-muted); line-height: 1.5; }
+.routine-page .routine-btn { display: inline-flex; justify-content: center; align-items: center; min-height: 40px; padding: 8px 14px; border: 1px solid var(--routine-line); border-radius: 10px; background: var(--routine-fill); color: var(--routine-text); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.routine-page .routine-btn:hover { border-color: var(--routine-muted); }
+.routine-page .routine-btn-primary { background: var(--routine-action); color: var(--routine-action-text); }
+.routine-page .routine-btn-delete { background: transparent; }
+.routine-page .routine-btn:disabled { opacity: .55; cursor: wait; }
+.routine-page :is(.routine-btn, .routine-field input, .routine-field select, .routine-table-wrap):focus-visible { outline: 2px solid var(--routine-text); outline-offset: 3px; }
+.routine-page .routine-table-wrap { overflow: auto; max-height: 480px; margin-top: 20px; border-bottom: 1px solid var(--routine-line); }
+.routine-page .routine-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; line-height: 1.5; }
+.routine-page .routine-table :is(th, td) { padding: 14px 10px; border-bottom: 1px solid var(--routine-line); vertical-align: top; }
+.routine-page .routine-table th { position: sticky; top: 0; z-index: 1; background: var(--routine-surface); color: var(--routine-muted); font-weight: 500; white-space: nowrap; }
+.routine-page .routine-table td:first-child { min-width: 160px; }
+.routine-page .routine-table td:nth-child(3) { min-width: 125px; }
+.routine-page .routine-table strong { font-weight: 600; }
+.routine-page .routine-table small { display: block; margin-top: 3px; color: var(--routine-muted); }
+.routine-page .routine-row-actions { display: flex; gap: 6px; }
+.routine-page .routine-row-actions .routine-btn { padding: 6px 10px; min-height: 36px; }
+.routine-page .routine-form { margin-top: 28px; }
+.routine-page .routine-form h3 { margin: 0 0 20px; color: var(--routine-text); font-size: 19px; }
+.routine-page .routine-form fieldset { padding: 0; margin: 0; border: 0; min-width: 0; }
+.routine-page .routine-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.routine-page .routine-field { display: flex; flex-direction: column; gap: 8px; font-size: 13px; font-weight: 500; color: var(--routine-text); }
+.routine-page .routine-field > span { display: none; }
+.routine-page .routine-field-wide { grid-column: 1 / -1; }
+.routine-page .routine-field :is(input, select) { width: 100%; min-width: 0; box-sizing: border-box; min-height: 44px; border: 1px solid var(--routine-line); border-radius: 10px; background: var(--routine-fill); color: var(--routine-text); padding: 10px 12px; font: inherit; }
+.routine-page .routine-field input::placeholder { color: var(--routine-muted); opacity: .8; }
+.routine-page .routine-form-hint { margin: -8px 0 0; color: var(--routine-muted); font-size: 12px; line-height: 1.6; }
+.routine-page .routine-form-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+.routine-page .routine-status { font-size: 13px; color: var(--routine-muted); line-height: 1.6; }
+.routine-page .routine-status:empty { display: none; }
+.routine-page .routine-status.is-error { color: #b3261e; }
+html[data-theme="dark"] .routine-page .routine-status.is-error { color: #ffb4ab; }
+.routine-page .routine-empty { padding: 24px; color: var(--routine-muted); text-align: center; }
+.routine-page .routine-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.routine-page .exam-info { border: 1px solid var(--routine-line); box-shadow: none; background: var(--routine-surface); }
+.routine-page .exam-info-item { min-width: 0; border-right: 1px solid var(--routine-line); }
+.routine-page .exam-info-item strong { overflow-wrap: anywhere; color: var(--routine-text); }
+.routine-page .semester-btn { background: var(--routine-fill); color: var(--routine-text); border-color: transparent; box-shadow: none; }
+html[data-theme] .routine-page .semester-btn.active { background: var(--routine-action); color: var(--routine-action-text); border-color: transparent; }
+html[data-theme] .routine-page .exam-row { grid-template-columns: 130px minmax(0, 1fr) 145px; border: 1px solid var(--routine-line); background: var(--routine-surface); box-shadow: none; }
+html[data-theme] .routine-page .exam-row .exam-date { background: var(--routine-fill); border-right: 1px solid var(--routine-line); }
+html[data-theme] .routine-page .exam-row :is(h2, .date-day, .exam-time) { color: var(--routine-text); }
+html[data-theme] .routine-page .exam-row :is(p, .semester-tag, .date-month, .date-weekday) { color: var(--routine-muted); }
+.routine-page .exam-time { border-left: 0; overflow-wrap: anywhere; }
+@media (max-width: 680px) {
+  .routine-page .routine-admin { padding: 18px; }
+  .routine-page .routine-admin-heading { align-items: flex-start; flex-direction: column; }
+  .routine-page .routine-form-grid { grid-template-columns: 1fr; }
+  .routine-page .exam-info-item { padding: 16px 12px; }
+  .routine-page .exam-info-item strong { font-size: 14px; }
+  html[data-theme] .routine-page .exam-row { grid-template-columns: 94px minmax(0, 1fr); }
+  .routine-page .exam-date { grid-row: span 2; padding: 16px 12px; }
+  .routine-page .exam-details { padding: 16px 14px 6px; }
+  .routine-page .exam-details h2 { font-size: 16px; }
+  .routine-page .exam-time { grid-column: 2; text-align: left; padding: 4px 14px 16px; }
+}
+
+.routine-page #adminRoutinePanel { scroll-margin-top: 100px; }
+.routine-page .routine-field input { scroll-margin-top: 100px; }

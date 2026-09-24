@@ -32,7 +32,7 @@ Kyana defaults to one short affectionate roast followed by the answer, with ligh
 
 - `search_notes(query, semester, subject)`: searches metadata first, then indexed document content, then mapped subjects when no exact/content result exists. Semester and explicit subject filters never widen. At most three ranked files are returned; inferred matches are labeled. Unclear queries ask for clarification.
 - `get_syllabus(semester)`: reads the exact semester from `public/syllabus-data.json`.
-- `get_routine(semester)`: queries the exact semester in `exam_schedule`; no synthetic/hardcoded exam dates.
+- `get_routine(semester)`: queries the exact semester in `routine`; no synthetic/hardcoded exam dates.
 - `web_search(query)`: retrieves current sources and summarizes only that query.
 
 Recognized notes/syllabus/routine requests execute tools directly without a model round-trip. General academic explanations/code stream directly from the small model. Ambiguous and combined requests use native provider function calls with validated arguments and a bounded tool batch. Complex reasoning uses the configured larger model from the start. Answers and note searches use bounded caches; uploads, deletes and routine changes invalidate relevant caches. Conversations with history are not placed into the shared answer cache.
@@ -80,3 +80,7 @@ Tests cover real SQLite FTS/PDF/DOCX extraction, exact filters, topic fallbacks,
 Post tests use an isolated SQLite database and Express server to check authentication, validation, cursor pagination, counts, idempotent likes, authorization, and cascading deletion. UI tests cover optimistic likes, rollback, repeat-click protection, and escaped post rendering.
 
 API references: [Gemini function calling](https://ai.google.dev/gemini-api/docs/function-calling), [Gemini search grounding](https://ai.google.dev/gemini-api/docs/google-search), [OpenRouter search server tool](https://openrouter.ai/docs/guides/features/server-tools/web-search), [SQLite FTS5](https://www.sqlite.org/fts5.html), [PostgreSQL full-text search](https://www.postgresql.org/docs/current/textsearch.html).
+
+## Routine admin management
+
+Admins can add, edit and delete exams on `/routine.html`. See [Routine management](docs/routine-management.md) for the schema, one-time migration commands, calendar handling and tests. Run the migration before restarting/deploying this version. Subjects and Syllabus remain separate, pending stages.

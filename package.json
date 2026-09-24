@@ -8,7 +8,9 @@
     "seed": "node seed.js",
     "test:chat": "node --test tests/chat-*.test.js test/chat-provider.test.js tests/note-search.test.js",
     "test:posts": "node --test tests/posts*.test.js",
-    "index:notes": "node scripts/reindex-notes.js"
+    "index:notes": "node scripts/reindex-notes.js",
+    "migrate:routine": "node scripts/migrate-routine.js",
+    "test:routine": "node --test tests/routine*.test.js"
   },
   "dependencies": {
     "@libsql/client": "^0.14.0",

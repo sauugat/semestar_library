@@ -119,7 +119,7 @@ test('service worker leaves APIs and streaming POST requests on the network', ()
   ]) handlers.fetch({ request, respondWith() { assert.fail('Dynamic requests must not use the cache'); } });
 });
 
-test('service worker prefers current chatbot pages and scripts over stale cached versions', async () => {
+test('service worker prefers current chatbot and routine pages/scripts over stale cached versions', async () => {
   const vm = require('node:vm');
   const fs = require('node:fs');
   const handlers = {};
@@ -128,7 +128,7 @@ test('service worker prefers current chatbot pages and scripts over stale cached
     fetch: async () => new Response('current'),
     caches: { match: async () => new Response('stale') }
   });
-  for (const path of ['/chatbot.html', '/chatbot.js']) {
+  for (const path of ['/chatbot.html', '/chatbot.js', '/routine.html', '/routine.js', '/routine.js?v=routine-db-1']) {
     let response;
     handlers.fetch({ request: { method: 'GET', url: 'https://library.test' + path }, respondWith(value) { response = value; } });
     assert.equal(await (await response).text(), 'current');

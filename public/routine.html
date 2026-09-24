@@ -52,6 +52,7 @@
   <link rel="stylesheet" href="chatbot.css">
   <link rel="stylesheet" href="auth-modal.css">
   <link rel="stylesheet" href="/theme-overrides.css">
+  <link rel="stylesheet" href="routine-admin.css">
 </head>
 
 <body class="routine-page dash">
@@ -111,6 +112,7 @@
         Examination schedule for BIT students.
         Select your semester to view the examination dates and subjects.
       </p>
+      <a href="#adminRoutinePanel" class="routine-btn" id="routineAdminLink" hidden>Manage routine</a>
 
     </section>
 
@@ -120,7 +122,7 @@
 
       <div class="exam-info-item">
         <span class="info-label">Routine</span>
-        <strong>2083</strong>
+        <strong id="routineYears">—</strong>
       </div>
 
       <div class="exam-info-item">
@@ -130,33 +132,14 @@
 
       <div class="exam-info-item">
         <span class="info-label">Semesters</span>
-        <strong>II · IV · VI · VIII</strong>
+        <strong id="routineSemesters">—</strong>
       </div>
 
     </section>
 
 
-    <!-- SEMESTER FILTER -->
-    <section class="semester-filter">
-
-      <button class="semester-btn active" data-semester="II">
-        Semester II
-      </button>
-
-      <button class="semester-btn" data-semester="IV">
-        Semester IV
-      </button>
-
-      <button class="semester-btn" data-semester="VI">
-        Semester VI
-      </button>
-
-      <button class="semester-btn" data-semester="VIII">
-        Semester VIII
-      </button>
-
-    </section>
-
+    <!-- Filters include all semesters, even when no exam has been published. -->
+    <section class="semester-filter" id="routineFilters" aria-label="Filter by semester"></section>
 
     <!-- SCHEDULE -->
     <section class="schedule" id="scheduleContainer">
@@ -166,31 +149,80 @@
       </div>
     </section>
 
-    <!-- ADMIN EXAM FORM (Hidden by default) -->
-    <section id="adminRoutineFormContainer"
-      style="display: none; margin-top: 2rem; padding: 1.5rem; background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border-color);">
-      <h3 style="margin-top:0; margin-bottom: 1rem;">Add New Exam (Admin)</h3>
-      <form id="adminRoutineForm" style="display: grid; gap: 1rem; grid-template-columns: 1fr 1fr;">
-        <input type="text" id="addRoutineSubject" placeholder="Subject Name (e.g. Mathematics II)" required
-          class="app-input" style="grid-column: 1 / -1;">
-        <input type="date" id="addRoutineDate" required class="app-input">
-        <input type="text" id="addRoutineTime" placeholder="Time (e.g. 11:30 AM)" value="11:30 AM" class="app-input">
-        <select id="addRoutineSemester" required class="app-input">
-          <option value="">Select Semester</option>
-          <option value="II">Semester II</option>
-          <option value="IV">Semester IV</option>
-          <option value="VI">Semester VI</option>
-          <option value="VIII">Semester VIII</option>
-        </select>
-        <select id="addRoutineType" class="app-input">
-          <option value="Pre-board Examination">Pre-board Examination</option>
-          <option value="Final Examination">Final Examination</option>
-        </select>
-        <button type="submit" class="nav-cta-btn apple-nav-btn"
-          style="grid-column: 1 / -1; justify-self: start; cursor:pointer;">Add to Routine</button>
+    <!-- Server-side admin permissions protect every management request. -->
+    <section class="routine-admin" id="adminRoutinePanel" hidden aria-labelledby="routineAdminHeading">
+      <div class="routine-admin-heading">
+        <div>
+          <p class="routine-eyebrow">ADMIN</p>
+          <h2 id="routineAdminHeading">Manage routine</h2>
+          <p>Add exams, update details, or remove an old schedule.</p>
+        </div>
+        <div class="routine-row-actions">
+          <button type="button" class="routine-btn" id="routineAdminRetry" hidden>Retry loading</button>
+          <button type="button" class="routine-btn" id="routineNewBtn">Add exam</button>
+        </div>
+      </div>
+      <p id="routineAdminStatus" class="routine-status" role="status" aria-live="polite"></p>
+      <div class="routine-table-wrap" tabindex="0" role="region" aria-label="Manage exams table">
+        <table class="routine-table">
+          <caption class="routine-sr-only">All published exams</caption>
+          <thead><tr><th scope="col">Subject</th><th scope="col">Semester</th><th scope="col">Date</th><th scope="col">Time / Room</th><th scope="col">Type</th><th scope="col">Actions</th></tr></thead>
+          <tbody id="routineAdminRows"></tbody>
+        </table>
+      </div>
+      <form id="adminRoutineForm" class="routine-form">
+        <h3 id="routineFormHeading">Add an exam</h3>
+        <fieldset id="routineFormFields">
+          <legend class="routine-sr-only">Exam details</legend>
+          <div class="routine-form-grid">
+            <label class="routine-field routine-field-wide">Subject name <span aria-hidden="true">*</span>
+              <input name="subject_name" id="routineSubject" maxlength="250" required autocomplete="off">
+            </label>
+            <label class="routine-field">Semester <span aria-hidden="true">*</span>
+              <select name="semester" id="routineSemester" required>
+                <option value="">Choose semester</option>
+                <option value="1">Semester I</option><option value="2">Semester II</option>
+                <option value="3">Semester III</option><option value="4">Semester IV</option>
+                <option value="5">Semester V</option><option value="6">Semester VI</option>
+                <option value="7">Semester VII</option><option value="8">Semester VIII</option>
+              </select>
+            </label>
+            <label class="routine-field">Subject code
+              <input name="subject_code" maxlength="50" placeholder="e.g. CIT121">
+            </label>
+            <label class="routine-field">Calendar <span aria-hidden="true">*</span>
+              <select name="calendar" id="routineCalendar" required>
+                <option value="">Choose BS or AD</option>
+                <option value="BS">BS (Bikram Sambat)</option><option value="AD">AD (English calendar)</option>
+              </select>
+            </label>
+            <label class="routine-field">Exam date <span aria-hidden="true">*</span>
+              <input name="exam_date" id="routineDate" maxlength="10" required placeholder="YYYY/MM/DD" pattern="[0-9]{4}[-/][0-9]{1,2}[-/][0-9]{1,2}" aria-describedby="routineDateHint">
+            </label>
+            <p class="routine-form-hint routine-field-wide" id="routineDateHint">Enter the date in your chosen calendar. Dates are not converted automatically.</p>
+            <label class="routine-field">Exam time
+              <input name="exam_time" maxlength="100" placeholder="e.g. 11:30 AM – 2:30 PM">
+            </label>
+            <label class="routine-field">Room
+              <input name="room" maxlength="100" placeholder="e.g. Room 204">
+            </label>
+            <label class="routine-field">Weekday (optional, entered manually)
+              <input name="weekday" maxlength="30" list="routineWeekdays" placeholder="e.g. Sunday">
+            </label>
+            <label class="routine-field">Exam type
+              <input name="exam_type" maxlength="100" list="routineExamTypes" placeholder="e.g. Final Examination">
+            </label>
+          </div>
+          <div class="routine-form-actions">
+            <button type="submit" class="routine-btn routine-btn-primary" id="routineSaveBtn">Add exam</button>
+            <button type="button" class="routine-btn" id="routineCancelBtn" hidden>Cancel editing</button>
+          </div>
+        </fieldset>
+        <p class="routine-status" id="routineFormStatus" role="status" aria-live="polite"></p>
       </form>
+      <datalist id="routineWeekdays"><option value="Sunday"><option value="Monday"><option value="Tuesday"><option value="Wednesday"><option value="Thursday"><option value="Friday"><option value="Saturday"></datalist>
+      <datalist id="routineExamTypes"><option value="Final Examination"><option value="Pre-board Examination"><option value="Theory"><option value="Practical"><option value="Makeup"></datalist>
     </section>
-
 
     <!-- INSTRUCTIONS -->
     <section class="exam-instructions">
@@ -243,7 +275,7 @@
   </footer>
 
 
-  <script src="routine.js"></script>
+  <script src="routine.js?v=routine-db-1"></script>
 
   <script>
     window.IS_AUTHENTICATED = false;

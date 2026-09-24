@@ -75,10 +75,13 @@ const chatUpload = multer({
   storage,
   limits: { fileSize: 25 * 1024 * 1024 }, // 25MB per file
   fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) {
+    const m = (file.mimetype || '').toLowerCase();
+    const ext = path.extname(file.originalname || '').toLowerCase();
+    const allowedExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.mp4', '.webm', '.mov', '.pdf', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx', '.zip', '.txt', '.c', '.cpp', '.py', '.java', '.js', '.html', '.css', '.json'];
+    if (m.startsWith('image/') || m.startsWith('video/') || m.startsWith('application/pdf') || m.startsWith('text/') || allowedExts.includes(ext)) {
       cb(null, true);
     } else {
-      cb(new Error('Only image and video files are allowed as chat attachments.'));
+      cb(new Error('File format not supported. Please upload an image, video, PDF, document, or code file.'));
     }
   }
 });
@@ -1667,39 +1670,9 @@ app.post('/api/files/:id/comments', requireLogin, async (req, res) => {
 });
 
 // --- Routine/Exam Endpoints ---
-app.get('/api/routine', async (req, res) => {
-  try {
-    const routine = await db.all('SELECT * FROM exam_schedule ORDER BY examDate ASC');
-    res.json(routine);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch routine' });
-  }
-});
-
-app.post('/api/routine', requireLogin, async (req, res) => {
-  try {
-    const student = await db.get('SELECT role FROM students WHERE studentId = ?', req.session.studentId);
-    if (!student || student.role !== 'admin') {
-      return res.status(403).json({ error: 'Only admins can add exam routines.' });
-    }
-    const { subject, examDate, semester, type, day, time } = req.body;
-    if (!subject || !examDate || !semester) {
-      return res.status(400).json({ error: 'Missing required fields: subject, examDate, semester' });
-    }
-
-    const timeStr = time || '11:30 AM';
-    const dayStr = day || '';
-
-    await db.run(
-      'INSERT INTO exam_schedule (subject, examDate, day, time, semester, type) VALUES (?, ?, ?, ?, ?, ?)',
-      subject, examDate, dayStr, timeStr, semester, type || 'Pre-board Examination'
-    );
-    require('./ai-assistant').invalidateCache(db);
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to add routine' });
-  }
-});
+app.use('/api/routine', require('./routes/routine')(db, requireLogin, {
+  invalidateCache: () => require('./ai-assistant').invalidateCache(db)
+}));
 
 // List all subjects that have at least one file
 app.get('/api/library/subjects', async (req, res) => {
@@ -1874,19 +1847,38 @@ app.get('/api/chat/config', requireLogin, (req, res) => {
 
 app.get('/api/chat/messages', requireLogin, async (req, res) => {
   const since = parseInt(req.query.since) || 0;
+  const before = parseInt(req.query.before) || 0;
+  const limit = Math.min(parseInt(req.query.limit) || (before ? 35 : 200), 200);
 
-  const messages = await db.all(`
-    SELECT chat_messages.id, chat_messages.text, chat_messages.attachmentName, chat_messages.attachmentOriginalName, chat_messages.attachmentMimeType, chat_messages.replyToId, chat_messages.createdAt,
-      students.studentId, students.name, students.avatarUrl,
-      reply_msg.text AS replyText, reply_student.name AS replySender
-    FROM chat_messages
-    LEFT JOIN students ON students.studentId = chat_messages.studentId
-    LEFT JOIN chat_messages AS reply_msg ON reply_msg.id = chat_messages.replyToId
-    LEFT JOIN students AS reply_student ON reply_student.studentId = reply_msg.studentId
-    WHERE chat_messages.id > ?
-    ORDER BY chat_messages.id ASC
-    LIMIT 200
-  `, since);
+  let messages;
+  if (before > 0) {
+    messages = await db.all(`
+      SELECT chat_messages.id, chat_messages.text, chat_messages.attachmentName, chat_messages.attachmentOriginalName, chat_messages.attachmentMimeType, chat_messages.replyToId, chat_messages.createdAt,
+        students.studentId, students.name, students.avatarUrl,
+        reply_msg.text AS replyText, reply_student.name AS replySender
+      FROM chat_messages
+      LEFT JOIN students ON students.studentId = chat_messages.studentId
+      LEFT JOIN chat_messages AS reply_msg ON reply_msg.id = chat_messages.replyToId
+      LEFT JOIN students AS reply_student ON reply_student.studentId = reply_msg.studentId
+      WHERE chat_messages.id < ?
+      ORDER BY chat_messages.id DESC
+      LIMIT ?
+    `, before, limit);
+    messages.reverse(); // restore chronological order
+  } else {
+    messages = await db.all(`
+      SELECT chat_messages.id, chat_messages.text, chat_messages.attachmentName, chat_messages.attachmentOriginalName, chat_messages.attachmentMimeType, chat_messages.replyToId, chat_messages.createdAt,
+        students.studentId, students.name, students.avatarUrl,
+        reply_msg.text AS replyText, reply_student.name AS replySender
+      FROM chat_messages
+      LEFT JOIN students ON students.studentId = chat_messages.studentId
+      LEFT JOIN chat_messages AS reply_msg ON reply_msg.id = chat_messages.replyToId
+      LEFT JOIN students AS reply_student ON reply_student.studentId = reply_msg.studentId
+      WHERE chat_messages.id > ?
+      ORDER BY chat_messages.id ASC
+      LIMIT ?
+    `, since, limit);
+  }
 
   const messageIds = messages.map(m => m.id);
   if (messageIds.length > 0) {
@@ -1904,8 +1896,62 @@ app.get('/api/chat/messages', requireLogin, async (req, res) => {
 
   const readReceipts = await db.all(`SELECT studentId, lastReadMessageId FROM chat_read_receipts`);
 
-  // We return an object now. We should keep backwards compatibility if the frontend still expects an array on `since > 0`, but we will update the frontend to handle { messages, readReceipts }.
   res.json({ messages, readReceipts });
+});
+
+// Class Group Members endpoint
+app.get('/api/chat/members', requireLogin, async (req, res) => {
+  try {
+    const members = await db.all(`
+      SELECT s.studentId, s.name, s.avatarUrl, s.semester, s.department, s.role,
+        r.lastReadMessageId,
+        (SELECT MAX(createdAt) FROM chat_messages WHERE studentId = s.studentId) AS lastMessageAt
+      FROM students s
+      LEFT JOIN chat_read_receipts r ON r.studentId = s.studentId
+      ORDER BY s.name ASC
+    `);
+    res.json({ total: members.length, members });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch members' });
+  }
+});
+
+// Pinned Announcement state
+let currentPinnedMessage = null;
+app.get('/api/chat/pinned', requireLogin, async (req, res) => {
+  res.json({ pinned: currentPinnedMessage });
+});
+
+app.post('/api/chat/pinned/:id', requireLogin, async (req, res) => {
+  try {
+    const msgId = parseInt(req.params.id, 10);
+    const msg = await db.get(`
+      SELECT m.id, m.text, m.attachmentName, m.attachmentOriginalName, m.createdAt, s.name AS senderName
+      FROM chat_messages m
+      LEFT JOIN students s ON s.studentId = m.studentId
+      WHERE m.id = ?
+    `, msgId);
+
+    if (!msg) return res.status(404).json({ error: 'Message not found' });
+    currentPinnedMessage = {
+      messageId: msg.id,
+      text: msg.text || msg.attachmentOriginalName || 'Attachment',
+      senderName: msg.senderName || 'Student',
+      pinnedBy: req.session.studentName || 'Member',
+      pinnedAt: new Date().toISOString()
+    };
+
+    sendBroadcast('pin_message', currentPinnedMessage);
+    res.json({ success: true, pinned: currentPinnedMessage });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to pin message' });
+  }
+});
+
+app.delete('/api/chat/pinned', requireLogin, (req, res) => {
+  currentPinnedMessage = null;
+  sendBroadcast('pin_message', { unpinned: true });
+  res.json({ success: true });
 });
 
 app.post('/api/chat/reactions', requireLogin, async (req, res) => {

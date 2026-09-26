@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
-  Image,
   Alert,
   Modal,
   TextInput,
@@ -16,6 +15,8 @@ import {
   Switch,
   Animated,
 } from 'react-native';
+import { Image } from 'expo-image';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -212,30 +213,6 @@ function PostImageItem({
   const heartScale = useRef(new Animated.Value(0)).current;
   const heartOpacity = useRef(new Animated.Value(0)).current;
 
-  useEffect(() => {
-    let isMounted = true;
-    if (!imageUrl) return;
-
-    Image.getSize(
-      imageUrl,
-      (width, height) => {
-        if (isMounted && width > 0 && height > 0) {
-          const naturalRatio = width / height;
-          // Clamp height at 4:5 aspect ratio (0.8) maximum
-          setAspectRatio(Math.max(naturalRatio, 0.8));
-        }
-      },
-      () => {
-        if (isMounted) setAspectRatio(16 / 9);
-      }
-    );
-
-    return () => {
-      isMounted = false;
-      if (singleTapTimerRef.current) clearTimeout(singleTapTimerRef.current);
-    };
-  }, [imageUrl]);
-
   const triggerHeartBurst = () => {
     heartScale.setValue(0);
     heartOpacity.setValue(1);
@@ -296,7 +273,15 @@ function PostImageItem({
       <Image
         source={{ uri: imageUrl }}
         style={styles.postImage}
-        resizeMode="cover"
+        contentFit="cover"
+        transition={150}
+        cachePolicy="memory-disk"
+        onLoad={(e) => {
+          const { width, height } = e.source;
+          if (width > 0 && height > 0) {
+            setAspectRatio(Math.max(width / height, 0.8));
+          }
+        }}
       />
 
       {/* Instagram-style heart burst overlay */}
@@ -320,14 +305,13 @@ export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { colors, spacing, radii } = useTheme();
+  const queryClient = useQueryClient();
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [files, setFiles] = useState<LibraryFile[]>([]);
   const [nextCursor, setNextCursor] = useState<number | null>(null);
-  const [loadingInitial, setLoadingInitial] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [baseUrl, setBaseUrl] = useState<string>('');
   const [lastFetchedAt, setLastFetchedAt] = useState<Date | null>(null);
   const [nowTick, setNowTick] = useState<number>(Date.now());
@@ -343,6 +327,42 @@ export default function HomeScreen() {
   const lastUpdatedText = useMemo(() => {
     return formatLastUpdated(lastFetchedAt);
   }, [lastFetchedAt, nowTick]);
+
+  // React Query: Feed caching with 45s staleTime
+  const {
+    data: feedData,
+    isLoading: isFeedLoading,
+    error: feedQueryError,
+    refetch: refetchFeed,
+  } = useQuery({
+    queryKey: ['campus-feed'],
+    queryFn: async () => {
+      const [postsRes, filesRes] = await Promise.all([
+        getPosts(null, 20),
+        getFeedFiles(),
+      ]);
+      return {
+        posts: postsRes.posts,
+        files: filesRes,
+        nextCursor: postsRes.nextCursor,
+        fetchedAt: new Date(),
+      };
+    },
+    staleTime: 45 * 1000,
+  });
+
+  // Sync state whenever fresh or cached feedData arrives
+  useEffect(() => {
+    if (feedData) {
+      setPosts(feedData.posts);
+      setFiles(feedData.files);
+      setNextCursor(feedData.nextCursor);
+      setLastFetchedAt(feedData.fetchedAt);
+    }
+  }, [feedData]);
+
+  const loadingInitial = isFeedLoading && !feedData;
+  const error = feedQueryError ? (feedQueryError as any).message || 'Error loading dashboard feed.' : null;
 
   // Merge posts and uploaded files into a unified chronological feed
   const feedItems = useMemo<FeedItem[]>(() => {
@@ -428,32 +448,10 @@ export default function HomeScreen() {
     getBaseUrl().then(setBaseUrl);
   }, []);
 
-  const fetchInitialData = useCallback(async () => {
-    setError(null);
-    try {
-      const [postsRes, filesRes] = await Promise.all([
-        getPosts(null, 20),
-        getFeedFiles(),
-      ]);
-      setPosts(postsRes.posts);
-      setFiles(filesRes);
-      setNextCursor(postsRes.nextCursor);
-      setLastFetchedAt(new Date());
-    } catch (err: any) {
-      setError(err.message || 'Error loading dashboard feed.');
-    } finally {
-      setLoadingInitial(false);
-      setRefreshing(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchInitialData();
-  }, [fetchInitialData]);
-
   const handleRefresh = async () => {
     setRefreshing(true);
-    await fetchInitialData();
+    await refetchFeed();
+    setRefreshing(false);
   };
 
   const handleLoadMore = async () => {
@@ -465,7 +463,11 @@ export default function HomeScreen() {
       setPosts((prev) => {
         const existingIds = new Set(prev.map((p) => p.id));
         const newPosts = res.posts.filter((p) => !existingIds.has(p.id));
-        return [...prev, ...newPosts];
+        const updated = [...prev, ...newPosts];
+        queryClient.setQueryData(['campus-feed'], (old: any) =>
+          old ? { ...old, posts: updated, nextCursor: res.nextCursor } : old
+        );
+        return updated;
       });
       setNextCursor(res.nextCursor);
       setLastFetchedAt(new Date());
@@ -475,7 +477,6 @@ export default function HomeScreen() {
       setLoadingMore(false);
     }
   };
-
   const handleToggleLike = async (postId: number) => {
     const targetPost = posts.find((p) => p.id === postId);
     if (!targetPost) return;
@@ -500,16 +501,34 @@ export default function HomeScreen() {
 
     try {
       const result = await toggleLike(postId, previousLiked);
+      const finalLiked = result.liked_by_me ?? result.liked;
+      const finalCount = result.like_count ?? result.likeCount;
       setPosts((prev) =>
         prev.map((p) =>
           p.id === postId
             ? {
                 ...p,
-                liked_by_me: result.liked_by_me ?? result.liked,
-                like_count: result.like_count ?? result.likeCount,
+                liked_by_me: finalLiked,
+                like_count: finalCount,
               }
             : p
         )
+      );
+      queryClient.setQueryData(['campus-feed'], (old: any) =>
+        old
+          ? {
+              ...old,
+              posts: old.posts.map((p: Post) =>
+                p.id === postId
+                  ? {
+                      ...p,
+                      liked_by_me: finalLiked,
+                      like_count: finalCount,
+                    }
+                  : p
+              ),
+            }
+          : old
       );
     } catch (err: any) {
       setPosts((prev) =>
@@ -561,6 +580,22 @@ export default function HomeScreen() {
               }
             : f
         )
+      );
+      queryClient.setQueryData(['campus-feed'], (old: any) =>
+        old
+          ? {
+              ...old,
+              files: old.files.map((f: LibraryFile) =>
+                f.id === fileId
+                  ? {
+                      ...f,
+                      liked: result.liked,
+                      likeCount: result.likeCount,
+                    }
+                  : f
+              ),
+            }
+          : old
       );
     } catch (err: any) {
       setFiles((prev) =>
@@ -631,6 +666,9 @@ export default function HomeScreen() {
 
       setPosts((prev) => [newPost, ...prev]);
       setLastFetchedAt(new Date());
+      queryClient.setQueryData(['campus-feed'], (old: any) =>
+        old ? { ...old, posts: [newPost, ...(old.posts || [])], fetchedAt: new Date() } : old
+      );
 
       setPostContent('');
       setSelectedImageUri(null);
@@ -758,12 +796,18 @@ export default function HomeScreen() {
             setDeletingPostId(postId);
             const prevPosts = [...posts];
             setPosts((current) => current.filter((p) => p.id !== postId));
+            queryClient.setQueryData(['campus-feed'], (old: any) =>
+              old ? { ...old, posts: old.posts ? old.posts.filter((p: Post) => p.id !== postId) : [] } : old
+            );
 
             try {
               await deletePost(postId);
               showToast('Post deleted');
             } catch (err: any) {
               setPosts(prevPosts);
+              queryClient.setQueryData(['campus-feed'], (old: any) =>
+                old ? { ...old, posts: prevPosts } : old
+              );
               Alert.alert('Delete Failed', err.message || 'Could not delete the post.');
             } finally {
               setDeletingPostId(null);
@@ -774,104 +818,128 @@ export default function HomeScreen() {
     );
   };
 
-  const renderBrandHeader = () => (
-    <View
-      style={[
-        styles.fixedBrandHeader,
-        {
-          backgroundColor: colors.background,
-          borderBottomColor: colors.border,
-        },
-      ]}
-    >
-      {/* Left: "Semester Library" Wordmark */}
-      <Text
+  const renderBrandHeader = () => {
+    const brandAvatarUri = user?.avatarUrl ? getFullImageUrl(user.avatarUrl) : null;
+    return (
+      <View
         style={[
-          styles.headerWordmark,
-          { color: colors.text },
+          styles.fixedBrandHeader,
+          {
+            backgroundColor: colors.background,
+            borderBottomColor: colors.border,
+          },
         ]}
       >
-        Semester Library
-      </Text>
-
-      {/* Right: Search, Create (+), and Profile */}
-      <View style={styles.headerRightActions}>
-        <TouchableOpacity
-          onPress={() => router.push('/(tabs)/library')}
+        {/* Left: "Semester Library" Wordmark */}
+        <Text
           style={[
-            styles.headerActionBtn,
-            {
-              backgroundColor: colors.surfaceRaised,
-              borderColor: colors.border,
-            },
+            styles.headerWordmark,
+            { color: colors.text },
           ]}
-          accessibilityLabel="Search library materials"
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Ionicons name="search-outline" size={18} color={colors.textSecondary} />
-        </TouchableOpacity>
+          Semester Library
+        </Text>
 
-        <TouchableOpacity
-          onPress={() => setComposerOpen(true)}
-          style={[
-            styles.headerActionBtn,
-            {
-              backgroundColor: colors.surfaceRaised,
-              borderColor: colors.border,
-            },
-          ]}
-          accessibilityLabel="Create post"
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Ionicons name="add" size={22} color={colors.text} />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={() => router.push('/(tabs)/profile')}
-          style={[
-            styles.headerAvatarBtn,
-            {
-              backgroundColor: colors.surfaceRaised,
-              borderColor: colors.border,
-            },
-          ]}
-          accessibilityLabel="Open profile"
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Text variant="xs" weight="700" color="primary">
-            {(user?.name || 'S').charAt(0).toUpperCase()}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
-  const renderFeedHeader = () => (
-    <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.md, marginBottom: spacing.xs }}>
-
-      {/* Create Post Composer Trigger Card with clean placeholder */}
-      <Card
-        variant="elevated"
-        padding="md"
-        onPress={() => setComposerOpen(true)}
-        style={[styles.composerTriggerCard, { borderColor: colors.border, marginBottom: spacing.md }]}
-      >
-        <View style={styles.composerTriggerRow}>
-          <View
+        {/* Right: Search, Create (+), and Profile */}
+        <View style={styles.headerRightActions}>
+          <TouchableOpacity
+            onPress={() => router.push('/(tabs)/library')}
             style={[
-              styles.authorAvatar,
+              styles.headerActionBtn,
               {
                 backgroundColor: colors.surfaceRaised,
                 borderColor: colors.border,
-                borderWidth: 1,
-                borderRadius: radii.full,
               },
             ]}
+            accessibilityLabel="Search library materials"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Text variant="sm" weight="700" color="primary">
-              {(user?.name || 'S').charAt(0).toUpperCase()}
-            </Text>
-          </View>
+            <Ionicons name="search-outline" size={18} color={colors.textSecondary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => setComposerOpen(true)}
+            style={[
+              styles.headerActionBtn,
+              {
+                backgroundColor: colors.surfaceRaised,
+                borderColor: colors.border,
+              },
+            ]}
+            accessibilityLabel="Create post"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="add" size={22} color={colors.text} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => router.push('/(tabs)/profile')}
+            style={[
+              styles.headerAvatarBtn,
+              {
+                backgroundColor: colors.surfaceRaised,
+                borderColor: colors.border,
+              },
+            ]}
+            accessibilityLabel="Open profile"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            {brandAvatarUri ? (
+              <Image
+                source={{ uri: brandAvatarUri }}
+                style={{ width: '100%', height: '100%', borderRadius: 16 }}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+              />
+            ) : (
+              <Text variant="xs" weight="700" color="primary">
+                {(user?.name || 'S').charAt(0).toUpperCase()}
+              </Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
+  const renderFeedHeader = () => {
+    const feedAvatarUri = user?.avatarUrl ? getFullImageUrl(user.avatarUrl) : null;
+    return (
+      <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.md, marginBottom: spacing.xs }}>
+
+        {/* Create Post Composer Trigger Card with clean placeholder */}
+        <Card
+          variant="elevated"
+          padding="md"
+          onPress={() => setComposerOpen(true)}
+          style={[styles.composerTriggerCard, { borderColor: colors.border, marginBottom: spacing.md }]}
+        >
+          <View style={styles.composerTriggerRow}>
+            <View
+              style={[
+                styles.authorAvatar,
+                {
+                  backgroundColor: colors.surfaceRaised,
+                  borderColor: colors.border,
+                  borderWidth: 1,
+                  borderRadius: radii.full,
+                  overflow: 'hidden',
+                },
+              ]}
+            >
+              {feedAvatarUri ? (
+                <Image
+                  source={{ uri: feedAvatarUri }}
+                  style={{ width: '100%', height: '100%' }}
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                />
+              ) : (
+                <Text variant="sm" weight="700" color="primary">
+                  {(user?.name || 'S').charAt(0).toUpperCase()}
+                </Text>
+              )}
+            </View>
 
           <View
             style={[
@@ -935,6 +1003,7 @@ export default function HomeScreen() {
       </View>
     </View>
   );
+};
 
   const renderPostItem = ({ item }: { item: Post }) => {
     const badge = getTypeBadgeProps(item.type, item.is_official, colors);
@@ -959,12 +1028,22 @@ export default function HomeScreen() {
                 borderColor: colors.border,
                 borderWidth: 1,
                 borderRadius: radii.full,
+                overflow: 'hidden',
               },
             ]}
           >
-            <Text variant="sm" weight="700" color="primary">
-              {(item.name || 'U').charAt(0).toUpperCase()}
-            </Text>
+            {item.avatarUrl ? (
+              <Image
+                source={{ uri: getFullImageUrl(item.avatarUrl) || item.avatarUrl }}
+                style={{ width: '100%', height: '100%' }}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+              />
+            ) : (
+              <Text variant="sm" weight="700" color="primary">
+                {(item.name || 'U').charAt(0).toUpperCase()}
+              </Text>
+            )}
           </View>
           <View style={{ flex: 1, marginLeft: spacing.sm }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -1124,12 +1203,22 @@ export default function HomeScreen() {
                   borderColor: colors.border,
                   borderWidth: 1,
                   borderRadius: radii.full,
+                  overflow: 'hidden',
                 },
               ]}
             >
-              <Text variant="sm" weight="700" color="primary">
-                {(file.uploaderName || 'S').charAt(0).toUpperCase()}
-              </Text>
+              {file.uploaderAvatar ? (
+                <Image
+                  source={{ uri: getFullImageUrl(file.uploaderAvatar) || file.uploaderAvatar }}
+                  style={{ width: '100%', height: '100%' }}
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                />
+              ) : (
+                <Text variant="sm" weight="700" color="primary">
+                  {(file.uploaderName || 'S').charAt(0).toUpperCase()}
+                </Text>
+              )}
             </View>
             <View style={{ flex: 1, marginLeft: spacing.sm }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -1317,7 +1406,7 @@ export default function HomeScreen() {
           <Text variant="sm" color="secondary" style={{ textAlign: 'center', marginBottom: spacing.md }}>
             {error}
           </Text>
-          <Button title="Retry Feed" variant="secondary" size="md" onPress={fetchInitialData} />
+          <Button title="Retry Feed" variant="secondary" size="md" onPress={() => refetchFeed()} />
         </Card>
       );
     }
@@ -1586,7 +1675,8 @@ export default function HomeScreen() {
                   <Image
                     source={{ uri: selectedImageUri }}
                     style={styles.attachedPreviewImage}
-                    resizeMode="cover"
+                    contentFit="cover"
+                    cachePolicy="memory-disk"
                   />
                   <TouchableOpacity
                     onPress={() => setSelectedImageUri(null)}
@@ -1717,7 +1807,8 @@ export default function HomeScreen() {
                   <Image
                     source={{ uri: viewerImageUri }}
                     style={styles.viewerFullImage}
-                    resizeMode="contain"
+                    contentFit="contain"
+                    cachePolicy="memory-disk"
                   />
                 </TouchableOpacity>
               )}

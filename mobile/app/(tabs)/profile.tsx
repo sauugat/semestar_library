@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView, Alert } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/constants/useTheme';
@@ -53,10 +54,20 @@ export default function ProfileScreen() {
               borderColor: colors.primary,
               borderRadius: radii.full,
               marginBottom: spacing.sm,
+              overflow: 'hidden',
             },
           ]}
         >
-          <Ionicons name="person" size={36} color={colors.primary} />
+          {user?.avatarUrl ? (
+            <Image
+              source={{ uri: user.avatarUrl }}
+              style={{ width: '100%', height: '100%' }}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+            />
+          ) : (
+            <Ionicons name="person" size={36} color={colors.primary} />
+          )}
         </View>
 
         <Heading style={{ textAlign: 'center' }}>{user?.name || 'Student'}</Heading>

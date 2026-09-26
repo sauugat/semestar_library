@@ -11,6 +11,7 @@ export interface StudentUser {
   name: string;
   role: string;
   isAdmin?: boolean;
+  avatarUrl?: string;
 }
 
 interface AuthContextType {

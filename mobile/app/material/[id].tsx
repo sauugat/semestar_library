@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useQuery } from '@tanstack/react-query';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { WebView } from 'react-native-webview';
@@ -127,10 +128,6 @@ export default function MaterialDetailScreen() {
   const { id } = useLocalSearchParams();
   const { colors, spacing, radii } = useTheme();
 
-  const [file, setFile] = useState<LibraryFile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
   // In-app authenticated download states
   const [downloading, setDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
@@ -142,47 +139,39 @@ export default function MaterialDetailScreen() {
   const [pdfBase64, setPdfBase64] = useState<string | null>(null);
   const [preparingPreview, setPreparingPreview] = useState(false);
 
+  // Fetch material details with 60s React Query cache
+  const {
+    data: file = null,
+    isLoading: loading,
+    error: queryError,
+  } = useQuery<LibraryFile | null>({
+    queryKey: ['material', id],
+    queryFn: async () => {
+      if (!id) return null;
+      const data = await getFileById(id as string);
+      if (!data) throw new Error(`Material #${id} could not be found on the server.`);
+      return data;
+    },
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    enabled: Boolean(id),
+  });
+
+  const error = queryError ? (queryError as any).message || 'Error loading material details.' : null;
+
+  // Check if file is already cached locally whenever file data is resolved
   useEffect(() => {
-    let isMounted = true;
-
-    async function fetchDetail() {
-      if (!id) return;
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await getFileById(id as string);
-        if (isMounted) {
-          if (data) {
-            setFile(data);
-            // Check if file is already cached locally
-            const cleanFilename = `${data.id}_${(data.originalName || 'document.pdf').replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-            const destinationUri = `${FileSystem.documentDirectory}${cleanFilename}`;
-            try {
-              const info = await FileSystem.getInfoAsync(destinationUri);
-              if (info.exists) {
-                setLocalFileUri(info.uri);
-              }
-            } catch {
-              // Ignore cache check errors
-            }
-          } else {
-            setError(`Material #${id} could not be found on the server.`);
-          }
+    if (!file) return;
+    const cleanFilename = `${file.id}_${(file.originalName || 'document.pdf').replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+    const destinationUri = `${FileSystem.documentDirectory}${cleanFilename}`;
+    FileSystem.getInfoAsync(destinationUri)
+      .then((info) => {
+        if (info.exists) {
+          setLocalFileUri(info.uri);
         }
-      } catch (err: any) {
-        if (isMounted) {
-          setError(err.message || 'Error loading material details.');
-        }
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    }
+      })
+      .catch(() => {});
+  }, [file]);
 
-    fetchDetail();
-    return () => {
-      isMounted = false;
-    };
-  }, [id]);
 
   // Core download function using Bearer token and expo-file-system
   const downloadFile = async (): Promise<string | null> => {

@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
 import { useTheme } from '@/constants/useTheme';
 import { Text, Heading, Subheading, Caption } from '@/components/ui/Typography';
 import { Card } from '@/components/ui/Card';
@@ -53,26 +54,40 @@ export default function LibraryScreen() {
   const [selectedSemester, setSelectedSemester] = useState('all');
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [subjects, setSubjects] = useState<LibrarySubject[]>([]);
-  const [files, setFiles] = useState<LibraryFile[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const loadData = useCallback(async (isRefresh = false) => {
-    if (isRefresh) {
-      setRefreshing(true);
-    } else {
-      setLoading(true);
-    }
-    setError(null);
+  // Debounce search query by 400ms to avoid firing requests on every keystroke
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 400);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
 
-    try {
-      // 1. Fetch subjects
-      const fetchedSubjects = await getSubjects().catch(() => []);
-      setSubjects(fetchedSubjects);
+  // 1. Fetch subjects with 20 minutes staleTime (static curriculum)
+  const {
+    data: subjects = [],
+    isLoading: loadingSubjects,
+    refetch: refetchSubjects,
+  } = useQuery<LibrarySubject[]>({
+    queryKey: ['library', 'subjects'],
+    queryFn: async () => {
+      const res = await getSubjects();
+      return Array.isArray(res) ? res : [];
+    },
+    staleTime: 20 * 60 * 1000, // 20 minutes
+  });
 
-      // 2. Fetch files for the selected semester & subject
+  // 2. Fetch filtered files with 2 minutes staleTime
+  const {
+    data: files = [],
+    isLoading: loadingFiles,
+    error: filesError,
+    refetch: refetchFiles,
+  } = useQuery<LibraryFile[]>({
+    queryKey: ['library', 'files', selectedSemester, selectedSubject, debouncedSearchQuery],
+    queryFn: async () => {
       const filterParams: any = {};
       if (selectedSemester !== 'all') {
         filterParams.semester = selectedSemester;
@@ -80,23 +95,22 @@ export default function LibraryScreen() {
       if (selectedSubject) {
         filterParams.subject = selectedSubject;
       }
-      if (searchQuery.trim()) {
-        filterParams.search = searchQuery.trim();
+      if (debouncedSearchQuery.trim()) {
+        filterParams.search = debouncedSearchQuery.trim();
       }
+      return await getFiles(filterParams);
+    },
+    staleTime: 2 * 60 * 1000,
+  });
 
-      const fetchedFiles = await getFiles(filterParams);
-      setFiles(fetchedFiles);
-    } catch (err: any) {
-      setError(err.message || 'Unable to connect to the library server.');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [selectedSemester, selectedSubject, searchQuery]);
+  const loading = loadingSubjects && loadingFiles && files.length === 0;
+  const error = filesError ? (filesError as any).message || 'Unable to connect to the library server.' : null;
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([refetchSubjects(), refetchFiles()]);
+    setRefreshing(false);
+  };
 
   const handleSelectSemester = (sem: string) => {
     setSelectedSemester(sem);
@@ -120,7 +134,7 @@ export default function LibraryScreen() {
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
-          onRefresh={() => loadData(true)}
+          onRefresh={handleRefresh}
           tintColor={colors.primary}
           colors={[colors.primary]}
         />
@@ -241,7 +255,10 @@ export default function LibraryScreen() {
             title="Retry Connection"
             variant="primary"
             size="md"
-            onPress={() => loadData()}
+            onPress={() => {
+              refetchSubjects();
+              refetchFiles();
+            }}
             leftIcon={<Ionicons name="refresh" size={16} color="#FFFFFF" />}
           />
         </Card>
@@ -288,8 +305,6 @@ export default function LibraryScreen() {
 
           {files.map((file) => {
             const ext = getFileType(file.originalName);
-            const badgeBg = ext === 'pdf' ? '#FEE2E2' : ext === 'pptx' ? '#FEF3C7' : ext === 'docx' ? '#DBEAFE' : '#E0E7FF';
-            const badgeColor = ext === 'pdf' ? '#DC2626' : ext === 'pptx' ? '#D97706' : ext === 'docx' ? '#2563EB' : '#4F46E5';
 
             return (
               <Card
@@ -304,13 +319,13 @@ export default function LibraryScreen() {
                     style={[
                       styles.typeBadge,
                       {
-                        backgroundColor: badgeBg,
+                        backgroundColor: '#4B5563',
                         borderRadius: radii.md,
                         marginRight: spacing.md,
                       },
                     ]}
                   >
-                    <Text variant="xs" weight="800" style={{ color: badgeColor }}>
+                    <Text variant="xs" weight="800" style={{ color: '#FFFFFF', letterSpacing: 0.5 }}>
                       {ext.toUpperCase()}
                     </Text>
                   </View>

@@ -1,4 +1,23 @@
 const express = require('express');
+
+// Express 4 Async Error Handling: forward unhandled rejected promises in async route handlers to next(err)
+const Layer = require('express/lib/router/layer');
+const originalHandleRequest = Layer.prototype.handle_request;
+Layer.prototype.handle_request = function (req, res, next) {
+  const fn = this.handle;
+  if (fn.length > 3) {
+    return originalHandleRequest.apply(this, arguments);
+  }
+  try {
+    const result = fn(req, res, next);
+    if (result && typeof result.then === 'function') {
+      result.catch(next);
+    }
+  } catch (err) {
+    next(err);
+  }
+};
+
 const session = require('express-session');
 const bcrypt = require('bcryptjs');
 const path = require('path');
@@ -27,7 +46,7 @@ const supabaseKey = process.env.SUPABASE_ANON_KEY;
 let supabase = null;
 let broadcastChannel = null;
 
-if (supabaseUrl && supabaseKey) {
+if (process.env.NODE_ENV !== 'test' && supabaseUrl && supabaseKey) {
   try {
     supabase = createClient(supabaseUrl, supabaseKey);
     broadcastChannel = supabase.channel('public:chat_messages');
@@ -189,6 +208,20 @@ class CustomDbStore extends session.Store {
 
 const sessionStore = new CustomDbStore();
 
+if (process.env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) {
+  throw new Error('FATAL: SESSION_SECRET must be set in production!');
+}
+
+// Expired session cleanup interval (hourly)
+const cleanupTimer = setInterval(() => {
+  if (typeof db.cleanupExpiredSessions === 'function') {
+    db.cleanupExpiredSessions().catch(() => {});
+  }
+}, 60 * 60 * 1000);
+if (cleanupTimer && typeof cleanupTimer.unref === 'function') {
+  cleanupTimer.unref();
+}
+
 app.set('trust proxy', 1);
 
 app.use(session({
@@ -205,16 +238,201 @@ app.use(session({
   }
 }));
 
-// --- Login Rate Limiter (Brute-Force Defense) ---
-const loginAttempts = new Map(); // ip -> { count, lockedUntil }
+// Ensure schema is fully initialized before serving requests
+let isDbReady = false;
+let initDbPromise = null;
+app.use(async (req, res, next) => {
+  if (!isDbReady) {
+    if (!initDbPromise) {
+      initDbPromise = db.initSchema().then(() => {
+        isDbReady = true;
+      });
+    }
+    try {
+      await initDbPromise;
+    } catch (err) {
+      return res.status(503).json({ message: 'Database initialization in progress. Please retry.' });
+    }
+  }
+  next();
+});
 
-function loginRateLimiter(req, res, next) {
-  const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
-  const record = loginAttempts.get(ip);
-  const now = Date.now();
+// Mobile Bearer Token Authentication Middleware
+// Allows mobile apps (React Native / Expo) to authenticate using Authorization: Bearer <token>
+// Runs alongside session cookies; does not interfere with browser sessions
+app.use(async (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.substring(7).trim();
+    if (token) {
+      try {
+        const tokenRecord = await db.get(
+          'SELECT token, studentId, expiresAt FROM mobile_tokens WHERE token = ?',
+          token
+        );
+        if (tokenRecord) {
+          const rawExpiry = tokenRecord.expiresAt || tokenRecord.expiresat;
+          const expiresAt = new Date(rawExpiry).getTime();
+          if (expiresAt > Date.now()) {
+            const sid = tokenRecord.studentId || tokenRecord.studentid;
+            const student = await db.get(
+              'SELECT studentId, name, role FROM students WHERE studentId = ?',
+              sid
+            );
+            if (student) {
+              if (!req.session) req.session = {};
+              req.session.studentId = student.studentId;
+              req.session.studentName = student.name;
+              req.session.role = student.role || 'student';
+              req.user = student;
+              req.mobileToken = token;
+            }
+          } else {
+            // Delete expired token asynchronously
+            db.run('DELETE FROM mobile_tokens WHERE token = ?', token).catch(() => {});
+          }
+        }
+      } catch (err) {
+        console.error('[Mobile Auth Middleware Error]:', err.message);
+      }
+    }
+  }
+  next();
+});
 
-  if (record && record.lockedUntil && record.lockedUntil > now) {
-    const remainingSec = Math.ceil((record.lockedUntil - now) / 1000);
+// CSRF / Origin Guard on state-changing requests
+app.use((req, res, next) => {
+  const method = req.method.toUpperCase();
+  if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
+    // Mobile requests using Authorization: Bearer tokens are immune to browser CSRF
+    if (req.headers['authorization'] && req.headers['authorization'].startsWith('Bearer ')) {
+      return next();
+    }
+    const origin = req.headers.origin;
+    if (origin) {
+      try {
+        const originUrl = new URL(origin);
+        const hostHeader = (req.headers['x-forwarded-host'] || req.headers.host || '').split(':')[0].toLowerCase();
+        const originHost = originUrl.hostname.toLowerCase();
+        const isAllowed = originHost === hostHeader ||
+          originHost === 'localhost' ||
+          originHost === '127.0.0.1' ||
+          originUrl.protocol === 'capacitor:' ||
+          originUrl.protocol === 'exp:' ||
+          originUrl.protocol === 'file:';
+        if (!isAllowed) {
+          return res.status(403).json({ message: 'Cross-site request blocked.' });
+        }
+      } catch (e) {
+        return res.status(403).json({ message: 'Invalid origin header.' });
+      }
+    } else if (req.headers.referer) {
+      try {
+        const refUrl = new URL(req.headers.referer);
+        const hostHeader = (req.headers['x-forwarded-host'] || req.headers.host || '').split(':')[0].toLowerCase();
+        const refHost = refUrl.hostname.toLowerCase();
+        const isAllowed = refHost === hostHeader ||
+          refHost === 'localhost' ||
+          refHost === '127.0.0.1';
+        if (!isAllowed) {
+          return res.status(403).json({ message: 'Cross-site request blocked.' });
+        }
+      } catch (e) {
+        return res.status(403).json({ message: 'Invalid referer header.' });
+      }
+    }
+  }
+  next();
+});
+
+// Opportunistic expired session cleanup for serverless/Vercel (prunes without needing long-running daemon)
+let requestCounter = 0;
+app.use((req, res, next) => {
+  requestCounter++;
+  if (requestCounter % 100 === 0 && typeof db.cleanupExpiredSessions === 'function') {
+    db.cleanupExpiredSessions().catch(() => {});
+  }
+  next();
+});
+
+// --- Shared Database-Backed Login Rate Limiter (Brute-Force Defense) ---
+async function checkLoginRateLimit(ip) {
+  try {
+    const row = db.isPostgres
+      ? await db.get('SELECT attemptCount, lockedUntil FROM login_attempts WHERE ip = $1', ip)
+      : await db.get('SELECT attemptCount, lockedUntil FROM login_attempts WHERE ip = ?', ip);
+    if (row && row.lockedUntil) {
+      const lockedUntilTime = new Date(row.lockedUntil).getTime();
+      const now = Date.now();
+      if (lockedUntilTime > now) {
+        return Math.ceil((lockedUntilTime - now) / 1000);
+      }
+    }
+  } catch (err) {
+    console.warn('[Login Rate Limit Check Warning]:', err.message);
+  }
+  return 0;
+}
+
+async function recordFailedLogin(ip) {
+  try {
+    const now = new Date();
+    const row = db.isPostgres
+      ? await db.get('SELECT attemptCount, lastAttemptAt FROM login_attempts WHERE ip = $1', ip)
+      : await db.get('SELECT attemptCount, lastAttemptAt FROM login_attempts WHERE ip = ?', ip);
+    let count = 1;
+    if (row && row.lastAttemptAt) {
+      const lastTime = new Date(row.lastAttemptAt).getTime();
+      if (now.getTime() - lastTime < 15 * 60 * 1000) {
+        count = (Number(row.attemptCount) || 0) + 1;
+      }
+    }
+    let lockedUntil = null;
+    if (count >= 5) {
+      lockedUntil = new Date(now.getTime() + 5 * 60 * 1000).toISOString();
+    }
+    const nowIso = now.toISOString();
+
+    if (db.isPostgres) {
+      await db.run(`
+        INSERT INTO login_attempts (ip, attemptCount, lockedUntil, lastAttemptAt)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (ip) DO UPDATE SET
+          attemptCount = EXCLUDED.attemptCount,
+          lockedUntil = EXCLUDED.lockedUntil,
+          lastAttemptAt = EXCLUDED.lastAttemptAt
+      `, ip, count, lockedUntil, nowIso);
+    } else {
+      await db.run(`
+        INSERT INTO login_attempts (ip, attemptCount, lockedUntil, lastAttemptAt)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT (ip) DO UPDATE SET
+          attemptCount = excluded.attemptCount,
+          lockedUntil = excluded.lockedUntil,
+          lastAttemptAt = excluded.lastAttemptAt
+      `, ip, count, lockedUntil, nowIso);
+    }
+  } catch (err) {
+    console.error('[Record Failed Login Error]:', err.message);
+  }
+}
+
+async function clearLoginAttempts(ip) {
+  try {
+    if (db.isPostgres) {
+      await db.run('DELETE FROM login_attempts WHERE ip = $1', ip);
+    } else {
+      await db.run('DELETE FROM login_attempts WHERE ip = ?', ip);
+    }
+  } catch (err) {
+    console.warn('[Clear Login Attempts Warning]:', err.message);
+  }
+}
+
+async function loginRateLimiter(req, res, next) {
+  const ip = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.ip || req.socket.remoteAddress || 'unknown';
+  const remainingSec = await checkLoginRateLimit(ip);
+  if (remainingSec > 0) {
     return res.status(429).json({
       message: `Too many failed attempts. Security cooldown: ${remainingSec}s remaining.`
     });
@@ -391,10 +609,26 @@ app.use(express.static(path.join(__dirname, 'public'), {
 }));
 
 function requireLogin(req, res, next) {
-  if (!req.session || !req.session.studentId) {
-    return res.status(401).json({ message: 'Authentication required. Please sign in.' });
-  }
-  next();
+  (async () => {
+    if (!req.session || !req.session.studentId) {
+      return res.status(401).json({ message: 'Authentication required. Please sign in.' });
+    }
+    if (req.session.studentId === 'guest') {
+      return next();
+    }
+    try {
+      const student = await db.get('SELECT studentId, role FROM students WHERE studentId = ?', req.session.studentId);
+      if (!student) {
+        if (typeof req.session.destroy === 'function') req.session.destroy(() => {});
+        if (res.clearCookie) res.clearCookie('__gu_session');
+        return res.status(401).json({ message: 'Authentication required. Account not found.' });
+      }
+      req.session.role = student.role || 'student';
+      next();
+    } catch (err) {
+      next(err);
+    }
+  })();
 }
 app.use('/api/posts', require('./routes/posts')(db, requireLogin));
 
@@ -448,31 +682,19 @@ app.post('/api/login', loginRateLimiter, async (req, res) => {
   const student = await db.get('SELECT * FROM students WHERE studentId = ?', studentId);
 
   if (!student) {
-    // Record failed attempt
-    const record = loginAttempts.get(ip) || { count: 0, lockedUntil: null };
-    record.count += 1;
-    if (record.count >= 5) {
-      record.lockedUntil = Date.now() + 5 * 60 * 1000;
-    }
-    loginAttempts.set(ip, record);
+    await recordFailedLogin(ip);
     return res.status(401).json({ message: 'Invalid Student ID or Password' });
   }
 
   const match = bcrypt.compareSync(password, student.passwordHash);
 
   if (!match) {
-    // Record failed attempt
-    const record = loginAttempts.get(ip) || { count: 0, lockedUntil: null };
-    record.count += 1;
-    if (record.count >= 5) {
-      record.lockedUntil = Date.now() + 5 * 60 * 1000;
-    }
-    loginAttempts.set(ip, record);
+    await recordFailedLogin(ip);
     return res.status(401).json({ message: 'Invalid Student ID or Password' });
   }
 
   // Clear failed attempt record upon successful authentication
-  loginAttempts.delete(ip);
+  await clearLoginAttempts(ip);
 
   // Regenerate session to eliminate session fixation vulnerabilities
   req.session.regenerate((err) => {
@@ -489,6 +711,53 @@ app.post('/api/login', loginRateLimiter, async (req, res) => {
       }
       return res.json({ message: 'Login successful', redirect: '/dashboard.html' });
     });
+  });
+});
+
+app.post('/api/mobile/login', loginRateLimiter, async (req, res) => {
+  const studentId = (req.body.studentId || '').trim();
+  const password = req.body.password || '';
+  const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+
+  if (!studentId || !password) {
+    return res.status(400).json({ message: 'Student ID and password are required.' });
+  }
+
+  const student = await db.get('SELECT * FROM students WHERE studentId = ?', studentId);
+
+  if (!student) {
+    await recordFailedLogin(ip);
+    return res.status(401).json({ message: 'Invalid Student ID or Password' });
+  }
+
+  const match = bcrypt.compareSync(password, student.passwordHash);
+
+  if (!match) {
+    await recordFailedLogin(ip);
+    return res.status(401).json({ message: 'Invalid Student ID or Password' });
+  }
+
+  await clearLoginAttempts(ip);
+
+  // Generate an opaque random 64-hex token (not JWT)
+  const token = crypto.randomBytes(32).toString('hex');
+  const now = new Date();
+  const createdAt = now.toISOString();
+  // 30 days token expiry
+  const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  await db.run(
+    'INSERT INTO mobile_tokens (token, studentId, createdAt, expiresAt) VALUES (?, ?, ?, ?)',
+    token, student.studentId, createdAt, expiresAt
+  );
+
+  return res.json({
+    token,
+    user: {
+      studentId: student.studentId,
+      name: student.name,
+      role: student.role || 'student'
+    }
   });
 });
 
@@ -533,14 +802,55 @@ app.post('/api/change-password', requireLogin, async (req, res) => {
   const newHash = bcrypt.hashSync(newPassword, 10);
   await db.run('UPDATE students SET passwordHash = ? WHERE studentId = ?', newHash, req.session.studentId);
 
+  // Revoke other active sessions for this student upon password change
+  const currentSid = req.sessionID;
+  try {
+    if (db.isPostgres) {
+      await db.run(
+        `DELETE FROM session WHERE sid != $1 AND (sess->>'studentId' = $2 OR sess::text LIKE '%' || $2 || '%')`,
+        currentSid, req.session.studentId
+      );
+    } else {
+      await db.run(
+        `DELETE FROM session WHERE sid != ? AND sess LIKE ?`,
+        currentSid, `%"studentId":"${req.session.studentId}"%`
+      );
+    }
+  } catch (sessErr) {
+    console.warn('[Session Revocation Warning]:', sessErr.message);
+  }
+
   res.json({ message: 'Password successfully updated' });
 });
 
 app.post('/api/logout', (req, res) => {
-  req.session.destroy(() => {
+  if (!req.session) {
     res.clearCookie('__gu_session');
+    return res.json({ message: 'Logged out' });
+  }
+  req.session.destroy((err) => {
+    res.clearCookie('__gu_session');
+    if (err) {
+      console.error('[Logout Error]:', err.message);
+      return res.status(500).json({ message: 'Logout failed. Please clear your cookies.' });
+    }
     res.json({ message: 'Logged out' });
   });
+});
+
+app.post('/api/mobile/logout', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.substring(7).trim();
+    if (token) {
+      try {
+        await db.run('DELETE FROM mobile_tokens WHERE token = ?', token);
+      } catch (err) {
+        console.error('[Mobile Logout Error]:', err.message);
+      }
+    }
+  }
+  return res.json({ message: 'Logged out successfully' });
 });
 
 // Helper to check if a studentId is admin in database
@@ -1052,14 +1362,22 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
     const ext = path.extname(f.originalname).toLowerCase();
     const filePath = path.join(UPLOAD_DIR, f.filename);
 
-    // Save main file to persistent blob storage
+    // Save main file to persistent blob storage - must not report success if saving persistent file/blob failed
     try {
       if (fs.existsSync(filePath)) {
         const fileBuffer = fs.readFileSync(filePath);
         await db.saveFileBlob(f.filename, fileBuffer, f.mimetype || 'application/octet-stream');
       }
     } catch (err) {
-      console.warn(`[Blob Save Warning for ${f.originalname}]:`, err.message);
+      console.error(`[Blob Save Failed for ${f.originalname}]:`, err.message);
+      for (const up of uploadedFiles) {
+        const p = path.join(UPLOAD_DIR, up.filename);
+        if (isSafeUploadPath(p) && fs.existsSync(p)) {
+          try { fs.unlinkSync(p); } catch (_) {}
+        }
+        await db.deleteFileBlob(up.filename).catch(() => {});
+      }
+      return res.status(500).json({ message: 'Failed to persist uploaded file to storage.' });
     }
 
     if (ext === '.pptx') {
@@ -1185,11 +1503,166 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
   });
 });
 
+const ALLOWED_UPLOAD_EXTS = new Set([
+  '.pdf', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx',
+  '.zip', '.txt', '.csv', '.png', '.jpg', '.jpeg', '.webp', '.mp4',
+  '.c', '.cpp', '.py', '.java'
+]);
+
+const DANGEROUS_UPLOAD_EXTS = new Set([
+  '.html', '.htm', '.xhtml', '.svg', '.js', '.mjs', '.cjs',
+  '.exe', '.bat', '.cmd', '.sh', '.bash', '.php', '.cgi',
+  '.pl', '.pyc', '.class', '.jar', '.vbs', '.ps1', '.dll', '.so'
+]);
+
+function isAllowedUploadFile(filename, mimeType) {
+  const ext = path.extname(filename || '').toLowerCase();
+  if (!ext || DANGEROUS_UPLOAD_EXTS.has(ext) || !ALLOWED_UPLOAD_EXTS.has(ext)) {
+    return false;
+  }
+  const m = (mimeType || '').toLowerCase();
+  if (m.includes('html') || m.includes('javascript') || m.includes('svg') || m.includes('x-sh') || m.includes('x-msdownload')) {
+    return false;
+  }
+  return true;
+}
+
+function createUploadToken({ studentId, storedName, size, ext, expiresAt }) {
+  const secret = process.env.SESSION_SECRET || 'gu_semester_lib_sec_9938b849204018247df4382';
+  const payload = `${studentId}:${storedName}:${size}:${ext}:${expiresAt}`;
+  const sig = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+  return `${expiresAt}.${sig}`;
+}
+
+function verifyUploadToken(token, { studentId, storedName, size, ext }) {
+  if (!token || typeof token !== 'string') return false;
+  const parts = token.split('.');
+  if (parts.length !== 2) return false;
+  const [expiresAtStr, sig] = parts;
+  const expiresAt = parseInt(expiresAtStr, 10);
+  if (isNaN(expiresAt) || Date.now() > expiresAt) return false;
+
+  const secret = process.env.SESSION_SECRET || 'gu_semester_lib_sec_9938b849204018247df4382';
+  const payload = `${studentId}:${storedName}:${size}:${ext}:${expiresAt}`;
+  const expectedSig = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+  if (sig.length === expectedSig.length && crypto.timingSafeEqual(Buffer.from(sig, 'hex'), Buffer.from(expectedSig, 'hex'))) {
+    return true;
+  }
+  // Check without size in payload in case of minor metadata variation
+  const fallbackPayload = `${studentId}:${storedName}:${expiresAt}`;
+  const fallbackExpected = crypto.createHmac('sha256', secret).update(fallbackPayload).digest('hex');
+  return sig.length === fallbackExpected.length && crypto.timingSafeEqual(Buffer.from(sig, 'hex'), Buffer.from(fallbackExpected, 'hex'));
+}
+
+// Issue server authorization and pre-assigned filename for direct-to-storage uploads
+app.post('/api/files/authorize-upload', requireLogin, async (req, res) => {
+  const { filename, size, mimeType } = req.body || {};
+  if (!filename || typeof filename !== 'string') {
+    return res.status(400).json({ message: 'Filename is required.' });
+  }
+
+  const cleanOriginalName = path.basename(filename).replace(/[^\w\s.-]/g, '_');
+  if (!isAllowedUploadFile(cleanOriginalName, mimeType)) {
+    return res.status(400).json({ message: 'File type not permitted for library uploads.' });
+  }
+
+  const parsedSize = parseInt(size, 10);
+  if (isNaN(parsedSize) || parsedSize <= 0 || parsedSize > 250 * 1024 * 1024) {
+    return res.status(400).json({ message: 'File size must be between 1 byte and 250MB.' });
+  }
+
+  const ext = path.extname(cleanOriginalName).toLowerCase();
+  const cleanBase = path.basename(cleanOriginalName, ext).replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 32);
+  const studentId = req.session.studentId;
+  const storedName = `up_${studentId}_${Date.now()}_${crypto.randomBytes(6).toString('hex')}_${cleanBase}${ext}`;
+  const expiresAt = Date.now() + 30 * 60 * 1000; // 30 minutes expiration
+  const token = createUploadToken({ studentId, storedName, size: parsedSize, ext, expiresAt });
+
+  res.json({
+    storedName,
+    token,
+    expiresAt,
+    originalName: cleanOriginalName,
+    size: parsedSize
+  });
+});
+
 // Record direct client-to-Supabase Storage uploads
 app.post('/api/files/record-upload', requireLogin, async (req, res) => {
   const { files: uploadedFiles, title, semester, subject, chapter } = req.body;
   if (!uploadedFiles || !Array.isArray(uploadedFiles) || uploadedFiles.length === 0) {
     return res.status(400).json({ message: 'No file information provided.' });
+  }
+
+  // Reject arbitrary external URLs, verify server-issued upload authorization, ownership, size and type
+  for (const f of uploadedFiles) {
+    const sName = String(f.storedName || '').trim();
+    if (!sName || sName.includes('..') || sName.includes('/') || sName.includes('\\') || /^https?:\/\//i.test(sName)) {
+      return res.status(400).json({ message: 'Invalid or external storage path provided.' });
+    }
+    const origName = String(f.originalName || f.storedName).trim();
+    if (!isAllowedUploadFile(origName, f.mimeType)) {
+      return res.status(400).json({ message: `File type not permitted for "${origName}".` });
+    }
+    const sizeBytes = parseInt(f.size, 10);
+    if (isNaN(sizeBytes) || sizeBytes <= 0 || sizeBytes > 250 * 1024 * 1024) {
+      return res.status(400).json({ message: 'Invalid file size reported.' });
+    }
+
+    // Strictly require valid server-issued authorization token bound to authenticated student
+    const token = f.token;
+    const hasValidToken = token && verifyUploadToken(token, {
+      studentId: req.session.studentId,
+      storedName: sName,
+      size: sizeBytes,
+      ext: path.extname(sName).toLowerCase()
+    });
+
+    if (!hasValidToken) {
+      return res.status(403).json({
+        message: `Valid server-issued upload authorization is strictly required for "${sName}".`
+      });
+    }
+
+    // Verify this storedName has not already been claimed in the library
+    const existingClaim = await db.get('SELECT id, uploadedBy FROM files WHERE storedName = ?', sName);
+    if (existingClaim) {
+      return res.status(409).json({ message: `The file "${sName}" has already been claimed and registered.` });
+    }
+
+    // Verify object exists in Supabase storage and verify its actual size and type
+    if (supabase) {
+      try {
+        const { data: fileData, error: sbError } = await supabase.storage.from('library_files').list('', {
+          search: sName
+        });
+        const matched = fileData ? fileData.find(obj => obj.name === sName) : null;
+        if (sbError || !matched) {
+          return res.status(400).json({ message: `Could not verify stored file "${sName}" in storage.` });
+        }
+        // Verify size matches within reasonable margin
+        if (matched.metadata && matched.metadata.size) {
+          if (Math.abs(matched.metadata.size - sizeBytes) > 2048) {
+            return res.status(400).json({ message: `File size mismatch for "${sName}".` });
+          }
+        }
+        // Verify storage object mimetype is not dangerous
+        if (matched.metadata && matched.metadata.mimetype) {
+          if (!isAllowedUploadFile(sName, matched.metadata.mimetype)) {
+            return res.status(400).json({ message: `Uploaded storage file "${sName}" has disallowed MIME type: ${matched.metadata.mimetype}` });
+          }
+        }
+        // Verify object was uploaded recently (within 4 hours) to prevent claiming old orphaned objects
+        if (matched.created_at) {
+          const uploadedAgeMs = Date.now() - new Date(matched.created_at).getTime();
+          if (uploadedAgeMs > 4 * 60 * 60 * 1000) {
+            return res.status(400).json({ message: `Upload authorization for "${sName}" has expired.` });
+          }
+        }
+      } catch (verifyErr) {
+        console.warn('[Supabase Storage Verify Warning]:', verifyErr.message);
+      }
+    }
   }
 
   const cleanSemester = (semester || '').trim() || null;
@@ -1209,9 +1682,9 @@ app.post('/api/files/record-upload', requireLogin, async (req, res) => {
         fileTitle = (f.originalName || 'file').replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
       }
 
-      const storedName = f.storedName;
-      const originalName = f.originalName || 'file';
-      const sizeBytes = parseInt(f.size) || 0;
+      const storedName = path.basename(f.storedName);
+      const originalName = String(f.originalName || 'file').slice(0, 255);
+      const sizeBytes = parseInt(f.size, 10) || 0;
 
       const result = await db.run(`
         INSERT INTO files (storedName, originalName, title, semester, subject, chapter, uploadedBy, sizeBytes, uploadedAt, previewName)
@@ -1283,8 +1756,10 @@ app.post('/api/files/record-upload', requireLogin, async (req, res) => {
 
 app.get('/api/files', requireLogin, async (req, res) => {
   const viewerIsAdmin = await isStudentAdmin(req.session.studentId);
+  const limit = req.query.limit ? Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 200) : null;
+  const offset = req.query.offset ? Math.max(parseInt(req.query.offset, 10) || 0, 0) : 0;
 
-  const files = await db.all(`
+  let query = `
     SELECT files.id, files.originalName, files.title, files.semester, files.subject, files.chapter, files.sizeBytes, files.uploadedAt, files.uploadedBy,
       students.name AS uploaderName, students.avatarUrl AS uploaderAvatar, students.role AS uploaderRole,
       (SELECT COUNT(*) FROM file_likes WHERE file_likes.fileId = files.id) AS likeCount,
@@ -1293,7 +1768,15 @@ app.get('/api/files', requireLogin, async (req, res) => {
     FROM files
     JOIN students ON students.studentId = files.uploadedBy
     ORDER BY files.uploadedAt DESC
-  `, req.session.studentId);
+  `;
+
+  let files;
+  if (limit !== null) {
+    query += ` LIMIT ${limit} OFFSET ${offset}`;
+    files = await db.all(query, req.session.studentId);
+  } else {
+    files = await db.all(query, req.session.studentId);
+  }
 
   const processed = files.map(f => ({
     ...f,
@@ -1524,6 +2007,8 @@ app.get('/api/files/:id/view', requireLogin, async (req, res) => {
         return res.sendFile(previewPath);
       }
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'; style-src 'unsafe-inline'");
       return res.sendFile(previewPath);
     }
   }
@@ -1575,6 +2060,8 @@ app.get('/api/files/:id/view', requireLogin, async (req, res) => {
       await db.saveFileBlob(previewFilename, Buffer.from(previewHtml, 'utf8'), 'text/html');
       await db.run('UPDATE files SET previewName = ? WHERE id = ?', previewFilename, file.id);
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'; style-src 'unsafe-inline'");
       return res.sendFile(previewPath);
     } catch (err) {
       console.error(`[On-Demand PPTX Preview Error for ID ${file.id}]:`, err.message);
@@ -1588,6 +2075,8 @@ app.get('/api/files/:id/view', requireLogin, async (req, res) => {
       await db.saveFileBlob(previewFilename, Buffer.from(previewHtml, 'utf8'), 'text/html');
       await db.run('UPDATE files SET previewName = ? WHERE id = ?', previewFilename, file.id);
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'; style-src 'unsafe-inline'");
       return res.sendFile(previewPath);
     } catch (err) {
       console.error(`[On-Demand DOCX Preview Error for ID ${file.id}]:`, err.message);
@@ -1597,6 +2086,10 @@ app.get('/api/files/:id/view', requireLogin, async (req, res) => {
   // 3. For native browser viewable files (PDF, images, text, html)
   const inlineExts = ['.pdf', '.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg', '.txt', '.html'];
   if (inlineExts.includes(ext)) {
+    if (ext === '.html' || ext === '.svg') {
+      res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'; style-src 'unsafe-inline'");
+    }
+    res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(file.originalName)}"`);
     return res.sendFile(filePath);
   }
@@ -1605,32 +2098,47 @@ app.get('/api/files/:id/view', requireLogin, async (req, res) => {
   res.download(filePath, file.originalName);
 });
 
-// Toggle like on a file
+// Toggle/set like on a file (retry-safe)
 app.post('/api/files/:id/like', requireLogin, async (req, res) => {
   const fileId = req.params.id;
   const studentId = req.session.studentId;
+  const explicitAction = req.body && (req.body.action || (typeof req.body.liked === 'boolean' ? (req.body.liked ? 'like' : 'unlike') : null));
 
   const existing = await db.get('SELECT 1 FROM file_likes WHERE fileId = ? AND studentId = ?', fileId, studentId);
-  if (existing) {
-    await db.run('DELETE FROM file_likes WHERE fileId = ? AND studentId = ?', fileId, studentId);
+  let shouldLike;
+
+  if (explicitAction === 'like') {
+    shouldLike = true;
+  } else if (explicitAction === 'unlike') {
+    shouldLike = false;
   } else {
-    if (db.isPostgres) {
-      await db.run('INSERT INTO file_likes (fileId, studentId) VALUES (?, ?) ON CONFLICT (fileId, studentId) DO NOTHING', fileId, studentId);
-    } else {
-      await db.run('INSERT OR IGNORE INTO file_likes (fileId, studentId) VALUES (?, ?)', fileId, studentId);
+    shouldLike = !existing;
+  }
+
+  if (shouldLike) {
+    if (!existing) {
+      if (db.isPostgres) {
+        await db.run('INSERT INTO file_likes (fileId, studentId) VALUES (?, ?) ON CONFLICT (fileId, studentId) DO NOTHING', fileId, studentId);
+      } else {
+        await db.run('INSERT OR IGNORE INTO file_likes (fileId, studentId) VALUES (?, ?)', fileId, studentId);
+      }
+      // Create notification
+      const file = await db.get('SELECT uploadedBy, originalName FROM files WHERE id = ?', fileId);
+      if (file && file.uploadedBy !== studentId) {
+        await db.run('INSERT INTO notifications (recipientStudentId, type, relatedFileId, message) VALUES (?, ?, ?, ?)',
+          file.uploadedBy, 'like', fileId, `${req.session.studentName || 'Someone'} liked your file: ${file.originalName}`
+        );
+      }
     }
-    // Create notification
-    const file = await db.get('SELECT uploadedBy, originalName FROM files WHERE id = ?', fileId);
-    if (file && file.uploadedBy !== studentId) {
-      await db.run('INSERT INTO notifications (recipientStudentId, type, relatedFileId, message) VALUES (?, ?, ?, ?)',
-        file.uploadedBy, 'like', fileId, `${req.session.name || 'Someone'} liked your file: ${file.originalName}`
-      );
+  } else {
+    if (existing) {
+      await db.run('DELETE FROM file_likes WHERE fileId = ? AND studentId = ?', fileId, studentId);
     }
   }
 
   const countRow = await db.get('SELECT COUNT(*) AS c FROM file_likes WHERE fileId = ?', fileId);
   const count = Number(countRow?.c || countRow?.count || 0);
-  res.json({ liked: !existing, likeCount: count });
+  res.json({ liked: shouldLike, likeCount: count });
 });
 
 // List comments on a file
@@ -1916,15 +2424,38 @@ app.get('/api/chat/members', requireLogin, async (req, res) => {
   }
 });
 
-// Pinned Announcement state
-let currentPinnedMessage = null;
+// Pinned Announcement state (persisted in database)
 app.get('/api/chat/pinned', requireLogin, async (req, res) => {
-  res.json({ pinned: currentPinnedMessage });
+  try {
+    const row = await db.get('SELECT * FROM chat_pinned WHERE id = 1');
+    if (!row) {
+      return res.json({ pinned: null });
+    }
+    const pinned = {
+      messageId: row.messageId || row.message_id,
+      text: row.text,
+      senderName: row.senderName || row.sender_name,
+      pinnedBy: row.pinnedBy || row.pinned_by,
+      pinnedAt: row.pinnedAt || row.pinned_at
+    };
+    res.json({ pinned });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch pinned message' });
+  }
 });
 
 app.post('/api/chat/pinned/:id', requireLogin, async (req, res) => {
   try {
+    // Only authorized roles (admin, cr) can pin announcements
+    const role = req.session.role;
+    const isAdmin = await isStudentAdmin(req.session.studentId);
+    if (!isAdmin && role !== 'admin' && role !== 'cr') {
+      return res.status(403).json({ error: 'Forbidden: Only admins or class representatives can pin messages.' });
+    }
+
     const msgId = parseInt(req.params.id, 10);
+    if (!msgId) return res.status(400).json({ error: 'Invalid message ID' });
+
     const msg = await db.get(`
       SELECT m.id, m.text, m.attachmentName, m.attachmentOriginalName, m.createdAt, s.name AS senderName
       FROM chat_messages m
@@ -1933,7 +2464,7 @@ app.post('/api/chat/pinned/:id', requireLogin, async (req, res) => {
     `, msgId);
 
     if (!msg) return res.status(404).json({ error: 'Message not found' });
-    currentPinnedMessage = {
+    const pinnedMessage = {
       messageId: msg.id,
       text: msg.text || msg.attachmentOriginalName || 'Attachment',
       senderName: msg.senderName || 'Student',
@@ -1941,17 +2472,46 @@ app.post('/api/chat/pinned/:id', requireLogin, async (req, res) => {
       pinnedAt: new Date().toISOString()
     };
 
-    sendBroadcast('pin_message', currentPinnedMessage);
-    res.json({ success: true, pinned: currentPinnedMessage });
+    if (db.isPostgres) {
+      await db.run(`
+        INSERT INTO chat_pinned (id, messageId, text, senderName, pinnedBy, pinnedAt)
+        VALUES (1, $1, $2, $3, $4, $5)
+        ON CONFLICT (id) DO UPDATE SET
+          messageId = EXCLUDED.messageId,
+          text = EXCLUDED.text,
+          senderName = EXCLUDED.senderName,
+          pinnedBy = EXCLUDED.pinnedBy,
+          pinnedAt = EXCLUDED.pinnedAt
+      `, pinnedMessage.messageId, pinnedMessage.text, pinnedMessage.senderName, pinnedMessage.pinnedBy, pinnedMessage.pinnedAt);
+    } else {
+      await db.run(`
+        INSERT OR REPLACE INTO chat_pinned (id, messageId, text, senderName, pinnedBy, pinnedAt)
+        VALUES (1, ?, ?, ?, ?, ?)
+      `, pinnedMessage.messageId, pinnedMessage.text, pinnedMessage.senderName, pinnedMessage.pinnedBy, pinnedMessage.pinnedAt);
+    }
+
+    sendBroadcast('pin_message', pinnedMessage);
+    res.json({ success: true, pinned: pinnedMessage });
   } catch (err) {
+    console.error('[Pin Chat Error]:', err.message);
     res.status(500).json({ error: 'Failed to pin message' });
   }
 });
 
-app.delete('/api/chat/pinned', requireLogin, (req, res) => {
-  currentPinnedMessage = null;
-  sendBroadcast('pin_message', { unpinned: true });
-  res.json({ success: true });
+app.delete('/api/chat/pinned', requireLogin, async (req, res) => {
+  try {
+    const role = req.session.role;
+    const isAdmin = await isStudentAdmin(req.session.studentId);
+    if (!isAdmin && role !== 'admin' && role !== 'cr') {
+      return res.status(403).json({ error: 'Forbidden: Only admins or class representatives can unpin messages.' });
+    }
+
+    await db.run('DELETE FROM chat_pinned WHERE id = 1');
+    sendBroadcast('pin_message', { unpinned: true });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to unpin message' });
+  }
 });
 
 app.post('/api/chat/reactions', requireLogin, async (req, res) => {
@@ -1960,16 +2520,26 @@ app.post('/api/chat/reactions', requireLogin, async (req, res) => {
   if (!messageId || !emoji) return res.status(400).json({ error: 'Missing data' });
 
   try {
-    const existing = await db.get(`SELECT * FROM chat_reactions WHERE messageId = ? AND studentId = ? AND emoji = ?`, messageId, studentId, emoji);
+    const existing = await db.get(`SELECT * FROM chat_reactions WHERE messageId = ? AND studentId = ?`, messageId, studentId);
+    let action = 'add';
     if (existing) {
-      await db.run(`DELETE FROM chat_reactions WHERE messageId = ? AND studentId = ? AND emoji = ?`, messageId, studentId, emoji);
+      if (existing.emoji === emoji) {
+        // Toggle off if same emoji clicked again
+        await db.run(`DELETE FROM chat_reactions WHERE messageId = ? AND studentId = ?`, messageId, studentId);
+        action = 'remove';
+      } else {
+        // Update reaction to the new emoji
+        await db.run(`UPDATE chat_reactions SET emoji = ? WHERE messageId = ? AND studentId = ?`, emoji, messageId, studentId);
+        action = 'update';
+      }
     } else {
       await db.run(`INSERT INTO chat_reactions (messageId, studentId, emoji) VALUES (?, ?, ?)`, messageId, studentId, emoji);
+      action = 'add';
     }
 
-    sendBroadcast('reaction_update', { messageId, studentId, emoji, action: existing ? 'remove' : 'add' });
+    sendBroadcast('reaction_update', { messageId, studentId, emoji, action });
 
-    res.json({ success: true });
+    res.json({ success: true, action });
   } catch (error) {
     console.error('Reaction error:', error);
     res.status(500).json({ error: 'Failed to update reaction' });
@@ -1977,19 +2547,33 @@ app.post('/api/chat/reactions', requireLogin, async (req, res) => {
 });
 
 app.post('/api/chat/read', requireLogin, async (req, res) => {
-  const { lastReadMessageId } = req.body;
+  const lastReadMessageId = parseInt(req.body.lastReadMessageId, 10);
   const studentId = req.session.studentId;
-  if (!lastReadMessageId) return res.status(400).json({ error: 'Missing data' });
+  if (!lastReadMessageId || isNaN(lastReadMessageId)) return res.status(400).json({ error: 'Missing or invalid lastReadMessageId' });
 
   try {
-    await db.run(`
-      INSERT INTO chat_read_receipts (studentId, lastReadMessageId) VALUES (?, ?)
-      ON CONFLICT(studentId) DO UPDATE SET lastReadMessageId = excluded.lastReadMessageId
-    `, studentId, lastReadMessageId);
+    const current = await db.get('SELECT lastReadMessageId FROM chat_read_receipts WHERE studentId = ?', studentId);
+    const currentRead = current ? Number(current.lastReadMessageId || current.last_read_message_id || 0) : 0;
+    // Prevent read receipts from moving backwards
+    if (currentRead >= lastReadMessageId) {
+      return res.json({ success: true, lastReadMessageId: currentRead });
+    }
+
+    if (db.isPostgres) {
+      await db.run(`
+        INSERT INTO chat_read_receipts (studentId, lastReadMessageId) VALUES ($1, $2)
+        ON CONFLICT(studentId) DO UPDATE SET lastReadMessageId = GREATEST(chat_read_receipts.lastReadMessageId, EXCLUDED.lastReadMessageId)
+      `, studentId, lastReadMessageId);
+    } else {
+      await db.run(`
+        INSERT INTO chat_read_receipts (studentId, lastReadMessageId) VALUES (?, ?)
+        ON CONFLICT(studentId) DO UPDATE SET lastReadMessageId = MAX(chat_read_receipts.lastReadMessageId, excluded.lastReadMessageId)
+      `, studentId, lastReadMessageId);
+    }
 
     sendBroadcast('read_receipt', { studentId, lastReadMessageId });
 
-    res.json({ success: true });
+    res.json({ success: true, lastReadMessageId });
   } catch (error) {
     console.error('Read receipt error:', error);
     res.status(500).json({ error: 'Failed to update read receipt' });
@@ -2106,6 +2690,16 @@ app.delete('/api/chat/messages/:id', requireLogin, async (req, res) => {
       return res.status(403).json({ error: 'Unauthorized to delete this message' });
     }
 
+    // Clean up physical attachment file and persistent blob
+    if (msg.attachmentName) {
+      const attFilename = path.basename(msg.attachmentName);
+      const attPath = path.join(UPLOAD_DIR, attFilename);
+      if (isSafeUploadPath(attPath) && fs.existsSync(attPath)) {
+        try { fs.unlinkSync(attPath); } catch (_) {}
+      }
+      await db.deleteFileBlob(attFilename).catch(() => {});
+    }
+
     // Clean up foreign references & reactions
     await db.run('UPDATE chat_messages SET replyToId = NULL WHERE replyToId = ?', messageId);
     await db.run('DELETE FROM chat_reactions WHERE messageId = ?', messageId);
@@ -2123,6 +2717,16 @@ app.delete('/api/chat/messages/:id', requireLogin, async (req, res) => {
 
 app.get('/api/chat/attachment/:filename', requireLogin, async (req, res) => {
   const filename = path.basename(req.params.filename);
+  if (!/^[a-zA-Z0-9_\-\.]+\.[a-zA-Z0-9]+$/.test(filename)) {
+    return res.status(404).json({ message: 'File not found on server' });
+  }
+
+  // Ensure this file actually belongs to a chat message attachment
+  const msg = await db.get('SELECT id FROM chat_messages WHERE attachmentName = ? LIMIT 1', filename);
+  if (!msg) {
+    return res.status(404).json({ message: 'File not found on server' });
+  }
+
   const filePath = await ensureLocalFile(filename);
 
   if (!filePath || !fs.existsSync(filePath)) {
@@ -2130,6 +2734,8 @@ app.get('/api/chat/attachment/:filename', requireLogin, async (req, res) => {
   }
 
   res.setHeader('Cache-Control', 'private, max-age=86400');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'; style-src 'unsafe-inline'");
   res.sendFile(filePath);
 });
 
@@ -2249,6 +2855,29 @@ app.get('/api/profile/:studentId', requireLogin, async (req, res) => {
   res.json(profile);
 });
 
+function isValidImageBuffer(buf) {
+  if (!buf || !Buffer.isBuffer(buf) || buf.length < 4) return false;
+  // JPEG: FF D8 FF
+  if (buf[0] === 0xFF && buf[1] === 0xD8 && buf[2] === 0xFF) return true;
+  // PNG: 89 50 4E 47
+  if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4E && buf[3] === 0x47) return true;
+  // GIF: GIF8
+  if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x38) return true;
+  // WEBP: RIFF....WEBP
+  if (buf.length >= 12 && buf.toString('ascii', 0, 4) === 'RIFF' && buf.toString('ascii', 8, 12) === 'WEBP') return true;
+  return false;
+}
+
+function isSafeWebUrl(u) {
+  if (!u) return true;
+  try {
+    const parsed = new URL(u);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch (e) {
+    return false;
+  }
+}
+
 // Update profile details
 app.post('/api/profile/update', requireLogin, async (req, res) => {
   const { name, bio, department, semester, githubUrl, linkedinUrl } = req.body;
@@ -2257,12 +2886,19 @@ app.post('/api/profile/update', requireLogin, async (req, res) => {
   const current = await db.get('SELECT * FROM students WHERE studentId = ?', studentId);
   if (!current) return res.status(404).json({ message: 'Student not found' });
 
-  const updatedName = (name && name.trim()) ? name.trim() : current.name;
+  if (githubUrl && !isSafeWebUrl(githubUrl.trim())) {
+    return res.status(400).json({ message: 'Invalid GitHub URL. Must start with http:// or https://' });
+  }
+  if (linkedinUrl && !isSafeWebUrl(linkedinUrl.trim())) {
+    return res.status(400).json({ message: 'Invalid LinkedIn URL. Must start with http:// or https://' });
+  }
+
+  const updatedName = (name && name.trim()) ? name.trim().slice(0, 100) : current.name;
   const updatedBio = typeof bio === 'string' ? bio.trim().slice(0, 300) : (current.bio || '');
   const updatedDept = (department && department.trim()) ? department.trim().slice(0, 50) : (current.department || 'BIT');
   const updatedSem = (semester && semester.trim()) ? semester.trim().slice(0, 30) : (current.semester || 'Semester 1');
-  const updatedGithub = typeof githubUrl === 'string' ? githubUrl.trim().slice(0, 100) : (current.githubUrl || '');
-  const updatedLinkedin = typeof linkedinUrl === 'string' ? linkedinUrl.trim().slice(0, 100) : (current.linkedinUrl || '');
+  const updatedGithub = typeof githubUrl === 'string' ? githubUrl.trim().slice(0, 150) : (current.githubUrl || '');
+  const updatedLinkedin = typeof linkedinUrl === 'string' ? linkedinUrl.trim().slice(0, 150) : (current.linkedinUrl || '');
 
   await db.run(`
     UPDATE students
@@ -2284,15 +2920,47 @@ app.post('/api/profile/avatar', requireLogin, uploadAvatar.single('avatar'), asy
   }
 
   const studentId = req.session.studentId;
+  const filePath = req.file.path;
+
+  // Validate magic bytes to prevent uploaded HTML/SVG from masquerading as image
+  let fileBuf;
+  try {
+    fileBuf = fs.readFileSync(filePath);
+  } catch (err) {
+    return res.status(400).json({ message: 'Could not read uploaded avatar file.' });
+  }
+
+  if (!isValidImageBuffer(fileBuf)) {
+    try { fs.unlinkSync(filePath); } catch (_) {}
+    return res.status(400).json({ message: 'Invalid image format. Only real JPEG, PNG, GIF, or WebP images are allowed.' });
+  }
+
   const avatarUrl = `/api/avatar/${req.file.filename}`;
 
+  // Save to persistent blob storage — must not report success if saving failed
   try {
-    if (fs.existsSync(req.file.path)) {
-      const fileBuf = fs.readFileSync(req.file.path);
-      await db.saveFileBlob(req.file.filename, fileBuf, req.file.mimetype || 'image/jpeg');
-    }
+    await db.saveFileBlob(req.file.filename, fileBuf, req.file.mimetype || 'image/jpeg');
   } catch (err) {
-    console.warn('[Avatar Blob Save Warning]:', err.message);
+    console.error('[Avatar Blob Save Error]:', err.message);
+    try { fs.unlinkSync(filePath); } catch (_) {}
+    return res.status(500).json({ message: 'Failed to securely store avatar. Please try again.' });
+  }
+
+  // Clean up previous avatar file and blob if replacing an existing custom avatar
+  try {
+    const current = await db.get('SELECT avatarUrl FROM students WHERE studentId = ?', studentId);
+    if (current && current.avatarUrl && current.avatarUrl.startsWith('/api/avatar/')) {
+      const oldFilename = path.basename(current.avatarUrl);
+      if (oldFilename && oldFilename !== req.file.filename) {
+        const oldPath = path.join(UPLOAD_DIR, oldFilename);
+        if (isSafeUploadPath(oldPath) && fs.existsSync(oldPath)) {
+          try { fs.unlinkSync(oldPath); } catch (_) {}
+        }
+        await db.deleteFileBlob(oldFilename).catch(() => {});
+      }
+    }
+  } catch (cleanupErr) {
+    console.warn('[Avatar Cleanup Warning]:', cleanupErr.message);
   }
 
   await db.run('UPDATE students SET avatarUrl = ? WHERE studentId = ?', avatarUrl, studentId);
@@ -2300,9 +2968,25 @@ app.post('/api/profile/avatar', requireLogin, uploadAvatar.single('avatar'), asy
   res.json({ message: 'Profile picture updated successfully', avatarUrl });
 });
 
-// Serve avatar image safely
+// Serve avatar image safely — only serve files that actually belong to an avatar in students
 app.get('/api/avatar/:filename', async (req, res) => {
   const filename = path.basename(req.params.filename);
+  if (!/^[a-zA-Z0-9_\-\.]+\.[a-zA-Z0-9]+$/.test(filename)) {
+    return res.status(404).json({ message: 'Avatar image not found' });
+  }
+
+  // Enforce access control: verify this file is linked to a student avatar
+  const student = await db.get(
+    'SELECT studentId FROM students WHERE avatarUrl = ? OR avatarUrl = ? OR avatarUrl LIKE ? LIMIT 1',
+    `/api/avatar/${filename}`,
+    filename,
+    `%/${filename}`
+  );
+
+  if (!student) {
+    return res.status(404).json({ message: 'Avatar image not found' });
+  }
+
   const filePath = await ensureLocalFile(filename);
 
   if (!filePath || !fs.existsSync(filePath)) {
@@ -2310,13 +2994,16 @@ app.get('/api/avatar/:filename', async (req, res) => {
   }
 
   res.setHeader('Cache-Control', 'public, max-age=86400'); // 1 day cache
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'; style-src 'unsafe-inline'");
   res.sendFile(filePath);
 });
 
-// Toggle follow/unfollow a student
+// Toggle/set follow/unfollow a student (retry-safe)
 app.post('/api/profile/:studentId/follow', requireLogin, async (req, res) => {
   const followerId = req.session.studentId;
   const followingId = req.params.studentId;
+  const explicitAction = req.body && (req.body.action || (typeof req.body.following === 'boolean' ? (req.body.following ? 'follow' : 'unfollow') : null));
 
   if (followerId === followingId) {
     return res.status(400).json({ message: 'You cannot follow yourself.' });
@@ -2326,16 +3013,33 @@ app.post('/api/profile/:studentId/follow', requireLogin, async (req, res) => {
   if (!target) return res.status(404).json({ message: 'Student not found.' });
 
   const existing = await db.get('SELECT 1 FROM follows WHERE followerId = ? AND followingId = ?', followerId, followingId);
+  let shouldFollow;
 
-  if (existing) {
-    await db.run('DELETE FROM follows WHERE followerId = ? AND followingId = ?', followerId, followingId);
+  if (explicitAction === 'follow') {
+    shouldFollow = true;
+  } else if (explicitAction === 'unfollow') {
+    shouldFollow = false;
   } else {
-    await db.run('INSERT INTO follows (followerId, followingId, createdAt) VALUES (?, ?, ?) RETURNING followerId', followerId, followingId, new Date().toISOString());
+    shouldFollow = !existing;
+  }
+
+  if (shouldFollow) {
+    if (!existing) {
+      if (db.isPostgres) {
+        await db.run('INSERT INTO follows (followerId, followingId, createdAt) VALUES (?, ?, ?) ON CONFLICT (followerId, followingId) DO NOTHING', followerId, followingId, new Date().toISOString());
+      } else {
+        await db.run('INSERT OR IGNORE INTO follows (followerId, followingId, createdAt) VALUES (?, ?, ?)', followerId, followingId, new Date().toISOString());
+      }
+    }
+  } else {
+    if (existing) {
+      await db.run('DELETE FROM follows WHERE followerId = ? AND followingId = ?', followerId, followingId);
+    }
   }
 
   const countRow = await db.get('SELECT COUNT(*) AS c FROM follows WHERE followingId = ?', followingId);
   const followersCount = Number(countRow?.c || countRow?.count || 0);
-  res.json({ isFollowing: !existing, followersCount });
+  res.json({ isFollowing: shouldFollow, followersCount });
 });
 
 // List followers of a student
@@ -2492,6 +3196,20 @@ function resolveStatus({ timedOut, isCompileError, success, hasNoPublicClass }) 
 }
 
 app.post('/api/compile', async (req, res) => {
+  const runnerUrl = process.env.ISOLATED_RUNNER_URL;
+  const allowLocal = process.env.ENABLE_LOCAL_COMPILER === 'true';
+
+  if (!runnerUrl && !allowLocal) {
+    return res.status(503).json({
+      success: false,
+      stdout: '',
+      stderr: 'The direct server compiler is disabled by default for security. An isolated runner sandbox is required.',
+      error: 'Compiler service unavailable.',
+      status: 'Unavailable',
+      executionTime: 0
+    });
+  }
+
   const clientIp = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
   if (isRateLimited(clientIp)) {
     return res.status(429).json({
@@ -2501,7 +3219,7 @@ app.post('/api/compile', async (req, res) => {
     });
   }
 
-  const { language, code, input } = req.body;
+  const { language, code, input } = req.body || {};
 
   if (!language || !code) {
     return res.status(400).json({
@@ -2511,10 +3229,6 @@ app.post('/api/compile', async (req, res) => {
     });
   }
 
-  const { spawn } = require('child_process');
-  const { randomUUID } = require('crypto');
-  const fs = require('fs');
-
   const SUPPORTED = ['java', 'c', 'cpp', 'python'];
   if (!SUPPORTED.includes(language)) {
     return res.status(400).json({
@@ -2523,6 +3237,45 @@ app.post('/api/compile', async (req, res) => {
       status: 'Error', executionTime: 0
     });
   }
+
+  // Forward to isolated runner sandbox if configured
+  if (runnerUrl) {
+    try {
+      const runnerRes = await fetch(runnerUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ language, code, input: input || '' }),
+        signal: AbortSignal.timeout(15000)
+      });
+      const data = await runnerRes.json();
+      return res.status(runnerRes.status).json(data);
+    } catch (err) {
+      return res.status(502).json({
+        success: false,
+        stdout: '',
+        stderr: '',
+        error: `Isolated compiler runner error: ${err.message}`,
+        status: 'Error',
+        executionTime: 0
+      });
+    }
+  }
+
+  // Local child-process execution ONLY permitted if ENABLE_LOCAL_COMPILER === 'true'
+  if (!allowLocal) {
+    return res.status(503).json({
+      success: false,
+      stdout: '',
+      stderr: 'Local compilation execution is disabled.',
+      error: 'Compiler service unavailable.',
+      status: 'Unavailable',
+      executionTime: 0
+    });
+  }
+
+  const { spawn } = require('child_process');
+  const { randomUUID } = require('crypto');
+  const fs = require('fs');
 
   // Per-submission isolated temp directory
   const scratchBase = path.join(__dirname, 'scratch');
@@ -2724,6 +3477,17 @@ function setupCompilerWebSocket(server) {
   const OUTPUT_LIMIT_BYTES = 524288; // 512 KB output cap
 
   wss.on('connection', (ws, req) => {
+    const allowLocal = process.env.ENABLE_LOCAL_COMPILER === 'true';
+    if (!allowLocal) {
+      ws.send(JSON.stringify({
+        type: 'stderr',
+        data: '\r\n\x1b[33m[Compiler runner is currently disabled for maintenance. An isolated runner sandbox is required.]\x1b[0m\r\n'
+      }));
+      ws.send(JSON.stringify({ type: 'exit', code: 1, error: 'Compiler service unavailable' }));
+      ws.close(1000, 'Compiler service unavailable');
+      return;
+    }
+
     const clientIp = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
 
     let sessions = activeSessionsByIp.get(clientIp);
@@ -3022,14 +3786,43 @@ app.use((req, res) => {
   res.status(404).type('txt').send('Resource not found');
 });
 
+// Global JSON Error Handler (must be last middleware)
+app.use((err, req, res, next) => {
+  if (res.headersSent) {
+    return next(err);
+  }
+  const status = err.status || err.statusCode || 500;
+  if (status >= 500) {
+    console.error('[Unhandled Internal Error]:', err.message || err);
+  }
+  if (req.path.startsWith('/api/')) {
+    return res.status(status).json({
+      message: status >= 500 ? 'An unexpected internal error occurred.' : (err.message || 'An error occurred.')
+    });
+  }
+  res.status(status).send('An unexpected error occurred.');
+});
+
 const http = require('http');
 const server = http.createServer(app);
 setupCompilerWebSocket(server);
 
 if (require.main === module) {
   const PORT = process.env.PORT || 3000;
-  server.listen(PORT, () => {
+  const HOST = process.env.HOST || '0.0.0.0';
+  server.listen(PORT, HOST, () => {
     console.log(`Semester Library server running at http://localhost:${PORT}`);
+    try {
+      const os = require('os');
+      const nets = os.networkInterfaces();
+      for (const name of Object.keys(nets)) {
+        for (const net of nets[name]) {
+          if (net.family === 'IPv4' && !net.internal) {
+            console.log(`  LAN URL (for phone/Expo): http://${net.address}:${PORT}`);
+          }
+        }
+      }
+    } catch (e) {}
   });
 }
 

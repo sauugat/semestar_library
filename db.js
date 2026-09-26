@@ -21,8 +21,9 @@ try {
   }
 } catch (e) { }
 
-const isPostgres = !!(process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.PGHOST);
-const isTurso = !!(process.env.TURSO_DATABASE_URL || process.env.LIBSQL_URL);
+const isTest = process.env.NODE_ENV === 'test';
+const isPostgres = !isTest && !!(process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.PGHOST);
+const isTurso = !isTest && !!(process.env.TURSO_DATABASE_URL || process.env.LIBSQL_URL);
 
 let pgPool = null;
 let libsqlClient = null;
@@ -49,8 +50,8 @@ if (isPostgres) {
     dbUrl = process.env.TURSO_DATABASE_URL || process.env.LIBSQL_URL;
     console.log('[DB Engine]: Connected to Turso/LibSQL Database');
   } else {
-    const dbPath = process.env.VERCEL ? path.join('/tmp', 'database.db') : path.join(__dirname, 'database.db');
-    dbUrl = `file:${dbPath}`;
+    const dbPath = process.env.DB_PATH || (process.env.VERCEL ? path.join('/tmp', 'database.db') : path.join(__dirname, 'database.db'));
+    dbUrl = dbPath === ':memory:' ? ':memory:' : `file:${dbPath}`;
     console.log(`[DB Engine]: Connected to local SQLite database at ${dbUrl}`);
   }
 
@@ -97,7 +98,11 @@ const camelMap = {
   questiontitle: 'questionTitle', questionlanguage: 'questionLanguage', testcasecount: 'testCaseCount',
   expectedoutput: 'expectedOutput', testresults: 'testResults',
   maxpoints: 'maxPoints', marksobtained: 'marksObtained',
-  gradedby: 'gradedBy', gradedat: 'gradedAt', updatedat: 'updatedAt'
+  gradedby: 'gradedBy', gradedat: 'gradedAt', updatedat: 'updatedAt',
+  pdfurl: 'pdfUrl', pdfname: 'pdfName',
+  submissioncount: 'submissionCount', mysubmissioncount: 'mySubmissionCount',
+  ischecked: 'isChecked', isreleased: 'isReleased', feedbacktext: 'feedbackText',
+  pinnedby: 'pinnedBy', pinnedat: 'pinnedAt', is_official: 'is_official'
 };
 
 function formatRow(row) {
@@ -114,6 +119,7 @@ function formatRows(rows) {
   if (!rows) return rows;
   return rows.map(formatRow);
 }
+
 
 async function query(sql, ...params) {
   const normParams = normalizeParams(params);
@@ -162,7 +168,7 @@ async function run(sql, ...params) {
     const hasReturning = /RETURNING/i.test(sql);
 
     if (isInsert && !hasReturning) {
-      const noIdTables = ['chat_read_receipts', 'chat_typing', 'file_likes', 'follows', 'chat_reactions', 'students', 'submissions', 'submission_events', 'post_likes', 'post_submissions'];
+      const noIdTables = ['chat_read_receipts', 'chat_typing', 'file_likes', 'follows', 'chat_reactions', 'students', 'submissions', 'submission_events', 'post_likes', 'post_submissions', 'mobile_tokens', 'login_attempts'];
       const isNoIdTable = noIdTables.some(tbl => new RegExp(`INSERT\\s+INTO\\s+${tbl}\\b`, 'i').test(sql));
       if (!isNoIdTable) {
         pgSql += ' RETURNING id';
@@ -231,7 +237,7 @@ async function withTransaction(callback) {
   const client = isPostgres ? await pgPool.connect() : await libsqlClient.transaction('write');
   try {
     if (isPostgres) await client.query('BEGIN');
-    const result = await callback(createTransactionAdapter(client, isPostgres));
+    const result = await callback(createTransactionAdapter(client, isPostgres, formatRow, formatRows));
     if (isPostgres) await client.query('COMMIT');
     else await client.commit();
     return result;
@@ -244,6 +250,7 @@ async function withTransaction(callback) {
     else client.close();
   }
 }
+
 
 async function close() {
   if (pgPool) await pgPool.end();
@@ -451,8 +458,18 @@ async function initSchema() {
             stderr TEXT,
             testResults TEXT,
             submittedAt TIMESTAMPTZ NOT NULL,
-            UNIQUE(assignmentId, studentId)
+            UNIQUE(assignmentId, studentId, questionId)
           );
+
+          CREATE TABLE IF NOT EXISTS chat_pinned (
+            id INTEGER PRIMARY KEY,
+            messageId INTEGER NOT NULL REFERENCES chat_messages(id) ON DELETE CASCADE,
+            text TEXT,
+            senderName TEXT,
+            pinnedBy TEXT,
+            pinnedAt TIMESTAMPTZ NOT NULL
+          );
+
           CREATE TABLE IF NOT EXISTS submission_events (
   id SERIAL PRIMARY KEY,
   assignmentId INTEGER NOT NULL REFERENCES assignments(id) ON DELETE CASCADE,
@@ -482,6 +499,23 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
             CONSTRAINT "session_pkey" PRIMARY KEY ("sid")
           );
           CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
+
+          CREATE TABLE IF NOT EXISTS login_attempts (
+            ip TEXT PRIMARY KEY,
+            attemptCount INTEGER DEFAULT 0,
+            lockedUntil TIMESTAMPTZ,
+            lastAttemptAt TIMESTAMPTZ NOT NULL
+          );
+          CREATE INDEX IF NOT EXISTS idx_login_attempts_locked ON login_attempts (lockedUntil);
+
+          CREATE TABLE IF NOT EXISTS mobile_tokens (
+            token TEXT PRIMARY KEY,
+            studentId TEXT NOT NULL REFERENCES students(studentId) ON DELETE CASCADE,
+            createdAt TIMESTAMPTZ NOT NULL,
+            expiresAt TIMESTAMPTZ NOT NULL
+          );
+          CREATE INDEX IF NOT EXISTS idx_mobile_tokens_expires ON mobile_tokens (expiresAt);
+          CREATE INDEX IF NOT EXISTS idx_mobile_tokens_student ON mobile_tokens (studentId);
         `);
       } else {
         await exec(`
@@ -643,8 +677,26 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
             FOREIGN KEY (assignmentId) REFERENCES assignments(id),
             FOREIGN KEY (questionId) REFERENCES assignment_questions(id),
             FOREIGN KEY (studentId) REFERENCES students(studentId),
-            UNIQUE(assignmentId, studentId)
+            UNIQUE(assignmentId, studentId, questionId)
           ); 
+
+          CREATE TABLE IF NOT EXISTS session (
+            sid TEXT PRIMARY KEY,
+            sess TEXT NOT NULL,
+            expire TEXT NOT NULL
+          );
+          CREATE INDEX IF NOT EXISTS idx_session_expire ON session (expire);
+
+          CREATE TABLE IF NOT EXISTS chat_pinned (
+            id INTEGER PRIMARY KEY,
+            messageId INTEGER NOT NULL,
+            text TEXT,
+            senderName TEXT,
+            pinnedBy TEXT,
+            pinnedAt TEXT NOT NULL,
+            FOREIGN KEY (messageId) REFERENCES chat_messages(id)
+          );
+
           CREATE TABLE IF NOT EXISTS submission_events (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   assignmentId INTEGER NOT NULL,
@@ -669,8 +721,29 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
             FOREIGN KEY (questionId) REFERENCES assignment_questions(id) ON DELETE CASCADE
           );
           CREATE INDEX IF NOT EXISTS idx_test_cases_question ON question_test_cases (questionId);
+
+          CREATE TABLE IF NOT EXISTS login_attempts (
+            ip TEXT PRIMARY KEY,
+            attemptCount INTEGER DEFAULT 0,
+            lockedUntil TEXT,
+            lastAttemptAt TEXT NOT NULL
+          );
+          CREATE INDEX IF NOT EXISTS idx_login_attempts_locked ON login_attempts (lockedUntil);
+
+          CREATE UNIQUE INDEX IF NOT EXISTS idx_submissions_question ON submissions (assignmentId, studentId, questionId) WHERE questionId IS NOT NULL;
+          CREATE UNIQUE INDEX IF NOT EXISTS idx_submissions_legacy ON submissions (assignmentId, studentId) WHERE questionId IS NULL;
+
+          CREATE TABLE IF NOT EXISTS mobile_tokens (
+            token TEXT PRIMARY KEY,
+            studentId TEXT NOT NULL REFERENCES students(studentId) ON DELETE CASCADE,
+            createdAt TEXT NOT NULL,
+            expiresAt TEXT NOT NULL
+          );
+          CREATE INDEX IF NOT EXISTS idx_mobile_tokens_expires ON mobile_tokens (expiresAt);
+          CREATE INDEX IF NOT EXISTS idx_mobile_tokens_student ON mobile_tokens (studentId);
         `);
       }
+
 
       await require('./lib/posts').ensurePostsSchema({ exec, isPostgres });
 
@@ -716,8 +789,13 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
           await exec(`CREATE INDEX IF NOT EXISTS idx_submission_grades_lookup ON submission_grades(questionId, studentId);`);
 
           try {
-            await exec(`ALTER TABLE submissions DROP CONSTRAINT IF EXISTS submissions_unique;`);
-            await exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_submissions_q_student ON submissions(questionId, studentId) WHERE questionId IS NOT NULL;`);
+            await exec(`
+              ALTER TABLE submissions DROP CONSTRAINT IF EXISTS submissions_unique;
+              ALTER TABLE submissions DROP CONSTRAINT IF EXISTS submissions_assignmentid_studentid_key;
+              ALTER TABLE submissions DROP CONSTRAINT IF EXISTS submissions_assignmentId_studentId_key;
+              CREATE UNIQUE INDEX IF NOT EXISTS idx_submissions_question ON submissions (assignmentId, studentId, questionId) WHERE questionId IS NOT NULL;
+              CREATE UNIQUE INDEX IF NOT EXISTS idx_submissions_legacy ON submissions (assignmentId, studentId) WHERE questionId IS NULL;
+            `);
           } catch (constraintErr) {
             console.error('[DB Engine]: Constraint migration warning:', constraintErr.message);
           }
@@ -774,7 +852,41 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
             UNIQUE(questionId, studentId)
           );`);
           await exec(`CREATE INDEX IF NOT EXISTS idx_submission_grades_lookup ON submission_grades(questionId, studentId);`);
+
+          const subTable = await get("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'submissions'");
+          if (subTable && subTable.sql && /UNIQUE\s*\(\s*assignmentId\s*,\s*studentId\s*\)/i.test(subTable.sql)) {
+            console.log('[DB Engine]: Migrating SQLite submissions to allow multiple questions per assignment...');
+            await exec(`
+              CREATE TABLE submissions_migrated (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                assignmentId INTEGER NOT NULL,
+                questionId INTEGER,
+                studentId TEXT NOT NULL,
+                code TEXT NOT NULL,
+                stdout TEXT,
+                stderr TEXT,
+                testResults TEXT,
+                questionTitle TEXT,
+                submittedAt TEXT NOT NULL,
+                FOREIGN KEY (assignmentId) REFERENCES assignments(id),
+                FOREIGN KEY (questionId) REFERENCES assignment_questions(id),
+                FOREIGN KEY (studentId) REFERENCES students(studentId),
+                UNIQUE(assignmentId, studentId, questionId)
+              );
+              INSERT INTO submissions_migrated (id, assignmentId, questionId, studentId, code, stdout, stderr, testResults, questionTitle, submittedAt)
+                SELECT id, assignmentId, questionId, studentId, code, stdout, stderr, testResults, questionTitle, submittedAt FROM submissions;
+              DROP TABLE submissions;
+              ALTER TABLE submissions_migrated RENAME TO submissions;
+            `);
+            console.log('[DB Engine]: SQLite submissions migration complete.');
+          }
+
+          await exec(`
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_submissions_question ON submissions (assignmentId, studentId, questionId) WHERE questionId IS NOT NULL;
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_submissions_legacy ON submissions (assignmentId, studentId) WHERE questionId IS NULL;
+          `);
         }
+
       } catch (alterErr) {
         console.error('[DB Engine]: Column migration warning:', alterErr.message);
       }
@@ -834,24 +946,28 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
       const studentCount = Number(countRow?.c || countRow?.count || 0);
 
       if (studentCount === 0) {
-        console.log('[DB Engine]: Fresh database detected. Seeding 60 student accounts...');
-        for (const s of DEFAULT_STUDENTS) {
-          const hash = bcrypt.hashSync(s.password, 10);
-          const role = s.role || 'student';
-          if (isPostgres) {
-            await run(
-              `INSERT INTO students (studentId, name, passwordHash, role) VALUES (?, ?, ?, ?)
-               ON CONFLICT (studentId) DO UPDATE SET name = EXCLUDED.name, passwordHash = EXCLUDED.passwordHash, role = EXCLUDED.role`,
-              s.studentId, s.name, hash, role
-            );
-          } else {
-            await run(
-              `INSERT OR REPLACE INTO students (studentId, name, passwordHash, role) VALUES (?, ?, ?, ?)`,
-              s.studentId, s.name, hash, role
-            );
+        if (process.env.NODE_ENV === 'production') {
+          console.log('[DB Engine]: Fresh database detected in production. Skipping automatic default student seeding.');
+        } else {
+          console.log('[DB Engine]: Fresh database detected. Seeding student accounts...');
+          for (const s of DEFAULT_STUDENTS) {
+            const hash = bcrypt.hashSync(s.password, 10);
+            const role = s.role || 'student';
+            if (isPostgres) {
+              await run(
+                `INSERT INTO students (studentId, name, passwordHash, role) VALUES (?, ?, ?, ?)
+                 ON CONFLICT (studentId) DO UPDATE SET name = EXCLUDED.name, passwordHash = EXCLUDED.passwordHash, role = EXCLUDED.role`,
+                s.studentId, s.name, hash, role
+              );
+            } else {
+              await run(
+                `INSERT OR REPLACE INTO students (studentId, name, passwordHash, role) VALUES (?, ?, ?, ?)`,
+                s.studentId, s.name, hash, role
+              );
+            }
           }
+          console.log('[DB Engine]: Seeding complete!');
         }
-        console.log('[DB Engine]: Seeding complete!');
       }
 
       await require('./lib/routine').ensureRoutineSchema({ exec, isPostgres });
@@ -913,6 +1029,31 @@ async function deleteFileBlob(filename) {
   }
 }
 
+async function cleanupExpiredMobileTokens() {
+  try {
+    if (isPostgres) {
+      await run('DELETE FROM mobile_tokens WHERE expiresAt < CURRENT_TIMESTAMP');
+    } else {
+      await run("DELETE FROM mobile_tokens WHERE expiresAt < datetime('now')");
+    }
+  } catch (err) {
+    // Ignore if mobile_tokens table not ready
+  }
+}
+
+async function cleanupExpiredSessions() {
+  try {
+    if (isPostgres) {
+      await run('DELETE FROM session WHERE expire < CURRENT_TIMESTAMP');
+    } else {
+      await run("DELETE FROM session WHERE expire < datetime('now')");
+    }
+  } catch (err) {
+    // Ignore if session table not ready
+  }
+  await cleanupExpiredMobileTokens();
+}
+
 if (process.env.SEMESTER_DB_SKIP_INIT !== '1') {
   initSchema().catch(err => console.error('[DB Engine]: Schema init fatal error:', err));
 }
@@ -931,7 +1072,12 @@ module.exports = {
   saveFileBlob,
   getFileBlob,
   deleteFileBlob,
+  cleanupExpiredSessions,
+  cleanupExpiredMobileTokens,
+  formatRow,
+  formatRows,
   isPostgres,
   isTurso,
   pgPool
 };
+

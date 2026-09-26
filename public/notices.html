@@ -55,29 +55,83 @@
       </div>
     </header>
 
-    <section class="syllabus-content-area" style="max-width: 800px;">
-      <div class="detail-section-card">
-        <div class="section-card-header">
-          <h3>Semester Exam Registration & Form Submission Deadline</h3>
-        </div>
-        <p class="section-body-text">
-          <strong>CIRCULAR #2025-08</strong><br><br>
-          All students of the BIT program are requested to complete their examination registration forms before the final deadline. Late submissions will incur additional fees.
-        </p>
+    <section class="syllabus-content-area" id="noticesContainer" style="max-width: 800px;">
+      <div class="detail-section-card" id="noticesLoading">
+        <p class="section-body-text" style="color: var(--text-secondary, #888);">Loading official notices…</p>
       </div>
-
-      <div class="detail-section-card" style="margin-top: 20px;">
-        <div class="section-card-header">
-          <h3>Academic Calendar Updates</h3>
-        </div>
-        <p class="section-body-text">
-          <strong>CIRCULAR #2025-07</strong><br><br>
-          The academic calendar for the upcoming semester has been revised. Classes for all semesters will commence from the first week of next month. Please refer to the updated routine.
-        </p>
-      </div>
-      
     </section>
   </main>
+
+  <script>
+    async function loadOfficialNotices() {
+      const container = document.getElementById('noticesContainer');
+      try {
+        const res = await fetch('/api/posts?type=notice&official=true');
+        if (res.status === 401) {
+          container.innerHTML = `
+            <div class="detail-section-card">
+              <div class="section-card-header">
+                <h3>Official Notices</h3>
+              </div>
+              <p class="section-body-text" style="color: var(--text-secondary, #888);">
+                Please sign in to view official notices and academic circulars.
+              </p>
+            </div>
+          `;
+          return;
+        }
+        if (!res.ok) throw new Error('Failed to load notices');
+        const data = await res.json();
+        const notices = (data.posts || []).filter(p => p.type === 'notice');
+        if (notices.length === 0) {
+          container.innerHTML = `
+            <div class="detail-section-card">
+              <div class="section-card-header">
+                <h3>No Notices Available</h3>
+              </div>
+              <p class="section-body-text" style="color: var(--text-secondary, #888);">
+                There are no official notices published at this moment. New announcements from university administration and CRs will appear here.
+              </p>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = notices.map(n => {
+          const dateStr = n.created_at ? new Date(n.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '';
+          const authorRole = (n.role || 'official').toUpperCase();
+          const authorName = n.name || 'Administration';
+          return `
+            <div class="detail-section-card" style="margin-bottom: 20px;">
+              <div class="section-card-header" style="display: flex; justify-content: space-between; align-items: baseline;">
+                <h3>${escapeHtml(n.content.split('\n')[0].substring(0, 100))}</h3>
+                <span style="font-size: 12px; color: var(--text-secondary, #888);">${dateStr}</span>
+              </div>
+              <p class="section-body-text" style="white-space: pre-wrap; margin-top: 12px;">${escapeHtml(n.content)}</p>
+              <div style="margin-top: 14px; font-size: 13px; color: var(--text-secondary, #888);">
+                Published by <strong>${escapeHtml(authorName)}</strong> <span style="background: rgba(99, 102, 241, 0.15); color: #818cf8; padding: 2px 8px; border-radius: 999px; font-size: 11px; margin-left: 6px;">${escapeHtml(authorRole)}</span>
+              </div>
+              ${n.attachment_url ? `<div style="margin-top: 12px;"><a href="${encodeURI(n.attachment_url)}" target="_blank" rel="noopener noreferrer" style="color: #6366f1; text-decoration: underline; font-size: 13px;">View Attachment</a></div>` : ''}
+            </div>
+          `;
+        }).join('');
+      } catch (err) {
+        container.innerHTML = `
+          <div class="detail-section-card">
+            <p class="section-body-text" style="color: #ef4444;">Could not load notices. Please refresh to try again.</p>
+          </div>
+        `;
+      }
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    window.addEventListener('DOMContentLoaded', loadOfficialNotices);
+  </script>
+
 
   <footer class="app-global-footer">
     <div class="app-footer-inner">

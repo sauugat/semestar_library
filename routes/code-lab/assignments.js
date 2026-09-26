@@ -68,7 +68,17 @@ router.post('/upload-assignment-pdf', requireLogin, async (req, res) => {
         try {
             const filePath = req.file.path;
             const buffer = fs.readFileSync(filePath);
-            await db.saveFileBlob(req.file.filename, buffer, 'application/pdf');
+            // Validate PDF magic bytes: %PDF- (0x25, 0x50, 0x44, 0x46, 0x2D)
+            if (buffer.length < 5 || buffer.toString('utf8', 0, 5) !== '%PDF-') {
+                try { fs.unlinkSync(filePath); } catch (_) {}
+                return res.status(400).json({ message: 'Uploaded file is not a valid PDF document.' });
+            }
+
+            const saved = await db.saveFileBlob(req.file.filename, buffer, 'application/pdf');
+            if (!saved) {
+                try { fs.unlinkSync(filePath); } catch (_) {}
+                return res.status(500).json({ message: 'Failed to save uploaded PDF.' });
+            }
 
             return res.json({
                 success: true,
@@ -77,6 +87,7 @@ router.post('/upload-assignment-pdf', requireLogin, async (req, res) => {
                 filename: req.file.filename
             });
         } catch (saveErr) {
+            try { if (req.file) fs.unlinkSync(req.file.path); } catch (_) {}
             console.error('[Code Lab] PDF Blob Save Error:', saveErr);
             return res.status(500).json({ message: 'Failed to save uploaded PDF.' });
         }
@@ -86,6 +97,14 @@ router.post('/upload-assignment-pdf', requireLogin, async (req, res) => {
 // ── GET /pdf/:filename — stream assignment PDF inline for viewer ────────────
 router.get('/pdf/:filename', async (req, res) => {
     const filename = path.basename(req.params.filename);
+
+    // Verify this filename is actually referenced by an assignment
+    const assignment = await db.get('SELECT id FROM assignments WHERE pdfUrl LIKE ? OR pdfName = ?', `%${filename}`, filename);
+    const adminCheck = req.session && req.session.studentId ? await isAdmin(req.session.studentId) : false;
+    if (!assignment && !adminCheck) {
+        return res.status(404).json({ message: 'Assignment PDF not found.' });
+    }
+
     const localPath = path.join(UPLOAD_DIR, filename);
 
     if (!fs.existsSync(localPath)) {
@@ -104,7 +123,20 @@ router.get('/pdf/:filename', async (req, res) => {
         return res.status(404).json({ message: 'Assignment PDF not found.' });
     }
 
+    // Double-check file magic bytes before serving
+    try {
+        const header = Buffer.alloc(5);
+        const fd = fs.openSync(localPath, 'r');
+        fs.readSync(fd, header, 0, 5, 0);
+        fs.closeSync(fd);
+        if (header.toString('utf8', 0, 5) !== '%PDF-') {
+            return res.status(403).json({ message: 'File is not a valid PDF.' });
+        }
+    } catch (_) {}
+
     res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'; style-src 'unsafe-inline'");
     res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(filename)}"`);
     res.sendFile(localPath);
 });
@@ -206,60 +238,68 @@ router.post('/assignments', requireLogin, async (req, res) => {
     const now = new Date().toISOString();
     const effectiveLanguage = finalQuestions[0].language || language || 'c';
 
-    // Use first question's description/language as fallback for the legacy columns
-    const result = await db.run(
-        'INSERT INTO assignments (title, description, language, subject, semester, deadline, pdfUrl, pdfName, createdBy, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        title,
-        finalQuestions[0].description ? finalQuestions[0].description.trim() : '',
-        effectiveLanguage,
-        subject || null,
-        semester || null,
-        deadline || null,
-        pdfUrl || null,
-        pdfName || null,
-        req.session.studentId,
-        now
-    );
+    // Atomically create assignment, questions and test cases in a database transaction
+    try {
+        const { assignmentId, questionIds } = await db.withTransaction(async (tx) => {
+            const result = await tx.run(
+                'INSERT INTO assignments (title, description, language, subject, semester, deadline, pdfUrl, pdfName, createdBy, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                title,
+                finalQuestions[0].description ? finalQuestions[0].description.trim() : '',
+                effectiveLanguage,
+                subject || null,
+                semester || null,
+                deadline || null,
+                pdfUrl || null,
+                pdfName || null,
+                req.session.studentId,
+                now
+            );
 
-    const assignmentId = result.lastInsertRowid;
+            const aId = result.lastInsertRowid;
+            const qIds = [];
 
-    // Create question rows
-    const questionIds = [];
-    for (let i = 0; i < finalQuestions.length; i++) {
-        const q = finalQuestions[i];
-        const maxPts = (q.maxPoints !== undefined && q.maxPoints !== null && !isNaN(Number(q.maxPoints)) && Number(q.maxPoints) > 0)
-            ? Math.floor(Number(q.maxPoints))
-            : 10;
-        const qResult = await db.run(
-            'INSERT INTO assignment_questions (assignmentId, questionNumber, title, description, language, maxPoints, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            assignmentId,
-            i + 1,
-            q.title.trim(),
-            q.description ? q.description.trim() : '',
-            q.language || language || 'c',
-            maxPts,
-            now
-        );
-        const qId = qResult.lastInsertRowid;
-        questionIds.push(qId);
+            // Create question rows
+            for (let i = 0; i < finalQuestions.length; i++) {
+                const q = finalQuestions[i];
+                const maxPts = (q.maxPoints !== undefined && q.maxPoints !== null && !isNaN(Number(q.maxPoints)) && Number(q.maxPoints) > 0)
+                    ? Math.floor(Number(q.maxPoints))
+                    : 10;
+                const qResult = await tx.run(
+                    'INSERT INTO assignment_questions (assignmentId, questionNumber, title, description, language, maxPoints, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                    aId,
+                    i + 1,
+                    q.title.trim(),
+                    q.description ? q.description.trim() : '',
+                    q.language || language || 'c',
+                    maxPts,
+                    now
+                );
+                const qId = qResult.lastInsertRowid;
+                qIds.push(qId);
 
-        // Save optional test cases passed during creation
-        if (Array.isArray(q.testCases) && q.testCases.length > 0) {
-            for (const tc of q.testCases) {
-                if (tc && tc.expectedOutput != null && String(tc.expectedOutput).trim().length > 0) {
-                    await db.run(
-                        'INSERT INTO question_test_cases (questionId, input, expectedOutput, createdAt) VALUES (?, ?, ?, ?)',
-                        qId,
-                        tc.input != null ? String(tc.input) : '',
-                        String(tc.expectedOutput).trim(),
-                        now
-                    );
+                // Save optional test cases passed during creation
+                if (Array.isArray(q.testCases) && q.testCases.length > 0) {
+                    for (const tc of q.testCases) {
+                        if (tc && tc.expectedOutput != null && String(tc.expectedOutput).trim().length > 0) {
+                            await tx.run(
+                                'INSERT INTO question_test_cases (questionId, input, expectedOutput, createdAt) VALUES (?, ?, ?, ?)',
+                                qId,
+                                tc.input != null ? String(tc.input) : '',
+                                String(tc.expectedOutput).trim(),
+                                now
+                            );
+                        }
+                    }
                 }
             }
-        }
-    }
+            return { assignmentId: aId, questionIds: qIds };
+        });
 
-    res.json({ message: 'Assignment created', id: assignmentId, questionIds });
+        res.json({ message: 'Assignment created', id: assignmentId, questionIds });
+    } catch (err) {
+        console.error('[Code Lab] Assignment creation transaction error:', err);
+        res.status(500).json({ message: 'Failed to create assignment.' });
+    }
 });
 
 // ── GET /assignments — list with optional subject/semester filtering ─────────
@@ -384,6 +424,17 @@ router.delete('/assignments/:id', requireLogin, async (req, res) => {
             return res.status(403).json({ message: 'You are not authorized to delete this assignment.' });
         }
 
+        // Clean up associated PDF file and blob if present
+        const pdfUrl = assignment.pdfUrl || assignment.pdfurl;
+        if (pdfUrl) {
+            const pdfFilename = path.basename(pdfUrl);
+            const localPdf = path.join(UPLOAD_DIR, pdfFilename);
+            if (fs.existsSync(localPdf)) {
+                try { fs.unlinkSync(localPdf); } catch (_) {}
+            }
+            try { await db.deleteFileBlob(pdfFilename); } catch (_) {}
+        }
+
         // Delete associated records in cascade order
         await db.run('DELETE FROM submission_events WHERE assignmentId = ?', assignmentId);
         await db.run('DELETE FROM submissions WHERE assignmentId = ?', assignmentId);
@@ -506,32 +557,22 @@ router.post('/questions/:questionId/submissions', requireLogin, async (req, res)
         }
         const testResultsJson = testResults ? JSON.stringify(testResults) : null;
 
-        // Upsert submission
-        const existing = await db.get(
-            'SELECT id, questionTitle FROM submissions WHERE questionId = ? AND studentId = ?',
-            questionId, req.session.studentId
-        );
+        // Atomic upsert compatible with partial unique index
+        await db.run(`
+            INSERT INTO submissions (assignmentId, questionId, studentId, code, stdout, stderr, testResults, questionTitle, submittedAt)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT (assignmentId, studentId, questionId) WHERE questionId IS NOT NULL
+            DO UPDATE SET
+                code = excluded.code,
+                stdout = excluded.stdout,
+                stderr = excluded.stderr,
+                testResults = excluded.testResults,
+                questionTitle = COALESCE(excluded.questionTitle, submissions.questionTitle),
+                submittedAt = excluded.submittedAt
+        `, question.assignmentId, questionId, req.session.studentId, code, stdout || '', stderr || '', testResultsJson, safeTitle || null, now);
 
-        const finalTitle = safeTitle || (existing ? existing.questionTitle : null);
-
-        if (existing) {
-            await db.run(
-                'UPDATE submissions SET code = ?, stdout = ?, stderr = ?, testResults = ?, questionTitle = ?, submittedAt = ? WHERE id = ?',
-                code, stdout || '', stderr || '', testResultsJson, finalTitle, now, existing.id
-            );
-        } else {
-            await db.run(
-                'INSERT INTO submissions (assignmentId, questionId, studentId, code, stdout, stderr, testResults, questionTitle, submittedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                question.assignmentId, questionId, req.session.studentId, code, stdout || '', stderr || '', testResultsJson, finalTitle, now
-            );
-        }
-
-        // If student supplied a custom question title, update the question record title as well
-        if (safeTitle) {
-            try {
-                await db.run('UPDATE assignment_questions SET title = ? WHERE id = ?', safeTitle, questionId);
-            } catch (_) {}
-        }
+        // Note: Students retain their custom question title in their submission record,
+        // but shared assignment_questions.title is preserved to protect all other students.
 
         res.json({ message: 'Submitted successfully', testResults, questionTitle: finalTitle });
     } catch (err) {
@@ -551,6 +592,11 @@ router.post('/assignments/:id/student-questions', requireLogin, async (req, res)
         const assignment = await db.get('SELECT * FROM assignments WHERE id = ?', assignmentId);
         if (!assignment) {
             return res.status(404).json({ message: 'Assignment not found.' });
+        }
+
+        const admin = await isAdmin(req.session.studentId);
+        if (!admin && assignment.createdBy !== req.session.studentId) {
+            return res.status(403).json({ message: 'Only admins or the assignment creator can add questions.' });
         }
 
         const { title, language } = req.body;
@@ -618,20 +664,31 @@ router.post('/submissions', requireLogin, async (req, res) => {
         }
         const testResultsJson = testResults ? JSON.stringify(testResults) : null;
 
-        if (db.isPostgres) {
-            await db.run(
-                `INSERT INTO submissions (assignmentId, studentId, code, stdout, stderr, testResults, submittedAt) 
-           VALUES (?, ?, ?, ?, ?, ?, ?)
-           ON CONFLICT (assignmentId, studentId) 
-           DO UPDATE SET code = EXCLUDED.code, stdout = EXCLUDED.stdout, stderr = EXCLUDED.stderr, testResults = EXCLUDED.testResults, submittedAt = EXCLUDED.submittedAt`,
-                validAssignmentId, req.session.studentId, code, stdout || '', stderr || '', testResultsJson, now
-            );
+        const targetQId = firstQ ? firstQ.id : null;
+        if (targetQId) {
+            await db.run(`
+                INSERT INTO submissions (assignmentId, questionId, studentId, code, stdout, stderr, testResults, submittedAt)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT (assignmentId, studentId, questionId) WHERE questionId IS NOT NULL
+                DO UPDATE SET
+                    code = excluded.code,
+                    stdout = excluded.stdout,
+                    stderr = excluded.stderr,
+                    testResults = excluded.testResults,
+                    submittedAt = excluded.submittedAt
+            `, validAssignmentId, targetQId, req.session.studentId, code, stdout || '', stderr || '', testResultsJson, now);
         } else {
-            await db.run(
-                `INSERT OR REPLACE INTO submissions (assignmentId, studentId, code, stdout, stderr, testResults, submittedAt) 
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-                validAssignmentId, req.session.studentId, code, stdout || '', stderr || '', testResultsJson, now
-            );
+            await db.run(`
+                INSERT INTO submissions (assignmentId, questionId, studentId, code, stdout, stderr, testResults, submittedAt)
+                VALUES (?, NULL, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT (assignmentId, studentId) WHERE questionId IS NULL
+                DO UPDATE SET
+                    code = excluded.code,
+                    stdout = excluded.stdout,
+                    stderr = excluded.stderr,
+                    testResults = excluded.testResults,
+                    submittedAt = excluded.submittedAt
+            `, validAssignmentId, req.session.studentId, code, stdout || '', stderr || '', testResultsJson, now);
         }
 
         res.json({ message: 'Submitted successfully', testResults });

@@ -4453,10 +4453,31 @@
           const uploadedRecords = [];
           for (let i = 0; i < SELECTED_FILES.length; i++) {
             const file = SELECTED_FILES[i];
+            submitBtnText.textContent = `Authorizing (${i + 1}/${SELECTED_FILES.length}) ${file.name.substring(0, 16)}…`;
+            const authRes = await fetch('/api/files/authorize-upload', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                filename: file.name,
+                size: file.size,
+                mimeType: file.type || 'application/octet-stream'
+              })
+            });
+
+            if (authRes.status === 401) {
+              showAuthModal(true);
+              return;
+            }
+            if (!authRes.ok) {
+              const authErr = await authRes.json();
+              throw new Error(authErr.message || 'Server rejected file upload authorization.');
+            }
+
+            const authData = await authRes.json();
+            const storedName = authData.storedName;
+            const uploadToken = authData.token;
+
             submitBtnText.textContent = `Uploading (${i + 1}/${SELECTED_FILES.length}) ${file.name.substring(0, 16)}…`;
-            const ext = file.name.includes('.') ? file.name.substring(file.name.lastIndexOf('.')) : '';
-            const cleanBase = file.name.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 40);
-            const storedName = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}_${cleanBase}${ext}`;
 
             const { data: upData, error: upErr } = await supaClient.storage
               .from('library_files')
@@ -4469,6 +4490,7 @@
             const { data: pubData } = supaClient.storage.from('library_files').getPublicUrl(storedName);
             uploadedRecords.push({
               storedName,
+              token: uploadToken,
               originalName: file.name,
               size: file.size,
               mimeType: file.type || 'application/octet-stream',

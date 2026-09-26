@@ -1,0 +1,110 @@
+export const Colors = {
+  // Dark mode is the primary / default look (matching the website's dark-mode-first aesthetic)
+  dark: {
+    background: '#0a0a0a',
+    surface: '#171717',
+    surfaceRaised: '#242424',
+    surfaceSubtle: '#1f1f1f',
+    card: '#171717',
+    border: 'rgba(255, 255, 255, 0.09)',
+    borderStrong: '#404040',
+    text: '#f5f5f5',
+    textSecondary: '#b5b5b5',
+    textMuted: '#737373',
+    primary: '#f5f5f5',
+    primaryText: '#0a0a0a',
+    primaryLight: '#242424',
+    primaryDark: '#e5e5e5',
+    accent: '#f5f5f5',
+    tabIconDefault: '#737373',
+    tabIconSelected: '#f5f5f5',
+    liked: '#f5f5f5',
+    likedBg: '#242424',
+    success: '#f5f5f5',
+    successBg: '#242424',
+    warning: '#c7c7c7',
+    warningBg: '#242424',
+    error: '#e5e5e5',
+    errorBg: '#242424',
+  },
+  // Light monochrome variant
+  light: {
+    background: '#fafafa',
+    surface: '#ffffff',
+    surfaceRaised: '#f5f5f5',
+    surfaceSubtle: '#eeeeee',
+    card: '#ffffff',
+    border: 'rgba(0, 0, 0, 0.08)',
+    borderStrong: '#a3a3a3',
+    text: '#0a0a0a',
+    textSecondary: '#525252',
+    textMuted: '#8a8a8a',
+    primary: '#0a0a0a',
+    primaryText: '#ffffff',
+    primaryLight: '#f5f5f5',
+    primaryDark: '#171717',
+    accent: '#0a0a0a',
+    tabIconDefault: '#8a8a8a',
+    tabIconSelected: '#0a0a0a',
+    liked: '#0a0a0a',
+    likedBg: '#f5f5f5',
+    success: '#0a0a0a',
+    successBg: '#f5f5f5',
+    warning: '#525252',
+    warningBg: '#f5f5f5',
+    error: '#0a0a0a',
+    errorBg: '#f5f5f5',
+  },
+};
+
+export const Spacing = {
+  xs: 4,
+  sm: 8,
+  md: 16,
+  lg: 24,
+  xl: 32,
+  xxl: 48,
+};
+
+export const Typography = {
+  xs: { fontSize: 11, lineHeight: 14 },
+  sm: { fontSize: 13, lineHeight: 18 },
+  md: { fontSize: 15, lineHeight: 22 },
+  lg: { fontSize: 18, lineHeight: 26, fontWeight: '600' as const },
+  xl: { fontSize: 22, lineHeight: 30, fontWeight: '700' as const },
+  xxl: { fontSize: 28, lineHeight: 36, fontWeight: '800' as const },
+  hero: { fontSize: 34, lineHeight: 42, fontWeight: '800' as const },
+};
+
+export const Radii = {
+  sm: 6,
+  md: 10,
+  lg: 14,
+  xl: 20,
+  full: 9999,
+};
+
+export const Shadows = {
+  none: {},
+  subtle: {
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.25,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  card: {
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  glow: {
+    shadowColor: '#ffffff',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+};

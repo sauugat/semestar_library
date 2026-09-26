@@ -28,7 +28,8 @@ router.post('/run', async (req, res) => {
     const createResponse = await fetch('https://api.paiza.io/runners/create', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: params
+      body: params,
+      signal: AbortSignal.timeout(15000)
     });
 
     const createData = await createResponse.json();
@@ -42,7 +43,8 @@ router.post('/run', async (req, res) => {
     let details = null;
     for (let attempt = 0; attempt < 30; attempt += 1) {
       const detailsResponse = await fetch(
-        `https://api.paiza.io/runners/get_details?id=${encodeURIComponent(createData.id)}&api_key=guest`
+        `https://api.paiza.io/runners/get_details?id=${encodeURIComponent(createData.id)}&api_key=guest`,
+        { signal: AbortSignal.timeout(8000) }
       );
 
       if (!detailsResponse.ok) {

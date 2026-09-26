@@ -80,6 +80,7 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       ON sub.post_id = p.id AND p.type = 'assignment'`;
 
   function formatPost(post, req) {
+    const isOfficialNotice = post.type === 'notice' && ['admin', 'cr', 'teacher'].includes(post.role);
     return {
       ...post,
       id: Number(post.id),
@@ -92,21 +93,37 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       commentCount: Number(post.comment_count || 0),
       submittedCount: Number(post.submission_count),
       liked: Boolean(post.liked_by_me),
+      is_official: isOfficialNotice,
       canDelete: post.user_id === req.postUser?.studentId || req.postUser?.role === 'admin'
     };
   }
 
   router.get('/', async (req, res, next) => {
     try {
-      const { limit = '20', before } = req.query;
+      const { limit = '20', before, type, official } = req.query;
       if (!positiveId(limit) || Number(limit) > 100 || (before !== undefined && !positiveId(before))) {
         return res.status(400).json({ message: 'Use a limit from 1 to 100 and a positive before ID.' });
       }
+      if (type !== undefined && !['status', 'assignment', 'notice'].includes(type)) {
+        return res.status(400).json({ message: 'Invalid post type filter.' });
+      }
       const params = [req.session.studentId];
-      if (before !== undefined) params.push(Number(before));
+      const whereConditions = [];
+      if (before !== undefined) {
+        whereConditions.push('p.id < ?');
+        params.push(Number(before));
+      }
+      if (type !== undefined) {
+        whereConditions.push('p.type = ?');
+        params.push(type);
+      }
+      if (official === 'true') {
+        whereConditions.push("s.role IN ('admin', 'cr', 'teacher')");
+      }
+      const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
       params.push(Number(limit) + 1);
       const rows = await db.all(`${selectPosts}
-        ${before !== undefined ? 'WHERE p.id < ?' : ''} ORDER BY p.id DESC LIMIT ?`, ...params);
+        ${whereClause} ORDER BY p.id DESC LIMIT ?`, ...params);
       const hasMore = rows.length > Number(limit);
       const posts = rows.slice(0, Number(limit)).map(row => formatPost(row, req));
       res.setHeader('Cache-Control', 'no-store');
@@ -129,6 +146,12 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       }
       if (!['status', 'assignment', 'notice'].includes(type)) {
         return rejectPost('Choose status, assignment, or notice.');
+      }
+      const isOfficial = Boolean(req.body?.official === true || req.body?.official === 'true' || req.body?.is_official === true);
+      const isAuthorizedRole = ['admin', 'cr', 'teacher'].includes(req.postUser.role);
+      if (isOfficial && !isAuthorizedRole) {
+        if (req.file) await removeUploadedImage(req.file.path);
+        return res.status(403).json({ message: 'Only authorized roles (admin, CR, teacher) can publish official notices.' });
       }
       if (req.file) {
         attachment_url = `/uploads/posts/${req.file.filename}`;

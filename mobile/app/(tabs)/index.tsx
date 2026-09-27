@@ -21,10 +21,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import * as MediaLibrary from 'expo-media-library';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Clipboard from 'expo-clipboard';
+import * as ScreenOrientation from 'expo-screen-orientation';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/constants/useTheme';
 import { Text, Heading, Subheading, Caption } from '@/components/ui/Typography';
@@ -41,6 +41,7 @@ import {
   LibraryFile,
 } from '@/services/posts';
 import { getBaseUrl } from '@/services/api';
+import { SearchOverlay } from '@/components/SearchOverlay';
 
 function formatFileSize(bytes: number | string): string {
   const b = Number(bytes) || 0;
@@ -84,15 +85,21 @@ function formatRelativeTime(dateString: string): string {
   }
 }
 
-function formatLastUpdated(date: Date | null): string {
+function formatLastUpdated(date: Date | string | null): string {
   if (!date) return '';
-  const now = new Date();
-  const diffSec = Math.max(0, Math.floor((now.getTime() - date.getTime()) / 1000));
-  if (diffSec < 60) return 'Just now';
-  const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return `${diffMin}m ago`;
-  const diffHour = Math.floor(diffMin / 60);
-  return `${diffHour}h ago`;
+  try {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    if (isNaN(d.getTime())) return '';
+    const now = new Date();
+    const diffSec = Math.max(0, Math.floor((now.getTime() - d.getTime()) / 1000));
+    if (diffSec < 60) return 'Just now';
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHour = Math.floor(diffMin / 60);
+    return `${diffHour}h ago`;
+  } catch {
+    return '';
+  }
 }
 
 // Only show badges for Notice or Assignment types; omit for regular status/discussion
@@ -313,7 +320,7 @@ export default function HomeScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [baseUrl, setBaseUrl] = useState<string>('');
-  const [lastFetchedAt, setLastFetchedAt] = useState<Date | null>(null);
+  const [lastFetchedAt, setLastFetchedAt] = useState<Date | string | null>(null);
   const [nowTick, setNowTick] = useState<number>(Date.now());
 
   // Periodically refresh relative timestamp every 30 seconds while screen is mounted
@@ -384,6 +391,9 @@ export default function HomeScreen() {
     });
   }, [posts, files]);
 
+  // Search Overlay state
+  const [searchOpen, setSearchOpen] = useState(false);
+
   // Create Post Composer states
   const [composerOpen, setComposerOpen] = useState(false);
   const [postContent, setPostContent] = useState('');
@@ -397,6 +407,18 @@ export default function HomeScreen() {
   const [viewerImageUri, setViewerImageUri] = useState<string | null>(null);
   const [savingViewerImage, setSavingViewerImage] = useState(false);
   const [sharingViewerImage, setSharingViewerImage] = useState(false);
+
+  // Support device rotation while full-screen image viewer is open
+  useEffect(() => {
+    if (viewerImageUri) {
+      ScreenOrientation.unlockAsync().catch(() => {});
+    } else {
+      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
+    }
+    return () => {
+      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
+    };
+  }, [viewerImageUri]);
 
   // Post options menu & Toast states
   const [selectedMenuPost, setSelectedMenuPost] = useState<Post | null>(null);
@@ -688,6 +710,27 @@ export default function HomeScreen() {
     setSavingViewerImage(true);
 
     try {
+      let MediaLibrary: any = null;
+      try {
+        MediaLibrary = require('expo-media-library');
+      } catch {
+        Alert.alert(
+          'Save to Photos Unavailable',
+          'Saving to Photos requires a development build; use Share instead.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      if (!MediaLibrary || !MediaLibrary.requestPermissionsAsync) {
+        Alert.alert(
+          'Save to Photos Unavailable',
+          'Saving to Photos requires a development build; use Share instead.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
       const { status } = await MediaLibrary.requestPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert(
@@ -708,7 +751,21 @@ export default function HomeScreen() {
       await MediaLibrary.saveToLibraryAsync(localUri);
       Alert.alert('Saved to Photos', 'Image saved successfully to your photo library.');
     } catch (err: any) {
-      Alert.alert('Save Failed', err.message || 'Could not save the image.');
+      const msg = err?.message || '';
+      if (
+        msg.includes('ExpoMediaLibraryNext') ||
+        msg.includes('native module') ||
+        msg.includes('Cannot find native module') ||
+        msg.includes('UnavailabilityError')
+      ) {
+        Alert.alert(
+          'Save to Photos Unavailable',
+          'Saving to Photos requires a development build; use Share instead.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert('Save Failed', err.message || 'Could not save the image.');
+      }
     } finally {
       setSavingViewerImage(false);
     }
@@ -843,7 +900,7 @@ export default function HomeScreen() {
         {/* Right: Search, Create (+), and Profile */}
         <View style={styles.headerRightActions}>
           <TouchableOpacity
-            onPress={() => router.push('/(tabs)/library')}
+            onPress={() => setSearchOpen(true)}
             style={[
               styles.headerActionBtn,
               {
@@ -851,7 +908,7 @@ export default function HomeScreen() {
                 borderColor: colors.border,
               },
             ]}
-            accessibilityLabel="Search library materials"
+            accessibilityLabel="Search campus"
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <Ionicons name="search-outline" size={18} color={colors.textSecondary} />
@@ -1191,7 +1248,7 @@ export default function HomeScreen() {
       >
         <TouchableOpacity
           activeOpacity={0.7}
-          onPress={() => router.push(`/material/${file.id}` as any)}
+          onPress={() => router.push(`/material/${file.id}?preview=1` as any)}
         >
           {/* Author / Uploader Row */}
           <View style={styles.postAuthorRow}>
@@ -1483,6 +1540,12 @@ export default function HomeScreen() {
             tintColor={colors.text}
           />
         }
+      />
+
+      {/* Live Campus Search Overlay */}
+      <SearchOverlay
+        visible={searchOpen}
+        onClose={() => setSearchOpen(false)}
       />
 
       {/* Create Post Modal */}

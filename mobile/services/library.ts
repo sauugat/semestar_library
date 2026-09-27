@@ -1,4 +1,4 @@
-import { api, getBaseUrl } from './api';
+import { api, apiFetch, ApiError, getBaseUrl } from './api';
 
 export interface LibrarySubject {
   subject: string;
@@ -41,6 +41,20 @@ export interface GetFilesParams {
   subject?: string;
   chapter?: string;
   search?: string;
+}
+
+export interface LibraryStat {
+  semester: string | null;
+  subject: string;
+  chapter: string | null;
+  fileCount: number | string;
+}
+
+/**
+ * Fetch library stats with file counts grouped by semester, subject, and chapter
+ */
+export async function getLibraryStats(): Promise<LibraryStat[]> {
+  return await api.get<LibraryStat[]>('/api/library/stats');
 }
 
 /**
@@ -131,3 +145,55 @@ export async function toggleFileLike(
     likeCount: Number(res.likeCount ?? 0),
   };
 }
+
+export interface UploadNoteParams {
+  fileUri: string;
+  fileName: string;
+  fileType?: string;
+  title?: string;
+  semester: string;
+  subject: string;
+  chapter?: string;
+}
+
+export interface UploadNoteResponse {
+  message: string;
+  fileId?: number;
+  files?: any[];
+}
+
+/**
+ * Upload a note/material to the library.
+ * Endpoint: POST /api/files/upload
+ */
+export async function uploadNote(params: UploadNoteParams): Promise<UploadNoteResponse> {
+  const formData = new FormData();
+
+  formData.append('files', {
+    uri: params.fileUri,
+    name: params.fileName,
+    type: params.fileType || 'application/octet-stream',
+  } as any);
+
+  if (params.title && params.title.trim()) {
+    formData.append('title', params.title.trim());
+  }
+  formData.append('semester', params.semester);
+  formData.append('subject', params.subject);
+  if (params.chapter && params.chapter.trim()) {
+    formData.append('chapter', params.chapter.trim());
+  }
+
+  const res = await apiFetch('/api/files/upload', {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const errBody = await res.json().catch(() => ({}));
+    throw new ApiError(errBody.message || `Upload failed (HTTP ${res.status})`, res.status, errBody);
+  }
+
+  return res.json();
+}
+

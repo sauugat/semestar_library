@@ -51,7 +51,7 @@ export default function TabLayout() {
         name="library"
         options={{
           title: 'Library',
-          headerTitle: 'Academic Library',
+          headerShown: false,
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? 'book' : 'book-outline'}

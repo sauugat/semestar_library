@@ -2359,7 +2359,8 @@ app.get('/api/chat/messages', requireLogin, async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit) || (before ? 35 : 200), 200);
 
   let messages;
-  if (before > 0) {
+  // Initial loads start at the newest page; older history is loaded on demand.
+  if (before > 0 || since === 0) {
     messages = await db.all(`
       SELECT chat_messages.id, chat_messages.text, chat_messages.attachmentName, chat_messages.attachmentOriginalName, chat_messages.attachmentMimeType, chat_messages.replyToId, chat_messages.createdAt,
         students.studentId, students.name, students.avatarUrl,
@@ -2368,10 +2369,10 @@ app.get('/api/chat/messages', requireLogin, async (req, res) => {
       LEFT JOIN students ON students.studentId = chat_messages.studentId
       LEFT JOIN chat_messages AS reply_msg ON reply_msg.id = chat_messages.replyToId
       LEFT JOIN students AS reply_student ON reply_student.studentId = reply_msg.studentId
-      WHERE chat_messages.id < ?
+      ${before > 0 ? 'WHERE chat_messages.id < ?' : ''}
       ORDER BY chat_messages.id DESC
       LIMIT ?
-    `, before, limit);
+    `, ...(before > 0 ? [before, limit] : [limit]));
     messages.reverse(); // restore chronological order
   } else {
     messages = await db.all(`
@@ -3123,35 +3124,15 @@ app.get('/api/students/suggested', requireLogin, async (req, res) => {
 
 // --- AI Assistant Service ---
 const aiAssistant = require('./ai-assistant');
+const { createDailyRateLimiter } = require('./lib/chat-ratelimit');
 
-// AI Rate Limiter: Max 30 messages per user/IP per hour
-const aiRateLimits = new Map(); // idOrIp -> { count, windowStart }
-const AI_RATE_LIMIT_MAX = 30;
-const AI_RATE_LIMIT_WINDOW = 60 * 60 * 1000; // 1 hour
+// Daily AI Rate Limiter: Max 10 messages per student/session per day, resetting at midnight
+const aiDailyRateLimiter = createDailyRateLimiter({
+  max: 10,
+  message: "You’ve reached your daily limit of 10 AI chat messages. Your limit will reset at midnight — see you tomorrow! 🎓"
+});
 
-function aiRateLimiter(req, res, next) {
-  const clientId = (req.session && req.session.studentId) ? req.session.studentId : (req.ip || 'guest');
-  const now = Date.now();
-  const record = aiRateLimits.get(clientId) || { count: 0, windowStart: now };
-
-  if (now - record.windowStart > AI_RATE_LIMIT_WINDOW) {
-    record.count = 1;
-    record.windowStart = now;
-  } else {
-    record.count += 1;
-  }
-  aiRateLimits.set(clientId, record);
-
-  if (record.count > AI_RATE_LIMIT_MAX) {
-    const remainingMinutes = Math.ceil((record.windowStart + AI_RATE_LIMIT_WINDOW - now) / (60 * 1000));
-    return res.status(429).json({
-      message: `Hourly AI limit reached (${AI_RATE_LIMIT_MAX} requests/hr). Please wait ${remainingMinutes} minute(s) before asking again.`
-    });
-  }
-  next();
-}
-
-app.post('/api/ai/chat', aiRateLimiter, require('./lib/chat-http').createChatHandler(db, aiAssistant));
+app.post('/api/ai/chat', aiDailyRateLimiter, require('./lib/chat-http').createChatHandler(db, aiAssistant));
 
 app.get('/api/ai/suggestions', (req, res) => {
   res.json([

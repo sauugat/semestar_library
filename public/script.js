@@ -3,30 +3,30 @@ window.doLogin = async function (e) {
     e.preventDefault();
   }
 
-  const studentIdInput = document.getElementById('studentId');
+  const emailInput = document.getElementById('email') || document.getElementById('studentId');
   const passwordInput = document.getElementById('password');
   const errorMsg = document.getElementById('errorMsg');
   const loginBtn = document.getElementById('loginBtn');
   const rememberCheckbox = document.getElementById('rememberMe');
 
-  if (!studentIdInput || !passwordInput) return;
+  if (!emailInput || !passwordInput) return;
 
-  const studentId = studentIdInput.value.trim();
+  const email = emailInput.value.trim();
   const password = passwordInput.value;
 
   if (errorMsg) errorMsg.textContent = '';
 
-  if (!studentId || !password) {
-    if (errorMsg) errorMsg.textContent = 'Please enter your Student ID and password.';
+  if (!email || !password) {
+    if (errorMsg) errorMsg.textContent = 'Please enter your email and password.';
     return;
   }
 
-  // Handle Remember Me
+  // Handle Remember Me (stores remembered email)
   try {
     if (rememberCheckbox && rememberCheckbox.checked) {
-      localStorage.setItem('rememberedStudentId', studentId);
+      localStorage.setItem('rememberedEmail', email);
     } else {
-      localStorage.removeItem('rememberedStudentId');
+      localStorage.removeItem('rememberedEmail');
     }
   } catch (err) { }
 
@@ -37,34 +37,45 @@ window.doLogin = async function (e) {
   }
 
   try {
-    const res = await fetch('/api/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ studentId, password })
-    });
+    if (typeof SemesterAuth === 'undefined' || typeof SemesterAuth.signIn !== 'function') {
+      throw new Error('Authentication service is initializing. Please wait a moment.');
+    }
 
-    const data = await res.json();
+    const { data, error } = await SemesterAuth.signIn(email, password);
 
-    if (res.ok) {
-      if (loginBtn) {
-        loginBtn.innerHTML = '<span>Success!</span>';
-        loginBtn.style.background = '#22c55e';
+    if (error) {
+      let friendlyMsg = 'Invalid email or password.';
+      const msg = (error.message || '').toLowerCase();
+      if (msg.includes('invalid login credentials') || msg.includes('invalid credentials')) {
+        friendlyMsg = 'Invalid email or password.';
+      } else if (msg.includes('email not confirmed')) {
+        friendlyMsg = 'Please verify your email address before signing in.';
+      } else if (msg.includes('too many requests')) {
+        friendlyMsg = 'Too many failed login attempts. Please wait a few moments.';
       }
-      const urlParams = new URLSearchParams(window.location.search);
-      const redirectParam = urlParams.get('redirect');
-      setTimeout(() => {
-        window.location.href = redirectParam || data.redirect || '/dashboard.html';
-      }, 300);
-    } else {
-      if (errorMsg) errorMsg.textContent = data.message || 'Invalid Student ID or Password';
+
+      if (errorMsg) errorMsg.textContent = friendlyMsg;
       if (loginBtn) {
         loginBtn.disabled = false;
         loginBtn.innerHTML = '<span>Sign In</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="apple-btn-arrow"><path d="M5 12h14M12 5l7 7-7 7"/></svg>';
       }
+      return;
+    }
+
+    if (data && data.session) {
+      if (loginBtn) {
+        loginBtn.innerHTML = '<span>Success!</span>';
+        loginBtn.style.background = '#22c55e';
+      }
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const redirectParam = urlParams.get('redirect');
+      setTimeout(() => {
+        window.location.href = redirectParam || '/dashboard.html';
+      }, 300);
     }
   } catch (err) {
-    if (errorMsg) errorMsg.textContent = 'Connection error. Please check your internet and try again.';
+    if (errorMsg) errorMsg.textContent = err.message || 'Connection error. Please check your internet and try again.';
     if (loginBtn) {
       loginBtn.disabled = false;
       loginBtn.innerHTML = '<span>Sign In</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="apple-btn-arrow"><path d="M5 12h14M12 5l7 7-7 7"/></svg>';
@@ -74,13 +85,13 @@ window.doLogin = async function (e) {
 
 function initLoginHandlers() {
   const form = document.getElementById('loginForm');
-  const studentIdInput = document.getElementById('studentId');
+  const emailInput = document.getElementById('email') || document.getElementById('studentId');
   const rememberCheckbox = document.getElementById('rememberMe');
 
   try {
-    const savedId = localStorage.getItem('rememberedStudentId');
-    if (savedId && studentIdInput) {
-      studentIdInput.value = savedId;
+    const savedEmail = localStorage.getItem('rememberedEmail') || localStorage.getItem('rememberedStudentId');
+    if (savedEmail && emailInput) {
+      emailInput.value = savedEmail;
       if (rememberCheckbox) rememberCheckbox.checked = true;
     }
   } catch (err) { }

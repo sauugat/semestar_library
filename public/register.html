@@ -1,8 +1,7 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 
 <head>
-  <script src="/theme.js"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Create Account — Semester Library</title>
@@ -15,20 +14,18 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Semester Library">
-  <meta name="theme-color" content="#0a0a0a">
 
-  <!-- Anti-flash inline script -->
+  <!-- Anti-flash inline script: reads localStorage or defaults to prefers-color-scheme -->
   <script>
     (function() {
       try {
-        var t = localStorage.getItem('theme');
-        if (!t) {
-          t = 'dark';
-          try { localStorage.setItem('theme', 'dark'); } catch (e) {}
+        var stored = localStorage.getItem('theme');
+        var theme = stored;
+        if (!theme) {
+          theme = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
         }
-        var d = t === 'dark';
-        document.documentElement.setAttribute('data-theme', t);
-        if (d) {
+        document.documentElement.setAttribute('data-theme', theme);
+        if (theme === 'dark') {
           document.documentElement.classList.add('dark');
         } else {
           document.documentElement.classList.remove('dark');
@@ -37,231 +34,194 @@
     })();
   </script>
 
+  <script src="/theme.js"></script>
+
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-  <!-- Styles -->
+  <!-- Stylesheets -->
   <link rel="stylesheet" href="style.v4.css">
-  <link rel="stylesheet" href="/auth-ui.css">
   <link rel="stylesheet" href="/theme-overrides.css">
+  <link rel="stylesheet" href="/auth-ui.css">
 </head>
 
 <body class="apple-signin-page">
 
-  <!-- Top-Right Theme Toggle -->
-  <div style="position: fixed; top: 20px; right: 24px; z-index: 999;">
+  <!-- Top-Right Theme Toggle Button -->
+  <div class="theme-toggle-wrap">
     <button type="button" class="theme-toggle-btn" id="themeToggleBtn" aria-label="Toggle theme" title="Toggle theme">
-      <span class="theme-toggle-track">
-        <svg class="theme-icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <circle cx="12" cy="12" r="5"></circle>
-          <line x1="12" y1="1" x2="12" y2="3"></line>
-          <line x1="12" y1="21" x2="12" y2="23"></line>
-          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-          <line x1="1" y1="12" x2="3" y2="12"></line>
-          <line x1="21" y1="12" x2="23" y2="12"></line>
-          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-        </svg>
-        <svg class="theme-icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-        </svg>
-      </span>
+      <svg class="theme-icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="5"></circle>
+        <line x1="12" y1="1" x2="12" y2="3"></line>
+        <line x1="12" y1="21" x2="12" y2="23"></line>
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+        <line x1="1" y1="12" x2="3" y2="12"></line>
+        <line x1="21" y1="12" x2="23" y2="12"></line>
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+      </svg>
+      <svg class="theme-icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+      </svg>
     </button>
   </div>
 
-  <main class="apple-signin-container">
+  <!-- Registration Card (Same 460px max-width, 32px padding as login) -->
+  <main class="apple-signin-card register-card">
 
-    <div class="apple-signin-card register-card">
+    <!-- 56px Centered Monochrome Logo -->
+    <img src="logo.jpg" alt="Semester Library" class="auth-logo">
 
-      <!-- Logo Emblem Halo -->
-      <div class="apple-emblem-halo">
-        <div class="apple-emblem-ring"></div>
-        <img src="logo.jpg" alt="Semester Library Logo" class="apple-emblem-img" style="border-radius: 50%;">
-      </div>
+    <h1 class="auth-title">Create an Account</h1>
+    <p class="auth-subtext">Join Gandaki University students on Semester Library</p>
 
-      <h1 class="apple-signin-headline">Create an Account</h1>
-      <p class="apple-signin-subtext">Join Gandaki University students on Semester Library</p>
-
-      <!-- Rich Alert Banner -->
-      <div id="authAlert" class="auth-banner" style="display: none; margin-bottom: 14px;" role="alert">
-        <div class="auth-banner-icon" id="authAlertIcon"></div>
-        <div class="auth-banner-content">
-          <div class="auth-banner-title" id="authAlertTitle"></div>
-          <div class="auth-banner-msg" id="authAlertMsg"></div>
-        </div>
-        <button type="button" class="auth-banner-close" onclick="hideAuthAlert()" aria-label="Dismiss alert">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
-      </div>
-
-      <!-- Success Card (Shown after successful submission) -->
-      <div id="successBox" style="display: none; width: 100%; text-align: center; padding: 12px 0;">
-        <div class="apple-confirm-icon-wrap" style="margin: 0 auto 16px auto; background: rgba(34, 197, 94, 0.12); color: #22c55e; border-color: rgba(34, 197, 94, 0.25);">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="26" height="26">
-            <path d="M20 6L9 17l-5-5"/>
-          </svg>
-        </div>
-        <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">Registration Submitted!</h2>
-        <p id="successMessageText" style="font-size: 14px; color: var(--text-secondary, #86868b); line-height: 1.5; margin-bottom: 24px;">
-          A verification link has been sent to your email. Please check your inbox and verify your email address to activate your account.
-        </p>
-        <a href="login.html" class="apple-primary-btn" style="text-decoration: none;">
-          <span>Go to Sign In</span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="apple-btn-arrow">
-            <path d="M5 12h14M12 5l7 7-7 7" />
-          </svg>
-        </a>
-      </div>
-
-      <!-- Registration Form -->
-      <form id="registerForm" class="apple-signin-form" onsubmit="handleRegister(event)">
-
-        <div class="apple-input-group">
-
-          <!-- Full Name -->
-          <div class="apple-input-row">
-            <label for="fullName" class="apple-input-label">Full Name</label>
-            <input type="text" id="fullName" name="fullName" class="apple-text-field" placeholder="e.g. Saugat Subedi" required autocomplete="name">
-          </div>
-
-          <!-- Student ID & Username Grid -->
-          <div class="form-grid-2">
-            <div class="apple-input-row">
-              <label for="studentId" class="apple-input-label">Student ID</label>
-              <input type="text" id="studentId" name="studentId" class="apple-text-field" placeholder="e.g. 26020266" required>
-            </div>
-            <div class="apple-input-row">
-              <label for="username" class="apple-input-label">Username</label>
-              <input type="text" id="username" name="username" class="apple-text-field" placeholder="e.g. saugat_subedi" required autocomplete="username">
-            </div>
-          </div>
-
-          <!-- Email Address -->
-          <div class="apple-input-row">
-            <label for="email" class="apple-input-label">Email Address (Required for verification)</label>
-            <input type="email" id="email" name="email" class="apple-text-field" placeholder="student@example.com" required autocomplete="email">
-          </div>
-
-          <!-- Department & Semester Grid -->
-          <div class="form-grid-2">
-            <div class="apple-input-row">
-              <label for="department" class="apple-input-label">Department</label>
-              <select id="department" name="department" class="apple-select-field" required>
-                <option value="BIT" selected>BIT</option>
-                <option value="BBA">BBA</option>
-                <option value="BPharm">BPharm</option>
-                <option value="BTech">BTech Food</option>
-                <option value="BLLB">BLLB</option>
-              </select>
-            </div>
-            <div class="apple-input-row">
-              <label for="semester" class="apple-input-label">Semester</label>
-              <select id="semester" name="semester" class="apple-select-field" required>
-                <option value="Semester 1" selected>Semester 1</option>
-                <option value="Semester 2">Semester 2</option>
-                <option value="Semester 3">Semester 3</option>
-                <option value="Semester 4">Semester 4</option>
-                <option value="Semester 5">Semester 5</option>
-                <option value="Semester 6">Semester 6</option>
-                <option value="Semester 7">Semester 7</option>
-                <option value="Semester 8">Semester 8</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- Gender (Optional) -->
-          <div class="apple-input-row">
-            <label for="gender" class="apple-input-label">Gender (Optional)</label>
-            <select id="gender" name="gender" class="apple-select-field">
-              <option value="" selected>Prefer not to say</option>
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-
-          <!-- Password & Confirm Password Grid with Visibility Toggles -->
-          <div class="form-grid-2">
-            <div class="apple-input-row">
-              <label for="password" class="apple-input-label">Password</label>
-              <div class="apple-password-field-wrap">
-                <input type="password" id="password" name="password" class="apple-text-field" placeholder="Min. 8 characters" required autocomplete="new-password">
-                <button type="button" class="apple-password-toggle" aria-label="Toggle password visibility">
-                  <svg class="eye-open-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                    <circle cx="12" cy="12" r="3"></circle>
-                  </svg>
-                  <svg class="eye-closed-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" style="display:none;">
-                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                    <line x1="1" y1="1" x2="23" y2="23"></line>
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            <div class="apple-input-row">
-              <label for="confirmPassword" class="apple-input-label">Confirm Password</label>
-              <div class="apple-password-field-wrap">
-                <input type="password" id="confirmPassword" name="confirmPassword" class="apple-text-field" placeholder="Repeat password" required autocomplete="new-password">
-                <button type="button" class="apple-password-toggle" aria-label="Toggle password visibility">
-                  <svg class="eye-open-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                    <circle cx="12" cy="12" r="3"></circle>
-                  </svg>
-                  <svg class="eye-closed-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" style="display:none;">
-                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                    <line x1="1" y1="1" x2="23" y2="23"></line>
-                  </svg>
-                </button>
-              </div>
-            </div>
-          </div>
-
-        </div>
-
-        <!-- Legal Consent -->
-        <div class="apple-signin-controls" style="margin-top: 14px;">
-          <label class="apple-legal-consent" for="acceptTerms">
-            <input type="checkbox" id="acceptTerms" name="acceptTerms" class="apple-real-checkbox" required>
-            <span class="apple-custom-check" aria-hidden="true"></span>
-            <span class="apple-privacy-text">
-              I agree to the
-              <a href="privacy.html" target="_blank" rel="noopener noreferrer" class="apple-text-link" onclick="event.stopPropagation()">Privacy Policy</a>
-              and
-              <a href="termsandconditions.html" target="_blank" rel="noopener noreferrer" class="apple-text-link" onclick="event.stopPropagation()">Terms &amp; Conditions</a>.
-            </span>
-          </label>
-        </div>
-
-        <!-- Submit Button -->
-        <button type="submit" class="apple-primary-btn" id="registerBtn">
-          <span>Create Account</span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="apple-btn-arrow">
-            <path d="M5 12h14M12 5l7 7-7 7" />
-          </svg>
-        </button>
-
-        <p id="errorMsg" class="error-msg" style="display: none;"></p>
-
-        <!-- Sign In Link -->
-        <div style="text-align: center; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border-color, rgba(255,255,255,0.08));">
-          <span style="font-size: 13px; color: var(--text-secondary, #86868b);">Already have an account? </span>
-          <a href="login.html" class="apple-text-link" style="font-size: 13px; font-weight: 600;">Sign In</a>
-        </div>
-
-        <div class="apple-support-links">
-          <a href="index.html" class="apple-text-link">← Back to HomePage</a>
-        </div>
-
-      </form>
-
+    <!-- Inline Alert Banner -->
+    <div id="authAlert" class="auth-banner" style="display: none;" role="alert">
+      <div class="auth-banner-title" id="authAlertTitle"></div>
+      <div class="auth-banner-msg" id="authAlertMsg"></div>
     </div>
+
+    <!-- Success View (Shown after successful submission) -->
+    <div id="successBox" style="display: none; width: 100%; text-align: center; padding: 8px 0;">
+      <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 8px; color: var(--text);">Registration Submitted</h2>
+      <p id="successMessageText" style="font-size: 14px; color: var(--muted); line-height: 1.5; margin-bottom: 24px;">
+        A verification link has been sent to your email. Please check your inbox and verify your email address to activate your account.
+      </p>
+      <a href="login.html" class="btn btn-primary" style="text-decoration: none;">Go to Sign In</a>
+    </div>
+
+    <!-- Registration Form -->
+    <form id="registerForm" class="form" onsubmit="handleRegister(event)">
+
+      <!-- Full Name -->
+      <div class="field">
+        <label for="fullName" class="field-label">Full Name</label>
+        <input type="text" id="fullName" name="fullName" class="input" placeholder="e.g. Saugat Subedi" required autocomplete="name">
+      </div>
+
+      <!-- Student ID & Username Grid -->
+      <div class="row-2">
+        <div class="field">
+          <label for="studentId" class="field-label">Student ID</label>
+          <input type="text" id="studentId" name="studentId" class="input" placeholder="e.g. 26020266" required>
+        </div>
+        <div class="field">
+          <label for="username" class="field-label">Username</label>
+          <input type="text" id="username" name="username" class="input" placeholder="e.g. saugat_subedi" required autocomplete="username">
+        </div>
+      </div>
+
+      <!-- Email Address -->
+      <div class="field">
+        <label for="email" class="field-label">Email Address (Required for verification)</label>
+        <input type="email" id="email" name="email" class="input" placeholder="student@example.com" required autocomplete="email">
+      </div>
+
+      <!-- Department & Semester Grid -->
+      <div class="row-2">
+        <div class="field">
+          <label for="department" class="field-label">Department</label>
+          <select id="department" name="department" class="select" required>
+            <option value="BIT" selected>BIT</option>
+            <option value="BBA">BBA</option>
+            <option value="BPharm">BPharm</option>
+            <option value="BTech">BTech Food</option>
+            <option value="BLLB">BLLB</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="semester" class="field-label">Semester</label>
+          <select id="semester" name="semester" class="select" required>
+            <option value="Semester 1" selected>Semester 1</option>
+            <option value="Semester 2">Semester 2</option>
+            <option value="Semester 3">Semester 3</option>
+            <option value="Semester 4">Semester 4</option>
+            <option value="Semester 5">Semester 5</option>
+            <option value="Semester 6">Semester 6</option>
+            <option value="Semester 7">Semester 7</option>
+            <option value="Semester 8">Semester 8</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Gender (Optional) -->
+      <div class="field">
+        <label for="gender" class="field-label">Gender (Optional)</label>
+        <select id="gender" name="gender" class="select">
+          <option value="" selected>Prefer not to say</option>
+          <option value="male">Male</option>
+          <option value="female">Female</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+
+      <!-- Password & Confirm Password Grid with Inside Visibility Toggles -->
+      <div class="row-2">
+        <div class="field">
+          <label for="password" class="field-label">Password</label>
+          <div class="field-password-wrap">
+            <input type="password" id="password" name="password" class="input" placeholder="Min. 8 characters" required autocomplete="new-password">
+            <button type="button" class="password-toggle" aria-label="Toggle password visibility">
+              <svg class="eye-open-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+              <svg class="eye-closed-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                <line x1="1" y1="1" x2="23" y2="23"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="confirmPassword" class="field-label">Confirm Password</label>
+          <div class="field-password-wrap">
+            <input type="password" id="confirmPassword" name="confirmPassword" class="input" placeholder="Repeat password" required autocomplete="new-password">
+            <button type="button" class="password-toggle" aria-label="Toggle password visibility">
+              <svg class="eye-open-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+              <svg class="eye-closed-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                <line x1="1" y1="1" x2="23" y2="23"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Legal Consent Checkbox (No heavy bordered box) -->
+      <label class="checkbox-wrap" for="acceptTerms">
+        <input type="checkbox" id="acceptTerms" name="acceptTerms" class="custom-checkbox" required>
+        <span>
+          I agree to the
+          <a href="privacy.html" target="_blank" rel="noopener noreferrer" class="link" onclick="event.stopPropagation()">Privacy Policy</a>
+          and
+          <a href="termsandconditions.html" target="_blank" rel="noopener noreferrer" class="link" onclick="event.stopPropagation()">Terms &amp; Conditions</a>.
+        </span>
+      </label>
+
+      <!-- Submit Button -->
+      <button type="submit" class="btn btn-primary" id="registerBtn">Create Account</button>
+
+      <p id="errorMsg" class="error-msg" style="display: none;"></p>
+
+      <!-- Sign In Link -->
+      <div class="auth-switch-text">
+        Already have an account? <a href="login.html" class="link" style="font-weight: 600;">Sign In</a>
+      </div>
+
+      <!-- Subtle Footer Navigation Links -->
+      <div class="auth-footer-links">
+        <a href="index.html" class="link-subtle">← Back to HomePage</a>
+      </div>
+
+    </form>
 
   </main>
 
@@ -271,26 +231,17 @@
       const banner = document.getElementById('authAlert');
       const titleEl = document.getElementById('authAlertTitle');
       const msgEl = document.getElementById('authAlertMsg');
-      const iconEl = document.getElementById('authAlertIcon');
       const legacyErrorMsg = document.getElementById('errorMsg');
 
       if (legacyErrorMsg) legacyErrorMsg.textContent = message;
       if (!banner) return;
 
-      banner.className = 'auth-banner ' + type;
+      banner.className = 'auth-banner';
       if (titleEl) {
         titleEl.textContent = title || (type === 'error' ? 'Validation Error' : 'Notice');
         titleEl.style.display = 'block';
       }
       if (msgEl) msgEl.textContent = message;
-
-      if (iconEl) {
-        if (type === 'error') {
-          iconEl.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
-        } else {
-          iconEl.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 12l2.5 2.5L16 9"/></svg>`;
-        }
-      }
 
       banner.style.display = 'flex';
       banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -304,10 +255,10 @@
     }
 
     // Password Toggles
-    document.querySelectorAll('.apple-password-toggle').forEach(btn => {
+    document.querySelectorAll('.password-toggle, .apple-password-toggle').forEach(btn => {
       btn.onclick = function (e) {
         e.preventDefault();
-        const wrap = btn.closest('.apple-password-field-wrap');
+        const wrap = btn.closest('.field-password-wrap, .apple-password-field-wrap');
         if (!wrap) return;
         const input = wrap.querySelector('input');
         if (!input) return;
@@ -362,7 +313,7 @@
       }
 
       registerBtn.disabled = true;
-      registerBtn.innerHTML = '<span class="app-spinner spinner-sm spinner-light" style="margin-right:8px; display:inline-block; vertical-align:middle;"></span><span>Creating account…</span>';
+      registerBtn.textContent = 'Creating account…';
 
       try {
         const payload = {
@@ -382,7 +333,7 @@
         if (error) {
           showRegisterAlert(error.message || 'Registration failed. Please check your information.', 'error', 'Registration Error');
           registerBtn.disabled = false;
-          registerBtn.innerHTML = '<span>Create Account</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="apple-btn-arrow"><path d="M5 12h14M12 5l7 7-7 7"/></svg>';
+          registerBtn.textContent = 'Create Account';
           return;
         }
 
@@ -394,7 +345,7 @@
       } catch (err) {
         showRegisterAlert(err.message || 'Connection error. Please try again.', 'error');
         registerBtn.disabled = false;
-        registerBtn.innerHTML = '<span>Create Account</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="apple-btn-arrow"><path d="M5 12h14M12 5l7 7-7 7"/></svg>';
+        registerBtn.textContent = 'Create Account';
       }
     }
   </script>

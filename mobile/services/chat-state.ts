@@ -9,7 +9,14 @@ export function mergeChatMessages(
   incoming.forEach((message) =>
     byId.set(message.id, { ...byId.get(message.id), ...message }),
   );
-  return [...byId.values()].sort((a, b) => b.id - a.id);
+  return [...byId.values()].sort((a, b) => {
+    if (a.id < 0 || b.id < 0) {
+      if (a.id > 0) return 1;
+      if (b.id > 0) return -1;
+      return a.id - b.id;
+    }
+    return b.id - a.id;
+  });
 }
 export function applyChatReaction(
   messages: ChatMessage[],
@@ -45,11 +52,13 @@ export function reconcileChatSnapshot(
   existing: ChatMessage[],
   snapshot: ChatMessage[],
   confirmedId: number,
+  previousSnapshotId = confirmedId,
 ): ChatMessage[] {
   const floor = snapshot.length ? Math.min(...snapshot.map((m) => m.id)) : 0;
   const ids = new Set(snapshot.map((m) => m.id));
+  const ceiling = Math.max(confirmedId, ...snapshot.map(m => m.id));
   const retained = existing.filter(
-    (m) => m.id < floor || m.id > confirmedId || ids.has(m.id),
+    (m) => m.id < 0 || (floor <= previousSnapshotId && m.id < floor) || m.id > ceiling || ids.has(m.id),
   );
   return mergeChatMessages(retained, snapshot);
 }

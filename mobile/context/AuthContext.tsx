@@ -4,8 +4,7 @@ import { router } from 'expo-router';
 import { clearChatDb } from '@/services/chat-db';
 import { initChatRealtime, disconnectChatRealtime } from '@/services/chat-realtime';
 import { clearAppQueryCache } from '@/services/query-client';
-
-export const DEFAULT_SERVER_URL = 'http://192.168.1.65:3000';
+import { getAutoDetectedServerUrl, DEFAULT_SERVER_URL } from '@/services/api';
 const TOKEN_KEY = 'semester_library_mobile_token';
 const USER_KEY = 'semester_library_mobile_user';
 const SERVER_URL_KEY = 'semester_library_server_url';
@@ -35,7 +34,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<StudentUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
-  const [serverUrl, setServerUrl] = useState<string>(DEFAULT_SERVER_URL);
+  const [serverUrl, setServerUrl] = useState<string>(getAutoDetectedServerUrl());
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Initialize auth state on app load without blocking first render
@@ -46,7 +45,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         // 1. Load custom server URL if configured
         const savedUrl = await SecureStore.getItemAsync(SERVER_URL_KEY);
-        const activeUrl = savedUrl || DEFAULT_SERVER_URL;
+        const activeUrl = savedUrl || getAutoDetectedServerUrl();
         if (isMounted) setServerUrl(activeUrl);
 
         // 2. Load stored token & cached user profile
@@ -181,9 +180,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await SecureStore.deleteItemAsync(TOKEN_KEY);
       await SecureStore.deleteItemAsync(USER_KEY);
       // Clean up local chat database and query caches so next user sees fresh data
+      await disconnectChatRealtime();
       await clearChatDb();
       await clearAppQueryCache();
-      await disconnectChatRealtime();
     } catch (e) {
       console.warn('Logout error:', e);
     } finally {

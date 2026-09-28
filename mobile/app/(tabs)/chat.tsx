@@ -36,17 +36,20 @@ import * as Clipboard from "expo-clipboard";
 import { ChatSendButton } from "@/components/chat/ChatSendButton";
 import { ChatMessageItem } from "@/components/chat/ChatMessageItem";
 import { ChatMessageActionsSheet } from "@/components/chat/ChatMessageActionsSheet";
+import { FullScreenImageViewer } from "@/components/FullScreenImageViewer";
 import { useClassChat } from "@/hooks/useClassChat";
 import {
   mergeChatMessages,
   applyChatReaction,
   safeChatFilename,
 } from "@/services/chat-state";
-import { normalizeUploadFile, validateFileSize } from "@/utils/file-upload";
+import { prepareChatAttachment, removeOutboxFile } from "@/services/chat-attachments";
 import {
   savePendingMessage,
   resolvePendingMessage,
   markPendingMessageFailed,
+  updateCachedReaction,
+  deleteCachedMessage,
 } from "@/services/chat-db";
 
 import { useAuth } from "@/context/AuthContext";
@@ -55,7 +58,6 @@ import { getAuthToken } from "@/services/api";
 import {
   ChatMessage,
   ChatMember,
-  CHAT_MAX_FILE_SIZE,
   fetchChatMembers,
   pinChatMessage,
   unpinChatMessage,
@@ -64,6 +66,53 @@ import {
   sendChatMessage,
   sendChatTyping,
 } from "@/services/chat";
+
+function MemberAvatarItem({
+  member,
+  serverUrl,
+  headers,
+}: {
+  member: ChatMember;
+  serverUrl: string;
+  headers?: Record<string, string>;
+}) {
+  const [loadError, setLoadError] = useState(false);
+  const avatarUri = useMemo(() => {
+    if (!member.avatarUrl) return null;
+    if (member.avatarUrl.startsWith("http://") || member.avatarUrl.startsWith("https://")) {
+      return member.avatarUrl;
+    }
+    const base = (serverUrl || "").replace(/\/+$/, "");
+    const path = member.avatarUrl.replace(/^\/+/, "");
+    return `${base}/${path}`;
+  }, [member.avatarUrl, serverUrl]);
+
+  if (avatarUri && !loadError) {
+    return (
+      <View style={styles.memberAvatar}>
+        <Image
+          source={{
+            uri: avatarUri,
+            headers: headers || undefined,
+            cacheKey: avatarUri,
+          }}
+          cachePolicy="memory-disk"
+          style={{ width: 36, height: 36, borderRadius: 18 }}
+          contentFit="cover"
+          onError={() => setLoadError(true)}
+        />
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.memberAvatar}>
+      <Text style={{ color: "#f5f5f5", fontWeight: "700" }}>
+        {member.name.charAt(0).toUpperCase()}
+      </Text>
+    </View>
+  );
+}
 
 export default function ChatScreen() {
   const { user, serverUrl, token } = useAuth();
@@ -83,6 +132,7 @@ export default function ChatScreen() {
     activeTypers,
     readReceipts,
     pinned,
+    setPinned,
     onlineIds,
     sync,
     refreshPinned,
@@ -160,8 +210,6 @@ export default function ChatScreen() {
     uri: string;
     name: string;
   } | null>(null);
-  const [savingImage, setSavingImage] = useState(false);
-  const [sharingImage, setSharingImage] = useState(false);
 
   // Downloading document state
   const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
@@ -223,7 +271,8 @@ export default function ChatScreen() {
   );
 
   useEffect(() => {
-    if (!showScrollToBottom && messages[0]?.id) void markRead(messages[0].id);
+    const newestConfirmed = messages.find(m => m.id > 0);
+    if (!showScrollToBottom && newestConfirmed) void markRead(newestConfirmed.id);
   }, [messages, showScrollToBottom, markRead]);
 
   const openMembers = async () => {
@@ -281,22 +330,134 @@ export default function ChatScreen() {
     }
   };
 
-  const react = async (message: ChatMessage, emoji: string) => {
-    const result = await reactToChatMessage(message.id, emoji);
-    setMessages((previous) =>
-      applyChatReaction(
-        previous,
-        message.id,
-        String(user?.studentId),
-        emoji,
-        result.action,
-      ),
+  // Instant Reactions (Requirement 7: optimistic state & cache, background network, rollback on error)
+  const handleToggleReaction = async (message: ChatMessage, emoji: string) => {
+    const currentUserId = String(user?.studentId || "");
+    if (!currentUserId || message.id <= 0) return;
+
+    setActionMessage(null);
+
+    const existingReaction = (message.reactions || []).find(
+      (r) => String(r.studentId) === currentUserId,
     );
+    let optimisticAction: "add" | "update" | "remove" = "add";
+    if (existingReaction) {
+      optimisticAction = existingReaction.emoji === emoji ? "remove" : "update";
+    }
+
+    const previousMessages = messages;
+    setMessages((prev) =>
+      applyChatReaction(prev, message.id, currentUserId, emoji, optimisticAction),
+    );
+    void updateCachedReaction(message.id, currentUserId, emoji, optimisticAction);
+
+    try {
+      const result = await reactToChatMessage(message.id, emoji);
+      if (result.action !== optimisticAction) {
+        setMessages((prev) =>
+          applyChatReaction(prev, message.id, currentUserId, emoji, result.action),
+        );
+        void updateCachedReaction(message.id, currentUserId, emoji, result.action);
+      }
+    } catch (err: any) {
+      setMessages(previousMessages);
+      void updateCachedReaction(
+        message.id,
+        currentUserId,
+        emoji,
+        optimisticAction === "remove" ? "add" : "remove",
+      );
+      Alert.alert(
+        "Reaction Failed",
+        err.message || "Could not update reaction. Tap to retry.",
+        [
+          { text: "Dismiss" },
+          { text: "Retry", onPress: () => void handleToggleReaction(message, emoji) },
+        ],
+      );
+    }
   };
 
-  const handleToggleReaction = useCallback((message: ChatMessage, emoji: string) => {
-    void runAction(() => react(message, emoji));
-  }, [user?.studentId]);
+  // Instant Pin / Unpin (Requirement 7: optimistic state, background network, rollback on error)
+  const handleTogglePin = async (message: ChatMessage) => {
+    const isCurrentlyPinned = pinned?.messageId === message.id;
+    setActionMessage(null);
+    const previousPinned = pinned;
+
+    if (isCurrentlyPinned) {
+      setPinned(null);
+      try {
+        await unpinChatMessage();
+        void refreshPinned();
+      } catch (err: any) {
+        setPinned(previousPinned);
+        Alert.alert("Unpin Failed", err.message || "Could not unpin announcement.");
+      }
+    } else {
+      const optimisticPinned = {
+        messageId: message.id,
+        text: message.text || message.attachmentOriginalName || "Attachment",
+        senderName: message.name,
+      };
+      setPinned(optimisticPinned);
+      try {
+        await pinChatMessage(message.id);
+        void refreshPinned();
+      } catch (err: any) {
+        setPinned(previousPinned);
+        Alert.alert("Pin Failed", err.message || "Could not pin announcement.");
+      }
+    }
+  };
+
+  // Instant Delete (Requirement 7: optimistic state & cache, background network, rollback on error)
+  const handleDeleteMessage = (msg: ChatMessage) => {
+    Alert.alert(
+      "Delete message?",
+      msg.id > 0
+        ? "This removes the message for everyone."
+        : "Remove this unsent message from this device?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            setActionMessage(null);
+            const id = msg.id;
+            const previousMessages = messages;
+            const previousPinned = pinned;
+
+            setMessages((previous) => previous.filter((m) => m.id !== id));
+            if (pinned?.messageId === id) {
+              setPinned(null);
+            }
+
+            void deleteCachedMessage(id);
+            void removeOutboxFile(msg.localUri);
+
+            if (id > 0) {
+              try {
+                await deleteChatMessage(id);
+                void refreshPinned();
+              } catch (err: any) {
+                setMessages(previousMessages);
+                setPinned(previousPinned);
+                Alert.alert(
+                  "Delete Failed",
+                  err.message || "Could not delete message. Tap to retry.",
+                  [
+                    { text: "Dismiss" },
+                    { text: "Retry", onPress: () => handleDeleteMessage(msg) },
+                  ],
+                );
+              }
+            }
+          },
+        },
+      ],
+    );
+  };
 
   const handleSwipeReply = useCallback((message: ChatMessage) => {
     setReplyTo(message);
@@ -317,7 +478,35 @@ export default function ChatScreen() {
     }
   };
 
-  // Attachment Selection Handlers
+  // Attachment Selection Handlers (Requirement 9: Camera, Photo Library, Documents)
+  const handleTakePhoto = async () => {
+    setShowAttachModal(false);
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission Required",
+          "Camera access is needed to capture photos.",
+        );
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ["images"],
+        allowsEditing: false,
+        quality: 0.85,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        const attachment = await prepareChatAttachment(asset, true);
+        await removeOutboxFile(selectedAttachment?.uri);
+        setSelectedAttachment(attachment);
+      }
+    } catch (err: any) {
+      Alert.alert("Camera Error", err.message || "Could not capture photo");
+    }
+  };
+
   const handlePickImage = async () => {
     setShowAttachModal(false);
     try {
@@ -329,16 +518,9 @@ export default function ChatScreen() {
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
-        const normalized = normalizeUploadFile(asset, `image_${Date.now()}.jpg`);
-        validateFileSize(normalized.size, CHAT_MAX_FILE_SIZE, "Photo");
-
-        setSelectedAttachment({
-          uri: normalized.uri,
-          name: normalized.name,
-          mimeType: normalized.type,
-          size: normalized.size,
-          isImage: true,
-        });
+        const attachment = await prepareChatAttachment(asset, true);
+        await removeOutboxFile(selectedAttachment?.uri);
+        setSelectedAttachment(attachment);
       }
     } catch (err: any) {
       Alert.alert("Error", err.message || "Could not pick image");
@@ -356,20 +538,9 @@ export default function ChatScreen() {
 
       if (!res.canceled && res.assets && res.assets.length > 0) {
         const asset = res.assets[0];
-        const normalized = normalizeUploadFile(asset, "document.pdf");
-        validateFileSize(normalized.size, CHAT_MAX_FILE_SIZE, "Document");
-
-        const isImg =
-          normalized.type.startsWith("image/") ||
-          /\.(jpg|jpeg|png|webp|gif)$/i.test(normalized.name);
-
-        setSelectedAttachment({
-          uri: normalized.uri,
-          name: normalized.name,
-          mimeType: normalized.type,
-          size: normalized.size,
-          isImage: isImg,
-        });
+        const attachment = await prepareChatAttachment(asset);
+        await removeOutboxFile(selectedAttachment?.uri);
+        setSelectedAttachment(attachment);
       }
     } catch (err: any) {
       Alert.alert("Error", err.message || "Could not pick document");
@@ -394,6 +565,14 @@ export default function ChatScreen() {
     const optimisticMessage: ChatMessage = {
       id: tempId,
       text: textToSend,
+      localUri: attachmentToSend ? attachmentToSend.uri : undefined,
+      pendingFile: attachmentToSend
+        ? {
+            uri: attachmentToSend.uri,
+            name: attachmentToSend.name,
+            mimeType: attachmentToSend.mimeType,
+          }
+        : null,
       attachmentName: attachmentToSend
         ? attachmentToSend.isImage
           ? 'pending_image.jpg'
@@ -402,7 +581,7 @@ export default function ChatScreen() {
       attachmentOriginalName: attachmentToSend?.name || null,
       attachmentMimeType: attachmentToSend?.mimeType || null,
       replyToId: replyToSend?.id || null,
-      replyText: replyToSend?.text,
+      replyText: replyToSend?.text || replyToSend?.attachmentOriginalName || undefined,
       replySender: replyToSend?.name,
       createdAt: new Date().toISOString(),
       studentId: user?.studentId || 'me',
@@ -439,16 +618,19 @@ export default function ChatScreen() {
 
       if (res && res.data) {
         await resolvePendingMessage(tempId, res.data);
+        await removeOutboxFile(attachmentToSend?.uri);
         setMessages((prev) =>
-          prev.map((m) => (m.id === tempId ? res.data : m))
+          mergeChatMessages(prev.filter(m => m.id !== tempId), [res.data])
         );
       }
     } catch (err: any) {
-      console.warn("Optimistic message failed:", err.message);
+      const errMsg = err?.message || "Failed to send message.";
+      console.warn("Optimistic message failed:", errMsg);
       await markPendingMessageFailed(tempId);
       setMessages((prev) =>
         prev.map((m) => (m.id === tempId ? { ...m, status: 'failed' } : m))
       );
+      Alert.alert("Failed to Send", errMsg);
     } finally {
       sendingRef.current = false;
       setSending(false);
@@ -469,19 +651,27 @@ export default function ChatScreen() {
       const res = await sendChatMessage({
         text: failedMsg.text,
         replyToId: failedMsg.replyToId,
+        file: failedMsg.pendingFile || (failedMsg.localUri ? {
+          uri: failedMsg.localUri,
+          name: failedMsg.attachmentOriginalName || 'attachment.jpg',
+          mimeType: failedMsg.attachmentMimeType || 'image/jpeg',
+        } : null),
       });
 
       if (res && res.data) {
         await resolvePendingMessage(failedMsg.id, res.data);
+        await removeOutboxFile(failedMsg.localUri);
         setMessages((prev) =>
-          prev.map((m) => (m.id === failedMsg.id ? res.data : m))
+          mergeChatMessages(prev.filter(m => m.id !== failedMsg.id), [res.data])
         );
       }
-    } catch {
+    } catch (err: any) {
+      const errMsg = err?.message || "Failed to retry message.";
       await markPendingMessageFailed(failedMsg.id);
       setMessages((prev) =>
         prev.map((m) => (m.id === failedMsg.id ? { ...m, status: 'failed' } : m))
       );
+      Alert.alert("Retry Failed", errMsg);
     } finally {
       sendingRef.current = false;
     }
@@ -542,63 +732,8 @@ export default function ChatScreen() {
     }
   };
 
-  // Image Save & Share Handlers for Fullscreen Viewer
-  const handleSaveViewerImage = async () => {
-    if (!viewerImage) return;
-    setSavingImage(true);
-    try {
-      const { status } = await MediaLibrary.requestPermissionsAsync(true, [
-        "photo",
-      ]);
-      if (status !== "granted") {
-        Alert.alert(
-          "Permission Denied",
-          "Please grant photos permission to save images.",
-        );
-        return;
-      }
-      const targetPath = `${FileSystem.cacheDirectory || ""}chat-${safeChatFilename(viewerImage.name)}`;
-      const authToken = await getAuthToken();
-      const dlHeaders: Record<string, string> = {};
-      if (authToken) dlHeaders["Authorization"] = `Bearer ${authToken}`;
-      const res = await FileSystem.downloadAsync(viewerImage.uri, targetPath, {
-        headers: dlHeaders,
-      });
-      if (res.status !== 200) throw new Error("Could not download image.");
-      await MediaLibrary.saveToLibraryAsync(res.uri);
-      Alert.alert("Saved", "Image successfully saved to your Photos.");
-    } catch (err: any) {
-      Alert.alert("Error", err.message || "Could not save image to Photos");
-    } finally {
-      setSavingImage(false);
-    }
-  };
-
-  const handleShareViewerImage = async () => {
-    if (!viewerImage) return;
-    setSharingImage(true);
-    try {
-      const targetPath = `${FileSystem.cacheDirectory || ""}chat-${safeChatFilename(viewerImage.name)}`;
-      const authToken = await getAuthToken();
-      const dlHeaders: Record<string, string> = {};
-      if (authToken) dlHeaders["Authorization"] = `Bearer ${authToken}`;
-      const res = await FileSystem.downloadAsync(viewerImage.uri, targetPath, {
-        headers: dlHeaders,
-      });
-      if (res.status !== 200) throw new Error("Could not download image.");
-      if (!(await Sharing.isAvailableAsync()))
-        throw new Error("Sharing is unavailable on this device.");
-      await Sharing.shareAsync(res.uri);
-    } catch (err: any) {
-      Alert.alert("Share Error", err.message || "Could not share image");
-    } finally {
-      setSharingImage(false);
-    }
-  };
-
   // Render message using the overhauled ChatMessageItem component
-  const renderMessageItem = useCallback(
-    ({ item, index }: { item: ChatMessage; index: number }) => {
+  const renderMessageItem = ({ item, index }: { item: ChatMessage; index: number }) => {
       const prevMsg = messages[index + 1] || null;
       const nextMsg = messages[index - 1] || null;
       const isInitial = initialLoadedIds.current.has(item.id);
@@ -626,23 +761,7 @@ export default function ChatScreen() {
           onRetry={handleRetryMessage}
         />
       );
-    },
-    [
-      messages,
-      user?.studentId,
-      readReceipts,
-      serverUrl,
-      token,
-      downloadingFileId,
-      highlightedMessageId,
-      handleOpenActions,
-      handleSwipeReply,
-      jumpToMessage,
-      handleDownloadAttachment,
-      handleToggleReaction,
-      handleRetryMessage,
-    ],
-  );
+    };
 
   return (
     <KeyboardAvoidingView
@@ -926,7 +1045,10 @@ export default function ChatScreen() {
           <TouchableOpacity
             disabled={sending}
             accessibilityLabel="Remove attachment"
-            onPress={() => setSelectedAttachment(null)}
+            onPress={() => {
+              void removeOutboxFile(selectedAttachment?.uri);
+              setSelectedAttachment(null);
+            }}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             style={styles.removeAttachmentBtn}
           >
@@ -1066,11 +1188,11 @@ export default function ChatScreen() {
                     </Text>
                     {filteredMembers.map((member) => (
                       <View key={member.studentId} style={styles.memberRow}>
-                        <View style={styles.memberAvatar}>
-                          <Text style={{ color: "#f5f5f5", fontWeight: "700" }}>
-                            {member.name.charAt(0).toUpperCase()}
-                          </Text>
-                        </View>
+                        <MemberAvatarItem
+                          member={member}
+                          serverUrl={serverUrl}
+                          headers={imageAuthHeaders}
+                        />
                         <View style={{ flex: 1 }}>
                           <Text style={{ color: "#f5f5f5", fontWeight: "600" }}>
                             {member.name}
@@ -1142,19 +1264,20 @@ export default function ChatScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Overhauled Message Actions Sheet (Requirement 18: Compact bottom sheet) */}
+      {/* Overhauled Message Actions Sheet (Requirement 1 & 7: Instant Sheet & Haptics) */}
       <ChatMessageActionsSheet
         visible={Boolean(actionMessage)}
         message={actionMessage}
         busy={actionBusy}
         canPin={canPin}
+        isPinned={pinned?.messageId === actionMessage?.id}
         isOwnerOrAdmin={Boolean(
           user?.isAdmin ||
             user?.role === "admin" ||
             String(actionMessage?.studentId) === String(user?.studentId),
         )}
         onClose={() => !actionBusy && setActionMessage(null)}
-        onReact={(msg, emoji) => void runAction(() => react(msg, emoji))}
+        onReact={(msg, emoji) => void handleToggleReaction(msg, emoji)}
         onReply={(msg) => {
           setReplyTo(msg);
           setActionMessage(null);
@@ -1162,40 +1285,15 @@ export default function ChatScreen() {
         }}
         onCopy={(msg) => {
           if (msg.text) {
-            void runAction(() => Clipboard.setStringAsync(msg.text));
+            void Clipboard.setStringAsync(msg.text);
+            setActionMessage(null);
           }
         }}
-        onPin={(msg) => {
-          void runAction(async () => {
-            await pinChatMessage(msg.id);
-            await refreshPinned();
-          });
-        }}
-        onDelete={(msg) => {
-          Alert.alert(
-            "Delete message?",
-            "This removes the message for everyone.",
-            [
-              { text: "Cancel", style: "cancel" },
-              {
-                text: "Delete",
-                style: "destructive",
-                onPress: () =>
-                  void runAction(async () => {
-                    const id = msg.id;
-                    await deleteChatMessage(id);
-                    setMessages((previous) =>
-                      previous.filter((m) => m.id !== id),
-                    );
-                    await refreshPinned();
-                  }),
-              },
-            ],
-          );
-        }}
+        onPin={(msg) => void handleTogglePin(msg)}
+        onDelete={(msg) => handleDeleteMessage(msg)}
       />
 
-      {/* Attachment Action Sheet Modal */}
+      {/* Attachment Action Sheet Modal (Requirement 9: Camera, Photos, Documents) */}
       <Modal
         visible={showAttachModal}
         transparent
@@ -1215,6 +1313,25 @@ export default function ChatScreen() {
               Share Attachment
             </Text>
 
+            {/* Take Photo with Camera */}
+            <TouchableOpacity
+              style={styles.attachOptionRow}
+              onPress={handleTakePhoto}
+            >
+              <View style={styles.attachOptionIcon}>
+                <Ionicons name="camera-outline" size={20} color="#e4e4e7" />
+              </View>
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text variant="md" weight="600" style={{ color: "#f5f5f5" }}>
+                  Take Photo
+                </Text>
+                <Text variant="xs" style={{ color: "#71717a" }}>
+                  Take a photo with your device camera
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* Photo Library */}
             <TouchableOpacity
               style={styles.attachOptionRow}
               onPress={handlePickImage}
@@ -1224,7 +1341,7 @@ export default function ChatScreen() {
               </View>
               <View style={{ flex: 1, marginLeft: 12 }}>
                 <Text variant="md" weight="600" style={{ color: "#f5f5f5" }}>
-                  Photo & Image
+                  Photo Library
                 </Text>
                 <Text variant="xs" style={{ color: "#71717a" }}>
                   Share photos, screenshots, or diagrams
@@ -1232,6 +1349,7 @@ export default function ChatScreen() {
               </View>
             </TouchableOpacity>
 
+            {/* Document & File */}
             <TouchableOpacity
               style={styles.attachOptionRow}
               onPress={handlePickDocument}
@@ -1261,78 +1379,14 @@ export default function ChatScreen() {
         </Pressable>
       </Modal>
 
-      {/* Full-Screen Image Viewer Modal */}
-      <Modal
+      {/* Shared Full-Screen Image Viewer (Requirement 4: Same viewer as feed, zoom, swipe-down, tap to close) */}
+      <FullScreenImageViewer
         visible={viewerImage !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setViewerImage(null)}
-        statusBarTranslucent
-      >
-        <View style={styles.viewerBackdrop}>
-          <View
-            style={[
-              styles.viewerHeader,
-              { paddingTop: (insets.top || 20) + 10 },
-            ]}
-          >
-            <TouchableOpacity
-              onPress={() => setViewerImage(null)}
-              style={styles.viewerCloseBtn}
-              accessibilityLabel="Close viewer"
-            >
-              <Ionicons name="close" size={24} color="#ffffff" />
-            </TouchableOpacity>
-
-            <Text
-              variant="sm"
-              weight="600"
-              numberOfLines={1}
-              style={styles.viewerTitle}
-            >
-              {viewerImage?.name}
-            </Text>
-
-            <View style={styles.viewerActionsRow}>
-              <TouchableOpacity
-                onPress={handleShareViewerImage}
-                accessibilityLabel="Share image"
-                disabled={sharingImage}
-                style={styles.viewerActionBtn}
-              >
-                {sharingImage ? (
-                  <ActivityIndicator size="small" color="#ffffff" />
-                ) : (
-                  <Ionicons name="share-outline" size={20} color="#ffffff" />
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={handleSaveViewerImage}
-                accessibilityLabel="Save image to photos"
-                disabled={savingImage}
-                style={[styles.viewerActionBtn, { marginLeft: 12 }]}
-              >
-                {savingImage ? (
-                  <ActivityIndicator size="small" color="#ffffff" />
-                ) : (
-                  <Ionicons name="download-outline" size={20} color="#ffffff" />
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {viewerImage && (
-            <View style={styles.viewerImageWrapper}>
-              <Image
-                source={{ uri: viewerImage.uri, headers: imageAuthHeaders }}
-                style={styles.viewerImage}
-                contentFit="contain"
-              />
-            </View>
-          )}
-        </View>
-      </Modal>
+        imageUri={viewerImage?.uri || null}
+        imageTitle={viewerImage?.name}
+        headers={imageAuthHeaders}
+        onClose={() => setViewerImage(null)}
+      />
     </KeyboardAvoidingView>
   );
 }

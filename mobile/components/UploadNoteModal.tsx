@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
 import { useQuery } from '@tanstack/react-query';
 import { useTheme } from '@/constants/useTheme';
 import { Text, Heading, Caption } from '@/components/ui/Typography';
@@ -232,6 +233,40 @@ export function UploadNoteModal({
     }
   };
 
+  // Pick photo / images of notes via ImagePicker
+  const handlePickPhoto = async () => {
+    try {
+      setErrorMsg(null);
+      const res = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        quality: 0.9,
+      });
+
+      if (!res.canceled && res.assets && res.assets.length > 0) {
+        const asset = res.assets[0];
+        const normalized = normalizeUploadFile(asset, 'note_photo.jpg');
+        validateFileSize(normalized.size, 250 * 1024 * 1024, 'Photo');
+
+        setSelectedFile({
+          uri: normalized.uri,
+          name: normalized.name,
+          size: normalized.size,
+          mimeType: normalized.type,
+        });
+
+        // If title is currently empty, prefill with clean file name
+        if (!title.trim()) {
+          const cleanName = normalized.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+          setTitle(cleanName);
+        }
+      }
+    } catch (err: any) {
+      console.error('Photo pick error:', err);
+      setErrorMsg(err.message || 'Could not open photo library. Please try again.');
+    }
+  };
+
   // Submit flow
   const handleSubmit = async () => {
     if (submitting) return;
@@ -379,18 +414,26 @@ export function UploadNoteModal({
                     </Caption>
                   </View>
 
-                  <TouchableOpacity
-                    onPress={handlePickDocument}
-                    style={[styles.changeFileBtn, { backgroundColor: colors.surfaceRaised }]}
-                  >
-                    <Ionicons name="swap-horizontal-outline" size={16} color={colors.textSecondary} />
-                  </TouchableOpacity>
+                  <View style={{ flexDirection: 'row', gap: 6 }}>
+                    <TouchableOpacity
+                      onPress={handlePickDocument}
+                      accessibilityLabel="Change document"
+                      style={[styles.changeFileBtn, { backgroundColor: colors.surfaceRaised }]}
+                    >
+                      <Ionicons name="document-text-outline" size={16} color={colors.textSecondary} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={handlePickPhoto}
+                      accessibilityLabel="Change photo"
+                      style={[styles.changeFileBtn, { backgroundColor: colors.surfaceRaised }]}
+                    >
+                      <Ionicons name="image-outline" size={16} color={colors.textSecondary} />
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </Card>
             ) : (
-              <TouchableOpacity
-                onPress={handlePickDocument}
-                activeOpacity={0.7}
+              <View
                 style={[
                   styles.dropzoneCard,
                   {
@@ -408,9 +451,53 @@ export function UploadNoteModal({
                   Choose Note or Document
                 </Text>
                 <Caption color="muted" style={{ marginTop: 4, textAlign: 'center' }}>
-                  PDF, DOCX, PPTX, Images, ZIP up to 250MB
+                  PDF, DOCX, PPTX, Images, Notes up to 250MB
                 </Caption>
-              </TouchableOpacity>
+
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 14, width: '100%' }}>
+                  <TouchableOpacity
+                    onPress={handlePickDocument}
+                    activeOpacity={0.7}
+                    style={{
+                      flex: 1,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      paddingVertical: 10,
+                      paddingHorizontal: 8,
+                      borderRadius: radii.md,
+                      backgroundColor: colors.surfaceRaised,
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                      gap: 6,
+                    }}
+                  >
+                    <Ionicons name="document-text-outline" size={18} color={colors.primary} />
+                    <Text variant="xs" weight="700">Document</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={handlePickPhoto}
+                    activeOpacity={0.7}
+                    style={{
+                      flex: 1,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      paddingVertical: 10,
+                      paddingHorizontal: 8,
+                      borderRadius: radii.md,
+                      backgroundColor: colors.surfaceRaised,
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                      gap: 6,
+                    }}
+                  >
+                    <Ionicons name="images-outline" size={18} color={colors.primary} />
+                    <Text variant="xs" weight="700">Photo / Notes</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
             )}
 
             {/* 2. Semester Selector */}

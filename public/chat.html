@@ -104,7 +104,7 @@
           <circle cx="11" cy="11" r="8"></circle>
           <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
         </svg>
-        <input type="text" id="chatSearchInput" placeholder="Search messages in chat..." oninput="handleChatSearch(this.value)" onkeydown="handleSearchKeydown(event)">
+        <input type="text" id="chatSearchInput" placeholder="Search loaded messages and files..." oninput="handleChatSearch(this.value)" onkeydown="handleSearchKeydown(event)">
         <span id="searchMatchesCount" class="im-search-count"></span>
       </div>
       <div class="im-search-nav">
@@ -367,8 +367,10 @@
     </div>
   </div>
 
+  <script src="/chat-cache.js"></script>
   <script>
     let currentStudent = null;
+    let messageCache = null;
     let isSending = false;
     const onlineMemberIds = new Set();
     let lastMessageId = 0;
@@ -540,6 +542,16 @@
       .then(data => {
         if (!data) return;
         currentStudent = data;
+        try { messageCache = createChatCache(localStorage, data.studentId); } catch {}
+        const cached = messageCache?.get().slice(-40) || [];
+        if (cached.length) {
+          renderMessages(cached);
+          oldestMessageId = cached[0].id;
+          // Keep the confirmed cursor separate from optimistic/live cache writes.
+          lastMessageId = cached[cached.length - 1].id;
+          scrollToBottom(true, false);
+          initialMessagesPositioned = true;
+        }
         textarea.disabled = false;
         handleInputState();
         loadMembers();
@@ -755,6 +767,7 @@
     }
 
     function removeMessageElement(msgId) {
+      messageCache?.remove(msgId);
       const row = document.getElementById(`msg-row-${msgId}`);
       if (row) {
         row.classList.add('deleting');
@@ -789,6 +802,16 @@
       }
     }
 
+    async function fetchChatHistory(url) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
+      try {
+        const response = await fetch(url, { cache: 'no-store', signal: controller.signal });
+        if (!response.ok) throw new Error(`Chat request failed (${response.status})`);
+        return await response.json();
+      } finally { clearTimeout(timeout); }
+    }
+
     // Initial Fetch
     async function fetchInitialMessages() {
       if (isFetching) return;
@@ -796,11 +819,9 @@
       try {
         // Explicit newest-page request also works with servers where since=0
         // still means the oldest page. PostgreSQL message IDs use signed 32-bit integers.
-        const res = await fetch(`/api/chat/messages?before=2147483647&limit=40`, { cache: 'no-store' });
+        const data = await fetchChatHistory('/api/chat/messages?before=2147483647&limit=40');
         const feed = document.getElementById('chatFeed');
-        if (!res.ok) throw new Error('Messages unavailable');
-        if (res.ok) {
-          const data = await res.json();
+        {
           const messages = Array.isArray(data) ? data : (data.messages || []);
           if (data.readReceipts) {
             data.readReceipts.forEach(r => {
@@ -809,6 +830,9 @@
             });
           }
 
+          const followLatest = isNearBottom();
+          document.querySelectorAll('#feedInner .im-row[data-message-id], #feedInner .im-date-stamp').forEach(row => row.remove());
+          messageCache?.replace(messages);
           const loadingEl = document.getElementById('loadingNotice');
           if (loadingEl) loadingEl.remove();
 
@@ -823,7 +847,7 @@
             hasMoreOlder = messages.length === 40;
 
             // Position synchronously before revealing the conversation: no scroll animation.
-            scrollToBottom(true, false);
+            if (!initialMessagesPositioned || followLatest) scrollToBottom(true, false);
             initialMessagesPositioned = true;
             markAsRead(lastMessageId);
           } else {
@@ -848,51 +872,48 @@
       if (!initialMessagesPositioned) return fetchInitialMessages();
       if (isFetching) return;
       isFetching = true;
+      const cursor = lastMessageId;
+      const knownIds = new Set([...document.querySelectorAll('.im-row[data-message-id]')].map(row => Number(row.dataset.messageId)));
       try {
-        const res = await fetch(`/api/chat/messages?since=${lastMessageId}`);
-        if (res.ok) {
-          const data = await res.json();
-          const messages = Array.isArray(data) ? data : (data.messages || []);
-          if (data.readReceipts) {
-            data.readReceipts.forEach(r => {
-              if (r.studentId === currentStudent?.studentId) myLastReadId = r.lastReadMessageId;
-              else readReceiptsMap[r.studentId] = r.lastReadMessageId;
-            });
-            updateReadReceiptsUI();
-          }
-
-          if (messages && messages.length > 0) {
-            messages.forEach(m => {
-              if (activeTypers.has(m.studentId)) {
-                clearTimeout(activeTypers.get(m.studentId).timer);
-                activeTypers.delete(m.studentId);
-              }
-            });
-            updateTypingUI();
-
-            const emptyElem = document.getElementById('emptyNotice');
-            if (emptyElem) emptyElem.remove();
-
-
-
-            const isNear = isNearBottom();
-            renderMessages(messages);
-            lastMessageId = Math.max(lastMessageId, messages[messages.length - 1].id);
-
-            if (isNear) {
-              scrollToBottom(true);
-            } else {
-              unreadCount += messages.length;
-              updateUnreadBadge();
-            }
-            markAsRead(lastMessageId);
-          }
+        const data = await fetchChatHistory(`/api/chat/messages?since=${cursor}&recent=40`);
+        const delta = Array.isArray(data) ? data : (data.messages || []);
+        const recent = data.recentMessages;
+        const isNear = isNearBottom();
+        const merged = [...new Map([...delta, ...(recent || [])].map(m => [m.id, m])).values()].sort((a, b) => a.id - b.id);
+        if (Array.isArray(recent)) {
+          const floor = recent.length === 40 ? recent[0].id : 0;
+          const serverIds = new Set(recent.map(m => m.id));
+          knownIds.forEach(id => {
+            if (id >= floor && id <= cursor && !serverIds.has(id)) removeMessageElement(id);
+          });
         }
-      } catch (e) {
-        console.error('Fetch new messages error:', e);
-      } finally {
-        isFetching = false;
-      }
+        if (merged.length) {
+          renderMessages(merged);
+          lastMessageId = Math.max(cursor, ...merged.map(m => m.id));
+          oldestMessageId = oldestMessageId || merged[0].id;
+          merged.forEach(m => {
+            const typer = activeTypers.get(m.studentId);
+            if (typer) clearTimeout(typer.timer);
+            activeTypers.delete(m.studentId);
+          });
+          updateTypingUI();
+          if (isNear) scrollToBottom(true, false);
+          else {
+            unreadCount += merged.filter(m => !knownIds.has(m.id) && String(m.studentId) !== String(currentStudent?.studentId)).length;
+            updateUnreadBadge();
+          }
+          markAsRead(lastMessageId);
+        }
+        (data.typing || []).forEach(handleTypingEvent);
+        (data.readReceipts || []).forEach(r => {
+          if (String(r.studentId) === String(currentStudent?.studentId)) myLastReadId = Math.max(myLastReadId, r.lastReadMessageId);
+          else readReceiptsMap[r.studentId] = Math.max(readReceiptsMap[r.studentId] || 0, r.lastReadMessageId);
+        });
+        updateReadReceiptsUI();
+        void loadPinnedMessage();
+      } catch (error) {
+        console.warn('Chat sync interrupted; will retry.', error.message);
+      } finally { isFetching = false; }
     }
 
     // Infinite scroll up to fetch older messages
@@ -903,9 +924,8 @@
       if (loader) loader.style.display = 'flex';
 
       try {
-        const res = await fetch(`/api/chat/messages?before=${oldestMessageId}&limit=30`);
-        if (res.ok) {
-          const data = await res.json();
+        const data = await fetchChatHistory(`/api/chat/messages?before=${oldestMessageId}&limit=30`);
+        {
           const older = Array.isArray(data) ? data : (data.messages || []);
           if (older.length < 30) {
             hasMoreOlder = false;
@@ -999,7 +1019,14 @@
               updateTypingUI();
             }
             // Fetch from the confirmed cursor so concurrent sends cannot skip messages.
-            if (msg.id > lastMessageId) fetchNewMessages();
+            if (Number.isSafeInteger(msg.id) && msg.id > 0) {
+              const isNear = isNearBottom();
+              const isNew = !document.getElementById(`msg-row-${msg.id}`);
+              renderMessages([msg]);
+              if (isNear) scrollToBottom(true, false);
+              else if (isNew && String(msg.studentId) !== String(currentStudent?.studentId)) { unreadCount++; updateUnreadBadge(); }
+              fetchNewMessages();
+            }
           })
           .on('broadcast', { event: 'delete_message' }, (payload) => {
             removeMessageElement(payload.payload.messageId);
@@ -1121,6 +1148,7 @@
 
     // Render Messages with Grouping, Asymmetric Radii & Document Cards
     function renderMessages(messages, prepend = false) {
+      messageCache?.merge(messages);
       const container = document.getElementById('feedInner');
       const typingEl = document.getElementById('typingIndicator');
       const topLoader = document.getElementById('topLoadingIndicator');
@@ -1132,7 +1160,10 @@
       const fragment = document.createDocumentFragment();
 
       messages.forEach((msg, idx) => {
-        if (document.getElementById(`msg-row-${msg.id}`)) return;
+        const version = JSON.stringify([msg.text, msg.attachmentName, msg.attachmentMimeType, msg.attachmentOriginalName, msg.replyToId, msg.replyText, msg.replySender, msg.name]);
+        const existing = document.getElementById(`msg-row-${msg.id}`);
+        if (existing?.dataset.version === version) return;
+        existing?.remove();
 
         const isSelf = currentStudent && String(msg.studentId) === String(currentStudent.studentId);
         const canDelete = isSelf || (currentStudent && currentStudent.isAdmin);
@@ -1168,6 +1199,8 @@
         const row = document.createElement('div');
         row.id = `msg-row-${msg.id}`;
         row.dataset.messageId = msg.id;
+        row.dataset.version = version;
+        row.dataset.search = `${msg.text || ''} ${msg.name || ''} ${msg.attachmentOriginalName || ''}`.toLowerCase();
         row.dataset.createdAt = msg.createdAt;
         row.className = `im-row ${isSelf ? 'self' : 'other'} ${posClass}${!samePrev ? ' cluster-start' : ''}`;
 
@@ -1236,10 +1269,10 @@
 
         // Attachments (Images, Videos, or Document Cards)
         if (hasMedia) {
-          const fileUrl = `/api/chat/attachment/${msg.attachmentName}`;
+          const fileUrl = `/api/chat/attachment/${encodeURIComponent(msg.attachmentName)}`;
           const origName = msg.attachmentOriginalName || 'File Attachment';
           const mime = (msg.attachmentMimeType || '').toLowerCase();
-          const isImage = mime.startsWith('image/');
+          const isImage = mime.startsWith('image/') || /\.(png|jpe?g|gif|webp|avif)$/i.test(msg.attachmentName);
           const isVideo = mime.startsWith('video/');
 
           if (isImage) {
@@ -1333,7 +1366,7 @@
         replyBtn.className = 'msg-action-btn msg-reply-btn';
         replyBtn.title = 'Reply';
         replyBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>';
-        replyBtn.onclick = () => window.initReply(msg.id, msg.name, msg.text);
+        replyBtn.onclick = () => window.initReply(msg.id, msg.name, msg.text || msg.attachmentOriginalName || 'Attachment');
         actionDiv.appendChild(replyBtn);
 
         if (canPin) {
@@ -1445,16 +1478,12 @@
     }
 
     function updateReactionUI(messageId, studentId, emoji, action) {
+      messageCache?.react(messageId, studentId, emoji, action);
       const bar = document.getElementById(`reactions-${messageId}`);
       if (!bar) return;
-
-      let reactions = JSON.parse(bar.dataset.reactions || '[]');
-      reactions = reactions.filter(r => !(String(r.studentId) === String(studentId) && r.emoji === emoji));
-      if (action === 'add') {
-        reactions.push({ studentId, emoji });
-      } else {
-        reactions = reactions.filter(r => !(r.studentId === studentId && r.emoji === emoji));
-      }
+      const reactions = JSON.parse(bar.dataset.reactions || '[]')
+        .filter(r => String(r.studentId) !== String(studentId));
+      if (action !== 'remove') reactions.push({ studentId, emoji });
       renderReactions(messageId, reactions);
     }
 
@@ -1718,7 +1747,7 @@
       const rows = document.querySelectorAll('.im-row');
       rows.forEach(row => {
         const textNodesToSearch = [];
-        const targets = row.querySelectorAll('.im-bubble-text, .im-file-name, .im-sender');
+        const targets = row.querySelectorAll('.im-bubble-text, .im-file-name, .im-msg-sender-name');
         targets.forEach(el => {
           const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null, false);
           let node;
@@ -1729,7 +1758,7 @@
           }
         });
 
-        let rowMatched = false;
+        let rowMatched = (row.dataset.search || '').includes(cleanTerm);
         textNodesToSearch.forEach(textNode => {
           const val = textNode.nodeValue;
           const lower = val.toLowerCase();

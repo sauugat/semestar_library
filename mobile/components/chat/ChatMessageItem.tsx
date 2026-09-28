@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useMemo } from 'react';
+import React, { useRef, useEffect, useMemo, useState } from 'react';
 import {
   View,
   StyleSheet,
@@ -8,6 +8,7 @@ import {
   PanResponder,
   useWindowDimensions,
   ActivityIndicator,
+  Image as RNImage,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,6 +17,8 @@ import * as Haptics from 'expo-haptics';
 import { Text } from '@/components/ui/Typography';
 import { ChatMessage, ChatReadReceipt } from '@/services/chat';
 import { parseChatDate } from '@/services/chat-state';
+
+const imageDimensionsCache = new Map<string, { width: number; height: number }>();
 
 interface ChatMessageItemProps {
   item: ChatMessage;
@@ -98,7 +101,7 @@ function isImageAttachment(
   filename?: string | null,
   mimeType?: string | null
 ): boolean {
-  if (mimeType && mimeType.startsWith('image/')) return true;
+  if (mimeType && (mimeType.startsWith('image') || mimeType === 'image')) return true;
   if (!filename) return false;
   const lower = filename.toLowerCase();
   return (
@@ -106,7 +109,8 @@ function isImageAttachment(
     lower.endsWith('.jpg') ||
     lower.endsWith('.jpeg') ||
     lower.endsWith('.webp') ||
-    lower.endsWith('.gif')
+    lower.endsWith('.gif') ||
+    lower.endsWith('.svg')
   );
 }
 
@@ -205,12 +209,58 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
   const isConsecutive = !isFirstInGroup;
 
   const isImg = isImageAttachment(item.attachmentName, item.attachmentMimeType);
-  const attachmentUrl = item.attachmentName
-    ? `${serverUrl}/api/chat/attachment/${encodeURIComponent(item.attachmentName)}`
-    : null;
+  const attachmentUrl = item.localUri
+    ? item.localUri
+    : item.attachmentName
+      ? `${serverUrl}/api/chat/attachment/${encodeURIComponent(item.attachmentName)}`
+      : null;
 
   const timeString = formatMessageTime(item.createdAt);
   const initialChar = (item.name || 'S').trim().charAt(0).toUpperCase();
+
+  const [avatarLoadError, setAvatarLoadError] = useState(false);
+  const avatarFullUrl = useMemo(() => {
+    if (!item.avatarUrl) return null;
+    if (item.avatarUrl.startsWith('http://') || item.avatarUrl.startsWith('https://')) {
+      return item.avatarUrl;
+    }
+    const base = serverUrl || 'http://localhost:3000';
+    return `${base.replace(/\/+$/, '')}/${item.avatarUrl.replace(/^\/+/, '')}`;
+  }, [item.avatarUrl, serverUrl]);
+
+  // Image natural aspect ratio tracking & measurement
+  const [imageDims, setImageDims] = useState<{ width: number; height: number } | null>(() => {
+    if (!attachmentUrl) return null;
+    return imageDimensionsCache.get(attachmentUrl) || null;
+  });
+
+  useEffect(() => {
+    if (!isImg || !attachmentUrl) return;
+    if (imageDimensionsCache.has(attachmentUrl)) return;
+    RNImage.getSize(
+      attachmentUrl,
+      (w, h) => {
+        if (w > 0 && h > 0) {
+          imageDimensionsCache.set(attachmentUrl, { width: w, height: h });
+          setImageDims({ width: w, height: h });
+        }
+      },
+      () => {}
+    );
+  }, [isImg, attachmentUrl]);
+
+  const targetImageWidth = Math.min(Math.round(screenWidth * 0.72), 290);
+  const renderedImageDims = useMemo(() => {
+    if (!imageDims || !imageDims.width || !imageDims.height) {
+      return { width: targetImageWidth, height: Math.round(targetImageWidth * 0.75), contentFit: 'cover' as const };
+    }
+    const naturalRatio = imageDims.width / imageDims.height;
+    const minRatio = 4 / 5; // 0.8 cap: only crop if taller than 4:5
+    if (naturalRatio < minRatio) {
+      return { width: targetImageWidth, height: Math.round(targetImageWidth / minRatio), contentFit: 'cover' as const };
+    }
+    return { width: targetImageWidth, height: Math.round(targetImageWidth / naturalRatio), contentFit: 'cover' as const };
+  }, [imageDims, targetImageWidth]);
 
   // Read receipts check: someone else read up to this message
   const isRead = isMe && readReceipts.some(
@@ -275,7 +325,7 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
         onPanResponderRelease: (_, gestureState) => {
           if (gestureState.dx > 45) {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-            onSwipeReply(item);
+            if (item.id > 0) onSwipeReply(item);
           }
           Animated.spring(translateX, {
             toValue: 0,
@@ -373,14 +423,17 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
           {!isMe && (
             <View style={styles.avatarGutter}>
               {isLastInGroup ? (
-                item.avatarUrl ? (
+                avatarFullUrl && !avatarLoadError ? (
                   <Image
                     source={{
-                      uri: item.avatarUrl,
+                      uri: avatarFullUrl,
                       headers: authToken ? { Authorization: `Bearer ${authToken}` } : undefined,
+                      cacheKey: item.avatarUrl || avatarFullUrl,
                     }}
                     style={styles.avatarImage}
+                    cachePolicy="memory-disk"
                     contentFit="cover"
+                    onError={() => setAvatarLoadError(true)}
                   />
                 ) : (
                   <View style={styles.avatarInitial}>
@@ -406,6 +459,7 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
                 isMe && isLastInGroup && { borderBottomRightRadius: 4 },
                 !isMe && isLastInGroup && { borderBottomLeftRadius: 4 },
                 isImageOnly && styles.imageBubbleTightPadding,
+                isImg && { width: renderedImageDims.width + 6 },
               ]}
             >
               {/* Highlight Flash Overlay */}
@@ -445,16 +499,16 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
               {isImg && attachmentUrl && (
                 <TouchableOpacity
                   activeOpacity={0.9}
+                  onLongPress={handleLongPress}
+                  delayLongPress={280}
+                  accessibilityLabel="Open photo. Long press for message actions."
                   onPress={() =>
                     onOpenImage({
                       uri: attachmentUrl,
                       name: item.attachmentOriginalName || item.attachmentName || 'image.jpg',
                     })
                   }
-                  style={[
-                    styles.imageContainer,
-                    isImageOnly && styles.imageContainerTight,
-                  ]}
+                  style={styles.imageContainer}
                 >
                   <Image
                     source={{
@@ -464,30 +518,62 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
                     style={[
                       styles.imageThumbnail,
                       {
-                        width: isImageOnly ? maxBubbleWidth - 6 : maxBubbleWidth - 24,
-                        maxHeight: maxImageHeight,
+                        width: renderedImageDims.width,
+                        height: renderedImageDims.height,
                       },
                     ]}
-                    contentFit="cover"
+                    cachePolicy="memory-disk"
+                    recyclingKey={`${item.id}:${item.attachmentName}`}
+                    contentFit={renderedImageDims.contentFit}
                     transition={150}
+                    onLoad={(e) => {
+                      const { width, height } = e.source;
+                      if (width && height && attachmentUrl && !imageDimensionsCache.has(attachmentUrl)) {
+                        imageDimensionsCache.set(attachmentUrl, { width, height });
+                        setImageDims({ width, height });
+                      }
+                    }}
                   />
+
+                  {/* Subtle translucent dark overlay while uploading */}
+                  {item.status === 'pending' && (
+                    <View style={styles.imageUploadingOverlay}>
+                      <ActivityIndicator size="small" color="#ffffff" />
+                    </View>
+                  )}
 
                   {/* If image only: overlay timestamp pill on bottom-right of image */}
                   {isImageOnly && (
-                    <View style={styles.imageOverlayMetaPill}>
-                      {Boolean((item as any).isEdited) && (
-                        <Text style={styles.imageOverlayEditedText}>Edited</Text>
-                      )}
-                      <Text style={styles.imageOverlayTimeText}>{timeString}</Text>
-                      {isMe && (
-                        <Ionicons
-                          name={isRead ? 'checkmark-done' : 'checkmark'}
-                          size={13}
-                          color={isRead ? '#ffffff' : '#d1d1d6'}
-                          style={{ marginLeft: 3 }}
-                        />
-                      )}
-                    </View>
+                    item.status === 'pending' ? (
+                      <View style={styles.imageOverlayMetaPill}>
+                        <ActivityIndicator size={10} color="#f5f5f5" style={{ marginRight: 4 }} />
+                        <Text style={styles.imageOverlayTimeText}>Sending…</Text>
+                      </View>
+                    ) : item.status === 'failed' ? (
+                      <TouchableOpacity
+                        onPress={() => onRetry?.(item)}
+                        style={[styles.imageOverlayMetaPill, { backgroundColor: 'rgba(180, 20, 20, 0.75)' }]}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Ionicons name="alert-circle" size={12} color="#ffffff" style={{ marginRight: 4 }} />
+                        <Text style={styles.imageOverlayTimeText}>Failed - tap to retry</Text>
+                      </TouchableOpacity>
+                    ) : (
+                      <View style={styles.imageOverlayMetaPill}>
+                        {Boolean((item as any).isEdited) && (
+                          <Text style={styles.imageOverlayEditedText}>Edited</Text>
+                        )}
+                        <Text style={styles.imageOverlayTimeText}>{timeString}</Text>
+                        {isMe && (
+                          <Ionicons
+                            name={isRead ? 'checkmark-done' : 'checkmark'}
+                            size={13}
+                            color={isRead ? '#ffffff' : '#d1d1d6'}
+                            style={{ marginLeft: 3 }}
+                          />
+                        )}
+                      </View>
+                    )
                   )}
                 </TouchableOpacity>
               )}
@@ -496,6 +582,9 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
               {!isImg && item.attachmentName && (
                 <TouchableOpacity
                   activeOpacity={0.7}
+                  onLongPress={handleLongPress}
+                  delayLongPress={280}
+                  accessibilityLabel="Open attachment. Long press for message actions."
                   onPress={() => onDownloadFile(item)}
                   style={[
                     styles.fileAttachmentRow,
@@ -523,7 +612,7 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
 
               {/* Text Body with Inline Bottom-Right Meta */}
               {Boolean(item.text && item.text.trim()) && (
-                <View style={styles.textContainer}>
+                <View style={[styles.textContainer, isImg && styles.captionContainer]}>
                   <View style={styles.textWithInlineMetaWrapper}>
                     {renderMessageTextWithLinks(
                       item.text,
@@ -533,46 +622,42 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
 
                     {/* Invisible spacer to reserve width for inline timestamp */}
                     <Text style={styles.invisibleMetaSpacer} pointerEvents="none">
-                      {'   '}{timeString}{isMe ? '  ✓✓' : ''}
+                      {'   '}{item.status === 'pending' ? 'Sending…' : item.status === 'failed' ? 'Failed - tap to retry' : timeString}{isMe ? '  ✓✓' : ''}
                       {Boolean((item as any).isEdited) ? '  Edited' : ''}
                     </Text>
                   </View>
 
                   {/* Absolute inline metadata placed at bottom-right */}
                   <View style={styles.inlineMetaBox}>
-                    {Boolean((item as any).isEdited) && (
-                      <Text style={styles.editedLabel}>Edited </Text>
-                    )}
-                    <Text style={styles.timestampText}>{timeString}</Text>
-                    {isMe && (
-                      item.status === 'pending' ? (
-                        <Ionicons
-                          name="time-outline"
-                          size={12}
-                          color="#8e8e93"
-                          style={{ marginLeft: 3 }}
-                        />
-                      ) : item.status === 'failed' ? (
-                        <TouchableOpacity
-                          onPress={() => onRetry?.(item)}
-                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                          accessibilityLabel="Retry sending message"
-                        >
+                    {item.status === 'pending' ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <ActivityIndicator size={9} color="#8e8e93" style={{ marginRight: 3 }} />
+                        <Text style={styles.timestampText}>Sending…</Text>
+                      </View>
+                    ) : item.status === 'failed' ? (
+                      <TouchableOpacity
+                        onPress={() => onRetry?.(item)}
+                        style={{ flexDirection: 'row', alignItems: 'center' }}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Ionicons name="alert-circle" size={12} color="#ef4444" style={{ marginRight: 3 }} />
+                        <Text style={[styles.timestampText, { color: '#ef4444' }]}>Failed - tap to retry</Text>
+                      </TouchableOpacity>
+                    ) : (
+                      <>
+                        {Boolean((item as any).isEdited) && (
+                          <Text style={styles.editedLabel}>Edited </Text>
+                        )}
+                        <Text style={styles.timestampText}>{timeString}</Text>
+                        {isMe && (
                           <Ionicons
-                            name="alert-circle"
+                            name={isRead ? 'checkmark-done' : 'checkmark'}
                             size={13}
-                            color="#ef4444"
+                            color={isRead ? '#d4d4d8' : '#8e8e93'}
                             style={{ marginLeft: 3 }}
                           />
-                        </TouchableOpacity>
-                      ) : (
-                        <Ionicons
-                          name={isRead ? 'checkmark-done' : 'checkmark'}
-                          size={13}
-                          color={isRead ? '#d4d4d8' : '#8e8e93'}
-                          style={{ marginLeft: 3 }}
-                        />
-                      )
+                        )}
+                      </>
                     )}
                   </View>
                 </View>
@@ -581,43 +666,40 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
               {/* If no text and not image-only (e.g. document only), render timestamp bar */}
               {!isImg && !Boolean(item.text && item.text.trim()) && (
                 <View style={styles.fileMetaRow}>
-                  {Boolean((item as any).isEdited) && (
-                    <Text style={styles.editedLabel}>Edited </Text>
-                  )}
-                  <Text style={styles.timestampText}>{timeString}</Text>
-                  {isMe && (
-                    item.status === 'pending' ? (
-                      <Ionicons
-                        name="time-outline"
-                        size={12}
-                        color="#8e8e93"
-                        style={{ marginLeft: 3 }}
-                      />
-                    ) : item.status === 'failed' ? (
-                      <TouchableOpacity
-                        onPress={() => onRetry?.(item)}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        accessibilityLabel="Retry sending message"
-                      >
+                  {item.status === 'pending' ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <ActivityIndicator size={9} color="#8e8e93" style={{ marginRight: 3 }} />
+                      <Text style={styles.timestampText}>Sending…</Text>
+                    </View>
+                  ) : item.status === 'failed' ? (
+                    <TouchableOpacity
+                      onPress={() => onRetry?.(item)}
+                      style={{ flexDirection: 'row', alignItems: 'center' }}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Ionicons name="alert-circle" size={12} color="#ef4444" style={{ marginRight: 3 }} />
+                      <Text style={[styles.timestampText, { color: '#ef4444' }]}>Failed - tap to retry</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <>
+                      {Boolean((item as any).isEdited) && (
+                        <Text style={styles.editedLabel}>Edited </Text>
+                      )}
+                      <Text style={styles.timestampText}>{timeString}</Text>
+                      {isMe && (
                         <Ionicons
-                          name="alert-circle"
+                          name={isRead ? 'checkmark-done' : 'checkmark'}
                           size={13}
-                          color="#ef4444"
+                          color={isRead ? '#d4d4d8' : '#8e8e93'}
                           style={{ marginLeft: 3 }}
                         />
-                      </TouchableOpacity>
-                    ) : (
-                      <Ionicons
-                        name={isRead ? 'checkmark-done' : 'checkmark'}
-                        size={13}
-                        color={isRead ? '#d4d4d8' : '#8e8e93'}
-                        style={{ marginLeft: 3 }}
-                      />
-                    )
+                      )}
+                    </>
                   )}
                 </View>
               )}
             </Pressable>
+
 
             {/* Reactions (rendered as small pills just below the bubble's bottom edge) */}
             {reactionMap.length > 0 && (
@@ -637,9 +719,10 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
                       reactedByMe && styles.reactionPillActive,
                     ]}
                   >
-                    <Text style={styles.reactionPillText}>
-                      {emoji} {count > 1 ? count : ''}
-                    </Text>
+                    <Text style={styles.reactionPillEmojiText}>{emoji}</Text>
+                    {count > 1 && (
+                      <Text style={styles.reactionPillCountText}>{count}</Text>
+                    )}
                   </TouchableOpacity>
                 ))}
               </View>
@@ -660,17 +743,16 @@ const styles = StyleSheet.create({
     marginVertical: 12,
   },
   dateSeparatorPill: {
-    backgroundColor: '#161618',
-    paddingHorizontal: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: 9,
     paddingVertical: 3,
     borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#242426',
+    borderWidth: 0,
   },
   dateSeparatorText: {
     fontSize: 11,
     fontWeight: '500',
-    color: '#71717a',
+    color: '#8e8e93',
   },
   swipeRowWrapper: {
     width: '100%',
@@ -780,14 +862,27 @@ const styles = StyleSheet.create({
   imageContainer: {
     borderRadius: 13,
     overflow: 'hidden',
-    marginBottom: 4,
-  },
-  imageContainerTight: {
-    marginBottom: 0,
-    borderRadius: 13,
+    position: 'relative',
+    backgroundColor: '#18181b',
   },
   imageThumbnail: {
     borderRadius: 13,
+  },
+  imageUploadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.40)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 13,
+  },
+  captionContainer: {
+    paddingHorizontal: 8,
+    paddingTop: 6,
+    paddingBottom: 4,
   },
   imageOverlayMetaPill: {
     position: 'absolute',
@@ -905,19 +1000,31 @@ const styles = StyleSheet.create({
   reactionPill: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#222224',
     borderWidth: 1,
     borderColor: '#333336',
-    borderRadius: 12,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    borderRadius: 14,
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    minHeight: 28,
+    minWidth: 32,
+    overflow: 'visible',
   },
   reactionPillActive: {
     backgroundColor: '#2c2c30',
     borderColor: '#4b4b50',
   },
-  reactionPillText: {
+  reactionPillEmojiText: {
+    fontSize: 14,
+    textAlign: 'center',
+    includeFontPadding: false,
+  },
+  reactionPillCountText: {
     fontSize: 11,
-    color: '#f5f5f5',
+    fontWeight: '600',
+    color: '#d4d4d8',
+    marginLeft: 4,
+    includeFontPadding: false,
   },
 });

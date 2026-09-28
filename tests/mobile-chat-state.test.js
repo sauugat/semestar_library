@@ -58,3 +58,11 @@ test('polling snapshot reconciles deletions and reactions without losing older p
   assert.equal(result[1].reactions[0].emoji, '👍');
   assert.deepEqual(state.reconcileChatSnapshot([message(5)], [], 5), []);
 });
+
+test('pending sends stay newest and a broadcast cannot hide a disconnected history gap', () => {
+  assert.deepEqual(state.mergeChatMessages([message(9)], [message(-1), message(-2)]).map(m => m.id), [-2, -1, 9]);
+  const existing = [message(100), message(10), message(9)];
+  const result = state.reconcileChatSnapshot(existing, [message(99), message(100)], 100, 10);
+  assert.deepEqual(result.map(m => m.id), [100, 99]);
+  assert.deepEqual(state.reconcileChatSnapshot(existing, [], 100, 10), []);
+});

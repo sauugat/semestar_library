@@ -56,15 +56,17 @@ if (process.env.NODE_ENV !== 'test' && supabaseUrl && supabaseKey) {
   }
 }
 
-function sendBroadcast(event, payload) {
+async function sendBroadcast(event, payload) {
   if (!broadcastChannel) return;
-  broadcastChannel.send({
-    type: 'broadcast',
-    event: event,
-    payload: payload
-  }).catch(err => {
+  try {
+    await broadcastChannel.send({
+      type: 'broadcast',
+      event: event,
+      payload: payload
+    });
+  } catch (err) {
     console.error('Broadcast error:', err);
-  });
+  }
 }
 
 const app = express();
@@ -77,10 +79,34 @@ if (!fs.existsSync(UPLOAD_DIR)) {
   } catch (e) { }
 }
 
+function getExtensionFromMime(mime) {
+  if (!mime) return '';
+  const m = String(mime).toLowerCase();
+  if (m.includes('jpeg') || m.includes('jpg')) return '.jpg';
+  if (m.includes('png')) return '.png';
+  if (m.includes('gif')) return '.gif';
+  if (m.includes('webp')) return '.webp';
+  if (m.includes('svg')) return '.svg';
+  if (m.includes('pdf')) return '.pdf';
+  if (m.includes('mp4')) return '.mp4';
+  if (m.includes('quicktime') || m.includes('mov')) return '.mov';
+  if (m.includes('webm')) return '.webm';
+  if (m.includes('zip')) return '.zip';
+  if (m.includes('text/plain')) return '.txt';
+  return '';
+}
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOAD_DIR),
   filename: (req, file, cb) => {
-    const uniqueName = crypto.randomBytes(16).toString('hex') + path.extname(file.originalname);
+    let ext = path.extname(file.originalname || '').toLowerCase();
+    if (!ext) {
+      ext = getExtensionFromMime(file.mimetype);
+      if (!ext && (file.mimetype === 'image' || (file.mimetype || '').startsWith('image/'))) {
+        ext = '.jpg';
+      }
+    }
+    const uniqueName = crypto.randomBytes(16).toString('hex') + (ext || '.jpg');
     cb(null, uniqueName);
   }
 });
@@ -97,7 +123,14 @@ const chatUpload = multer({
     const m = (file.mimetype || '').toLowerCase();
     const ext = path.extname(file.originalname || '').toLowerCase();
     const allowedExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.mp4', '.webm', '.mov', '.pdf', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx', '.zip', '.txt', '.c', '.cpp', '.py', '.java', '.js', '.html', '.css', '.json'];
-    if (m.startsWith('image/') || m.startsWith('video/') || m.startsWith('application/pdf') || m.startsWith('text/') || allowedExts.includes(ext)) {
+    if (
+      m.startsWith('image') ||
+      m.startsWith('video') ||
+      m.startsWith('application/pdf') ||
+      m.startsWith('text/') ||
+      allowedExts.includes(ext) ||
+      (!ext && (m === 'application/octet-stream' || !m))
+    ) {
       cb(null, true);
     } else {
       cb(new Error('File format not supported. Please upload an image, video, PDF, document, or code file.'));
@@ -274,14 +307,18 @@ app.use(async (req, res, next) => {
 // Runs alongside session cookies; does not interfere with browser sessions
 app.use(async (req, res, next) => {
   const authHeader = req.headers['authorization'];
+  let token = null;
   if (authHeader && authHeader.startsWith('Bearer ')) {
-    const token = authHeader.substring(7).trim();
-    if (token) {
-      try {
-        const tokenRecord = await db.get(
-          'SELECT token, studentId, expiresAt FROM mobile_tokens WHERE token = ?',
-          token
-        );
+    token = authHeader.substring(7).trim();
+  } else if (req.query && typeof req.query.token === 'string' && req.query.token.trim()) {
+    token = req.query.token.trim();
+  }
+  if (token) {
+    try {
+      const tokenRecord = await db.get(
+        'SELECT token, studentId, expiresAt FROM mobile_tokens WHERE token = ?',
+        token
+      );
         if (tokenRecord) {
           const rawExpiry = tokenRecord.expiresAt || tokenRecord.expiresat;
           const expiresAt = new Date(rawExpiry).getTime();
@@ -304,9 +341,8 @@ app.use(async (req, res, next) => {
             db.run('DELETE FROM mobile_tokens WHERE token = ?', token).catch(() => {});
           }
         }
-      } catch (err) {
-        console.error('[Mobile Auth Middleware Error]:', err.message);
-      }
+    } catch (err) {
+      console.error('[Mobile Auth Middleware Error]:', err.message);
     }
   }
   next();
@@ -2372,14 +2408,14 @@ app.get('/api/chat/config', requireLogin, (req, res) => {
 app.get('/api/chat/messages', requireLogin, async (req, res) => {
   const since = parseInt(req.query.since || req.query.after) || 0;
   const before = parseInt(req.query.before) || 0;
-  const limit = Math.min(parseInt(req.query.limit) || (before ? 35 : 200), 200);
+  const limit = Math.max(1, Math.min(parseInt(req.query.limit) || (before ? 35 : 200), 200));
 
   // Parallelize reading messages and read receipts concurrently
   const messagesPromise = (before > 0 || since === 0)
     ? db.all(`
         SELECT chat_messages.id, chat_messages.text, chat_messages.attachmentName, chat_messages.attachmentOriginalName, chat_messages.attachmentMimeType, chat_messages.replyToId, chat_messages.createdAt,
           students.studentId, students.name, students.avatarUrl,
-          reply_msg.text AS replyText, reply_student.name AS replySender
+          COALESCE(NULLIF(reply_msg.text, ''), reply_msg.attachmentOriginalName) AS replyText, reply_student.name AS replySender
         FROM chat_messages
         LEFT JOIN students ON students.studentId = chat_messages.studentId
         LEFT JOIN chat_messages AS reply_msg ON reply_msg.id = chat_messages.replyToId
@@ -2391,7 +2427,7 @@ app.get('/api/chat/messages', requireLogin, async (req, res) => {
     : db.all(`
         SELECT chat_messages.id, chat_messages.text, chat_messages.attachmentName, chat_messages.attachmentOriginalName, chat_messages.attachmentMimeType, chat_messages.replyToId, chat_messages.createdAt,
           students.studentId, students.name, students.avatarUrl,
-          reply_msg.text AS replyText, reply_student.name AS replySender
+          COALESCE(NULLIF(reply_msg.text, ''), reply_msg.attachmentOriginalName) AS replyText, reply_student.name AS replySender
         FROM chat_messages
         LEFT JOIN students ON students.studentId = chat_messages.studentId
         LEFT JOIN chat_messages AS reply_msg ON reply_msg.id = chat_messages.replyToId
@@ -2409,21 +2445,36 @@ app.get('/api/chat/messages', requireLogin, async (req, res) => {
     messages.reverse(); // restore chronological order
   }
 
-  const messageIds = messages.map(m => m.id);
-  if (messageIds.length > 0) {
+  // Polling must reconcile mutations too: a delta alone never includes a
+  // reaction, deleted message or changed attachment on an existing row.
+  const recentLimit = Math.max(0, Math.min(parseInt(req.query.recent) || 0, 100));
+  const recentMessages = recentLimit ? await db.all(`
+    SELECT m.id, m.text, m.attachmentName, m.attachmentOriginalName, m.attachmentMimeType,
+      m.replyToId, m.createdAt, s.studentId, s.name, s.avatarUrl,
+      COALESCE(NULLIF(reply.text, ''), reply.attachmentOriginalName) AS replyText, author.name AS replySender
+    FROM chat_messages m
+    LEFT JOIN students s ON s.studentId = m.studentId
+    LEFT JOIN chat_messages reply ON reply.id = m.replyToId
+    LEFT JOIN students author ON author.studentId = reply.studentId
+    ORDER BY m.id DESC LIMIT ?
+  `, recentLimit) : [];
+  recentMessages.reverse();
+  const allMessages = [...messages, ...recentMessages];
+  const messageIds = [...new Set(allMessages.map(m => m.id))];
+  if (messageIds.length) {
     const placeholders = messageIds.map(() => '?').join(',');
     const reactions = await db.all(`SELECT messageId, studentId, emoji FROM chat_reactions WHERE messageId IN (${placeholders})`, ...messageIds);
     const reactionMap = {};
     reactions.forEach(r => {
-      if (!reactionMap[r.messageId]) reactionMap[r.messageId] = [];
-      reactionMap[r.messageId].push({ studentId: r.studentId, emoji: r.emoji });
+      (reactionMap[r.messageId] ||= []).push({ studentId: r.studentId, emoji: r.emoji });
     });
-    messages.forEach(m => {
-      m.reactions = reactionMap[m.id] || [];
-    });
+    allMessages.forEach(m => { m.reactions = reactionMap[m.id] || []; });
   }
-
-  res.json({ messages, readReceipts });
+  const typing = await db.all(`SELECT t.studentId, s.name, t.lastTypedAt AS timestamp
+    FROM chat_typing t JOIN students s ON s.studentId = t.studentId WHERE t.lastTypedAt > ?`,
+    new Date(Date.now() - 3500).toISOString());
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ messages, readReceipts, typing, ...(recentLimit ? { recentMessages } : {}) });
 });
 
 app.get('/api/chat/members', requireLogin, async (req, res) => {
@@ -2521,7 +2572,7 @@ app.post('/api/chat/pinned/:id', requireLogin, async (req, res) => {
       `, pinnedMessage.messageId, pinnedMessage.text, pinnedMessage.senderName, pinnedMessage.pinnedBy, pinnedMessage.pinnedAt);
     }
 
-    sendBroadcast('pin_message', pinnedMessage);
+    await sendBroadcast('pin_message', pinnedMessage);
     res.json({ success: true, pinned: pinnedMessage });
   } catch (err) {
     console.error('[Pin Chat Error]:', err.message);
@@ -2538,7 +2589,7 @@ app.delete('/api/chat/pinned', requireLogin, async (req, res) => {
     }
 
     await db.run('DELETE FROM chat_pinned WHERE id = 1');
-    sendBroadcast('pin_message', { unpinned: true });
+    await sendBroadcast('pin_message', { unpinned: true });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'Failed to unpin message' });
@@ -2548,7 +2599,8 @@ app.delete('/api/chat/pinned', requireLogin, async (req, res) => {
 app.post('/api/chat/reactions', requireLogin, async (req, res) => {
   const { messageId, emoji } = req.body;
   const studentId = req.session.studentId;
-  if (!messageId || !emoji) return res.status(400).json({ error: 'Missing data' });
+  if (!Number.isSafeInteger(Number(messageId)) || Number(messageId) <= 0 || typeof emoji !== 'string' || !emoji.trim() || emoji.length > 32) return res.status(400).json({ error: 'Invalid reaction' });
+  if (!await db.get('SELECT id FROM chat_messages WHERE id = ?', messageId)) return res.status(404).json({ error: 'Message no longer exists' });
 
   try {
     const existing = await db.get(`SELECT * FROM chat_reactions WHERE messageId = ? AND studentId = ?`, messageId, studentId);
@@ -2568,7 +2620,7 @@ app.post('/api/chat/reactions', requireLogin, async (req, res) => {
       action = 'add';
     }
 
-    sendBroadcast('reaction_update', { messageId, studentId, emoji, action });
+    await sendBroadcast('reaction_update', { messageId, studentId, emoji, action });
 
     res.json({ success: true, action });
   } catch (error) {
@@ -2580,7 +2632,7 @@ app.post('/api/chat/reactions', requireLogin, async (req, res) => {
 app.post('/api/chat/read', requireLogin, async (req, res) => {
   const lastReadMessageId = parseInt(req.body.lastReadMessageId, 10);
   const studentId = req.session.studentId;
-  if (!lastReadMessageId || isNaN(lastReadMessageId)) return res.status(400).json({ error: 'Missing or invalid lastReadMessageId' });
+  if (!Number.isSafeInteger(lastReadMessageId) || lastReadMessageId <= 0) return res.status(400).json({ error: 'Missing or invalid lastReadMessageId' });
 
   try {
     const current = await db.get('SELECT lastReadMessageId FROM chat_read_receipts WHERE studentId = ?', studentId);
@@ -2631,12 +2683,20 @@ app.post('/api/chat/typing', requireLogin, async (req, res) => {
 });
 
 const handleChatUpload = (req, res, next) => {
-  chatUpload.single('attachment')(req, res, (err) => {
+  chatUpload.fields([
+    { name: 'attachment', maxCount: 1 },
+    { name: 'file', maxCount: 1 }
+  ])(req, res, (err) => {
     if (err) {
       if (err instanceof multer.MulterError) {
         return res.status(400).json({ message: `Upload error: ${err.message}` });
       }
       return res.status(400).json({ message: err.message || String(err) });
+    }
+    if (req.files) {
+      req.file = (req.files['attachment'] && req.files['attachment'][0]) ||
+                 (req.files['file'] && req.files['file'][0]) ||
+                 undefined;
     }
     next();
   });
@@ -2646,6 +2706,11 @@ app.post('/api/chat/messages', requireLogin, chatRateLimiter, handleChatUpload, 
   const text = (req.body && req.body.text ? String(req.body.text) : '').trim();
   const file = req.file;
   const replyToId = req.body.replyToId ? parseInt(req.body.replyToId, 10) : null;
+
+  if (req.body.replyToId && (!Number.isSafeInteger(replyToId) || replyToId <= 0 || !await db.get('SELECT id FROM chat_messages WHERE id = ?', replyToId))) {
+    if (file) fs.unlink(file.path, () => {});
+    return res.status(404).json({ message: 'The message you are replying to no longer exists.' });
+  }
 
   if (!text && !file) {
     return res.status(400).json({ message: 'Cannot send an empty message.' });
@@ -2666,12 +2731,15 @@ app.post('/api/chat/messages', requireLogin, chatRateLimiter, handleChatUpload, 
     attachmentMimeType = file.mimetype;
 
     try {
-      if (fs.existsSync(file.path)) {
+      {
         const fileBuffer = fs.readFileSync(file.path);
-        await db.saveFileBlob(file.filename, fileBuffer, file.mimetype || 'application/octet-stream');
+        const saved = await db.saveFileBlob(file.filename, fileBuffer, file.mimetype || 'application/octet-stream');
+        if (!saved) throw new Error('Attachment storage unavailable');
       }
     } catch (err) {
-      console.warn(`[Chat Blob Save Warning for ${file.originalname}]:`, err.message);
+      fs.unlink(file.path, () => {});
+      console.error('Chat attachment storage failed:', err.message);
+      return res.status(503).json({ message: 'Could not save the attachment. Please try again.' });
     }
   }
 
@@ -2687,7 +2755,7 @@ app.post('/api/chat/messages', requireLogin, chatRateLimiter, handleChatUpload, 
     const newMsg = await db.get(`
       SELECT chat_messages.id, chat_messages.text, chat_messages.attachmentName, chat_messages.attachmentOriginalName, chat_messages.attachmentMimeType, chat_messages.replyToId, chat_messages.createdAt,
         students.studentId, students.name, students.avatarUrl,
-        reply_msg.text AS replyText, reply_student.name AS replySender
+        COALESCE(NULLIF(reply_msg.text, ''), reply_msg.attachmentOriginalName) AS replyText, reply_student.name AS replySender
       FROM chat_messages
       LEFT JOIN students ON students.studentId = chat_messages.studentId
       LEFT JOIN chat_messages AS reply_msg ON reply_msg.id = chat_messages.replyToId
@@ -2731,13 +2799,17 @@ app.delete('/api/chat/messages/:id', requireLogin, async (req, res) => {
       await db.deleteFileBlob(attFilename).catch(() => {});
     }
 
+    const wasPinned = await db.get('SELECT id FROM chat_pinned WHERE messageId = ?', messageId);
+    await db.run('DELETE FROM chat_pinned WHERE messageId = ?', messageId);
+    if (wasPinned) await sendBroadcast('pin_message', { unpinned: true });
+
     // Clean up foreign references & reactions
     await db.run('UPDATE chat_messages SET replyToId = NULL WHERE replyToId = ?', messageId);
     await db.run('DELETE FROM chat_reactions WHERE messageId = ?', messageId);
     await db.run('DELETE FROM chat_messages WHERE id = ?', messageId);
 
     // Broadcast message deletion to all clients
-    sendBroadcast('delete_message', { messageId });
+    await sendBroadcast('delete_message', { messageId });
 
     res.json({ success: true, messageId });
   } catch (error) {
@@ -2748,12 +2820,15 @@ app.delete('/api/chat/messages/:id', requireLogin, async (req, res) => {
 
 app.get('/api/chat/attachment/:filename', requireLogin, async (req, res) => {
   const filename = path.basename(req.params.filename);
-  if (!/^[a-zA-Z0-9_\-\.]+\.[a-zA-Z0-9]+$/.test(filename)) {
+  if (!/^[a-zA-Z0-9_\-\.]+$/.test(filename)) {
     return res.status(404).json({ message: 'File not found on server' });
   }
 
   // Ensure this file actually belongs to a chat message attachment
-  const msg = await db.get('SELECT id FROM chat_messages WHERE attachmentName = ? LIMIT 1', filename);
+  const msg = await db.get(
+    'SELECT id, attachmentMimeType, attachmentOriginalName FROM chat_messages WHERE attachmentName = ? LIMIT 1',
+    filename
+  );
   if (!msg) {
     return res.status(404).json({ message: 'File not found on server' });
   }
@@ -2766,6 +2841,9 @@ app.get('/api/chat/attachment/:filename', requireLogin, async (req, res) => {
 
   res.setHeader('Cache-Control', 'private, max-age=86400');
   res.setHeader('X-Content-Type-Options', 'nosniff');
+  if (msg.attachmentMimeType) {
+    res.setHeader('Content-Type', msg.attachmentMimeType);
+  }
   res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'; style-src 'unsafe-inline'");
   res.sendFile(filePath);
 });

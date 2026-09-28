@@ -12,6 +12,7 @@ import {
   markChatRead,
 } from "@/services/chat";
 import {
+  applyChatReaction,
   mergeChatMessages,
   reconcileChatSnapshot,
 } from "@/services/chat-state";
@@ -19,7 +20,9 @@ import {
   getCachedChatMessages,
   getNewestCachedMessageId,
   upsertChatMessages,
-  deleteCachedMessage,
+  configureChatCache,
+  getMemoryChatMessages,
+  reconcileCachedChat,
 } from "@/services/chat-db";
 import {
   initChatRealtime,
@@ -31,7 +34,7 @@ type Typer = { name: string; expiresAt: number };
 
 export function useClassChat(studentId: string | undefined, serverUrl: string) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [loadingInitial, setLoadingInitial] = useState(false);
+  const [loadingInitial, setLoadingInitial] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -50,12 +53,14 @@ export function useClassChat(studentId: string | undefined, serverUrl: string) {
   const active = useRef(false);
   const syncing = useRef(false);
   const paging = useRef(false);
-  const initialCacheLoaded = useRef(false);
+  const hydrated = useRef(false);
+  const snapshotCursor = useRef<number | null>(null);
 
   const refreshPinned = useCallback(async () => {
+    const epoch = generation.current;
     try {
       const data = await fetchChatPinned();
-      if (active.current) {
+      if (active.current && epoch === generation.current) {
         setPinned(data.pinned);
       }
     } catch {
@@ -68,6 +73,8 @@ export function useClassChat(studentId: string | undefined, serverUrl: string) {
     if (
       !active.current ||
       syncing.current ||
+      paging.current ||
+      !hydrated.current ||
       AppState.currentState === "background"
     ) {
       return;
@@ -79,69 +86,34 @@ export function useClassChat(studentId: string | undefined, serverUrl: string) {
     try {
       const newestCachedId = await getNewestCachedMessageId();
 
-      if (newestCachedId > 0) {
-        // Fetch only delta: messages newer than our newest cached id
-        const deltaData = await fetchChatMessages({
-          since: newestCachedId,
-          limit: 100,
-        });
-
-        if (!active.current || epoch !== generation.current) return;
-
-        const deltaMessages = deltaData.messages || [];
-        if (deltaMessages.length > 0) {
-          await upsertChatMessages(deltaMessages);
-          setMessages((prev) => mergeChatMessages(prev, deltaMessages));
-          setActiveTypers((prev) => {
-            const next = new Map(prev);
-            deltaMessages.forEach((msg) => next.delete(String(msg.studentId)));
-            return next;
-          });
-        }
-        if (deltaData.readReceipts) {
-          setReadReceipts(deltaData.readReceipts);
-        }
-
-        // Reconcile recent ~50 messages in background for reactions, edits, and deletions
-        const snapshotData = await fetchChatMessages({
-          before: CHAT_LATEST_CURSOR,
-          limit: 50,
-        });
-
-        if (active.current && epoch === generation.current && snapshotData.messages) {
-          await upsertChatMessages(snapshotData.messages);
-          setMessages((prev) =>
-            reconcileChatSnapshot(prev, snapshotData.messages, newestCachedId)
-          );
-          if (snapshotData.readReceipts) {
-            setReadReceipts(snapshotData.readReceipts);
-          }
-        }
-      } else {
-        // First cold start: cache is empty
-        if (!initialCacheLoaded.current) {
-          setLoadingInitial(true);
-        }
-
-        const initialData = await fetchChatMessages({
-          before: CHAT_LATEST_CURSOR,
-          limit: CHAT_PAGE_SIZE,
-        });
-
-        if (!active.current || epoch !== generation.current) return;
-
-        const incoming = initialData.messages || [];
-        await upsertChatMessages(incoming);
-        setMessages((prev) => mergeChatMessages(prev, incoming));
+      // Fetch the newest window directly. If we were offline longer than this
+      // window, discard the disconnected history segment; paging fills it back
+      // from the server instead of silently skipping a gap with MAX(id).
+      const data = await fetchChatMessages({ before: CHAT_LATEST_CURSOR, limit: CHAT_PAGE_SIZE });
+      if (!active.current || epoch !== generation.current) return;
+      const incoming = data.messages || [];
+      const reset = snapshotCursor.current === null;
+      const confirmedId = newestCachedId;
+      const previousSnapshotId = snapshotCursor.current ?? newestCachedId;
+      setMessages(previous => reset
+        ? mergeChatMessages(previous.filter(m => m.id < 0 || m.id > confirmedId), incoming)
+        : reconcileChatSnapshot(previous, incoming, confirmedId, previousSnapshotId));
+      snapshotCursor.current = Math.max(0, ...incoming.map(m => m.id));
+      if (reset || (incoming.length > 0 && Math.min(...incoming.map(m => m.id)) > previousSnapshotId)) {
         setHasMore(incoming.length >= CHAT_PAGE_SIZE);
-        if (initialData.readReceipts) {
-          setReadReceipts(initialData.readReceipts);
-        }
       }
+      if (data.readReceipts) setReadReceipts(data.readReceipts);
+      if (data.typing) {
+        setActiveTypers(new Map(data.typing
+          .filter(t => String(t.studentId) !== String(studentId))
+          .map(t => [String(t.studentId), { name: t.name, expiresAt: new Date(t.timestamp).getTime() + 3500 }])));
+      }
+      await reconcileCachedChat(incoming, confirmedId, reset, previousSnapshotId);
+      if (!active.current || epoch !== generation.current) return;
 
       setError(null);
     } catch (err: any) {
-      if (active.current && epoch === generation.current && messagesRef.current.length === 0) {
+      if (active.current && epoch === generation.current) {
         setError(err.message || "Unable to sync messages. Retrying in background...");
       }
     } finally {
@@ -150,7 +122,7 @@ export function useClassChat(studentId: string | undefined, serverUrl: string) {
         setLoadingInitial(false);
       }
     }
-  }, []);
+  }, [studentId]);
 
   // Main lifecycle: Local-first instant load + Realtime Singleton subscription
   useFocusEffect(
@@ -162,26 +134,29 @@ export function useClassChat(studentId: string | undefined, serverUrl: string) {
       syncing.current = false;
       paging.current = false;
 
-      // 1. Immediately read cached messages from local SQLite (0ms UI render, NO SPINNER)
+      hydrated.current = false;
+      snapshotCursor.current = null;
+      configureChatCache(serverUrl, studentId);
+      const immediate = getMemoryChatMessages();
+      setMessages(immediate);
+      setLoadingInitial(immediate.length === 0);
+      setHasMore(true);
+      setError(null);
+      setReadReceipts([]);
+      setPinned(null);
+      setOnlineIds([]);
+      setActiveTypers(new Map());
       void (async () => {
         const cached = await getCachedChatMessages(50);
-        if (active.current && epoch === generation.current) {
-          if (cached.length > 0) {
-            initialCacheLoaded.current = true;
-            setMessages((prev) => mergeChatMessages(prev, cached));
-            setLoadingInitial(false);
-          } else {
-            setLoadingInitial(true);
-          }
-        }
+        if (!active.current || epoch !== generation.current) return;
+        setMessages(previous => mergeChatMessages(cached, previous));
+        hydrated.current = true;
+        if (cached.length) setLoadingInitial(false);
+        void sync();
+        void initChatRealtime(studentId, serverUrl).then(() => {
+          if (active.current && epoch === generation.current) void trackChatPresence({ studentId });
+        });
       })();
-
-      // 2. Start/Subscribe to Realtime Singleton channel (reused across opens)
-      void initChatRealtime(studentId).then(() => {
-        if (active.current) {
-          void trackChatPresence({ studentId });
-        }
-      });
 
       const unsubscribe = subscribeChatRealtime({
         onNewMessage: (newMsg) => {
@@ -195,7 +170,9 @@ export function useClassChat(studentId: string | undefined, serverUrl: string) {
         },
         onDeleteMessage: (deletedId) => {
           if (!active.current) return;
-          setMessages((prev) => prev.filter((m) => m.id !== deletedId));
+          setMessages((prev) => prev.filter((m) => m.id !== deletedId).map(m => m.replyToId === deletedId
+            ? { ...m, replyToId: null, replyText: undefined, replySender: undefined } : m));
+          void refreshPinned();
         },
         onTyping: (name, senderId) => {
           if (!active.current) return;
@@ -206,31 +183,29 @@ export function useClassChat(studentId: string | undefined, serverUrl: string) {
             })
           );
         },
-        onReaction: (messageId, emoji, senderId) => {
+        onReaction: (messageId, emoji, senderId, action) => {
           if (!active.current) return;
-          setMessages((prev) =>
-            prev.map((msg) => {
-              if (msg.id !== messageId) return msg;
-              const current = [...(msg.reactions || [])];
-              const idx = current.findIndex((r) => r.studentId === senderId);
-              if (idx >= 0) {
-                if (current[idx].emoji === emoji) {
-                  current.splice(idx, 1);
-                } else {
-                  current[idx] = { studentId: senderId, emoji };
-                }
-              } else {
-                current.push({ studentId: senderId, emoji });
-              }
-              return { ...msg, reactions: current };
-            })
-          );
+          if (String(senderId) === String(studentId)) {
+            // Already updated optimistically on local device - ignore realtime echo
+            return;
+          }
+          setMessages(previous => applyChatReaction(previous, messageId, senderId, emoji, action));
+        },
+        onPin: () => { void refreshPinned(); },
+        onRead: (receipt) => {
+          if (active.current) setReadReceipts(previous => [
+            ...previous.filter(r => String(r.studentId) !== String(receipt.studentId)),
+            { ...receipt, lastReadMessageId: Math.max(receipt.lastReadMessageId, previous.find(r => String(r.studentId) === String(receipt.studentId))?.lastReadMessageId || 0) },
+          ]);
         },
         onOnlineUsers: (ids) => {
           if (active.current) setOnlineIds(ids);
         },
         onConnectionChange: (connected) => {
-          if (active.current) setIsConnected(connected);
+          if (active.current) {
+            setIsConnected(connected);
+            if (connected) void sync();
+          }
         },
       });
 
@@ -258,7 +233,8 @@ export function useClassChat(studentId: string | undefined, serverUrl: string) {
       // Low-frequency fallback sync
       const pollInterval = setInterval(() => {
         void sync();
-      }, 8000);
+        void refreshPinned();
+      }, 3500);
 
       // AppState foreground listener
       const appStateSub = AppState.addEventListener("change", (state) => {
@@ -281,11 +257,12 @@ export function useClassChat(studentId: string | undefined, serverUrl: string) {
     }, [studentId, serverUrl, sync, refreshPinned]),
   );
 
-  // Pagination: Load older messages from SQLite first, then network
+  // Refresh older pages from the server; fall back to disk when offline.
   const loadOlderMessages = useCallback(async () => {
     if (
       !active.current ||
       paging.current ||
+      syncing.current ||
       !hasMore ||
       messages.length === 0
     ) {
@@ -298,17 +275,9 @@ export function useClassChat(studentId: string | undefined, serverUrl: string) {
 
     // Find the oldest message ID currently loaded
     const oldestId = Math.min(...messages.map((m) => m.id).filter((id) => id > 0));
+    if (!Number.isFinite(oldestId)) { paging.current = false; setLoadingMore(false); return; }
 
     try {
-      // 1. Try loading older messages from SQLite first
-      const cachedOlder = await getCachedChatMessages(30, oldestId);
-      if (!active.current || epoch !== generation.current) return;
-
-      if (cachedOlder.length > 0) {
-        setMessages((prev) => mergeChatMessages(cachedOlder, prev));
-        return;
-      }
-
       // 2. If SQLite doesn't have older messages, fetch from network
       const netData = await fetchChatMessages({
         before: oldestId,
@@ -326,6 +295,11 @@ export function useClassChat(studentId: string | undefined, serverUrl: string) {
         setHasMore(false);
       }
     } catch {
+      const cachedOlder = await getCachedChatMessages(30, oldestId);
+      if (active.current && epoch === generation.current) {
+        setMessages(previous => mergeChatMessages(cachedOlder, previous));
+        setError("Couldn't load older messages. Check your connection and retry.");
+      }
       // Paging failure is non-fatal
     } finally {
       if (epoch === generation.current) {
@@ -336,6 +310,7 @@ export function useClassChat(studentId: string | undefined, serverUrl: string) {
   }, [hasMore, messages]);
 
   const markRead = useCallback(async (lastReadMessageId: number) => {
+    if (!active.current || AppState.currentState === "background" || lastReadMessageId <= 0) return;
     try {
       await markChatRead(lastReadMessageId);
     } catch {
@@ -354,6 +329,7 @@ export function useClassChat(studentId: string | undefined, serverUrl: string) {
     activeTypers,
     readReceipts,
     pinned,
+    setPinned,
     onlineIds,
     loadOlderMessages,
     sync,

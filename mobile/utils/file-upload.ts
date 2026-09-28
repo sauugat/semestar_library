@@ -26,8 +26,8 @@ const MIME_TO_EXT: Record<string, string> = {
   'image/png': '.png',
   'image/gif': '.gif',
   'image/webp': '.webp',
-  'image/heic': '.jpg', // Normalizing HEIC to JPG
-  'image/heif': '.jpg',
+  'image/heic': '.heic',
+  'image/heif': '.heif',
   'application/pdf': '.pdf',
   'application/msword': '.doc',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
@@ -46,7 +46,8 @@ const EXT_TO_MIME: Record<string, string> = {
   '.png': 'image/png',
   '.gif': 'image/gif',
   '.webp': 'image/webp',
-  '.heic': 'image/jpeg',
+  '.heic': 'image/heic',
+  '.heif': 'image/heif',
   '.pdf': 'application/pdf',
   '.doc': 'application/msword',
   '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -63,7 +64,7 @@ const EXT_TO_MIME: Record<string, string> = {
  * into a safe, valid multipart file payload for the backend.
  */
 export function normalizeUploadFile(asset: RawFileAsset, defaultFallbackName = 'upload'): NormalizedUploadFile {
-  let uri = asset.uri || '';
+  const uri = asset.uri || '';
 
   // Extract raw name
   let rawName = asset.name || asset.fileName || '';
@@ -75,17 +76,15 @@ export function normalizeUploadFile(asset: RawFileAsset, defaultFallbackName = '
   rawName = rawName.split('?')[0];
 
   let mime = (asset.mimeType || asset.type || '').toLowerCase();
+  if (mime === 'image') {
+    mime = 'image/jpeg';
+  } else if (mime === 'video') {
+    mime = 'video/mp4';
+  }
 
   // Extract extension
   const extMatch = /\.[0-9a-z]+$/i.exec(rawName);
   let ext = extMatch ? extMatch[0].toLowerCase() : '';
-
-  // Normalize HEIC / HEIF to JPEG (standard for iOS photo exports)
-  if (ext === '.heic' || ext === '.heif' || mime === 'image/heic' || mime === 'image/heif') {
-    ext = '.jpg';
-    mime = 'image/jpeg';
-    rawName = rawName.replace(/\.(heic|heif)$/i, '.jpg');
-  }
 
   // If filename lacks extension, derive from MIME
   if (!ext && mime && MIME_TO_EXT[mime]) {
@@ -100,14 +99,18 @@ export function normalizeUploadFile(asset: RawFileAsset, defaultFallbackName = '
 
   // Fallbacks if still undetermined
   if (!ext) {
-    if (mime.startsWith('image/')) {
+    if (mime.startsWith('image/') || mime.startsWith('image')) {
       ext = '.jpg';
       rawName = `${rawName}.jpg`;
-      mime = mime || 'image/jpeg';
+      mime = mime && mime.includes('/') ? mime : 'image/jpeg';
+    } else if (mime.startsWith('video/') || mime.startsWith('video')) {
+      ext = '.mp4';
+      rawName = `${rawName}.mp4`;
+      mime = mime && mime.includes('/') ? mime : 'video/mp4';
     } else {
-      ext = '.pdf';
-      rawName = `${rawName}.pdf`;
-      mime = mime || 'application/pdf';
+      ext = '.bin';
+      rawName = `${rawName}.bin`;
+      mime = mime || 'application/octet-stream';
     }
   }
   if (!mime) {

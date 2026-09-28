@@ -1,342 +1,117 @@
 import { openDatabaseAsync, SQLiteDatabase } from 'expo-sqlite';
-import { ChatMessage } from './chat';
+import type { ChatMessage } from './chat';
+import { applyChatReaction, mergeChatMessages, reconcileChatSnapshot } from './chat-state';
 
-const DB_NAME = 'semester_library_chat.db';
-const MAX_CACHED_MESSAGES = 500;
-
+let scope = '';
 let dbPromise: Promise<SQLiteDatabase> | null = null;
+let writes: Promise<unknown> = Promise.resolve();
+const memory = new Map<string, ChatMessage[]>();
 
-export async function getChatDatabase(): Promise<SQLiteDatabase> {
-  if (!dbPromise) {
-    dbPromise = (async () => {
-      const db = await openDatabaseAsync(DB_NAME);
-      await db.execAsync(`
-        PRAGMA journal_mode = WAL;
-
-        CREATE TABLE IF NOT EXISTS local_chat_messages (
-          id INTEGER PRIMARY KEY,
-          text TEXT,
-          attachmentName TEXT,
-          attachmentOriginalName TEXT,
-          attachmentMimeType TEXT,
-          replyToId INTEGER,
-          createdAt TEXT,
-          studentId TEXT,
-          name TEXT,
-          avatarUrl TEXT,
-          replyText TEXT,
-          replySender TEXT,
-          reactionsJson TEXT,
-          status TEXT DEFAULT 'sent'
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_chat_id ON local_chat_messages(id DESC);
-        CREATE INDEX IF NOT EXISTS idx_chat_created ON local_chat_messages(createdAt DESC);
-
-        CREATE TABLE IF NOT EXISTS local_chat_meta (
-          key TEXT PRIMARY KEY,
-          value TEXT
-        );
-      `);
-      return db;
-    })();
-  }
+export function getChatDatabase(): Promise<SQLiteDatabase> {
+  if (!dbPromise) dbPromise = (async () => {
+    const db = await openDatabaseAsync('semester_library_chat.db');
+    await db.execAsync(`PRAGMA journal_mode = WAL;
+      CREATE TABLE IF NOT EXISTS chat_cache_v2 (
+        scope TEXT NOT NULL, id INTEGER NOT NULL, payload TEXT NOT NULL,
+        PRIMARY KEY(scope, id)
+      );
+      UPDATE chat_cache_v2 SET payload = json_set(payload, '$.status', 'failed')
+      WHERE json_extract(payload, '$.status') = 'pending';`);
+    return db;
+  })().catch(error => { dbPromise = null; throw error; });
   return dbPromise;
 }
 
-function parseRow(row: any): ChatMessage {
-  let reactions: { studentId: string; emoji: string }[] = [];
-  if (row.reactionsJson) {
-    try {
-      reactions = JSON.parse(row.reactionsJson);
-    } catch {}
-  }
-
-  return {
-    id: Number(row.id),
-    text: row.text || '',
-    attachmentName: row.attachmentName || null,
-    attachmentOriginalName: row.attachmentOriginalName || null,
-    attachmentMimeType: row.attachmentMimeType || null,
-    replyToId: row.replyToId ? Number(row.replyToId) : null,
-    createdAt: row.createdAt,
-    studentId: String(row.studentId),
-    name: row.name || 'Classmate',
-    avatarUrl: row.avatarUrl || null,
-    replyText: row.replyText || undefined,
-    replySender: row.replySender || undefined,
-    reactions,
-    status: (row.status as 'sent' | 'pending' | 'failed') || 'sent',
-  };
+export function configureChatCache(serverUrl: string, studentId: string) {
+  scope = `${serverUrl.replace(/\/+$/, '')}|${studentId}`;
 }
 
-/**
- * Returns cached messages from SQLite ordered chronologically.
- * If beforeId is provided, returns older messages (id < beforeId).
- */
-export async function getCachedChatMessages(
-  limit = 50,
-  beforeId?: number
-): Promise<ChatMessage[]> {
-  try {
+export function getChatCacheScope() { return scope; }
+
+export function getMemoryChatMessages(): ChatMessage[] {
+  return memory.get(scope) || [];
+}
+
+async function read(db: SQLiteDatabase, key: string): Promise<ChatMessage[]> {
+  const rows = await db.getAllAsync<{ payload: string }>(
+    'SELECT payload FROM chat_cache_v2 WHERE scope = ?', [key]);
+  return mergeChatMessages([], rows.flatMap(row => {
+    try { return [JSON.parse(row.payload) as ChatMessage]; } catch { return []; }
+  }));
+}
+
+// Serialize mutations: a send acknowledgement, broadcast, and refresh must never
+// overwrite one another. Capture the account before crossing an async boundary.
+function mutate(change: (messages: ChatMessage[]) => ChatMessage[]): Promise<void> {
+  const key = scope;
+  if (!key) return Promise.resolve();
+  const operation = writes.then(async () => {
     const db = await getChatDatabase();
-    let rows: any[];
-    if (beforeId && beforeId > 0) {
-      rows = await db.getAllAsync(
-        `SELECT * FROM local_chat_messages WHERE id < ? ORDER BY id DESC LIMIT ?`,
-        [beforeId, limit]
-      );
-    } else {
-      // Include pending/failed optimistic messages (negative IDs) and recent server messages
-      rows = await db.getAllAsync(
-        `SELECT * FROM local_chat_messages ORDER BY id DESC LIMIT ?`,
-        [limit]
-      );
+    await db.withExclusiveTransactionAsync(async txn => {
+      const messages = change(await read(txn, key));
+      let confirmed = 0;
+      const retained = messages.filter(m => m.id < 0 || ++confirmed <= 500);
+      await txn.runAsync('DELETE FROM chat_cache_v2 WHERE scope = ?', [key]);
+      for (const message of retained) {
+        await txn.runAsync('INSERT INTO chat_cache_v2 (scope, id, payload) VALUES (?, ?, ?)',
+          [key, message.id, JSON.stringify(message)]);
+      }
+      memory.set(key, retained);
+    });
+  });
+  writes = operation.catch(error => console.warn('[Chat cache]', error));
+  return writes as Promise<void>;
+}
+
+export async function getCachedChatMessages(limit = 50, beforeId?: number): Promise<ChatMessage[]> {
+  const key = scope;
+  if (!key) return [];
+  await writes;
+  try {
+    let messages = memory.get(key);
+    if (!messages) {
+      messages = (await read(await getChatDatabase(), key)).map(m =>
+        m.status === 'pending' ? { ...m, status: 'failed' as const } : m);
+      memory.set(key, messages);
     }
-    // Convert to chronological order (oldest to newest)
-    return rows.map(parseRow).reverse();
-  } catch (err) {
-    console.warn('[Chat DB] Failed to read cached messages:', err);
+    if (beforeId) return messages.filter(m => m.id > 0 && m.id < beforeId).slice(0, limit);
+    return [...messages.filter(m => m.id < 0), ...messages.filter(m => m.id > 0).slice(0, limit)];
+  } catch (error) {
+    console.warn('[Chat cache read]', error);
     return [];
   }
 }
 
-/**
- * Returns the highest confirmed server message ID stored in SQLite (id > 0).
- */
 export async function getNewestCachedMessageId(): Promise<number> {
-  try {
-    const db = await getChatDatabase();
-    const row = await db.getFirstAsync<{ maxId: number | null }>(
-      `SELECT MAX(id) AS maxId FROM local_chat_messages WHERE id > 0`
-    );
-    return row?.maxId ? Number(row.maxId) : 0;
-  } catch (err) {
-    console.warn('[Chat DB] Failed to get newest message ID:', err);
-    return 0;
-  }
+  return Math.max(0, ...(await getCachedChatMessages()).map(m => m.id));
 }
-
-/**
- * Inserts or updates multiple messages in SQLite and prunes messages older than 500.
- */
-export async function upsertChatMessages(messages: ChatMessage[]): Promise<void> {
-  if (!messages || messages.length === 0) return;
-  try {
-    const db = await getChatDatabase();
-    await db.withExclusiveTransactionAsync(async (txn) => {
-      for (const m of messages) {
-        const reactionsJson = JSON.stringify(m.reactions || []);
-        await txn.runAsync(
-          `INSERT INTO local_chat_messages (
-            id, text, attachmentName, attachmentOriginalName, attachmentMimeType,
-            replyToId, createdAt, studentId, name, avatarUrl,
-            replyText, replySender, reactionsJson, status
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          ON CONFLICT(id) DO UPDATE SET
-            text = excluded.text,
-            attachmentName = excluded.attachmentName,
-            attachmentOriginalName = excluded.attachmentOriginalName,
-            attachmentMimeType = excluded.attachmentMimeType,
-            replyToId = excluded.replyToId,
-            createdAt = excluded.createdAt,
-            studentId = excluded.studentId,
-            name = excluded.name,
-            avatarUrl = excluded.avatarUrl,
-            replyText = excluded.replyText,
-            replySender = excluded.replySender,
-            reactionsJson = excluded.reactionsJson,
-            status = excluded.status`,
-          [
-            m.id,
-            m.text || '',
-            m.attachmentName || null,
-            m.attachmentOriginalName || null,
-            m.attachmentMimeType || null,
-            m.replyToId || null,
-            m.createdAt,
-            m.studentId,
-            m.name || 'Classmate',
-            m.avatarUrl || null,
-            m.replyText || null,
-            m.replySender || null,
-            reactionsJson,
-            m.status || 'sent',
-          ]
-        );
-      }
-
-      // Prune messages older than the latest 500 (preserve optimistic messages with id < 0)
-      await txn.runAsync(
-        `DELETE FROM local_chat_messages
-         WHERE id > 0 AND id NOT IN (
-           SELECT id FROM local_chat_messages WHERE id > 0 ORDER BY id DESC LIMIT ?
-         )`,
-        [MAX_CACHED_MESSAGES]
-      );
-    });
-  } catch (err) {
-    console.warn('[Chat DB] Failed to upsert messages:', err);
-  }
+export function upsertChatMessages(messages: ChatMessage[]) {
+  return mutate(previous => mergeChatMessages(previous, messages));
 }
-
-/**
- * Saves an optimistic message pending network confirmation.
- */
-export async function savePendingMessage(message: ChatMessage): Promise<void> {
-  try {
-    const db = await getChatDatabase();
-    const reactionsJson = JSON.stringify(message.reactions || []);
-    await db.runAsync(
-      `INSERT OR REPLACE INTO local_chat_messages (
-        id, text, attachmentName, attachmentOriginalName, attachmentMimeType,
-        replyToId, createdAt, studentId, name, avatarUrl,
-        replyText, replySender, reactionsJson, status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        message.id,
-        message.text || '',
-        message.attachmentName || null,
-        message.attachmentOriginalName || null,
-        message.attachmentMimeType || null,
-        message.replyToId || null,
-        message.createdAt,
-        message.studentId,
-        message.name || 'Classmate',
-        message.avatarUrl || null,
-        message.replyText || null,
-        message.replySender || null,
-        reactionsJson,
-        'pending',
-      ]
-    );
-  } catch (err) {
-    console.warn('[Chat DB] Failed to save pending message:', err);
-  }
+export function reconcileCachedChat(snapshot: ChatMessage[], confirmedId: number, reset = false, previousSnapshotId = confirmedId) {
+  return mutate(previous => reset
+    ? mergeChatMessages(previous.filter(m => m.id < 0 || m.id > confirmedId), snapshot)
+    : reconcileChatSnapshot(previous, snapshot, confirmedId, previousSnapshotId));
 }
-
-/**
- * Replaces a pending message with the confirmed server message.
- */
-export async function resolvePendingMessage(
-  tempId: number,
-  serverMessage: ChatMessage
-): Promise<void> {
-  try {
-    const db = await getChatDatabase();
-    await db.withExclusiveTransactionAsync(async (txn) => {
-      await txn.runAsync(`DELETE FROM local_chat_messages WHERE id = ?`, [tempId]);
-      const reactionsJson = JSON.stringify(serverMessage.reactions || []);
-      await txn.runAsync(
-        `INSERT OR REPLACE INTO local_chat_messages (
-          id, text, attachmentName, attachmentOriginalName, attachmentMimeType,
-          replyToId, createdAt, studentId, name, avatarUrl,
-          replyText, replySender, reactionsJson, status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          serverMessage.id,
-          serverMessage.text || '',
-          serverMessage.attachmentName || null,
-          serverMessage.attachmentOriginalName || null,
-          serverMessage.attachmentMimeType || null,
-          serverMessage.replyToId || null,
-          serverMessage.createdAt,
-          serverMessage.studentId,
-          serverMessage.name || 'Classmate',
-          serverMessage.avatarUrl || null,
-          serverMessage.replyText || null,
-          serverMessage.replySender || null,
-          reactionsJson,
-          'sent',
-        ]
-      );
-    });
-  } catch (err) {
-    console.warn('[Chat DB] Failed to resolve pending message:', err);
-  }
+export const savePendingMessage = (message: ChatMessage) => upsertChatMessages([message]);
+export function resolvePendingMessage(id: number, message: ChatMessage) {
+  return mutate(previous => mergeChatMessages(previous.filter(m => m.id !== id), [{ ...message, status: 'sent' }]));
 }
-
-/**
- * Marks a pending message as failed.
- */
-export async function markPendingMessageFailed(tempId: number): Promise<void> {
-  try {
-    const db = await getChatDatabase();
-    await db.runAsync(
-      `UPDATE local_chat_messages SET status = 'failed' WHERE id = ?`,
-      [tempId]
-    );
-  } catch (err) {
-    console.warn('[Chat DB] Failed to mark message failed:', err);
-  }
+export function markPendingMessageFailed(id: number) {
+  return mutate(previous => previous.map(m => m.id === id ? { ...m, status: 'failed' } : m));
 }
-
-/**
- * Deletes a message from SQLite.
- */
-export async function deleteCachedMessage(id: number): Promise<void> {
-  try {
-    const db = await getChatDatabase();
-    await db.runAsync(`DELETE FROM local_chat_messages WHERE id = ?`, [id]);
-  } catch (err) {
-    console.warn('[Chat DB] Failed to delete cached message:', err);
-  }
+export function deleteCachedMessage(id: number) {
+  return mutate(previous => previous.filter(m => m.id !== id).map(m => m.replyToId === id
+    ? { ...m, replyToId: null, replyText: undefined, replySender: undefined } : m));
 }
-
-/**
- * Updates a reaction on a cached message in SQLite.
- */
-export async function updateCachedReaction(
-  messageId: number,
-  studentId: string,
-  emoji: string
-): Promise<void> {
-  try {
-    const db = await getChatDatabase();
-    const row = await db.getFirstAsync<{ reactionsJson: string | null }>(
-      `SELECT reactionsJson FROM local_chat_messages WHERE id = ?`,
-      [messageId]
-    );
-    if (!row) return;
-
-    let reactions: { studentId: string; emoji: string }[] = [];
-    if (row.reactionsJson) {
-      try {
-        reactions = JSON.parse(row.reactionsJson);
-      } catch {}
-    }
-
-    const existingIndex = reactions.findIndex((r) => r.studentId === studentId);
-    if (existingIndex >= 0) {
-      if (reactions[existingIndex].emoji === emoji) {
-        reactions.splice(existingIndex, 1);
-      } else {
-        reactions[existingIndex].emoji = emoji;
-      }
-    } else {
-      reactions.push({ studentId, emoji });
-    }
-
-    await db.runAsync(
-      `UPDATE local_chat_messages SET reactionsJson = ? WHERE id = ?`,
-      [JSON.stringify(reactions), messageId]
-    );
-  } catch (err) {
-    console.warn('[Chat DB] Failed to update reaction:', err);
-  }
+export function updateCachedReaction(messageId: number, studentId: string, emoji: string, action: string) {
+  return mutate(previous => applyChatReaction(previous, messageId, studentId, emoji, action));
 }
-
-/**
- * Clears all cached chat data on sign out.
- */
-export async function clearChatDb(): Promise<void> {
-  try {
-    const db = await getChatDatabase();
-    await db.execAsync(`
-      DELETE FROM local_chat_messages;
-      DELETE FROM local_chat_meta;
-    `);
-  } catch (err) {
-    console.warn('[Chat DB] Failed to clear chat database:', err);
-  }
+export async function clearChatDb() {
+  scope = '';
+  await writes;
+  memory.clear();
+  const db = await getChatDatabase();
+  // Remove the old unscoped cache as well when migrating an existing installation.
+  await db.execAsync('DELETE FROM chat_cache_v2; DROP TABLE IF EXISTS local_chat_messages; DROP TABLE IF EXISTS local_chat_meta;');
 }

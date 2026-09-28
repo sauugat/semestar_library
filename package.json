@@ -11,7 +11,9 @@
     "test:posts": "node --test tests/posts*.test.js",
     "index:notes": "node scripts/reindex-notes.js",
     "migrate:routine": "node scripts/migrate-routine.js",
-    "test:routine": "node --test tests/routine*.test.js"
+    "test:routine": "node --test tests/routine*.test.js",
+    "test:group-chat": "node --test tests/group-chat-history.test.js tests/mobile-chat-state.test.js tests/chat-cache-regression.test.js",
+    "test:group-chat:browser": "node tests/chat-cross-client.browser.cjs"
   },
   "dependencies": {
     "@libsql/client": "^0.14.0",
@@ -31,6 +33,7 @@
     "ws": "^8.21.3"
   },
   "devDependencies": {
+    "playwright": "^1.63.0",
     "pptxgenjs": "^4.0.1"
   },
   "engines": {

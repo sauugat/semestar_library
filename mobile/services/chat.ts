@@ -15,6 +15,8 @@ export interface ChatMessage {
   replySender?: string;
   reactions?: { studentId: string; emoji: string }[];
   status?: 'sent' | 'pending' | 'failed';
+  localUri?: string;
+  pendingFile?: { uri: string; name: string; mimeType: string } | null;
 }
 
 export interface ChatConfig {
@@ -40,7 +42,7 @@ export async function fetchChatMessages(params?: {
   since?: number;
   before?: number;
   limit?: number;
-}): Promise<{ messages: ChatMessage[]; readReceipts: ChatReadReceipt[] }> {
+}): Promise<{ messages: ChatMessage[]; readReceipts: ChatReadReceipt[]; typing?: { studentId: string; name: string; timestamp: string }[] }> {
   const query = new URLSearchParams();
   if (params?.since !== undefined) query.append("since", String(params.since));
   if (params?.before) query.append("before", String(params.before));

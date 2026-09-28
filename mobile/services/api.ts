@@ -99,7 +99,7 @@ export async function apiFetch(
 
   if (isFormData) {
     // CRITICAL: Do NOT set Content-Type header on FormData.
-    // React Native's fetch will automatically generate multipart/form-data with the correct boundary.
+    // React Native's native XHR will automatically generate multipart/form-data with the correct boundary.
     for (const key of Object.keys(headers)) {
       if (key.toLowerCase() === 'content-type') {
         delete headers[key];
@@ -115,10 +115,79 @@ export async function apiFetch(
   const startTime = Date.now();
   let response: Response;
   try {
-    response = await fetch(url, {
-      ...options,
-      headers,
-    });
+    if (isFormData) {
+      // In React Native / Expo SDK 57, global fetch uses Expo Winter runtime which does not support
+      // the React Native { uri, name, type } FormData part object ("Unsupported FormDataPart implementation").
+      // XMLHttpRequest utilizes the native platform networking bridge to stream local file URIs safely.
+      response = await new Promise<Response>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open(options.method || 'POST', url);
+
+        for (const [key, value] of Object.entries(headers)) {
+          if (key.toLowerCase() !== 'content-type') {
+            xhr.setRequestHeader(key, value);
+          }
+        }
+
+        xhr.onload = () => {
+          const responseHeaders = new Headers();
+          try {
+            const allHeaders = xhr.getAllResponseHeaders();
+            if (allHeaders) {
+              allHeaders
+                .trim()
+                .split(/[\r\n]+/)
+                .forEach((line) => {
+                  const parts = line.split(': ');
+                  const header = parts.shift();
+                  const value = parts.join(': ');
+                  if (header) responseHeaders.set(header, value);
+                });
+            }
+          } catch {}
+
+          if (xhr.status === 0) {
+            reject(new ApiError(`Upload request failed to ${url} (network connection lost)`, 0));
+            return;
+          }
+
+          let resObj: Response;
+          try {
+            resObj = new Response(xhr.responseText, {
+              status: xhr.status,
+              statusText: xhr.statusText || (xhr.status >= 200 && xhr.status < 300 ? 'OK' : ''),
+              headers: responseHeaders,
+            });
+          } catch {
+            resObj = {
+              status: xhr.status,
+              statusText: xhr.statusText || '',
+              ok: xhr.status >= 200 && xhr.status < 300,
+              headers: responseHeaders,
+              text: async () => xhr.responseText,
+              json: async () => JSON.parse(xhr.responseText || '{}'),
+            } as any;
+          }
+          resolve(resObj);
+        };
+
+        xhr.onerror = () => {
+          reject(new ApiError(`Upload request failed to ${url}`, 0));
+        };
+
+        xhr.ontimeout = () => {
+          reject(new ApiError(`Upload request timed out to ${url}`, 0));
+        };
+
+        xhr.send(options.body);
+      });
+    } else {
+      response = await fetch(url, {
+        ...options,
+        headers,
+      });
+    }
+
     const duration = Date.now() - startTime;
     if (__DEV__) {
       console.log(`[CLIENT API] ${options.method || 'GET'} ${endpoint} -> ${response.status} (${duration}ms)`);

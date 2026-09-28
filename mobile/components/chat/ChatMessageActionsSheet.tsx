@@ -18,6 +18,7 @@ interface ChatMessageActionsSheetProps {
   message: ChatMessage | null;
   busy: boolean;
   canPin: boolean;
+  isPinned?: boolean;
   isOwnerOrAdmin: boolean;
   onClose: () => void;
   onReact: (message: ChatMessage, emoji: string) => void;
@@ -34,6 +35,7 @@ export function ChatMessageActionsSheet({
   message,
   busy,
   canPin,
+  isPinned,
   isOwnerOrAdmin,
   onClose,
   onReact,
@@ -45,6 +47,8 @@ export function ChatMessageActionsSheet({
   const insets = useSafeAreaInsets();
 
   if (!message) return null;
+
+  const confirmed = message.id > 0;
 
   const handleReact = (emoji: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -76,7 +80,7 @@ export function ChatMessageActionsSheet({
           <View style={styles.handle} />
 
           {/* Quick Reaction Row */}
-          <View style={styles.reactionsBar}>
+          {confirmed && <View style={styles.reactionsBar}>
             {REACTION_EMOJIS.map((emoji) => (
               <TouchableOpacity
                 key={emoji}
@@ -89,12 +93,12 @@ export function ChatMessageActionsSheet({
                 <Text style={styles.reactionEmoji}>{emoji}</Text>
               </TouchableOpacity>
             ))}
-          </View>
+          </View>}
 
           {/* Action List */}
           <View style={styles.actionsList}>
             {/* Reply Action */}
-            <TouchableOpacity
+            {confirmed && <TouchableOpacity
               disabled={busy}
               style={styles.actionRow}
               activeOpacity={0.7}
@@ -106,7 +110,7 @@ export function ChatMessageActionsSheet({
               <Text variant="md" weight="500" style={styles.actionLabel}>
                 Reply
               </Text>
-            </TouchableOpacity>
+            </TouchableOpacity>}
 
             {/* Copy Text Action */}
             {Boolean(message.text && message.text.trim()) && (
@@ -125,8 +129,8 @@ export function ChatMessageActionsSheet({
               </TouchableOpacity>
             )}
 
-            {/* Pin Announcement Action */}
-            {canPin && (
+            {/* Pin / Unpin Announcement Action */}
+            {confirmed && canPin && (
               <TouchableOpacity
                 disabled={busy}
                 style={styles.actionRow}
@@ -134,10 +138,10 @@ export function ChatMessageActionsSheet({
                 onPress={() => onPin(message)}
               >
                 <View style={styles.actionIconBox}>
-                  <Ionicons name="pin-outline" size={20} color="#e4e4e7" />
+                  <Ionicons name={isPinned ? "pin-outline" : "pin-outline"} size={20} color="#e4e4e7" />
                 </View>
                 <Text variant="md" weight="500" style={styles.actionLabel}>
-                  Pin announcement
+                  {isPinned ? "Unpin announcement" : "Pin announcement"}
                 </Text>
               </TouchableOpacity>
             )}
@@ -154,7 +158,7 @@ export function ChatMessageActionsSheet({
                   <Ionicons name="trash-outline" size={20} color="#e4e4e7" />
                 </View>
                 <Text variant="md" weight="500" style={styles.actionLabel}>
-                  Delete for everyone
+                  {confirmed ? 'Delete for everyone' : 'Remove unsent message'}
                 </Text>
               </TouchableOpacity>
             )}
@@ -212,24 +216,27 @@ const styles = StyleSheet.create({
   reactionsBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
     backgroundColor: '#202022',
-    borderRadius: 14,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    marginBottom: 12,
+    borderRadius: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    marginBottom: 14,
     borderWidth: 1,
     borderColor: '#2a2a2e',
   },
   reactionButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'visible',
   },
   reactionEmoji: {
     fontSize: 24,
+    textAlign: 'center',
+    includeFontPadding: false,
   },
   actionsList: {
     backgroundColor: '#202022',

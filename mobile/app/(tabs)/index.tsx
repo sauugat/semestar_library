@@ -40,11 +40,10 @@ import {
   Post,
   LibraryFile,
 } from '@/services/posts';
-import { getBaseUrl } from '@/services/api';
+import { getBaseUrl, getAutoDetectedServerUrl } from '@/services/api';
 import { SearchOverlay } from '@/components/SearchOverlay';
 import { initChatRealtime } from '@/services/chat-realtime';
-import { getCachedChatMessages, upsertChatMessages } from '@/services/chat-db';
-import { fetchChatMessages } from '@/services/chat';
+import { FullScreenImageViewer } from '@/components/FullScreenImageViewer';
 
 function FeedSkeletonCard({ colors, radii }: { colors: any; radii: any }) {
   return (
@@ -408,7 +407,7 @@ export default function HomeScreen() {
   const [nextCursor, setNextCursor] = useState<number | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [baseUrl, setBaseUrl] = useState<string>('');
+  const [baseUrl, setBaseUrl] = useState<string>(getAutoDetectedServerUrl());
   const [lastFetchedAt, setLastFetchedAt] = useState<Date | string | null>(null);
   const [nowTick, setNowTick] = useState<number>(Date.now());
 
@@ -495,8 +494,6 @@ export default function HomeScreen() {
 
   // Full-screen image viewer states
   const [viewerImageUri, setViewerImageUri] = useState<string | null>(null);
-  const [savingViewerImage, setSavingViewerImage] = useState(false);
-  const [sharingViewerImage, setSharingViewerImage] = useState(false);
 
   // Support device rotation while full-screen image viewer is open
   useEffect(() => {
@@ -514,16 +511,7 @@ export default function HomeScreen() {
   useEffect(() => {
     if (user?.studentId) {
       void initChatRealtime(user.studentId);
-      void getCachedChatMessages(50).then((cached) => {
-        const newestId = cached.length > 0 ? Math.max(...cached.map((m) => m.id).filter((id) => id > 0)) : 0;
-        if (newestId > 0) {
-          void fetchChatMessages({ since: newestId, limit: 50 }).then((delta) => {
-            if (delta.messages?.length) {
-              void upsertChatMessages(delta.messages);
-            }
-          }).catch(() => {});
-        }
-      }).catch(() => {});
+
     }
   }, [user?.studentId]);
 
@@ -814,109 +802,13 @@ export default function HomeScreen() {
     }
   };
 
-  // Full-screen viewer: Save image to photo library
-  const handleSaveViewerImage = async () => {
-    if (!viewerImageUri || savingViewerImage) return;
-    setSavingViewerImage(true);
-
-    try {
-      let MediaLibrary: any = null;
-      try {
-        MediaLibrary = require('expo-media-library');
-      } catch {
-        Alert.alert(
-          'Save to Photos Unavailable',
-          'Saving to Photos requires a development build; use Share instead.',
-          [{ text: 'OK' }]
-        );
-        return;
-      }
-
-      if (!MediaLibrary || !MediaLibrary.requestPermissionsAsync) {
-        Alert.alert(
-          'Save to Photos Unavailable',
-          'Saving to Photos requires a development build; use Share instead.',
-          [{ text: 'OK' }]
-        );
-        return;
-      }
-
-      const { status } = await MediaLibrary.requestPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert(
-          'Permission Required',
-          'Photo library access is needed to save images to your device.'
-        );
-        return;
-      }
-
-      let localUri = viewerImageUri;
-      if (viewerImageUri.startsWith('http://') || viewerImageUri.startsWith('https://')) {
-        const cleanName = (viewerImageUri.split('/').pop() || 'photo.jpg').split('?')[0];
-        const targetPath = `${FileSystem.cacheDirectory}save_${Date.now()}_${cleanName}`;
-        const downloadRes = await FileSystem.downloadAsync(viewerImageUri, targetPath);
-        localUri = downloadRes.uri;
-      }
-
-      await MediaLibrary.saveToLibraryAsync(localUri);
-      Alert.alert('Saved to Photos', 'Image saved successfully to your photo library.');
-    } catch (err: any) {
-      const msg = err?.message || '';
-      if (
-        msg.includes('ExpoMediaLibraryNext') ||
-        msg.includes('native module') ||
-        msg.includes('Cannot find native module') ||
-        msg.includes('UnavailabilityError')
-      ) {
-        Alert.alert(
-          'Save to Photos Unavailable',
-          'Saving to Photos requires a development build; use Share instead.',
-          [{ text: 'OK' }]
-        );
-      } else {
-        Alert.alert('Save Failed', err.message || 'Could not save the image.');
-      }
-    } finally {
-      setSavingViewerImage(false);
-    }
-  };
-
-  // Full-screen viewer: Share image via native share sheet
-  const handleShareViewerImage = async () => {
-    if (!viewerImageUri || sharingViewerImage) return;
-    setSharingViewerImage(true);
-
-    try {
-      let localUri = viewerImageUri;
-      if (viewerImageUri.startsWith('http://') || viewerImageUri.startsWith('https://')) {
-        const cleanName = (viewerImageUri.split('/').pop() || 'photo.jpg').split('?')[0];
-        const targetPath = `${FileSystem.cacheDirectory}share_${Date.now()}_${cleanName}`;
-        const downloadRes = await FileSystem.downloadAsync(viewerImageUri, targetPath);
-        localUri = downloadRes.uri;
-      }
-
-      const canShare = await Sharing.isAvailableAsync();
-      if (canShare) {
-        await Sharing.shareAsync(localUri, {
-          mimeType: 'image/jpeg',
-          dialogTitle: 'Share Image',
-        });
-      } else {
-        Alert.alert('Sharing Unavailable', 'Native sharing is not supported on this device.');
-      }
-    } catch (err: any) {
-      Alert.alert('Share Failed', err.message || 'Could not open share sheet.');
-    } finally {
-      setSharingViewerImage(false);
-    }
-  };
-
   const getFullImageUrl = (attachmentUrl: string | null): string | null => {
     if (!attachmentUrl) return null;
     if (attachmentUrl.startsWith('http://') || attachmentUrl.startsWith('https://')) {
       return attachmentUrl;
     }
-    return `${baseUrl}${attachmentUrl.startsWith('/') ? '' : '/'}${attachmentUrl}`;
+    const host = baseUrl || getAutoDetectedServerUrl();
+    return `${host}${attachmentUrl.startsWith('/') ? '' : '/'}${attachmentUrl}`;
   };
 
   // Post options menu actions
@@ -1898,106 +1790,12 @@ export default function HomeScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Full-Screen Zoomable Image Viewer Modal with Save & Share action row */}
-      <Modal
+      {/* Shared Full-Screen Zoomable Image Viewer Component (Requirement 4) */}
+      <FullScreenImageViewer
         visible={viewerImageUri !== null}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setViewerImageUri(null)}
-        statusBarTranslucent
-      >
-        <View style={styles.viewerBackdrop}>
-          <SafeAreaView style={styles.viewerSafeArea} edges={['top', 'bottom']}>
-            {/* Top Action Bar with Share, Save, and Close */}
-            <View style={styles.viewerHeader}>
-              <View style={styles.viewerActionGroup}>
-                {/* Share Button */}
-                <TouchableOpacity
-                  onPress={handleShareViewerImage}
-                  disabled={sharingViewerImage}
-                  style={styles.viewerActionBtn}
-                  accessibilityLabel="Share image"
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  {sharingViewerImage ? (
-                    <ActivityIndicator size="small" color="#FFFFFF" />
-                  ) : (
-                    <>
-                      <Ionicons name="share-outline" size={18} color="#FFFFFF" />
-                      <Text variant="xs" weight="600" style={{ color: '#FFFFFF', marginLeft: 5 }}>
-                        Share
-                      </Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-
-                {/* Save to Photos Button */}
-                <TouchableOpacity
-                  onPress={handleSaveViewerImage}
-                  disabled={savingViewerImage}
-                  style={styles.viewerActionBtn}
-                  accessibilityLabel="Save image to photos"
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  {savingViewerImage ? (
-                    <ActivityIndicator size="small" color="#FFFFFF" />
-                  ) : (
-                    <>
-                      <Ionicons name="download-outline" size={18} color="#FFFFFF" />
-                      <Text variant="xs" weight="600" style={{ color: '#FFFFFF', marginLeft: 5 }}>
-                        Save
-                      </Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-              </View>
-
-              {/* Close Button */}
-              <TouchableOpacity
-                onPress={() => setViewerImageUri(null)}
-                style={styles.viewerCloseBtn}
-                accessibilityLabel="Close image viewer"
-                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              >
-                <Ionicons name="close" size={22} color="#FFFFFF" />
-              </TouchableOpacity>
-            </View>
-
-            {/* Pinch-to-zoom ScrollView Container */}
-            <ScrollView
-              style={{ flex: 1 }}
-              contentContainerStyle={styles.viewerZoomContainer}
-              maximumZoomScale={4}
-              minimumZoomScale={1}
-              showsHorizontalScrollIndicator={false}
-              showsVerticalScrollIndicator={false}
-              centerContent
-            >
-              {viewerImageUri && (
-                <TouchableOpacity
-                  activeOpacity={1}
-                  onPress={() => setViewerImageUri(null)}
-                  style={styles.viewerImageWrapper}
-                >
-                  <Image
-                    source={{ uri: viewerImageUri }}
-                    style={styles.viewerFullImage}
-                    contentFit="contain"
-                    cachePolicy="memory-disk"
-                  />
-                </TouchableOpacity>
-              )}
-            </ScrollView>
-
-            {/* Viewer Footer hint */}
-            <View style={styles.viewerFooter}>
-              <Caption color="muted" style={{ color: '#A3A3A3' }}>
-                Pinch to zoom • Double-tap post image to like
-              </Caption>
-            </View>
-          </SafeAreaView>
-        </View>
-      </Modal>
+        imageUri={viewerImageUri}
+        onClose={() => setViewerImageUri(null)}
+      />
 
       {/* Post Options Bottom Sheet Menu */}
       <Modal

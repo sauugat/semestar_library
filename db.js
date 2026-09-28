@@ -834,8 +834,8 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
           if (!studentColNames.includes('username')) await exec(`ALTER TABLE students ADD COLUMN username TEXT;`);
           if (!studentColNames.includes('gender')) await exec(`ALTER TABLE students ADD COLUMN gender TEXT;`);
           if (!studentColNames.includes('verification_status')) await exec(`ALTER TABLE students ADD COLUMN verification_status TEXT DEFAULT 'unverified';`);
-          if (!studentColNames.includes('created_at')) await exec(`ALTER TABLE students ADD COLUMN created_at TEXT DEFAULT CURRENT_TIMESTAMP;`);
-          if (!studentColNames.includes('updated_at')) await exec(`ALTER TABLE students ADD COLUMN updated_at TEXT DEFAULT CURRENT_TIMESTAMP;`);
+          if (!studentColNames.includes('created_at')) await exec(`ALTER TABLE students ADD COLUMN created_at TEXT;`);
+          if (!studentColNames.includes('updated_at')) await exec(`ALTER TABLE students ADD COLUMN updated_at TEXT;`);
           await exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_students_email_lower ON students (LOWER(email));`);
           await exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_students_username_lower ON students (LOWER(username));`);
           await exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_students_supabase_uid ON students (supabase_uid);`);

@@ -24,8 +24,8 @@
       }
 
       // 2. Fetch public configuration from /api/auth/config
-      let url = window.SUPABASE_URL || '';
-      let key = window.SUPABASE_ANON_KEY || '';
+      let url = window.NEXT_PUBLIC_SUPABASE_URL || window.SUPABASE_URL || '';
+      let key = window.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || window.SUPABASE_PUBLISHABLE_KEY || window.SUPABASE_ANON_KEY || '';
 
       if (!url || !key) {
         try {

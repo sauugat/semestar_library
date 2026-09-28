@@ -137,7 +137,7 @@ test('Role Authorization: requireAdmin allows admin and blocks student and CR', 
 
 test('Mobile Bearer Tokens: Legacy mobile token continues working alongside Supabase Auth', async () => {
   const auth = createAuthMiddleware(db);
-  const testToken = 'mobile_legacy_test_token_1234567890';
+  const testToken = 'mobile_legacy_test_token_' + Date.now();
   const expiresAt = new Date(Date.now() + 3600000).toISOString();
 
   await db.run(

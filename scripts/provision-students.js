@@ -25,21 +25,21 @@ async function main() {
   console.log('====================================================\n');
 
   const { url } = getSupabaseConfig();
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const secretKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!url) {
-    console.error('❌ Error: Missing SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL.');
+    console.error('❌ Error: Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_URL.');
     process.exit(1);
   }
 
-  if (!serviceRoleKey) {
-    console.error('❌ Error: Missing SUPABASE_SERVICE_ROLE_KEY.');
-    console.error('   Please run with: SUPABASE_SERVICE_ROLE_KEY=your_service_role_key node scripts/provision-students.js');
-    console.error('   (Find your service_role secret key in Supabase Dashboard -> Project Settings -> API -> Project API Keys)');
+  if (!secretKey) {
+    console.error('❌ Error: Missing SUPABASE_SECRET_KEY.');
+    console.error('   Please run with: SUPABASE_SECRET_KEY=your_secret_key node scripts/provision-students.js');
+    console.error('   (Find your secret key in Supabase Dashboard -> Project Settings -> API)');
     process.exit(1);
   }
 
-  const supabaseAdmin = createClient(url, serviceRoleKey, {
+  const supabaseAdmin = createClient(url, secretKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,

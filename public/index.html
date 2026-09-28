@@ -22,24 +22,6 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Semester Library">
   <meta name="theme-color" content="#ffffff">
-  <script>
-    (function() {
-      try {
-        var s = localStorage.getItem('theme');
-        var t = s || 'dark';
-        if (!s) {
-          try { localStorage.setItem('theme', 'dark'); } catch (e) {}
-        }
-        document.documentElement.setAttribute('data-theme', t);
-        if (t === 'dark') {
-          document.documentElement.classList.add('dark');
-        } else {
-          document.documentElement.classList.remove('dark');
-        }
-      } catch (e) {}
-    })();
-  </script>
-
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://semestar-library.vercel.app/">
@@ -68,2565 +50,275 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
-    rel="stylesheet">
-  <link rel="stylesheet" href="style.v4.css">
-  <link rel="stylesheet" href="auth-modal.css">
-  <link rel="stylesheet" href="/theme-overrides.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/home.css">
+  <script src="/home.js" defer></script>
 </head>
+<body class="home-page">
+  <a class="home-skip" href="#main">Skip to content</a>
+  <svg class="home-icons" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <defs>
+      <symbol id="icon-book" viewBox="0 0 24 24"><path d="M12 5.5C9 3 5.5 3 2 4v15c3.5-1 7-1 10 1.5 3-2.5 6.5-2.5 10-1.5V4c-3.5-1-7-1-10 1.5Z"/><path d="M12 5.5v15M5.5 7.5c1.2-.1 2.2.1 3.3.6M15.2 8.1c1.1-.5 2.1-.7 3.3-.6"/></symbol>
+      <symbol id="icon-arrow" viewBox="0 0 24 24"><path d="M4 12h16M14 6l6 6-6 6"/></symbol>
+      <symbol id="icon-northeast" viewBox="0 0 24 24"><path d="M6 18 18 6M6 6h12v12"/></symbol>
+      <symbol id="icon-spark" viewBox="0 0 24 24"><path d="M12 2c0 6-4 10-10 10 6 0 10 4 10 10 0-6 4-10 10-10-6 0-10-4-10-10Z"/></symbol>
+      <symbol id="icon-code" viewBox="0 0 24 24"><path d="m7 6-6 6 6 6M17 6l6 6-6 6M14 3l-4 18"/></symbol>
+      <symbol id="icon-file" viewBox="0 0 24 24"><path d="M14 2H5v20h14V7l-5-5ZM14 2v6h5M8 12h8M8 16h6"/></symbol>
+      <symbol id="icon-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 2v6M17 2v6M3 11h18M7 15h2M13 15h2M7 18h2"/></symbol>
+      <symbol id="icon-chat" viewBox="0 0 24 24"><path d="M21 11a9 9 0 0 1-9 9 10 10 0 0 1-4-.8L3 21l1.8-5A9 9 0 1 1 21 11Z"/><path d="M8 11h.01M12 11h.01M16 11h.01"/></symbol>
+      <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></symbol>
+      <symbol id="icon-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+      <symbol id="icon-check-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></symbol>
+      <symbol id="icon-chevron" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></symbol>
+      <symbol id="icon-send" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4L22 2ZM22 2 11 13"/></symbol>
+      <symbol id="icon-play" viewBox="0 0 24 24"><path d="m8 4 12 8-12 8V4Z"/></symbol>
+      <symbol id="icon-terminal" viewBox="0 0 24 24"><path d="m4 5 6 7-6 7M13 19h7"/></symbol>
+      <symbol id="icon-bell" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></symbol>
+      <symbol id="icon-heart" viewBox="0 0 24 24"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/></symbol>
+      <symbol id="icon-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
+      <symbol id="icon-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8" cy="8" r="1.5"/><path d="m21 15-5-5L5 21"/></symbol>
+      <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+      <symbol id="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5 19 19M5 19l1.5-1.5M17.5 6.5 19 5"/></symbol>
+      <symbol id="icon-moon" viewBox="0 0 24 24"><path d="M21 13a9 9 0 0 1-10-10A9 9 0 1 0 21 13Z"/></symbol>
+    </defs>
+  </svg>
 
-<body class="landing apple-poster-landing">
-
-  <!-- Apple Intelligence / Siri Sleek Vertical Ambient Edge Glow -->
-  <div class="siri-screen-border" id="siriScreenBorder" aria-hidden="true">
-    <div class="siri-vertical-stream left">
-      <div class="siri-glow-core"></div>
-      <div class="siri-glow-aura"></div>
-    </div>
-    <div class="siri-vertical-stream right">
-      <div class="siri-glow-core"></div>
-      <div class="siri-glow-aura"></div>
-    </div>
-  </div>
-
-  <!-- Subtle Monochromatic Ambient Spotlight Canvas -->
-  <div class="poster-ambient-canvas" aria-hidden="true">
-    <div class="ambient-spotlight spotlight-1"></div>
-    <div class="ambient-spotlight spotlight-2"></div>
-    <div class="ambient-grid-lines"></div>
-    <div class="cursor-ambient-follow" id="ambientFollower"></div>
-  </div>
-
-  <!-- Apple Minimal Navigation -->
-  <header class="lib-nav apple-nav">
-    <div class="nav-left">
-      <a href="index.html" class="lib-wordmark apple-wordmark">Semester Library</a>
-    </div>
-    <div class="nav-right">
-      <a href="https://gandakiuniversity.edu.np" target="_blank" rel="noopener noreferrer"
-        class="univ-tag apple-univ-tag">Gandaki University</a>
-      <button type="button" class="theme-toggle-btn" id="themeToggleBtn" aria-label="Toggle theme" title="Toggle theme">
-        <span class="theme-toggle-track">
-          <svg class="theme-icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
-          <svg class="theme-icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
-        </span>
-      </button>
-      <a href="login.html" class="nav-cta-btn apple-nav-btn">Sign In</a>
+  <header class="home-header">
+    <div class="home-wrap home-header-inner">
+      <a href="/" class="home-brand" aria-label="Semester Library home"><svg aria-hidden="true"><use href="#icon-book"/></svg>Semester Library</a>
+      <nav class="home-topnav" aria-label="Main navigation">
+        <a href="#explore">Explore</a><a href="/syllabus.html">Syllabus</a><a href="/gallery.html">Campus</a>
+      </nav>
+      <div class="home-header-actions">
+        <a class="home-university" href="https://gandakiuniversity.edu.np" target="_blank" rel="noopener noreferrer">Gandaki University</a>
+        <button class="theme-toggle-btn" id="themeToggleBtn" type="button" aria-label="Toggle theme" title="Toggle theme">
+          <svg class="theme-icon-sun" aria-hidden="true"><use href="#icon-sun"/></svg>
+          <svg class="theme-icon-moon" aria-hidden="true"><use href="#icon-moon"/></svg>
+        </button>
+        <a href="/login.html" class="home-signin">Sign in</a>
+      </div>
     </div>
   </header>
 
-  <!-- Main Hero Poster Container -->
-  <main class="lib-hero-section poster-hero-section apple-hero-section">
-
-    <!-- Top Badge & Typography Showcase -->
-    <div class="lib-hero-header poster-hero-header">
-
-      <!-- Apple Keynote Floating Pill -->
-      <div class="hero-badge apple-keynote-badge">
-        <span class="badge-dot-live"></span>
-        <span class="badge-text">GANDAKI UNIVERSITY ACADEMIC RESOURCES</span>
-        <span class="apple-kicker-tag">SEMESTER LIBRARY</span>
+  <main id="main">
+    <section class="home-hero" aria-labelledby="hero-title">
+      <p class="home-eyebrow"><span class="home-status-dot" aria-hidden="true"></span>Built around your university life</p>
+      <h1 id="hero-title">Semester Library</h1>
+      <p class="home-hero-subtitle">Gandaki University Academic Resources</p>
+      <p class="home-hero-desc">Your notes, your people, your next big idea.<br>One place to learn, code, and navigate your semester.</p>
+      <div class="home-hero-actions">
+        <a href="/library.html" class="home-button">Enter the Library <svg aria-hidden="true"><use href="#icon-arrow"/></svg></a>
+        <a href="#explore" class="home-button home-button-secondary">See what’s inside <svg aria-hidden="true"><use href="#icon-plus"/></svg></a>
       </div>
-
-      <!-- High-Contrast Apple Titanium Shimmer Gradient Typography (Original Slogan Preserved) -->
-      <h1 class="apple-main-title">
-        <span class="apple-text-grad-primary">Semester Library</span><br />
-        <span class="apple-text-grad-secondary">Gandaki University Academic Resources</span>
-      </h1>
-
-      <p class="apple-hero-desc">
-        Semester Library is a platform for Gandaki University students to access semester-wise academic resources
-        including notes, syllabus, routines, notices and other study materials.
-      </p>
-
-      <!-- 1. Hero Primary CTA Button -->
-      <div class="poster-cta-wrap apple-cta-group">
-        <a href="library.html" class="apple-primary-cta magnetic-btn">
-          <span>Enter the Library</span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
-            stroke-linejoin="round" style="width: 16px; height: 16px;">
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-            <polyline points="12 5 19 12 12 19"></polyline>
-          </svg>
-        </a>
+      <div class="home-orbit" aria-hidden="true">
+        <svg><use href="#icon-code"/></svg><svg><use href="#icon-file"/></svg><svg><use href="#icon-spark"/></svg><svg><use href="#icon-book"/></svg><svg><use href="#icon-calendar"/></svg><svg><use href="#icon-chat"/></svg><svg><use href="#icon-terminal"/></svg><svg><use href="#icon-grid"/></svg><svg><use href="#icon-bell"/></svg>
       </div>
-    </div> <!-- Close lib-hero-header poster-hero-header -->
+    </section>
 
-    <!-- Apple Bento Feature Showcase Grid -->
-    <div class="poster-bento-grid dynamic-shapes-grid apple-bento-grid" id="posterGrid">
-
-      <!-- Card 1: Wide Panorama Hero Card (Subject Notes & Community Feed) -->
-      <div class="poster-card bento-shape-wide tilt-card apple-card bento-glow-card" data-card-idx="0">
-        <div class="wide-card-layout">
-          <div class="wide-card-content">
-            <div class="poster-card-top">
-              <div class="poster-icon-box apple-icon-box">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                  stroke-linejoin="round">
-                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-                  <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-                </svg>
-              </div>
-              <span class="apple-pill-tag kinetic-tag">STAT SYNC &bull; 01</span>
-              <span class="bento-live-badge"><span class="bento-beacon-dot"></span>LIVE STREAM</span>
-            </div>
-            <h3 class="poster-card-title apple-card-title">Subject Notes &amp; Community Feed</h3>
-            <p class="poster-card-desc apple-card-text">
-              Share handwritten notes, typed PDFs, and presentation decks directly with your classmates. Organized
-              strictly by semester.
-            </p>
-            <div class="poster-card-footer">
-              <a href="library.html" class="poster-card-link apple-card-link">
-                <span>Explore Notes</span>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
-                  stroke-linejoin="round" style="width: 14px; height: 14px;">
-                  <polyline points="9 18 15 12 9 6"></polyline>
-                </svg>
-              </a>
-            </div>
-          </div>
-          <div class="wide-card-preview">
-            <!-- Actual Website Component: Feed Post Card (dashboard.html & portal.html) -->
-            <article class="feed-card social-post-card post-card notice bento-preview-post">
-              <div class="bento-post-top-strip">
-                <span class="bento-verified-stream-pill"><span class="bento-dot-pulse"></span>VERIFIED NOTE STREAM</span>
-                <span class="bento-post-sem-badge">SEMESTER III &bull; DBMS</span>
-              </div>
-              <div class="post-header-main">
-                <a href="portal.html" class="post-avatar bento-avatar" aria-label="View Aayush's profile">A</a>
-                <div class="post-user-info">
-                  <div class="post-author-row">
-                    <a href="portal.html" class="post-author-name">Aayush Shrestha</a>
-                    <span class="post-verified-badge" title="Verified Note Author">
-                      <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
-                      Verified
-                    </span>
-                  </div>
-                  <div class="post-meta-row">
-                    <span class="post-student-handle">@aayush</span>
-                    <span class="post-meta-sep">&middot;</span>
-                    <time class="post-timestamp">10m ago</time>
-                    <span class="post-meta-sep">&middot;</span>
-                    <span class="post-program-tag">BIT Gandaki Univ</span>
-                  </div>
-                </div>
-              </div>
-              <div class="post-content">
-                <h3 class="post-title">Database Systems &middot; Chapter 4 Normalization</h3>
-                <p class="bento-post-excerpt">
-                  Complete handwritten breakdown with functional dependency proofs, 1NF to BCNF algorithms, and worked past exam questions.
-                </p>
-                <div class="post-tags">
-                  <span class="post-tag">Semester III</span>
-                  <span class="post-tag">DBMS</span>
-                  <span class="post-tag">BIT 202</span>
-                </div>
-              </div>
-              <div class="file-attachment bento-attachment">
-                <div class="file-icon pdf">
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                    <polyline points="14 2 14 8 20 8"></polyline>
-                    <line x1="16" y1="13" x2="8" y2="13"></line>
-                    <line x1="16" y1="17" x2="8" y2="17"></line>
-                  </svg>
-                  <span>PDF</span>
-                </div>
-                <div class="file-info">
-                  <p class="file-name" title="DBMS_Ch4_CheatSheet.pdf">DBMS_Ch4_CheatSheet.pdf</p>
-                  <span class="file-meta">4.2 MB &middot; Verified Resource &middot; 1.4k Reads</span>
-                </div>
-                <div class="file-actions">
-                  <a href="library.html" class="file-action" title="Preview file">
-                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                    <span>View</span>
-                  </a>
-                  <a href="library.html" class="file-action primary" title="Download file">
-                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-                    <span>Get</span>
-                  </a>
-                </div>
-              </div>
-              <footer class="post-actions post-footer bento-post-footer">
-                <button type="button" class="action-btn like-btn liked" id="mockLikeBtn" title="React with Heart" onclick="handleMockLike(this)">
-                  <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.8"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>
-                  <span class="like-count" id="mockLikeCount">42</span>
-                </button>
-                <button type="button" class="action-btn comment-btn" title="Replies">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 8.4 8.4 0 0 1-3.5-.75L3 21l1.8-5.4A8.4 8.4 0 0 1 4 12.5 8.5 8.5 0 1 1 21 11.5z"/></svg>
-                  <span class="comment-count">14</span>
-                </button>
-                <button type="button" class="action-btn bookmark-btn" title="Save to bookmarks">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
-                </button>
-                <button type="button" class="action-btn share-btn" title="Share link">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13"/></svg>
-                </button>
-              </footer>
-            </article>
-          </div>
-        </div>
+    <nav class="home-feature-nav" aria-label="Explore features">
+      <div class="home-wrap home-feature-nav-inner">
+        <a href="#library" aria-current="location"><span>01</span>Library</a>
+        <a href="#kyana"><span>02</span>Kyana AI</a>
+        <a href="#compiler"><span>03</span>Compiler</a>
+        <a href="#assignments"><span>04</span>Assignments</a>
+        <a href="#campus"><span>05</span>Campus feed</a>
+        <a href="#chat"><span>06</span>Group chat</a>
       </div>
+    </nav>
 
-      <!-- Card 2: Tall Vertical Bento Shape (Routine & Schedule Cards) -->
-      <div class="poster-card bento-shape-tall tilt-card apple-card bento-glow-card" data-card-idx="1">
-        <div class="poster-card-top">
-          <div class="poster-icon-box apple-icon-box">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-              stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"></circle>
-              <polyline points="12 6 12 12 16 14"></polyline>
-            </svg>
-          </div>
-          <span class="apple-pill-tag">Timeline &bull; 02</span>
-          <span class="bento-live-badge"><span class="bento-beacon-dot"></span>ROUTINE 2083</span>
+    <div class="home-wrap">
+      <section class="home-intro" id="explore" aria-labelledby="explore-title">
+        <h2 id="explore-title">A whole semester.<br><span>A little more connected.</span></h2>
+        <p>From the first lecture to the last submission, find the tools and the community to keep moving forward.</p>
+      </section>
+
+      <section class="home-feature" id="library" aria-labelledby="library-title">
+        <div class="home-feature-copy" data-reveal>
+          <p class="home-eyebrow"><svg aria-hidden="true"><use href="#icon-book"/></svg>01 / The library</p>
+          <h2 id="library-title">Less searching.<br><span>More learning.</span></h2>
+          <p>Lecture notes, handwritten explanations, and presentations. Find your study material by semester and subject, right where it belongs.</p>
+          <a href="/library.html" class="home-text-link">Explore the library <svg aria-hidden="true"><use href="#icon-arrow"/></svg></a>
+          <div class="home-feature-detail"><span>Organized by semester</span><span>PDFs &amp; presentations</span><span>Shared by students</span></div>
         </div>
-        <h3 class="poster-card-title apple-card-title">Exam Routines &amp; Timetable</h3>
-        <p class="poster-card-desc apple-card-text">
-          Never miss a class or exam. View your weekly schedule and get countdown alerts for upcoming examinations.
-        </p>
-
-        <!-- Actual Website Component: Examination Schedule Cards (routine.html) -->
-        <div class="card-portion-wrap">
-          <!-- Interactive Semester Filter Tabs directly from routine.html -->
-          <div class="bento-routine-filter-bar" id="bentoRoutineFilterBar">
-            <button type="button" class="bento-routine-tab active" onclick="switchBentoRoutine('IV', this)">Sem IV</button>
-            <button type="button" class="bento-routine-tab" onclick="switchBentoRoutine('II', this)">Sem II</button>
-            <button type="button" class="bento-routine-tab" onclick="switchBentoRoutine('VI', this)">Sem VI</button>
-          </div>
-
-          <div class="exam-info bento-exam-info">
-            <div class="exam-info-item">
-              <span class="info-label">Routine</span>
-              <strong>2083</strong>
-            </div>
-            <div class="exam-info-item">
-              <span class="info-label">Program</span>
-              <strong>BIT</strong>
-            </div>
-            <div class="exam-info-item">
-              <span class="info-label">Status</span>
-              <strong id="bentoRoutineStatus">Confirmed</strong>
+        <figure class="home-stage home-stage-library" data-reveal aria-label="Preview of semester notes in the library">
+          <div class="home-window">
+            <div class="home-window-top"><span class="home-window-brand"><svg aria-hidden="true"><use href="#icon-book"/></svg>Semester Library</span><span class="home-window-dots" aria-hidden="true"><i></i><i></i><i></i></span></div>
+            <div class="home-library-content">
+              <div class="home-breadcrumb">Library <svg aria-hidden="true"><use href="#icon-chevron"/></svg> BIT <svg aria-hidden="true"><use href="#icon-chevron"/></svg> Your semester</div>
+              <div class="home-library-title"><h3>Ready for your next class.</h3></div>
+              <a href="/library.html" class="home-search-preview"><svg aria-hidden="true"><use href="#icon-search"/></svg>Find notes, subjects, and more<span>Search</span></a>
+              <div class="home-file-row"><span class="home-file-icon">PDF</span><div><strong>Database Management Systems</strong><small>Normalization · Handwritten notes</small></div><svg aria-hidden="true"><use href="#icon-northeast"/></svg></div>
+              <div class="home-file-row"><span class="home-file-icon">PDF</span><div><strong>Operating Systems</strong><small>Memory management · Revision notes</small></div><svg aria-hidden="true"><use href="#icon-northeast"/></svg></div>
+              <div class="home-file-row"><span class="home-file-icon">PPT</span><div><strong>Computer Networks</strong><small>Network layers · Lecture slides</small></div><svg aria-hidden="true"><use href="#icon-northeast"/></svg></div>
+              <p class="home-library-foot"><svg aria-hidden="true"><use href="#icon-grid"/></svg>Your subjects. All in one place.</p>
             </div>
           </div>
+          <figcaption class="home-preview-caption">Library preview · sample resources</figcaption>
+        </figure>
+      </section>
 
-          <div id="bentoExamRowsWrap">
-            <!-- Exam 1 Ticket -->
-            <article class="exam-row bento-exam-row" data-semester="IV">
-              <div class="bento-ticket-date">
-                <span class="bento-date-day">14</span>
-                <span class="bento-date-month">BAISHAKH</span>
-                <span class="bento-date-year">2083</span>
-              </div>
-              <div class="exam-details bento-ticket-details">
-                <div class="bento-ticket-meta-row">
-                  <span class="bento-countdown-chip"><span class="bento-beacon-dot"></span>STARTS IN 3 DAYS</span>
-                  <span class="bento-course-code">BIT 201</span>
-                </div>
-                <h2 class="bento-ticket-title">Operating Systems</h2>
-                <div class="bento-ticket-submeta">
-                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                  <span>08:00 AM – 11:00 AM</span>
-                  <span class="meta-dot">&bull;</span>
-                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                  <span>Hall 3B</span>
-                </div>
-              </div>
-            </article>
-
-            <!-- Exam 2 Ticket -->
-            <article class="exam-row bento-exam-row" data-semester="IV">
-              <div class="bento-ticket-date">
-                <span class="bento-date-day">18</span>
-                <span class="bento-date-month">BAISHAKH</span>
-                <span class="bento-date-year">2083</span>
-              </div>
-              <div class="exam-details bento-ticket-details">
-                <div class="bento-ticket-meta-row">
-                  <span class="bento-status-tag">SCHEDULED</span>
-                  <span class="bento-course-code">BIT 202</span>
-                </div>
-                <h2 class="bento-ticket-title">Database Management Systems</h2>
-                <div class="bento-ticket-submeta">
-                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                  <span>08:00 AM – 11:00 AM</span>
-                  <span class="meta-dot">&bull;</span>
-                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                  <span>Hall 2A</span>
-                </div>
-              </div>
-            </article>
-          </div>
+      <section class="home-feature home-feature-reverse" id="kyana" aria-labelledby="kyana-title">
+        <div class="home-feature-copy" data-reveal>
+          <p class="home-eyebrow"><svg aria-hidden="true"><use href="#icon-spark"/></svg>02 / Kyana AI</p>
+          <h2 id="kyana-title">Meet your next<br><span>“aha” moment.</span></h2>
+          <p>A study companion that speaks your subject. Work through a tricky concept, get help with code, or find your way around BIT notes with Kyana.</p>
+          <a href="/chatbot.html" class="home-text-link">Ask Kyana AI <svg aria-hidden="true"><use href="#icon-arrow"/></svg></a>
+          <div class="home-feature-detail"><span>Concept explanations</span><span>Coding help</span><span>Study support</span></div>
         </div>
-
-        <div class="poster-card-footer">
-          <a href="routine.html" class="apple-card-link">
-            <span>View Full Schedule</span>
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
-          </a>
-        </div>
-      </div>
-
-      <!-- Card 3: Compact Square Notice Card (University Notices) -->
-      <div class="poster-card bento-shape-compact tilt-card apple-card bento-glow-card" data-card-idx="2">
-        <div class="poster-card-top">
-          <div class="poster-icon-box apple-icon-box">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-              stroke-linejoin="round">
-              <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
-              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-            </svg>
-          </div>
-          <div class="apple-pill-tag kinetic-tag">OFFICIAL DISPATCH</div>
-          <span class="bento-live-badge"><span class="bento-beacon-dot"></span>ACTIVE</span>
-        </div>
-
-        <h3 class="poster-card-title apple-card-title">University Notices</h3>
-        <p class="poster-card-text apple-card-text">Stay updated with official Gandaki University circulars,
-          registration deadlines, and announcements.</p>
-
-        <!-- Actual Website Component: Notice Detail Card (notices.html) -->
-        <div class="card-portion-wrap">
-          <div class="detail-section-card bento-notice-card">
-            <div class="bento-notice-glow-bar"></div>
-            <div class="section-card-header">
-              <span class="notice-badge-urgent">CIRCULAR #2025-08</span>
-              <span class="notice-date">TODAY &middot; 10:00 AM</span>
-            </div>
-            <h3 class="section-card-title">Semester Exam Registration &amp; Form Submission Deadline</h3>
-            <p class="section-body-text">
-              All students of the BIT program are requested to complete examination registration forms before the final deadline. Late submissions will incur additional fees.
-            </p>
-            <div class="bento-notice-attachment-chip">
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                <polyline points="14 2 14 8 20 8"></polyline>
-              </svg>
-              <span>Circular_Notice_2025_08.pdf (1.4 MB)</span>
-              <span class="bento-notice-check">&#10003; Signed</span>
-            </div>
-            <div class="mini-notice-meta">
-              <span>EXAM CONTROLLER OFFICE</span>
-              <span class="notice-dot-sep">&bull;</span>
-              <span class="notice-status-open">GANDAKI UNIVERSITY</span>
+        <figure class="home-stage home-stage-ai" data-reveal aria-label="Interactive Kyana AI example">
+          <div class="home-window">
+            <div class="home-ai-content">
+              <div class="home-ai-greeting"><svg class="home-ai-spark" aria-hidden="true"><use href="#icon-spark"/></svg><h3>Hi, I am Kyana</h3><p>Your BIT study companion. What’s on your mind?</p></div>
+              <div class="home-prompt-list" aria-label="Choose a sample question">
+                <button type="button" data-prompt="dbms" aria-pressed="true">Explain DBMS</button>
+                <button type="button" data-prompt="code" aria-pressed="false">Help with code</button>
+                <button type="button" data-prompt="revision" aria-pressed="false">Plan my revision</button>
+              </div>
+              <div id="ai-example" aria-live="polite" aria-atomic="true">
+                <p class="home-ai-question" id="ai-question">Can you make database normalization simpler?</p>
+                <div class="home-ai-answer"><svg aria-hidden="true"><use href="#icon-spark"/></svg><p id="ai-answer">Think of it as giving every fact a home.<br><strong>1NF:</strong> One value in each cell.<br><strong>2NF:</strong> Every non-key attribute depends on the whole key.<br><strong>3NF:</strong> Remove transitive dependencies between non-key attributes.</p></div>
+              </div>
+              <a href="/chatbot.html" class="home-ai-composer"><span>Ask Kyana your own question…</span><svg aria-hidden="true"><use href="#icon-arrow"/></svg></a>
             </div>
           </div>
+          <figcaption class="home-preview-caption">Choose a prompt to explore a sample response</figcaption>
+        </figure>
+      </section>
+
+      <section class="home-feature" id="compiler" aria-labelledby="compiler-title">
+        <div class="home-feature-copy" data-reveal>
+          <p class="home-eyebrow"><svg aria-hidden="true"><use href="#icon-code"/></svg>03 / Online compiler</p>
+          <h2 id="compiler-title">An idea.<br>A few lines.<br><span>Something real.</span></h2>
+          <p>Open your browser and start building. Write code, provide input, and see the output in a workspace made for practice. No local setup needed.</p>
+          <div class="home-language-list" aria-label="Supported languages"><span>C / C++</span><span>Java</span><span>Python</span><span>Web</span></div>
+          <a href="/compiler.html" class="home-text-link">Open the compiler <svg aria-hidden="true"><use href="#icon-arrow"/></svg></a>
         </div>
-
-        <div class="poster-card-footer">
-          <a href="notices.html" class="apple-card-link">
-            <span>Explore Notices</span>
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
-          </a>
-        </div>
-      </div>
-
-      <!-- Card 4: Wide Panoramic Roadmap Card (Syllabus Architecture) -->
-      <div class="poster-card bento-shape-wide tilt-card apple-card bento-glow-card" data-card-idx="3">
-        <div class="poster-card-top">
-          <div class="poster-icon-box apple-icon-box">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-              stroke-linejoin="round">
-              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-            </svg>
-          </div>
-          <div class="apple-pill-tag kinetic-tag">CURRICULUM ARCHITECTURE</div>
-        </div>
-
-        <div class="wide-roadmap-header">
-          <div>
-            <h3 class="poster-card-title apple-card-title">Structured 8-Semester Syllabus</h3>
-            <p class="poster-card-text apple-card-text">Organized breakdown of all 8 semesters, theory and practical
-              units, teaching hours, and textbooks.</p>
-          </div>
-          <div class="credits-badge-pill apple-credits-pill shimmer-credits">126.0 TOTAL CREDITS</div>
-        </div>
-
-        <!-- Actual Website Component: Semester Syllabus Card (syllabus.html) -->
-        <div class="card-portion-wrap">
-          <div class="poster-roadmap-nodes apple-roadmap-nodes" id="semesterRoadmap">
-            <button class="roadmap-pill active" onclick="switchSemNode(this, 'Year 2 &middot; Semester IV', 'Operating Systems', 'Database Management Systems', 'Computer Networks', 'Software Engineering', '16.0 Credits', '50.8%', '64.0')">Sem IV</button>
-            <span class="roadmap-sep">&rarr;</span>
-            <button class="roadmap-pill" onclick="switchSemNode(this, 'Year 1 &middot; Semester I', 'Calculus &amp; Linear Algebra', 'Physics for Computing', 'Computer Fundamentals &amp; C', 'Digital Logic Systems', '15.5 Credits', '12.3%', '15.5')">Sem I</button>
-            <span class="roadmap-sep">&rarr;</span>
-            <button class="roadmap-pill" onclick="switchSemNode(this, 'Year 1 &middot; Semester II', 'Object-Oriented Programming (C++)', 'Data Structures &amp; Algorithms', 'Discrete Mathematics', 'Microprocessor Architecture', '16.0 Credits', '25.0%', '31.5')">Sem II</button>
-            <span class="roadmap-sep">&rarr;</span>
-            <button class="roadmap-pill" onclick="switchSemNode(this, 'Year 2 &middot; Semester III', 'Microprocessors &amp; Interfacing', 'Numerical Methods', 'Web Technology I', 'Computer Organization', '16.0 Credits', '37.7%', '47.5')">Sem III</button>
-            <span class="roadmap-sep">&rarr;</span>
-            <button class="roadmap-pill" onclick="switchSemNode(this, 'Year 3 &middot; Semester V', 'Software Engineering II', 'Artificial Intelligence', 'Web Technology II', 'Operating Systems Lab', '16.0 Credits', '63.5%', '80.0')">Sem V</button>
-            <span class="roadmap-sep">&rarr;</span>
-            <button class="roadmap-pill" onclick="switchSemNode(this, 'Year 3 &middot; Semester VI', 'Data Mining &amp; Warehousing', 'Compiler Design', 'Distributed Systems', 'Cloud Computing', '16.0 Credits', '76.2%', '96.0')">Sem VI</button>
-          </div>
-
-          <div class="syllabus-sem-card bento-syllabus-card">
-            <div class="sem-card-header">
-              <div class="sem-card-header-left">
-                <div class="sem-pill-tag" id="semCardTag">Semester IV</div>
-                <span class="sem-credits-pill" id="semCardCredits">16.0 Credits</span>
-              </div>
-              <span class="sem-phase-pill" id="semCardPhase">Year 2 &middot; Core Engineering</span>
+        <figure class="home-stage home-stage-code" data-reveal aria-label="Interactive code and output preview">
+          <div class="home-window home-code-window">
+            <div class="home-window-top">
+              <div class="home-code-tabs" aria-label="Example language"><button type="button" data-language="python" aria-pressed="true">Python</button><button type="button" data-language="c" aria-pressed="false">C</button><button type="button" data-language="java" aria-pressed="false">Java</button></div>
+              <span class="home-code-file" id="code-filename">hello.py</span>
             </div>
-            <h3 class="sem-card-title" id="semCardTitle">Year 2 &middot; Semester IV</h3>
-            <p class="sem-card-desc">5 Prescribed Courses &bull; Theory &amp; Practical Laboratory Requirements</p>
-            <div class="bento-syllabus-courses-grid" id="semCardCoursesGrid">
-              <div class="bento-course-item">
-                <span class="bento-course-bullet">&#9670;</span>
-                <span class="bento-course-name">Operating Systems</span>
-                <span class="bento-course-pill">BIT 201 &middot; 3 Cr</span>
-              </div>
-              <div class="bento-course-item">
-                <span class="bento-course-bullet">&#9670;</span>
-                <span class="bento-course-name">Database Management Systems</span>
-                <span class="bento-course-pill">BIT 202 &middot; 3 Cr</span>
-              </div>
-              <div class="bento-course-item">
-                <span class="bento-course-bullet">&#9670;</span>
-                <span class="bento-course-name">Computer Networks</span>
-                <span class="bento-course-pill">BIT 203 &middot; 3 Cr</span>
-              </div>
-              <div class="bento-course-item">
-                <span class="bento-course-bullet">&#9670;</span>
-                <span class="bento-course-name">Software Engineering</span>
-                <span class="bento-course-pill">BIT 204 &middot; 3 Cr</span>
-              </div>
-            </div>
-            <!-- Progress Meter -->
-            <div class="bento-syllabus-meter-wrap">
-              <div class="bento-meter-labels">
-                <span id="bentoMeterCompletionText">Degree Progress: 64.0 / 126.0 Credits</span>
-                <strong id="bentoMeterPercent">50.8%</strong>
-              </div>
-              <div class="bento-meter-track">
-                <div class="bento-meter-fill" id="bentoMeterFill" style="width: 50.8%;"></div>
-              </div>
+            <div class="home-code-editor"><pre aria-label="Sample source code"><code id="code-example"><span class="home-code-line" data-line="1"><span class="home-token-comment"># A small start. Endless possibilities.</span></span><span class="home-code-line" data-line="2"></span><span class="home-code-line" data-line="3"><span class="home-token-keyword">def</span> <span class="home-token-function">say_hello</span>(name):</span><span class="home-code-line" data-line="4">    <span class="home-token-keyword">return</span> <span class="home-token-string">f"Hello, {name}!"</span></span><span class="home-code-line" data-line="5"></span><span class="home-code-line" data-line="6">message = <span class="home-token-function">say_hello</span>(<span class="home-token-string">"Gandaki"</span>)</span><span class="home-code-line" data-line="7"><span class="home-token-function">print</span>(message)</span><span class="home-code-line" data-line="8"><span class="home-token-function">print</span>(<span class="home-token-string">"Let’s build something."</span>)</span></code></pre></div>
+            <div class="home-code-toolbar"><span>Read-only example · no setup required</span><button type="button" class="home-code-run" id="code-preview-run" aria-controls="code-output"><svg aria-hidden="true"><use href="#icon-play"/></svg><span id="code-run-label">Preview output</span></button></div>
+            <div class="home-terminal"><div class="home-terminal-label"><svg aria-hidden="true"><use href="#icon-terminal"/></svg>OUTPUT</div><p class="home-terminal-output" id="code-output" aria-live="polite">Select “Preview output” to see the result.</p></div>
+          </div>
+          <figcaption class="home-preview-caption">Compiler preview · open the compiler to run your own code</figcaption>
+        </figure>
+      </section>
+
+      <section class="home-feature home-feature-reverse" id="assignments" aria-labelledby="assignments-title">
+        <div class="home-feature-copy" data-reveal>
+          <p class="home-eyebrow"><svg aria-hidden="true"><use href="#icon-check-circle"/></svg>04 / Assignments &amp; code lab</p>
+          <h2 id="assignments-title">From “to do”<br><span>to turned in.</span></h2>
+          <p>Your practical work, with a clear path forward. Browse assignments by subject, open the instructions, write your solution, and keep your submissions together.</p>
+          <ul class="home-checklist"><li><svg aria-hidden="true"><use href="#icon-check"/></svg>Subject-wise assignments</li><li><svg aria-hidden="true"><use href="#icon-check"/></svg>Code alongside instructions</li><li><svg aria-hidden="true"><use href="#icon-check"/></svg>Your submission history</li></ul>
+          <a href="/code-lab/subjects.html" class="home-text-link">Explore assignments <svg aria-hidden="true"><use href="#icon-arrow"/></svg></a>
+        </div>
+        <figure class="home-stage home-stage-assignment" data-reveal aria-label="Code lab assignment and submission preview">
+          <div class="home-window">
+            <div class="home-window-top"><span class="home-window-brand"><svg aria-hidden="true"><use href="#icon-code"/></svg>Code Lab</span><span>Assignment 01</span></div>
+            <div class="home-assignment-content">
+              <div class="home-breadcrumb">Assignments <svg aria-hidden="true"><use href="#icon-chevron"/></svg> C Programming</div>
+              <div class="home-assignment-heading"><h3>Find the largest number.</h3><svg aria-hidden="true"><use href="#icon-check-circle"/></svg></div>
+              <p class="home-assignment-desc">Write a program that reads three integers and prints the largest. Try a few inputs before submitting.</p>
+              <div class="home-assignment-steps"><span><svg aria-hidden="true"><use href="#icon-check"/></svg>Read the task</span><span><svg aria-hidden="true"><use href="#icon-check"/></svg>Write &amp; run</span><span><svg aria-hidden="true"><use href="#icon-check"/></svg>Submit</span></div>
+              <div class="home-assignment-code"><div>main.c</div><pre><code><em>int</em> largest = a;
+<em>if</em> (b &gt; largest) largest = b;
+<em>if</em> (c &gt; largest) largest = c;
+printf("%d\n", largest);</code></pre></div>
+              <div class="home-submission"><span><svg aria-hidden="true"><use href="#icon-check-circle"/></svg>Solution submitted</span><small>Saved in My Submissions</small></div>
             </div>
           </div>
+          <figcaption class="home-preview-caption">Assignment preview · sample task and submission</figcaption>
+        </figure>
+      </section>
+
+      <section class="home-feature" id="campus" aria-labelledby="campus-title">
+        <div class="home-feature-copy" data-reveal>
+          <p class="home-eyebrow"><svg aria-hidden="true"><use href="#icon-bell"/></svg>05 / Feed, notices &amp; routines</p>
+          <h2 id="campus-title">Your campus.<br><span>On the same page.</span></h2>
+          <p>The note someone just shared. The announcement you need to read. The exam you’re preparing for. Stay connected to what matters, in one place.</p>
+          <a href="/dashboard.html" class="home-text-link" id="campus-feature-link"><span>Explore the feed</span><svg aria-hidden="true"><use href="#icon-arrow"/></svg></a>
+          <div class="home-feature-detail"><span>Student posts</span><span>University notices</span><span>Exam schedules</span></div>
         </div>
-
-        <div class="poster-card-footer">
-          <a href="syllabus.html" class="apple-card-link">
-            <span>Explore Complete 8 Semesters</span>
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
-          </a>
-        </div>
-      </div>
-
-      <!-- Card 5: Wide Panoramic Monochromatic Animated Realtime Chat Card -->
-      <div class="poster-card bento-shape-wide tilt-card apple-card bento-glow-card" data-card-idx="4">
-        <div class="wide-card-layout">
-          <div class="wide-card-content">
-            <div class="poster-card-top">
-              <div class="poster-icon-box apple-icon-box">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                  stroke-linejoin="round">
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                </svg>
-              </div>
-              <span class="apple-pill-tag kinetic-tag">REALTIME CHAT &bull; 05</span>
-              <span class="bento-live-badge"><span class="bento-beacon-dot"></span>ACTIVE HUB</span>
+        <figure class="home-stage home-stage-campus" data-reveal aria-label="Campus feed, notices and exam schedule examples">
+          <div class="home-window">
+            <div class="home-window-top"><span class="home-window-brand"><svg aria-hidden="true"><use href="#icon-book"/></svg>Your campus, connected</span><span>BIT</span></div>
+            <div class="home-campus-tabs" role="tablist" aria-label="Campus preview">
+              <button type="button" role="tab" id="tab-feed" aria-selected="true" aria-controls="panel-feed" data-campus="feed">Feed</button>
+              <button type="button" role="tab" id="tab-notices" aria-selected="false" aria-controls="panel-notices" tabindex="-1" data-campus="notices">Notices</button>
+              <button type="button" role="tab" id="tab-exams" aria-selected="false" aria-controls="panel-exams" tabindex="-1" data-campus="exams">Exam schedule</button>
             </div>
-            <h3 class="poster-card-title apple-card-title">Class-Wide Group Chat</h3>
-            <p class="poster-card-desc apple-card-text">
-              Connect instantly with all logged-in classmates. Send messages, attach notes, lecture clips, and
-              collaborate in real time.
-            </p>
-            <div class="poster-card-footer">
-              <a href="chat.html" class="poster-card-link apple-card-link">
-                <span>Open Class Chat</span>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
-                  stroke-linejoin="round" style="width: 14px; height: 14px;">
-                  <polyline points="9 18 15 12 9 6"></polyline>
-                </svg>
-              </a>
+            <div class="home-campus-panel" id="panel-feed" role="tabpanel" aria-labelledby="tab-feed" tabindex="0">
+              <div class="home-post-author"><span class="home-avatar home-avatar-peach">AS</span><div><strong>Aayush Shrestha</strong><small>Shared with the class</small></div></div>
+              <p class="home-post-body">Made a quick guide to database normalization. Sharing it here in case anyone needs a little help before revision!</p>
+              <div class="home-post-file"><svg aria-hidden="true"><use href="#icon-file"/></svg><div class="home-file-meta"><strong>DBMS_Normalization.pdf</strong><small>Study notes · PDF document</small></div></div>
+              <div class="home-post-reactions" aria-label="Sample post reactions"><span><svg aria-hidden="true"><use href="#icon-heart"/></svg>12</span><span><svg aria-hidden="true"><use href="#icon-chat"/></svg>3 replies</span></div>
+              <div class="home-post-reply"><span class="home-avatar">P</span>This makes so much more sense now. Thank you!</div>
             </div>
-          </div>
-          <div class="wide-card-preview">
-            <!-- Actual Website Component: Realtime Class Chat (chat.html) -->
-            <div class="im-app bento-chat-preview">
-              <header class="im-header">
-                <div class="im-header-side">
-                  <div class="im-mock-avatar">GU</div>
-                </div>
-                <div class="im-header-center">
-                  <div class="im-contact-title-row">
-                    <span class="im-contact-name">Class Group Chat</span>
-                    <span class="bento-batch-pill">Batch 2025</span>
-                  </div>
-                  <div class="im-chat-submeta">60 members &middot; 14 online now</div>
-                </div>
-                <div class="im-header-side right">
-                  <span class="im-status-pill"><span class="bento-beacon-dot"></span>LIVE</span>
-                </div>
-              </header>
-
-              <main class="im-feed bento-feed">
-                <div class="im-feed-inner">
-                  <div class="im-row other cluster-start">
-                    <div class="im-msg-avatar">AK</div>
-                    <div class="im-msg-content-wrap">
-                      <span class="im-msg-sender-name">Ankit K. &middot; Student</span>
-                      <div class="im-bubble">
-                        Anyone have the Operating Systems Unit 4 handwritten notes? 📐
-                      </div>
-                      <div class="im-time-meta">10:42 AM</div>
-                    </div>
-                  </div>
-
-                  <div class="im-row self cluster-start">
-                    <div class="im-msg-content-wrap">
-                      <div class="im-bubble">
-                        Uploaded to Library! Check DBMS &amp; OS section ✨
-                      </div>
-                      <div class="im-time-meta">10:43 AM &middot; Delivered &#10003;&#10003;</div>
-                    </div>
-                  </div>
-
-                  <div class="im-typing-indicator" style="display: flex;">
-                    <div class="typing-dots">
-                      <span></span><span></span><span></span>
-                    </div>
-                    <span class="typing-text">Pooja is typing...</span>
-                  </div>
-                </div>
-              </main>
-
-              <footer class="im-composer bento-composer">
-                <div class="im-composer-inner">
-                  <button type="button" class="im-plus-btn" title="Add attachment">+</button>
-                  <div class="im-mock-input">Type a message to Batch 2025...</div>
-                  <div class="im-mock-send">
-                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5">
-                      <line x1="22" y1="2" x2="11" y2="13"></line>
-                      <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                    </svg>
-                  </div>
-                </div>
-              </footer>
+            <div class="home-campus-panel" id="panel-notices" role="tabpanel" aria-labelledby="tab-notices" tabindex="0" hidden>
+              <p class="home-notice-label"><svg aria-hidden="true"><use href="#icon-bell"/></svg>University notices</p>
+              <h3 class="home-notice-title">The important updates.<br>All in one place.</h3>
+              <p class="home-notice-body">Examination registration, academic announcements, and university circulars—find the details and attached documents together.</p>
+              <div class="home-post-file"><svg aria-hidden="true"><use href="#icon-file"/></svg><div class="home-file-meta"><strong>Examination registration notice</strong><small>Example circular · PDF attachment</small></div></div>
+              <a href="/notices.html" class="home-text-link home-notice-link">Read current notices <svg aria-hidden="true"><use href="#icon-arrow"/></svg></a>
+            </div>
+            <div class="home-campus-panel" id="panel-exams" role="tabpanel" aria-labelledby="tab-exams" tabindex="0" hidden>
+              <div class="home-schedule-heading"><h3>Examination schedule</h3><span class="home-tag">Sample</span></div>
+              <div class="home-exam-row"><span class="home-exam-day"><strong>01</strong><small>Day</small></span><div><h4>Operating Systems</h4><p>08:00–11:00 · Examination hall</p></div></div>
+              <div class="home-exam-row"><span class="home-exam-day"><strong>03</strong><small>Day</small></span><div><h4>Database Management Systems</h4><p>08:00–11:00 · Examination hall</p></div></div>
+              <a href="/routine.html" class="home-text-link home-notice-link">View your actual exam routine <svg aria-hidden="true"><use href="#icon-arrow"/></svg></a>
             </div>
           </div>
-        </div>
-      </div>
+          <figcaption class="home-preview-caption">Interactive preview · illustrative posts, notices, and schedules</figcaption>
+        </figure>
+      </section>
 
-      <!-- What's New Bento Showcase Section Divider -->
-      <div class="bento-whats-new-banner">
-        <div class="bento-whats-new-badge">
-          <span class="pulse-dot"></span>
-          <span>WHAT'S NEW &bull; RELEASE v2.4</span>
+      <section class="home-feature home-feature-reverse" id="chat" aria-labelledby="chat-title">
+        <div class="home-feature-copy" data-reveal>
+          <p class="home-eyebrow"><svg aria-hidden="true"><use href="#icon-chat"/></svg>06 / Class group chat</p>
+          <h2 id="chat-title">Good questions.<br>Great company.<br><span>Better together.</span></h2>
+          <p>Some things are easier with your classmates. Ask a quick question, share a file, or work through a problem in your class group chat.</p>
+          <a href="/chat.html" class="home-text-link">Join the conversation <svg aria-hidden="true"><use href="#icon-arrow"/></svg></a>
+          <div class="home-feature-detail"><span>Real-time messages</span><span>Files &amp; photos</span><span>Pinned messages</span></div>
         </div>
-        <h2 class="bento-whats-new-title">Next-Generation Academic Tools</h2>
-        <p class="bento-whats-new-subtitle">Engineered for seamless study workflows with instant search, live activity
-          radar, and credential vaulting.</p>
-      </div>
-
-      <!-- Card 6: Monochromatic Smart Search Engine (library.html components) -->
-      <div class="poster-card bento-shape-tall tilt-card apple-card bento-glow-card" data-card-idx="5">
-        <div class="poster-card-top">
-          <div class="poster-icon-box apple-icon-box">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-              stroke-linejoin="round">
-              <circle cx="11" cy="11" r="8"></circle>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            </svg>
+        <figure class="home-stage home-stage-chat" data-reveal aria-label="Preview of a class group conversation">
+          <div class="home-window home-chat-window">
+            <div class="home-chat-top"><svg aria-hidden="true"><use href="#icon-chat"/></svg><span class="home-avatar">GU</span><div><h3>Class Group Chat</h3><p>Gandaki University · BIT</p></div></div>
+            <div class="home-chat-body">
+              <p class="home-chat-date">A little help goes a long way</p>
+              <div class="home-message"><span class="home-avatar home-avatar-peach">A</span><div class="home-message-content"><p class="home-message-name">Ankit</p><p class="home-message-bubble">Anyone figured out the last question in the C assignment?</p><time>10:42</time></div></div>
+              <div class="home-message home-message-self"><div class="home-message-content"><p class="home-message-bubble">Yes! Try comparing the numbers one at a time. I’ve shared my notes too.</p><time>10:43 · Delivered</time></div></div>
+              <div class="home-message"><span class="home-avatar">P</span><div class="home-message-content"><p class="home-message-name">Pooja</p><div class="home-message-bubble">This might help!<span class="home-chat-attachment"><svg aria-hidden="true"><use href="#icon-file"/></svg>C_Programming_Notes.pdf</span></div><time>10:44</time></div></div>
+            </div>
+            <a href="/chat.html" class="home-chat-composer"><svg aria-hidden="true"><use href="#icon-plus"/></svg><span>Message your class…</span><svg aria-hidden="true"><use href="#icon-send"/></svg></a>
           </div>
-          <span class="apple-pill-tag">INTELLIGENCE &bull; 06</span>
+          <figcaption class="home-preview-caption">Group chat preview · sample conversation</figcaption>
+        </figure>
+      </section>
+
+      <section class="home-extras" aria-labelledby="extras-title" data-reveal>
+        <div class="home-extras-heading"><h2 id="extras-title">And there’s more to explore.</h2><p>Little things that make university life feel a little more organized.</p></div>
+        <div class="home-extra-links">
+          <a href="/syllabus.html" class="home-extra-link"><div><svg aria-hidden="true"><use href="#icon-grid"/></svg><h3>Your syllabus, mapped.</h3><svg aria-hidden="true"><use href="#icon-northeast"/></svg></div><p>Explore courses, units, and recommended reading across your semesters.</p></a>
+          <a href="/gallery.html" class="home-extra-link"><div><svg aria-hidden="true"><use href="#icon-image"/></svg><h3>Beyond the classroom.</h3><svg aria-hidden="true"><use href="#icon-northeast"/></svg></div><p>A window into Gandaki University. Campus moments, milestones, and student life.</p></a>
+          <a href="/routine.html" class="home-extra-link"><div><svg aria-hidden="true"><use href="#icon-calendar"/></svg><h3>Know what’s next.</h3><svg aria-hidden="true"><use href="#icon-northeast"/></svg></div><p>Find your exam routine and the details you need to plan your study time.</p></a>
         </div>
-        <h3 class="poster-card-title apple-card-title">Instant Smart Search</h3>
-        <p class="poster-card-desc apple-card-text">
-          Debounced indexing across every note, chapter, and semester syllabus in sub-milliseconds.
-        </p>
-
-        <!-- Actual Website Component: Library Search & Clean File Items (library.html) -->
-        <div class="card-portion-wrap">
-          <div class="bento-search-box">
-            <div class="mock-search-input-box">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"
-                stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.8;">
-                <circle cx="11" cy="11" r="8"></circle>
-                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-              </svg>
-              <span class="mock-search-typing-text">DBMS Normalization</span>
-              <span class="mock-search-cursor"></span>
-            </div>
-            <div class="mock-filter-chips-row">
-              <span class="mock-filter-chip active">All</span>
-              <span class="mock-filter-chip">PDF Notes</span>
-              <span class="mock-filter-chip">Syllabus</span>
-              <span class="mock-filter-chip">Lab Code</span>
-            </div>
-            <div class="search-results-section bento-search-results">
-              <div class="clean-file-item">
-                <div class="clean-file-left">
-                  <div class="file-icon pdf"><span>PDF</span></div>
-                  <div style="min-width: 0;">
-                    <p class="clean-file-title">Database Normalization Cheat Sheet</p>
-                    <p class="clean-file-meta">
-                      <strong>Database Systems</strong> &middot; Unit 4 &middot; By Aayush
-                    </p>
-                  </div>
-                </div>
-                <span class="file-action primary" style="padding: 4px 10px; font-size: 11px;">Get</span>
-              </div>
-              <div class="search-chapter-item">
-                <div style="min-width: 0;">
-                  <div style="display:flex; align-items:center; gap:6px; margin-bottom:2px;">
-                    <span class="course-code-badge">BIT 202</span>
-                    <span style="font-size:11px; color:#8e8e93;">DBMS &middot; Sem IV</span>
-                  </div>
-                  <p style="font-size:13px; font-weight:700; margin:0; color:#fff;">Unit 4: Relational Database Design</p>
-                </div>
-                <span class="open-label" style="font-size:11.5px; font-weight:700;">Open &rarr;</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="poster-card-footer">
-          <a href="library.html" class="apple-card-link">
-            <span>Try Global Search</span>
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
-          </a>
-        </div>
-      </div>
-
-      <!-- Card 7: Live Notification Hub (dashboard.html notifications) -->
-      <div class="poster-card bento-shape-compact tilt-card apple-card bento-glow-card" data-card-idx="6">
-        <div class="poster-card-top">
-          <div class="poster-icon-box apple-icon-box">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-              stroke-linejoin="round">
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-              <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-            </svg>
-          </div>
-          <div class="apple-pill-tag kinetic-tag">ACTIVITY RADAR &bull; 07</div>
-        </div>
-
-        <h3 class="poster-card-title apple-card-title">Live Notification Hub</h3>
-        <p class="poster-card-text apple-card-text">
-          Instant peer interactions, comments, likes on your shared files, and official administrative notices.
-        </p>
-
-        <!-- Actual Website Component: Live Activity Notifications (dashboard.html) -->
-        <div class="card-portion-wrap">
-          <div class="bento-notif-box">
-            <div class="mock-radar-header-row">
-              <span class="radar-status-badge">
-                <span class="radar-beacon-dot"></span>
-                LIVE RADAR
-              </span>
-              <span style="font-size: 11px; color: rgba(255,255,255,0.5);">INSTANT SYNC</span>
-            </div>
-            <div class="bento-notif-stream">
-              <div class="bento-notif-item">
-                <div class="bento-notif-avatar">A</div>
-                <div class="bento-notif-content">
-                  <p><strong>Aayush Shrestha</strong> reacted to your note <em>DBMS Cheat Sheet</em></p>
-                  <time>2 mins ago</time>
-                </div>
-              </div>
-              <div class="bento-notif-item">
-                <div class="bento-notif-avatar">P</div>
-                <div class="bento-notif-content">
-                  <p><strong>Pooja Thapa</strong> commented: "This solves all BCNF questions!"</p>
-                  <time>12 mins ago</time>
-                </div>
-              </div>
-              <div class="bento-notif-item">
-                <div class="bento-notif-avatar seal">GU</div>
-                <div class="bento-notif-content">
-                  <p><strong>Exam Office</strong> issued <em>CIRCULAR #2025-08 Deadline</em></p>
-                  <time>1 hour ago</time>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="poster-card-footer">
-          <a href="dashboard.html" class="apple-card-link">
-            <span>View Notifications</span>
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
-          </a>
-        </div>
-      </div>
-
-      <!-- Card 8: Monochromatic Account Security Vault (settings.html components) -->
-      <div class="poster-card bento-shape-wide tilt-card apple-card bento-glow-card" data-card-idx="7">
-        <div class="wide-card-layout">
-          <div class="wide-card-content">
-            <div class="poster-card-top">
-              <div class="poster-icon-box apple-icon-box">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                  stroke-linejoin="round">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                </svg>
-              </div>
-              <span class="apple-pill-tag kinetic-tag">SECURITY VAULT &bull; 08</span>
-            </div>
-            <h3 class="poster-card-title apple-card-title">Password Vault &amp; Credentials Security</h3>
-            <p class="poster-card-desc apple-card-text">
-              Manage your credentials with server-side bcrypt cryptographic re-verification. Zero plaintext storage.
-            </p>
-            <div class="poster-card-footer">
-              <a href="settings.html" class="poster-card-link apple-card-link">
-                <span>Manage Credentials</span>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
-                  stroke-linejoin="round" style="width: 14px; height: 14px;">
-                  <polyline points="9 18 15 12 9 6"></polyline>
-                </svg>
-              </a>
-            </div>
-          </div>
-          <div class="wide-card-preview">
-            <!-- Actual Website Component: Account Security & Hash Verification (settings.html) -->
-            <div class="bento-vault-preview">
-              <div class="vault-col-left">
-                <div class="vault-metric-row">
-                  <span>Password Security</span>
-                  <strong style="color: #ffffff;">bcrypt 10 Rounds</strong>
-                </div>
-                <div class="vault-strength-track">
-                  <div class="vault-strength-bar"></div>
-                </div>
-                <div class="vault-metric-row" style="margin-top: 8px;">
-                  <span style="font-size: 11px;">Cookie Protection</span>
-                  <span class="vault-auth-pill">&#10003; httpOnly &middot; SameSite</span>
-                </div>
-              </div>
-              <div class="vault-col-right">
-                <div class="vault-hash-line">
-                  <span style="opacity: 0.5;">HASH:</span>
-                  <span>$2b$10$wK4...9a8f</span>
-                </div>
-                <div style="font-size: 10.5px; opacity: 0.6; margin-top: 6px;">
-                  Zero Plaintext &middot; Session-Gated Endpoints
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
+      </section>
     </div>
 
-    <!-- Apple Stats Showcase Strip -->
-    <div class="poster-stats-strip apple-stats-strip" id="posterStatsStrip">
-      <div class="poster-stat-item">
-        <div class="stat-indicator-badge">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
-            stroke-linejoin="round">
-            <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
-            <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
-          </svg>
-        </div>
-        <div class="stat-meta">
-          <strong>BATCH 2025</strong>
-          <span>Four-Year BIT Program</span>
-        </div>
-      </div>
-
-      <div class="poster-stat-item">
-        <div class="stat-indicator-badge">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
-            stroke-linejoin="round">
-            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
-          </svg>
-        </div>
-        <div class="stat-meta">
-          <strong>100% DIGITAL</strong>
-          <span>Zero Paperwork Notes</span>
-        </div>
-      </div>
-
-      <div class="poster-stat-item">
-        <div class="stat-indicator-badge">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
-            stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <polyline points="12 6 12 12 16 14"></polyline>
-          </svg>
-        </div>
-        <div class="stat-meta">
-          <strong>126 CREDITS</strong>
-          <span>Full Curriculum Structure</span>
-        </div>
-      </div>
-
-      <div class="poster-stat-item">
-        <div class="stat-indicator-badge">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
-            stroke-linejoin="round">
-            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-            <polyline points="9 22 9 12 15 12 15 22"></polyline>
-          </svg>
-        </div>
-        <div class="stat-meta">
-          <strong>GANDAKI UNIV</strong>
-          <span>Central Academic Portal</span>
-        </div>
-      </div>
-    </div>
-    <!-- END OF TEMPLATE SHOWCASE BENTO BOXES -->
-
+    <section class="home-closing" aria-labelledby="closing-title">
+      <svg aria-hidden="true"><use href="#icon-book"/></svg>
+      <h2 id="closing-title">Make room for<br>your next big idea.</h2>
+      <p>Your semester starts here. Let’s make it a good one.</p>
+      <a href="/library.html" class="home-button">Enter the Library <svg aria-hidden="true"><use href="#icon-arrow"/></svg></a>
+    </section>
   </main>
 
-  <!-- ==========================================================================
-       SHOWCASE STAGE 1: KYANA AI ACADEMIC INTELLIGENCE (FREE-STANDING)
-       Directly mirrors public/chatbot.html components and design
-       ========================================================================== -->
-  <section class="ag-showcase-stage" id="kyanaFreeShowcase">
-    <div class="ag-stage-header">
-      <div class="ag-stage-badge">
-        <span class="kyana-ai-pulse-dot"></span>
-        <span>INTELLIGENCE 4.0 &bull; KYANA AI COPILOT</span>
-      </div>
-      <h2 class="ag-stage-title">Academic Reasoning, Reimagined.</h2>
-      <p class="ag-stage-desc">
-        Context-grounded intelligence trained on your B.Tech CSE syllabus. Ask technical concepts, query past semester papers, or synthesize structured revision guides with zero hallucination.
-      </p>
-    </div>
-
-    <!-- Free-Standing Kyana Canvas (Mirrors chatbot.html) -->
-    <div class="free-kyana-canvas">
-      <!-- Minimal Hero Greeting from chatbot.html -->
-      <div class="sla-welcome-hero" style="margin-bottom: 24px;">
-        <div class="sla-welcome-sparkle">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
-          </svg>
-        </div>
-        <h2 id="slaHeroGreeting">Hi, I am Kyana</h2>
-        <p>Your BIT study companion. Ask about notes, code, concepts, or what’s new.</p>
-      </div>
-
-      <!-- Topic Filter Rail -->
-      <div class="free-kyana-topics" id="kyanaTopicChips">
-        <button type="button" class="free-topic-btn active" data-topic="dbms">DBMS Normalization &amp; BCNF</button>
-        <button type="button" class="free-topic-btn" data-topic="assembly">8086 Segmented Memory</button>
-        <button type="button" class="free-topic-btn" data-topic="os">Virtual Memory &amp; Page Faults</button>
-        <button type="button" class="free-topic-btn" data-topic="graph">Data Structures (BFS vs DFS)</button>
-      </div>
-
-      <!-- Messages Conversation Area (chatbot.html .sla-chat-messages & .sla-msg-row) -->
-      <div class="sla-chat-messages bento-sla-messages">
-        <!-- Student Query Bubble Row -->
-        <div class="sla-msg-row sla-user">
-          <div class="sla-msg-bubble">
-            <span id="kyanaPromptText">Explain 3NF vs BCNF with a quick example</span>
-          </div>
-        </div>
-
-        <!-- Kyana AI Answer Row -->
-        <div class="sla-msg-row sla-ai">
-          <div class="sla-msg-avatar">KA</div>
-          <div class="sla-msg-bubble">
-            <div class="sla-bubble-header">
-              <span class="kyana-ai-pulse-dot"></span>
-              <span>KYANA AI &bull; B.TECH CSE CURRICULUM COPILOT</span>
-            </div>
-            <div class="sla-ai-text" id="kyanaResponseText">
-              <strong>3NF</strong> requires no transitive functional dependency. <strong>BCNF</strong> is stronger: for every non-trivial functional dependency <em>X &rarr; Y</em>, <em>X</em> must be a candidate super-key.
-            </div>
-            <div class="free-ai-points-grid" id="kyanaPointsList">
-              <div class="free-ai-point-card">
-                <strong>3NF Rule:</strong> Allows <em>Y</em> to be a prime attribute even if <em>X</em> is not a super key.
-              </div>
-              <div class="free-ai-point-card">
-                <strong>BCNF Rule:</strong> Eliminates anomalies where non-prime attributes determine candidate keys.
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Input Footer Capsule (chatbot.html .sla-input-capsule) -->
-      <div class="sla-panel-footer" style="margin-top: 20px;">
-        <form class="sla-input-capsule" onclick="window.location.href='chatbot.html'">
-          <textarea class="sla-input-textarea" placeholder="Ask Kyana AI a question…" rows="1" readonly>Ask Kyana anything about your Gandaki University syllabus…</textarea>
-          <button type="button" class="sla-send-btn" title="Ask Kyana">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="22" y1="2" x2="11" y2="13"></line>
-              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-            </svg>
-          </button>
-        </form>
-        <div class="sla-disclaimer-text">
-          BIT notes, coding help, and live search in one place.
-        </div>
-      </div>
-
-      <!-- Clearance Bar -->
-      <div class="free-stage-clearance-bar">
-        <span>&bull; Trained on Gandaki University 8-Semester Syllabus &bull; Instant LaTeX &amp; Code Syntax</span>
-        <a href="chatbot.html" class="free-stage-cta-btn">
-          <span>Launch Kyana AI Studio</span>
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
-            <polyline points="9 18 15 12 9 6"></polyline>
-          </svg>
-        </a>
-      </div>
-    </div>
-  </section>
-
-  <!-- ==========================================================================
-       SHOWCASE STAGE 2: ONLINE CLOUD COMPILER & CODE LAB (FREE-STANDING)
-       Directly mirrors public/code-lab/index.html components and design
-       ========================================================================== -->
-  <section class="ag-showcase-stage" id="compilerFreeShowcase">
-    <div class="ag-stage-header">
-      <div class="ag-stage-badge">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="16 18 22 12 16 6"></polyline>
-          <polyline points="8 6 2 12 8 18"></polyline>
-        </svg>
-        <span>DEV TOOLS &bull; CODE LAB COMPILER</span>
-      </div>
-      <h2 class="ag-stage-title">Zero-Setup Cloud Code Sandbox.</h2>
-      <p class="ag-stage-desc">
-        Write, compile, and debug C++, Python, and JavaScript snippets directly in your browser. Real-time stdout sandboxing with zero local configuration.
-      </p>
-    </div>
-
-    <!-- Free-Standing Developer Workbench (Mirrors code-lab/index.html) -->
-    <div class="free-compiler-workbench">
-      <div class="free-compiler-topbar">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <div class="compiler-window-dots">
-            <span class="compiler-dot"></span>
-            <span class="compiler-dot"></span>
-            <span class="compiler-dot"></span>
-          </div>
-          <span style="font-size: 11px; opacity: 0.5; margin-left: 6px; font-family: monospace;">CODE LAB WORKBENCH v2.0</span>
-        </div>
-        <div class="free-compiler-tabs" id="compilerTabs">
-          <button type="button" class="free-compiler-tab active" data-lang="cpp">main.cpp (C++ 13)</button>
-          <button type="button" class="free-compiler-tab" data-lang="python">evaluate.py (Python 3)</button>
-          <button type="button" class="free-compiler-tab" data-lang="js">app.js (Node.js 20)</button>
-        </div>
-        <span style="font-size: 11px; font-weight: 700; color: #a1a1a6; letter-spacing: 0.04em;">ISOLATED RUNTIME</span>
-      </div>
-
-      <!-- Actual Code Lab Editor Container (.codelab-editor-wrap) -->
-      <div class="codelab-editor-wrap bento-editor-wrap">
-        <div class="codelab-editor-label">
-          <span class="dot"></span>
-          <span id="compilerLangLabel">C++ 13 (GCC 13.2) &middot; main.cpp</span>
-        </div>
-        <div class="free-compiler-editor" id="compilerCodeSnippet">
-          <div class="compiler-code-line"><span class="compiler-ln">1</span><span><span class="compiler-kw">#include</span> <span class="compiler-str">&lt;iostream&gt;</span></span></div>
-          <div class="compiler-code-line"><span class="compiler-ln">2</span><span><span class="compiler-kw">using namespace</span> std;</span></div>
-          <div class="compiler-code-line"><span class="compiler-ln">3</span><span></span></div>
-          <div class="compiler-code-line"><span class="compiler-ln">4</span><span><span class="compiler-kw">int</span> <span class="compiler-fn">main</span>() {</span></div>
-          <div class="compiler-code-line"><span class="compiler-ln">5</span><span>    cout &lt;&lt; <span class="compiler-str">"Gandaki University Code Lab Active!"</span> &lt;&lt; endl;</span></div>
-          <div class="compiler-code-line"><span class="compiler-ln">6</span><span>    <span class="compiler-kw">return</span> 0;</span></div>
-          <div class="compiler-code-line"><span class="compiler-ln">7</span><span>}</span></div>
-        </div>
-      </div>
-
-      <!-- Actual Code Lab Stdin (.codelab-stdin-wrap) -->
-      <div class="codelab-stdin-wrap" style="margin-top: 14px;">
-        <div class="codelab-stdin-label">CUSTOM INPUT / STDIN</div>
-        <div class="codelab-stdin" style="color: #a1a1a6; font-size: 12.5px;">No standard input required for this routine</div>
-      </div>
-
-      <!-- Actual Code Lab Run Actions (.codelab-actions) -->
-      <div class="codelab-actions" style="margin-top: 16px;">
-        <button type="button" class="codelab-run-btn" id="compilerDemoRunBtn">
-          <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
-            <polygon points="5 3 19 12 5 21 5 3"></polygon>
-          </svg>
-          <span class="btn-label">Run Code</span>
-        </button>
-        <span style="font-size: 12px; color: #8e8e93;">Cloud container sandbox &middot; Instant compilation</span>
-      </div>
-
-      <!-- Actual Code Lab Output (.codelab-output-wrap) -->
-      <div class="codelab-output-wrap" style="margin-top: 16px;">
-        <div class="codelab-output-header">
-          <span class="codelab-output-title">OUTPUT</span>
-          <span class="codelab-exit-badge success">exit: 0</span>
-        </div>
-        <div class="codelab-output-body" id="compilerDemoOutput">
-          <div class="compiler-term-success">&gt; Compilation finished in 0.04s (exit code 0)</div>
-          <div style="margin-top: 4px; color: #ffffff; font-family: monospace;">Output: Gandaki University Code Lab Active!</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Clearance Bar -->
-    <div class="free-stage-clearance-bar">
-      <span>&bull; GCC 13.2 &bull; Python 3.12 &bull; Node.js V8 Engine &bull; Zero Server Latency</span>
-      <a href="code-lab/index.html" class="free-stage-cta-btn">
-        <span>Open Code Lab Workspace</span>
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
-          <polyline points="9 18 15 12 9 6"></polyline>
-        </svg>
-      </a>
-    </div>
-  </section>
-
-  <!-- ==========================================================================
-       SHOWCASE STAGE 3: LIVE PEER POST STATUS & ACADEMIC FEED (AT LAST)
-       Directly mirrors public/dashboard.html post cards and composer
-       ========================================================================== -->
-  <section class="ag-showcase-stage" id="postStatusFreeShowcase">
-    <div class="ag-stage-header">
-      <div class="ag-stage-badge">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-        </svg>
-        <span>COMMUNITY &bull; STATUS DISPATCH</span>
-      </div>
-      <h2 class="ag-stage-title">Real-Time Campus Peer Feed.</h2>
-      <p class="ag-stage-desc">
-        Publish course announcements, share handwritten exam cheat sheets, and interact directly with your Gandaki University classmates.
-      </p>
-    </div>
-
-    <!-- Free-Standing Social Feed Canvas (Mirrors dashboard.html) -->
-    <div class="free-feed-container">
-      <!-- Actual Status Composer Bar (.dashboard-composer-strip) -->
-      <div class="dashboard-post-composer-bar" onclick="window.location.href='portal.html'" title="Create a Post">
-        <div class="dash-avatar">GU</div>
-        <div class="dash-composer-placeholder">Share notes, status or question with Batch 2025...</div>
-        <button type="button" class="dash-post-btn">Post</button>
-      </div>
-
-      <!-- Actual Website Component: Verified Status Post Card (dashboard.html) -->
-      <article class="feed-card social-post-card post-card status-post-card notice" data-post-id="101">
-        <a href="portal.html" class="post-avatar" aria-label="View Saugat Sharma's profile">SS</a>
-        <div class="post-main post-body">
-          <header class="post-header">
-            <div class="post-user-info">
-              <div class="post-author-row">
-                <a href="portal.html" class="post-author-name">Saugat Sharma</a>
-                <span class="post-verified-badge post-admin-badge" title="Verified System Administrator">
-                  <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
-                  Admin
-                </span>
-              </div>
-              <div class="post-meta-row">
-                <span class="post-student-handle">@saugat</span>
-                <span class="post-meta-sep">&middot;</span>
-                <time class="post-timestamp">10m ago</time>
-              </div>
-            </div>
-          </header>
-
-          <div class="post-content">
-            <div class="post-content-unclamped">
-              <p class="status-post-text">
-                Just finalized the comprehensive Operating Systems Unit 4 (Memory Management, Virtual Paging &amp; TLB Hits) handwritten revision notes with previous year question solutions. Download and review before tomorrow's lecture:
-              </p>
-            </div>
-          </div>
-
-          <!-- Downloadable File Attachment Asset (from dashboard.html) -->
-          <div class="file-attachment" style="margin-top: 14px;">
-            <div class="file-icon pdf">
-              <span>PDF</span>
-            </div>
-            <div class="file-info">
-              <p class="file-name" title="OS_Unit4_Paging_Solutions.pdf">OS_Unit4_Paging_Solutions.pdf</p>
-              <span class="file-meta">3.4 MB &middot; PDF Resource</span>
-            </div>
-            <div class="file-actions">
-              <a href="portal.html" class="file-action" title="Preview file">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                <span>View</span>
-              </a>
-              <a href="portal.html" class="file-action primary" title="Download">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-                <span>Get</span>
-              </a>
-            </div>
-          </div>
-
-          <!-- Post Footer Actions (from dashboard.html) -->
-          <footer class="post-actions post-footer" style="margin-top: 16px;">
-            <button type="button" class="action-btn like-btn liked" id="postDemoLikeBtn" title="React with Heart">
-              <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.8"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>
-              <span class="like-count" id="postDemoLikeCount">42</span>
-            </button>
-            <button type="button" class="action-btn comment-btn" onclick="window.location.href='portal.html'" title="Comments">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 8.4 8.4 0 0 1-3.5-.75L3 21l1.8-5.4A8.4 8.4 0 0 1 4 12.5 8.5 8.5 0 1 1 21 11.5z"/></svg>
-              <span class="comment-count">8</span>
-            </button>
-            <button type="button" class="action-btn share-btn" id="postDemoShareBtn" title="Share link">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13"/></svg>
-            </button>
-          </footer>
-
-          <!-- Replies Drawer Preview (from dashboard.html) -->
-          <div class="post-comments-drawer open" style="margin-top: 14px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 12px;">
-            <div class="post-comments-header-row" style="margin-bottom: 8px;">
-              <span class="post-comments-title" style="font-size: 12px; font-weight: 700; color: #a1a1a6;">Replies (1)</span>
-            </div>
-            <div class="post-comment-preview-item" style="display: flex; gap: 10px; align-items: flex-start;">
-              <div class="comment-avatar" style="width: 28px; height: 28px; border-radius: 50%; background: #222; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #fff; flex-shrink: 0;">A</div>
-              <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 8px 12px; flex: 1;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
-                  <strong style="font-size: 12.5px; color: #fff;">Aayush Shrestha</strong>
-                  <time style="font-size: 10.5px; color: #8e8e93;">5m ago</time>
-                </div>
-                <p style="font-size: 12.5px; color: #d1d1d6; margin: 0; line-height: 1.4;">These paging formulas are super clear. Thanks for sharing!</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </article>
-
-      <!-- Clearance Bar -->
-      <div class="free-stage-clearance-bar">
-        <span>&bull; Real-time Peer Sync &bull; Cryptographic Account Verification &bull; Moderated Content</span>
-        <a href="portal.html" class="free-stage-cta-btn">
-          <span>Explore Campus Community Feed</span>
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
-            <polyline points="9 18 15 12 9 6"></polyline>
-          </svg>
-        </a>
-      </div>
-    </div>
-  </section>
-
-  <!-- ==========================================================================
-         PHOTOGRAPHIC VISUAL CLOUD GALLERY (WHITE EDITION)
-         ========================================================================== -->
-  <section class="gallery-home-section" id="visualGallerySection" style="padding-top: 20px;">
-    <!-- Explore Gandaki University Header Stage -->
-    <div class="gallery-explore-header">
-      <div class="gallery-explore-badge">
-        <span class="gallery-radar-dot"></span>
-        <span>DISCOVER &bull; GANDAKI UNIVERSITY</span>
-        <span style="opacity: 0.4;">&bull;</span>
-        <span class="gallery-cloud-pill">VISUAL CLOUD</span>
-      </div>
-      <h2 class="gallery-explore-title">
-        <span class="apple-text-grad-primary">Explore Gandaki University</span><br>
-        <span class="apple-text-grad-secondary">Moments, Milestones &amp; Campus Life.</span>
-      </h2>
-      <p class="gallery-explore-desc">
-        Step into authentic photographic records of historic convocation assemblies, innovative research labs, sports
-        triumphs, and vibrant student life across our Pokhara grounds.
-      </p>
-    </div>
-
-    <div class="portal-section-header" style="margin-bottom: 24px;">
-      <!-- Marquee Highlights Carousel -->
-      <div class="ag-marquee-wrap" id="homeMarqueeStrip">
-        <div class="ag-marquee-track" id="homeMarqueeTrack">
-          <!-- Dynamically populated marquee cards -->
-        </div>
-      </div>
-    </div>
-
-    <!-- Controls Deck -->
-    <div class="ag-deck-wrap">
-      <div class="ag-deck-capsule">
-        <!-- Category Filter Chips -->
-        <div class="ag-chips-deck" id="homeGalleryChips">
-          <button class="ag-chip-btn active" data-cat="all">All Archives (34)</button>
-          <button class="ag-chip-btn" data-cat="infrastructure">Infrastructure</button>
-          <button class="ag-chip-btn" data-cat="academic">Convocation</button>
-          <button class="ag-chip-btn" data-cat="leadership">Dignitaries</button>
-          <button class="ag-chip-btn" data-cat="faculty">Faculty Research</button>
-          <button class="ag-chip-btn" data-cat="student">Student Life</button>
-          <button class="ag-chip-btn" data-cat="campus">Campus &amp; Labs</button>
-        </div>
-
-        <!-- Live Search Box with Key Shortcut -->
-        <div class="ag-search-deck">
-          <svg class="ag-search-icon-left" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
-            stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="11" cy="11" r="8"></circle>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-          </svg>
-          <input type="search" id="homeAgSearchInput" class="ag-search-input" placeholder="Search archive database...">
-          <span class="ag-search-kbd">&cmd;K</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Main Bento Photo Wall Grid -->
-    <div class="ag-grid-wall" style="max-width: 1240px; margin: 0 auto;">
-      <div class="ag-bento-layout" id="homeAgBentoGrid">
-        <!-- Dynamic Bento Cards Populated via JavaScript -->
-      </div>
-
-      <!-- Empty Search State -->
-      <div id="homeAgEmptyState" style="display: none; text-align: center; padding: 80px 20px; grid-column: 1 / -1;">
-        <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.6"
-          stroke-linecap="round" stroke-linejoin="round" style="color: #86868b; margin-bottom: 12px;">
-          <circle cx="11" cy="11" r="8"></circle>
-          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-        </svg>
-        <h4 style="font-size: 19px; font-weight: 700; margin: 0 0 6px;">No Photographic Records Found</h4>
-        <p style="font-size: 14px; color: #86868b; margin: 0;">Try adjusting your query or resetting category filters.
-        </p>
-      </div>
-    </div>
-  </section>
-
-  <!-- Antigravity Holographic Lightbox HUD Modal (Frosted White) -->
-  <div class="ag-hud-lightbox" id="homeAgHudLightbox" role="dialog" aria-modal="true">
-    <div class="ag-hud-panel">
-      <!-- Close Button -->
-      <button class="ag-hud-close-btn" id="homeAgHudClose">
-        <span>DISMISS &bull; ESC</span>
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"
-          stroke-linecap="round" stroke-linejoin="round">
-          <line x1="18" y1="6" x2="6" y2="18"></line>
-          <line x1="6" y1="6" x2="18" y2="18"></line>
-        </svg>
-      </button>
-
-      <!-- Navigation Arrows -->
-      <button class="ag-hud-nav-btn ag-hud-prev" id="homeAgHudPrev" title="Previous Archive (Left Arrow)">
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5"
-          stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="15 18 9 12 15 6"></polyline>
-        </svg>
-      </button>
-      <button class="ag-hud-nav-btn ag-hud-next" id="homeAgHudNext" title="Next Archive (Right Arrow)">
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5"
-          stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="9 18 15 12 9 6"></polyline>
-        </svg>
-      </button>
-
-      <!-- Holographic Image Viewport with Corner Reticles -->
-      <div class="ag-hud-frame">
-        <div class="ag-corner-reticle tl"></div>
-        <div class="ag-corner-reticle tr"></div>
-        <div class="ag-corner-reticle bl"></div>
-        <div class="ag-corner-reticle br"></div>
-        <img src="" alt="" class="ag-hud-img" id="homeAgHudImg">
-      </div>
-
-      <!-- Metadata Telemetry Console -->
-      <div class="ag-hud-console">
-        <div class="ag-hud-meta-left">
-          <div class="ag-hud-tag-strip">
-            <span id="homeAgHudCategory">ACADEMIC &bull; CONVOCATION</span>
-            <span style="opacity: 0.4;">|</span>
-            <span id="homeAgHudDate" style="color: #1d1d1f; font-weight: 600;">MARCH 2025</span>
-            <span style="opacity: 0.4;">|</span>
-            <span id="homeAgHudIndex" style="color: #86868b;">ARCHIVE 01 OF 34</span>
-          </div>
-          <h3 class="ag-hud-title" id="homeAgHudTitle">Grand Convocation Assembly</h3>
-          <p class="ag-hud-desc" id="homeAgHudDesc">Description context and historical significance.</p>
-        </div>
-        <div class="ag-hud-actions">
-          <a href="#" target="_blank" download id="homeAgHudDownload" class="ag-hud-btn-primary">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5"
-              stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-              <polyline points="7 10 12 15 17 10"></polyline>
-              <line x1="12" y1="15" x2="12" y2="3"></line>
-            </svg>
-            <span>Download Master Asset</span>
-          </a>
-        </div>
-      </div>
-    </div>
-  </div>
-
-
-
-  <!-- Interactive Scripts (Apple 3D Tilt, Real-Time Countdown, Magnetic Physics & Heart Burst Particles) -->
-  <script>
-    // 1. Ambient Follower (Magnetic Easing)
-    const ambientFollower = document.getElementById('ambientFollower');
-    let mouseX = window.innerWidth / 2, mouseY = window.innerHeight / 2;
-    let followerX = mouseX, followerY = mouseY;
-
-    window.addEventListener('pointermove', (e) => {
-      mouseX = e.clientX;
-      mouseY = e.clientY;
-    });
-
-    function renderAmbientFollower() {
-      followerX += (mouseX - followerX) * 0.12;
-      followerY += (mouseY - followerY) * 0.12;
-      if (ambientFollower) {
-        ambientFollower.style.transform = `translate3d(${followerX - 160}px, ${followerY - 160}px, 0)`;
-      }
-      requestAnimationFrame(renderAmbientFollower);
-    }
-    renderAmbientFollower();
-
-    // 2. Magnetic Primary CTA Physics with Spring Interpolation
-    const magneticBtns = document.querySelectorAll('.magnetic-btn');
-    magneticBtns.forEach(btn => {
-      btn.addEventListener('mousemove', (e) => {
-        const rect = btn.getBoundingClientRect();
-        const x = e.clientX - (rect.left + rect.width / 2);
-        const y = e.clientY - (rect.top + rect.height / 2);
-        btn.style.transform = `translate3d(${x * 0.22}px, ${y * 0.22}px, 0) scale(1.035)`;
-      });
-      btn.addEventListener('mouseleave', () => {
-        btn.style.transform = 'translate3d(0, 0, 0) scale(1)';
-        btn.style.transition = 'transform 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
-      });
-      btn.addEventListener('mouseenter', () => {
-        btn.style.transition = 'transform 0.08s ease-out';
-      });
-    });
-
-    // 3. Apple Bento Card Subtle Micro-Interaction Engine
-    const tiltCards = document.querySelectorAll('.tilt-card');
-    tiltCards.forEach(card => {
-      let isHovered = false;
-
-      card.addEventListener('mouseenter', () => {
-        isHovered = true;
-        card.style.transition = 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, border-color 0.2s ease';
-      });
-
-      card.addEventListener('mousemove', (e) => {
-        if (!isHovered) return;
-        const rect = card.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        const centerX = rect.width / 2;
-        const centerY = rect.height / 2;
-
-        // Subtle micro-tilt (gentle 1.2 deg max without aggressive wobble or popout)
-        const percentX = (x - centerX) / centerX;
-        const percentY = (y - centerY) / centerY;
-
-        const rotateX = percentY * -1.2;
-        const rotateY = percentX * 1.2;
-
-        card.style.transform = `perspective(1000px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) translateY(-2px)`;
-        card.style.boxShadow = '0 10px 24px rgba(0, 0, 0, 0.25)';
-      });
-
-      card.addEventListener('mouseleave', () => {
-        isHovered = false;
-        card.style.transition = 'transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease';
-        card.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) translateY(0px)';
-        card.style.boxShadow = '';
-      });
-    });
-
-    // 4. Real-Time Countdown Timer with Second Tick Pulse
-    let totalSecs = 18 * 86400 + 9 * 3600 + 42 * 60 + 15;
-    const elSecs = document.getElementById('cdSecs');
-    setInterval(() => {
-      if (totalSecs > 0) totalSecs--;
-      const d = Math.floor(totalSecs / 86400);
-      const h = Math.floor((totalSecs % 86400) / 3600);
-      const m = Math.floor((totalSecs % 3600) / 60);
-      const s = totalSecs % 60;
-
-      const elD = document.getElementById('cdDays');
-      const elH = document.getElementById('cdHours');
-      const elM = document.getElementById('cdMins');
-
-      if (elD) elD.textContent = String(d).padStart(2, '0');
-      if (elH) elH.textContent = String(h).padStart(2, '0');
-      if (elM) elM.textContent = String(m).padStart(2, '0');
-      if (elSecs) {
-        elSecs.textContent = String(s).padStart(2, '0');
-        elSecs.style.transform = 'scale(1.1)';
-        setTimeout(() => { elSecs.style.transform = 'scale(1)'; }, 150);
-      }
-    }, 1000);
-
-    // 5. Interactive Like Button with Apple Heart Particle Cannon
-    function handleMockLike(btn) {
-      const countEl = document.getElementById('mockLikeCount');
-      let count = parseInt(countEl.textContent, 10) || 42;
-      if (!btn.classList.contains('liked')) {
-        count++;
-        btn.classList.add('liked');
-        spawnHeartParticles(btn);
-      } else {
-        count--;
-        btn.classList.remove('liked');
-      }
-      if (countEl) countEl.textContent = count;
-    }
-
-    function spawnHeartParticles(targetBtn) {
-      const rect = targetBtn.getBoundingClientRect();
-      const emojis = ['❤️', '✨', '🔥', '💖', '★', '⚡', '💫'];
-      for (let i = 0; i < 8; i++) {
-        const particle = document.createElement('span');
-        particle.textContent = emojis[Math.floor(Math.random() * emojis.length)];
-        particle.style.position = 'fixed';
-        particle.style.left = `${rect.left + rect.width / 2}px`;
-        particle.style.top = `${rect.top + rect.height / 2}px`;
-        particle.style.fontSize = `${Math.random() * 8 + 14}px`;
-        particle.style.pointerEvents = 'none';
-        particle.style.zIndex = '9999';
-        particle.style.transition = 'all 0.65s cubic-bezier(0.16, 1, 0.3, 1)';
-        document.body.appendChild(particle);
-
-        const angle = Math.random() * Math.PI * 2;
-        const velocity = Math.random() * 50 + 30;
-        const destX = Math.cos(angle) * velocity;
-        const destY = Math.sin(angle) * velocity - 35;
-
-        requestAnimationFrame(() => {
-          particle.style.transform = `translate3d(${destX}px, ${destY}px, 0) scale(0)`;
-          particle.style.opacity = '0';
-        });
-
-        setTimeout(() => {
-          particle.remove();
-        }, 700);
-      }
-    }
-
-    // 6a. Interactive Bento Routine Switcher (routine.html preview)
-    const bentoRoutineMap = {
-      'IV': {
-        status: 'Confirmed',
-        exams: [
-          { day: '14', month: 'BAISHAKH', year: '2083', tag: 'STARTS IN 3 DAYS', urgent: true, code: 'BIT 201', title: 'Operating Systems', time: '08:00 AM – 11:00 AM', hall: 'Hall 3B' },
-          { day: '18', month: 'BAISHAKH', year: '2083', tag: 'SCHEDULED', urgent: false, code: 'BIT 202', title: 'Database Management Systems', time: '08:00 AM – 11:00 AM', hall: 'Hall 2A' }
-        ]
-      },
-      'II': {
-        status: 'Confirmed',
-        exams: [
-          { day: '15', month: 'BAISHAKH', year: '2083', tag: 'STARTS IN 4 DAYS', urgent: true, code: 'BIT 103', title: 'Data Structures & Algorithms', time: '08:00 AM – 11:00 AM', hall: 'Hall 1A' },
-          { day: '19', month: 'BAISHAKH', year: '2083', tag: 'SCHEDULED', urgent: false, code: 'BIT 104', title: 'Object-Oriented Programming (C++)', time: '08:00 AM – 11:00 AM', hall: 'Hall 1B' }
-        ]
-      },
-      'VI': {
-        status: 'Active',
-        exams: [
-          { day: '16', month: 'BAISHAKH', year: '2083', tag: 'STARTS IN 5 DAYS', urgent: true, code: 'BIT 301', title: 'Compiler Design & Automata', time: '08:00 AM – 11:00 AM', hall: 'Hall 4A' },
-          { day: '20', month: 'BAISHAKH', year: '2083', tag: 'SCHEDULED', urgent: false, code: 'BIT 302', title: 'Data Mining & Warehousing', time: '08:00 AM – 11:00 AM', hall: 'Hall 4B' }
-        ]
-      }
-    };
-
-    function switchBentoRoutine(sem, btn) {
-      document.querySelectorAll('#bentoRoutineFilterBar .bento-routine-tab').forEach(b => b.classList.remove('active'));
-      if (btn) btn.classList.add('active');
-      const data = bentoRoutineMap[sem];
-      if (!data) return;
-      const statusEl = document.getElementById('bentoRoutineStatus');
-      if (statusEl) statusEl.textContent = data.status;
-      const wrap = document.getElementById('bentoExamRowsWrap');
-      if (!wrap) return;
-
-      wrap.style.opacity = '0';
-      wrap.style.transform = 'translateY(4px)';
-      wrap.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
-
-      setTimeout(() => {
-        let html = '';
-        data.exams.forEach(ex => {
-          const badgeClass = ex.urgent ? 'bento-countdown-chip' : 'bento-status-tag';
-          const dot = ex.urgent ? '<span class="bento-beacon-dot"></span>' : '';
-          html += `
-            <article class="exam-row bento-exam-row" data-semester="${sem}">
-              <div class="bento-ticket-date">
-                <span class="bento-date-day">${ex.day}</span>
-                <span class="bento-date-month">${ex.month}</span>
-                <span class="bento-date-year">${ex.year}</span>
-              </div>
-              <div class="exam-details bento-ticket-details">
-                <div class="bento-ticket-meta-row">
-                  <span class="${badgeClass}">${dot}${ex.tag}</span>
-                  <span class="bento-course-code">${ex.code}</span>
-                </div>
-                <h2 class="bento-ticket-title">${ex.title}</h2>
-                <div class="bento-ticket-submeta">
-                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                  <span>${ex.time}</span>
-                  <span class="meta-dot">&bull;</span>
-                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                  <span>${ex.hall}</span>
-                </div>
-              </div>
-            </article>
-          `;
-        });
-        wrap.innerHTML = html;
-        wrap.style.opacity = '1';
-        wrap.style.transform = 'translateY(0)';
-      }, 150);
-    }
-
-    // 6b. Interactive Semester Node Switcher with Dynamic Card Update (syllabus.html preview)
-    function switchSemNode(btn, semTag, c1, c2, c3, c4, credits, pct, completedCredits) {
-      document.querySelectorAll('#semesterRoadmap .roadmap-pill').forEach(el => el.classList.remove('active'));
-      btn.classList.add('active');
-      const tagEl = document.getElementById('semCardTag');
-      const titleEl = document.getElementById('semCardTitle');
-      const creditsEl = document.getElementById('semCardCredits');
-      const phaseEl = document.getElementById('semCardPhase');
-      const gridEl = document.getElementById('semCardCoursesGrid');
-      const meterFill = document.getElementById('bentoMeterFill');
-      const meterPercent = document.getElementById('bentoMeterPercent');
-      const meterText = document.getElementById('bentoMeterCompletionText');
-
-      if (tagEl && semTag) {
-        const parts = semTag.split('·');
-        tagEl.textContent = (parts[1] || parts[0]).trim();
-      }
-      if (titleEl && semTag) titleEl.innerHTML = semTag;
-      if (creditsEl && credits) creditsEl.textContent = credits;
-      if (phaseEl && semTag) {
-        if (semTag.includes('Year 1')) phaseEl.textContent = 'Year 1 · Foundation Phase';
-        else if (semTag.includes('Year 2')) phaseEl.textContent = 'Year 2 · Core Engineering';
-        else if (semTag.includes('Year 3')) phaseEl.textContent = 'Year 3 · Advanced Algorithms';
-        else phaseEl.textContent = 'Year 4 · Capstone & Electives';
-      }
-      if (gridEl && c1) {
-        gridEl.innerHTML = `
-          <div class="bento-course-item">
-            <span class="bento-course-bullet">&#9670;</span>
-            <span class="bento-course-name">${c1}</span>
-            <span class="bento-course-pill">Core &middot; 3 Cr</span>
-          </div>
-          <div class="bento-course-item">
-            <span class="bento-course-bullet">&#9670;</span>
-            <span class="bento-course-name">${c2}</span>
-            <span class="bento-course-pill">Core &middot; 3 Cr</span>
-          </div>
-          <div class="bento-course-item">
-            <span class="bento-course-bullet">&#9670;</span>
-            <span class="bento-course-name">${c3}</span>
-            <span class="bento-course-pill">Core &middot; 3 Cr</span>
-          </div>
-          <div class="bento-course-item">
-            <span class="bento-course-bullet">&#9670;</span>
-            <span class="bento-course-name">${c4}</span>
-            <span class="bento-course-pill">Lab &middot; 3 Cr</span>
-          </div>
-        `;
-      }
-      if (meterFill && pct) meterFill.style.width = pct;
-      if (meterPercent && pct) meterPercent.textContent = pct;
-      if (meterText && completedCredits) {
-        meterText.textContent = `Degree Progress: ${completedCredits} / 126.0 Credits`;
-      }
-    }
-
-    // 7. Intersection Observer: Keep Ambient Edge Active while Bento Cards are in view
-    const posterGrid = document.getElementById('posterGrid');
-    const siriBorderEl = document.getElementById('siriScreenBorder');
-    if ('IntersectionObserver' in window && posterGrid && siriBorderEl) {
-      const siriObserver = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            siriBorderEl.classList.add('siri-border-active');
-          } else if (!entry.isIntersecting) {
-            siriBorderEl.classList.remove('siri-border-active');
-          }
-        });
-      }, { threshold: 0.15 });
-
-      siriObserver.observe(posterGrid);
-    }
-
-    // 8. Monochromatic Interactive Mock Search Typewriter
-    const typingTextEl = document.querySelector('.mock-search-typing-text');
-    if (typingTextEl) {
-      const searchTerms = [
-        "DBMS Normalization Notes",
-        "Operating Systems PyQ 2024",
-        "DSA Tree Traversal Cheat Sheet",
-        "Web Tech Lab Assignment 4",
-        "Microprocessor 8086 Architecture"
-      ];
-      let termIndex = 0;
-      let charIndex = 0;
-      let isDeleting = false;
-
-      function typeWriterLoop() {
-        const currentTerm = searchTerms[termIndex];
-        if (isDeleting) {
-          typingTextEl.textContent = currentTerm.substring(0, charIndex - 1);
-          charIndex--;
-        } else {
-          typingTextEl.textContent = currentTerm.substring(0, charIndex + 1);
-          charIndex++;
-        }
-
-        let typeSpeed = isDeleting ? 35 : 75;
-
-        if (!isDeleting && charIndex === currentTerm.length) {
-          typeSpeed = 2200; // Pause at end of word
-          isDeleting = true;
-        } else if (isDeleting && charIndex === 0) {
-          isDeleting = false;
-          termIndex = (termIndex + 1) % searchTerms.length;
-          typeSpeed = 400;
-        }
-
-        setTimeout(typeWriterLoop, typeSpeed);
-      }
-
-      setTimeout(typeWriterLoop, 1200);
-    }
-
-    // 11. Interactive Filter Chips
-    const filterChips = document.querySelectorAll('.mock-filter-chip');
-    filterChips.forEach(chip => {
-      chip.addEventListener('click', () => {
-        filterChips.forEach(c => c.classList.remove('active'));
-        chip.classList.add('active');
-      });
-    });
-
-    /* ==========================================================================
-       11b. NEW INTERACTIVE CONTROLLERS: KYANA AI, ONLINE COMPILER & POST STATUS
-       ========================================================================== */
-    // A. Kyana AI Interactive Topic Switcher
-    (function initKyanaDemo() {
-      const topicChips = document.querySelectorAll('#kyanaTopicChips .free-topic-btn, #kyanaTopicChips .kyana-topic-chip');
-      const promptEl = document.getElementById('kyanaPromptText');
-      const responseEl = document.getElementById('kyanaResponseText');
-      const pointsListEl = document.getElementById('kyanaPointsList');
-
-      const kyanaData = {
-        dbms: {
-          prompt: "Explain 3NF vs BCNF with a quick example",
-          response: "<strong>3NF</strong> requires no transitive functional dependency. <strong>BCNF</strong> is stronger: for every non-trivial functional dependency <em>X &rarr; Y</em>, <em>X</em> must be a candidate super-key.",
-          points: [
-            "<strong>3NF Rule:</strong> Allows <em>Y</em> to be a prime attribute when <em>X</em> is not a super key.",
-            "<strong>BCNF Rule:</strong> Eliminates redundancy when non-prime attributes determine candidate keys."
-          ]
-        },
-        assembly: {
-          prompt: "How does 8086 segmented memory addressing work?",
-          response: "The 8086 uses <strong>Physical Address = (Segment Register &times; 16) + Offset</strong> to access 1MB memory across 20-bit address lines with 16-bit registers.",
-          points: [
-            "<strong>Code Segment (CS):</strong> Pairs with IP for continuous instruction streaming.",
-            "<strong>Data Segment (DS):</strong> Pairs with SI/DI or direct offsets for data fetches."
-          ]
-        },
-        os: {
-          prompt: "What happens during a Page Fault trap in Virtual Memory?",
-          response: "When a process accesses an unmapped virtual address, the MMU triggers a <strong>Page Fault exception</strong> to the OS kernel to load the missing frame from swap space into physical RAM.",
-          points: [
-            "<strong>Kernel Trap:</strong> OS selects an optimal victim frame via LRU / FIFO algorithm.",
-            "<strong>Page Table Update:</strong> Present bit set to 1 and instruction restarts seamlessly."
-          ]
-        },
-        graph: {
-          prompt: "What is the key difference between BFS and DFS traversal?",
-          response: "<strong>BFS (Breadth-First Search)</strong> traverses level-by-level using a FIFO <em>Queue</em>. <strong>DFS (Depth-First Search)</strong> dives down each branch recursively using a LIFO <em>Stack</em>.",
-          points: [
-            "<strong>Shortest Path:</strong> BFS guarantees shortest path discovery on unweighted graphs.",
-            "<strong>Cycle & Mazes:</strong> DFS is optimal for topological ordering and cycle detection."
-          ]
-        }
-      };
-
-      topicChips.forEach(chip => {
-        chip.addEventListener('click', () => {
-          const topic = chip.getAttribute('data-topic');
-          if (!kyanaData[topic]) return;
-
-          topicChips.forEach(c => c.classList.remove('active'));
-          chip.classList.add('active');
-
-          if (promptEl) {
-            promptEl.style.opacity = '0.25';
-            setTimeout(() => {
-              promptEl.textContent = kyanaData[topic].prompt;
-              promptEl.style.opacity = '1';
-            }, 120);
-          }
-
-          if (responseEl && pointsListEl) {
-            responseEl.style.opacity = '0.25';
-            pointsListEl.style.opacity = '0.25';
-            setTimeout(() => {
-              responseEl.innerHTML = kyanaData[topic].response;
-              if (pointsListEl.classList.contains('free-ai-points-grid')) {
-                pointsListEl.innerHTML = kyanaData[topic].points.map(pt => `<div class="free-ai-point-card">${pt}</div>`).join('');
-              } else {
-                pointsListEl.innerHTML = kyanaData[topic].points.map(pt => `<li>${pt}</li>`).join('');
-              }
-              responseEl.style.opacity = '1';
-              pointsListEl.style.opacity = '1';
-            }, 180);
-          }
-        });
-      });
-    })();
-
-    // B. Online Compiler Sandbox Controller
-    (function initCompilerDemo() {
-      const tabs = document.querySelectorAll('#compilerTabs .free-compiler-tab, #compilerTabs .compiler-tab-btn');
-      const codeSnippetEl = document.getElementById('compilerCodeSnippet');
-      const runBtn = document.getElementById('compilerDemoRunBtn');
-      const outputEl = document.getElementById('compilerDemoOutput');
-
-      const snippets = {
-        cpp: {
-          code: `
-            <div class="compiler-code-line"><span class="compiler-ln">1</span><span><span class="compiler-kw">#include</span> <span class="compiler-str">&lt;iostream&gt;</span></span></div>
-            <div class="compiler-code-line"><span class="compiler-ln">2</span><span><span class="compiler-kw">using namespace</span> std;</span></div>
-            <div class="compiler-code-line"><span class="compiler-ln">3</span><span></span></div>
-            <div class="compiler-code-line"><span class="compiler-ln">4</span><span><span class="compiler-kw">int</span> <span class="compiler-fn">main</span>() {</span></div>
-            <div class="compiler-code-line"><span class="compiler-ln">5</span><span>    cout &lt;&lt; <span class="compiler-str">"Gandaki University Code Lab Active!"</span> &lt;&lt; endl;</span></div>
-            <div class="compiler-code-line"><span class="compiler-ln">6</span><span>    <span class="compiler-kw">return</span> 0;</span></div>
-            <div class="compiler-code-line"><span class="compiler-ln">7</span><span>}</span></div>
-          `,
-          output: `<span class="compiler-term-success">&gt; Compilation finished in 0.038s (exit code 0)</span><br><span>Output: Gandaki University Code Lab Active!</span>`
-        },
-        python: {
-          code: `
-            <div class="compiler-code-line"><span class="compiler-ln">1</span><span><span class="compiler-kw">def</span> <span class="compiler-fn">calculate_gpa</span>(grades):</span></div>
-            <div class="compiler-code-line"><span class="compiler-ln">2</span><span>    <span class="compiler-kw">return</span> round(sum(grades) / len(grades), 2)</span></div>
-            <div class="compiler-code-line"><span class="compiler-ln">3</span><span></span></div>
-            <div class="compiler-code-line"><span class="compiler-ln">4</span><span>gpa = calculate_gpa([3.8, 4.0, 3.9, 3.7])</span></div>
-            <div class="compiler-code-line"><span class="compiler-ln">5</span><span>print(f<span class="compiler-str">"Current Semester GPA: {gpa}"</span>)</span></div>
-          `,
-          output: `<span class="compiler-term-success">&gt; Python 3.12.2 execution finished in 0.021s</span><br><span>Output: Current Semester GPA: 3.85</span>`
-        },
-        js: {
-          code: `
-            <div class="compiler-code-line"><span class="compiler-ln">1</span><span><span class="compiler-kw">const</span> student = {</span></div>
-            <div class="compiler-code-line"><span class="compiler-ln">2</span><span>    university: <span class="compiler-str">"Gandaki University"</span>,</span></div>
-            <div class="compiler-code-line"><span class="compiler-ln">3</span><span>    program: <span class="compiler-str">"B.Tech CSE"</span>, active: <span class="compiler-kw">true</span></span></div>
-            <div class="compiler-code-line"><span class="compiler-ln">4</span><span>};</span></div>
-            <div class="compiler-code-line"><span class="compiler-ln">5</span><span>console.log(<span class="compiler-str">"Enrolled in:"</span>, student.program);</span></div>
-          `,
-          output: `<span class="compiler-term-success">&gt; Node.js v20.11 runtime finished in 0.014s</span><br><span>Output: Enrolled in: B.Tech CSE</span>`
-        }
-      };
-
-      let currentLang = 'cpp';
-
-      tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-          const lang = tab.getAttribute('data-lang');
-          if (!snippets[lang]) return;
-
-          currentLang = lang;
-          tabs.forEach(t => t.classList.remove('active'));
-          tab.classList.add('active');
-
-          const labelEl = document.getElementById('compilerLangLabel');
-          if (labelEl) {
-            const labels = {
-              cpp: 'C++ 13 (GCC 13.2) · main.cpp',
-              python: 'Python 3 (v3.12) · evaluate.py',
-              js: 'JavaScript (Node.js 20) · app.js'
-            };
-            labelEl.textContent = labels[lang] || lang;
-          }
-
-          if (codeSnippetEl) {
-            codeSnippetEl.innerHTML = snippets[lang].code.trim();
-          }
-          if (outputEl) {
-            outputEl.innerHTML = snippets[lang].output;
-          }
-        });
-      });
-
-      if (runBtn && outputEl) {
-        runBtn.addEventListener('click', () => {
-          const origHTML = runBtn.innerHTML;
-          runBtn.innerHTML = `<span>COMPILING...</span>`;
-          runBtn.style.opacity = '0.7';
-          outputEl.innerHTML = `<span style="opacity: 0.6;">&gt; Sandboxing GCC / WebAssembly container...</span>`;
-
-          setTimeout(() => {
-            runBtn.innerHTML = origHTML;
-            runBtn.style.opacity = '1';
-            outputEl.innerHTML = snippets[currentLang].output;
-          }, 380);
-        });
-      }
-    })();
-
-    // C. Post Status Interactive Demo Controller
-    (function initPostStatusDemo() {
-      const likeBtn = document.getElementById('postDemoLikeBtn');
-      const likeCountEl = document.getElementById('postDemoLikeCount');
-      const heartIcon = document.getElementById('postDemoHeartIcon');
-      const shareBtn = document.getElementById('postDemoShareBtn');
-      const shareText = document.getElementById('postDemoShareText');
-
-      let isLiked = false;
-
-      if (likeBtn && likeCountEl) {
-        likeBtn.addEventListener('click', () => {
-          let count = parseInt(likeCountEl.textContent, 10) || 42;
-          if (!isLiked) {
-            count++;
-            likeBtn.classList.add('liked');
-            if (heartIcon) heartIcon.setAttribute('fill', 'currentColor');
-            isLiked = true;
-            if (typeof spawnHeartParticles === 'function') {
-              spawnHeartParticles(likeBtn);
-            }
-          } else {
-            count--;
-            likeBtn.classList.remove('liked');
-            if (heartIcon) heartIcon.setAttribute('fill', 'none');
-            isLiked = false;
-          }
-          likeCountEl.textContent = count;
-        });
-      }
-
-      if (shareBtn && shareText) {
-        shareBtn.addEventListener('click', () => {
-          const shareUrl = window.location.origin + '/portal.html';
-          if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(shareUrl).then(() => {
-              const origText = shareText.textContent;
-              shareText.textContent = 'Copied! ✓';
-              setTimeout(() => { shareText.textContent = origText; }, 1800);
-            }).catch(() => {
-              shareText.textContent = 'Copied! ✓';
-              setTimeout(() => { shareText.textContent = 'Share'; }, 1800);
-            });
-          }
-        });
-      }
-    })();
-
-    /* ==========================================================================
-       12. VISUAL CLOUD PHOTO GALLERY CONTROLLER (EMBEDDED 34 ASSETS)
-       ========================================================================== */
-    (function initHomeGallery() {
-      const guGalleryDatabase = [
-        {
-          "id": "GU-INF-01",
-          "title": "Administrative Complex 3D Architectural Masterplan",
-          "caption": "The approved 3D architectural masterplan blueprint for the state-of-the-art Gandaki University Central Administrative Complex.",
-          "category": "infrastructure",
-          "categoryLabel": "INFRASTRUCTURE &bull; MASTERPLAN",
-          "date": "APRIL 2026",
-          "colSpan": "ag-card-col-8",
-          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/Building.png",
-          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/Building.png"
-        },
-        {
-          "id": "GU-INF-02",
-          "title": "Chief Minister & Chancellor Founding Stone Ceremony",
-          "caption": "Chief Minister of Gandaki Province and Chancellor Prof. Dr. Ganeshman Gurung unveiling the historic founding cornerstone of the university.",
-          "category": "infrastructure",
-          "categoryLabel": "FOUNDING STONE &bull; CEREMONY",
-          "date": "APRIL 2026",
-          "colSpan": "ag-card-col-4",
-          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/chancellor-chief-minister.png",
-          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/chancellor-chief-minister.png"
-        },
-        {
-          "id": "GU-INF-03",
-          "title": "Chief Minister Keynote at Campus Groundbreaking",
-          "caption": "Chief Minister addressing provincial ministers, academic faculty, and town planners during the university groundbreaking ceremony.",
-          "category": "infrastructure",
-          "categoryLabel": "FOUNDING STONE &bull; CEREMONY",
-          "date": "APRIL 2026",
-          "colSpan": "ag-card-col-4",
-          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/Cheif-image.png",
-          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/Cheif-image.png"
-        },
-        {
-          "id": "GU-INF-04",
-          "title": "Examination & Academic Complex Future Blueprint",
-          "caption": "3D perspective visualization of the upcoming Examination Controller division and lecture amphitheater facilities.",
-          "category": "infrastructure",
-          "categoryLabel": "INFRASTRUCTURE &bull; MASTERPLAN",
-          "date": "APRIL 2026",
-          "colSpan": "ag-card-col-4",
-          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/building-next.png",
-          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/building-next.png"
-        },
-        {
-          "id": "GU-INF-05",
-          "title": "Executive Leadership: Chancellor & Vice-Chancellor",
-          "caption": "Chancellor and Vice-Chancellor inspecting construction blueprints and civil progress reports at the university headquarters.",
-          "category": "leadership",
-          "categoryLabel": "LEADERSHIP &bull; DIGNITARIES",
-          "date": "APRIL 2026",
-          "colSpan": "ag-card-col-4",
-          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/Chancellor-ViceChancellor.png",
-          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/Chancellor-ViceChancellor.png"
-        },
-        {
-          "id": "GU-INF-06",
-          "title": "Provincial Dignitaries & Ministers Assembly",
-          "caption": "Provincial ministers and government delegates commemorating the strategic infrastructure funding and campus expansion.",
-          "category": "leadership",
-          "categoryLabel": "LEADERSHIP &bull; DIGNITARIES",
-          "date": "APRIL 2026",
-          "colSpan": "ag-card-col-4",
-          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/bindu-kumra-thapa-Khagaraj-Adhikari.png",
-          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/bindu-kumra-thapa-Khagaraj-Adhikari.png"
-        },
-        {
-          "id": "GU-INF-07",
-          "title": "Administrative Building Multi-Story Construction",
-          "caption": "Active on-site civil construction and reinforced concrete framework for the new 5-story administrative tower.",
-          "category": "infrastructure",
-          "categoryLabel": "BUILDING PROGRESS &bull; SITE",
-          "date": "APRIL 2026",
-          "colSpan": "ag-card-col-8",
-          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/WhatsApp-Image-2026-04-24-at-1.01.54-PM-2.jpeg",
-          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/WhatsApp-Image-2026-04-24-at-1.01.54-PM-2-1024x682.jpeg"
-        },
-        {
-          "id": "GU-INF-08",
-          "title": "Examination Controller Building Construction Site",
-          "caption": "Foundation laying and structural pillars for the specialized Examination Controller and Records Facility.",
-          "category": "infrastructure",
-          "categoryLabel": "BUILDING PROGRESS &bull; SITE",
-          "date": "APRIL 2026",
-          "colSpan": "ag-card-col-6",
-          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/WhatsApp-Image-2026-04-24-at-11.24.43-AM.jpeg",
-          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/WhatsApp-Image-2026-04-24-at-11.24.43-AM-1024x768.jpeg"
-        },
-        {
-          "id": "GU-INF-09",
-          "title": "Pokhara Valley Campus Landscape & Mountain Vista",
-          "caption": "Panoramic vista of the expansive 300+ ropani Gandaki University campus grounds set against the Annapurna mountain range in Pokhara.",
-          "category": "campus",
-          "categoryLabel": "CAMPUS &bull; PANORAMA",
-          "date": "APRIL 2026",
-          "colSpan": "ag-card-col-6",
-          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/IMG_7180-scaled.jpg",
-          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/IMG_7180-1024x683.jpg"
-        },
-        {
-          "id": "GU-INF-10",
-          "title": "Campus Boundary & Eco-Friendly Forestry Landscape",
-          "caption": "Preserved natural green canopy and boundary infrastructure surrounding the academic quadrangle.",
-          "category": "campus",
-          "categoryLabel": "CAMPUS &bull; ENVIRONMENT",
-          "date": "APRIL 2026",
-          "colSpan": "ag-card-col-4",
-          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/IMG_2279-scaled.jpg",
-          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/IMG_2279-1024x683.jpg"
-        },
-        {
-          "id": "GU-INF-11",
-          "title": "Campus Road Network & Terrestrial Survey",
-          "caption": "Internal arterial road grid and civil grading providing accessibility across university faculties.",
-          "category": "campus",
-          "categoryLabel": "CAMPUS &bull; INFRASTRUCTURE",
-          "date": "APRIL 2026",
-          "colSpan": "ag-card-col-4",
-          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/IMG_2296-scaled.jpg",
-          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/IMG_2296-1024x683.jpg"
-        },
-        {
-          "id": "GU-INF-12",
-          "title": "Campus Peripheral Walkways & Survey Coordinates",
-          "caption": "Civil engineers and surveyor team establishing geospatial benchmark coordinates across campus acreage.",
-          "category": "campus",
-          "categoryLabel": "CAMPUS &bull; INFRASTRUCTURE",
-          "date": "APRIL 2026",
-          "colSpan": "ag-card-col-4",
-          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/IMG_2301-scaled.jpg",
-          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2026/04/IMG_2301-1024x683.jpg"
-        },
-        {
-          "id": "gu-convocation-2025-1",
-          "title": "University Convocation & Academic Assembly",
-          "caption": "Chancellor, Vice Chancellor, and faculty members presiding over the grand university convocation ceremony at Gandaki University.",
-          "category": "academic",
-          "categoryLabel": "Academic & Convocation",
-          "date": "March 2025",
-          "colSpan": "ag-card-col-8",
-          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2025/03/472735041_1004930198346332_3572611379996081590_n.jpg",
-          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2025/03/472735041_1004930198346332_3572611379996081590_n.jpg"
-        },
-        {
-          "id": "gu-mahabir-pun",
-          "title": "Dr. Mahabir Pun at National Innovation Center Meet",
-          "caption": "Distinguished researcher and Magsaysay awardee Dr. Mahabir Pun addressing Gandaki University students and researchers on innovation and indigenous technology.",
-          "category": "leadership",
-          "categoryLabel": "Leadership & Dignitaries",
-          "date": "January 2023",
-          "colSpan": "ag-card-col-8",
-          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2023/01/MAHABIR.png",
-          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2023/01/MAHABIR.png"
-        },
-        {
-          "id": "gu-chancellor-address",
-          "title": "Chancellor Prof. Dr. Ganeshman Gurung & Academic Council",
-          "caption": "Chancellor Dr. Ganeshman Gurung and executive leadership outlining the Gandaki University 10-Year Strategic Academic Masterplan.",
-          "category": "leadership",
-          "categoryLabel": "Leadership & Dignitaries",
-          "date": "January 2023",
-          "colSpan": "ag-card-col-4",
-          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2023/01/MEKH.png",
-          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2023/01/MEKH.png"
-        },
-        {
-          "id": "gu-bit-batch-2021",
-          "title": "Bachelor of Information Technology (BIT) Pioneer Cohort",
-          "caption": "The inaugural batch of Bachelor of Information Technology (BIT) students and department faculty members at Gandaki University.",
-          "category": "student",
-          "categoryLabel": "Student Life & Culture",
-          "date": "April 2022",
-          "colSpan": "ag-card-col-8",
-          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/bit2021.png",
-          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/bit2021.png"
-        },
-        {
-          "id": "gu-faculty-dev-training",
-          "title": "Faculty Development & Pedagogical Research Workshop",
-          "caption": "University professors, assistant lecturers, and guest researchers collaborating during an interactive faculty research symposium.",
-          "category": "faculty",
-          "categoryLabel": "Faculty & Training",
-          "date": "May 2023",
-          "colSpan": "ag-card-col-8",
-          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2023/05/training-scaled.jpg",
-          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2023/05/training-scaled.jpg"
-        },
-        {
-          "id": "gu-it-lab-workshop",
-          "title": "Hands-on Computing & Applied Tech Workshop",
-          "caption": "Department faculty and researchers conducting specialized curriculum and practical lab methodology training.",
-          "category": "faculty",
-          "categoryLabel": "Faculty & Training",
-          "date": "May 2023",
-          "colSpan": "ag-card-col-4",
-          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2023/05/training-1-scaled.jpg",
-          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2023/05/training-1-scaled.jpg"
-        },
-        {
-          "id": "gu-health-science-training",
-          "title": "Applied Health & Biomedical Sciences Seminar",
-          "caption": "Faculty members and healthcare educators in a collaborative medical curriculum development session.",
-          "category": "faculty",
-          "categoryLabel": "Faculty & Training",
-          "date": "May 2023",
-          "colSpan": "ag-card-col-4",
-          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2023/05/training-2-scaled.jpg",
-          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2023/05/training-2-scaled.jpg"
-        },
-        {
-          "id": "gu-cultural-dance-celebration",
-          "title": "Annual University Cultural Music & Dance Gala",
-          "caption": "Gandaki University students performing traditional Nepalese folk dances during the Annual Cultural and Arts Festival.",
-          "category": "student",
-          "categoryLabel": "Student Life & Culture",
-          "date": "April 2022",
-          "colSpan": "ag-card-col-8",
-          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/dancing-at-program.png",
-          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/dancing-at-program.png"
-        },
-        {
-          "id": "gu-traditional-welcome-dance",
-          "title": "Traditional Welcome Dance Performance",
-          "caption": "A classical Gurung and Magar cultural performance welcoming national delegates and incoming students to the campus.",
-          "category": "student",
-          "categoryLabel": "Student Life & Culture",
-          "date": "April 2022",
-          "colSpan": "ag-card-col-4",
-          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/dancer.png",
-          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/dancer.png"
-        },
-        {
-          "id": "gu-student-dance-stage",
-          "title": "Student Performing Arts & Stage Production",
-          "caption": "Students showcasing choreography, theatrical talent, and live musical instrumentation at the campus auditorium.",
-          "category": "student",
-          "categoryLabel": "Student Life & Culture",
-          "date": "April 2022",
-          "colSpan": "ag-card-col-4",
-          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/student-dance.png",
-          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/student-dance.png"
-        },
-        {
-          "id": "gu-sports-meet-awards",
-          "title": "Dean & Sports Coordinator Athletic Accolades",
-          "caption": "Dean and University Sports Council awarding medals and trophies at the Gandaki Inter-University Championship.",
-          "category": "student",
-          "categoryLabel": "Student Life & Culture",
-          "date": "April 2022",
-          "colSpan": "ag-card-col-4",
-          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/dean-coordinator-sport.png",
-          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/dean-coordinator-sport.png"
-        },
-        {
-          "id": "gu-keynote-address",
-          "title": "Special Guest Keynote & Scholarly Address",
-          "caption": "Eminent guest speaker presenting the keynote on Higher Education Transformation in Gandaki Province.",
-          "category": "leadership",
-          "categoryLabel": "Leadership & Dignitaries",
-          "date": "April 2022",
-          "colSpan": "ag-card-col-4",
-          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/special-guest-speak.png",
-          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/special-guest-speak.png"
-        },
-        {
-          "id": "gu-token-of-love",
-          "title": "Institutional Token of Love & Honor Presentation",
-          "caption": "University Chancellor and Registrar presenting an official commemorative plaque to visiting academic dignitaries.",
-          "category": "academic",
-          "categoryLabel": "Academic & Convocation",
-          "date": "March 2022",
-          "colSpan": "ag-card-col-4",
-          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/03/token-of-love.jpg",
-          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/03/token-of-love.jpg"
-        },
-        {
-          "id": "gu-central-head-office",
-          "title": "Gandaki University Central Administrative Building",
-          "caption": "Exterior view of the university main administrative block and registrar office in Pokhara, Gandaki Province.",
-          "category": "campus",
-          "categoryLabel": "Campus & Infrastructure",
-          "date": "March 2022",
-          "colSpan": "ag-card-col-8",
-          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/03/headoffice.jpg",
-          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/03/headoffice.jpg"
-        },
-        {
-          "id": "gu-faculty-assembly",
-          "title": "University Faculty & Academic Department Team",
-          "caption": "Professors, teaching faculty, and laboratory heads across Computer Science, Pharmacy, and Sports Management.",
-          "category": "faculty",
-          "categoryLabel": "Faculty & Training",
-          "date": "April 2022",
-          "colSpan": "ag-card-col-4",
-          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/facultystaff.png",
-          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/facultystaff.png"
-        },
-        {
-          "id": "gu-women-in-academia",
-          "title": "Women in Higher Education & Faculty Forum",
-          "caption": "Female scholars, researchers, and administrative officers advancing excellence at Gandaki University.",
-          "category": "faculty",
-          "categoryLabel": "Faculty & Training",
-          "date": "April 2022",
-          "colSpan": "ag-card-col-4",
-          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/female-staff.png",
-          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2022/04/female-staff.png"
-        },
-        {
-          "id": "gu-conference-hall-meet",
-          "title": "Gandaki University Senate & General Conference Hall",
-          "caption": "Full assembly of faculty, department chairs, and student representatives discussing university policies.",
-          "category": "campus",
-          "categoryLabel": "Campus & Infrastructure",
-          "date": "January 2023",
-          "colSpan": "ag-card-col-8",
-          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2023/01/IMG_2993-scaled.jpg",
-          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2023/01/IMG_2993-scaled.jpg"
-        },
-        {
-          "id": "gu-lecture-hall-session",
-          "title": "Interactive University Lecture & Case Study Hall",
-          "caption": "Students and professors engaged in active class discourse and multimedia case presentations.",
-          "category": "academic",
-          "categoryLabel": "Academic & Convocation",
-          "date": "May 2023",
-          "colSpan": "ag-card-col-4",
-          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2023/05/IMG_1637-scaled.jpg",
-          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2023/05/IMG_1637-scaled.jpg"
-        },
-        {
-          "id": "gu-convocation-delegates",
-          "title": "University Senate & Provincial Delegations",
-          "caption": "Official ceremony reception with Gandaki Province government officials and academic leaders.",
-          "category": "academic",
-          "categoryLabel": "Academic & Convocation",
-          "date": "March 2025",
-          "colSpan": "ag-card-col-4",
-          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2025/03/472790748_1004929365013082_3118557344797987940_n.jpg",
-          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2025/03/472790748_1004929365013082_3118557344797987940_n.jpg"
-        },
-        {
-          "id": "gu-campus-field-day",
-          "title": "Campus Grounds & Practical Field Demonstration",
-          "caption": "Students participating in applied field demonstrations and university campus activities.",
-          "category": "campus",
-          "categoryLabel": "Campus & Infrastructure",
-          "date": "September 2021",
-          "colSpan": "ag-card-col-4",
-          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2021/09/image4-scaled.jpeg",
-          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2021/09/image4-scaled.jpeg"
-        },
-        {
-          "id": "gu-laboratory-research",
-          "title": "Science & Technology Experimental Laboratory",
-          "caption": "State-of-the-art laboratory facilities supporting undergraduate research and practical coursework.",
-          "category": "campus",
-          "categoryLabel": "Campus & Infrastructure",
-          "date": "September 2021",
-          "colSpan": "ag-card-col-4",
-          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2021/09/img_0521-scaled.jpg",
-          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2021/09/img_0521-scaled.jpg"
-        },
-        {
-          "id": "gu-student-union-assembly",
-          "title": "Student Forum & Interactive Assembly",
-          "caption": "Student union representatives and classmates convening for academic enrichment and community outreach.",
-          "category": "student",
-          "categoryLabel": "Student Life & Culture",
-          "date": "September 2021",
-          "colSpan": "ag-card-col-4",
-          "origSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2021/09/image1-scaled.jpeg",
-          "thumbSrc": "https://www.gandakiuniversity.edu.np/wp-content/uploads/2021/09/image1-scaled.jpeg"
-        }
-      ];
-
-      const marqueeTrack = document.getElementById('homeMarqueeTrack');
-      const bentoGrid = document.getElementById('homeAgBentoGrid');
-      const emptyState = document.getElementById('homeAgEmptyState');
-      const filterChips = document.querySelectorAll('#homeGalleryChips .ag-chip-btn');
-      const searchInput = document.getElementById('homeAgSearchInput');
-
-      const hudModal = document.getElementById('homeAgHudLightbox');
-      const hudImg = document.getElementById('homeAgHudImg');
-      const hudTitle = document.getElementById('homeAgHudTitle');
-      const hudDesc = document.getElementById('homeAgHudDesc');
-      const hudCategory = document.getElementById('homeAgHudCategory');
-      const hudDate = document.getElementById('homeAgHudDate');
-      const hudIndexEl = document.getElementById('homeAgHudIndex');
-      const hudDownload = document.getElementById('homeAgHudDownload');
-      const hudClose = document.getElementById('homeAgHudClose');
-      const hudPrev = document.getElementById('homeAgHudPrev');
-      const hudNext = document.getElementById('homeAgHudNext');
-
-      let currentCategory = 'all';
-      let searchQuery = '';
-      let filteredGallery = [...guGalleryDatabase];
-      let hudIndex = 0;
-
-      function buildHomeMarquee() {
-        if (!marqueeTrack) return;
-        const topItems = guGalleryDatabase.slice(0, 10);
-        const doubleList = [...topItems, ...topItems];
-
-        marqueeTrack.innerHTML = doubleList.map((item, idx) => `
-          <div class="ag-marquee-card" data-marquee-idx="${idx % topItems.length}">
-            <img src="${item.thumbSrc}" alt="${item.title}" loading="lazy" class="ag-marquee-img" onerror="this.src='https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=600&auto=format&fit=crop&q=80'">
-            <div class="ag-marquee-overlay">
-              <div class="ag-marquee-title">${item.title}</div>
-            </div>
-          </div>
-        `).join('');
-
-        marqueeTrack.querySelectorAll('.ag-marquee-card').forEach(card => {
-          card.addEventListener('click', () => {
-            const indexInTop = parseInt(card.getAttribute('data-marquee-idx'), 10);
-            const foundIdx = filteredGallery.findIndex(g => g.id === topItems[indexInTop].id);
-            if (foundIdx !== -1) openHomeHud(foundIdx);
-            else openHomeHud(0);
-          });
-        });
-      }
-
-      function renderHomeBentoWall() {
-        if (!bentoGrid) return;
-
-        filteredGallery = guGalleryDatabase.filter(item => {
-          const matchCat = currentCategory === 'all' || item.category === currentCategory;
-          const matchQuery = !searchQuery ||
-            item.title.toLowerCase().includes(searchQuery) ||
-            item.caption.toLowerCase().includes(searchQuery) ||
-            item.category.toLowerCase().includes(searchQuery);
-          return matchCat && matchQuery;
-        });
-
-        if (filteredGallery.length === 0) {
-          bentoGrid.innerHTML = '';
-          if (emptyState) emptyState.style.display = 'block';
-          return;
-        }
-
-        if (emptyState) emptyState.style.display = 'none';
-
-        bentoGrid.innerHTML = filteredGallery.map((item, idx) => `
-          <article class="ag-photo-card ${item.colSpan}" data-gallery-idx="${idx}">
-            <div class="reticle-tl"></div><div class="reticle-tr"></div><div class="reticle-bl"></div><div class="reticle-br"></div>
-            <div class="ag-card-viewport">
-              <div class="ag-card-hud-top">
-                <span class="ag-card-category-tag">${item.categoryLabel}</span>
-                <button type="button" class="ag-inspect-btn" title="Expand View">
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="15 3 21 3 21 9"></polyline>
-                    <polyline points="9 21 3 21 3 15"></polyline>
-                    <line x1="21" y1="3" x2="14" y2="10"></line>
-                    <line x1="3" y1="21" x2="10" y2="14"></line>
-                  </svg>
-                </button>
-              </div>
-              <img src="${item.thumbSrc}" alt="${item.title}" class="ag-card-image" loading="lazy" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=800&auto=format&fit=crop&q=80';">
-            </div>
-            <div class="ag-card-body">
-              <div>
-                <div class="ag-card-meta-row">
-                  <span>#${item.id}</span>
-                  <span>${item.date}</span>
-                </div>
-                <h3 class="ag-card-title">${item.title}</h3>
-                <p class="ag-card-desc">${item.caption}</p>
-              </div>
-              <div class="ag-card-footer">
-                <span class="ag-explore-link">
-                  <span>View Full Chronicle</span>
-                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="9 18 15 12 9 6"></polyline>
-                  </svg>
-                </span>
-                <span style="font-size: 11px; font-family: 'JetBrains Mono', monospace; color: #86868b;">MASTER 4K</span>
-              </div>
-            </div>
-          </article>
-        `).join('');
-
-        attachHomeCardEvents();
-      }
-
-      function attachHomeCardEvents() {
-        const cards = bentoGrid.querySelectorAll('.ag-photo-card');
-        cards.forEach(card => {
-          let rect;
-          let isHovered = false;
-
-          card.addEventListener('mouseenter', () => {
-            rect = card.getBoundingClientRect();
-            isHovered = true;
-            card.style.transition = 'transform 0.12s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.25s ease-out, border-color 0.2s ease';
-          });
-
-          card.addEventListener('mousemove', (e) => {
-            if (!isHovered) return;
-            if (!rect) rect = card.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            const cx = rect.width / 2;
-            const cy = rect.height / 2;
-            const rotateX = ((y - cy) / cy) * -6.5;
-            const rotateY = ((x - cx) / cx) * 6.5;
-            card.style.transform = `perspective(850px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) translateZ(12px) scale3d(1.015, 1.015, 1.015)`;
-            card.style.boxShadow = `${(-rotateY * 2).toFixed(1)}px ${(rotateX * 2 + 18).toFixed(1)}px 42px rgba(0, 0, 0, 0.09), 0 3px 10px rgba(0, 0, 0, 0.03)`;
-          });
-
-          card.addEventListener('mouseleave', () => {
-            isHovered = false;
-            card.style.transition = 'transform 0.55s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.55s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease';
-            card.style.transform = 'perspective(850px) rotateX(0deg) rotateY(0deg) translateZ(0px) scale3d(1, 1, 1)';
-            card.style.boxShadow = '';
-          });
-
-          card.addEventListener('click', () => {
-            const idx = parseInt(card.getAttribute('data-gallery-idx'), 10);
-            openHomeHud(idx);
-          });
-        });
-      }
-
-      filterChips.forEach(btn => {
-        btn.addEventListener('click', () => {
-          filterChips.forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-          currentCategory = btn.dataset.cat;
-          renderHomeBentoWall();
-        });
-      });
-
-      if (searchInput) {
-        searchInput.addEventListener('input', (e) => {
-          searchQuery = e.target.value.toLowerCase().trim();
-          renderHomeBentoWall();
-        });
-      }
-
-      window.addEventListener('keydown', (e) => {
-        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-          if (searchInput && document.activeElement !== searchInput) {
-            e.preventDefault();
-            searchInput.focus();
-          }
-        }
-      });
-
-      function openHomeHud(idx) {
-        if (!filteredGallery[idx]) return;
-        hudIndex = idx;
-        const item = filteredGallery[idx];
-
-        if (hudImg) {
-          hudImg.src = item.origSrc;
-          hudImg.alt = item.title;
-        }
-        if (hudTitle) hudTitle.textContent = item.title;
-        if (hudDesc) hudDesc.textContent = item.caption;
-        if (hudCategory) hudCategory.innerHTML = item.categoryLabel;
-        if (hudDate) hudDate.textContent = item.date;
-        if (hudIndexEl) hudIndexEl.textContent = `ARCHIVE ${String(idx + 1).padStart(2, '0')} OF ${String(filteredGallery.length).padStart(2, '0')}`;
-        if (hudDownload) hudDownload.href = item.origSrc;
-
-        if (hudModal) {
-          hudModal.classList.add('active');
-          document.body.style.overflow = 'hidden';
-        }
-      }
-
-      function closeHomeHud() {
-        if (hudModal) {
-          hudModal.classList.remove('active');
-          document.body.style.overflow = '';
-        }
-      }
-
-      function prevHomeHud() {
-        if (filteredGallery.length === 0) return;
-        const newIdx = (hudIndex - 1 + filteredGallery.length) % filteredGallery.length;
-        openHomeHud(newIdx);
-      }
-
-      function nextHomeHud() {
-        if (filteredGallery.length === 0) return;
-        const newIdx = (hudIndex + 1) % filteredGallery.length;
-        openHomeHud(newIdx);
-      }
-
-      if (hudClose) hudClose.addEventListener('click', closeHomeHud);
-      if (hudPrev) hudPrev.addEventListener('click', prevHomeHud);
-      if (hudNext) hudNext.addEventListener('click', nextHomeHud);
-
-      if (hudModal) {
-        hudModal.addEventListener('click', (e) => {
-          if (e.target === hudModal) closeHomeHud();
-        });
-      }
-
-      window.addEventListener('keydown', (e) => {
-        if (!hudModal || !hudModal.classList.contains('active')) return;
-        if (e.key === 'Escape') closeHomeHud();
-        else if (e.key === 'ArrowLeft') prevHomeHud();
-        else if (e.key === 'ArrowRight') nextHomeHud();
-      });
-
-      // Initial execution
-      buildHomeMarquee();
-      renderHomeBentoWall();
-    })();
-  </script>
-
-  <!-- Clean & Simple Mobile/Tab Notice Overlay -->
-  <div class="device-notice-overlay device-notice-hidden" id="deviceNoticeOverlay" role="dialog" aria-modal="true"
-    aria-labelledby="deviceNoticeTitle">
-    <div class="device-notice-card">
-      <button type="button" class="device-notice-close-btn" id="deviceNoticeCloseBtn"
-        aria-label="Close Notice">&times;</button>
-
-      <h3 class="device-notice-title" id="deviceNoticeTitle">NOT Optimized for Mobile / Tab</h3>
-      <p class="device-notice-desc">
-        Semester Library is best viewed on a desktop or laptop. Open on desktop for full access to notes, syllabus, and
-        study tools.
-      </p>
-
-      <div class="device-notice-actions">
-        <button type="button" class="device-notice-primary-btn" id="deviceNoticeContinueBtn">
-          <span>Continue Anyway</span>
-        </button>
-        <button type="button" class="device-notice-secondary-btn" id="deviceNoticeCopyBtn">
-          <span id="deviceNoticeCopyText">Copy Link</span>
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    // Desktop Recommendation Controller (Pure Black & White Theme)
-    (function initDeviceNotice() {
-      const noticeOverlay = document.getElementById('deviceNoticeOverlay');
-      const closeBtn = document.getElementById('deviceNoticeCloseBtn');
-      const continueBtn = document.getElementById('deviceNoticeContinueBtn');
-      const copyBtn = document.getElementById('deviceNoticeCopyBtn');
-      const copyText = document.getElementById('deviceNoticeCopyText');
-
-      if (!noticeOverlay) return;
-
-      function checkAndShowNotice() {
-        const isDismissed = sessionStorage.getItem('dismissedDeviceNotice') === 'true';
-        if (isDismissed) {
-          noticeOverlay.classList.add('device-notice-hidden', 'device-notice-dismissed');
-          return;
-        }
-
-        const isSmallScreen = window.innerWidth <= 1024;
-        const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-
-        if (isSmallScreen || isTouch) {
-          noticeOverlay.classList.remove('device-notice-hidden', 'device-notice-dismissed');
-        } else {
-          noticeOverlay.classList.add('device-notice-hidden');
-        }
-      }
-
-      function dismissNotice() {
-        noticeOverlay.classList.add('device-notice-hidden', 'device-notice-dismissed');
-        sessionStorage.setItem('dismissedDeviceNotice', 'true');
-      }
-
-      if (closeBtn) closeBtn.addEventListener('click', dismissNotice);
-      if (continueBtn) continueBtn.addEventListener('click', () => {
-        showAuthModal(true);
-      });
-      if (noticeOverlay) {
-        noticeOverlay.addEventListener('click', (e) => {
-          if (e.target === noticeOverlay) dismissNotice();
-        });
-      }
-
-      if (copyBtn) {
-        copyBtn.addEventListener('click', async () => {
-          try {
-            await navigator.clipboard.writeText(window.location.href);
-            if (copyText) copyText.textContent = "Link Copied! ✓";
-            setTimeout(() => {
-              if (copyText) copyText.textContent = "Copy Site Link";
-            }, 2000);
-          } catch (e) {
-            if (copyText) copyText.textContent = "Copied!";
-          }
-        });
-      }
-
-      // Check immediately on load and on window resize
-      checkAndShowNotice();
-      window.addEventListener('resize', checkAndShowNotice);
-
-      // Console testing helper: window.showDeviceNotice()
-      window.showDeviceNotice = function () {
-        sessionStorage.removeItem('dismissedDeviceNotice');
-        noticeOverlay.classList.remove('device-notice-hidden', 'device-notice-dismissed');
-      };
-    })();
-  </script>
-  <script src="auth-modal.js"></script>
-  <!-- PWA Service Worker Registration -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').catch(err => {
-          console.warn('[SW Registration Notice]:', err);
-        });
-      });
-    }
-  </script>
+  <footer class="home-footer home-wrap">
+    <div class="home-footer-top"><a href="/" class="home-brand"><svg aria-hidden="true"><use href="#icon-book"/></svg>Semester Library</a><nav aria-label="Footer navigation"><a href="/library.html">Library</a><a href="/chatbot.html">Kyana AI</a><a href="/compiler.html">Compiler</a><a href="/about.html">About</a></nav></div>
+    <div class="home-footer-bottom"><p>Made for the way you learn. · Gandaki University</p><nav aria-label="Legal"><a href="/privacy.html">Privacy</a><a href="/termsandconditions.html">Terms</a></nav></div>
+  </footer>
 </body>
-
 </html>

@@ -23,9 +23,8 @@
     rel="stylesheet">
   <link rel="stylesheet" href="style.v4.css">
   <link rel="stylesheet" href="chatbot.css">
-  <script>
-    fetch('/api/profile').then(r => { if (!r.ok) showAuthModal(true); }).catch(() => showAuthModal(true));
-  </script>
+  <script src="/auth.js"></script>
+  <script>SemesterAuth.protectPage();</script>
   <link rel="stylesheet" href="auth-modal.css">
   <link rel="stylesheet" href="/theme-overrides.css">
 </head>
@@ -1126,8 +1125,7 @@
 
     // Sign Out
     const performLogout = async () => {
-      await fetch('/api/logout', { method: 'POST' });
-      showAuthModal(true);
+      SemesterAuth.signOut();
     };
 
     const topLogoutBtn = document.getElementById('logoutBtn');

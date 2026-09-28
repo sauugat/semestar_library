@@ -17,7 +17,8 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Semester Library">
-  <meta name="theme-color" content="#ffffff">
+  <script src="/auth.js"></script>
+  <script>SemesterAuth.protectPage();</script>
   <script>
     fetch('/api/me').then(r => {
       if (!r.ok) {

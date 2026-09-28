@@ -24,14 +24,14 @@ window.showAuthModal = function (requireAuth = false) {
           <img src="631824E0-DFD0-462B-95E4-FEBD92499478-removebg-preview.png" alt="Semester Library" class="apple-emblem-img">
         </div>
 
-        <h1 class="apple-signin-headline">Sign in with your Student ID</h1>
+        <h1 class="apple-signin-headline">Sign in with your Email</h1>
         <p class="apple-signin-subtext">Access your notices, exam routines, study notes, and syllabus materials.</p>
 
         <form id="modalLoginForm" class="apple-signin-form" onsubmit="event.preventDefault(); doModalLogin();">
           <div class="apple-input-group">
             <div class="apple-input-row">
-              <label for="modalStudentId" class="apple-input-label">Student ID</label>
-              <input type="text" id="modalStudentId" name="studentId" class="apple-text-field" placeholder="e.g. GU2026001" autocomplete="username" required>
+              <label for="modalEmail" class="apple-input-label">Email Address</label>
+              <input type="email" id="modalEmail" name="email" class="apple-text-field" placeholder="student@example.com" autocomplete="email" required>
             </div>
             <div class="apple-input-row">
               <label for="modalPassword" class="apple-input-label">Password</label>
@@ -43,7 +43,7 @@ window.showAuthModal = function (requireAuth = false) {
             <label class="apple-remember-wrap" for="modalRememberMe">
               <input type="checkbox" id="modalRememberMe" class="apple-real-checkbox">
               <span class="apple-custom-check"></span>
-              <span class="apple-remember-text">Remember Student ID</span>
+              <span class="apple-remember-text">Remember Email</span>
             </label>
           </div>
 
@@ -72,13 +72,13 @@ window.showAuthModal = function (requireAuth = false) {
 
   document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-  // Restore remembered Student ID
+  // Restore remembered Email
   try {
-    const savedId = localStorage.getItem('rememberedStudentId');
-    if (savedId) {
-      const idInput = document.getElementById('modalStudentId');
+    const savedEmail = localStorage.getItem('rememberedEmail') || localStorage.getItem('rememberedStudentId');
+    if (savedEmail) {
+      const emailInput = document.getElementById('modalEmail') || document.getElementById('modalStudentId');
       const remCheck = document.getElementById('modalRememberMe');
-      if (idInput) idInput.value = savedId;
+      if (emailInput) emailInput.value = savedEmail;
       if (remCheck) remCheck.checked = true;
     }
   } catch (err) { }
@@ -88,9 +88,9 @@ window.showAuthModal = function (requireAuth = false) {
     const modal = document.getElementById('globalAuthModal');
     if (modal) {
       modal.classList.add('open');
-      const idInput = document.getElementById('modalStudentId');
+      const emailInput = document.getElementById('modalEmail') || document.getElementById('modalStudentId');
       const passInput = document.getElementById('modalPassword');
-      if (idInput && !idInput.value) idInput.focus();
+      if (emailInput && !emailInput.value) emailInput.focus();
       else if (passInput) passInput.focus();
     }
   }, 10);
@@ -107,30 +107,30 @@ window.closeAuthModal = function () {
 window.doModalLogin = async function (e) {
   if (e) e.preventDefault();
 
-  const idInput = document.getElementById('modalStudentId');
+  const emailInput = document.getElementById('modalEmail') || document.getElementById('modalStudentId');
   const passInput = document.getElementById('modalPassword');
   const errorMsg = document.getElementById('modalErrorMsg');
   const loginBtn = document.getElementById('modalLoginBtn');
   const rememberCheckbox = document.getElementById('modalRememberMe');
 
-  if (!idInput || !passInput) return;
+  if (!emailInput || !passInput) return;
 
-  const studentId = idInput.value.trim();
+  const email = emailInput.value.trim();
   const password = passInput.value;
 
   if (errorMsg) errorMsg.textContent = '';
 
-  if (!studentId || !password) {
-    if (errorMsg) errorMsg.textContent = 'Please enter your Student ID and password.';
+  if (!email || !password) {
+    if (errorMsg) errorMsg.textContent = 'Please enter your email and password.';
     return;
   }
 
   // Handle Remember Me
   try {
     if (rememberCheckbox && rememberCheckbox.checked) {
-      localStorage.setItem('rememberedStudentId', studentId);
+      localStorage.setItem('rememberedEmail', email);
     } else {
-      localStorage.removeItem('rememberedStudentId');
+      localStorage.removeItem('rememberedEmail');
     }
   } catch (err) { }
 
@@ -140,16 +140,32 @@ window.doModalLogin = async function (e) {
   }
 
   try {
-    const res = await fetch('/api/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ studentId, password })
-    });
+    if (typeof SemesterAuth === 'undefined' || typeof SemesterAuth.signIn !== 'function') {
+      throw new Error('Authentication service is initializing. Please retry in a moment.');
+    }
 
-    const data = await res.json();
+    const { data, error } = await SemesterAuth.signIn(email, password);
 
-    if (res.ok) {
+    if (error) {
+      let friendlyMsg = 'Invalid email or password.';
+      const msg = (error.message || '').toLowerCase();
+      if (msg.includes('invalid login credentials') || msg.includes('invalid credentials')) {
+        friendlyMsg = 'Invalid email or password.';
+      } else if (msg.includes('email not confirmed')) {
+        friendlyMsg = 'Please verify your email address.';
+      } else if (msg.includes('too many requests')) {
+        friendlyMsg = 'Too many failed login attempts. Please wait.';
+      }
+
+      if (errorMsg) errorMsg.textContent = friendlyMsg;
+      if (loginBtn) {
+        loginBtn.disabled = false;
+        loginBtn.innerHTML = '<span>Sign In</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="apple-btn-arrow"><path d="M5 12h14M12 5l7 7-7 7"/></svg>';
+      }
+      return;
+    }
+
+    if (data && data.session) {
       if (loginBtn) {
         loginBtn.innerHTML = '<span>Success!</span>';
         loginBtn.style.background = '#22c55e';
@@ -158,14 +174,13 @@ window.doModalLogin = async function (e) {
         window.closeAuthModal();
         window.location.reload();
       }, 400);
-    } else {
-      if (errorMsg) errorMsg.textContent = data.message || 'Invalid Student ID or Password';
-      if (loginBtn) {
-        loginBtn.disabled = false;
-        loginBtn.innerHTML = '<span>Sign In</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="apple-btn-arrow"><path d="M5 12h14M12 5l7 7-7 7"/></svg>';
-      }
     }
   } catch (err) {
+    if (errorMsg) errorMsg.textContent = err.message || 'Connection error. Please try again.';
+    if (loginBtn) {
+      loginBtn.disabled = false;
+      loginBtn.innerHTML = '<span>Sign In</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="apple-btn-arrow"><path d="M5 12h14M12 5l7 7-7 7"/></svg>';
+    }
   }
 };
 
@@ -173,7 +188,8 @@ window.doModalLogin = async function (e) {
 function syncHeaderProfile() {
   const profileChip = document.querySelector('.dash-profile-chip');
   if (!profileChip) return;
-  fetch('/api/profile')
+  const fetchFn = typeof window.authFetch === 'function' ? window.authFetch : fetch;
+  fetchFn('/api/profile')
     .then(res => res.ok ? res.json() : null)
     .then(p => {
       if (p) {

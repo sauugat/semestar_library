@@ -564,8 +564,16 @@ app.get('/compiler', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'compiler.html'));
 });
 
-app.get('/login', (req, res) => {
+app.get(['/login', '/login.html'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+app.get(['/register', '/register.html'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'register.html'));
+});
+
+app.get(['/reset-password', '/reset-password.html', '/forgot-password'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'reset-password.html'));
 });
 
 app.get('/privacy', (req, res) => {

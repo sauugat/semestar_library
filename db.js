@@ -102,7 +102,8 @@ const camelMap = {
   pdfurl: 'pdfUrl', pdfname: 'pdfName',
   submissioncount: 'submissionCount', mysubmissioncount: 'mySubmissionCount',
   ischecked: 'isChecked', isreleased: 'isReleased', feedbacktext: 'feedbackText',
-  pinnedby: 'pinnedBy', pinnedat: 'pinnedAt', is_official: 'is_official'
+  pinnedby: 'pinnedBy', pinnedat: 'pinnedAt', is_official: 'is_official',
+  verificationstatus: 'verificationStatus', verification_status: 'verificationStatus'
 };
 
 function formatRow(row) {
@@ -317,16 +318,21 @@ async function initSchema() {
           CREATE TABLE IF NOT EXISTS students (
             studentId TEXT PRIMARY KEY,
             name TEXT NOT NULL,
-            passwordHash TEXT NOT NULL,
+            passwordHash TEXT,
             email TEXT,
             supabase_uid TEXT,
+            username TEXT,
+            gender TEXT,
             avatarUrl TEXT,
             bio TEXT,
             department TEXT DEFAULT 'BIT',
             semester TEXT DEFAULT 'Semester 1',
             githubUrl TEXT,
             linkedinUrl TEXT,
-            role TEXT DEFAULT 'student'
+            role TEXT DEFAULT 'student',
+            verification_status TEXT DEFAULT 'unverified',
+            created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
           );
 
           CREATE TABLE IF NOT EXISTS follows (
@@ -524,16 +530,21 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
           CREATE TABLE IF NOT EXISTS students (
             studentId TEXT PRIMARY KEY,
             name TEXT NOT NULL,
-            passwordHash TEXT NOT NULL,
+            passwordHash TEXT,
             email TEXT,
             supabase_uid TEXT,
+            username TEXT,
+            gender TEXT,
             avatarUrl TEXT,
             bio TEXT,
             department TEXT DEFAULT 'BIT',
             semester TEXT DEFAULT 'Semester 1',
             githubUrl TEXT,
             linkedinUrl TEXT,
-            role TEXT DEFAULT 'student'
+            role TEXT DEFAULT 'student',
+            verification_status TEXT DEFAULT 'unverified',
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
           );
 
           CREATE TABLE IF NOT EXISTS follows (

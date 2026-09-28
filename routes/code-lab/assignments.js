@@ -4,7 +4,8 @@ const db = require('../../db');
 const syllabusData = require('../../syllabus-data.json');
 
 function requireLogin(req, res, next) {
-    if (!req.session || !req.session.studentId) {
+    const studentId = (req.user && req.user.studentId) || (req.session && req.session.studentId);
+    if (!studentId) {
         return res.status(401).json({ message: 'Authentication required.' });
     }
     next();

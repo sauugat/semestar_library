@@ -289,4 +289,14 @@
   html:root[data-theme="dark"] body .profile-tab { background: transparent !important; color: #b5b5b5 !important; border-color: transparent !important; }
   html:root[data-theme="dark"] body .profile-tab:hover { background: #242424 !important; color: #f5f5f5 !important; }
   html:root[data-theme="dark"] body .profile-tab.active { background: #f5f5f5 !important; color: #111111 !important; }
+
+  /* Authentic Obsidian Auth Surfaces & Radius Restoration */
+  html[data-theme="dark"] body :is(.apple-signin-card, .register-card) {
+    border-radius: 28px !important;
+    background: rgba(18, 19, 23, 0.88) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    backdrop-filter: blur(24px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  }
 }
+

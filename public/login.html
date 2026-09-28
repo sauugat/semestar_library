@@ -312,7 +312,7 @@
            ===================================== -->
 
       <h1 class="apple-signin-headline">
-        Sign in with your Student ID
+        Sign in with your Email
       </h1>
 
 
@@ -335,16 +335,16 @@
         <div class="apple-input-group">
 
 
-          <!-- Student ID -->
+          <!-- Email Address -->
 
           <div class="apple-input-row">
 
-            <label for="studentId" class="apple-input-label">
-              Student ID
+            <label for="email" class="apple-input-label">
+              Email Address
             </label>
 
-            <input type="text" id="studentId" name="studentId" class="apple-text-field" placeholder="e.g. GU2026001"
-              autocomplete="username" required>
+            <input type="email" id="email" name="email" class="apple-text-field" placeholder="student@example.com"
+              autocomplete="email" required>
 
           </div>
 
@@ -511,8 +511,8 @@
       const rickContainer =
         document.getElementById("rickContainer");
 
-      const studentIdInput =
-        document.getElementById("studentId");
+      const emailInput =
+        document.getElementById("email") || document.getElementById("studentId");
 
       const passwordInput =
         document.getElementById("password");
@@ -535,24 +535,21 @@
       }, 500);
 
 
-      /* Student ID focus */
+      /* Email input focus */
 
-      studentIdInput.addEventListener("focus", () => {
+      if (emailInput) {
+        emailInput.addEventListener("focus", () => {
+          if (rickContainer) {
+            rickContainer.classList.add("look-down");
+          }
+        });
 
-        if (rickContainer) {
-          rickContainer.classList.add("look-down");
-        }
-
-      });
-
-
-      studentIdInput.addEventListener("blur", () => {
-
-        if (rickContainer) {
-          rickContainer.classList.remove("look-down");
-        }
-
-      });
+        emailInput.addEventListener("blur", () => {
+          if (rickContainer) {
+            rickContainer.classList.remove("look-down");
+          }
+        });
+      }
 
 
       /* Password focus */
@@ -600,6 +597,7 @@
     });
   </script>
 
+  <script src="/auth.js"></script>
   <script src="script.js"></script>
 
 

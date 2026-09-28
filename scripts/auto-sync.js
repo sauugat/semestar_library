@@ -34,13 +34,15 @@ function getCurrentBranch() {
 
 function getChangedFiles() {
   try {
-    const status = execSync('git status --porcelain', { cwd: ROOT_DIR, encoding: 'utf-8' }).trim();
+    const status = execSync('git status --porcelain', { cwd: ROOT_DIR, encoding: 'utf-8' });
     if (!status) return [];
     return status
       .split('\n')
-      .map(line => line.trim())
-      .filter(Boolean)
-      .map(line => line.slice(3).trim());
+      .filter(line => line.length > 3)
+      .map(line => {
+        const raw = line.slice(3).trim();
+        return raw.includes(' -> ') ? raw.split(' -> ')[1] : raw;
+      });
   } catch {
     return [];
   }

@@ -783,18 +783,334 @@ app.get('/api/auth/config', (req, res) => {
   res.json({ url, key });
 });
 
+// Student Self-Registration (Strictly validated, forced student role & unverified status)
+app.post('/api/auth/register', loginRateLimiter, async (req, res) => {
+  const {
+    fullName,
+    studentId,
+    username,
+    email,
+    department,
+    semester,
+    gender,
+    password,
+    confirmPassword
+  } = req.body || {};
+
+  // 1. Validate required fields
+  if (!fullName || !studentId || !username || !email || !department || !semester || !password || !confirmPassword) {
+    return res.status(400).json({ message: 'All required fields must be provided.' });
+  }
+
+  const cleanName = String(fullName).trim();
+  const cleanStudentId = String(studentId).trim();
+  const cleanUsername = String(username).trim().toLowerCase();
+  const cleanEmail = String(email).trim().toLowerCase();
+  const cleanDept = String(department).trim();
+  const cleanSem = String(semester).trim();
+  const cleanGender = gender && String(gender).trim() ? String(gender).trim().toLowerCase() : null;
+  const pass = String(password);
+  const confirmPass = String(confirmPassword);
+
+  // 2. Validate field formats and lengths
+  if (cleanName.length < 2 || cleanName.length > 100) {
+    return res.status(400).json({ message: 'Full name must be between 2 and 100 characters.' });
+  }
+  if (!/^[a-zA-Z0-9_-]{3,30}$/.test(cleanStudentId)) {
+    return res.status(400).json({ message: 'Student ID must be 3-30 alphanumeric characters.' });
+  }
+  if (!/^[a-zA-Z0-9_.]{3,30}$/.test(cleanUsername)) {
+    return res.status(400).json({ message: 'Username must be 3-30 characters (letters, numbers, underscore, dot).' });
+  }
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(cleanEmail) || cleanEmail.length > 150) {
+    return res.status(400).json({ message: 'Please provide a valid email address.' });
+  }
+  if (cleanDept.length < 2 || cleanDept.length > 50) {
+    return res.status(400).json({ message: 'Please select a valid department.' });
+  }
+  const validSemesters = ['Semester 1', 'Semester 2', 'Semester 3', 'Semester 4', 'Semester 5', 'Semester 6', 'Semester 7', 'Semester 8'];
+  if (!validSemesters.includes(cleanSem)) {
+    return res.status(400).json({ message: 'Please select a valid semester (Semester 1 through 8).' });
+  }
+  if (cleanGender && !['male', 'female', 'other', 'prefer_not_to_say'].includes(cleanGender)) {
+    return res.status(400).json({ message: 'Invalid gender selection.' });
+  }
+  if (pass.length < 8) {
+    return res.status(400).json({ message: 'Password must be at least 8 characters long.' });
+  }
+  if (pass !== confirmPass) {
+    return res.status(400).json({ message: 'Passwords do not match.' });
+  }
+
+  // 3. Check for duplicates in Neon
+  const existingStudentId = await db.get('SELECT studentId FROM students WHERE studentId = ?', cleanStudentId);
+  if (existingStudentId) {
+    return res.status(400).json({ message: 'A student with this Student ID is already registered.' });
+  }
+
+  const existingUsername = await db.get('SELECT studentId FROM students WHERE LOWER(username) = ?', cleanUsername);
+  if (existingUsername) {
+    return res.status(400).json({ message: 'This username is already taken. Please choose another.' });
+  }
+
+  const existingEmail = await db.get('SELECT studentId FROM students WHERE LOWER(email) = ?', cleanEmail);
+  if (existingEmail) {
+    return res.status(400).json({ message: 'An account with this email address already exists.' });
+  }
+
+  // 4. Create user in Supabase Auth (email_confirm: false)
+  let supabaseUid = null;
+  const { registerSupabaseUser, getSupabaseAdminClient } = require('./lib/supabase');
+
+  try {
+    const { user: authUser, error: authErr } = await registerSupabaseUser({
+      email: cleanEmail,
+      password: pass,
+      metadata: {
+        studentId: cleanStudentId,
+        username: cleanUsername,
+        name: cleanName,
+        department: cleanDept,
+        semester: cleanSem,
+      },
+    });
+
+    if (authErr) {
+      if (authErr.message && authErr.message.toLowerCase().includes('already registered')) {
+        return res.status(400).json({ message: 'An account with this email address already exists in authentication system.' });
+      }
+      return res.status(400).json({ message: authErr.message || 'Failed to create authentication account.' });
+    }
+
+    if (!authUser || !authUser.id) {
+      return res.status(500).json({ message: 'Failed to obtain authentication identity.' });
+    }
+
+    supabaseUid = authUser.id;
+  } catch (authCreateErr) {
+    console.error('[Registration Supabase Error]:', authCreateErr.message);
+    return res.status(500).json({ message: 'Authentication service unavailable. Please try again later.' });
+  }
+
+  // 5. Insert student record into Neon PostgreSQL
+  try {
+    if (db.isPostgres) {
+      await db.run(
+        `INSERT INTO students (
+          studentId, username, name, email, supabase_uid,
+          department, semester, gender, role, verification_status,
+          created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'student', 'unverified', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+        cleanStudentId, cleanUsername, cleanName, cleanEmail, supabaseUid,
+        cleanDept, cleanSem, cleanGender
+      );
+    } else {
+      await db.run(
+        `INSERT INTO students (
+          studentId, username, name, email, supabase_uid,
+          department, semester, gender, role, verification_status,
+          created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'student', 'unverified', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+        cleanStudentId, cleanUsername, cleanName, cleanEmail, supabaseUid,
+        cleanDept, cleanSem, cleanGender
+      );
+    }
+  } catch (dbInsertErr) {
+    console.error('[Registration DB Insert Error]:', dbInsertErr.message);
+    // Rollback orphaned Supabase Auth user if DB insertion failed
+    try {
+      const admin = getSupabaseAdminClient();
+      await admin.auth.admin.deleteUser(supabaseUid);
+    } catch (delErr) {
+      console.warn('[Orphaned User Cleanup Warning]:', delErr.message);
+    }
+    return res.status(500).json({ message: 'Failed to save student profile. Please try again.' });
+  }
+
+  return res.status(201).json({
+    success: true,
+    message: 'Account created! A confirmation email has been sent. Please verify your email before logging in.'
+  });
+});
+
+// Username or Email Login (Server-Side Username Resolution & Rate Limiting)
+app.post('/api/auth/login', loginRateLimiter, async (req, res) => {
+  const identifier = (req.body.identifier || req.body.email || req.body.username || '').trim();
+  const password = req.body.password || '';
+  const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+
+  if (!identifier || !password) {
+    return res.status(400).json({ message: 'Username/email and password are required.' });
+  }
+
+  let resolvedEmail = null;
+
+  if (identifier.includes('@')) {
+    resolvedEmail = identifier.toLowerCase();
+  } else {
+    // Resolve username to email server-side
+    const student = await db.get(
+      'SELECT email FROM students WHERE LOWER(username) = ?',
+      identifier.toLowerCase()
+    );
+    if (student && student.email) {
+      resolvedEmail = student.email.toLowerCase();
+    } else {
+      // Resistance against timing attacks & enumeration: execute dummy delay
+      await new Promise(r => setTimeout(r, 60 + Math.floor(Math.random() * 40)));
+      await recordFailedLogin(ip);
+      return res.status(401).json({ message: 'Invalid username/email or password.' });
+    }
+  }
+
+  // Authenticate through Supabase
+  const { authenticateWithPassword } = require('./lib/supabase');
+  try {
+    const { data, error } = await authenticateWithPassword({
+      email: resolvedEmail,
+      password: password,
+    });
+
+    if (error) {
+      const errLower = (error.message || '').toLowerCase();
+      if (errLower.includes('email not confirmed') || errLower.includes('not confirmed')) {
+        return res.status(403).json({
+          code: 'EMAIL_NOT_CONFIRMED',
+          message: 'Your email address has not been verified yet. Please check your inbox and verify your email before signing in.'
+        });
+      }
+
+      await recordFailedLogin(ip);
+      return res.status(401).json({ message: 'Invalid username/email or password.' });
+    }
+
+    if (!data || !data.session || !data.user) {
+      await recordFailedLogin(ip);
+      return res.status(401).json({ message: 'Invalid username/email or password.' });
+    }
+
+    // Login successful
+    await clearLoginAttempts(ip);
+
+    // Fetch authoritative Neon student profile
+    const student = await db.get(
+      `SELECT studentId, username, name, role, department, semester, gender, email, avatarUrl, verification_status
+       FROM students
+       WHERE supabase_uid = ? OR (email IS NOT NULL AND LOWER(email) = ?)`,
+      data.user.id, resolvedEmail
+    );
+
+    return res.json({
+      session: {
+        access_token: data.session.access_token,
+        refresh_token: data.session.refresh_token,
+        expires_at: data.session.expires_at,
+        expires_in: data.session.expires_in,
+      },
+      user: {
+        studentId: student?.studentId || null,
+        username: student?.username || null,
+        name: student?.name || data.user.user_metadata?.name || '',
+        role: student?.role || 'student',
+        department: student?.department || 'BIT',
+        semester: student?.semester || null,
+        gender: student?.gender || null,
+        email: student?.email || resolvedEmail,
+        verificationStatus: student?.verification_status || student?.verificationStatus || 'unverified',
+      }
+    });
+  } catch (loginErr) {
+    console.error('[Login Error]:', loginErr.message);
+    await recordFailedLogin(ip);
+    return res.status(500).json({ message: 'Authentication service temporarily unavailable.' });
+  }
+});
+
+// Password Recovery (Enumeration-Resistant)
+app.post('/api/auth/forgot-password', loginRateLimiter, async (req, res) => {
+  const identifier = (req.body.identifier || req.body.email || req.body.username || '').trim();
+
+  if (!identifier) {
+    return res.status(400).json({ message: 'Please provide your username or email address.' });
+  }
+
+  let emailToSend = null;
+  if (identifier.includes('@')) {
+    emailToSend = identifier.toLowerCase();
+  } else {
+    const student = await db.get('SELECT email FROM students WHERE LOWER(username) = ?', identifier.toLowerCase());
+    if (student && student.email) {
+      emailToSend = student.email.toLowerCase();
+    }
+  }
+
+  if (emailToSend) {
+    try {
+      const { sendPasswordResetEmail } = require('./lib/supabase');
+      const origin = req.headers.origin || (process.env.APP_URL ? process.env.APP_URL.replace(/\/$/, '') : `http://${req.headers.host}`);
+      const redirectTo = `${origin}/reset-password.html`;
+      await sendPasswordResetEmail({ email: emailToSend, redirectTo });
+    } catch (err) {
+      console.warn('[Forgot Password Warning]:', err.message);
+    }
+  }
+
+  // Always return generic response to prevent account enumeration
+  return res.json({
+    success: true,
+    message: 'If an account exists with that username or email, a password reset link has been sent to the associated email address.'
+  });
+});
+
+// Resend Email Confirmation Link (Enumeration-Resistant)
+app.post('/api/auth/resend-verification', loginRateLimiter, async (req, res) => {
+  const identifier = (req.body.identifier || req.body.email || req.body.username || '').trim();
+
+  if (!identifier) {
+    return res.status(400).json({ message: 'Please provide your email address or username.' });
+  }
+
+  let emailToSend = null;
+  if (identifier.includes('@')) {
+    emailToSend = identifier.toLowerCase();
+  } else {
+    const student = await db.get('SELECT email FROM students WHERE LOWER(username) = ?', identifier.toLowerCase());
+    if (student && student.email) {
+      emailToSend = student.email.toLowerCase();
+    }
+  }
+
+  if (emailToSend) {
+    try {
+      const { resendVerificationEmail } = require('./lib/supabase');
+      await resendVerificationEmail({ email: emailToSend });
+    } catch (err) {
+      console.warn('[Resend Verification Warning]:', err.message);
+    }
+  }
+
+  return res.json({
+    success: true,
+    message: 'If an unverified account exists, a new verification email has been sent.'
+  });
+});
+
 app.get('/api/me', requireLogin, async (req, res) => {
   const role = req.user.role || 'student';
   const isAdmin = role === 'admin';
   res.json({
     studentId: req.user.studentId,
+    username: req.user.username || null,
     name: req.user.name,
     role,
     isAdmin,
     department: req.user.department || 'BIT',
     semester: req.user.semester || null,
+    gender: req.user.gender || null,
     email: req.user.email || null,
     avatarUrl: req.user.avatarUrl || null,
+    verificationStatus: req.user.verificationStatus || 'unverified',
   });
 });
 

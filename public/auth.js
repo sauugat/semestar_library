@@ -75,12 +75,86 @@
     return session ? session.access_token : null;
   }
 
-  async function signIn(email, password) {
-    const client = await getSupabase();
-    return await client.auth.signInWithPassword({
-      email: email.trim(),
-      password: password,
-    });
+  async function signIn(identifier, password) {
+    try {
+      const res = await rawFetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: (identifier || '').trim(), password }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.session) {
+        const client = await getSupabase();
+        await client.auth.setSession({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+        });
+        return { data: { user: data.user, session: data.session }, error: null };
+      }
+      return {
+        data: null,
+        error: {
+          code: data.code || 'AUTH_ERROR',
+          message: data.message || 'Invalid username/email or password.',
+        },
+      };
+    } catch (err) {
+      return { data: null, error: { message: err.message || 'Network error signing in' } };
+    }
+  }
+
+  async function signUp(payload) {
+    try {
+      const res = await rawFetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        return { data, error: null };
+      }
+      return { data: null, error: { message: data.message || 'Registration failed' } };
+    } catch (err) {
+      return { data: null, error: { message: err.message || 'Network error registering' } };
+    }
+  }
+
+  async function forgotPassword(identifier) {
+    try {
+      const res = await rawFetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: (identifier || '').trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      return { data, error: null };
+    } catch (err) {
+      return { data: null, error: { message: err.message || 'Failed to submit recovery request' } };
+    }
+  }
+
+  async function resendVerification(identifier) {
+    try {
+      const res = await rawFetch('/api/auth/resend-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: (identifier || '').trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      return { data, error: null };
+    } catch (err) {
+      return { data: null, error: { message: err.message || 'Failed to resend confirmation email' } };
+    }
+  }
+
+  async function updatePassword(newPassword) {
+    try {
+      const client = await getSupabase();
+      return await client.auth.updateUser({ password: newPassword });
+    } catch (err) {
+      return { data: null, error: err };
+    }
   }
 
   async function signOut() {

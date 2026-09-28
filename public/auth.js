@@ -264,7 +264,7 @@
     window.fetch = async function (input, init) {
       const url = typeof input === 'string' ? input : (input && input.url ? input.url : '');
       const isApi = url.startsWith('/api/') || url.includes('/api/');
-      const isPublicAuth = url.includes('/api/auth/config') || url.includes('/api/login');
+      const isPublicAuth = url.includes('/api/auth/') || url.includes('/api/login');
 
       if (isApi && !isPublicAuth) {
         const hasAuthHeader = init && init.headers && (
@@ -287,7 +287,11 @@
     getSession,
     getAccessToken,
     signIn,
+    signUp,
     signOut,
+    forgotPassword,
+    resendVerification,
+    updatePassword,
     authFetch,
     protectPage,
   };

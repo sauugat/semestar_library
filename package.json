@@ -13,7 +13,9 @@
     "migrate:routine": "node scripts/migrate-routine.js",
     "test:routine": "node --test tests/routine*.test.js",
     "test:group-chat": "node --test tests/group-chat-history.test.js tests/mobile-chat-state.test.js tests/chat-cache-regression.test.js",
-    "test:group-chat:browser": "node tests/chat-cross-client.browser.cjs"
+    "test:group-chat:browser": "node tests/chat-cross-client.browser.cjs",
+    "sync": "node scripts/auto-sync.js --once",
+    "auto-sync": "node scripts/auto-sync.js"
   },
   "dependencies": {
     "@libsql/client": "^0.14.0",

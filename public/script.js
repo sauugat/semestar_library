@@ -1,6 +1,6 @@
 // ============================================================
-// Semester Library — Unified Authentication UI Script
-// Handles Login, Password Toggles, Modal Dialogs & Toast Banners
+// Semester Library — Minimalist Auth UI Script
+// Handles Login, Password Toggles, Reset Modal, & Alert Banners
 // ============================================================
 
 // ─── Universal Alert Banner Helper ───
@@ -8,11 +8,10 @@ window.showAuthBanner = function (message, type = 'error', options = {}) {
   const banner = document.getElementById('authAlert');
   const bannerTitle = document.getElementById('authAlertTitle');
   const bannerMsg = document.getElementById('authAlertMsg');
-  const bannerIcon = document.getElementById('authAlertIcon');
   const bannerActions = document.getElementById('authAlertActions');
   const legacyErrorMsg = document.getElementById('errorMsg');
 
-  // Maintain backward-compatibility
+  // Maintain backward-compatibility for test suites
   if (legacyErrorMsg) {
     legacyErrorMsg.textContent = message;
     legacyErrorMsg.style.display = 'none';
@@ -26,18 +25,6 @@ window.showAuthBanner = function (message, type = 'error', options = {}) {
   if (bannerTitle) {
     bannerTitle.textContent = options.title || (type === 'error' ? 'Unable to sign in' : type === 'success' ? 'Success' : 'Notice');
     bannerTitle.style.display = options.title !== '' ? 'block' : 'none';
-  }
-
-  if (bannerIcon) {
-    if (type === 'error') {
-      bannerIcon.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
-    } else if (type === 'success') {
-      bannerIcon.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12l2.5 2.5L16 9"/></svg>`;
-    } else if (type === 'warning' || type === 'unverified') {
-      bannerIcon.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>`;
-    } else {
-      bannerIcon.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`;
-    }
   }
 
   if (bannerActions) {
@@ -72,17 +59,7 @@ window.showAuthToast = function (message, type = 'info', duration = 3600) {
 
   const toast = document.createElement('div');
   toast.className = `auth-toast ${type}`;
-
-  let iconSvg = '';
-  if (type === 'success') {
-    iconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M20 6L9 17l-5-5"/></svg>`;
-  } else if (type === 'error') {
-    iconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`;
-  } else {
-    iconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`;
-  }
-
-  toast.innerHTML = `<span class="auth-toast-icon">${iconSvg}</span><span>${message}</span>`;
+  toast.textContent = message;
   container.appendChild(toast);
 
   setTimeout(() => {
@@ -111,7 +88,7 @@ window.doLogin = async function (e) {
   window.hideAuthAlert();
 
   if (!identifier || !password) {
-    window.showAuthBanner('Please enter your username/email and password.', 'error', {
+    window.showAuthBanner('Please enter your username or email and password.', 'error', {
       title: 'Missing Credentials'
     });
     return;
@@ -137,7 +114,7 @@ window.doLogin = async function (e) {
   // Show loading state
   if (loginBtn) {
     loginBtn.disabled = true;
-    loginBtn.innerHTML = '<span class="app-spinner spinner-sm spinner-light" style="margin-right:8px; display:inline-block; vertical-align:middle;"></span><span>Signing in…</span>';
+    loginBtn.innerHTML = '<span>Signing in…</span>';
   }
 
   try {
@@ -155,10 +132,7 @@ window.doLogin = async function (e) {
         friendlyMsg = 'Your email address has not been verified yet. Please check your inbox or spam folder.';
         window.showAuthBanner(friendlyMsg, 'warning', {
           title: 'Email Verification Required',
-          actionsHtml: `<button type="button" class="auth-banner-btn" onclick="handleResendVerification(event, '${identifier.replace(/'/g, "\\'")}')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
-            <span>Resend verification email</span>
-          </button>`
+          actionsHtml: `<button type="button" class="auth-banner-btn" onclick="handleResendVerification(event, '${identifier.replace(/'/g, "\\'")}')">Resend verification email</button>`
         });
       } else if (msg.includes('too many requests')) {
         friendlyMsg = 'Too many failed login attempts. Please wait a few moments before trying again.';
@@ -170,7 +144,7 @@ window.doLogin = async function (e) {
 
       if (loginBtn) {
         loginBtn.disabled = false;
-        loginBtn.innerHTML = '<span>Sign In</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="apple-btn-arrow"><path d="M5 12h14M12 5l7 7-7 7"/></svg>';
+        loginBtn.innerHTML = '<span>Sign In</span>';
       }
       return;
     }
@@ -193,15 +167,27 @@ window.doLogin = async function (e) {
     });
     if (loginBtn) {
       loginBtn.disabled = false;
-      loginBtn.innerHTML = '<span>Sign In</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="apple-btn-arrow"><path d="M5 12h14M12 5l7 7-7 7"/></svg>';
+      loginBtn.innerHTML = '<span>Sign In</span>';
     }
   }
 };
 
 // ─── In-App Forgot Password Modal Handlers ───
+let lastFocusedTrigger = null;
+
 window.openForgotPasswordModal = function (e) {
-  if (e) e.preventDefault();
+  if (e) {
+    e.preventDefault();
+    lastFocusedTrigger = e.currentTarget || document.getElementById('forgotPasswordLink');
+  }
   const modal = document.getElementById('forgotPasswordModal');
+  if (!modal) return;
+
+  // Move modal to body to prevent any ancestor clipping/transform bugs
+  if (modal.parentElement !== document.body) {
+    document.body.appendChild(modal);
+  }
+
   const identifierInput = document.getElementById('identifier') || document.getElementById('email') || document.getElementById('studentId');
   const fpInput = document.getElementById('fpIdentifier');
   const alertBox = document.getElementById('fpAlert');
@@ -211,15 +197,16 @@ window.openForgotPasswordModal = function (e) {
     fpInput.value = identifierInput.value.trim();
   }
 
-  if (modal) {
-    modal.classList.add('open');
-    if (fpInput) setTimeout(() => fpInput.focus(), 80);
-  }
+  modal.classList.add('open');
+  if (fpInput) setTimeout(() => fpInput.focus(), 60);
 };
 
 window.closeForgotPasswordModal = function () {
   const modal = document.getElementById('forgotPasswordModal');
   if (modal) modal.classList.remove('open');
+  if (lastFocusedTrigger && typeof lastFocusedTrigger.focus === 'function') {
+    try { lastFocusedTrigger.focus(); } catch (_) {}
+  }
 };
 
 window.submitForgotPassword = async function (e) {
@@ -241,7 +228,7 @@ window.submitForgotPassword = async function (e) {
 
   if (submitBtn) {
     submitBtn.disabled = true;
-    submitBtn.innerHTML = '<span class="app-spinner spinner-sm spinner-light" style="margin-right:6px;"></span><span>Sending…</span>';
+    submitBtn.innerHTML = '<span>Sending…</span>';
   }
 
   try {
@@ -311,10 +298,10 @@ window.handleResendVerification = async function (e, targetIdentifier = null) {
 
 // ─── Initialize Password Toggles ───
 function initPasswordToggles() {
-  document.querySelectorAll('.apple-password-toggle').forEach(btn => {
+  document.querySelectorAll('.password-toggle, .apple-password-toggle').forEach(btn => {
     btn.onclick = function (e) {
       e.preventDefault();
-      const wrap = btn.closest('.apple-password-field-wrap');
+      const wrap = btn.closest('.field-password-wrap, .apple-password-field-wrap');
       if (!wrap) return;
       const input = wrap.querySelector('input');
       if (!input) return;
@@ -335,6 +322,21 @@ function initLoginHandlers() {
   const form = document.getElementById('loginForm');
   const identifierInput = document.getElementById('identifier') || document.getElementById('email') || document.getElementById('studentId');
   const rememberCheckbox = document.getElementById('rememberMe');
+  const fpModal = document.getElementById('forgotPasswordModal');
+
+  // Ensure modal is direct child of body immediately on load
+  if (fpModal && fpModal.parentElement !== document.body) {
+    document.body.appendChild(fpModal);
+  }
+
+  // Click outside modal-box to close
+  if (fpModal) {
+    fpModal.addEventListener('click', (e) => {
+      if (e.target === fpModal) {
+        window.closeForgotPasswordModal();
+      }
+    });
+  }
 
   initPasswordToggles();
 

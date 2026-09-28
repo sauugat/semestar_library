@@ -1,12 +1,9 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 
 <head>
-  <script src="/theme.js"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4235996544350022"
-    crossorigin="anonymous"></script>
   <title>Sign In — Semester Library</title>
 
   <!-- Web App Manifest & iOS PWA Metadata -->
@@ -17,20 +14,18 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Semester Library">
-  <meta name="theme-color" content="#0a0a0a">
 
-  <!-- Anti-flash inline script: executes before paint to prevent FOUC -->
+  <!-- Anti-flash inline script: reads localStorage or defaults to prefers-color-scheme -->
   <script>
     (function() {
       try {
-        var t = localStorage.getItem('theme');
-        if (!t) {
-          t = 'dark';
-          try { localStorage.setItem('theme', 'dark'); } catch (e) {}
+        var stored = localStorage.getItem('theme');
+        var theme = stored;
+        if (!theme) {
+          theme = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
         }
-        var d = t === 'dark';
-        document.documentElement.setAttribute('data-theme', t);
-        if (d) {
+        document.documentElement.setAttribute('data-theme', theme);
+        if (theme === 'dark') {
           document.documentElement.classList.add('dark');
         } else {
           document.documentElement.classList.remove('dark');
@@ -39,268 +34,142 @@
     })();
   </script>
 
+  <script src="/theme.js"></script>
+
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-  <!-- Styles -->
+  <!-- Stylesheets -->
   <link rel="stylesheet" href="style.v4.css">
-  <link rel="stylesheet" href="brian.css">
-  <link rel="stylesheet" href="/auth-ui.css">
   <link rel="stylesheet" href="/theme-overrides.css">
+  <link rel="stylesheet" href="/auth-ui.css">
 </head>
 
 <body class="apple-signin-page">
 
-  <!-- Top-Right Theme Toggle -->
-  <div style="position: fixed; top: 20px; right: 24px; z-index: 999;">
+  <!-- Top-Right Theme Toggle Button -->
+  <div class="theme-toggle-wrap">
     <button type="button" class="theme-toggle-btn" id="themeToggleBtn" aria-label="Toggle theme" title="Toggle theme">
-      <span class="theme-toggle-track">
-        <svg class="theme-icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <circle cx="12" cy="12" r="5"></circle>
-          <line x1="12" y1="1" x2="12" y2="3"></line>
-          <line x1="12" y1="21" x2="12" y2="23"></line>
-          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-          <line x1="1" y1="12" x2="3" y2="12"></line>
-          <line x1="21" y1="12" x2="23" y2="12"></line>
-          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-        </svg>
-        <svg class="theme-icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-        </svg>
-      </span>
+      <svg class="theme-icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="5"></circle>
+        <line x1="12" y1="1" x2="12" y2="3"></line>
+        <line x1="12" y1="21" x2="12" y2="23"></line>
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+        <line x1="1" y1="12" x2="3" y2="12"></line>
+        <line x1="21" y1="12" x2="23" y2="12"></line>
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+      </svg>
+      <svg class="theme-icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+      </svg>
     </button>
   </div>
 
-  <!-- =========================================
-       SIGN IN MAIN CONTAINER
-       ========================================= -->
-  <main class="apple-signin-container">
+  <!-- Sign In Card -->
+  <main class="apple-signin-card">
 
-    <div class="apple-signin-card">
+    <!-- 56px Centered Monochrome Logo -->
+    <img src="logo.jpg" alt="Semester Library" class="auth-logo">
 
-      <!-- Logo Emblem Halo -->
-      <div class="apple-emblem-halo">
-        <div class="apple-emblem-ring"></div>
-        <img src="631824E0-DFD0-462B-95E4-FEBD92499478-removebg-preview.png" alt="Semester Library" class="apple-emblem-img">
+    <h1 class="auth-title">Sign in to Semester Library</h1>
+    <p class="auth-subtext">Access notices, routines, study notes, and syllabus materials.</p>
+
+    <!-- Inline Alert Banner -->
+    <div id="authAlert" class="auth-banner" style="display: none;" role="alert">
+      <div class="auth-banner-title" id="authAlertTitle"></div>
+      <div class="auth-banner-msg" id="authAlertMsg"></div>
+      <div class="auth-banner-actions" id="authAlertActions" style="display: none;"></div>
+    </div>
+
+    <form id="loginForm" class="form" onsubmit="doLogin(event)">
+
+      <!-- Username or Email Field -->
+      <div class="field">
+        <label for="identifier" class="field-label">Username or Email</label>
+        <input type="text" id="identifier" name="identifier" class="input" placeholder="Username or email address" autocomplete="username" required>
       </div>
 
-      <!-- Heading & Subtext -->
-      <h1 class="apple-signin-headline">
-        Sign in to Semester Library
-      </h1>
+      <!-- Password Field with Inside Eye Toggle -->
+      <div class="field">
+        <div class="label-row">
+          <label for="password" class="field-label">Password</label>
+          <a href="#" id="forgotPasswordLink" class="forgot-link" onclick="openForgotPasswordModal(event)">Forgot password?</a>
+        </div>
+        <div class="field-password-wrap">
+          <input type="password" id="password" name="password" class="input" placeholder="Enter your password" autocomplete="current-password" required>
+          <button type="button" class="password-toggle" id="togglePasswordBtn" aria-label="Toggle password visibility" title="Show/Hide password">
+            <svg class="eye-open-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+            <svg class="eye-closed-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;">
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+              <line x1="1" y1="1" x2="23" y2="23"></line>
+            </svg>
+          </button>
+        </div>
+      </div>
 
-      <p class="apple-signin-subtext">
-        Access notices, routines, study notes, and syllabus materials.
+      <!-- Custom Remember Username Checkbox -->
+      <label class="checkbox-wrap" for="rememberMe">
+        <input type="checkbox" id="rememberMe" name="rememberMe" class="custom-checkbox">
+        <span>Remember username</span>
+      </label>
+
+      <!-- Full-Width Primary Sign In Button -->
+      <button type="submit" class="btn btn-primary" id="loginBtn">Sign In</button>
+
+      <!-- Terms Disclaimer (No checkbox required on login) -->
+      <p class="auth-legal-note">
+        By signing in you agree to the <a href="privacy.html" target="_blank" class="link">Privacy Policy</a> and <a href="termsandconditions.html" target="_blank" class="link">Terms &amp; Conditions</a>.
       </p>
 
-      <!-- Rich Alert Banner -->
-      <div id="authAlert" class="auth-banner" style="display: none;" role="alert">
-        <div class="auth-banner-icon" id="authAlertIcon"></div>
-        <div class="auth-banner-content">
-          <div class="auth-banner-title" id="authAlertTitle"></div>
-          <div class="auth-banner-msg" id="authAlertMsg"></div>
-          <div class="auth-banner-actions" id="authAlertActions" style="display: none;"></div>
-        </div>
-        <button type="button" class="auth-banner-close" onclick="hideAuthAlert()" aria-label="Dismiss alert">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
+      <!-- Hidden legacy error element for test compatibility -->
+      <p id="errorMsg" class="error-msg" style="display: none;"></p>
+
+      <!-- Switch to Register Link -->
+      <div class="auth-switch-text">
+        Don't have an account? <a href="register.html" class="link" style="font-weight: 600;">Create Account</a>
       </div>
 
-      <!-- Login Form -->
-      <form id="loginForm" class="apple-signin-form" onsubmit="doLogin(event)">
-
-        <div class="apple-input-group" style="margin-top: 14px;">
-
-          <!-- Username or Email Address -->
-          <div class="apple-input-row">
-            <label for="identifier" class="apple-input-label">
-              Username or Email
-            </label>
-            <input type="text" id="identifier" name="identifier" class="apple-text-field" placeholder="Username or email address"
-              autocomplete="username" required>
-          </div>
-
-          <!-- Password with Visibility Toggle -->
-          <div class="apple-input-row">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-              <label for="password" class="apple-input-label" style="margin-bottom: 0;">
-                Password
-              </label>
-              <a href="#" id="forgotPasswordLink" class="apple-text-link" style="font-size: 12px;" onclick="openForgotPasswordModal(event)">
-                Forgot password?
-              </a>
-            </div>
-
-            <div class="apple-password-field-wrap">
-              <input type="password" id="password" name="password" class="apple-text-field"
-                placeholder="Enter your password" autocomplete="current-password" required>
-              <button type="button" class="apple-password-toggle" id="togglePasswordBtn" aria-label="Toggle password visibility" title="Show/Hide password">
-                <svg class="eye-open-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                  <circle cx="12" cy="12" r="3"></circle>
-                </svg>
-                <svg class="eye-closed-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" style="display:none;">
-                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                  <line x1="1" y1="1" x2="23" y2="23"></line>
-                </svg>
-              </button>
-            </div>
-          </div>
-
-        </div>
-
-        <!-- Remember Me Checkbox -->
-        <div style="display: flex; align-items: center; justify-content: flex-start; margin: 12px 2px 6px;">
-          <label class="apple-remember-wrap" for="rememberMe" style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer; user-select: none;">
-            <input type="checkbox" id="rememberMe" name="rememberMe" class="apple-real-checkbox">
-            <span class="apple-custom-check" aria-hidden="true"></span>
-            <span class="apple-remember-text" style="font-size: 13px; color: var(--text-secondary, #86868b);">Remember username</span>
-          </label>
-        </div>
-
-        <!-- Privacy & Legal Consent Card -->
-        <div class="apple-signin-controls">
-          <label class="apple-legal-consent" for="acceptTerms">
-            <input type="checkbox" id="acceptTerms" name="acceptTerms" class="apple-real-checkbox" required>
-            <span class="apple-custom-check" aria-hidden="true"></span>
-            <span class="apple-privacy-text">
-              I agree to the
-              <a href="privacy.html" target="_blank" rel="noopener noreferrer" class="apple-text-link" onclick="event.stopPropagation()">Privacy Policy</a>
-              and
-              <a href="termsandconditions.html" target="_blank" rel="noopener noreferrer" class="apple-text-link" onclick="event.stopPropagation()">Terms &amp; Conditions</a>.
-              <span class="apple-consent-note">Governing Gandaki University academic access.</span>
-            </span>
-          </label>
-        </div>
-
-        <!-- Primary Sign In Button -->
-        <button type="submit" class="apple-primary-btn" id="loginBtn">
-          <span>Sign In</span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="apple-btn-arrow">
-            <path d="M5 12h14M12 5l7 7-7 7" />
-          </svg>
-        </button>
-
-        <!-- Hidden legacy error paragraph for backwards compatibility -->
-        <p id="errorMsg" class="error-msg" style="display: none;"></p>
-
-        <!-- Create Account link -->
-        <div style="text-align: center; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border-color, rgba(255,255,255,0.08));">
-          <span style="font-size: 13px; color: var(--text-secondary, #86868b);">Don't have an account? </span>
-          <a href="register.html" class="apple-text-link" style="font-size: 13px; font-weight: 600;">Create Account</a>
-        </div>
-
-        <!-- Support Links -->
-        <div class="apple-support-links">
-          <a href="index.html" class="apple-text-link">← Back to HomePage</a>
-          <span class="apple-link-dot">·</span>
-          <a href="routine.html" class="apple-text-link">Exam Routine</a>
-        </div>
-
-      </form>
-
-      <!-- Security Callout -->
-      <div class="apple-security-callout">
-        <div class="security-icon-wrap">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-          </svg>
-        </div>
-        <p>Protected with industry-standard cryptographic sessions &amp; Supabase Auth.</p>
+      <!-- Subtle Footer Navigation Links -->
+      <div class="auth-footer-links">
+        <a href="index.html" class="link-subtle">← Back to HomePage</a>
+        <span class="dot">·</span>
+        <a href="routine.html" class="link-subtle">Exam Routine</a>
       </div>
 
-    </div>
+    </form>
 
   </main>
 
-  <!-- In-App Password Reset Modal Popup -->
-  <div id="forgotPasswordModal" class="apple-confirm-overlay" onclick="if(event.target===this) closeForgotPasswordModal();" role="dialog" aria-modal="true" aria-labelledby="fpModalTitle">
-    <div class="apple-confirm-card">
-      <div class="apple-confirm-icon-wrap">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 2l-2 2m-1.5 1.5L10 13l-4 4-2 2-2-2 2-2 4-4 7.5-7.5M16 5l3 3M13 8l3 3"></path>
-          <circle cx="7.5" cy="16.5" r="3.5"></circle>
-        </svg>
-      </div>
-      <h2 class="apple-confirm-title" id="fpModalTitle">Reset Your Password</h2>
-      <p class="apple-confirm-desc">Enter your username or registered email address. We'll send you a secure link to reset your password.</p>
+  <!-- Reset Password Modal (Direct Child of Body) -->
+  <div id="forgotPasswordModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="fpModalTitle">
+    <div class="modal-box">
+      <h2 class="modal-title" id="fpModalTitle">Reset Your Password</h2>
+      <p class="modal-desc">Enter your username or registered email address. We'll send you a secure link to reset your password.</p>
 
-      <div id="fpAlert" class="auth-banner" style="display: none; margin-bottom: 16px; width: 100%;"></div>
+      <div id="fpAlert" class="auth-banner" style="display: none; margin-bottom: 16px;"></div>
 
-      <form id="forgotPasswordForm" onsubmit="submitForgotPassword(event)" style="width: 100%;">
-        <div class="apple-input-group" style="margin-bottom: 18px;">
-          <div class="apple-input-row">
-            <label for="fpIdentifier" class="apple-input-label">Username or Email</label>
-            <input type="text" id="fpIdentifier" class="apple-text-field" placeholder="Username or email address" required autocomplete="username">
-          </div>
+      <form id="forgotPasswordForm" class="form" onsubmit="submitForgotPassword(event)">
+        <div class="field">
+          <label for="fpIdentifier" class="field-label">Username or Email</label>
+          <input type="text" id="fpIdentifier" class="input" placeholder="Username or email address" required autocomplete="username">
         </div>
-        <div class="apple-confirm-actions">
-          <button type="button" class="apple-confirm-btn cancel" onclick="closeForgotPasswordModal()">Cancel</button>
-          <button type="submit" class="apple-confirm-btn danger" id="fpSubmitBtn">
-            <span>Send Reset Link</span>
-          </button>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeForgotPasswordModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="fpSubmitBtn">Send Reset Link</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- Brian Mascot Character -->
-  <div class="brian-wrapper" id="rickContainer" style="
-      position: fixed;
-      bottom: 16px;
-      right: 48px;
-      transform: scale(0.8);
-      transform-origin: bottom right;
-      z-index: 100;
-      pointer-events: none;
-    ">
-  </div>
-
-  <!-- Mascot Interactions -->
-  <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      const rickContainer = document.getElementById("rickContainer");
-      const emailInput = document.getElementById("identifier");
-      const passwordInput = document.getElementById("password");
-
-      // Wave arm on load
-      setTimeout(() => {
-        if (!rickContainer) return;
-        rickContainer.classList.add("wave-arm");
-        setTimeout(() => { rickContainer.classList.remove("wave-arm"); }, 1200);
-      }, 500);
-
-      if (emailInput && rickContainer) {
-        emailInput.addEventListener("focus", () => rickContainer.classList.add("look-down"));
-        emailInput.addEventListener("blur", () => rickContainer.classList.remove("look-down"));
-      }
-
-      if (passwordInput && rickContainer) {
-        passwordInput.addEventListener("focus", () => rickContainer.classList.add("hide-eyes"));
-        passwordInput.addEventListener("blur", () => rickContainer.classList.remove("hide-eyes"));
-      }
-    });
-  </script>
-
   <script src="/auth.js"></script>
   <script src="/script.js"></script>
-
-  <!-- Service Worker Registration -->
-  <script>
-    if ("serviceWorker" in navigator) {
-      window.addEventListener("load", () => {
-        navigator.serviceWorker.register("/sw.js").catch(() => {});
-      });
-    }
-  </script>
 
 </body>
 

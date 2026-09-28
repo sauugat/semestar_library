@@ -105,7 +105,7 @@ const chatUpload = multer({
   }
 });
 
-// --- Security Headers & Body Parsing ---
+// Security Headers & Body Parsing
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
@@ -113,6 +113,18 @@ app.use((req, res, next) => {
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   next();
 });
+
+// Request duration logger (active in development or when ENABLE_TIMING_LOGS is set)
+if (process.env.NODE_ENV !== 'production' || process.env.ENABLE_TIMING_LOGS === 'true') {
+  app.use((req, res, next) => {
+    const start = Date.now();
+    res.on('finish', () => {
+      const duration = Date.now() - start;
+      console.log(`[SERVER HTTP] ${req.method} ${req.originalUrl || req.url} ${res.statusCode} (${duration}ms)`);
+    });
+    next();
+  });
+}
 
 app.use(express.json({ limit: '250mb' }));
 app.use(express.urlencoded({ extended: true, limit: '250mb' }));
@@ -617,12 +629,13 @@ function requireLogin(req, res, next) {
       return next();
     }
     try {
-      const student = await db.get('SELECT studentId, role FROM students WHERE studentId = ?', req.session.studentId);
+      const student = await db.get('SELECT studentId, role, name, department, semester FROM students WHERE studentId = ?', req.session.studentId);
       if (!student) {
         if (typeof req.session.destroy === 'function') req.session.destroy(() => {});
         if (res.clearCookie) res.clearCookie('__gu_session');
         return res.status(401).json({ message: 'Authentication required. Account not found.' });
       }
+      req.student = student;
       req.session.role = student.role || 'student';
       next();
     } catch (err) {
@@ -756,7 +769,9 @@ app.post('/api/mobile/login', loginRateLimiter, async (req, res) => {
     user: {
       studentId: student.studentId,
       name: student.name,
-      role: student.role || 'student'
+      role: student.role || 'student',
+      department: student.department || 'BIT',
+      semester: student.semester || null
     }
   });
 });
@@ -766,7 +781,7 @@ app.get('/api/me', requireLogin, async (req, res) => {
     return res.json({ studentId: 'guest', name: 'Guest User', role: 'student', isAdmin: false });
   }
 
-  const student = await db.get('SELECT studentId, name, role FROM students WHERE studentId = ?', req.session.studentId);
+  const student = req.student || await db.get('SELECT studentId, name, role, department, semester FROM students WHERE studentId = ?', req.session.studentId);
 
   if (!student) {
     req.session.destroy(() => { });
@@ -775,7 +790,7 @@ app.get('/api/me', requireLogin, async (req, res) => {
 
   const role = student.role || 'student';
   const isAdmin = role === 'admin';
-  res.json({ studentId: student.studentId, name: student.name, role, isAdmin });
+  res.json({ studentId: student.studentId, name: student.name, role, isAdmin, department: student.department || 'BIT', semester: student.semester || null });
 });
 
 app.post('/api/change-password', requireLogin, async (req, res) => {
@@ -1755,7 +1770,6 @@ app.post('/api/files/record-upload', requireLogin, async (req, res) => {
 });
 
 app.get('/api/files', requireLogin, async (req, res) => {
-  const viewerIsAdmin = await isStudentAdmin(req.session.studentId);
   const limit = req.query.limit ? Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 200) : null;
   const offset = req.query.offset ? Math.max(parseInt(req.query.offset, 10) || 0, 0) : 0;
 
@@ -1770,13 +1784,15 @@ app.get('/api/files', requireLogin, async (req, res) => {
     ORDER BY files.uploadedAt DESC
   `;
 
-  let files;
   if (limit !== null) {
     query += ` LIMIT ${limit} OFFSET ${offset}`;
-    files = await db.all(query, req.session.studentId);
-  } else {
-    files = await db.all(query, req.session.studentId);
   }
+
+  // Parallelize admin verification and files database query
+  const [viewerIsAdmin, files] = await Promise.all([
+    req.student ? Promise.resolve(req.student.role === 'admin') : isStudentAdmin(req.session.studentId),
+    db.all(query, req.session.studentId)
+  ]);
 
   const processed = files.map(f => ({
     ...f,
@@ -2354,39 +2370,43 @@ app.get('/api/chat/config', requireLogin, (req, res) => {
 });
 
 app.get('/api/chat/messages', requireLogin, async (req, res) => {
-  const since = parseInt(req.query.since) || 0;
+  const since = parseInt(req.query.since || req.query.after) || 0;
   const before = parseInt(req.query.before) || 0;
   const limit = Math.min(parseInt(req.query.limit) || (before ? 35 : 200), 200);
 
-  let messages;
-  // Initial loads start at the newest page; older history is loaded on demand.
+  // Parallelize reading messages and read receipts concurrently
+  const messagesPromise = (before > 0 || since === 0)
+    ? db.all(`
+        SELECT chat_messages.id, chat_messages.text, chat_messages.attachmentName, chat_messages.attachmentOriginalName, chat_messages.attachmentMimeType, chat_messages.replyToId, chat_messages.createdAt,
+          students.studentId, students.name, students.avatarUrl,
+          reply_msg.text AS replyText, reply_student.name AS replySender
+        FROM chat_messages
+        LEFT JOIN students ON students.studentId = chat_messages.studentId
+        LEFT JOIN chat_messages AS reply_msg ON reply_msg.id = chat_messages.replyToId
+        LEFT JOIN students AS reply_student ON reply_student.studentId = reply_msg.studentId
+        ${before > 0 ? 'WHERE chat_messages.id < ?' : ''}
+        ORDER BY chat_messages.id DESC
+        LIMIT ?
+      `, ...(before > 0 ? [before, limit] : [limit]))
+    : db.all(`
+        SELECT chat_messages.id, chat_messages.text, chat_messages.attachmentName, chat_messages.attachmentOriginalName, chat_messages.attachmentMimeType, chat_messages.replyToId, chat_messages.createdAt,
+          students.studentId, students.name, students.avatarUrl,
+          reply_msg.text AS replyText, reply_student.name AS replySender
+        FROM chat_messages
+        LEFT JOIN students ON students.studentId = chat_messages.studentId
+        LEFT JOIN chat_messages AS reply_msg ON reply_msg.id = chat_messages.replyToId
+        LEFT JOIN students AS reply_student ON reply_student.studentId = reply_msg.studentId
+        WHERE chat_messages.id > ?
+        ORDER BY chat_messages.id ASC
+        LIMIT ?
+      `, since, limit);
+
+  const readReceiptsPromise = db.all(`SELECT studentId, lastReadMessageId FROM chat_read_receipts`);
+
+  const [rawMessages, readReceipts] = await Promise.all([messagesPromise, readReceiptsPromise]);
+  let messages = rawMessages;
   if (before > 0 || since === 0) {
-    messages = await db.all(`
-      SELECT chat_messages.id, chat_messages.text, chat_messages.attachmentName, chat_messages.attachmentOriginalName, chat_messages.attachmentMimeType, chat_messages.replyToId, chat_messages.createdAt,
-        students.studentId, students.name, students.avatarUrl,
-        reply_msg.text AS replyText, reply_student.name AS replySender
-      FROM chat_messages
-      LEFT JOIN students ON students.studentId = chat_messages.studentId
-      LEFT JOIN chat_messages AS reply_msg ON reply_msg.id = chat_messages.replyToId
-      LEFT JOIN students AS reply_student ON reply_student.studentId = reply_msg.studentId
-      ${before > 0 ? 'WHERE chat_messages.id < ?' : ''}
-      ORDER BY chat_messages.id DESC
-      LIMIT ?
-    `, ...(before > 0 ? [before, limit] : [limit]));
     messages.reverse(); // restore chronological order
-  } else {
-    messages = await db.all(`
-      SELECT chat_messages.id, chat_messages.text, chat_messages.attachmentName, chat_messages.attachmentOriginalName, chat_messages.attachmentMimeType, chat_messages.replyToId, chat_messages.createdAt,
-        students.studentId, students.name, students.avatarUrl,
-        reply_msg.text AS replyText, reply_student.name AS replySender
-      FROM chat_messages
-      LEFT JOIN students ON students.studentId = chat_messages.studentId
-      LEFT JOIN chat_messages AS reply_msg ON reply_msg.id = chat_messages.replyToId
-      LEFT JOIN students AS reply_student ON reply_student.studentId = reply_msg.studentId
-      WHERE chat_messages.id > ?
-      ORDER BY chat_messages.id ASC
-      LIMIT ?
-    `, since, limit);
   }
 
   const messageIds = messages.map(m => m.id);
@@ -2403,23 +2423,33 @@ app.get('/api/chat/messages', requireLogin, async (req, res) => {
     });
   }
 
-  const readReceipts = await db.all(`SELECT studentId, lastReadMessageId FROM chat_read_receipts`);
-
   res.json({ messages, readReceipts });
 });
 
-// Class Group Members endpoint
 app.get('/api/chat/members', requireLogin, async (req, res) => {
   try {
-    const members = await db.all(`
-      SELECT s.studentId, s.name, s.avatarUrl, s.semester, s.department, s.role,
-        r.lastReadMessageId,
-        (SELECT MAX(createdAt) FROM chat_messages WHERE studentId = s.studentId) AS lastMessageAt
-      FROM students s
-      LEFT JOIN chat_read_receipts r ON r.studentId = s.studentId
-      ORDER BY s.name ASC
-    `);
-    res.json({ total: members.length, members });
+    const [members, lastMessages] = await Promise.all([
+      db.all(`
+        SELECT s.studentId, s.name, s.avatarUrl, s.semester, s.department, s.role,
+          r.lastReadMessageId
+        FROM students s
+        LEFT JOIN chat_read_receipts r ON r.studentId = s.studentId
+        ORDER BY s.name ASC
+      `),
+      db.all(`
+        SELECT studentId, MAX(createdAt) AS lastMessageAt
+        FROM chat_messages
+        GROUP BY studentId
+      `)
+    ]);
+
+    const lastMsgMap = new Map((lastMessages || []).map(m => [m.studentId, m.lastMessageAt]));
+    const combined = (members || []).map(m => ({
+      ...m,
+      lastMessageAt: lastMsgMap.get(m.studentId) || null
+    }));
+
+    res.json({ total: combined.length, members: combined });
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch members' });
   }

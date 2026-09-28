@@ -53,7 +53,7 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
   router.use(async (req, res, next) => {
     try {
       await db.initSchema();
-      req.postUser = await db.get('SELECT studentId, role FROM students WHERE studentId = ?', req.session.studentId);
+      req.postUser = req.student || await db.get('SELECT studentId, role FROM students WHERE studentId = ?', req.session.studentId);
       if (!req.postUser && req.method !== 'GET') {
         return res.status(403).json({ message: 'Sign in with a student account to post or like.' });
       }

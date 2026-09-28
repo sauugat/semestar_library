@@ -1,9 +1,13 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { router } from 'expo-router';
+import { clearChatDb } from '@/services/chat-db';
+import { initChatRealtime, disconnectChatRealtime } from '@/services/chat-realtime';
+import { clearAppQueryCache } from '@/services/query-client';
 
 export const DEFAULT_SERVER_URL = 'http://192.168.1.65:3000';
 const TOKEN_KEY = 'semester_library_mobile_token';
+const USER_KEY = 'semester_library_mobile_user';
 const SERVER_URL_KEY = 'semester_library_server_url';
 
 export interface StudentUser {
@@ -12,6 +16,8 @@ export interface StudentUser {
   role: string;
   isAdmin?: boolean;
   avatarUrl?: string;
+  department?: string;
+  semester?: string;
 }
 
 interface AuthContextType {
@@ -32,43 +38,72 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [serverUrl, setServerUrl] = useState<string>(DEFAULT_SERVER_URL);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Initialize auth state on app load
+  // Initialize auth state on app load without blocking first render
   useEffect(() => {
     let isMounted = true;
 
     async function initializeAuth() {
       try {
-        // 1. Load custom server URL if previously configured
+        // 1. Load custom server URL if configured
         const savedUrl = await SecureStore.getItemAsync(SERVER_URL_KEY);
         const activeUrl = savedUrl || DEFAULT_SERVER_URL;
         if (isMounted) setServerUrl(activeUrl);
 
-        // 2. Load stored token
+        // 2. Load stored token & cached user profile
         const storedToken = await SecureStore.getItemAsync(TOKEN_KEY);
-        if (storedToken) {
-          // Verify token against /api/me
-          try {
-            const res = await fetch(`${activeUrl}/api/me`, {
-              headers: {
-                'Authorization': `Bearer ${storedToken}`,
-                'Accept': 'application/json',
-              },
-            });
+        const storedUserJson = await SecureStore.getItemAsync(USER_KEY);
 
-            if (res.status === 200) {
-              const userData: StudentUser = await res.json();
-              if (isMounted) {
-                setToken(storedToken);
-                setUser(userData);
-              }
-            } else {
-              // Token invalid or expired
-              await SecureStore.deleteItemAsync(TOKEN_KEY);
-            }
-          } catch (netErr) {
-            // In case device is temporarily offline, keep token session
-            if (isMounted) setToken(storedToken);
+        if (storedToken) {
+          let cachedUser: StudentUser | null = null;
+          if (storedUserJson) {
+            try {
+              cachedUser = JSON.parse(storedUserJson);
+            } catch {}
           }
+
+          if (isMounted) {
+            setToken(storedToken);
+            if (cachedUser) setUser(cachedUser);
+            // CRITICAL: Unblock UI render immediately with cached credentials (0ms delay)
+            setIsLoading(false);
+          }
+
+          // 3. Verify token against /api/me in the background
+          void (async () => {
+            try {
+              const res = await fetch(`${activeUrl}/api/me`, {
+                headers: {
+                  Authorization: `Bearer ${storedToken}`,
+                  Accept: 'application/json',
+                },
+              });
+
+              if (res.status === 200) {
+                const freshUser: StudentUser = await res.json();
+                if (isMounted) {
+                  setUser(freshUser);
+                }
+                await SecureStore.setItemAsync(USER_KEY, JSON.stringify(freshUser));
+                // Pre-warm realtime connection in background
+                void initChatRealtime(freshUser.studentId);
+              } else if (res.status === 401) {
+                // Token invalid or revoked
+                await SecureStore.deleteItemAsync(TOKEN_KEY);
+                await SecureStore.deleteItemAsync(USER_KEY);
+                if (isMounted) {
+                  setToken(null);
+                  setUser(null);
+                  router.replace('/login');
+                }
+              }
+            } catch {
+              // Network error: maintain cached session
+              if (cachedUser) {
+                void initChatRealtime(cachedUser.studentId);
+              }
+            }
+          })();
+          return;
         }
       } catch (err) {
         console.warn('Auth initialization error:', err);
@@ -90,7 +125,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json',
+          Accept: 'application/json',
         },
         body: JSON.stringify({
           studentId: studentId.trim(),
@@ -102,11 +137,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (res.status === 200 && data.token) {
         await SecureStore.setItemAsync(TOKEN_KEY, data.token);
+        if (data.user) {
+          await SecureStore.setItemAsync(USER_KEY, JSON.stringify(data.user));
+        }
         if (customUrl && customUrl !== serverUrl) {
           await updateServerUrl(customUrl);
         }
         setToken(data.token);
         setUser(data.user);
+
+        // Pre-warm realtime in background right after login
+        if (data.user?.studentId) {
+          void initChatRealtime(data.user.studentId);
+        }
+
         router.replace('/(tabs)');
         return { success: true };
       } else {
@@ -129,12 +173,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await fetch(`${serverUrl}/api/mobile/logout`, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/json',
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/json',
           },
         }).catch(() => {});
       }
       await SecureStore.deleteItemAsync(TOKEN_KEY);
+      await SecureStore.deleteItemAsync(USER_KEY);
+      // Clean up local chat database and query caches so next user sees fresh data
+      await clearChatDb();
+      await clearAppQueryCache();
+      await disconnectChatRealtime();
     } catch (e) {
       console.warn('Logout error:', e);
     } finally {

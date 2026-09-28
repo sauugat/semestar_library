@@ -42,6 +42,95 @@ import {
 } from '@/services/posts';
 import { getBaseUrl } from '@/services/api';
 import { SearchOverlay } from '@/components/SearchOverlay';
+import { initChatRealtime } from '@/services/chat-realtime';
+import { getCachedChatMessages, upsertChatMessages } from '@/services/chat-db';
+import { fetchChatMessages } from '@/services/chat';
+
+function FeedSkeletonCard({ colors, radii }: { colors: any; radii: any }) {
+  return (
+    <View
+      style={{
+        backgroundColor: colors.surfaceRaised,
+        borderRadius: radii.lg,
+        padding: 16,
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: colors.border,
+      }}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+        <View
+          style={{
+            width: 38,
+            height: 38,
+            borderRadius: 19,
+            backgroundColor: colors.surfaceSubtle,
+            marginRight: 10,
+          }}
+        />
+        <View style={{ flex: 1 }}>
+          <View
+            style={{
+              width: 120,
+              height: 14,
+              borderRadius: 4,
+              backgroundColor: colors.surfaceSubtle,
+              marginBottom: 6,
+            }}
+          />
+          <View
+            style={{
+              width: 70,
+              height: 10,
+              borderRadius: 3,
+              backgroundColor: colors.surfaceSubtle,
+            }}
+          />
+        </View>
+      </View>
+      <View
+        style={{
+          width: '90%',
+          height: 12,
+          borderRadius: 3,
+          backgroundColor: colors.surfaceSubtle,
+          marginBottom: 8,
+        }}
+      />
+      <View
+        style={{
+          width: '75%',
+          height: 12,
+          borderRadius: 3,
+          backgroundColor: colors.surfaceSubtle,
+          marginBottom: 8,
+        }}
+      />
+      <View
+        style={{
+          width: '50%',
+          height: 12,
+          borderRadius: 3,
+          backgroundColor: colors.surfaceSubtle,
+          marginBottom: 14,
+        }}
+      />
+      <View
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          borderTopWidth: 1,
+          borderTopColor: colors.border,
+          paddingTop: 10,
+        }}
+      >
+        <View style={{ width: 50, height: 16, borderRadius: 4, backgroundColor: colors.surfaceSubtle }} />
+        <View style={{ width: 50, height: 16, borderRadius: 4, backgroundColor: colors.surfaceSubtle }} />
+        <View style={{ width: 50, height: 16, borderRadius: 4, backgroundColor: colors.surfaceSubtle }} />
+      </View>
+    </View>
+  );
+}
 
 function formatFileSize(bytes: number | string): string {
   const b = Number(bytes) || 0;
@@ -400,6 +489,7 @@ export default function HomeScreen() {
   const [postType, setPostType] = useState<'status' | 'notice' | 'assignment'>('status');
   const [isOfficialNotice, setIsOfficialNotice] = useState(false);
   const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
+  const [selectedImageAsset, setSelectedImageAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [submittingPost, setSubmittingPost] = useState(false);
   const [composerError, setComposerError] = useState<string | null>(null);
 
@@ -419,6 +509,23 @@ export default function HomeScreen() {
       ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
     };
   }, [viewerImageUri]);
+
+  // Prefetch and pre-warm chat realtime connection and delta in background while user views Home
+  useEffect(() => {
+    if (user?.studentId) {
+      void initChatRealtime(user.studentId);
+      void getCachedChatMessages(50).then((cached) => {
+        const newestId = cached.length > 0 ? Math.max(...cached.map((m) => m.id).filter((id) => id > 0)) : 0;
+        if (newestId > 0) {
+          void fetchChatMessages({ since: newestId, limit: 50 }).then((delta) => {
+            if (delta.messages?.length) {
+              void upsertChatMessages(delta.messages);
+            }
+          }).catch(() => {});
+        }
+      }).catch(() => {});
+    }
+  }, [user?.studentId]);
 
   // Post options menu & Toast states
   const [selectedMenuPost, setSelectedMenuPost] = useState<Post | null>(null);
@@ -663,6 +770,7 @@ export default function HomeScreen() {
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         setSelectedImageUri(result.assets[0].uri);
+        setSelectedImageAsset(result.assets[0]);
       }
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Could not select image.');
@@ -684,6 +792,7 @@ export default function HomeScreen() {
         type: isPrivileged ? postType : 'status',
         official: isPrivileged && postType === 'notice' && isOfficialNotice,
         imageUri: selectedImageUri,
+        image: selectedImageAsset,
       });
 
       setPosts((prev) => [newPost, ...prev]);
@@ -694,6 +803,7 @@ export default function HomeScreen() {
 
       setPostContent('');
       setSelectedImageUri(null);
+      setSelectedImageAsset(null);
       setPostType('status');
       setIsOfficialNotice(false);
       setComposerOpen(false);
@@ -1444,11 +1554,10 @@ export default function HomeScreen() {
   const renderEmpty = () => {
     if (loadingInitial) {
       return (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={colors.text} />
-          <Text variant="sm" color="secondary" style={{ marginTop: spacing.md }}>
-            Loading campus feed...
-          </Text>
+        <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.sm }}>
+          <FeedSkeletonCard colors={colors} radii={radii} />
+          <FeedSkeletonCard colors={colors} radii={radii} />
+          <FeedSkeletonCard colors={colors} radii={radii} />
         </View>
       );
     }
@@ -1772,7 +1881,10 @@ export default function HomeScreen() {
 
                 {selectedImageUri && (
                   <TouchableOpacity
-                    onPress={() => setSelectedImageUri(null)}
+                    onPress={() => {
+                      setSelectedImageUri(null);
+                      setSelectedImageAsset(null);
+                    }}
                     style={{ padding: 8 }}
                   >
                     <Text variant="xs" color="secondary">

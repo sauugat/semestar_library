@@ -14,7 +14,9 @@ test.before(async () => {
   // Create a dedicated test student
   const testHash = bcrypt.hashSync('testMobilePass123', 10);
   await db.run(
-    'INSERT OR REPLACE INTO students (studentId, name, passwordHash, role) VALUES (?, ?, ?, ?)',
+    `INSERT INTO students (studentId, name, passwordHash, role)
+     VALUES (?, ?, ?, ?)
+     ON CONFLICT (studentId) DO UPDATE SET passwordHash = EXCLUDED.passwordHash, role = EXCLUDED.role`,
     'stu_mobile_test', 'Mobile Student', testHash, 'student'
   );
 
@@ -161,7 +163,9 @@ test('Mobile Auth: Expired token is rejected and pruned', async () => {
   const pastDate = new Date(Date.now() - 60 * 1000).toISOString();
 
   await db.run(
-    'INSERT OR REPLACE INTO mobile_tokens (token, studentId, createdAt, expiresAt) VALUES (?, ?, ?, ?)',
+    `INSERT INTO mobile_tokens (token, studentId, createdAt, expiresAt)
+     VALUES (?, ?, ?, ?)
+     ON CONFLICT (token) DO UPDATE SET studentId = EXCLUDED.studentId, createdAt = EXCLUDED.createdAt, expiresAt = EXCLUDED.expiresAt`,
     expiredToken, 'stu_mobile_test', pastDate, pastDate
   );
 

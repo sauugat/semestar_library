@@ -65,7 +65,8 @@ export default function TabLayout() {
         name="chat"
         options={{
           title: 'Chat',
-          headerTitle: 'Discussions & AI',
+          headerShown: false,
+          tabBarStyle: { display: 'none' },
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? 'chatbubbles' : 'chatbubbles-outline'}

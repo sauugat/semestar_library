@@ -1,4 +1,5 @@
 import { api, apiFetch, ApiError, getBaseUrl } from './api';
+import { normalizeUploadFile, validateFileSize } from '../utils/file-upload';
 
 export interface LibrarySubject {
   subject: string;
@@ -150,6 +151,7 @@ export interface UploadNoteParams {
   fileUri: string;
   fileName: string;
   fileType?: string;
+  fileSize?: number;
   title?: string;
   semester: string;
   subject: string;
@@ -167,12 +169,24 @@ export interface UploadNoteResponse {
  * Endpoint: POST /api/files/upload
  */
 export async function uploadNote(params: UploadNoteParams): Promise<UploadNoteResponse> {
+  const normalized = normalizeUploadFile(
+    {
+      uri: params.fileUri,
+      name: params.fileName,
+      type: params.fileType,
+      size: params.fileSize,
+    },
+    'note.pdf'
+  );
+
+  validateFileSize(normalized.size, 250 * 1024 * 1024, 'Document');
+
   const formData = new FormData();
 
   formData.append('files', {
-    uri: params.fileUri,
-    name: params.fileName,
-    type: params.fileType || 'application/octet-stream',
+    uri: normalized.uri,
+    name: normalized.name,
+    type: normalized.type || 'application/octet-stream',
   } as any);
 
   if (params.title && params.title.trim()) {

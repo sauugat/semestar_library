@@ -26,6 +26,7 @@ import {
   ChapterItem,
 } from '@/constants/subjects.config';
 import { uploadNote, getLibraryStats, LibraryStat } from '@/services/library';
+import { normalizeUploadFile, validateFileSize } from '@/utils/file-upload';
 
 function isMatchingSemester(dbSemester: string | null | undefined, semItem: SemesterItem): boolean {
   if (!dbSemester) return false;
@@ -209,22 +210,25 @@ export function UploadNoteModal({
 
       if (!res.canceled && res.assets && res.assets.length > 0) {
         const asset = res.assets[0];
+        const normalized = normalizeUploadFile(asset, 'note.pdf');
+        validateFileSize(normalized.size, 250 * 1024 * 1024, 'Document');
+
         setSelectedFile({
-          uri: asset.uri,
-          name: asset.name,
-          size: asset.size,
-          mimeType: asset.mimeType,
+          uri: normalized.uri,
+          name: normalized.name,
+          size: normalized.size,
+          mimeType: normalized.type,
         });
 
         // If title is currently empty, prefill with clean file name
         if (!title.trim()) {
-          const cleanName = asset.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+          const cleanName = normalized.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
           setTitle(cleanName);
         }
       }
     } catch (err: any) {
       console.error('File pick error:', err);
-      setErrorMsg('Could not open file picker. Please try again.');
+      setErrorMsg(err.message || 'Could not open file picker. Please try again.');
     }
   };
 
@@ -253,6 +257,7 @@ export function UploadNoteModal({
         fileUri: selectedFile.uri,
         fileName: selectedFile.name,
         fileType: selectedFile.mimeType,
+        fileSize: selectedFile.size,
         title: title.trim() || undefined,
         semester: currentSemester.label,
         subject: effectiveSubject,

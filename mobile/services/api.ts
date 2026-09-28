@@ -1,5 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 import { router } from 'expo-router';
+import Constants from 'expo-constants';
 
 export const DEFAULT_SERVER_URL = 'http://192.168.1.65:3000';
 export const TOKEN_STORAGE_KEY = 'semester_library_mobile_token';
@@ -17,12 +18,25 @@ export class ApiError extends Error {
   }
 }
 
+export function getAutoDetectedServerUrl(): string {
+  try {
+    const hostUri = Constants.expoConfig?.hostUri || (Constants as any).manifest2?.extra?.expoGo?.debuggerHost;
+    if (hostUri) {
+      const host = hostUri.split(':')[0];
+      if (host) {
+        return `http://${host}:3000`;
+      }
+    }
+  } catch {}
+  return DEFAULT_SERVER_URL;
+}
+
 export async function getBaseUrl(): Promise<string> {
   try {
     const saved = await SecureStore.getItemAsync(SERVER_URL_STORAGE_KEY);
-    return saved ? saved.trim().replace(/\/+$/, '') : DEFAULT_SERVER_URL;
+    return saved ? saved.trim().replace(/\/+$/, '') : getAutoDetectedServerUrl();
   } catch {
-    return DEFAULT_SERVER_URL;
+    return getAutoDetectedServerUrl();
   }
 }
 
@@ -49,29 +63,75 @@ export async function apiFetch(
 
   const url = endpoint.startsWith('http') ? endpoint : `${baseUrl}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
 
-  const headers = new Headers(options.headers || {});
+  // Prepare headers as a plain dictionary for React Native fetch / Hermes compatibility
+  const headers: Record<string, string> = {};
 
-  if (!headers.has('Accept')) {
-    headers.set('Accept', 'application/json');
+  if (options.headers) {
+    if (typeof (options.headers as any).forEach === 'function') {
+      (options.headers as any).forEach((value: string, key: string) => {
+        headers[key] = value;
+      });
+    } else if (Array.isArray(options.headers)) {
+      options.headers.forEach(([key, value]) => {
+        headers[key] = value;
+      });
+    } else {
+      Object.assign(headers, options.headers);
+    }
   }
 
-  if (token && !headers.has('Authorization')) {
-    headers.set('Authorization', `Bearer ${token}`);
+  // Set default Accept header if not explicitly provided
+  const hasAccept = Object.keys(headers).some((k) => k.toLowerCase() === 'accept');
+  if (!hasAccept) {
+    headers['Accept'] = 'application/json';
   }
 
-  if (options.body && typeof options.body === 'string' && !headers.has('Content-Type')) {
-    headers.set('Content-Type', 'application/json');
+  // Set Authorization header if token exists and not already provided
+  const hasAuth = Object.keys(headers).some((k) => k.toLowerCase() === 'authorization');
+  if (token && !hasAuth) {
+    headers['Authorization'] = `Bearer ${token}`;
   }
 
+  // Check if body is FormData
+  const isFormData =
+    (typeof FormData !== 'undefined' && options.body instanceof FormData) ||
+    Boolean((options.body as any)?._parts);
+
+  if (isFormData) {
+    // CRITICAL: Do NOT set Content-Type header on FormData.
+    // React Native's fetch will automatically generate multipart/form-data with the correct boundary.
+    for (const key of Object.keys(headers)) {
+      if (key.toLowerCase() === 'content-type') {
+        delete headers[key];
+      }
+    }
+  } else if (options.body && typeof options.body === 'string') {
+    const hasContentType = Object.keys(headers).some((k) => k.toLowerCase() === 'content-type');
+    if (!hasContentType) {
+      headers['Content-Type'] = 'application/json';
+    }
+  }
+
+  const startTime = Date.now();
   let response: Response;
   try {
     response = await fetch(url, {
       ...options,
       headers,
     });
+    const duration = Date.now() - startTime;
+    if (__DEV__) {
+      console.log(`[CLIENT API] ${options.method || 'GET'} ${endpoint} -> ${response.status} (${duration}ms)`);
+    }
   } catch (netErr: any) {
+    const duration = Date.now() - startTime;
+    if (__DEV__) {
+      console.log(`[CLIENT API FAILED] ${options.method || 'GET'} ${endpoint} (${duration}ms):`, netErr?.message);
+    }
+    if (netErr instanceof ApiError) throw netErr;
+    const msg = netErr?.message || 'Network request failed';
     throw new ApiError(
-      `Cannot connect to server at ${baseUrl}. Ensure your phone and computer are on the same Wi-Fi.`,
+      `${msg} (Cannot connect to server at ${baseUrl}. Ensure your phone and computer are on the same Wi-Fi.)`,
       0
     );
   }
@@ -99,10 +159,15 @@ export const api = {
   },
 
   post: async <T = any>(endpoint: string, body?: any, options: RequestInit = {}): Promise<T> => {
+    const isFormData =
+      (typeof FormData !== 'undefined' && body instanceof FormData) ||
+      Boolean((body as any)?._parts);
+    const reqBody = isFormData ? body : body !== undefined ? JSON.stringify(body) : undefined;
+
     const res = await apiFetch(endpoint, {
       ...options,
       method: 'POST',
-      body: body ? JSON.stringify(body) : undefined,
+      body: reqBody,
     });
     if (!res.ok) {
       const errBody = await res.json().catch(() => ({}));

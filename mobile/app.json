@@ -36,7 +36,22 @@
       ],
       "expo-secure-store",
       "expo-sharing",
-      "expo-image"
+      "expo-image",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Choose photos to share with your class.",
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Access photos you choose to share with your class.",
+          "savePhotosPermission": "Save images from your class conversation to Photos."
+        }
+      ],
+      "expo-sqlite"
     ],
     "experiments": {
       "typedRoutes": true

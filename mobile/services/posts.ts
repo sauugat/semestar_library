@@ -1,5 +1,6 @@
 import { api, apiFetch, ApiError, getBaseUrl } from './api';
 import { LibraryFile, toggleFileLike } from './library';
+import { normalizeUploadFile, validateFileSize, RawFileAsset } from '../utils/file-upload';
 
 export type { LibraryFile };
 export { toggleFileLike };
@@ -8,6 +9,7 @@ export interface CreatePostParams {
   content: string;
   type?: 'status' | 'assignment' | 'notice';
   imageUri?: string | null;
+  image?: RawFileAsset | null;
   official?: boolean;
 }
 
@@ -131,23 +133,15 @@ export async function createPost(params: CreatePostParams): Promise<Post> {
     formData.append('official', 'true');
   }
 
-  if (params.imageUri) {
-    const filename = params.imageUri.split('/').pop() || 'photo.jpg';
-    const match = /\.(\w+)$/.exec(filename);
-    const ext = match ? match[1].toLowerCase() : 'jpg';
-    const mimeType =
-      ext === 'png'
-        ? 'image/png'
-        : ext === 'gif'
-        ? 'image/gif'
-        : ext === 'webp'
-        ? 'image/webp'
-        : 'image/jpeg';
+  const rawImage = params.image || (params.imageUri ? { uri: params.imageUri } : null);
+  if (rawImage && rawImage.uri) {
+    const normalized = normalizeUploadFile(rawImage, `post_${Date.now()}.jpg`);
+    validateFileSize(normalized.size, 5 * 1024 * 1024, 'Post image');
 
     formData.append('image', {
-      uri: params.imageUri,
-      name: filename,
-      type: mimeType,
+      uri: normalized.uri,
+      name: normalized.name,
+      type: normalized.type,
     } as any);
   }
 

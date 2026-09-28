@@ -781,11 +781,11 @@ export default function LibraryScreen() {
 
           {/* Subjects List */}
           {subjects.map((subject) => {
-            const unitCount = subject.chapters.filter((c) => !c.isSpecial).length;
+            const unitCount = (subject.chapters || []).filter((c) => !c.isSpecial).length;
 
             return (
               <Card
-                key={subject.code}
+                key={`${subject.code}-${subject.title}`}
                 variant="elevated"
                 padding="md"
                 onPress={() => handleSelectSubject(subject)}

@@ -318,6 +318,8 @@ async function initSchema() {
             studentId TEXT PRIMARY KEY,
             name TEXT NOT NULL,
             passwordHash TEXT NOT NULL,
+            email TEXT,
+            supabase_uid TEXT,
             avatarUrl TEXT,
             bio TEXT,
             department TEXT DEFAULT 'BIT',
@@ -523,6 +525,8 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
             studentId TEXT PRIMARY KEY,
             name TEXT NOT NULL,
             passwordHash TEXT NOT NULL,
+            email TEXT,
+            supabase_uid TEXT,
             avatarUrl TEXT,
             bio TEXT,
             department TEXT DEFAULT 'BIT',
@@ -750,6 +754,10 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
       // One-time migration for tables that existed before subject/stdout/stderr columns were added
       try {
         if (isPostgres) {
+          await exec(`ALTER TABLE students ADD COLUMN IF NOT EXISTS email TEXT;`);
+          await exec(`ALTER TABLE students ADD COLUMN IF NOT EXISTS supabase_uid TEXT;`);
+          await exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_students_email ON students (email) WHERE email IS NOT NULL;`);
+          await exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_students_supabase_uid ON students (supabase_uid) WHERE supabase_uid IS NOT NULL;`);
           await exec(`ALTER TABLE assignments ADD COLUMN IF NOT EXISTS subject TEXT;`);
           await exec(`ALTER TABLE assignments ADD COLUMN IF NOT EXISTS semester TEXT;`);
           await exec(`ALTER TABLE assignments ADD COLUMN IF NOT EXISTS deadline TEXT;`);
@@ -800,6 +808,13 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
             console.error('[DB Engine]: Constraint migration warning:', constraintErr.message);
           }
         } else {
+          const studentCols = await all(`PRAGMA table_info(students)`);
+          const studentColNames = studentCols.map(c => c.name);
+          if (!studentColNames.includes('email')) await exec(`ALTER TABLE students ADD COLUMN email TEXT;`);
+          if (!studentColNames.includes('supabase_uid')) await exec(`ALTER TABLE students ADD COLUMN supabase_uid TEXT;`);
+          await exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_students_email ON students (email);`);
+          await exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_students_supabase_uid ON students (supabase_uid);`);
+
           const cols = await all(`PRAGMA table_info(submissions)`);
           const colNames = cols.map(c => c.name);
           if (!colNames.includes('stdout')) await exec(`ALTER TABLE submissions ADD COLUMN stdout TEXT;`);

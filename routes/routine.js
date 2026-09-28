@@ -5,7 +5,10 @@ module.exports = function createRoutineRouter(db, requireLogin, { invalidateCach
   const router = express.Router();
   const handle = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
   const requireAdmin = handle(async (req, res, next) => {
-    const student = await db.get('SELECT role FROM students WHERE studentId = ?', req.session.studentId);
+    const role = (req.user && req.user.role) || (req.session && req.session.role);
+    if (role === 'admin') return next();
+    const studentId = (req.user && req.user.studentId) || (req.session && req.session.studentId);
+    const student = await db.get('SELECT role FROM students WHERE studentId = ?', studentId);
     if (!student || student.role !== 'admin') return res.status(403).json({ error: 'Only admins can manage the routine.' });
     next();
   });

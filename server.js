@@ -302,51 +302,12 @@ app.use(async (req, res, next) => {
   next();
 });
 
-// Mobile Bearer Token Authentication Middleware
-// Allows mobile apps (React Native / Expo) to authenticate using Authorization: Bearer <token>
-// Runs alongside session cookies; does not interfere with browser sessions
-app.use(async (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  let token = null;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    token = authHeader.substring(7).trim();
-  } else if (req.query && typeof req.query.token === 'string' && req.query.token.trim()) {
-    token = req.query.token.trim();
-  }
-  if (token) {
-    try {
-      const tokenRecord = await db.get(
-        'SELECT token, studentId, expiresAt FROM mobile_tokens WHERE token = ?',
-        token
-      );
-        if (tokenRecord) {
-          const rawExpiry = tokenRecord.expiresAt || tokenRecord.expiresat;
-          const expiresAt = new Date(rawExpiry).getTime();
-          if (expiresAt > Date.now()) {
-            const sid = tokenRecord.studentId || tokenRecord.studentid;
-            const student = await db.get(
-              'SELECT studentId, name, role FROM students WHERE studentId = ?',
-              sid
-            );
-            if (student) {
-              if (!req.session) req.session = {};
-              req.session.studentId = student.studentId;
-              req.session.studentName = student.name;
-              req.session.role = student.role || 'student';
-              req.user = student;
-              req.mobileToken = token;
-            }
-          } else {
-            // Delete expired token asynchronously
-            db.run('DELETE FROM mobile_tokens WHERE token = ?', token).catch(() => {});
-          }
-        }
-    } catch (err) {
-      console.error('[Mobile Auth Middleware Error]:', err.message);
-    }
-  }
-  next();
-});
+// Unified Authentication Middleware
+// Verifies Supabase Bearer JWTs for the web application,
+// and preserves legacy mobile Bearer tokens for the mobile app.
+const { createAuthMiddleware } = require('./lib/auth-middleware');
+const auth = createAuthMiddleware(db);
+app.use(auth.authenticate);
 
 // CSRF / Origin Guard on state-changing requests
 app.use((req, res, next) => {
@@ -541,14 +502,12 @@ app.use((req, res, next) => {
   next();
 });
 
-// Clean URL Aliases for Protected and Public Pages
+// Clean URL Aliases for Protected and Public Pages (Static shells guarded client-side by Supabase)
 app.get('/dashboard', (req, res) => {
-  if (!req.session || !req.session.studentId) return res.redirect('/login.html');
   res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
 });
 
 app.get('/files', (req, res) => {
-  if (!req.session || !req.session.studentId) return res.redirect('/login.html');
   res.sendFile(path.join(__dirname, 'public', 'files.html'));
 });
 
@@ -590,17 +549,14 @@ app.get('/semester/:id', (req, res) => {
 });
 
 app.get('/profile', (req, res) => {
-  if (!req.session || !req.session.studentId) return res.redirect('/login.html');
   res.sendFile(path.join(__dirname, 'public', 'profile.html'));
 });
 
 app.get('/chat', (req, res) => {
-  if (!req.session || !req.session.studentId) return res.redirect('/login.html');
   res.sendFile(path.join(__dirname, 'public', 'chat.html'));
 });
 
 app.get(['/chatbot', '/assistant'], (req, res) => {
-  if (!req.session || !req.session.studentId) return res.redirect('/login.html');
   res.sendFile(path.join(__dirname, 'public', 'chatbot.html'));
 });
 
@@ -657,27 +613,28 @@ app.use(express.static(path.join(__dirname, 'public'), {
 }));
 
 function requireLogin(req, res, next) {
-  (async () => {
-    if (!req.session || !req.session.studentId) {
-      return res.status(401).json({ message: 'Authentication required. Please sign in.' });
-    }
-    if (req.session.studentId === 'guest') {
-      return next();
-    }
-    try {
-      const student = await db.get('SELECT studentId, role, name, department, semester FROM students WHERE studentId = ?', req.session.studentId);
-      if (!student) {
-        if (typeof req.session.destroy === 'function') req.session.destroy(() => {});
-        if (res.clearCookie) res.clearCookie('__gu_session');
-        return res.status(401).json({ message: 'Authentication required. Account not found.' });
-      }
-      req.student = student;
-      req.session.role = student.role || 'student';
-      next();
-    } catch (err) {
-      next(err);
-    }
-  })();
+  if (req.user && req.user.studentId) {
+    req.student = req.user;
+    return next();
+  }
+  if (req.session && req.session.studentId) {
+    if (req.session.studentId === 'guest') return next();
+    db.get('SELECT studentId, role, name, department, semester, email, avatarUrl FROM students WHERE studentId = ?', req.session.studentId)
+      .then(student => {
+        if (!student) {
+          if (typeof req.session.destroy === 'function') req.session.destroy(() => {});
+          if (res.clearCookie) res.clearCookie('__gu_session');
+          return res.status(401).json({ message: 'Authentication required. Account not found.' });
+        }
+        req.user = student;
+        req.student = student;
+        req.session.role = student.role || 'student';
+        next();
+      })
+      .catch(next);
+    return;
+  }
+  return res.status(401).json({ message: 'Authentication required. Please sign in.' });
 }
 app.use('/api/posts', require('./routes/posts')(db, requireLogin));
 
@@ -812,21 +769,25 @@ app.post('/api/mobile/login', loginRateLimiter, async (req, res) => {
   });
 });
 
+// Public Supabase configuration for client
+app.get('/api/auth/config', (req, res) => {
+  const { url, key } = require('./lib/supabase').getSupabaseConfig();
+  res.json({ url, key });
+});
+
 app.get('/api/me', requireLogin, async (req, res) => {
-  if (req.session.studentId === 'guest') {
-    return res.json({ studentId: 'guest', name: 'Guest User', role: 'student', isAdmin: false });
-  }
-
-  const student = req.student || await db.get('SELECT studentId, name, role, department, semester FROM students WHERE studentId = ?', req.session.studentId);
-
-  if (!student) {
-    req.session.destroy(() => { });
-    return res.status(401).json({ message: 'Authentication required' });
-  }
-
-  const role = student.role || 'student';
+  const role = req.user.role || 'student';
   const isAdmin = role === 'admin';
-  res.json({ studentId: student.studentId, name: student.name, role, isAdmin, department: student.department || 'BIT', semester: student.semester || null });
+  res.json({
+    studentId: req.user.studentId,
+    name: req.user.name,
+    role,
+    isAdmin,
+    department: req.user.department || 'BIT',
+    semester: req.user.semester || null,
+    email: req.user.email || null,
+    avatarUrl: req.user.avatarUrl || null,
+  });
 });
 
 app.post('/api/change-password', requireLogin, async (req, res) => {

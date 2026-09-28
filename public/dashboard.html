@@ -36,18 +36,9 @@
     })();
   </script>
 
+  <script src="/auth.js"></script>
+  <script>SemesterAuth.protectPage();</script>
   <script src="auth-modal.js"></script>
-  <script>
-    fetch('/api/me').then(r => {
-      if (!r.ok) {
-        if (typeof showAuthModal === 'function') showAuthModal(true);
-        else window.location.href = 'login.html?redirect=dashboard.html';
-      }
-    }).catch(() => {
-      if (typeof showAuthModal === 'function') showAuthModal(true);
-      else window.location.href = 'login.html?redirect=dashboard.html';
-    });
-  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
@@ -1696,8 +1687,7 @@
     const logoutBtnEl = document.getElementById('logoutBtn');
     if (logoutBtnEl) {
       logoutBtnEl.addEventListener('click', () => {
-        fetch('/api/logout', { method: 'POST' })
-          .then(() => window.location.href = 'index.html');
+        SemesterAuth.signOut();
       });
     }
 

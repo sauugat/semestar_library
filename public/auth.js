@@ -3,6 +3,7 @@
 // ============================================================
 
 (function (window) {
+  const rawFetch = window.fetch ? window.fetch.bind(window) : null;
   let supabaseClient = null;
   let initPromise = null;
 
@@ -13,7 +14,6 @@
     initPromise = (async () => {
       // 1. Check if window.supabase CDN library is loaded
       if (typeof window.supabase === 'undefined' || typeof window.supabase.createClient !== 'function') {
-        // Dynamically load Supabase JS CDN if not already in document
         await new Promise((resolve, reject) => {
           const script = document.createElement('script');
           script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
@@ -29,7 +29,7 @@
 
       if (!url || !key) {
         try {
-          const res = await fetch('/api/auth/config');
+          const res = await rawFetch('/api/auth/config');
           if (res.ok) {
             const cfg = await res.json();
             url = cfg.url || '';
@@ -90,9 +90,8 @@
     } catch (e) {
       console.warn('[Auth SignOut Error]:', e);
     }
-    // Also notify backend if needed
     try {
-      await fetch('/api/logout', { method: 'POST' });
+      await rawFetch('/api/logout', { method: 'POST' });
     } catch {}
     window.location.href = '/login.html';
   }
@@ -128,7 +127,7 @@
       opts.headers['Accept'] = 'application/json';
     }
 
-    let response = await fetch(url, opts);
+    let response = await rawFetch(url, opts);
 
     // If 401 Unauthorized, attempt one token refresh before redirecting
     if (response.status === 401 && token) {
@@ -137,9 +136,8 @@
         const { data, error } = await client.auth.refreshSession();
         if (!error && data && data.session) {
           opts.headers['Authorization'] = `Bearer ${data.session.access_token}`;
-          response = await fetch(url, opts);
+          response = await rawFetch(url, opts);
         } else {
-          // Token is dead
           console.warn('[Auth] Session expired, redirecting to login');
           const currentPath = encodeURIComponent(window.location.pathname + window.location.search);
           window.location.href = `/login.html?redirect=${currentPath}`;
@@ -158,10 +156,8 @@
    * Prevents flash of authenticated content.
    */
   async function protectPage() {
-    // Hide content before auth check
     document.documentElement.classList.add('auth-checking');
     
-    // Inject protective anti-flash style if not present
     if (!document.getElementById('auth-guard-style')) {
       const style = document.createElement('style');
       style.id = 'auth-guard-style';
@@ -181,13 +177,34 @@
         window.location.replace(`/login.html?redirect=${currentPath}`);
         return;
       }
-      // Authenticated — reveal body
       document.documentElement.classList.remove('auth-checking');
     } catch (e) {
       console.error('[Auth Guard] Error verifying session:', e);
       const currentPath = encodeURIComponent(window.location.pathname + window.location.search);
       window.location.replace(`/login.html?redirect=${currentPath}`);
     }
+  }
+
+  // Intercept standard fetch calls to /api/ (except auth endpoints) so existing script fetch() calls send Bearer token
+  if (rawFetch) {
+    window.fetch = async function (input, init) {
+      const url = typeof input === 'string' ? input : (input && input.url ? input.url : '');
+      const isApi = url.startsWith('/api/') || url.includes('/api/');
+      const isPublicAuth = url.includes('/api/auth/config') || url.includes('/api/login');
+
+      if (isApi && !isPublicAuth) {
+        const hasAuthHeader = init && init.headers && (
+          (init.headers.get && init.headers.get('Authorization')) ||
+          init.headers['Authorization'] ||
+          init.headers['authorization']
+        );
+        if (!hasAuthHeader) {
+          return authFetch(input, init);
+        }
+      }
+
+      return rawFetch(input, init);
+    };
   }
 
   // Expose global methods
@@ -201,6 +218,5 @@
     protectPage,
   };
 
-  // Expose authFetch globally as well
   window.authFetch = authFetch;
 })(window);

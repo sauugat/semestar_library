@@ -18,9 +18,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.v4.css">
-  <script>
-    fetch('/api/me').then(r => { if (!r.ok) showAuthModal(true); }).catch(() => showAuthModal(true));
-  </script>
+  <script src="/auth.js"></script>
+  <script>SemesterAuth.protectPage();</script>
   <link rel="stylesheet" href="auth-modal.css">
   <link rel="stylesheet" href="/theme-overrides.css">
 </head>
@@ -109,23 +108,18 @@
       btn.disabled = true;
       
       try {
-        const res = await fetch('/api/change-password', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ currentPassword: current, newPassword: newPass })
-        });
-        
-        const data = await res.json();
-        if (res.ok) {
+        const supabase = await SemesterAuth.getSupabase();
+        const { error } = await supabase.auth.updateUser({ password: newPass });
+        if (!error) {
           succEl.textContent = 'Password successfully updated!';
           succEl.style.display = 'block';
           document.getElementById('changePasswordForm').reset();
         } else {
-          errEl.textContent = data.message || 'An error occurred';
+          errEl.textContent = error.message || 'An error occurred';
           errEl.style.display = 'block';
         }
       } catch (err) {
-        errEl.textContent = 'Failed to connect to server.';
+        errEl.textContent = 'Failed to update password.';
         errEl.style.display = 'block';
       } finally {
         btn.innerHTML = 'Update Password';
@@ -134,9 +128,8 @@
       }
     });
 
-    document.getElementById('logoutBtn').addEventListener('click', async () => {
-      await fetch('/api/logout', { method: 'POST' });
-      showAuthModal(true);
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      SemesterAuth.signOut();
     });
   </script>
   <script src="notifications.js"></script>

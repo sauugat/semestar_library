@@ -204,10 +204,26 @@ test('Mobile Bearer Tokens: Legacy mobile token continues working alongside Supa
   assert.equal(req.mobileToken, testToken);
 });
 
-test('Supabase Config: Returns valid URL and anon key without service role key', () => {
+test('Supabase Config: Returns valid URL and publishable key without secret key', () => {
   const cfg = getSupabaseConfig();
   assert.ok(cfg.url, 'Supabase URL should be configured');
-  assert.ok(cfg.key, 'Supabase publishable/anon key should be configured');
+  assert.ok(cfg.key, 'Supabase publishable key should be configured');
   assert.equal(cfg.url.startsWith('https://'), true);
+  // Ensure secret keys are never exposed in public config
+  assert.equal(cfg.secretKey, undefined);
   assert.equal(cfg.serviceRoleKey, undefined);
+  assert.equal(cfg.SUPABASE_SECRET_KEY, undefined);
+});
+
+test('Supabase Config: Admin client accepts SUPABASE_SECRET_KEY', () => {
+  const { getSupabaseAdminClient } = require('../lib/supabase');
+  const prevSecret = process.env.SUPABASE_SECRET_KEY;
+  try {
+    process.env.SUPABASE_SECRET_KEY = 'sb_secret_test_mock_key';
+    const admin = getSupabaseAdminClient();
+    assert.ok(admin, 'Admin client should initialize with SUPABASE_SECRET_KEY');
+  } finally {
+    if (prevSecret) process.env.SUPABASE_SECRET_KEY = prevSecret;
+    else delete process.env.SUPABASE_SECRET_KEY;
+  }
 });

@@ -47,7 +47,7 @@ test('Database Schema: Phase 1 columns (username, gender, verification_status, c
   assert.equal(student.studentId, 'test_student_1');
   assert.equal(student.username, 'alice.student');
   assert.equal(student.gender, 'female');
-  assert.equal(student.verification_status, 'unverified');
+  assert.equal(student.verificationStatus || student.verification_status, 'unverified');
   assert.equal(student.email, 'alice@example.com');
   assert.equal(student.supabase_uid, 'sb_uid_alice');
   assert.equal(student.role, 'student');

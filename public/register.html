@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+  <script src="/theme.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Create Account — Semester Library</title>
+
+  <!-- Web App Manifest & iOS PWA Metadata -->
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/logo.jpg">
+  <link rel="icon" type="image/png" sizes="192x192" href="/logo.jpg">
+
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Semester Library">
+  <meta name="theme-color" content="#ffffff">
+
+  <!-- Anti-flash inline script -->
+  <script>
+    (function() {
+      try {
+        var t = localStorage.getItem('theme');
+        if (!t) {
+          t = 'dark';
+          try { localStorage.setItem('theme', 'dark'); } catch (e) {}
+        }
+        var d = t === 'dark';
+        document.documentElement.setAttribute('data-theme', t);
+        if (d) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      } catch (e) {}
+    })();
+  </script>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Existing Styles -->
+  <link rel="stylesheet" href="style.v4.css">
+  <link rel="stylesheet" href="/theme-overrides.css">
+
+  <style>
+    .register-card {
+      max-width: 520px !important;
+      margin: 40px auto !important;
+      padding: 36px 32px !important;
+    }
+
+    .form-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    @media (max-width: 600px) {
+      .form-grid-2 {
+        grid-template-columns: 1fr;
+        gap: 0;
+      }
+      .register-card {
+        margin: 20px 16px !important;
+        padding: 24px 20px !important;
+      }
+    }
+
+    .apple-select-field {
+      width: 100%;
+      height: 44px;
+      padding: 0 14px;
+      font-size: 15px;
+      border: 1px solid #d2d2d7;
+      border-radius: 10px;
+      background: #ffffff;
+      color: #1d1d1f;
+      outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      box-sizing: border-box;
+      cursor: pointer;
+    }
+
+    [data-theme="dark"] .apple-select-field {
+      background: #1c1c1e;
+      border-color: #38383a;
+      color: #f5f5f7;
+    }
+
+    .apple-select-field:focus {
+      border-color: #0071e3;
+      box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.25);
+    }
+
+    .apple-legal-consent {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 13px 14px;
+      margin-top: 16px;
+      border: 1px solid #e5e5ea;
+      border-radius: 12px;
+      background: #f8f8fa;
+      box-sizing: border-box;
+      cursor: pointer;
+      line-height: 1.45;
+    }
+
+    [data-theme="dark"] .apple-legal-consent {
+      background: #1c1c1e;
+      border-color: #38383a;
+    }
+
+    .apple-legal-consent input[type="checkbox"] {
+      margin-top: 3px;
+      accent-color: #0071e3;
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+    }
+
+    .success-box {
+      display: none;
+      padding: 24px;
+      border-radius: 14px;
+      background: rgba(34, 197, 94, 0.1);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    .success-box h3 {
+      color: #22c55e;
+      margin-bottom: 8px;
+      font-size: 18px;
+    }
+
+    .success-box p {
+      font-size: 14px;
+      color: #6e6e73;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+
+<body class="apple-signin-page">
+
+  <main class="apple-signin-card register-card">
+
+    <div class="apple-signin-header">
+      <div class="apple-logo-wrap">
+        <img src="logo.jpg" alt="Semester Library Logo" class="apple-signin-logo" width="60" height="60">
+      </div>
+      <h1 class="apple-signin-headline">Create an Account</h1>
+      <p class="apple-signin-subtext">Join 500+ Gandaki University students on Semester Library</p>
+    </div>
+
+    <!-- Success Message Box -->
+    <div id="successBox" class="success-box">
+      <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#22c55e" stroke-width="2" style="margin: 0 auto 12px auto; display: block;">
+        <circle cx="12" cy="12" r="10"/>
+        <path d="M8 12l2.5 2.5L16 9"/>
+      </svg>
+      <h3>Registration Submitted!</h3>
+      <p id="successMessageText">A confirmation email has been sent to your email address. Please check your inbox and confirm your email before signing in.</p>
+      <a href="login.html" class="apple-primary-btn" style="margin-top: 20px; text-decoration: none; display: inline-flex; align-items: center; justify-content: center;">
+        <span>Go to Sign In</span>
+      </a>
+    </div>
+
+    <!-- Registration Form -->
+    <form id="registerForm" class="apple-signin-form" onsubmit="handleRegister(event)">
+
+      <div class="apple-input-group">
+
+        <!-- Full Name -->
+        <div class="apple-input-row">
+          <label for="fullName" class="apple-input-label">Full Name</label>
+          <input type="text" id="fullName" name="fullName" class="apple-text-field" placeholder="e.g. Saugat Subedi" required autocomplete="name">
+        </div>
+
+        <!-- Student ID & Username Grid -->
+        <div class="form-grid-2">
+          <div class="apple-input-row">
+            <label for="studentId" class="apple-input-label">Student ID</label>
+            <input type="text" id="studentId" name="studentId" class="apple-text-field" placeholder="e.g. 26020266" required>
+          </div>
+          <div class="apple-input-row">
+            <label for="username" class="apple-input-label">Username</label>
+            <input type="text" id="username" name="username" class="apple-text-field" placeholder="e.g. saugat_subedi" required autocomplete="username">
+          </div>
+        </div>
+
+        <!-- Email Address -->
+        <div class="apple-input-row">
+          <label for="email" class="apple-input-label">Email Address</label>
+          <input type="email" id="email" name="email" class="apple-text-field" placeholder="student@example.com" required autocomplete="email">
+        </div>
+
+        <!-- Department & Semester Grid -->
+        <div class="form-grid-2">
+          <div class="apple-input-row">
+            <label for="department" class="apple-input-label">Department</label>
+            <select id="department" name="department" class="apple-select-field" required>
+              <option value="BIT" selected>BIT</option>
+              <option value="BBA">BBA</option>
+              <option value="BPharm">BPharm</option>
+              <option value="BTech">BTech Food</option>
+              <option value="BLLB">BLLB</option>
+            </select>
+          </div>
+          <div class="apple-input-row">
+            <label for="semester" class="apple-input-label">Semester</label>
+            <select id="semester" name="semester" class="apple-select-field" required>
+              <option value="Semester 1" selected>Semester 1</option>
+              <option value="Semester 2">Semester 2</option>
+              <option value="Semester 3">Semester 3</option>
+              <option value="Semester 4">Semester 4</option>
+              <option value="Semester 5">Semester 5</option>
+              <option value="Semester 6">Semester 6</option>
+              <option value="Semester 7">Semester 7</option>
+              <option value="Semester 8">Semester 8</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Gender (Optional) -->
+        <div class="apple-input-row">
+          <label for="gender" class="apple-input-label">Gender (Optional)</label>
+          <select id="gender" name="gender" class="apple-select-field">
+            <option value="" selected>Prefer not to say</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+
+        <!-- Password & Confirm Password Grid -->
+        <div class="form-grid-2">
+          <div class="apple-input-row">
+            <label for="password" class="apple-input-label">Password</label>
+            <input type="password" id="password" name="password" class="apple-text-field" placeholder="Min. 8 characters" required autocomplete="new-password">
+          </div>
+          <div class="apple-input-row">
+            <label for="confirmPassword" class="apple-input-label">Confirm Password</label>
+            <input type="password" id="confirmPassword" name="confirmPassword" class="apple-text-field" placeholder="Repeat password" required autocomplete="new-password">
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Legal Consent -->
+      <label class="apple-legal-consent" for="acceptTerms">
+        <input type="checkbox" id="acceptTerms" name="acceptTerms" required>
+        <span class="apple-privacy-text" style="font-size: 13px; color: #6e6e73;">
+          I agree to the
+          <a href="privacy.html" target="_blank" rel="noopener noreferrer" class="apple-text-link">Privacy Policy</a>
+          and
+          <a href="termsandconditions.html" target="_blank" rel="noopener noreferrer" class="apple-text-link">Terms &amp; Conditions</a>.
+        </span>
+      </label>
+
+      <!-- Submit Button -->
+      <button type="submit" class="apple-primary-btn" id="registerBtn" style="margin-top: 18px;">
+        <span>Create Account</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="apple-btn-arrow">
+          <path d="M5 12h14M12 5l7 7-7 7" />
+        </svg>
+      </button>
+
+      <!-- Error Message -->
+      <p id="errorMsg" class="error-msg" style="margin-top: 12px;"></p>
+
+      <!-- Sign In Link -->
+      <div style="text-align: center; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border-color, #e5e5ea);">
+        <span style="font-size: 13px; color: #6e6e73;">Already have an account? </span>
+        <a href="login.html" class="apple-text-link" style="font-size: 13px; font-weight: 600;">Sign In</a>
+      </div>
+
+      <div class="apple-support-links" style="margin-top: 16px;">
+        <a href="index.html" class="apple-text-link">← Back to HomePage</a>
+      </div>
+
+    </form>
+
+  </main>
+
+  <script src="/auth.js"></script>
+  <script>
+    async function handleRegister(e) {
+      e.preventDefault();
+      const errorMsg = document.getElementById('errorMsg');
+      const registerBtn = document.getElementById('registerBtn');
+      const form = document.getElementById('registerForm');
+      const successBox = document.getElementById('successBox');
+
+      errorMsg.textContent = '';
+
+      const fullName = document.getElementById('fullName').value.trim();
+      const studentId = document.getElementById('studentId').value.trim();
+      const username = document.getElementById('username').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const department = document.getElementById('department').value;
+      const semester = document.getElementById('semester').value;
+      const gender = document.getElementById('gender').value;
+      const password = document.getElementById('password').value;
+      const confirmPassword = document.getElementById('confirmPassword').value;
+
+      if (!fullName || !studentId || !username || !email || !password || !confirmPassword) {
+        errorMsg.textContent = 'Please fill out all required fields.';
+        return;
+      }
+
+      if (password.length < 8) {
+        errorMsg.textContent = 'Password must be at least 8 characters long.';
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        errorMsg.textContent = 'Passwords do not match.';
+        return;
+      }
+
+      registerBtn.disabled = true;
+      registerBtn.innerHTML = '<span class="app-spinner spinner-sm spinner-light" style="margin-right:8px; display:inline-block; vertical-align:middle;"></span><span>Creating account…</span>';
+
+      try {
+        const payload = {
+          fullName,
+          studentId,
+          username,
+          email,
+          department,
+          semester,
+          gender: gender || null,
+          password,
+          confirmPassword
+        };
+
+        const { data, error } = await SemesterAuth.signUp(payload);
+
+        if (error) {
+          errorMsg.textContent = error.message || 'Registration failed. Please check your information and try again.';
+          registerBtn.disabled = false;
+          registerBtn.innerHTML = '<span>Create Account</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="apple-btn-arrow"><path d="M5 12h14M12 5l7 7-7 7"/></svg>';
+          return;
+        }
+
+        form.style.display = 'none';
+        successBox.style.display = 'block';
+        if (data && data.message) {
+          document.getElementById('successMessageText').textContent = data.message;
+        }
+      } catch (err) {
+        errorMsg.textContent = err.message || 'Connection error. Please try again.';
+        registerBtn.disabled = false;
+        registerBtn.innerHTML = '<span>Create Account</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="apple-btn-arrow"><path d="M5 12h14M12 5l7 7-7 7"/></svg>';
+      }
+    }
+  </script>
+</body>
+</html>

@@ -2687,7 +2687,8 @@ app.get('/api/search', requireLogin, async (req, res) => {
 // ============================================================
 
 app.get('/api/chat/config', requireLogin, (req, res) => {
-  res.json({ url: process.env.SUPABASE_URL, key: process.env.SUPABASE_ANON_KEY });
+  const { url, key } = require('./lib/supabase').getSupabaseConfig();
+  res.json({ url, key });
 });
 
 app.get('/api/chat/messages', requireLogin, async (req, res) => {

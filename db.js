@@ -767,8 +767,16 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
         if (isPostgres) {
           await exec(`ALTER TABLE students ADD COLUMN IF NOT EXISTS email TEXT;`);
           await exec(`ALTER TABLE students ADD COLUMN IF NOT EXISTS supabase_uid TEXT;`);
-          await exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_students_email ON students (email) WHERE email IS NOT NULL;`);
+          await exec(`ALTER TABLE students ADD COLUMN IF NOT EXISTS username TEXT;`);
+          await exec(`ALTER TABLE students ADD COLUMN IF NOT EXISTS gender TEXT;`);
+          await exec(`ALTER TABLE students ADD COLUMN IF NOT EXISTS verification_status TEXT DEFAULT 'unverified';`);
+          await exec(`ALTER TABLE students ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;`);
+          await exec(`ALTER TABLE students ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;`);
+          try { await exec(`ALTER TABLE students ALTER COLUMN passwordHash DROP NOT NULL;`); } catch (pErr) {}
+          await exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_students_email_lower ON students (LOWER(email)) WHERE email IS NOT NULL;`);
+          await exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_students_username_lower ON students (LOWER(username)) WHERE username IS NOT NULL;`);
           await exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_students_supabase_uid ON students (supabase_uid) WHERE supabase_uid IS NOT NULL;`);
+          await exec(`CREATE INDEX IF NOT EXISTS idx_students_verification_status ON students (verification_status);`);
           await exec(`ALTER TABLE assignments ADD COLUMN IF NOT EXISTS subject TEXT;`);
           await exec(`ALTER TABLE assignments ADD COLUMN IF NOT EXISTS semester TEXT;`);
           await exec(`ALTER TABLE assignments ADD COLUMN IF NOT EXISTS deadline TEXT;`);
@@ -823,8 +831,15 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
           const studentColNames = studentCols.map(c => c.name);
           if (!studentColNames.includes('email')) await exec(`ALTER TABLE students ADD COLUMN email TEXT;`);
           if (!studentColNames.includes('supabase_uid')) await exec(`ALTER TABLE students ADD COLUMN supabase_uid TEXT;`);
-          await exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_students_email ON students (email);`);
+          if (!studentColNames.includes('username')) await exec(`ALTER TABLE students ADD COLUMN username TEXT;`);
+          if (!studentColNames.includes('gender')) await exec(`ALTER TABLE students ADD COLUMN gender TEXT;`);
+          if (!studentColNames.includes('verification_status')) await exec(`ALTER TABLE students ADD COLUMN verification_status TEXT DEFAULT 'unverified';`);
+          if (!studentColNames.includes('created_at')) await exec(`ALTER TABLE students ADD COLUMN created_at TEXT DEFAULT CURRENT_TIMESTAMP;`);
+          if (!studentColNames.includes('updated_at')) await exec(`ALTER TABLE students ADD COLUMN updated_at TEXT DEFAULT CURRENT_TIMESTAMP;`);
+          await exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_students_email_lower ON students (LOWER(email));`);
+          await exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_students_username_lower ON students (LOWER(username));`);
           await exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_students_supabase_uid ON students (supabase_uid);`);
+          await exec(`CREATE INDEX IF NOT EXISTS idx_students_verification_status ON students (verification_status);`);
 
           const cols = await all(`PRAGMA table_info(submissions)`);
           const colNames = cols.map(c => c.name);

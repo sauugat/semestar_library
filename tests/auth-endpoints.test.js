@@ -128,8 +128,8 @@ test('POST /api/auth/register & DB Insert: Forces role="student" and verificatio
   await db.run(
     `INSERT INTO students (
       studentId, username, name, email, department, semester,
-      gender, role, verification_status
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'student', 'unverified')`,
+      gender, role, verification_status, passwordHash
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'student', 'unverified', 'supabase_auth')`,
     studentId, username, 'Honest Student', email, 'BIT', 'Semester 1', 'male'
   );
 

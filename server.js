@@ -900,8 +900,8 @@ app.post('/api/auth/register', loginRateLimiter, async (req, res) => {
         `INSERT INTO students (
           studentId, username, name, email, supabase_uid,
           department, semester, gender, role, verification_status,
-          created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'student', 'unverified', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+          passwordHash, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'student', 'unverified', 'supabase_auth', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
         cleanStudentId, cleanUsername, cleanName, cleanEmail, supabaseUid,
         cleanDept, cleanSem, cleanGender
       );
@@ -910,8 +910,8 @@ app.post('/api/auth/register', loginRateLimiter, async (req, res) => {
         `INSERT INTO students (
           studentId, username, name, email, supabase_uid,
           department, semester, gender, role, verification_status,
-          created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'student', 'unverified', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+          passwordHash, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'student', 'unverified', 'supabase_auth', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
         cleanStudentId, cleanUsername, cleanName, cleanEmail, supabaseUid,
         cleanDept, cleanSem, cleanGender
       );

@@ -36,11 +36,7 @@
   function resolveTheme() {
     const stored = getStoredTheme();
     if (stored) return stored;
-    // Default mode for new users is always dark
-    try {
-      localStorage.setItem(THEME_KEY, 'dark');
-    } catch (e) {}
-    return 'dark';
+    return getSystemPreference();
   }
 
   function updateThemeColorMeta(isDark) {

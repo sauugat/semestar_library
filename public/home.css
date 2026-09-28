@@ -77,7 +77,7 @@ h1, h2, h3, h4 { font-weight: 500; }
 .home-button-secondary { color: var(--home-ink); border-color: var(--home-line); background: transparent; }
 .home-orbit { position: relative; height: 120px; max-width: 1060px; margin: 48px auto 0; display: flex; align-items: center; justify-content: space-evenly; gap: 20px; overflow: hidden; mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); }
 .home-orbit::before { content: ''; position: absolute; left: -10%; right: -10%; top: 65px; height: 220px; border: 1px solid var(--home-line); border-radius: 50%; transform: rotate(-3deg); }
-.home-orbit svg { width: 25px; height: 25px; color: var(--home-muted); background: var(--home-bg); outline: 18px solid var(--home-bg); position: relative; }
+.home-orbit svg { width: 25px; height: 25px; color: var(--home-muted); position: relative; }
 .home-orbit svg:nth-child(2n) { transform: translateY(17px) rotate(8deg); opacity: .4; }
 .home-orbit svg:nth-child(3n) { transform: translateY(-14px) rotate(-12deg); color: var(--home-accent); }
 .home-feature-nav { position: sticky; top: 78px; z-index: 20; border-block: 1px solid var(--home-line); background: var(--home-nav); backdrop-filter: blur(20px); }

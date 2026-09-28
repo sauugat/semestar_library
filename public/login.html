@@ -311,8 +311,12 @@
            HEADING
            ===================================== -->
 
+      <!-- =====================================
+           HEADING
+           ===================================== -->
+
       <h1 class="apple-signin-headline">
-        Sign in with your Email
+        Sign in to Semester Library
       </h1>
 
 
@@ -335,16 +339,16 @@
         <div class="apple-input-group">
 
 
-          <!-- Email Address -->
+          <!-- Username or Email Address -->
 
           <div class="apple-input-row">
 
-            <label for="email" class="apple-input-label">
-              Email Address
+            <label for="identifier" class="apple-input-label">
+              Username or Email
             </label>
 
-            <input type="email" id="email" name="email" class="apple-text-field" placeholder="student@example.com"
-              autocomplete="email" required>
+            <input type="text" id="identifier" name="identifier" class="apple-text-field" placeholder="Username or email address"
+              autocomplete="username" required>
 
           </div>
 
@@ -353,9 +357,14 @@
 
           <div class="apple-input-row">
 
-            <label for="password" class="apple-input-label">
-              Password
-            </label>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <label for="password" class="apple-input-label" style="margin-bottom: 0;">
+                Password
+              </label>
+              <a href="#" id="forgotPasswordLink" class="apple-text-link" style="font-size: 12px;" onclick="handleForgotPassword(event)">
+                Forgot password?
+              </a>
+            </div>
 
             <input type="password" id="password" name="password" class="apple-text-field"
               placeholder="Enter your password" autocomplete="current-password" required>
@@ -424,12 +433,26 @@
 
         <p id="errorMsg" class="error-msg"></p>
 
+        <!-- Resend verification link container -->
+        <div id="resendContainer" style="display: none; margin-top: 10px; text-align: center;">
+          <button type="button" id="resendBtn" class="apple-text-link" onclick="handleResendVerification(event)" style="background: none; border: none; cursor: pointer; font-size: 13px; text-decoration: underline;">
+            Resend email verification link
+          </button>
+        </div>
+
+
+        <!-- Create Account link -->
+        <div style="text-align: center; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border-color, #e5e5ea);">
+          <span style="font-size: 13px; color: #6e6e73;">Don't have an account? </span>
+          <a href="register.html" class="apple-text-link" style="font-size: 13px; font-weight: 600;">Create Account</a>
+        </div>
+
 
         <!-- ===================================
              SUPPORT LINKS
              =================================== -->
 
-        <div class="apple-support-links">
+        <div class="apple-support-links" style="margin-top: 16px;">
 
           <a href="index.html" class="apple-text-link">
             ← Back to HomePage

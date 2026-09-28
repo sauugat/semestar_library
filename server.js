@@ -41,8 +41,8 @@ async function indexUploadedNote(file) {
 const { createClient } = require('@supabase/supabase-js');
 
 // Initialize Supabase Client
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
+const { getSupabaseConfig } = require('./lib/supabase');
+const { url: supabaseUrl, key: supabaseKey } = getSupabaseConfig();
 let supabase = null;
 let broadcastChannel = null;
 

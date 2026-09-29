@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Linking from 'expo-linking';
 import * as Clipboard from 'expo-clipboard';
+import { useRouter } from 'expo-router';
 import { useAuth, StudentUser } from '@/context/AuthContext';
 import { useTheme } from '@/constants/useTheme';
 import { Text, Heading, Subheading, Caption } from '@/components/ui/Typography';
@@ -55,6 +56,7 @@ interface ClassmateItem {
 }
 
 export default function ProfileScreen() {
+  const router = useRouter();
   const { user, token, serverUrl, updateServerUrl, updateProfile, refreshProfile, logout } = useAuth();
   const { colors, spacing, radii } = useTheme();
 

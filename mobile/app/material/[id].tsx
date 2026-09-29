@@ -622,7 +622,7 @@ export default function MaterialDetailScreen() {
                 size="lg"
                 loading={downloading && !showPreview}
                 onPress={handleOpenPreview}
-                leftIcon={<Ionicons name="eye-outline" size={20} color="#FFFFFF" />}
+                leftIcon={<Ionicons name="eye-outline" size={20} color={colors.primaryText} />}
                 style={{ marginBottom: spacing.sm }}
               />
 
@@ -655,7 +655,7 @@ export default function MaterialDetailScreen() {
                   <Ionicons
                     name={localFileUri ? 'share-outline' : 'download-outline'}
                     size={20}
-                    color="#FFFFFF"
+                    color={colors.primaryText}
                   />
                 }
                 style={{ marginBottom: spacing.xs }}

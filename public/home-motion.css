@@ -112,3 +112,190 @@
   .home-stage::before { inset: -3% 0; filter: blur(20px); }
   .home-stage::after { inset: 6% 0; filter: blur(18px); }
 }
+
+/* ==========================================================================
+   Meet the Developers Showcase - 3-Gradient Aura & Crazy Animations
+   ========================================================================== */
+
+/* 1. Developer 1 Palette: Saugat Subedi (Sapphire, Cyan, Neon Purple) */
+.home-dev-stage,
+.home-dev-stage[data-active-dev="saugat"],
+.home-dev-card[data-dev="saugat"].is-active {
+  --stage-rgb: 105, 145, 255;
+  --glow-secondary: 60, 215, 255;
+  --glow-tertiary: 175, 115, 255;
+  --glow-a: 14% 20%;
+  --glow-b: 86% 75%;
+  --glow-c: 48% 90%;
+  --glow-shape: 48% 52% 68% 32% / 60% 38% 62% 40%;
+  --glow-angle: -10deg;
+}
+
+/* 2. Developer 2 Palette: Sandesh Dhakal (Cyber Emerald, Sky Blue, Lime Neon) */
+.home-dev-stage[data-active-dev="sandesh"],
+.home-dev-card[data-dev="sandesh"].is-active {
+  --stage-rgb: 75, 235, 160;
+  --glow-secondary: 80, 185, 255;
+  --glow-tertiary: 180, 245, 110;
+  --glow-a: 84% 16%;
+  --glow-b: 14% 80%;
+  --glow-c: 62% 95%;
+  --glow-shape: 65% 35% 42% 58% / 38% 64% 36% 62%;
+  --glow-angle: 12deg;
+}
+
+/* 3. Developer 3 Palette: Subarna Poudel (Vivid Rose, Lavender, Sunset Coral) */
+.home-dev-stage[data-active-dev="subarna"],
+.home-dev-card[data-dev="subarna"].is-active {
+  --stage-rgb: 255, 115, 175;
+  --glow-secondary: 170, 120, 255;
+  --glow-tertiary: 255, 170, 100;
+  --glow-a: 12% 45%;
+  --glow-b: 88% 22%;
+  --glow-c: 52% 88%;
+  --glow-shape: 35% 65% 58% 42% / 55% 35% 65% 45%;
+  --glow-angle: -14deg;
+}
+
+/* Multi-layer Organic Gradient Aura */
+.home-dev-stage::before,
+.home-dev-stage::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Layer 1: Three Radial Gradients using organic blob border-radius */
+.home-dev-stage::before {
+  inset: -12% -7%;
+  border-radius: var(--glow-shape, 48% 52% 68% 32% / 60% 38% 62% 40%);
+  background:
+    radial-gradient(ellipse at var(--glow-a, 14% 20%), rgba(var(--stage-rgb), .48), transparent 52%),
+    radial-gradient(ellipse at var(--glow-b, 86% 75%), rgba(var(--glow-secondary), .42), transparent 48%),
+    radial-gradient(ellipse at var(--glow-c, 48% 90%), rgba(var(--glow-tertiary), .35), transparent 44%);
+  filter: blur(48px);
+  opacity: .85;
+  transform: rotate(var(--glow-angle, -10deg));
+  transition: opacity .6s, filter .6s, transform .8s;
+  animation: dev-glow-float 14s ease-in-out infinite alternate;
+}
+
+/* Layer 2: Interactive Pointer/Mouse Tracking Light Beam */
+.home-dev-stage::after {
+  inset: -4% -2% -6% 2%;
+  border-radius: 60% 40% 32% 68% / 44% 65% 35% 56%;
+  background: radial-gradient(circle 420px at var(--pointer-x, 50%) var(--pointer-y, 50%), rgba(var(--stage-rgb), .32), transparent 68%);
+  filter: blur(28px);
+  opacity: .55;
+  transition: opacity .4s ease;
+}
+
+/* Layer 3: Ambient Conic Aurora Whirlpool */
+.home-dev-stage-aura {
+  position: absolute;
+  inset: 5% 15% 10% 15%;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg at 50% 50%,
+    rgba(var(--stage-rgb), 0) 0deg,
+    rgba(var(--glow-secondary), 0.28) 120deg,
+    rgba(var(--glow-tertiary), 0.35) 240deg,
+    rgba(var(--stage-rgb), 0) 360deg
+  );
+  filter: blur(55px);
+  opacity: .7;
+  pointer-events: none;
+  z-index: -2;
+  animation: dev-aura-spin 22s linear infinite;
+}
+
+/* 3D Perspective & Motion */
+@media (prefers-reduced-motion: no-preference) {
+  .home-dev-stage {
+    perspective: 1200px;
+  }
+  .home-dev-stage > .home-dev-stage-window {
+    transform: rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
+    transition: transform .35s cubic-bezier(.2,.8,.2,1), box-shadow .35s;
+  }
+  .home-dev-stage[data-pointer-active="true"] > .home-dev-stage-window {
+    box-shadow: 0 35px 85px -25px #000, 0 0 50px -15px rgba(var(--stage-rgb), .38);
+  }
+  .home-dev-card.is-active .home-dev-avatar {
+    animation: dev-avatar-pulse 2.4s ease-in-out infinite;
+  }
+  .home-dev-panel.is-active .home-dev-feat-card {
+    animation: dev-feat-arrive .65s cubic-bezier(.16,1,.3,1) both;
+    animation-delay: calc(var(--feat-index, 0) * 0.1s + 0.08s);
+  }
+  .home-dev-spotlight-title,
+  .home-dev-spotlight-bio {
+    animation: dev-text-fade .5s cubic-bezier(.16,1,.3,1) both;
+  }
+}
+
+/* Keyframes */
+@keyframes dev-glow-float {
+  0% {
+    transform: rotate(var(--glow-angle, -10deg)) scale(1) translateY(0);
+    border-radius: var(--glow-shape, 48% 52% 68% 32% / 60% 38% 62% 40%);
+  }
+  50% {
+    transform: rotate(calc(var(--glow-angle, -10deg) + 6deg)) scale(1.05) translateY(-12px);
+    border-radius: 56% 44% 38% 62% / 40% 60% 40% 60%;
+  }
+  100% {
+    transform: rotate(calc(var(--glow-angle, -10deg) - 5deg)) scale(0.96) translateY(10px);
+    border-radius: 36% 64% 62% 38% / 58% 34% 66% 42%;
+  }
+}
+
+@keyframes dev-aura-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes dev-feat-arrive {
+  0% {
+    opacity: 0;
+    transform: translateY(24px) scale(0.96);
+    filter: blur(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes dev-text-fade {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes dev-avatar-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(var(--stage-rgb), 0.6), 0 4px 16px -2px rgba(var(--stage-rgb), 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(var(--stage-rgb), 0), 0 4px 24px 2px rgba(var(--stage-rgb), 0.7);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-dev-stage::before { animation: none; }
+  .home-dev-stage-aura { animation: none; }
+  .home-dev-stage > .home-dev-stage-window { transform: none; }
+  .home-dev-panel.is-active .home-dev-feat-card { animation: none; }
+}
+
+@media (max-width: 600px) {
+  .home-dev-stage::before { inset: -4% 0; filter: blur(25px); }
+  .home-dev-stage::after { inset: 4% 0; filter: blur(20px); }
+}

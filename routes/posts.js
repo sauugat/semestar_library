@@ -283,6 +283,23 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
     }
   });
 
+  router.delete('/:id/comments/:commentId', async (req, res, next) => {
+    try {
+      const postId = Number(req.params.id);
+      const commentId = Number(req.params.commentId);
+      const comment = await db.get('SELECT user_id FROM post_comments WHERE id = ? AND post_id = ?', commentId, postId);
+      if (!comment) return res.status(404).json({ message: 'Comment not found.' });
+      if (comment.user_id !== req.postUser?.studentId && req.postUser?.role !== 'admin') {
+        return res.status(403).json({ message: 'Only the comment author or an admin can delete this comment.' });
+      }
+      await db.run('DELETE FROM post_comments WHERE id = ?', commentId);
+      const count = await db.get('SELECT COUNT(*) AS c FROM post_comments WHERE post_id = ?', postId);
+      res.json({ message: 'Comment deleted.', comment_count: Number(count.c), commentCount: Number(count.c) });
+    } catch (err) {
+      next(err);
+    }
+  });
+
   router.delete('/:id', async (req, res, next) => {
     try {
       const post = await db.get('SELECT user_id, attachment_url FROM posts WHERE id = ?', Number(req.params.id));

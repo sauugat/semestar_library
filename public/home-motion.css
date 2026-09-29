@@ -121,3 +121,19 @@
 }
 @keyframes dev-check-pop { from { transform: scale(.8); opacity: .4; } to { transform: scale(1); opacity: 1; } }
 @keyframes dev-spark-gleam { from { transform: rotate(-20deg); } to { transform: rotate(0); } }
+
+/* Share the feature demos' entrance choreography and pointer lighting.
+   The gradient itself stays at full size, without a grow-in animation. */
+@media (prefers-reduced-motion: no-preference) {
+  .home-dev-demo[data-motion-active="true"] .home-dev-card-preview > :not(.home-dev-preview-caption) {
+    animation: home-answer-in .85s cubic-bezier(.16,1,.3,1) both;
+    animation-delay: .25s;
+  }
+  .home-dev-demo[data-motion-active="true"] .home-dev-card-preview > :nth-child(3) { animation-delay: .45s; }
+  .home-dev-demo[data-motion-active="true"] .home-dev-card-preview > :nth-child(4) { animation-delay: .7s; }
+  .home-dev-demo.home-stage-code[data-motion-active="true"] .home-dev-preview-code { animation-name: home-code-line-in; }
+  .home-dev-demo.home-stage-chat[data-motion-active="true"] .home-dev-card-preview > :nth-child(3),
+  .home-dev-demo.home-stage-ai[data-motion-active="true"] .home-dev-card-preview > :nth-child(3) { animation-name: home-message-in; }
+  .home-dev-demo.home-stage-library[data-motion-active="true"] .home-dev-card-preview > :nth-child(3) { animation-name: home-file-arrive; }
+  .home-dev-demo.home-stage-assignment[data-motion-active="true"] .home-dev-card-preview > :last-child { animation-name: home-submission-ready; }
+}

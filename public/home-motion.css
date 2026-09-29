@@ -242,7 +242,7 @@
   .home-dev-panel.is-active .home-card-lab .home-dev-preview-checklist svg,
   .home-card-lab:hover .home-dev-preview-checklist svg {
     stroke-dasharray: 30;
-    animation: home-check-draw .55s ease both, home-submission-ready 1.2s .65s ease both;
+    animation: home-check-draw .55s ease both, dev-submission-ready 1.2s .65s ease both;
   }
   .home-dev-panel.is-active .home-card-lab .home-dev-feat-icon-box,
   .home-card-lab:hover .home-dev-feat-icon-box {

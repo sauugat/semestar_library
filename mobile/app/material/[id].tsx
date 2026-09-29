@@ -6,17 +6,30 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
+  TouchableOpacity,
+  TextInput,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
+import * as Clipboard from 'expo-clipboard';
 import { useTheme } from '@/constants/useTheme';
+import { useAuth } from '@/context/AuthContext';
 import { Text, Heading, Subheading, Caption } from '@/components/ui/Typography';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { getFileById, LibraryFile } from '@/services/library';
+import {
+  getFileById,
+  LibraryFile,
+  getFileComments,
+  addFileComment,
+  deleteFileComment,
+  toggleFileLike,
+  FileComment,
+} from '@/services/library';
 import { getBaseUrl, getAuthToken } from '@/services/api';
 import { FullScreenFilePreview } from '@/components/FullScreenFilePreview';
 

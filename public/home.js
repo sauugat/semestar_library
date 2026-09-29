@@ -358,7 +358,7 @@
         const originalOut = outBlock.innerHTML;
         outBlock.innerHTML = '<span class="home-dev-dot-yellow"></span><span>Compiling and executing main.c...</span>';
         setTimeout(() => {
-          outBlock.innerHTML = '<span class="home-dev-dot-green"></span><span style="color:#b4dcb9;">Output: Gandaki Semester Library [0.008s · Exit 0]</span>';
+          outBlock.innerHTML = '<span class="home-dev-dot-green"></span><span style="color:#ffffff;">Output: Gandaki Semester Library [0.008s · Exit 0]</span>';
           animateUpdate(outBlock);
           setTimeout(() => {
             outBlock.innerHTML = originalOut;
@@ -391,11 +391,11 @@
       if (apiRows.length > 0 && !preview.dataset.pinging) {
         preview.dataset.pinging = 'true';
         const pills = preview.querySelectorAll('.home-dev-pill-green');
-        pills.forEach(p => { p.textContent = 'Pinging...'; p.style.color = '#ffbd2e'; });
+        pills.forEach(p => { p.textContent = 'Pinging...'; p.style.color = '#a1a1aa'; });
         setTimeout(() => {
           if (pills[0]) pills[0].textContent = '200 OK · 4ms';
           if (pills[1]) pills[1].textContent = '7ms Live Ping';
-          pills.forEach(p => { p.style.color = '#10b981'; animateUpdate(p); });
+          pills.forEach(p => { p.style.color = '#ffffff'; animateUpdate(p); });
           setTimeout(() => {
             if (pills[0]) pills[0].textContent = '200 OK';
             if (pills[1]) pills[1].textContent = '10ms';

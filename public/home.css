@@ -1040,9 +1040,9 @@ h1, h2, h3, h4 { font-weight: 500; }
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: rgba(var(--stage-rgb, 167, 180, 255), 0.25);
+  background: rgba(var(--card-rgb, var(--stage-rgb, 167, 180, 255)), 0.25);
   display: inline-block;
-  border: 1px solid rgba(var(--stage-rgb, 167, 180, 255), 0.5);
+  border: 1px solid rgba(var(--card-rgb, var(--stage-rgb, 167, 180, 255)), 0.5);
 }
 .home-dev-pill-green {
   font-size: 8.5px;

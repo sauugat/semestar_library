@@ -2524,6 +2524,8 @@ export default function HomeScreen() {
             {toastMessage}
           </Text>
         </Animated.View>
+      )}
+
       {/* Upload Note Modal */}
       <UploadNoteModal
         visible={uploadModalOpen}

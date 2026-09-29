@@ -155,9 +155,17 @@ export function SearchOverlay({
       presentationStyle="fullScreen"
       onRequestClose={handleClose}
     >
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
-        {/* Header Search Bar */}
-        <View style={[styles.headerBar, { borderBottomColor: colors.border }]}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        {/* Header Search Bar with Safe Area Top Inset */}
+        <View
+          style={[
+            styles.headerBar,
+            {
+              paddingTop: topInset,
+              borderBottomColor: colors.border,
+            },
+          ]}
+        >
           <View
             style={[
               styles.inputContainer,
@@ -206,56 +214,60 @@ export function SearchOverlay({
           </TouchableOpacity>
         </View>
 
-        {/* Content Body */}
-        {isLoading ? (
-          <View style={styles.centerContainer}>
-            <ActivityIndicator size="small" color={colors.text} />
-            <Text variant="sm" color="secondary" style={{ marginTop: 12 }}>
-              Searching campus library...
-            </Text>
-          </View>
-        ) : isEmpty ? (
-          <View style={styles.centerContainer}>
-            <View
-              style={[
-                styles.emptyIconCircle,
-                { backgroundColor: colors.surfaceRaised, borderColor: colors.border },
-              ]}
-            >
-              <Ionicons name="search-outline" size={28} color={colors.textMuted} />
+        {/* Content Body with Keyboard Handling */}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={{ flex: 1 }}
+        >
+          {isLoading ? (
+            <View style={styles.centerContainer}>
+              <ActivityIndicator size="small" color={colors.text} />
+              <Text variant="sm" color="secondary" style={{ marginTop: 12 }}>
+                Searching campus library...
+              </Text>
             </View>
-            <Text variant="md" weight="700" style={{ marginTop: 14 }}>
-              No results found
-            </Text>
-            <Text variant="sm" color="muted" style={{ textAlign: 'center', marginTop: 4, paddingHorizontal: 32 }}>
-              No notes, subjects, classmates, or assignments matched "{debouncedQuery}"
-            </Text>
-          </View>
-        ) : !debouncedQuery.trim() ? (
-          <View style={styles.centerContainer}>
-            <View
-              style={[
-                styles.emptyIconCircle,
-                { backgroundColor: colors.surfaceRaised, borderColor: colors.border },
-              ]}
-            >
-              <Ionicons name="search" size={28} color={colors.textSecondary} />
+          ) : isEmpty ? (
+            <View style={styles.centerContainer}>
+              <View
+                style={[
+                  styles.emptyIconCircle,
+                  { backgroundColor: colors.surfaceRaised, borderColor: colors.border },
+                ]}
+              >
+                <Ionicons name="search-outline" size={28} color={colors.textMuted} />
+              </View>
+              <Text variant="md" weight="700" style={{ marginTop: 14 }}>
+                No results found
+              </Text>
+              <Text variant="sm" color="muted" style={{ textAlign: 'center', marginTop: 4, paddingHorizontal: 32 }}>
+                No notes, subjects, classmates, or assignments matched "{debouncedQuery}"
+              </Text>
             </View>
-            <Text variant="md" weight="700" style={{ marginTop: 14 }}>
-              {filterType === 'files' ? 'Search Library Notes' : 'Search Campus'}
-            </Text>
-            <Text variant="sm" color="muted" style={{ textAlign: 'center', marginTop: 4, paddingHorizontal: 32 }}>
-              {filterType === 'files'
-                ? 'Type to find notes across all semesters, subjects, and chapters.'
-                : 'Type to find study notes, subjects, classmates, and assignments.'}
-            </Text>
-          </View>
-        ) : (
-          <ScrollView
-            contentContainerStyle={styles.scrollContent}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
+          ) : !debouncedQuery.trim() ? (
+            <View style={styles.centerContainer}>
+              <View
+                style={[
+                  styles.emptyIconCircle,
+                  { backgroundColor: colors.surfaceRaised, borderColor: colors.border },
+                ]}
+              >
+                <Ionicons name="search" size={28} color={colors.textSecondary} />
+              </View>
+              <Text variant="md" weight="700" style={{ marginTop: 14 }}>
+                {filterType === 'files' ? 'Search Library Notes' : 'Search Campus'}
+              </Text>
+              <Text variant="sm" color="muted" style={{ textAlign: 'center', marginTop: 4, paddingHorizontal: 32 }}>
+                {filterType === 'files'
+                  ? 'Type to find notes across all semesters, subjects, and chapters.'
+                  : 'Type to find study notes, subjects, classmates, and assignments.'}
+              </Text>
+            </View>
+          ) : (
+            <ScrollView
+              contentContainerStyle={[styles.scrollContent, { paddingBottom: 40 + bottomInset }]}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
             {/* 1. Files & Notes */}
             {results?.files && results.files.length > 0 && (
               <View style={styles.section}>
@@ -302,7 +314,7 @@ export function SearchOverlay({
                           {file.title || file.originalName}
                         </Text>
 
-                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 3, flexWrap: 'wrap', gap: 6 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 6 }}>
                           {file.subject ? (
                             <View
                               style={[
@@ -317,18 +329,14 @@ export function SearchOverlay({
                           ) : null}
 
                           {file.chapter ? (
-                            <Text variant="xs" color="muted">
+                            <Text variant="xs" color="muted" numberOfLines={1} style={{ flexShrink: 1 }}>
                               {file.chapter}
                             </Text>
                           ) : null}
-
-                          <Text variant="xs" color="muted">
-                            • {formatFileSize(file.sizeBytes)}
-                          </Text>
                         </View>
 
                         <Caption color="muted" style={{ marginTop: 4 }}>
-                          By {file.uploaderName || 'Student'}
+                          {formatFileSize(file.sizeBytes)} • By {file.uploaderName || 'Student'}
                           {file.semester ? ` • ${file.semester}` : ''}
                         </Caption>
                       </View>
@@ -413,11 +421,14 @@ export function SearchOverlay({
                       ]}
                       activeOpacity={0.7}
                       onPress={() => {
+                        handleClose();
                         if (user?.studentId && user.studentId === student.studentId) {
-                          handleClose();
                           router.push('/(tabs)/profile');
                         } else {
-                          setSelectedStudent(student);
+                          router.push({
+                            pathname: '/user/[id]',
+                            params: { id: student.studentId },
+                          });
                         }
                       }}
                     >
@@ -470,7 +481,7 @@ export function SearchOverlay({
                         </Caption>
                       </View>
 
-                      <Ionicons name="information-circle-outline" size={18} color={colors.textSecondary} />
+                      <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
                     </TouchableOpacity>
                   );
                 })}
@@ -769,7 +780,8 @@ export function SearchOverlay({
             </TouchableOpacity>
           </TouchableOpacity>
         </Modal>
-      </SafeAreaView>
+        </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }
@@ -782,8 +794,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     gap: 12,
   },
   inputContainer: {

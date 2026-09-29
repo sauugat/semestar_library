@@ -93,20 +93,33 @@
   </header>
 
   <main id="main">
-    <section class="home-hero" aria-labelledby="hero-title">
-      <div class="home-hero-badge">
-        <span class="home-status-dot" aria-hidden="true"></span>
-        <span>Gandaki University Academic Resources</span>
-        <span class="home-hero-badge-tag">Semester Library</span>
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-bg" aria-hidden="true"><div class="hero-grid"></div><div class="hero-aurora"></div><div class="hero-horizon"></div></div>
+      <div class="hero-inner">
+        <div class="hero-badge"><span class="hero-dot" aria-hidden="true"></span> THE STUDENT WORKSPACE <span class="hero-badge-tag">Gandaki University</span></div>
+        <h1 id="hero-title"><span class="hero-word hero-w1">Everything your</span><span class="hero-word hero-w2">semester needs<span class="hero-period">.</span></span></h1>
+        <p class="hero-desc">Notes, syllabus, routines, an AI study companion, a code compiler, and your classmates — all under one roof.</p>
+        <div class="hero-actions">
+          <a href="/library.html" class="hero-btn-main"><span class="hero-btn-shine" aria-hidden="true"></span>Enter the Library<svg aria-hidden="true"><use href="#icon-arrow"/></svg></a>
+          <a href="#explore" class="hero-btn-ghost">See what's inside<svg aria-hidden="true"><use href="#icon-arrow"/></svg></a>
+        </div>
+        <p class="hero-community"><span aria-hidden="true">✦</span> Built by students, for students at Gandaki University.</p>
       </div>
-      <h1 id="hero-title"><span class="home-hero-title-primary">Semester Library</span> <span class="home-hero-title-secondary">Gandaki University Academic<br class="home-hero-break"> Resources</span></h1>
-      <p class="home-hero-desc">Semester Library is a platform for Gandaki University students to access semester-wise academic resources including notes, syllabus, routines, notices and other study materials.</p>
-      <div class="home-hero-actions">
-        <a href="/library.html" class="home-button">Enter the Library <svg aria-hidden="true"><use href="#icon-arrow"/></svg></a>
+      <div class="hero-constellation">
+        <div class="hero-orbit" aria-hidden="true"></div>
+        <nav class="hero-toolkit" aria-label="Your semester toolkit">
+          <a class="hero-orbit-item" href="#library" style="--i:0"><span class="hero-orbit-icon"><svg aria-hidden="true"><use href="#icon-book"/></svg></span><span>Notes & syllabus</span></a>
+          <a class="hero-orbit-item" href="#kyana" style="--i:1"><span class="hero-orbit-icon"><svg aria-hidden="true"><use href="#icon-spark"/></svg></span><span>Kyana AI</span></a>
+          <a class="hero-orbit-item" href="#compiler" style="--i:2"><span class="hero-orbit-icon"><svg aria-hidden="true"><use href="#icon-code"/></svg></span><span>Code compiler</span></a>
+          <a class="hero-orbit-item" href="#assignments" style="--i:3"><span class="hero-orbit-icon"><svg aria-hidden="true"><use href="#icon-check-circle"/></svg></span><span>Assignments</span></a>
+          <a class="hero-orbit-item" href="#campus" style="--i:4"><span class="hero-orbit-icon"><svg aria-hidden="true"><use href="#icon-calendar"/></svg></span><span>Campus updates</span></a>
+          <a class="hero-orbit-item" href="#chat" style="--i:5"><span class="hero-orbit-icon"><svg aria-hidden="true"><use href="#icon-chat"/></svg></span><span>Your classmates</span></a>
+        </nav>
+        <div class="hero-bottom-label"><span>ONE CONNECTED WORKSPACE</span><span>LEARN. BUILD. BELONG.</span></div>
       </div>
     </section>
 
-    <nav class="home-feature-nav" aria-label="Explore features">
+    <nav class="home-feature-nav" id="explore" aria-label="Explore features">
       <div class="home-wrap home-feature-nav-inner">
         <a href="#library" aria-current="location"><span>01</span> Library</a>
         <a href="#kyana"><span>02</span> Kyana AI</a>

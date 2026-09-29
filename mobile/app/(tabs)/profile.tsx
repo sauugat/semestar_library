@@ -1033,7 +1033,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   bannerAuroraOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     opacity: 0.25,
     backgroundColor: '#38BDF8',
   },
@@ -1066,7 +1066,7 @@ const styles = StyleSheet.create({
     color: '#3B82F6',
   },
   avatarLoadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.4)',
     alignItems: 'center',
     justifyContent: 'center',

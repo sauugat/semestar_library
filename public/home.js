@@ -303,16 +303,39 @@
     card.addEventListener('click', () => {
       activateDev(card.dataset.dev);
     });
-
-    card.addEventListener('pointermove', event => {
-      if (reducedMotion.matches || !finePointer.matches) return;
-      const rect = card.getBoundingClientRect();
-      const x = event.clientX - rect.left;
-      const y = event.clientY - rect.top;
-      card.style.setProperty('--card-x', `${x}px`);
-      card.style.setProperty('--card-y', `${y}px`);
-    });
   });
+
+  // Smooth throttled pointer spotlight for devStage matching .home-stage (no window tilting)
+  if (devStage) {
+    let devPointerFrame = 0;
+    let devPointerX = 0;
+    let devPointerY = 0;
+    const resetDevPointer = () => {
+      cancelAnimationFrame(devPointerFrame);
+      devPointerFrame = 0;
+      delete devStage.dataset.pointerActive;
+      devStage.style.removeProperty('--pointer-x');
+      devStage.style.removeProperty('--pointer-y');
+    };
+    resetPointers.push(resetDevPointer);
+    devStage.addEventListener('pointermove', event => {
+      if (reducedMotion.matches || !finePointer.matches || event.pointerType !== 'mouse') return;
+      devPointerX = event.clientX;
+      devPointerY = event.clientY;
+      if (devPointerFrame) return;
+      devPointerFrame = requestAnimationFrame(() => {
+        devPointerFrame = 0;
+        const bounds = devStage.getBoundingClientRect();
+        const x = Math.min(1, Math.max(0, (devPointerX - bounds.left) / bounds.width));
+        const y = Math.min(1, Math.max(0, (devPointerY - bounds.top) / bounds.height));
+        devStage.dataset.pointerActive = 'true';
+        devStage.style.setProperty('--pointer-x', `${x * 100}%`);
+        devStage.style.setProperty('--pointer-y', `${y * 100}%`);
+      });
+    }, { passive: true });
+    devStage.addEventListener('pointerleave', resetDevPointer);
+    devStage.addEventListener('pointercancel', resetDevPointer);
+  }
 
   // devStage terminal window remains stationary with no tilt movement
 

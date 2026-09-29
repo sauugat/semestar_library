@@ -137,3 +137,12 @@
   .home-dev-demo.home-stage-library[data-motion-active="true"] .home-dev-card-preview > :nth-child(3) { animation-name: home-file-arrive; }
   .home-dev-demo.home-stage-assignment[data-motion-active="true"] .home-dev-card-preview > :last-child { animation-name: home-submission-ready; }
 }
+@media (prefers-reduced-motion: no-preference) {
+ .home-dev-demo[data-motion-active="true"] .dev-product-source { animation: home-code-line-in .85s .4s both; }
+ .home-dev-demo[data-motion-active="true"] .dev-product-terminal code { animation: home-answer-in .7s 1s both; }
+ .home-dev-demo[data-motion-active="true"] .dev-product-message { animation: home-message-in .7s .3s both; }
+ .home-dev-demo[data-motion-active="true"] .dev-product-message.is-self { animation: home-message-out .7s .7s both; }
+ .home-dev-demo[data-motion-active="true"] .dev-product-message:nth-of-type(4) { animation-delay: 1.1s; }
+ .home-dev-demo[data-motion-active="true"] .dev-product-spark { animation: home-spark-awaken 2.4s both; }
+ .home-dev-demo[data-motion-active="true"] .dev-product-paper { animation: home-file-arrive .85s .4s both; }
+}

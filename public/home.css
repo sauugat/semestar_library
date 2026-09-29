@@ -687,3 +687,75 @@ h1, h2, h3, h4 { font-weight: 500; }
   .home-dev-demo .home-dev-card-preview { min-height: 210px; padding: 20px; font-size: 11px; }
   .home-dev-features-grid { gap: 42px; }
 }
+
+/* Read-only miniatures follow the real app's navigation, reader and workspace layouts. */
+.home-dev-demo .home-dev-product-preview { padding: 0; gap: 0; min-height: 320px; justify-content: flex-start; font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; font-size: 11px; line-height: 1.6; cursor: default; user-select: text; background: #111317; }
+.home-dev-product-preview:active { transform: none; }
+.dev-product-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; background: #ffffff04; font-size: 10px; }
+.dev-product-top > span, .dev-product-row > span:last-child { color: #91959f; font-size: 9px; }
+.dev-product-body { padding: 20px; }
+.home-dev-product-preview h5 { font-size: 21px; line-height: 1.22; font-weight: 500; letter-spacing: -.04em; margin: 0 0 10px; }
+.home-dev-product-preview p { color: #989da7; font-size: 10px; line-height: 1.7; margin: 6px 0 14px; }
+.home-dev-product-preview small { color: #9298a3; font-size: 8px; letter-spacing: .04em; }
+.dev-product-tabs { display: flex; flex-wrap: wrap; gap: 7px; padding: 10px 18px; color: #979ca7; font-size: 9px; }
+.dev-product-body > .dev-product-tabs { padding: 10px 0; }
+.dev-product-tabs span { padding: 4px 8px; border-radius: 5px; }
+.dev-product-tabs span:first-child { color: #f5f5f7; background: #ffffff10; }
+.dev-product-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 0; }
+.dev-product-field { display: flex; justify-content: space-between; gap: 10px; border-radius: 9px; background: #ffffff08; color: #939aa6; padding: 12px; font-size: 10px; }
+.dev-product-field > span { color: #e9ebef; }
+.dev-product-tile { background: #ffffff04; border-radius: 9px; padding: 14px; margin: 12px 0; }
+.dev-product-tile .dev-product-top { padding: 0 0 10px; background: none; }
+.dev-product-caption { margin-top: auto; padding: 12px 18px; color: #9197a2; font-size: 8px; letter-spacing: .02em; background: #ffffff03; }
+.dev-product-source { margin: 0; white-space: pre-wrap; font: 10px/1.9 ui-monospace, SFMono-Regular, Menlo, monospace; color: #dddfe7; }
+.dev-product-source i { color: #626976; font-style: normal; padding-right: 12px; }
+.dev-product-source em { color: #b8a3db; font-style: normal; }
+.dev-product-source b { font-weight: 400; color: #abd1b4; }
+.dev-product-compiler .dev-product-body { padding: 0 16px 14px; }
+.dev-product-compiler .dev-product-body .dev-product-top { padding: 10px 0; background: none; }
+.dev-product-terminal { background: #090b0e; padding-bottom: 15px; }
+.dev-product-terminal code { display: block; padding: 0 18px; font-size: 10px; color: #b6cbb8; }
+.dev-product-terminal code span { color: #757c89; font-size: 9px; }
+.dev-product-ai-welcome { display: flex; flex: 1; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 30px 40px; background: radial-gradient(ellipse at 50% 100%, #8875af16, transparent 65%); }
+.dev-product-ai-welcome h5 { font-size: 28px; }
+.dev-product-spark { font-size: 25px; margin-bottom: 15px; color: #ded8ed; }
+.dev-product-ai-welcome p { max-width: 270px; }
+.dev-product-notice { font-size: 8px; color: #b2b5bf; margin-bottom: 16px; }
+.dev-product-notice span { display: block; color: #777e8b; }
+.dev-product-message { background: #222630; border-radius: 9px 9px 9px 2px; padding: 10px 12px; margin: 10px 0; max-width: 85%; font-size: 10px; }
+.dev-product-message small { display: block; font-size: 7px; padding-bottom: 3px; }
+.dev-product-message.is-self { margin-left: auto; background: #323e54; border-radius: 9px 9px 2px 9px; }
+.dev-product-chat .dev-product-field { margin-top: 18px; }
+.dev-product-reader { display: grid; grid-template-columns: 1.2fr 1fr; min-height: 260px; }
+.dev-product-reader > div { min-width: 0; background: #0c0e12; }
+.dev-product-reader aside { padding: 15px 12px; font-size: 9px; }
+.dev-product-reader aside .dev-product-row { font-size: 8px; }
+.dev-product-paper { background: #e9eaed; color: #292d35; padding: 20px 14px; margin: 8px 14px 18px; min-height: 205px; }
+.dev-product-paper h5 { font-size: 16px; margin-top: 16px; }
+.dev-product-paper p, .dev-product-paper small { font-size: 7px; color: #666b75; }
+.dev-product-lines { height: 34px; background: repeating-linear-gradient(to bottom,#656b7329 0 2px,transparent 2px 9px); }
+.dev-product-hero { text-align: center; padding: 34px 22px; background: radial-gradient(ellipse at 50% 100%,#ffffff0c,transparent 70%); }
+.dev-product-hero h5 { font-size: 31px; margin-top: 20px; }
+.dev-product-cta { display: inline-block; padding: 8px 18px; border-radius: 24px; background: #eceef2; color: #15171b; font-size: 9px; font-weight: 600; margin-top: 8px; }
+.dev-product-login { max-width: 275px; margin: 10px auto; }
+.dev-product-login h5 { font-size: 22px; }
+.dev-product-login .dev-product-field { margin: 4px 0 10px; }
+.dev-product-login .dev-product-cta { display: block; text-align: center; border-radius: 7px; }
+.dev-product-person { display: flex; align-items: center; gap: 14px; }
+.dev-product-person > span { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: #272c37; font-size: 20px; }
+.dev-product-person h5 { margin-bottom: 4px; }
+.dev-product-stats { display: flex; justify-content: space-between; padding: 20px 0; font-size: 8px; color: #9196a1; }
+.dev-product-stats b { display: block; font-size: 20px; font-weight: 500; color: #eceef3; }
+.dev-product-phone { width: 215px; max-width: 90%; margin: 22px auto; border-radius: 22px; background: #191d25; overflow: hidden; box-shadow: 0 16px 35px #0005; }
+.dev-product-phone .dev-product-top { padding-top: 20px; }
+.dev-product-mobile { background: transparent !important; box-shadow: none; }
+.home-dev-product-preview .dev-product-search-title { font-size: 20px; color: #a8bcef; margin-top: 14px; }
+@media (max-width:600px) {
+ .home-dev-demo .home-dev-product-preview { padding: 0; min-height: 300px; font-size: 10px; }
+ .dev-product-top { padding: 12px; gap: 8px; }
+ .dev-product-top > span { font-size: 8px; }
+ .dev-product-body { padding: 16px; }
+ .dev-product-reader { grid-template-columns: 1.15fr 1fr; }
+ .dev-product-paper { margin: 8px; padding: 14px 10px; }
+ .dev-product-ai-welcome { padding: 28px 20px; }
+}

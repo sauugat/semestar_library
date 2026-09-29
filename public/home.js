@@ -2,6 +2,23 @@
 (() => {
   'use strict';
 
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const activeTransitions = new Set();
+  const updateTransitions = new WeakMap();
+
+  function animateUpdate(element) {
+    if (reducedMotion.matches || !element.animate) return;
+    updateTransitions.get(element)?.cancel();
+    const animation = element.animate([
+      { opacity: 0, transform: 'translateY(8px)' },
+      { opacity: 1, transform: 'translateY(0)' }
+    ], { duration: 420, easing: 'cubic-bezier(.16,1,.3,1)' });
+    activeTransitions.add(animation);
+    updateTransitions.set(element, animation);
+    const cleanup = () => activeTransitions.delete(animation);
+    animation.finished.then(cleanup, cleanup);
+  }
+
   const questions = {
     dbms: {
       question: 'Can you make database normalization simpler?',
@@ -24,6 +41,7 @@
       document.getElementById('ai-question').textContent = example.question;
       // These responses are authored, static examples, never user-provided HTML.
       document.getElementById('ai-answer').innerHTML = example.answer;
+      animateUpdate(document.getElementById('ai-example'));
     });
   });
 
@@ -79,6 +97,7 @@
       const row = document.createElement('span');
       row.className = 'home-code-line';
       row.dataset.line = index + 1;
+      row.style.setProperty('--motion-delay', `${.12 + index * .075}s`);
       const tokens = line.split(/("[^"\n]*"|\/\/.*|#.*|\b(?:public|class|static|void|int|return|def)\b|\b(?:print|puts|printf|say_hello|println|main)\b|\b\d+\b)/g);
       tokens.forEach(token => {
         if (!token) return;
@@ -103,12 +122,15 @@
       document.getElementById('code-filename').textContent = example.filename;
       renderCode(example.source);
       codeOutput.textContent = 'Select “Preview output” to see the result.';
+      delete codeOutput.dataset.outputVisible;
       runLabel.textContent = 'Preview output';
     });
   });
   document.getElementById('code-preview-run').addEventListener('click', () => {
     codeOutput.textContent = 'Hello, Gandaki!\nLet’s build something.';
     runLabel.textContent = 'Preview again';
+    codeOutput.dataset.outputVisible = 'true';
+    animateUpdate(codeOutput);
   });
 
   const campusTabs = [...document.querySelectorAll('[data-campus]')];
@@ -158,7 +180,7 @@
     }, { rootMargin: '-140px 0px -15% 0px', threshold: [0, .2, .4, .6, .8, 1] });
     document.querySelectorAll('.home-feature').forEach(section => sectionObserver.observe(section));
 
-    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (!reducedMotion.matches) {
       const revealObserver = new IntersectionObserver(entries => {
         entries.forEach(entry => {
           if (!entry.isIntersecting) return;
@@ -173,6 +195,76 @@
       });
     }
   }
+
+  // Short, feature-specific sequences replay when a preview re-enters the viewport.
+  // Pointer movement is sampled once per frame; nothing runs on an idle page.
+  const stages = [...document.querySelectorAll('.home-stage')];
+  const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)');
+  const resetPointers = [];
+  const staggerGroups = [
+    ['.home-file-row', .25, .18],
+    ['.home-code-line', .25, .09],
+    ['.home-assignment-steps span', .35, .28],
+    ['.home-exam-row', .25, .2],
+    ['.home-message', .35, .55]
+  ];
+  stages.forEach(stage => {
+    staggerGroups.forEach(([selector, start, step]) => {
+      stage.querySelectorAll(selector).forEach((element, index) => {
+        element.style.setProperty('--motion-delay', `${start + index * step}s`);
+      });
+    });
+
+    let pointerFrame = 0;
+    let pointerX = 0;
+    let pointerY = 0;
+    const resetPointer = () => {
+      cancelAnimationFrame(pointerFrame);
+      pointerFrame = 0;
+      delete stage.dataset.pointerActive;
+      ['--tilt-x', '--tilt-y', '--pointer-x', '--pointer-y'].forEach(property => stage.style.removeProperty(property));
+    };
+    resetPointers.push(resetPointer);
+    stage.addEventListener('pointermove', event => {
+      if (reducedMotion.matches || !finePointer.matches || event.pointerType !== 'mouse') return;
+      pointerX = event.clientX;
+      pointerY = event.clientY;
+      if (pointerFrame) return;
+      pointerFrame = requestAnimationFrame(() => {
+        pointerFrame = 0;
+        const bounds = stage.getBoundingClientRect();
+        const x = Math.min(1, Math.max(0, (pointerX - bounds.left) / bounds.width));
+        const y = Math.min(1, Math.max(0, (pointerY - bounds.top) / bounds.height));
+        stage.dataset.pointerActive = 'true';
+        stage.style.setProperty('--pointer-x', `${x * 100}%`);
+        stage.style.setProperty('--pointer-y', `${y * 100}%`);
+        stage.style.setProperty('--tilt-x', `${(0.5 - y) * 3.2}deg`);
+        stage.style.setProperty('--tilt-y', `${(x - 0.5) * 3.2}deg`);
+      });
+    }, { passive: true });
+    stage.addEventListener('pointerleave', resetPointer);
+    stage.addEventListener('pointercancel', resetPointer);
+  });
+
+  const motionObserver = 'IntersectionObserver' in window ? new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      entry.target.dataset.motionActive = String(entry.isIntersecting && !reducedMotion.matches && !document.hidden);
+    });
+  }, { threshold: .12, rootMargin: '-125px 0px 0px 0px' }) : null;
+
+  function syncMotion() {
+    resetPointers.forEach(reset => reset());
+    activeTransitions.forEach(animation => animation.cancel());
+    motionObserver?.disconnect();
+    stages.forEach(stage => {
+      stage.dataset.motionActive = 'false';
+      if (!reducedMotion.matches && !document.hidden) motionObserver?.observe(stage);
+    });
+  }
+  reducedMotion.addEventListener('change', syncMotion);
+  finePointer.addEventListener('change', () => resetPointers.forEach(reset => reset()));
+  document.addEventListener('visibilitychange', syncMotion);
+  syncMotion();
 
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {

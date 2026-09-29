@@ -2,7 +2,6 @@
 <html lang="en" data-theme="dark">
 
 <head>
-  <script src="/theme.js"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Semester Library — Gandaki University Notes, Syllabus & Routines</title>
@@ -21,7 +20,8 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Semester Library">
-  <meta name="theme-color" content="#ffffff">
+  <meta name="theme-color" content="#0b0c0e">
+  <meta name="color-scheme" content="dark">
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://semestar-library.vercel.app/">
@@ -52,6 +52,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/home.css">
+  <link rel="stylesheet" href="/home-motion.css">
   <script src="/home.js" defer></script>
 </head>
 <body class="home-page">
@@ -78,8 +79,6 @@
       <symbol id="icon-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
       <symbol id="icon-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8" cy="8" r="1.5"/><path d="m21 15-5-5L5 21"/></symbol>
       <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
-      <symbol id="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5 19 19M5 19l1.5-1.5M17.5 6.5 19 5"/></symbol>
-      <symbol id="icon-moon" viewBox="0 0 24 24"><path d="M21 13a9 9 0 0 1-10-10A9 9 0 1 0 21 13Z"/></symbol>
     </defs>
   </svg>
 
@@ -88,10 +87,6 @@
       <a href="/" class="home-brand" aria-label="Semester Library home">Semester Library</a>
       <div class="home-header-actions">
         <a class="home-university" href="https://gandakiuniversity.edu.np" target="_blank" rel="noopener noreferrer">Gandaki University</a>
-        <button class="theme-toggle-btn" id="themeToggleBtn" type="button" aria-label="Toggle theme" title="Toggle theme">
-          <svg class="theme-icon-sun" aria-hidden="true"><use href="#icon-sun"/></svg>
-          <svg class="theme-icon-moon" aria-hidden="true"><use href="#icon-moon"/></svg>
-        </button>
         <a href="/login.html" class="home-signin">Sign In</a>
       </div>
     </div>

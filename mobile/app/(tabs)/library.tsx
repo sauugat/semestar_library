@@ -520,7 +520,7 @@ export default function LibraryScreen() {
                 variant="primary"
                 size="sm"
                 onPress={() => refetchFiles()}
-                leftIcon={<Ionicons name="refresh" size={14} color="#FFFFFF" />}
+                leftIcon={<Ionicons name="refresh" size={14} color={colors.primaryText} />}
               />
             </Card>
           )}

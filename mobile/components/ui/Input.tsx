@@ -49,7 +49,7 @@ export function Input({
             backgroundColor: colors.surfaceSubtle,
             borderColor: error ? colors.error : isFocused ? colors.primary : colors.border,
             borderRadius: radii.md,
-            paddingHorizontal: spacing.md,
+            paddingHorizontal: 12,
           },
         ]}
       >
@@ -58,7 +58,7 @@ export function Input({
             name={leftIcon}
             size={18}
             color={error ? colors.error : isFocused ? colors.primary : colors.textMuted}
-            style={{ marginRight: spacing.sm }}
+            style={{ marginRight: 8 }}
           />
         )}
 
@@ -69,8 +69,7 @@ export function Input({
           onBlur={() => setIsFocused(false)}
           style={[
             styles.input,
-            typography.md,
-            { color: colors.text },
+            { color: colors.text, fontSize: 15 },
             style,
           ]}
           {...props}

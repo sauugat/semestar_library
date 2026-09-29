@@ -221,9 +221,6 @@
   .home-dev-stage[data-pointer-active="true"] > .home-dev-stage-window {
     box-shadow: 0 35px 85px -25px #000, 0 0 50px -15px rgba(var(--stage-rgb), .38);
   }
-  .home-dev-card.is-active .home-dev-avatar {
-    animation: dev-avatar-pulse 2.4s ease-in-out infinite;
-  }
   .home-dev-panel.is-active .home-dev-feat-card {
     animation: dev-feat-arrive .65s cubic-bezier(.16,1,.3,1) both;
     animation-delay: calc(var(--feat-index, 0) * 0.1s + 0.08s);

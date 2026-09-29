@@ -316,6 +316,132 @@
 
   // devStage terminal window remains stationary with no tilt movement
 
+  // Interactive Live Template Previews (matching above feature demo experiences)
+  const templatePreviews = [...document.querySelectorAll('.home-dev-card-preview')];
+  templatePreviews.forEach(preview => {
+    preview.setAttribute('title', 'Click to test live template');
+    preview.setAttribute('tabindex', '0');
+    preview.setAttribute('role', 'button');
+    preview.setAttribute('aria-label', 'Interactive template preview');
+
+    const handlePreviewInteraction = () => {
+      animateUpdate(preview);
+
+      // 1. Compiler Sandbox interaction
+      const codeBlock = preview.querySelector('.home-dev-preview-code');
+      const outBlock = preview.querySelector('.home-dev-preview-out');
+      if (codeBlock && outBlock && !preview.dataset.running) {
+        preview.dataset.running = 'true';
+        const originalOut = outBlock.innerHTML;
+        outBlock.innerHTML = '<span class="home-dev-dot-yellow"></span><span>Compiling and executing main.c...</span>';
+        setTimeout(() => {
+          outBlock.innerHTML = '<span class="home-dev-dot-green"></span><span style="color:#b4dcb9;">Output: Gandaki Semester Library [0.008s · Exit 0]</span>';
+          animateUpdate(outBlock);
+          setTimeout(() => {
+            outBlock.innerHTML = originalOut;
+            delete preview.dataset.running;
+          }, 3200);
+        }, 400);
+        return;
+      }
+
+      // 2. Kyana AI Conversational interaction
+      const chatBubbles = preview.querySelectorAll('.home-dev-preview-chat-bubble');
+      if (chatBubbles.length >= 2 && !preview.dataset.generating) {
+        preview.dataset.generating = 'true';
+        const answerBubble = chatBubbles[1];
+        const originalContent = answerBubble.innerHTML;
+        answerBubble.innerHTML = '<svg aria-hidden="true" style="animation: dev-spark-gleam .6s linear infinite;"><use href="#icon-spark"/></svg> <span style="opacity:0.85;">Kyana is generating revision notes...</span>';
+        setTimeout(() => {
+          answerBubble.innerHTML = '<svg aria-hidden="true"><use href="#icon-spark"/></svg> <strong>1NF:</strong> Atomic cells · <strong>2NF:</strong> Full key dependency · <strong>3NF:</strong> No transitive dependency';
+          animateUpdate(answerBubble);
+          setTimeout(() => {
+            answerBubble.innerHTML = originalContent;
+            delete preview.dataset.generating;
+          }, 4000);
+        }, 450);
+        return;
+      }
+
+      // 3. API Gateway live ping test
+      const apiRows = preview.querySelectorAll('.home-dev-preview-api');
+      if (apiRows.length > 0 && !preview.dataset.pinging) {
+        preview.dataset.pinging = 'true';
+        const pills = preview.querySelectorAll('.home-dev-pill-green');
+        pills.forEach(p => { p.textContent = 'Pinging...'; p.style.color = '#ffbd2e'; });
+        setTimeout(() => {
+          if (pills[0]) pills[0].textContent = '200 OK · 4ms';
+          if (pills[1]) pills[1].textContent = '7ms Live Ping';
+          pills.forEach(p => { p.style.color = '#10b981'; animateUpdate(p); });
+          setTimeout(() => {
+            if (pills[0]) pills[0].textContent = '200 OK';
+            if (pills[1]) pills[1].textContent = '10ms';
+            delete preview.dataset.pinging;
+          }, 3000);
+        }, 380);
+        return;
+      }
+
+      // 4. Real-time Chat Live Message
+      const chatBar = preview.querySelector('.home-dev-preview-chat-bar');
+      if (chatBar && !preview.dataset.chatted) {
+        preview.dataset.chatted = 'true';
+        const existingBubble = preview.querySelector('.home-dev-preview-chat-bubble');
+        if (existingBubble) {
+          const originalText = existingBubble.textContent;
+          existingBubble.textContent = 'Alice: Got it! Testing with compiler right now ⚡';
+          animateUpdate(existingBubble);
+          setTimeout(() => {
+            existingBubble.textContent = originalText;
+            delete preview.dataset.chatted;
+          }, 3500);
+        }
+        return;
+      }
+
+      // 5. Code Lab Checklist Pop
+      const checkItems = preview.querySelectorAll('.home-dev-preview-checklist span svg');
+      if (checkItems.length > 0) {
+        checkItems.forEach((icon, i) => {
+          icon.style.animation = 'none';
+          icon.offsetHeight;
+          icon.style.animation = `dev-check-pop .45s ${i * 0.12}s cubic-bezier(.175,.885,.32,1.275) both`;
+        });
+        return;
+      }
+
+      // 6. Routine countdown flash
+      const routineRow = preview.querySelector('.home-dev-preview-routine-row');
+      if (routineRow && !preview.dataset.ticked) {
+        preview.dataset.ticked = 'true';
+        const out = preview.querySelector('.home-dev-preview-out span:last-child');
+        if (out) {
+          const orig = out.textContent;
+          out.textContent = 'Exam starts in: 03d 14h 21m 59s · Synced';
+          animateUpdate(out);
+          setTimeout(() => {
+            out.textContent = orig;
+            delete preview.dataset.ticked;
+          }, 3000);
+        }
+        return;
+      }
+
+      // 7. General template sheen trigger
+      preview.classList.remove('is-animating');
+      preview.offsetHeight;
+      preview.classList.add('is-animating');
+    };
+
+    preview.addEventListener('click', handlePreviewInteraction);
+    preview.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        handlePreviewInteraction();
+      }
+    });
+  });
+
   const motionObserver = 'IntersectionObserver' in window ? new IntersectionObserver(entries => {
     entries.forEach(entry => {
       entry.target.dataset.motionActive = String(entry.isIntersecting && !reducedMotion.matches && !document.hidden);

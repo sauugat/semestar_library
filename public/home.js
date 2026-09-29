@@ -320,6 +320,8 @@
   // Interactive Live Template Previews (matching above feature demo experiences)
   const templatePreviews = [...document.querySelectorAll('.home-dev-card-preview')];
   templatePreviews.forEach(preview => {
+    // Page miniatures are read-only illustrations; the link below opens the real tool.
+    if (preview.classList.contains('home-dev-product-preview')) return;
     preview.setAttribute('title', 'Explore a sample preview');
     preview.setAttribute('tabindex', '0');
     preview.setAttribute('role', 'button');

@@ -10,7 +10,7 @@ import {
   Platform,
   KeyboardAvoidingView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -60,6 +60,11 @@ export function SearchOverlay({
   const router = useRouter();
   const { user, serverUrl } = useAuth();
   const { colors, spacing, radii } = useTheme();
+  const insets = useSafeAreaInsets();
+
+  // Dynamic top padding to prevent Dynamic Island and Notch collision on all iOS / Android screens
+  const topInset = Math.max(insets.top, Platform.OS === 'ios' ? 52 : 16);
+  const bottomInset = Math.max(insets.bottom, Platform.OS === 'ios' ? 24 : 12);
 
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');

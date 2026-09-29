@@ -2543,38 +2543,100 @@ app.post('/api/files/:id/like', requireLogin, async (req, res) => {
 
 // List comments on a file
 app.get('/api/files/:id/comments', requireLogin, async (req, res) => {
+  const currentStudentId = req.session?.studentId || req.user?.studentId || req.student?.studentId;
+  const currentRole = req.session?.role || req.user?.role || req.student?.role || 'student';
+
   const comments = await db.all(`
-    SELECT file_comments.id, file_comments.commentText, file_comments.createdAt, students.name AS commenterName
+    SELECT file_comments.id, file_comments.studentId, file_comments.commentText, file_comments.createdAt,
+           students.name AS commenterName, students.avatarUrl, students.role
     FROM file_comments
     JOIN students ON students.studentId = file_comments.studentId
     WHERE fileId = ?
     ORDER BY file_comments.createdAt ASC
   `, req.params.id);
 
-  res.json(comments);
+  const formatted = comments.map(c => ({
+    id: c.id,
+    fileId: Number(req.params.id),
+    studentId: c.studentId,
+    commentText: c.commentText,
+    content: c.commentText,
+    createdAt: c.createdAt,
+    commenterName: c.commenterName,
+    name: c.commenterName,
+    avatarUrl: c.avatarUrl,
+    role: c.role || 'student',
+    canDelete: c.studentId === currentStudentId || currentRole === 'admin'
+  }));
+
+  res.json(formatted);
 });
 
 // Add a comment to a file
 app.post('/api/files/:id/comments', requireLogin, async (req, res) => {
-  const text = (req.body.text || '').trim();
+  const text = (req.body.text || req.body.content || '').trim();
   if (!text) return res.status(400).json({ message: 'Comment cannot be empty' });
   if (text.length > 500) return res.status(400).json({ message: 'Comment too long' });
 
+  const currentStudentId = req.session?.studentId || req.user?.studentId || req.student?.studentId;
+  const currentName = req.session?.name || req.user?.name || req.student?.name || 'Someone';
+
   const result = await db.run(`
     INSERT INTO file_comments (fileId, studentId, commentText, createdAt) VALUES (?, ?, ?, ?)
-  `, req.params.id, req.session.studentId, text, new Date().toISOString());
+  `, req.params.id, currentStudentId, text, new Date().toISOString());
 
   // Create notification
   const fileId = req.params.id;
-  const studentId = req.session.studentId;
   const file = await db.get('SELECT uploadedBy, originalName FROM files WHERE id = ?', fileId);
-  if (file && file.uploadedBy !== studentId) {
+  if (file && file.uploadedBy !== currentStudentId) {
     await db.run('INSERT INTO notifications (recipientStudentId, type, relatedFileId, message) VALUES (?, ?, ?, ?)',
-      file.uploadedBy, 'comment', fileId, `${req.session.name || 'Someone'} commented on your file: ${file.originalName}`
+      file.uploadedBy, 'comment', fileId, `${currentName} commented on your file: ${file.originalName}`
     );
   }
 
-  res.json({ commentId: result.lastInsertRowid });
+  const newComment = await db.get(`
+    SELECT file_comments.id, file_comments.studentId, file_comments.commentText, file_comments.createdAt,
+           students.name AS commenterName, students.avatarUrl, students.role
+    FROM file_comments
+    JOIN students ON students.studentId = file_comments.studentId
+    WHERE file_comments.id = ?
+  `, result.lastInsertRowid);
+
+  const count = await db.get('SELECT COUNT(*) AS c FROM file_comments WHERE fileId = ?', req.params.id);
+
+  res.json({
+    commentId: result.lastInsertRowid,
+    comment: newComment ? {
+      id: newComment.id,
+      fileId: Number(req.params.id),
+      studentId: newComment.studentId,
+      commentText: newComment.commentText,
+      content: newComment.commentText,
+      createdAt: newComment.createdAt,
+      commenterName: newComment.commenterName,
+      name: newComment.commenterName,
+      avatarUrl: newComment.avatarUrl,
+      role: newComment.role || 'student',
+      canDelete: true
+    } : null,
+    commentCount: Number(count?.c || 1)
+  });
+});
+
+// Delete a comment on a file
+app.delete('/api/files/:id/comments/:commentId', requireLogin, async (req, res) => {
+  const currentStudentId = req.session?.studentId || req.user?.studentId || req.student?.studentId;
+  const currentRole = req.session?.role || req.user?.role || req.student?.role || 'student';
+
+  const comment = await db.get('SELECT studentId FROM file_comments WHERE id = ? AND fileId = ?', req.params.commentId, req.params.id);
+  if (!comment) return res.status(404).json({ message: 'Comment not found' });
+  if (comment.studentId !== currentStudentId && currentRole !== 'admin') {
+    return res.status(403).json({ message: 'Unauthorized to delete this comment' });
+  }
+
+  await db.run('DELETE FROM file_comments WHERE id = ?', req.params.commentId);
+  const count = await db.get('SELECT COUNT(*) AS c FROM file_comments WHERE fileId = ?', req.params.id);
+  res.json({ message: 'Comment deleted', commentCount: Number(count?.c || 0) });
 });
 
 // --- Routine/Exam Endpoints ---

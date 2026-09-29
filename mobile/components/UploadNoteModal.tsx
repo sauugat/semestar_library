@@ -730,7 +730,7 @@ export function UploadNoteModal({
               loading={submitting}
               disabled={!selectedFile || submitting}
               onPress={handleSubmit}
-              leftIcon={<Ionicons name="cloud-upload-outline" size={20} color="#FFFFFF" />}
+              leftIcon={<Ionicons name="cloud-upload-outline" size={20} color={colors.primaryText} />}
               style={{ marginTop: spacing.sm }}
             />
           </ScrollView>

@@ -3249,7 +3249,7 @@ const uploadAvatar = multer({
 // Helper function to fetch profile with stats
 async function getStudentProfile(targetStudentId, viewerStudentId) {
   const student = await db.get(`
-    SELECT studentId, name, avatarUrl, bio, department, semester, githubUrl, linkedinUrl, role
+    SELECT studentId, username, name, avatarUrl, bio, department, semester, githubUrl, linkedinUrl, role, verification_status, email
     FROM students
     WHERE studentId = ?
   `, targetStudentId);
@@ -3279,7 +3279,9 @@ async function getStudentProfile(targetStudentId, viewerStudentId) {
 
   return {
     studentId: student.studentId,
+    username: student.username || null,
     name: student.name,
+    email: student.email || null,
     avatarUrl: student.avatarUrl || null,
     bio: student.bio || '',
     department: student.department || 'BIT',
@@ -3288,6 +3290,8 @@ async function getStudentProfile(targetStudentId, viewerStudentId) {
     linkedinUrl: student.linkedinUrl || '',
     role,
     isAdmin: role === 'admin',
+    isCR: role === 'cr' || role === 'class_rep',
+    verificationStatus: student.verification_status || student.verificationStatus || 'unverified',
     stats: {
       filesCount,
       likesReceived,
@@ -3301,14 +3305,16 @@ async function getStudentProfile(targetStudentId, viewerStudentId) {
 
 // Get logged-in student's profile
 app.get('/api/profile', requireLogin, async (req, res) => {
-  const profile = await getStudentProfile(req.session.studentId, req.session.studentId);
+  const activeStudentId = req.session?.studentId || req.user?.studentId || req.student?.studentId;
+  const profile = await getStudentProfile(activeStudentId, activeStudentId);
   if (!profile) return res.status(404).json({ message: 'Profile not found' });
   res.json(profile);
 });
 
 // Get any student's profile by ID
 app.get('/api/profile/:studentId', requireLogin, async (req, res) => {
-  const profile = await getStudentProfile(req.params.studentId, req.session.studentId);
+  const viewerStudentId = req.session?.studentId || req.user?.studentId || req.student?.studentId;
+  const profile = await getStudentProfile(req.params.studentId, viewerStudentId);
   if (!profile) return res.status(404).json({ message: 'Student profile not found' });
   res.json(profile);
 });

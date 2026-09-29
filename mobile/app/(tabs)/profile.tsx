@@ -93,6 +93,15 @@ export default function ProfileScreen() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Change Password State
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
+
   // Helper for full avatar url
   const getFullAvatarUrl = (url?: string | null) => {
     if (!url) return null;
@@ -352,6 +361,53 @@ export default function ProfileScreen() {
     const profileUrl = `${serverUrl}/profile.html?id=${user?.studentId}`;
     await Clipboard.setStringAsync(profileUrl);
     Alert.alert('Profile Link Copied', `Copied to clipboard:\n${profileUrl}`);
+  };
+
+  // Change Password Action
+  const handleChangePassword = async () => {
+    setPasswordError(null);
+    setPasswordSuccess(null);
+
+    if (!currentPassword) {
+      setPasswordError('Please enter your current password.');
+      return;
+    }
+    if (!newPassword || newPassword.length < 6) {
+      setPasswordError('New password must be at least 6 characters long.');
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setPasswordError('New passwords do not match.');
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      const res = await apiFetch('/api/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      const data = await res.json().catch(() => ({}));
+      setIsChangingPassword(false);
+
+      if (res.ok) {
+        setPasswordSuccess(data.message || 'Password successfully updated!');
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmNewPassword('');
+        setTimeout(() => {
+          setShowPasswordModal(false);
+          setPasswordSuccess(null);
+          Alert.alert('Success', 'Your password has been updated successfully.');
+        }, 1200);
+      } else {
+        setPasswordError(data.message || 'Failed to update password.');
+      }
+    } catch (err: any) {
+      setIsChangingPassword(false);
+      setPasswordError(err.message || 'Network error while updating password.');
+    }
   };
 
   // Save LAN URL
@@ -869,8 +925,86 @@ export default function ProfileScreen() {
         </View>
       )}
 
-      {/* 6. SESSION SECURITY CARD */}
+      {/* 6. ACCOUNT SECURITY & PREFERENCES */}
       <View style={{ paddingHorizontal: spacing.md, marginTop: spacing.lg }}>
+        <Subheading style={{ marginBottom: spacing.xs }}>Account & Security</Subheading>
+        <Card variant="elevated" padding="md" style={{ marginBottom: spacing.md }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: spacing.sm }}>
+              <View
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  backgroundColor: colors.surfaceRaised,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: spacing.sm,
+                }}
+              >
+                <Ionicons name="key-outline" size={18} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text variant="sm" weight="700">
+                  Password
+                </Text>
+                <Caption color="muted">Change your account sign-in password</Caption>
+              </View>
+            </View>
+            <Button
+              title="Change"
+              variant="outline"
+              size="sm"
+              onPress={() => {
+                setPasswordError(null);
+                setPasswordSuccess(null);
+                setCurrentPassword('');
+                setNewPassword('');
+                setConfirmNewPassword('');
+                setShowPasswordModal(true);
+              }}
+            />
+          </View>
+
+          <View
+            style={{
+              height: StyleSheet.hairlineWidth,
+              backgroundColor: colors.border,
+              marginVertical: spacing.sm,
+            }}
+          />
+
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => router.push('/modal')}
+            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: spacing.sm }}>
+              <View
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  backgroundColor: colors.surfaceRaised,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: spacing.sm,
+                }}
+              >
+                <Ionicons name="information-circle-outline" size={20} color={colors.textSecondary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text variant="sm" weight="700">
+                  About Semester Library
+                </Text>
+                <Caption color="muted">Version 1.0.0 &middot; Gandaki University</Caption>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </TouchableOpacity>
+        </Card>
+
+        {/* SESSION SECURITY CARD */}
         <Subheading style={{ marginBottom: spacing.xs }}>Session Security</Subheading>
         <Card variant="elevated" padding="md" style={{ marginBottom: spacing.md }}>
           <View style={styles.infoRow}>
@@ -1014,6 +1148,113 @@ export default function ProfileScreen() {
                   size="md"
                   loading={isSavingProfile}
                   onPress={handleSaveProfile}
+                  style={{ flex: 1, marginLeft: spacing.xs }}
+                />
+              </View>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* 8. CHANGE PASSWORD MODAL */}
+      <Modal
+        visible={showPasswordModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowPasswordModal(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={styles.modalHeader}>
+              <View style={{ flex: 1, marginRight: spacing.sm }}>
+                <Heading style={{ fontSize: 18 }}>Change Password</Heading>
+                <Caption color="muted">Enter your current password and a new secure password</Caption>
+              </View>
+              <TouchableOpacity onPress={() => setShowPasswordModal(false)} style={styles.modalCloseButton}>
+                <Ionicons name="close" size={22} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {passwordError ? (
+                <View
+                  style={{
+                    backgroundColor: colors.surfaceRaised,
+                    borderColor: colors.error,
+                    borderLeftWidth: 4,
+                    borderRadius: radii.sm,
+                    padding: spacing.sm,
+                    marginBottom: spacing.md,
+                  }}
+                >
+                  <Text variant="xs" color="error" weight="600">
+                    {passwordError}
+                  </Text>
+                </View>
+              ) : null}
+
+              {passwordSuccess ? (
+                <View
+                  style={{
+                    backgroundColor: colors.surfaceRaised,
+                    borderColor: colors.success,
+                    borderLeftWidth: 4,
+                    borderRadius: radii.sm,
+                    padding: spacing.sm,
+                    marginBottom: spacing.md,
+                  }}
+                >
+                  <Text variant="xs" color="success" weight="600">
+                    {passwordSuccess}
+                  </Text>
+                </View>
+              ) : null}
+
+              <Input
+                label="Current Password"
+                placeholder="Enter current password"
+                value={currentPassword}
+                onChangeText={setCurrentPassword}
+                secureTextEntry
+                autoCapitalize="none"
+              />
+
+              <Input
+                label="New Password"
+                placeholder="At least 6 characters"
+                value={newPassword}
+                onChangeText={setNewPassword}
+                secureTextEntry
+                autoCapitalize="none"
+                helper="Minimum 6 characters recommended"
+              />
+
+              <Input
+                label="Confirm New Password"
+                placeholder="Re-enter new password"
+                value={confirmNewPassword}
+                onChangeText={setConfirmNewPassword}
+                secureTextEntry
+                autoCapitalize="none"
+              />
+
+              <View style={styles.modalActionButtons}>
+                <Button
+                  title="Cancel"
+                  variant="outline"
+                  size="md"
+                  onPress={() => setShowPasswordModal(false)}
+                  style={{ flex: 1, marginRight: spacing.xs }}
+                />
+                <Button
+                  title="Update Password"
+                  variant="primary"
+                  size="md"
+                  loading={isChangingPassword}
+                  onPress={handleChangePassword}
                   style={{ flex: 1, marginLeft: spacing.xs }}
                 />
               </View>

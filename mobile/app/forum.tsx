@@ -39,7 +39,7 @@ export default function ForumScreen() {
         <Button
           title="New Post"
           size="sm"
-          leftIcon={<Ionicons name="add" size={16} color="#FFFFFF" />}
+          leftIcon={<Ionicons name="add" size={16} color={colors.primaryText} />}
           disabled
         />
       </View>

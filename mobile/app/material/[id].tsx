@@ -415,8 +415,136 @@ export default function MaterialDetailScreen() {
             {file.title || file.originalName}
           </Heading>
           <Caption color="muted">
-            Original: {file.originalName} • Uploaded by {file.uploaderName}
+            Original: {file.originalName}
           </Caption>
+
+          {/* Clickable Uploader Profile Card */}
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => {
+              if (file.uploadedBy) {
+                router.push({
+                  pathname: '/user/[id]',
+                  params: { id: file.uploadedBy },
+                });
+              }
+            }}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: colors.surfaceRaised,
+              padding: spacing.sm,
+              borderRadius: radii.md,
+              marginTop: spacing.sm,
+              borderWidth: 1,
+              borderColor: colors.border,
+            }}
+          >
+            <View
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: radii.full,
+                backgroundColor: colors.surfaceSubtle,
+                alignItems: 'center',
+                justifyContent: 'center',
+                overflow: 'hidden',
+                marginRight: spacing.sm,
+              }}
+            >
+              {file.uploaderAvatar ? (
+                <Image
+                  source={{
+                    uri: file.uploaderAvatar.startsWith('http')
+                      ? file.uploaderAvatar
+                      : `${serverBaseUrl}${file.uploaderAvatar.startsWith('/') ? '' : '/'}${file.uploaderAvatar}`,
+                  }}
+                  style={{ width: '100%', height: '100%' }}
+                  contentFit="cover"
+                />
+              ) : (
+                <Text variant="sm" weight="700" color="primary">
+                  {(file.uploaderName || 'S').charAt(0).toUpperCase()}
+                </Text>
+              )}
+            </View>
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text variant="sm" weight="700">
+                  {file.uploaderName || 'Student'}
+                </Text>
+                {file.uploaderRole && file.uploaderRole !== 'student' && (
+                  <View
+                    style={{
+                      backgroundColor: colors.surfaceSubtle,
+                      paddingHorizontal: 6,
+                      paddingVertical: 2,
+                      borderRadius: radii.sm,
+                    }}
+                  >
+                    <Text variant="xs" weight="700" color="accent">
+                      {file.uploaderRole.toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+              </View>
+              <Caption color="muted">
+                Tap to view profile & student uploads
+              </Caption>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </TouchableOpacity>
+
+          {/* Quick Action Strip (Like & Copy Link) */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: spacing.md }}>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={handleToggleLike}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: liked ? '#FEE2E2' : colors.surfaceSubtle,
+                borderColor: liked ? '#FCA5A5' : colors.border,
+                borderWidth: 1,
+                paddingHorizontal: spacing.md,
+                paddingVertical: spacing.xs + 3,
+                borderRadius: radii.full,
+              }}
+            >
+              <Ionicons
+                name={liked ? 'heart' : 'heart-outline'}
+                size={17}
+                color={liked ? '#EF4444' : colors.textMuted}
+              />
+              <Text
+                variant="xs"
+                weight="700"
+                style={{ marginLeft: 6, color: liked ? '#EF4444' : colors.textSecondary }}
+              >
+                {likeCount} {likeCount === 1 ? 'Like' : 'Likes'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={handleCopyLink}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: colors.surfaceSubtle,
+                borderColor: colors.border,
+                borderWidth: 1,
+                paddingHorizontal: spacing.md,
+                paddingVertical: spacing.xs + 3,
+                borderRadius: radii.full,
+              }}
+            >
+              <Ionicons name="link-outline" size={17} color={colors.textMuted} />
+              <Text variant="xs" weight="600" color="secondary" style={{ marginLeft: 6 }}>
+                Copy Link
+              </Text>
+            </TouchableOpacity>
+          </View>
 
           {/* Badges */}
           <View style={[styles.badgeRow, { marginTop: spacing.md }]}>

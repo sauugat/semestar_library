@@ -248,20 +248,20 @@
 
   // Meet the Developers Interactive Showcase
   const devProfiles = {
-    sandesh: {
-      name: 'Sandesh Dhakal',
-      path: 'sandesh-dhakal',
-      role: 'AI & Compiler'
-    },
     saugat: {
       name: 'Saugat Subedi',
       path: 'saugat-subedi',
-      role: 'Lead Architect'
+      role: 'Full-Stack & UI/UX'
+    },
+    sandesh: {
+      name: 'Sandesh Dhakal',
+      path: 'sandesh-dhakal',
+      role: 'Backend & Features'
     },
     subarna: {
       name: 'Subarna Poudel',
       path: 'subarna-poudel',
-      role: 'Realtime & UI/UX'
+      role: 'Content, Docs & SEO'
     }
   };
 

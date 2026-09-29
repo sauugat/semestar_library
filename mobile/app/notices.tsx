@@ -1,64 +1,220 @@
-import React from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  RefreshControl,
+  ActivityIndicator,
+  TouchableOpacity,
+} from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useTheme } from '@/constants/useTheme';
+import { useAuth } from '@/context/AuthContext';
 import { Text, Heading, Subheading, Caption } from '@/components/ui/Typography';
 import { Card } from '@/components/ui/Card';
+import { apiFetch } from '@/services/api';
 
-const MOCK_NOTICES = [
-  {
-    id: 1,
-    title: 'Mid-Term Examination Schedule Announced',
-    date: 'Sep 25, 2026',
-    tag: 'Exam Section',
-    desc: 'The BCA 2nd Semester mid-term examinations will commence from Ashwin 15. Please check the routine.',
-  },
-  {
-    id: 2,
-    title: 'C Programming Lab Report Submission Deadline',
-    date: 'Sep 22, 2026',
-    tag: 'Department',
-    desc: 'All students must submit their complete lab report by Friday. No late submissions accepted.',
-  },
-  {
-    id: 3,
-    title: 'Holiday Notice: Dashain Vacation',
-    date: 'Sep 20, 2026',
-    tag: 'Administration',
-    desc: 'University administration and classes will remain closed during the Dashain festival.',
-  },
-];
+interface NoticeItem {
+  id: number;
+  content: string;
+  createdAt: string;
+  name: string;
+  role?: string;
+  studentId: string;
+  avatarUrl?: string;
+  imageUrl?: string;
+  is_official?: boolean;
+}
 
 export default function NoticesScreen() {
+  const router = useRouter();
   const { colors, spacing, radii } = useTheme();
+  const { serverUrl } = useAuth();
+
+  const [notices, setNotices] = useState<NoticeItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const getFullUrl = (path?: string | null) => {
+    if (!path) return null;
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    const base = (serverUrl || '').replace(/\/+$/, '');
+    const clean = path.replace(/^\/+/, '');
+    return `${base}/${clean}`;
+  };
+
+  const formatTimeAgo = (dateStr: string) => {
+    try {
+      const d = new Date(dateStr);
+      const now = new Date();
+      const diffSec = Math.max(0, Math.floor((now.getTime() - d.getTime()) / 1000));
+      if (diffSec < 60) return 'Just now';
+      const diffMin = Math.floor(diffSec / 60);
+      if (diffMin < 60) return `${diffMin}m ago`;
+      const diffHour = Math.floor(diffMin / 60);
+      if (diffHour < 24) return `${diffHour}h ago`;
+      const diffDay = Math.floor(diffHour / 24);
+      if (diffDay < 7) return `${diffDay}d ago`;
+      return d.toLocaleDateString();
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const fetchNotices = useCallback(async () => {
+    try {
+      const res = await apiFetch('/api/posts?type=notice&limit=50');
+      if (res.ok) {
+        const data = await res.json();
+        const list = Array.isArray(data.posts) ? data.posts : Array.isArray(data) ? data : [];
+        setNotices(list);
+      }
+    } catch (err) {
+      console.warn('Could not fetch notices:', err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchNotices();
+  }, [fetchNotices]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchNotices();
+  };
 
   return (
-    <ScrollView contentContainerStyle={[styles.container, { padding: spacing.md, backgroundColor: colors.background }]}>
-      <Subheading style={{ marginBottom: spacing.md }}>Campus Notices & Announcements</Subheading>
+    <ScrollView
+      contentContainerStyle={[styles.container, { padding: spacing.md, backgroundColor: colors.background }]}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+    >
+      <View style={{ marginBottom: spacing.md }}>
+        <Heading style={{ fontSize: 22 }}>Official Notices & Circulars</Heading>
+        <Caption color="muted">Gandaki University Announcements & Academic Circulars</Caption>
+      </View>
 
-      {MOCK_NOTICES.map((notice) => (
-        <Card key={notice.id} variant="elevated" padding="md" style={{ marginBottom: spacing.sm }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.xs }}>
-            <View
-              style={[
-                styles.badge,
-                { backgroundColor: colors.primaryLight, borderRadius: radii.full, paddingHorizontal: 8, paddingVertical: 2 },
-              ]}
-            >
-              <Text variant="xs" color="accent" weight="700">
-                {notice.tag}
-              </Text>
-            </View>
-            <Caption color="muted">{notice.date}</Caption>
+      {loading ? (
+        <View style={{ padding: 40, alignItems: 'center' }}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text variant="sm" color="muted" style={{ marginTop: 12 }}>
+            Loading official notices…
+          </Text>
+        </View>
+      ) : notices.length === 0 ? (
+        <Card variant="elevated" padding="lg" style={{ alignItems: 'center', marginVertical: 20 }}>
+          <View
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: 28,
+              backgroundColor: colors.surfaceRaised,
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 12,
+            }}
+          >
+            <Ionicons name="megaphone-outline" size={28} color={colors.textMuted} />
           </View>
-          <Text variant="md" weight="700" style={{ marginBottom: spacing.xs }}>
-            {notice.title}
+          <Text variant="md" weight="700" style={{ marginBottom: 6 }}>
+            No Notices Published Yet
           </Text>
-          <Text variant="sm" color="secondary">
-            {notice.desc}
-          </Text>
+          <Caption color="muted" style={{ textAlign: 'center', lineHeight: 18 }}>
+            Official announcements, examination schedules, and faculty notices from university administration and CRs will appear here.
+          </Caption>
         </Card>
-      ))}
+      ) : (
+        notices.map((notice) => {
+          const authorAvatar = getFullUrl(notice.avatarUrl);
+          const noticeImage = getFullUrl(notice.imageUrl);
+          const isAdmin = notice.role === 'admin';
+          const isCR = notice.role === 'cr';
+
+          return (
+            <Card
+              key={notice.id}
+              variant="elevated"
+              padding="md"
+              style={[styles.noticeCard, { borderColor: colors.border, marginBottom: spacing.sm }]}
+            >
+              {/* Header row: Author & Badge */}
+              <View style={styles.noticeHeader}>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => router.push({ pathname: '/user/[id]', params: { id: notice.studentId } })}
+                  style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
+                >
+                  <View
+                    style={[
+                      styles.avatarBox,
+                      { backgroundColor: colors.surfaceRaised, borderColor: colors.border },
+                    ]}
+                  >
+                    {authorAvatar ? (
+                      <Image source={{ uri: authorAvatar }} style={styles.avatarImg} contentFit="cover" />
+                    ) : (
+                      <Text variant="xs" weight="700" color="primary">
+                        {(notice.name || 'U').charAt(0).toUpperCase()}
+                      </Text>
+                    )}
+                  </View>
+
+                  <View style={{ marginLeft: 8, flex: 1 }}>
+                    <Text variant="sm" weight="700" numberOfLines={1}>
+                      {notice.name}
+                    </Text>
+                    <Caption color="muted">{formatTimeAgo(notice.createdAt)}</Caption>
+                  </View>
+                </TouchableOpacity>
+
+                <View
+                  style={[
+                    styles.roleBadge,
+                    {
+                      backgroundColor: isAdmin ? colors.primaryLight : colors.surfaceRaised,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name={isAdmin ? 'shield-checkmark' : isCR ? 'ribbon' : 'megaphone'}
+                    size={11}
+                    color={isAdmin ? colors.primary : colors.textSecondary}
+                    style={{ marginRight: 4 }}
+                  />
+                  <Text
+                    variant="xs"
+                    weight="700"
+                    style={{ color: isAdmin ? colors.primary : colors.textSecondary, fontSize: 11 }}
+                  >
+                    {isAdmin ? 'Administration' : isCR ? 'Class Representative' : 'Notice'}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Content body */}
+              <Text
+                variant="sm"
+                color="primary"
+                style={{ marginTop: spacing.sm, lineHeight: 21, fontSize: 14.5 }}
+              >
+                {notice.content}
+              </Text>
+
+              {/* Attached Notice Image if any */}
+              {noticeImage ? (
+                <View style={[styles.imageWrap, { borderColor: colors.border, borderRadius: radii.md }]}>
+                  <Image source={{ uri: noticeImage }} style={styles.noticeImg} contentFit="cover" />
+                </View>
+              ) : null}
+            </Card>
+          );
+        })
+      )}
     </ScrollView>
   );
 }
@@ -66,9 +222,47 @@ export default function NoticesScreen() {
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    paddingBottom: 32,
+    paddingBottom: 40,
   },
-  badge: {
-    alignSelf: 'flex-start',
+  noticeCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  noticeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  avatarBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarImg: {
+    width: '100%',
+    height: '100%',
+  },
+  roleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  imageWrap: {
+    marginTop: 10,
+    height: 200,
+    width: '100%',
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  noticeImg: {
+    width: '100%',
+    height: '100%',
   },
 });

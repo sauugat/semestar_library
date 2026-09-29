@@ -3345,7 +3345,7 @@ function isSafeWebUrl(u) {
 // Update profile details
 app.post('/api/profile/update', requireLogin, async (req, res) => {
   const { name, bio, department, semester, githubUrl, linkedinUrl } = req.body;
-  const studentId = req.session.studentId;
+  const studentId = req.session?.studentId || req.user?.studentId || req.student?.studentId;
 
   const current = await db.get('SELECT * FROM students WHERE studentId = ?', studentId);
   if (!current) return res.status(404).json({ message: 'Student not found' });
@@ -3371,7 +3371,9 @@ app.post('/api/profile/update', requireLogin, async (req, res) => {
   `, updatedName, updatedBio, updatedDept, updatedSem, updatedGithub, updatedLinkedin, studentId);
 
   // Update session name if changed
-  req.session.studentName = updatedName;
+  if (req.session) {
+    req.session.studentName = updatedName;
+  }
 
   const profile = await getStudentProfile(studentId, studentId);
   res.json({ message: 'Profile updated successfully', profile });
@@ -3383,7 +3385,7 @@ app.post('/api/profile/avatar', requireLogin, uploadAvatar.single('avatar'), asy
     return res.status(400).json({ message: 'No image file uploaded.' });
   }
 
-  const studentId = req.session.studentId;
+  const studentId = req.session?.studentId || req.user?.studentId || req.student?.studentId;
   const filePath = req.file.path;
 
   // Validate magic bytes to prevent uploaded HTML/SVG from masquerading as image
@@ -3465,7 +3467,7 @@ app.get('/api/avatar/:filename', async (req, res) => {
 
 // Toggle/set follow/unfollow a student (retry-safe)
 app.post('/api/profile/:studentId/follow', requireLogin, async (req, res) => {
-  const followerId = req.session.studentId;
+  const followerId = req.session?.studentId || req.user?.studentId || req.student?.studentId;
   const followingId = req.params.studentId;
   const explicitAction = req.body && (req.body.action || (typeof req.body.following === 'boolean' ? (req.body.following ? 'follow' : 'unfollow') : null));
 
@@ -3509,7 +3511,7 @@ app.post('/api/profile/:studentId/follow', requireLogin, async (req, res) => {
 // List followers of a student
 app.get('/api/profile/:studentId/followers', requireLogin, async (req, res) => {
   const targetStudentId = req.params.studentId;
-  const viewerStudentId = req.session.studentId;
+  const viewerStudentId = req.session?.studentId || req.user?.studentId || req.student?.studentId;
 
   const followers = await db.all(`
     SELECT students.studentId, students.name, students.avatarUrl, students.department, students.semester,
@@ -3526,7 +3528,7 @@ app.get('/api/profile/:studentId/followers', requireLogin, async (req, res) => {
 // List students that this student is following
 app.get('/api/profile/:studentId/following', requireLogin, async (req, res) => {
   const targetStudentId = req.params.studentId;
-  const viewerStudentId = req.session.studentId;
+  const viewerStudentId = req.session?.studentId || req.user?.studentId || req.student?.studentId;
 
   const following = await db.all(`
     SELECT students.studentId, students.name, students.avatarUrl, students.department, students.semester,
@@ -3543,7 +3545,7 @@ app.get('/api/profile/:studentId/following', requireLogin, async (req, res) => {
 // Get all files uploaded by a student
 app.get('/api/profile/:studentId/files', requireLogin, async (req, res) => {
   const targetStudentId = req.params.studentId;
-  const viewerStudentId = req.session.studentId;
+  const viewerStudentId = req.session?.studentId || req.user?.studentId || req.student?.studentId;
   const viewerIsAdmin = await isStudentAdmin(viewerStudentId);
 
   const files = await db.all(`
@@ -3570,7 +3572,7 @@ app.get('/api/profile/:studentId/files', requireLogin, async (req, res) => {
 
 // Suggested classmates to follow
 app.get('/api/students/suggested', requireLogin, async (req, res) => {
-  const viewerStudentId = req.session.studentId;
+  const viewerStudentId = req.session?.studentId || req.user?.studentId || req.student?.studentId;
 
   const classmates = await db.all(`
     SELECT students.studentId, students.name, students.avatarUrl, students.department, students.semester,

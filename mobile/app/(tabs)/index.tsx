@@ -37,7 +37,11 @@ import {
   toggleFileLike,
   createPost,
   deletePost,
+  getComments,
+  addComment,
+  deleteComment,
   Post,
+  PostComment,
   LibraryFile,
 } from '@/services/posts';
 import { getBaseUrl, getAutoDetectedServerUrl } from '@/services/api';

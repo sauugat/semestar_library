@@ -279,6 +279,7 @@
       const isCurrent = card.dataset.dev === devId;
       card.classList.toggle('is-active', isCurrent);
       card.setAttribute('aria-selected', String(isCurrent));
+      card.tabIndex = isCurrent ? 0 : -1;
     });
 
     if (devStage) {
@@ -299,53 +300,30 @@
     });
   }
 
-  devCards.forEach(card => {
+  devCards.forEach((card, index) => {
+    card.addEventListener('keydown', event => {
+      let next;
+      if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = (index + 1) % devCards.length;
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') next = (index - 1 + devCards.length) % devCards.length;
+      if (event.key === 'Home') next = 0;
+      if (event.key === 'End') next = devCards.length - 1;
+      if (next === undefined) return;
+      event.preventDefault();
+      activateDev(devCards[next].dataset.dev);
+      devCards[next].focus();
+    });
     card.addEventListener('click', () => {
       activateDev(card.dataset.dev);
     });
   });
 
-  // Smooth throttled pointer spotlight for devStage matching .home-stage (no window tilting)
-  if (devStage) {
-    let devPointerFrame = 0;
-    let devPointerX = 0;
-    let devPointerY = 0;
-    const resetDevPointer = () => {
-      cancelAnimationFrame(devPointerFrame);
-      devPointerFrame = 0;
-      delete devStage.dataset.pointerActive;
-      devStage.style.removeProperty('--pointer-x');
-      devStage.style.removeProperty('--pointer-y');
-    };
-    resetPointers.push(resetDevPointer);
-    devStage.addEventListener('pointermove', event => {
-      if (reducedMotion.matches || !finePointer.matches || event.pointerType !== 'mouse') return;
-      devPointerX = event.clientX;
-      devPointerY = event.clientY;
-      if (devPointerFrame) return;
-      devPointerFrame = requestAnimationFrame(() => {
-        devPointerFrame = 0;
-        const bounds = devStage.getBoundingClientRect();
-        const x = Math.min(1, Math.max(0, (devPointerX - bounds.left) / bounds.width));
-        const y = Math.min(1, Math.max(0, (devPointerY - bounds.top) / bounds.height));
-        devStage.dataset.pointerActive = 'true';
-        devStage.style.setProperty('--pointer-x', `${x * 100}%`);
-        devStage.style.setProperty('--pointer-y', `${y * 100}%`);
-      });
-    }, { passive: true });
-    devStage.addEventListener('pointerleave', resetDevPointer);
-    devStage.addEventListener('pointercancel', resetDevPointer);
-  }
-
-  // devStage terminal window remains stationary with no tilt movement
-
   // Interactive Live Template Previews (matching above feature demo experiences)
   const templatePreviews = [...document.querySelectorAll('.home-dev-card-preview')];
   templatePreviews.forEach(preview => {
-    preview.setAttribute('title', 'Click to test live template');
+    preview.setAttribute('title', 'Explore a sample preview');
     preview.setAttribute('tabindex', '0');
     preview.setAttribute('role', 'button');
-    preview.setAttribute('aria-label', 'Interactive template preview');
+    preview.setAttribute('aria-label', `Sample preview: ${preview.closest('.home-dev-feat-card').querySelector('.home-dev-feat-title').textContent}`);
 
     const handlePreviewInteraction = () => {
       animateUpdate(preview);
@@ -356,9 +334,9 @@
       if (codeBlock && outBlock && !preview.dataset.running) {
         preview.dataset.running = 'true';
         const originalOut = outBlock.innerHTML;
-        outBlock.innerHTML = '<span class="home-dev-dot-yellow"></span><span>Compiling and executing main.c...</span>';
+        outBlock.innerHTML = '<span class="home-dev-dot-yellow"></span><span>Loading sample output...</span>';
         setTimeout(() => {
-          outBlock.innerHTML = '<span class="home-dev-dot-green"></span><span style="color:#ffffff;">Output: Gandaki Semester Library [0.008s · Exit 0]</span>';
+          outBlock.innerHTML = '<span class="home-dev-dot-green"></span><span style="color:#ffffff;">Sample output: Gandaki Semester Library</span>';
           animateUpdate(outBlock);
           setTimeout(() => {
             outBlock.innerHTML = originalOut;
@@ -374,7 +352,7 @@
         preview.dataset.generating = 'true';
         const answerBubble = chatBubbles[1];
         const originalContent = answerBubble.innerHTML;
-        answerBubble.innerHTML = '<svg aria-hidden="true" style="animation: dev-spark-gleam .6s linear infinite;"><use href="#icon-spark"/></svg> <span style="opacity:0.85;">Kyana is generating revision notes...</span>';
+        answerBubble.innerHTML = '<svg aria-hidden="true" style="animation: dev-spark-gleam .6s linear infinite;"><use href="#icon-spark"/></svg> <span style="opacity:0.85;">Loading example revision notes...</span>';
         setTimeout(() => {
           answerBubble.innerHTML = '<svg aria-hidden="true"><use href="#icon-spark"/></svg> <strong>1NF:</strong> Atomic cells · <strong>2NF:</strong> Full key dependency · <strong>3NF:</strong> No transitive dependency';
           animateUpdate(answerBubble);
@@ -391,10 +369,10 @@
       if (apiRows.length > 0 && !preview.dataset.pinging) {
         preview.dataset.pinging = 'true';
         const pills = preview.querySelectorAll('.home-dev-pill-green');
-        pills.forEach(p => { p.textContent = 'Pinging...'; p.style.color = '#a1a1aa'; });
+        pills.forEach(p => { p.textContent = 'Sample response...'; p.style.color = '#a1a1aa'; });
         setTimeout(() => {
-          if (pills[0]) pills[0].textContent = '200 OK · 4ms';
-          if (pills[1]) pills[1].textContent = '7ms Live Ping';
+          if (pills[0]) pills[0].textContent = 'Sample: 200 OK';
+          if (pills[1]) pills[1].textContent = 'Example response';
           pills.forEach(p => { p.style.color = '#ffffff'; animateUpdate(p); });
           setTimeout(() => {
             if (pills[0]) pills[0].textContent = '200 OK';
@@ -424,7 +402,7 @@
 
       // 5. Code Lab Checklist Pop
       const checkItems = preview.querySelectorAll('.home-dev-preview-checklist span svg');
-      if (checkItems.length > 0) {
+      if (checkItems.length > 0 && !reducedMotion.matches) {
         checkItems.forEach((icon, i) => {
           icon.style.animation = 'none';
           icon.offsetHeight;
@@ -440,7 +418,7 @@
         const out = preview.querySelector('.home-dev-preview-out span:last-child');
         if (out) {
           const orig = out.textContent;
-          out.textContent = 'Exam starts in: 03d 14h 21m 59s · Synced';
+          out.textContent = 'Exam starts in: 03d 14h 21m 59s · Example';
           animateUpdate(out);
           setTimeout(() => {
             out.textContent = orig;

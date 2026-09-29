@@ -259,7 +259,7 @@ export default function LoginScreen() {
               <Text
                 variant="sm"
                 weight={authMode === 'signin' ? '700' : '500'}
-                color={authMode === 'signin' ? 'text' : 'muted'}
+                color={authMode === 'signin' ? undefined : 'muted'}
               >
                 Sign In
               </Text>
@@ -284,7 +284,7 @@ export default function LoginScreen() {
               <Text
                 variant="sm"
                 weight={authMode === 'register' ? '700' : '500'}
-                color={authMode === 'register' ? 'text' : 'muted'}
+                color={authMode === 'register' ? undefined : 'muted'}
               >
                 Create Account
               </Text>

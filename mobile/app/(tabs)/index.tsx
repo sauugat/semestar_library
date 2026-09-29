@@ -2530,9 +2530,9 @@ export default function HomeScreen() {
       <UploadNoteModal
         visible={uploadModalOpen}
         onClose={() => setUploadModalOpen(false)}
-        onUploadSuccess={() => {
+        onSuccess={(msg) => {
           queryClient.invalidateQueries({ queryKey: ['feed-files'] });
-          showToast('Note uploaded successfully!');
+          showToast(msg || 'Note uploaded successfully!');
         }}
       />
     </SafeAreaView>

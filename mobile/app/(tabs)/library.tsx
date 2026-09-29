@@ -759,7 +759,8 @@ export default function LibraryScreen() {
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={[styles.semesterTabContainer, { marginBottom: spacing.md }]}
+            style={{ marginHorizontal: -spacing.md, marginBottom: spacing.md }}
+            contentContainerStyle={[styles.semesterTabContainer, { paddingHorizontal: spacing.md }]}
           >
             {SEMESTERS.map((sem) => {
               const isSelected = sem.id === selectedSemesterId;

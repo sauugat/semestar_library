@@ -697,9 +697,18 @@ h1, h2, h3, h4 { font-weight: 500; }
   height: 10px;
   border-radius: 50%;
 }
-.home-dev-dot-red { background: #3f3f46; }
-.home-dev-dot-yellow { background: #71717a; }
-.home-dev-dot-green { background: #a1a1aa; }
+.home-dev-dot-red {
+  background: #ff5f56;
+  box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.25) inset;
+}
+.home-dev-dot-yellow {
+  background: #ffbd2e;
+  box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.25) inset;
+}
+.home-dev-dot-green {
+  background: #27c93f;
+  box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.25) inset;
+}
 .home-dev-window-path {
   display: flex;
   align-items: center;

@@ -1,5 +1,5 @@
 // Semester Library Minimal Safe Service Worker for PWA Installation
-const CACHE_NAME = 'semester-library-static-v5';
+const CACHE_NAME = 'semester-library-static-v6';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
@@ -43,6 +43,9 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
+
+  // Browser extension resources cannot be stored in the Cache API.
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
 
   // 1. Never handle non-GET requests via cache
   if (req.method !== 'GET') {

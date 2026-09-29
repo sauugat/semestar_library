@@ -845,8 +845,8 @@ h1, h2, h3, h4 { font-weight: 500; }
   width: 26px;
   height: 26px;
   border-radius: 7px;
-  background: rgba(var(--stage-rgb, 167, 180, 255), 0.12);
-  color: rgba(var(--stage-rgb, 167, 180, 255), 1);
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
   display: grid;
   place-items: center;
 }

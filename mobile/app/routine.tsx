@@ -38,7 +38,7 @@ export default function RoutineScreen() {
             <Text
               variant="sm"
               weight="700"
-              style={{ color: selectedDay === day ? '#FFFFFF' : colors.text, textAlign: 'center' }}
+              style={{ color: selectedDay === day ? colors.primaryText : colors.text, textAlign: 'center' }}
             >
               {day}
             </Text>

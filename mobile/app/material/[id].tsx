@@ -698,6 +698,149 @@ export default function MaterialDetailScreen() {
             <Text variant="sm" weight="600">❤️ {file.likeCount} • 💬 {file.commentCount}</Text>
           </View>
         </Card>
+
+        {/* Comments & Discussion Section */}
+        <Subheading style={{ marginTop: spacing.lg, marginBottom: spacing.sm }}>
+          Class Discussion ({comments.length})
+        </Subheading>
+
+        {/* Comment Composer */}
+        <Card
+          variant="flat"
+          padding="md"
+          style={{
+            marginBottom: spacing.md,
+            borderWidth: 1,
+            borderColor: colors.border,
+            backgroundColor: colors.surfaceRaised,
+          }}
+        >
+          <TextInput
+            placeholder="Ask a question or thank the contributor..."
+            placeholderTextColor={colors.textMuted}
+            value={commentInput}
+            onChangeText={setCommentInput}
+            multiline
+            style={{
+              color: colors.text,
+              fontSize: 14,
+              minHeight: 52,
+              textAlignVertical: 'top',
+              paddingTop: 0,
+            }}
+          />
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: spacing.xs }}>
+            <Button
+              title="Post Comment"
+              variant="primary"
+              size="sm"
+              loading={postingComment}
+              disabled={!commentInput.trim() || postingComment}
+              onPress={handlePostComment}
+            />
+          </View>
+        </Card>
+
+        {/* Comments List */}
+        {loadingComments ? (
+          <ActivityIndicator size="small" color={colors.primary} style={{ marginVertical: spacing.md }} />
+        ) : comments.length === 0 ? (
+          <Card variant="flat" padding="md" style={{ alignItems: 'center', borderColor: colors.border }}>
+            <Caption color="muted">No comments yet. Start the conversation!</Caption>
+          </Card>
+        ) : (
+          comments.map((c) => (
+            <Card
+              key={c.id}
+              variant="flat"
+              padding="md"
+              style={{
+                marginBottom: spacing.xs,
+                borderWidth: 1,
+                borderColor: colors.border,
+                backgroundColor: colors.surfaceRaised,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    if (c.studentId) {
+                      router.push({
+                        pathname: '/user/[id]',
+                        params: { id: c.studentId },
+                      });
+                    }
+                  }}
+                  style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
+                >
+                  <View
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: 14,
+                      backgroundColor: colors.surfaceSubtle,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      overflow: 'hidden',
+                      marginRight: 8,
+                    }}
+                  >
+                    {c.avatarUrl ? (
+                      <Image
+                        source={{
+                          uri: c.avatarUrl.startsWith('http')
+                            ? c.avatarUrl
+                            : `${serverBaseUrl}${c.avatarUrl.startsWith('/') ? '' : '/'}${c.avatarUrl}`,
+                        }}
+                        style={{ width: '100%', height: '100%' }}
+                        contentFit="cover"
+                      />
+                    ) : (
+                      <Text variant="xs" weight="700" color="primary">
+                        {(c.name || c.commenterName || 'S').charAt(0).toUpperCase()}
+                      </Text>
+                    )}
+                  </View>
+                  <Text variant="xs" weight="700">
+                    {c.name || c.commenterName || 'Classmate'}
+                  </Text>
+                  {c.role && c.role !== 'student' && (
+                    <View
+                      style={{
+                        backgroundColor: colors.surfaceSubtle,
+                        paddingHorizontal: 4,
+                        paddingVertical: 1,
+                        borderRadius: 4,
+                        marginLeft: 6,
+                      }}
+                    >
+                      <Text variant="xs" weight="700" color="accent" style={{ fontSize: 9 }}>
+                        {c.role.toUpperCase()}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+
+                {c.canDelete && (
+                  <TouchableOpacity
+                    onPress={() => handleDeleteComment(c.id)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="trash-outline" size={14} color={colors.error} />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              <Text variant="sm" style={{ marginTop: 6, lineHeight: 20 }}>
+                {c.content || c.commentText}
+              </Text>
+              <Caption color="muted" style={{ marginTop: 4, fontSize: 10 }}>
+                {new Date(c.createdAt).toLocaleDateString()}
+              </Caption>
+            </Card>
+          ))
+        )}
       </ScrollView>
 
       {/* Full-Screen Note/File Preview Modal with Orientation Unlock, Pinch-Zoom & Pan */}

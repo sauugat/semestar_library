@@ -246,6 +246,128 @@
     stage.addEventListener('pointercancel', resetPointer);
   });
 
+  // Meet the Developers Interactive Showcase
+  const devProfiles = {
+    saugat: {
+      name: 'Saugat Subedi',
+      path: 'saugat-subedi',
+      role: 'Lead Architect',
+      focus: 'Platform Architecture & Core Hub',
+      bio: "Spearheaded the platform architecture, relational database engineering, authentication security, and high-performance academic resource delivery for Semester Library.",
+      tags: ['Node.js', 'Express', 'SQLite', 'Session Auth', 'REST API']
+    },
+    sandesh: {
+      name: 'Sandesh Dhakal',
+      path: 'sandesh-dhakal',
+      role: 'AI & Compiler',
+      focus: 'AI Models & Cloud Execution',
+      bio: "Engineered the contextual AI tutoring agent and built the high-speed browser compiler sandbox allowing Gandaki students to write, run, and debug code instantly.",
+      tags: ['Gemini AI', 'Compiler Sandbox', 'Terminal IO', 'Python / C / Java', 'Web Workers']
+    },
+    subarna: {
+      name: 'Subarna Poudel',
+      path: 'subarna-poudel',
+      role: 'Realtime & UI/UX',
+      focus: 'Realtime Networks & Interactive UI',
+      bio: "Crafted the real-time peer communication network, calendar and timetable systems, responsive design system, and media showcase that bring campus life together.",
+      tags: ['WebSockets', 'Socket.io', 'CSS Houdini', 'Micro-Interactions', 'Event Timelines']
+    }
+  };
+
+  const devCards = [...document.querySelectorAll('.home-dev-card')];
+  const devStage = document.getElementById('dev-stage');
+  const devPanels = [...document.querySelectorAll('.home-dev-panel')];
+  const stagePathDev = document.getElementById('dev-stage-path-dev');
+  const stageLiveBadge = document.getElementById('dev-stage-live-badge');
+  const spotlightTitle = document.getElementById('dev-spotlight-title');
+  const spotlightChip = document.getElementById('dev-spotlight-chip');
+  const spotlightBio = document.getElementById('dev-spotlight-bio');
+  const spotlightTags = document.getElementById('dev-spotlight-tags');
+
+  function activateDev(devId) {
+    const profile = devProfiles[devId];
+    if (!profile) return;
+
+    devCards.forEach(card => {
+      const isCurrent = card.dataset.dev === devId;
+      card.classList.toggle('is-active', isCurrent);
+      card.setAttribute('aria-selected', String(isCurrent));
+    });
+
+    if (devStage) {
+      devStage.dataset.activeDev = devId;
+    }
+
+    if (stagePathDev) stagePathDev.textContent = profile.path;
+    if (stageLiveBadge) stageLiveBadge.textContent = profile.role;
+    if (spotlightTitle) spotlightTitle.textContent = `What ${profile.name} Built`;
+    if (spotlightChip) spotlightChip.textContent = profile.focus;
+    if (spotlightBio) spotlightBio.textContent = profile.bio;
+
+    if (spotlightTags) {
+      spotlightTags.innerHTML = profile.tags
+        .map(tag => `<span class="home-dev-tag-pill">${tag}</span>`)
+        .join('');
+    }
+
+    devPanels.forEach(panel => {
+      const isTarget = panel.dataset.panel === devId;
+      panel.hidden = !isTarget;
+      panel.classList.toggle('is-active', isTarget);
+
+      if (isTarget) {
+        animateUpdate(panel);
+      }
+    });
+  }
+
+  devCards.forEach(card => {
+    card.addEventListener('click', () => {
+      activateDev(card.dataset.dev);
+    });
+
+    card.addEventListener('pointermove', event => {
+      if (reducedMotion.matches || !finePointer.matches) return;
+      const rect = card.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      card.style.setProperty('--card-x', `${x}px`);
+      card.style.setProperty('--card-y', `${y}px`);
+    });
+  });
+
+  if (devStage) {
+    let devFrame = 0;
+    let devX = 0;
+    let devY = 0;
+    const resetDevPointer = () => {
+      cancelAnimationFrame(devFrame);
+      devFrame = 0;
+      delete devStage.dataset.pointerActive;
+      ['--tilt-x', '--tilt-y', '--pointer-x', '--pointer-y'].forEach(p => devStage.style.removeProperty(p));
+    };
+    devStage.addEventListener('pointermove', event => {
+      if (reducedMotion.matches || !finePointer.matches || event.pointerType !== 'mouse') return;
+      devX = event.clientX;
+      devY = event.clientY;
+      if (devFrame) return;
+      devFrame = requestAnimationFrame(() => {
+        devFrame = 0;
+        const bounds = devStage.getBoundingClientRect();
+        const x = Math.min(1, Math.max(0, (devX - bounds.left) / bounds.width));
+        const y = Math.min(1, Math.max(0, (devY - bounds.top) / bounds.height));
+        devStage.dataset.pointerActive = 'true';
+        devStage.style.setProperty('--pointer-x', `${x * 100}%`);
+        devStage.style.setProperty('--pointer-y', `${y * 100}%`);
+        devStage.style.setProperty('--tilt-x', `${(0.5 - y) * 2.8}deg`);
+        devStage.style.setProperty('--tilt-y', `${(x - 0.5) * 2.8}deg`);
+      });
+    }, { passive: true });
+    devStage.addEventListener('pointerleave', resetDevPointer);
+    devStage.addEventListener('pointercancel', resetDevPointer);
+    resetPointers.push(resetDevPointer);
+  }
+
   const motionObserver = 'IntersectionObserver' in window ? new IntersectionObserver(entries => {
     entries.forEach(entry => {
       entry.target.dataset.motionActive = String(entry.isIntersecting && !reducedMotion.matches && !document.hidden);

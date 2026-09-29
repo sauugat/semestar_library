@@ -212,13 +212,14 @@
 /* 3D Perspective & Motion */
 @media (prefers-reduced-motion: no-preference) {
   .home-dev-stage {
-    perspective: 1200px;
+    perspective: none;
   }
   .home-dev-stage > .home-dev-stage-window {
-    transform: rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
-    transition: transform .35s cubic-bezier(.2,.8,.2,1), box-shadow .35s;
+    transform: none !important;
+    transition: box-shadow .35s;
   }
   .home-dev-stage[data-pointer-active="true"] > .home-dev-stage-window {
+    transform: none !important;
     box-shadow: 0 35px 85px -25px #000, 0 0 50px -15px rgba(var(--stage-rgb), .38);
   }
   .home-dev-panel.is-active .home-dev-feat-card {

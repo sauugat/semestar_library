@@ -1,5 +1,5 @@
 // Semester Library Minimal Safe Service Worker for PWA Installation
-const CACHE_NAME = 'semester-library-static-v18';
+const CACHE_NAME = 'semester-library-static-v19';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',

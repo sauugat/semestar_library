@@ -835,7 +835,7 @@ h1, h2, h3, h4 { font-weight: 500; }
 }
 @media (max-width: 400px) {
  .hero-intro.hero-inner { width: calc(100% - 40px); }
- .hero-intro h1 { font-size: 52px; }
+ .hero-intro h1 { font-size: clamp(43px, 13vw, 52px); }
  .hero-intro .hero-badge { font-size: 8px; letter-spacing: .12em; }
  .hero-intro .hero-desc { font-size: 13px; }
  .hero-intro .hero-btn-main { padding: 14px 17px; }

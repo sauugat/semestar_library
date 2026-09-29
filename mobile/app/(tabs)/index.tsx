@@ -1186,58 +1186,72 @@ export default function HomeScreen() {
       >
         {/* Post Author & Header */}
         <View style={styles.postAuthorRow}>
-          <View
-            style={[
-              styles.authorAvatar,
-              {
-                backgroundColor: colors.surfaceRaised,
-                borderColor: colors.border,
-                borderWidth: 1,
-                borderRadius: radii.full,
-                overflow: 'hidden',
-              },
-            ]}
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => {
+              const sid = item.studentId || item.user_id;
+              if (sid) {
+                router.push({
+                  pathname: '/user/[id]',
+                  params: { id: sid },
+                });
+              }
+            }}
+            style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
           >
-            {item.avatarUrl ? (
-              <Image
-                source={{ uri: getFullImageUrl(item.avatarUrl) || item.avatarUrl }}
-                style={{ width: '100%', height: '100%' }}
-                contentFit="cover"
-                cachePolicy="memory-disk"
-              />
-            ) : (
-              <Text variant="sm" weight="700" color="primary">
-                {(item.name || 'U').charAt(0).toUpperCase()}
-              </Text>
-            )}
-          </View>
-          <View style={{ flex: 1, marginLeft: spacing.sm }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text variant="sm" weight="700" numberOfLines={1}>
-                {item.name || 'Student'}
-              </Text>
-              {item.role && item.role !== 'student' && (
-                <View
-                  style={[
-                    styles.rolePill,
-                    {
-                      backgroundColor: colors.surfaceRaised,
-                      borderColor: colors.border,
-                      borderWidth: 1,
-                      borderRadius: radii.sm,
-                    },
-                  ]}
-                >
-                  <Text variant="xs" weight="700" color="secondary">
-                    {item.role.toUpperCase()}
-                  </Text>
-                </View>
+            <View
+              style={[
+                styles.authorAvatar,
+                {
+                  backgroundColor: colors.surfaceRaised,
+                  borderColor: colors.border,
+                  borderWidth: 1,
+                  borderRadius: radii.full,
+                  overflow: 'hidden',
+                },
+              ]}
+            >
+              {item.avatarUrl ? (
+                <Image
+                  source={{ uri: getFullImageUrl(item.avatarUrl) || item.avatarUrl }}
+                  style={{ width: '100%', height: '100%' }}
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                />
+              ) : (
+                <Text variant="sm" weight="700" color="primary">
+                  {(item.name || 'U').charAt(0).toUpperCase()}
+                </Text>
               )}
             </View>
-            <Caption color="muted">
-              {formatRelativeTime(item.created_at)}
-            </Caption>
-          </View>
+            <View style={{ flex: 1, marginLeft: spacing.sm }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text variant="sm" weight="700" numberOfLines={1}>
+                  {item.name || 'Student'}
+                </Text>
+                {item.role && item.role !== 'student' && (
+                  <View
+                    style={[
+                      styles.rolePill,
+                      {
+                        backgroundColor: colors.surfaceRaised,
+                        borderColor: colors.border,
+                        borderWidth: 1,
+                        borderRadius: radii.sm,
+                      },
+                    ]}
+                  >
+                    <Text variant="xs" weight="700" color="secondary">
+                      {item.role.toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+              </View>
+              <Caption color="muted">
+                {formatRelativeTime(item.created_at)}
+              </Caption>
+            </View>
+          </TouchableOpacity>
 
           {/* Right Header: Badge (if notice/assignment) + Three-Dot Options Button (⋮) */}
           <View style={styles.authorRightActions}>

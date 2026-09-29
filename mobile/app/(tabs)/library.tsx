@@ -573,9 +573,28 @@ export default function LibraryScreen() {
                         <Text weight="700" variant="sm" numberOfLines={1}>
                           {file.title || file.originalName}
                         </Text>
-                        <Caption color="muted" numberOfLines={1} style={{ marginTop: 2 }}>
-                          {formatFileSize(file.sizeBytes)} • By {file.uploaderName || 'Student'}
-                        </Caption>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2, flexWrap: 'wrap' }}>
+                          <Caption color="muted">
+                            {formatFileSize(file.sizeBytes)} • By{' '}
+                          </Caption>
+                          <TouchableOpacity
+                            activeOpacity={0.7}
+                            onPress={(e) => {
+                              e.stopPropagation();
+                              if (file.uploadedBy) {
+                                router.push({
+                                  pathname: '/user/[id]',
+                                  params: { id: file.uploadedBy },
+                                });
+                              }
+                            }}
+                            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                          >
+                            <Caption weight="700" color="primary" style={{ textDecorationLine: 'underline' }}>
+                              {file.uploaderName || 'Student'}
+                            </Caption>
+                          </TouchableOpacity>
+                        </View>
                         <View style={styles.fileMetaRow}>
                           {Boolean(Number(file.likeCount)) && (
                             <Caption color="muted" style={{ marginRight: spacing.sm }}>

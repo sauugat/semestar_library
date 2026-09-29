@@ -1055,6 +1055,54 @@ h1, h2, h3, h4 { font-weight: 500; }
   background: #3b82f6;
   display: inline-block;
 }
+/* ==========================================================================
+   Meet Developer Individual Template Boxes - Palettes & Styling
+   ========================================================================== */
+
+/* 1. Saugat Subedi Modules */
+.home-card-compiler { --card-rgb: 113, 171, 255; --card-glow-2: 60, 215, 255; --card-glow-3: 147, 197, 253; }
+.home-card-ai       { --card-rgb: 168, 156, 255; --card-glow-2: 192, 132, 252; --card-glow-3: 114, 164, 226; }
+.home-card-chat     { --card-rgb: 137, 178, 246; --card-glow-2: 162, 145, 217; --card-glow-3: 56, 189, 248; }
+.home-card-pwa      { --card-rgb: 45, 212, 191;  --card-glow-2: 56, 189, 248;  --card-glow-3: 16, 185, 129; }
+.home-card-lab      { --card-rgb: 125, 211, 161; --card-glow-2: 74, 222, 128; --card-glow-3: 52, 211, 153; }
+.home-card-auth     { --card-rgb: 175, 115, 255; --card-glow-2: 217, 70, 239; --card-glow-3: 139, 92, 246; }
+.home-card-api      { --card-rgb: 56, 189, 248;  --card-glow-2: 99, 102, 241;  --card-glow-3: 14, 165, 233; }
+.home-card-design-home   { --card-rgb: 120, 160, 255; --card-glow-2: 192, 132, 252; --card-glow-3: 96, 165, 250; }
+.home-card-design-assign { --card-rgb: 45, 212, 191;  --card-glow-2: 125, 211, 161; --card-glow-3: 56, 189, 248; }
+
+/* 2. Sandesh Dhakal Modules */
+.home-card-routine    { --card-rgb: 245, 158, 11;  --card-glow-2: 251, 191, 36; --card-glow-3: 249, 115, 22; }
+.home-card-attendance { --card-rgb: 75, 235, 160;  --card-glow-2: 52, 211, 153; --card-glow-3: 110, 231, 183; }
+.home-card-marks      { --card-rgb: 56, 189, 248;  --card-glow-2: 129, 140, 248; --card-glow-3: 75, 235, 160; }
+.home-card-feed       { --card-rgb: 129, 140, 248; --card-glow-2: 167, 139, 250; --card-glow-3: 96, 165, 250; }
+.home-card-timetable  { --card-rgb: 251, 191, 36;  --card-glow-2: 245, 158, 11; --card-glow-3: 234, 179, 8; }
+.home-card-library    { --card-rgb: 206, 186, 153; --card-glow-2: 164, 125, 97;  --card-glow-3: 217, 180, 130; }
+
+/* 3. Subarna Poudel Modules */
+.home-card-syllabus   { --card-rgb: 255, 115, 175; --card-glow-2: 244, 114, 182; --card-glow-3: 251, 146, 60; }
+.home-card-docs       { --card-rgb: 147, 197, 253; --card-glow-2: 129, 140, 248; --card-glow-3: 96, 165, 250; }
+.home-card-seo        { --card-rgb: 52, 211, 153;  --card-glow-2: 45, 212, 191;  --card-glow-3: 74, 222, 128; }
+.home-card-curriculum { --card-rgb: 244, 114, 182; --card-glow-2: 192, 132, 252; --card-glow-3: 251, 146, 60; }
+.home-card-about      { --card-rgb: 251, 146, 60;  --card-glow-2: 255, 115, 175; --card-glow-3: 245, 158, 11; }
+.home-card-profile    { --card-rgb: 192, 132, 252; --card-glow-2: 147, 197, 253; --card-glow-3: 168, 156, 255; }
+
+/* Each Feature Card is an Individual Interactive Template Sandbox Box */
+.home-dev-feat-card {
+  position: relative;
+  background:
+    radial-gradient(circle 260px at 50% 0%, rgba(var(--card-rgb, var(--stage-rgb, 113, 171, 255)), 0.14), transparent 72%),
+    rgba(21, 23, 30, 0.72);
+  border: 1px solid rgba(var(--card-rgb, var(--stage-rgb, 113, 171, 255)), 0.16);
+  border-radius: 14px;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  contain: layout style paint;
+  box-shadow: 0 10px 28px -10px rgba(0, 0, 0, 0.65), 0 0 16px -8px rgba(var(--card-rgb, var(--stage-rgb, 113, 171, 255)), 0.14);
+  transition: transform .28s cubic-bezier(.16,1,.3,1), border-color .25s, background .25s, box-shadow .28s;
+}
+
 .home-dev-feat-card::before {
   content: '';
   position: absolute;
@@ -1062,19 +1110,25 @@ h1, h2, h3, h4 { font-weight: 500; }
   left: 0;
   right: 0;
   height: 2px;
-  background: linear-gradient(90deg, transparent, rgba(var(--stage-rgb, 167, 180, 255), 0.8), transparent);
-  opacity: 0;
-  transition: opacity .3s;
+  background: linear-gradient(90deg, transparent, rgba(var(--card-rgb, var(--stage-rgb, 113, 171, 255)), 0.9), transparent);
+  opacity: 0.55;
+  transition: opacity .3s, height .3s;
 }
+
 .home-dev-feat-card:hover {
-  transform: translateY(-4px);
-  border-color: rgba(255, 255, 255, 0.16);
-  background: rgba(30, 33, 40, 0.75);
-  box-shadow: 0 16px 36px -12px rgba(0,0,0,0.6), 0 0 20px -8px rgba(var(--stage-rgb, 167, 180, 255), 0.22);
+  transform: translateY(-5px);
+  border-color: rgba(var(--card-rgb, var(--stage-rgb, 113, 171, 255)), 0.5);
+  background:
+    radial-gradient(circle 320px at 50% -10px, rgba(var(--card-rgb, var(--stage-rgb, 113, 171, 255)), 0.24), rgba(var(--card-glow-2, 60, 215, 255), 0.08) 60%, transparent 80%),
+    rgba(25, 28, 36, 0.94);
+  box-shadow: 0 20px 42px -12px rgba(0, 0, 0, 0.75), 0 0 28px -4px rgba(var(--card-rgb, var(--stage-rgb, 113, 171, 255)), 0.32);
 }
+
 .home-dev-feat-card:hover::before {
   opacity: 1;
+  height: 2.5px;
 }
+
 .home-dev-feat-header {
   display: flex;
   align-items: center;
@@ -1082,25 +1136,31 @@ h1, h2, h3, h4 { font-weight: 500; }
   gap: 10px;
   margin-bottom: 16px;
 }
+
 .home-dev-feat-icon-box {
   width: 38px;
   height: 38px;
   border-radius: 10px;
-  background: var(--home-surface);
-  border: 1px solid var(--home-line);
+  background: rgba(var(--card-rgb, var(--stage-rgb, 113, 171, 255)), 0.1);
+  border: 1px solid rgba(var(--card-rgb, var(--stage-rgb, 113, 171, 255)), 0.26);
   display: grid;
   place-items: center;
-  color: var(--home-ink);
-  transition: border-color .25s, color .25s;
+  color: rgb(var(--card-rgb, var(--stage-rgb, 113, 171, 255)));
+  transition: transform .25s cubic-bezier(.16,1,.3,1), border-color .25s, background .25s, box-shadow .25s, color .25s;
 }
+
 .home-dev-feat-card:hover .home-dev-feat-icon-box {
-  border-color: rgba(var(--stage-rgb, 167, 180, 255), 0.5);
-  color: rgba(var(--stage-rgb, 167, 180, 255), 1);
+  border-color: rgba(var(--card-rgb, var(--stage-rgb, 113, 171, 255)), 0.7);
+  background: rgba(var(--card-rgb, var(--stage-rgb, 113, 171, 255)), 0.2);
+  box-shadow: 0 0 16px rgba(var(--card-rgb, var(--stage-rgb, 113, 171, 255)), 0.45);
+  transform: translateY(-2px) scale(1.06) rotate(4deg);
 }
+
 .home-dev-feat-icon-box svg {
   width: 18px;
   height: 18px;
 }
+
 .home-dev-feat-badge {
   font-size: 9.5px;
   font-weight: 600;
@@ -1108,10 +1168,18 @@ h1, h2, h3, h4 { font-weight: 500; }
   letter-spacing: .06em;
   padding: 3px 8px;
   border-radius: 5px;
-  background: var(--home-surface);
-  border: 1px solid var(--home-line);
-  color: var(--home-muted);
+  background: rgba(var(--card-rgb, var(--stage-rgb, 113, 171, 255)), 0.1);
+  border: 1px solid rgba(var(--card-rgb, var(--stage-rgb, 113, 171, 255)), 0.26);
+  color: rgb(var(--card-rgb, var(--stage-rgb, 113, 171, 255)));
+  transition: background .25s, border-color .25s, box-shadow .25s;
 }
+
+.home-dev-feat-card:hover .home-dev-feat-badge {
+  background: rgba(var(--card-rgb, var(--stage-rgb, 113, 171, 255)), 0.18);
+  border-color: rgba(var(--card-rgb, var(--stage-rgb, 113, 171, 255)), 0.55);
+  box-shadow: 0 0 12px rgba(var(--card-rgb, var(--stage-rgb, 113, 171, 255)), 0.3);
+}
+
 .home-dev-feat-title {
   font-size: 16px;
   font-weight: 600;
@@ -1119,12 +1187,14 @@ h1, h2, h3, h4 { font-weight: 500; }
   color: var(--home-ink);
   margin-bottom: 8px;
 }
+
 .home-dev-feat-desc {
   font-size: 12px;
   line-height: 1.7;
   color: var(--home-muted);
   flex-grow: 1;
 }
+
 .home-dev-feat-chips {
   display: flex;
   flex-wrap: wrap;
@@ -1132,14 +1202,22 @@ h1, h2, h3, h4 { font-weight: 500; }
   margin-top: 16px;
   margin-bottom: 18px;
 }
+
 .home-dev-feat-chips span {
   font-size: 10px;
   padding: 3px 7px;
   border-radius: 5px;
-  background: var(--home-surface);
-  border: 1px solid rgba(255,255,255,0.05);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
   color: var(--home-muted);
+  transition: border-color .2s, color .2s;
 }
+
+.home-dev-feat-card:hover .home-dev-feat-chips span {
+  border-color: rgba(var(--card-rgb, var(--stage-rgb, 113, 171, 255)), 0.28);
+  color: var(--home-ink);
+}
+
 .home-dev-feat-btn {
   display: inline-flex;
   align-items: center;
@@ -1147,25 +1225,30 @@ h1, h2, h3, h4 { font-weight: 500; }
   margin-top: auto;
   padding: 10px 14px;
   border-radius: 8px;
-  background: var(--home-surface);
-  border: 1px solid var(--home-line);
+  background: rgba(var(--card-rgb, var(--stage-rgb, 113, 171, 255)), 0.08);
+  border: 1px solid rgba(var(--card-rgb, var(--stage-rgb, 113, 171, 255)), 0.25);
   font-size: 11.5px;
   font-weight: 600;
   color: var(--home-ink);
-  transition: all .25s ease;
+  transition: transform .2s cubic-bezier(.16,1,.3,1), background .2s, border-color .2s, box-shadow .2s, color .2s;
 }
+
+.home-dev-feat-btn:hover {
+  background: rgba(var(--card-rgb, var(--stage-rgb, 113, 171, 255)), 0.2);
+  border-color: rgba(var(--card-rgb, var(--stage-rgb, 113, 171, 255)), 0.65);
+  box-shadow: 0 0 20px rgba(var(--card-rgb, var(--stage-rgb, 113, 171, 255)), 0.35);
+  color: #ffffff;
+  transform: translateY(-2px);
+}
+
 .home-dev-feat-btn svg {
   width: 13px;
   height: 13px;
   transition: transform .25s ease;
 }
-.home-dev-feat-btn:hover {
-  background: var(--home-panel);
-  border-color: rgba(var(--stage-rgb, 167, 180, 255), 0.5);
-  color: #ffffff;
-}
+
 .home-dev-feat-btn:hover svg {
-  transform: translate(2px, -2px);
+  transform: translate(3px, -3px);
 }
 
 /* Stage Window Foot */

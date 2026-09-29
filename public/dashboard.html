@@ -1354,6 +1354,25 @@
     }
   </style>
   <link rel="stylesheet" href="/theme-overrides.css">
+  <style>
+    /* Divider line between posts in dashboard */
+    html:root body.dash .feed #realFiles > :is(.feed-card, .social-post-card, .post-card) {
+      border: none !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+    }
+
+    html:root body.dash .feed #realFiles > :is(.feed-card, .social-post-card, .post-card) + :is(.feed-card, .social-post-card, .post-card) {
+      border-top: 1px solid rgba(255, 255, 255, 0.16) !important;
+      margin-top: 16px !important;
+      padding-top: 24px !important;
+    }
+
+    html:root[data-theme="light"] body.dash .feed #realFiles > :is(.feed-card, .social-post-card, .post-card) + :is(.feed-card, .social-post-card, .post-card),
+    html:root body.dash[data-theme="light"] .feed #realFiles > :is(.feed-card, .social-post-card, .post-card) + :is(.feed-card, .social-post-card, .post-card) {
+      border-top: 1px solid rgba(0, 0, 0, 0.12) !important;
+    }
+  </style>
 </head>
 
 <body class="dash">

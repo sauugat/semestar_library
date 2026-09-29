@@ -75,6 +75,19 @@
     return session ? session.access_token : null;
   }
 
+  function getResponseErrorMessage(res, data, defaultMsg) {
+    if (data && data.message) return data.message;
+    if (res) {
+      if (res.status === 404 || res.status === 501) {
+        return 'Backend API service is not running or not reachable on this port (' + res.status + '). Please open http://localhost:3000 to use authentication features.';
+      }
+      if (res.status >= 500) {
+        return 'Server error (' + res.status + '). Please try again later.';
+      }
+    }
+    return defaultMsg;
+  }
+
   async function signIn(identifier, password) {
     try {
       const res = await rawFetch('/api/auth/login', {
@@ -95,7 +108,7 @@
         data: null,
         error: {
           code: data.code || 'AUTH_ERROR',
-          message: data.message || 'Invalid username/email or password.',
+          message: getResponseErrorMessage(res, data, 'Invalid username/email or password.'),
         },
       };
     } catch (err) {
@@ -114,7 +127,7 @@
       if (res.ok && data.success) {
         return { data, error: null };
       }
-      return { data: null, error: { message: data.message || 'Registration failed' } };
+      return { data: null, error: { message: getResponseErrorMessage(res, data, 'Registration failed. Please check your information.') } };
     } catch (err) {
       return { data: null, error: { message: err.message || 'Network error registering' } };
     }

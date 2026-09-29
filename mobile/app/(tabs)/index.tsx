@@ -1579,6 +1579,15 @@ export default function HomeScreen() {
               {Number(file.commentCount || 0)}
             </Text>
           </TouchableOpacity>
+
+          {/* Share / Copy File Link */}
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => handleShareFileItem(file)}
+            accessibilityLabel="Share material link"
+          >
+            <Ionicons name="share-outline" size={17} color={colors.textMuted} />
+          </TouchableOpacity>
         </View>
       </View>
     );

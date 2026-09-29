@@ -474,7 +474,7 @@ export default function StudentProfileScreen() {
                   variant="primary"
                   size="sm"
                   onPress={openEditModal}
-                  leftIcon={<Ionicons name="create-outline" size={15} color="#FFFFFF" />}
+                  leftIcon={<Ionicons name="create-outline" size={15} color={colors.primaryText} />}
                   style={{ flex: 1 }}
                 />
               ) : (
@@ -487,7 +487,7 @@ export default function StudentProfileScreen() {
                     <Ionicons
                       name={isFollowing ? 'checkmark' : 'person-add-outline'}
                       size={14}
-                      color={isFollowing ? colors.text : '#FFFFFF'}
+                      color={isFollowing ? colors.text : colors.primaryText}
                     />
                   }
                   style={{ flex: 1, marginRight: spacing.xs }}

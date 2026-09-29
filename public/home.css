@@ -891,7 +891,8 @@ h1, h2, h3, h4 { font-weight: 500; }
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  transition: transform .3s cubic-bezier(.16,1,.3,1), border-color .3s, background .3s, box-shadow .3s;
+  contain: layout style paint;
+  transition: transform .25s cubic-bezier(.16,1,.3,1), border-color .25s, background .25s, box-shadow .25s;
 }
 
 /* Mini Template Preview Widget inside Cards */
@@ -1066,10 +1067,10 @@ h1, h2, h3, h4 { font-weight: 500; }
   transition: opacity .3s;
 }
 .home-dev-feat-card:hover {
-  transform: translateY(-5px);
-  border-color: rgba(255, 255, 255, 0.18);
-  background: rgba(30, 33, 40, 0.8);
-  box-shadow: 0 16px 36px -12px rgba(0,0,0,0.65), 0 0 24px -10px rgba(var(--stage-rgb, 167, 180, 255), 0.25);
+  transform: translateY(-4px);
+  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(30, 33, 40, 0.75);
+  box-shadow: 0 16px 36px -12px rgba(0,0,0,0.6), 0 0 20px -8px rgba(var(--stage-rgb, 167, 180, 255), 0.22);
 }
 .home-dev-feat-card:hover::before {
   opacity: 1;

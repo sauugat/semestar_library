@@ -1167,6 +1167,50 @@ export default function HomeScreen() {
           </Text>
         )}
       </View>
+
+      {/* Feed Category Filter Tabs (Matching Website Feed) */}
+      <View style={{ flexDirection: 'row', gap: 8, marginTop: 4, marginBottom: 8, paddingHorizontal: 2 }}>
+        {[
+          { id: 'all', label: 'All Feed', icon: 'grid-outline' },
+          { id: 'notes', label: 'Notes & Study', icon: 'document-text-outline' },
+          { id: 'notices', label: 'Notices', icon: 'megaphone-outline' },
+        ].map((tab) => {
+          const active = feedFilter === tab.id;
+          return (
+            <TouchableOpacity
+              key={tab.id}
+              activeOpacity={0.7}
+              onPress={() => setFeedFilter(tab.id as any)}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 5,
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: radii.full,
+                backgroundColor: active ? colors.text : colors.surfaceRaised,
+                borderWidth: 1,
+                borderColor: active ? colors.text : colors.border,
+              }}
+            >
+              <Ionicons
+                name={tab.icon as any}
+                size={13}
+                color={active ? colors.background : colors.textSecondary}
+              />
+              <Text
+                variant="xs"
+                weight="700"
+                style={{
+                  color: active ? colors.background : colors.textSecondary,
+                }}
+              >
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
     </View>
   );
 };

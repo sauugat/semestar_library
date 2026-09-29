@@ -159,24 +159,14 @@
      Inside Template Animations (Identical to Feature Templates Above)
      ------------------------------------------------------------------ */
 
-  /* A. Soft Highlight Sheen across every preview (matching .home-stage-library) */
+  /* A. Template Preview Container (Clean, Solid, Zero Gradients) */
   .home-dev-card-preview {
     position: relative;
     overflow: hidden;
   }
   .home-dev-card-preview::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background: linear-gradient(100deg, transparent 25%, rgba(var(--card-rgb), .22), transparent 75%);
-    opacity: 0;
-    transform: translateX(-100%);
-  }
-  .home-dev-panel.is-active .home-dev-card-preview::after,
-  .home-dev-feat-card:hover .home-dev-card-preview::after {
-    animation: home-file-sheen 1.3s ease both;
-    animation-delay: calc(var(--feat-index, 0) * 0.05s + 0.18s);
+    display: none !important;
+    content: none !important;
   }
 
   /* B. Online Compiler Template Box (matching .home-stage-code) */

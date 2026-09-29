@@ -1334,13 +1334,26 @@ export default function HomeScreen() {
             onPress={() => handleToggleLike(item.id)}
           />
 
-          {/* Comment Count */}
-          <View style={styles.actionButton}>
+          {/* Comment Count / Open Replies Sheet */}
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => handleOpenPostComments(item)}
+            accessibilityLabel="View comments on post"
+          >
             <Ionicons name="chatbubble-outline" size={17} color={colors.textMuted} />
             <Text variant="xs" weight="600" color="secondary" style={{ marginLeft: 5 }}>
               {item.comment_count}
             </Text>
-          </View>
+          </TouchableOpacity>
+
+          {/* Share / Copy Post Button */}
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => handleSharePost(item)}
+            accessibilityLabel="Share post"
+          >
+            <Ionicons name="share-outline" size={17} color={colors.textMuted} />
+          </TouchableOpacity>
 
           {/* Assignment Submissions indicator (if assignment) */}
           {item.type === 'assignment' && (

@@ -201,7 +201,13 @@ export default function LoginScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
-          contentContainerStyle={[styles.scrollContent, { padding: spacing.md }]}
+          contentContainerStyle={[
+            styles.scrollContent,
+            {
+              padding: spacing.md,
+              justifyContent: authMode === 'register' ? 'flex-start' : 'center',
+            },
+          ]}
           keyboardShouldPersistTaps="handled"
         >
           {/* Brand Header */}
@@ -454,7 +460,7 @@ export default function LoginScreen() {
                 <View style={{ flex: 1, marginLeft: spacing.xs }}>
                   <Input
                     label="Username"
-                    placeholder="e.g. saugat_subedi"
+                    placeholder="e.g. saugat"
                     value={regUsername}
                     onChangeText={setRegUsername}
                     autoCapitalize="none"
@@ -490,14 +496,14 @@ export default function LoginScreen() {
                             backgroundColor: isSelected ? colors.primary : colors.surfaceSubtle,
                             borderColor: isSelected ? colors.primary : colors.border,
                             borderRadius: radii.full,
-                            marginRight: spacing.xs,
+                            marginRight: spacing.xs + 2,
                           },
                         ]}
                       >
                         <Text
                           variant="xs"
-                          weight="600"
-                          style={{ color: isSelected ? '#FFFFFF' : colors.text }}
+                          weight="700"
+                          style={{ color: isSelected ? colors.primaryText : colors.text }}
                         >
                           {dept}
                         </Text>
@@ -525,14 +531,14 @@ export default function LoginScreen() {
                             backgroundColor: isSelected ? colors.primary : colors.surfaceSubtle,
                             borderColor: isSelected ? colors.primary : colors.border,
                             borderRadius: radii.full,
-                            marginRight: spacing.xs,
+                            marginRight: spacing.xs + 2,
                           },
                         ]}
                       >
                         <Text
                           variant="xs"
-                          weight="600"
-                          style={{ color: isSelected ? '#FFFFFF' : colors.text }}
+                          weight="700"
+                          style={{ color: isSelected ? colors.primaryText : colors.text }}
                         >
                           {sem}
                         </Text>
@@ -557,16 +563,16 @@ export default function LoginScreen() {
                         style={[
                           styles.genderChip,
                           {
-                            backgroundColor: isSelected ? colors.primaryLight : colors.surfaceSubtle,
+                            backgroundColor: isSelected ? colors.primary : colors.surfaceSubtle,
                             borderColor: isSelected ? colors.primary : colors.border,
-                            borderRadius: radii.md,
+                            borderRadius: radii.full,
                           },
                         ]}
                       >
                         <Text
                           variant="xs"
-                          weight={isSelected ? '700' : '500'}
-                          style={{ color: isSelected ? colors.primary : colors.textSecondary }}
+                          weight="700"
+                          style={{ color: isSelected ? colors.primaryText : colors.textSecondary }}
                         >
                           {g.label}
                         </Text>
@@ -726,8 +732,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
-    paddingBottom: 40,
+    paddingBottom: 60,
   },
   headerContainer: {
     alignItems: 'center',

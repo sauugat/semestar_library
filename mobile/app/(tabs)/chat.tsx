@@ -759,6 +759,9 @@ export default function ChatScreen() {
           onDownloadFile={handleDownloadAttachment}
           onToggleReaction={handleToggleReaction}
           onRetry={handleRetryMessage}
+          onPressAuthor={(studentId) =>
+            router.push({ pathname: '/user/[id]', params: { id: studentId } })
+          }
         />
       );
     };
@@ -1187,7 +1190,18 @@ export default function ChatScreen() {
                       {isConnected ? ` • ${onlineIds.length} ONLINE` : ""}
                     </Text>
                     {filteredMembers.map((member) => (
-                      <View key={member.studentId} style={styles.memberRow}>
+                      <TouchableOpacity
+                        key={member.studentId}
+                        style={styles.memberRow}
+                        activeOpacity={0.7}
+                        onPress={() => {
+                          setPanel(null);
+                          router.push({
+                            pathname: '/user/[id]',
+                            params: { id: member.studentId },
+                          });
+                        }}
+                      >
                         <MemberAvatarItem
                           member={member}
                           serverUrl={serverUrl}
@@ -1211,7 +1225,8 @@ export default function ChatScreen() {
                             <Text style={styles.onlineText}>Online</Text>
                           </View>
                         )}
-                      </View>
+                        <Ionicons name="chevron-forward" size={16} color="#71717A" style={{ marginLeft: 6 }} />
+                      </TouchableOpacity>
                     ))}
                     {!filteredMembers.length && (
                       <Text style={styles.panelSecondary}>

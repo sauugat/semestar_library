@@ -83,6 +83,7 @@ function RootLayoutNav() {
       <Stack.Screen name="routine" options={{ title: 'Class Routine', headerBackTitle: 'Back' }} />
       <Stack.Screen name="forum" options={{ title: 'Campus Forum', headerBackTitle: 'Back' }} />
       <Stack.Screen name="material/[id]" options={{ title: 'Material Details', headerBackTitle: 'Back' }} />
+      <Stack.Screen name="user/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
     </Stack>
   );

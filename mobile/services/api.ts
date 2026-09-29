@@ -2,7 +2,10 @@ import * as SecureStore from 'expo-secure-store';
 import { router } from 'expo-router';
 import Constants from 'expo-constants';
 
-export const DEFAULT_SERVER_URL = 'http://192.168.1.65:3000';
+export const DEFAULT_SERVER_URL =
+  process.env.EXPO_PUBLIC_API_URL ||
+  (Constants.expoConfig?.extra as any)?.apiUrl ||
+  'http://192.168.1.65:3000';
 export const TOKEN_STORAGE_KEY = 'semester_library_mobile_token';
 export const SERVER_URL_STORAGE_KEY = 'semester_library_server_url';
 
@@ -34,10 +37,16 @@ export function getAutoDetectedServerUrl(): string {
 export async function getBaseUrl(): Promise<string> {
   try {
     const saved = await SecureStore.getItemAsync(SERVER_URL_STORAGE_KEY);
-    return saved ? saved.trim().replace(/\/+$/, '') : getAutoDetectedServerUrl();
-  } catch {
-    return getAutoDetectedServerUrl();
+    if (saved && saved.trim()) {
+      return saved.trim().replace(/\/+$/, '');
+    }
+  } catch {}
+
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL.trim().replace(/\/+$/, '');
   }
+
+  return getAutoDetectedServerUrl();
 }
 
 export async function getAuthToken(): Promise<string | null> {

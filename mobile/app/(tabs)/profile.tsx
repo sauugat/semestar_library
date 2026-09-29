@@ -517,7 +517,7 @@ export default function ProfileScreen() {
           {/* Bio Headline */}
           <Text
             variant="sm"
-            color={user?.bio ? 'text' : 'muted'}
+            color={user?.bio ? undefined : 'muted'}
             style={[styles.bioText, !user?.bio && { fontStyle: 'italic' }]}
           >
             {user?.bio || "No bio added yet. Tap 'Edit Profile' to introduce yourself to your classmates."}
@@ -575,7 +575,7 @@ export default function ProfileScreen() {
         {/* 2. STATS BAR STRIP */}
         <View style={[styles.statsStrip, { borderTopColor: colors.border, backgroundColor: colors.surfaceSubtle }]}>
           <TouchableOpacity style={styles.statBox} onPress={() => setActiveTab('uploads')}>
-            <Text variant="md" weight="800" color="text">
+            <Text variant="md" weight="800">
               {user?.stats?.filesCount ?? files.length}
             </Text>
             <Caption color="muted">Shared Files</Caption>
@@ -584,7 +584,7 @@ export default function ProfileScreen() {
           <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
 
           <View style={styles.statBox}>
-            <Text variant="md" weight="800" color="text">
+            <Text variant="md" weight="800">
               {user?.stats?.likesReceived ?? 0}
             </Text>
             <Caption color="muted">Likes</Caption>
@@ -593,7 +593,7 @@ export default function ProfileScreen() {
           <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
 
           <View style={styles.statBox}>
-            <Text variant="md" weight="800" color="text">
+            <Text variant="md" weight="800">
               {user?.stats?.followersCount ?? 0}
             </Text>
             <Caption color="muted">Followers</Caption>
@@ -602,7 +602,7 @@ export default function ProfileScreen() {
           <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
 
           <TouchableOpacity style={styles.statBox} onPress={() => setActiveTab('classmates')}>
-            <Text variant="md" weight="800" color="text">
+            <Text variant="md" weight="800">
               {user?.stats?.followingCount ?? 0}
             </Text>
             <Caption color="muted">Following</Caption>

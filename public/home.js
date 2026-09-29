@@ -250,30 +250,18 @@
   const devProfiles = {
     sandesh: {
       name: 'Sandesh Dhakal',
-      pfp: '/images/dev-sandesh.png',
       path: 'sandesh-dhakal',
-      role: 'AI & Compiler',
-      focus: 'AI Models & Cloud Execution',
-      bio: "Engineered the contextual AI tutoring agent and built the high-speed browser compiler sandbox allowing Gandaki students to write, run, and debug code instantly.",
-      tags: ['Gemini AI', 'Compiler Sandbox', 'Terminal IO', 'Python / C / Java', 'Web Workers']
+      role: 'AI & Compiler'
     },
     saugat: {
       name: 'Saugat Subedi',
-      pfp: '/images/dev-saugat.png',
       path: 'saugat-subedi',
-      role: 'Lead Architect',
-      focus: 'Platform Architecture & Core Hub',
-      bio: "Spearheaded the platform architecture, relational database engineering, authentication security, and high-performance academic resource delivery for Semester Library.",
-      tags: ['Node.js', 'Express', 'SQLite', 'Session Auth', 'REST API']
+      role: 'Lead Architect'
     },
     subarna: {
       name: 'Subarna Poudel',
-      pfp: '/images/dev-subarna.png',
       path: 'subarna-poudel',
-      role: 'Realtime & UI/UX',
-      focus: 'Realtime Networks & Interactive UI',
-      bio: "Crafted the real-time peer communication network, calendar and timetable systems, responsive design system, and media showcase that bring campus life together.",
-      tags: ['WebSockets', 'Socket.io', 'CSS Houdini', 'Micro-Interactions', 'Event Timelines']
+      role: 'Realtime & UI/UX'
     }
   };
 
@@ -282,11 +270,6 @@
   const devPanels = [...document.querySelectorAll('.home-dev-panel')];
   const stagePathDev = document.getElementById('dev-stage-path-dev');
   const stageLiveBadge = document.getElementById('dev-stage-live-badge');
-  const spotlightTitle = document.getElementById('dev-spotlight-title');
-  const spotlightChip = document.getElementById('dev-spotlight-chip');
-  const spotlightBio = document.getElementById('dev-spotlight-bio');
-  const spotlightTags = document.getElementById('dev-spotlight-tags');
-  const spotlightPfp = document.getElementById('dev-spotlight-pfp');
 
   function activateDev(devId) {
     const profile = devProfiles[devId];
@@ -302,22 +285,8 @@
       devStage.dataset.activeDev = devId;
     }
 
-    if (spotlightPfp) {
-      spotlightPfp.src = profile.pfp;
-      spotlightPfp.alt = profile.name;
-    }
-
     if (stagePathDev) stagePathDev.textContent = profile.path;
     if (stageLiveBadge) stageLiveBadge.textContent = profile.role;
-    if (spotlightTitle) spotlightTitle.textContent = `What ${profile.name} Built`;
-    if (spotlightChip) spotlightChip.textContent = profile.focus;
-    if (spotlightBio) spotlightBio.textContent = profile.bio;
-
-    if (spotlightTags) {
-      spotlightTags.innerHTML = profile.tags
-        .map(tag => `<span class="home-dev-tag-pill">${tag}</span>`)
-        .join('');
-    }
 
     devPanels.forEach(panel => {
       const isTarget = panel.dataset.panel === devId;

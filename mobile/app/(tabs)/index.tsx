@@ -48,6 +48,7 @@ import { getBaseUrl, getAutoDetectedServerUrl } from '@/services/api';
 import { SearchOverlay } from '@/components/SearchOverlay';
 import { initChatRealtime } from '@/services/chat-realtime';
 import { FullScreenImageViewer } from '@/components/FullScreenImageViewer';
+import { UploadNoteModal } from '@/components/UploadNoteModal';
 
 function FeedSkeletonCard({ colors, radii }: { colors: any; radii: any }) {
   return (
@@ -588,6 +589,7 @@ export default function HomeScreen() {
 
   // Search Overlay state
   const [searchOpen, setSearchOpen] = useState(false);
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
 
   // Create Post Composer states
   const [composerOpen, setComposerOpen] = useState(false);
@@ -1134,6 +1136,143 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
       </Card>
+
+      {/* Campus Quick Hub Shortcuts (Parity with Website Features) */}
+      <View style={{ marginBottom: spacing.md }}>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => router.push('/routine')}
+            style={{
+              flex: 1,
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+              borderWidth: 1,
+              borderRadius: radii.md,
+              paddingVertical: 10,
+              paddingHorizontal: 6,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <View
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                backgroundColor: colors.surfaceRaised,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 4,
+              }}
+            >
+              <Ionicons name="calendar-outline" size={17} color={colors.primary} />
+            </View>
+            <Text variant="xs" weight="700" numberOfLines={1}>
+              Routine
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => router.push('/notices')}
+            style={{
+              flex: 1,
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+              borderWidth: 1,
+              borderRadius: radii.md,
+              paddingVertical: 10,
+              paddingHorizontal: 6,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <View
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                backgroundColor: colors.surfaceRaised,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 4,
+              }}
+            >
+              <Ionicons name="megaphone-outline" size={17} color={colors.primary} />
+            </View>
+            <Text variant="xs" weight="700" numberOfLines={1}>
+              Notices
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => router.push('/(tabs)/library')}
+            style={{
+              flex: 1,
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+              borderWidth: 1,
+              borderRadius: radii.md,
+              paddingVertical: 10,
+              paddingHorizontal: 6,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <View
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                backgroundColor: colors.surfaceRaised,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 4,
+              }}
+            >
+              <Ionicons name="book-outline" size={17} color={colors.primary} />
+            </View>
+            <Text variant="xs" weight="700" numberOfLines={1}>
+              Library
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => setUploadModalOpen(true)}
+            style={{
+              flex: 1,
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+              borderWidth: 1,
+              borderRadius: radii.md,
+              paddingVertical: 10,
+              paddingHorizontal: 6,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <View
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                backgroundColor: colors.surfaceRaised,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 4,
+              }}
+            >
+              <Ionicons name="cloud-upload-outline" size={17} color={colors.primary} />
+            </View>
+            <Text variant="xs" weight="700" numberOfLines={1}>
+              Upload
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
 
       {/* Campus Feed Section Title with thin bottom divider */}
       <View
@@ -2385,7 +2524,15 @@ export default function HomeScreen() {
             {toastMessage}
           </Text>
         </Animated.View>
-      )}
+      {/* Upload Note Modal */}
+      <UploadNoteModal
+        visible={uploadModalOpen}
+        onClose={() => setUploadModalOpen(false)}
+        onUploadSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['feed-files'] });
+          showToast('Note uploaded successfully!');
+        }}
+      />
     </SafeAreaView>
   );
 }

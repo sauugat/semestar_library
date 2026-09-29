@@ -178,6 +178,7 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
   onDownloadFile,
   onToggleReaction,
   onRetry,
+  onPressAuthor,
 }: ChatMessageItemProps) {
   const { width: screenWidth } = useWindowDimensions();
   const maxBubbleWidth = Math.round(screenWidth * 0.8);

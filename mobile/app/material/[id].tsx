@@ -244,6 +244,106 @@ export default function MaterialDetailScreen() {
     }
   };
 
+  const [liked, setLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+  const [comments, setComments] = useState<FileComment[]>([]);
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [postingComment, setPostingComment] = useState(false);
+  const [commentInput, setCommentInput] = useState('');
+  const [serverBaseUrl, setServerBaseUrl] = useState('');
+
+  useEffect(() => {
+    getBaseUrl().then(setServerBaseUrl).catch(() => {});
+  }, []);
+
+  const fetchComments = useCallback(async () => {
+    if (!id) return;
+    setLoadingComments(true);
+    try {
+      const data = await getFileComments(Number(id));
+      if (Array.isArray(data)) setComments(data);
+    } catch {
+      // Graceful fallback
+    } finally {
+      setLoadingComments(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    if (file) {
+      setLiked(Boolean(file.liked));
+      setLikeCount(Number(file.likeCount || 0));
+      fetchComments();
+    }
+  }, [file, fetchComments]);
+
+  const handleToggleLike = async () => {
+    if (!file) return;
+    const prevLiked = liked;
+    const prevCount = likeCount;
+    setLiked(!prevLiked);
+    setLikeCount(prevLiked ? Math.max(0, prevCount - 1) : prevCount + 1);
+
+    try {
+      const res = await toggleFileLike(file.id);
+      setLiked(Boolean(res.liked));
+      setLikeCount(Number(res.likeCount || 0));
+    } catch {
+      setLiked(prevLiked);
+      setLikeCount(prevCount);
+    }
+  };
+
+  const handleCopyLink = async () => {
+    if (!file) return;
+    try {
+      const base = serverBaseUrl || (await getBaseUrl());
+      const link = `${base}/api/files/${file.id}/view`;
+      await Clipboard.setStringAsync(link);
+      Alert.alert('Link Copied', 'Material link has been copied to your clipboard.');
+    } catch {
+      Alert.alert('Error', 'Could not copy link.');
+    }
+  };
+
+  const handlePostComment = async () => {
+    if (!file || !commentInput.trim() || postingComment) return;
+    const text = commentInput.trim();
+    setPostingComment(true);
+    try {
+      const res = await addFileComment(file.id, text);
+      setCommentInput('');
+      if (res.comment) {
+        setComments((prev) => [...prev, res.comment!]);
+      } else {
+        await fetchComments();
+      }
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Could not post comment.');
+    } finally {
+      setPostingComment(false);
+    }
+  };
+
+  const handleDeleteComment = (commentId: number) => {
+    if (!file) return;
+    Alert.alert('Delete Comment', 'Are you sure you want to delete this comment?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteFileComment(file.id, commentId);
+            setComments((prev) => prev.filter((c) => c.id !== commentId));
+          } catch (err: any) {
+            Alert.alert('Error', err.message || 'Could not delete comment.');
+          }
+        },
+      },
+    ]);
+  };
+
   if (loading) {
     return (
       <View style={[styles.centerContainer, { backgroundColor: colors.background }]}>

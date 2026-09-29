@@ -114,111 +114,38 @@
 }
 
 /* ==========================================================================
-   Meet the Developers Showcase - 3-Gradient Aura & Crazy Animations
+   Meet the Developers Showcase - Clean Solid Terminal & Template Box Animations
    ========================================================================== */
 
-/* 1. Developer 1 Palette: Saugat Subedi (Sapphire, Cyan, Neon Purple) */
-.home-dev-stage,
-.home-dev-stage[data-active-dev="saugat"],
-.home-dev-card[data-dev="saugat"].is-active {
-  --stage-rgb: 105, 145, 255;
-  --glow-secondary: 60, 215, 255;
-  --glow-tertiary: 175, 115, 255;
-  --glow-a: 14% 20%;
-  --glow-b: 86% 75%;
-  --glow-c: 48% 90%;
-  --glow-shape: 48% 52% 68% 32% / 60% 38% 62% 40%;
-  --glow-angle: -10deg;
+/* 1. Terminal Window Chrome: ZERO Outer Gradient (Clean, Solid, Sharp Terminal) */
+.home-dev-stage::before,
+.home-dev-stage::after,
+.home-dev-stage-aura {
+  display: none !important;
+  content: none !important;
 }
 
-/* 2. Developer 2 Palette: Sandesh Dhakal (Cyber Emerald, Sky Blue, Lime Neon) */
-.home-dev-stage[data-active-dev="sandesh"],
-.home-dev-card[data-dev="sandesh"].is-active {
-  --stage-rgb: 75, 235, 160;
-  --glow-secondary: 80, 185, 255;
-  --glow-tertiary: 180, 245, 110;
-  --glow-a: 84% 16%;
-  --glow-b: 14% 80%;
-  --glow-c: 62% 95%;
-  --glow-shape: 65% 35% 42% 58% / 38% 64% 36% 62%;
-  --glow-angle: 12deg;
-}
-
-/* 3. Developer 3 Palette: Subarna Poudel (Vivid Rose, Lavender, Sunset Coral) */
-.home-dev-stage[data-active-dev="subarna"],
-.home-dev-card[data-dev="subarna"].is-active {
-  --stage-rgb: 255, 115, 175;
-  --glow-secondary: 170, 120, 255;
-  --glow-tertiary: 255, 170, 100;
-  --glow-a: 12% 45%;
-  --glow-b: 88% 22%;
-  --glow-c: 52% 88%;
-  --glow-shape: 35% 65% 58% 42% / 55% 35% 65% 45%;
-  --glow-angle: -14deg;
-}
-
-/* Multi-layer Organic Gradient Aura - Consistent with .home-stage Above */
 .home-dev-stage {
   isolation: isolate;
   contain: layout style;
 }
 
-.home-dev-stage::before,
-.home-dev-stage::after {
-  content: '';
-  position: absolute;
-  pointer-events: none;
-  z-index: -1;
-}
-
-/* Layer 1: Soft organic three-radial gradient (static, lightweight, matching .home-stage) */
-.home-dev-stage::before {
-  inset: -8% -4%;
-  border-radius: var(--glow-shape, 48% 52% 68% 32% / 60% 38% 62% 40%);
-  background:
-    radial-gradient(ellipse at var(--glow-a, 14% 20%), rgba(var(--stage-rgb), .48), transparent 48%),
-    radial-gradient(ellipse at var(--glow-b, 86% 75%), rgba(var(--glow-secondary), .38), transparent 43%),
-    radial-gradient(ellipse at var(--glow-c, 48% 90%), rgba(var(--glow-tertiary, var(--stage-rgb)), .28), transparent 37%);
-  filter: blur(30px);
-  opacity: .72;
-  transform: rotate(var(--glow-angle, -10deg));
-  transition: opacity .5s, transform .6s;
-}
-
-/* Layer 2: Interactive Pointer/Mouse Tracking Light Beam */
-.home-dev-stage::after {
-  inset: 5% -3% -7% 3%;
-  border-radius: 64% 36% 31% 69% / 43% 68% 32% 57%;
-  background: radial-gradient(ellipse at var(--pointer-x, 70%) var(--pointer-y, 60%), rgba(var(--stage-rgb), .19), transparent 58%);
-  filter: blur(24px);
-  opacity: .55;
-  transition: opacity .4s ease;
-}
-
-.home-dev-stage[data-pointer-active="true"]::after {
-  opacity: 1;
-}
-
-/* Disable the heavy spinning conic gradient layer to eliminate GPU lag */
-.home-dev-stage-aura {
-  display: none !important;
-}
-
-/* Developer Window Stability & Motion Consistency */
+/* 2. Developer Window Stability & Solid Styling */
 @media (prefers-reduced-motion: no-preference) {
   .home-dev-stage {
     perspective: none;
   }
   .home-dev-stage > .home-dev-stage-window {
     transform: none !important;
-    transition: box-shadow .35s;
+    box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.85);
+    transition: none;
   }
   .home-dev-stage[data-pointer-active="true"] > .home-dev-stage-window {
     transform: none !important;
-    box-shadow: 0 30px 70px -24px #000b, 0 0 36px -18px rgba(var(--stage-rgb), .38);
+    box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.85);
   }
 
-  /* Cards entrance sequence: snappy, matching .home-file-arrive */
+  /* Template Cards Entrance Sequence: Snappy Arrival */
   .home-dev-panel.is-active .home-dev-feat-card {
     animation: dev-feat-arrive .55s cubic-bezier(.16,1,.3,1) both;
     animation-delay: calc(var(--feat-index, 0) * 0.05s + 0.04s);
@@ -229,104 +156,162 @@
   }
 
   /* ------------------------------------------------------------------
-     Template Previews Animations (Reusing Home Page Feature Demo Motion)
+     Inside Template Animations (Identical to Feature Templates Above)
      ------------------------------------------------------------------ */
 
-  /* 1. Template Preview Container & Soft Sheen Pass with Per-Card Glow */
+  /* A. Soft Highlight Sheen across every preview (matching .home-stage-library) */
   .home-dev-card-preview {
     position: relative;
     overflow: hidden;
-    transition: border-color .25s, background .25s, box-shadow .25s;
   }
   .home-dev-card-preview::after {
     content: '';
     position: absolute;
     inset: 0;
     pointer-events: none;
-    background: linear-gradient(100deg, transparent 25%, rgba(var(--card-rgb, var(--stage-rgb)), .18), transparent 75%);
+    background: linear-gradient(100deg, transparent 25%, rgba(var(--card-rgb), .22), transparent 75%);
     opacity: 0;
     transform: translateX(-100%);
   }
   .home-dev-panel.is-active .home-dev-card-preview::after,
-  .home-dev-card-preview.is-animating::after {
-    animation: home-file-sheen 1.3s ease both;
-    animation-delay: calc(var(--feat-index, 0) * 0.05s + 0.2s);
-  }
   .home-dev-feat-card:hover .home-dev-card-preview::after {
-    animation: home-file-sheen 1.1s ease both;
-  }
-  .home-dev-feat-card:hover .home-dev-card-preview {
-    border-color: rgba(var(--card-rgb, var(--stage-rgb)), 0.38);
-    background: rgba(12, 14, 18, 0.92);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 8px 22px -4px rgba(var(--card-rgb, var(--stage-rgb)), 0.28);
+    animation: home-file-sheen 1.3s ease both;
+    animation-delay: calc(var(--feat-index, 0) * 0.05s + 0.18s);
   }
 
-  /* 2. Compiler & Code Sandbox: Terminal code reveal line + blinking terminal cursor */
-  .home-dev-panel.is-active .home-dev-preview-code code,
-  .home-dev-feat-card:hover .home-dev-preview-code code {
+  /* B. Online Compiler Template Box (matching .home-stage-code) */
+  .home-dev-panel.is-active .home-card-compiler .home-dev-preview-code code,
+  .home-card-compiler:hover .home-dev-preview-code code {
     display: inline-block;
     animation: home-code-line-in .55s cubic-bezier(.16,1,.3,1) both;
-    animation-delay: calc(var(--feat-index, 0) * 0.05s + 0.16s);
+    animation-delay: .2s;
   }
-  .home-dev-preview-code code::after {
+  .home-dev-panel.is-active .home-card-compiler .home-dev-preview-bar span:first-child {
+    animation: home-terminal-ready 1.6s 1.1s ease both;
+  }
+  .home-card-compiler .home-dev-preview-code code::after {
     content: '▋';
     display: inline-block;
     margin-left: 4px;
     font-size: 8px;
     vertical-align: 0;
-    color: rgba(var(--card-rgb, var(--stage-rgb, 167, 180, 255)), 0.95);
-    animation: home-cursor-blink .75s step-end infinite;
+    color: rgba(var(--card-rgb, 113, 171, 255), 0.95);
+    animation: home-cursor-blink .65s step-end infinite;
   }
-  .home-dev-dot-green {
-    animation: dev-dot-pulse 2.2s ease-in-out infinite;
+  .home-card-compiler .home-dev-dot-green {
+    animation: dev-dot-pulse 2s ease-in-out infinite;
   }
-
-  /* 3. Status rows and live outputs */
-  .home-dev-panel.is-active .home-dev-preview-out,
-  .home-dev-panel.is-active .home-dev-preview-api,
-  .home-dev-panel.is-active .home-dev-preview-status,
-  .home-dev-panel.is-active .home-dev-preview-att,
-  .home-dev-panel.is-active .home-dev-preview-marks,
-  .home-dev-panel.is-active .home-dev-preview-routine-row,
-  .home-dev-panel.is-active .home-dev-preview-post {
-    animation: home-answer-in .6s cubic-bezier(.16,1,.3,1) both;
-    animation-delay: calc(var(--feat-index, 0) * 0.05s + 0.22s);
+  .home-dev-panel.is-active .home-card-compiler .home-dev-feat-icon-box,
+  .home-card-compiler:hover .home-dev-feat-icon-box {
+    animation: home-icon-unfold .8s cubic-bezier(.16,1,.3,1) both;
   }
 
-  /* 4. Conversational AI & Chat Bubbles */
-  .home-dev-preview-chat-bubble svg {
-    color: rgb(var(--card-rgb, var(--stage-rgb, 168, 156, 255)));
+  /* C. Kyana AI Template Box (matching .home-stage-ai) */
+  .home-dev-panel.is-active .home-card-ai .home-dev-preview-chat-bubble svg,
+  .home-card-ai:hover .home-dev-preview-chat-bubble svg,
+  .home-dev-panel.is-active .home-card-ai .home-dev-feat-icon-box svg {
+    animation: home-spark-awaken 2.4s cubic-bezier(.2,.8,.2,1) both;
   }
-  .home-dev-panel.is-active .home-dev-preview-chat-bubble:nth-child(1) {
-    animation: home-message-in .6s cubic-bezier(.16,1,.3,1) both;
-    animation-delay: calc(var(--feat-index, 0) * 0.05s + 0.14s);
+  .home-dev-panel.is-active .home-card-ai .home-dev-preview-chat-bubble:nth-child(1),
+  .home-card-ai:hover .home-dev-preview-chat-bubble:nth-child(1) {
+    animation: home-message-in .65s .3s cubic-bezier(.16,1,.3,1) both;
   }
-  .home-dev-panel.is-active .home-dev-preview-chat-bubble:nth-child(2) {
-    animation: home-answer-in .7s cubic-bezier(.16,1,.3,1) both;
-    animation-delay: calc(var(--feat-index, 0) * 0.05s + 0.25s);
+  .home-dev-panel.is-active .home-card-ai .home-dev-preview-chat-bubble:nth-child(2),
+  .home-card-ai:hover .home-dev-preview-chat-bubble:nth-child(2) {
+    animation: home-answer-in .85s .65s cubic-bezier(.16,1,.3,1) both;
   }
-  .home-dev-panel.is-active .home-dev-preview-chat-bubble svg,
-  .home-dev-feat-card:hover .home-dev-preview-chat-bubble svg {
-    animation: home-spark-awaken 2.2s cubic-bezier(.2,.8,.2,1) both;
-    animation-delay: calc(var(--feat-index, 0) * 0.05s + 0.16s);
-  }
-
-  /* 5. Assignments & Code Lab Checklist */
-  .home-dev-panel.is-active .home-dev-preview-checklist span {
-    animation: home-step-in .55s cubic-bezier(.16,1,.3,1) both;
-  }
-  .home-dev-panel.is-active .home-dev-preview-checklist span:nth-child(1) {
-    animation-delay: calc(var(--feat-index, 0) * 0.05s + 0.14s);
-  }
-  .home-dev-panel.is-active .home-dev-preview-checklist span:nth-child(2) {
-    animation-delay: calc(var(--feat-index, 0) * 0.05s + 0.24s);
-  }
-  .home-dev-panel.is-active .home-dev-preview-checklist span svg {
-    animation: home-submission-ready 1.1s cubic-bezier(.16,1,.3,1) both;
-    animation-delay: calc(var(--feat-index, 0) * 0.05s + 0.3s);
+  .home-dev-panel.is-active .home-card-ai .home-dev-feat-icon-box,
+  .home-card-ai:hover .home-dev-feat-icon-box {
+    animation: home-icon-unfold .8s cubic-bezier(.16,1,.3,1) both;
   }
 
-  /* 6. UI/UX Palette Circles & Micro Tabs */
+  /* D. Campus Group Chat Template Box (matching .home-stage-chat) */
+  .home-dev-panel.is-active .home-card-chat .home-dev-preview-chat-bubble:nth-child(2),
+  .home-card-chat:hover .home-dev-preview-chat-bubble:nth-child(2) {
+    animation: home-message-in .75s .25s cubic-bezier(.16,1,.3,1) both;
+  }
+  .home-dev-panel.is-active .home-card-chat .home-dev-preview-chat-bubble:nth-child(3),
+  .home-card-chat:hover .home-dev-preview-chat-bubble:nth-child(3) {
+    animation: home-message-out .75s .6s cubic-bezier(.16,1,.3,1) both;
+  }
+  .home-card-chat .home-dev-preview-chat-bar span:first-child {
+    animation: home-answer-in .6s 1.1s cubic-bezier(.16,1,.3,1) both;
+  }
+  .home-dev-panel.is-active .home-card-chat .home-dev-feat-icon-box,
+  .home-card-chat:hover .home-dev-feat-icon-box {
+    animation: home-icon-unfold .8s cubic-bezier(.16,1,.3,1) both;
+  }
+
+  /* E. Assignments & Code Lab Template Box (matching .home-stage-assignment) */
+  .home-dev-panel.is-active .home-card-lab .home-dev-preview-checklist span,
+  .home-card-lab:hover .home-dev-preview-checklist span {
+    animation: home-step-in .6s cubic-bezier(.16,1,.3,1) both;
+  }
+  .home-dev-panel.is-active .home-card-lab .home-dev-preview-checklist span:nth-child(1) { animation-delay: .25s; }
+  .home-dev-panel.is-active .home-card-lab .home-dev-preview-checklist span:nth-child(2) { animation-delay: .45s; }
+  .home-dev-panel.is-active .home-card-lab .home-dev-preview-checklist svg,
+  .home-card-lab:hover .home-dev-preview-checklist svg {
+    stroke-dasharray: 30;
+    animation: home-check-draw .55s ease both, home-submission-ready 1.2s .65s ease both;
+  }
+  .home-dev-panel.is-active .home-card-lab .home-dev-feat-icon-box,
+  .home-card-lab:hover .home-dev-feat-icon-box {
+    animation: home-icon-unfold .8s cubic-bezier(.16,1,.3,1) both;
+  }
+
+  /* F. Library Template Box (matching .home-stage-library) */
+  .home-dev-panel.is-active .home-card-library .home-dev-card-preview,
+  .home-card-library:hover .home-dev-card-preview {
+    animation: home-file-arrive .85s cubic-bezier(.16,1,.3,1) both;
+  }
+  .home-dev-panel.is-active .home-card-library .home-dev-feat-icon-box,
+  .home-card-library:hover .home-dev-feat-icon-box {
+    animation: home-icon-unfold .8s cubic-bezier(.16,1,.3,1) both;
+  }
+
+  /* G. Campus Feed & Routine Template Boxes (matching .home-stage-campus) */
+  .home-dev-panel.is-active .home-card-routine .home-dev-preview-routine-row,
+  .home-dev-panel.is-active .home-card-feed .home-dev-preview-post,
+  .home-dev-panel.is-active .home-card-attendance .home-dev-preview-att,
+  .home-dev-panel.is-active .home-card-marks .home-dev-preview-marks,
+  .home-dev-panel.is-active .home-card-timetable .home-dev-preview-tabs-mini {
+    animation: home-answer-in .65s .2s cubic-bezier(.16,1,.3,1) both;
+  }
+  .home-dev-panel.is-active .home-card-feed .home-dev-preview-post {
+    animation: home-file-arrive .75s .3s cubic-bezier(.16,1,.3,1) both;
+  }
+  .home-card-feed .home-dev-post-dot {
+    animation: dev-dot-pulse 2.2s infinite;
+  }
+  .home-dev-panel.is-active .home-card-routine .home-dev-feat-icon-box,
+  .home-card-routine:hover .home-dev-feat-icon-box,
+  .home-dev-panel.is-active .home-card-attendance .home-dev-feat-icon-box,
+  .home-card-attendance:hover .home-dev-feat-icon-box,
+  .home-dev-panel.is-active .home-card-marks .home-dev-feat-icon-box,
+  .home-card-marks:hover .home-dev-feat-icon-box {
+    animation: home-icon-unfold .8s cubic-bezier(.16,1,.3,1) both;
+  }
+
+  /* H. API, Auth & PWA Template Boxes */
+  .home-dev-panel.is-active .home-card-api .home-dev-preview-code code,
+  .home-card-api:hover .home-dev-preview-code code {
+    animation: home-code-line-in .55s cubic-bezier(.16,1,.3,1) both;
+  }
+  .home-dev-panel.is-active .home-card-api .home-dev-preview-api,
+  .home-dev-panel.is-active .home-card-auth .home-dev-preview-status,
+  .home-dev-panel.is-active .home-card-pwa .home-dev-preview-status {
+    animation: home-answer-in .6s .22s cubic-bezier(.16,1,.3,1) both;
+  }
+  .home-dev-panel.is-active .home-card-api .home-dev-feat-icon-box,
+  .home-card-api:hover .home-dev-feat-icon-box,
+  .home-dev-panel.is-active .home-card-auth .home-dev-feat-icon-box,
+  .home-card-auth:hover .home-dev-feat-icon-box,
+  .home-dev-panel.is-active .home-card-pwa .home-dev-feat-icon-box,
+  .home-card-pwa:hover .home-dev-feat-icon-box {
+    animation: home-icon-unfold .8s cubic-bezier(.16,1,.3,1) both;
+  }
+
+  /* I. UI/UX Palette Circles & Micro Tabs (matching .home-prompt-list) */
   .home-dev-panel.is-active .home-dev-preview-palette span:nth-child(1) {
     animation: dev-palette-pop .45s cubic-bezier(.175,.885,.32,1.275) both;
     animation-delay: calc(var(--feat-index, 0) * 0.05s + 0.16s);
@@ -349,20 +334,30 @@
     box-shadow: 0 0 10px rgba(var(--card-rgb, var(--stage-rgb)), 0.25);
   }
 
-  /* 7. User Circle & Profile */
-  .home-dev-panel.is-active .home-dev-user-circle {
-    animation: home-icon-unfold .7s cubic-bezier(.16,1,.3,1) both;
-    animation-delay: calc(var(--feat-index, 0) * 0.05s + 0.18s);
+  /* J. Syllabus, Docs, SEO & Profile Template Boxes */
+  .home-dev-panel.is-active .home-card-syllabus .home-dev-card-preview,
+  .home-dev-panel.is-active .home-card-docs .home-dev-card-preview,
+  .home-dev-panel.is-active .home-card-seo .home-dev-card-preview,
+  .home-dev-panel.is-active .home-card-curriculum .home-dev-card-preview,
+  .home-dev-panel.is-active .home-card-about .home-dev-card-preview {
+    animation: home-answer-in .6s cubic-bezier(.16,1,.3,1) both;
+    animation-delay: calc(var(--feat-index, 0) * 0.05s + 0.2s);
+  }
+  .home-dev-panel.is-active .home-card-seo .home-dev-pill-green {
+    animation: home-submission-ready 1.1s .3s ease both;
+  }
+  .home-dev-panel.is-active .home-card-profile .home-dev-user-circle {
+    animation: home-icon-unfold .8s cubic-bezier(.16,1,.3,1) both;
   }
 
-  /* 8. Feature Button interactions (matching .home-code-run) */
+  /* K. Feature Buttons (matching .home-code-run) */
   .home-dev-feat-btn {
     transition: transform .2s cubic-bezier(.16,1,.3,1), box-shadow .2s, border-color .2s, background .2s, color .2s;
   }
   .home-dev-feat-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 0 20px rgba(var(--card-rgb, var(--stage-rgb)), .35);
-    border-color: rgba(var(--card-rgb, var(--stage-rgb)), 0.6);
+    box-shadow: 0 0 20px rgba(var(--card-rgb), .35);
+    border-color: rgba(var(--card-rgb), 0.65);
   }
   .home-dev-feat-btn:active {
     transform: scale(.96);
@@ -414,7 +409,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .home-dev-stage::before { opacity: .6; }
+  .home-dev-stage::before { display: none !important; }
   .home-dev-stage > .home-dev-stage-window { transform: none; }
   .home-dev-panel.is-active .home-dev-feat-card { animation: none; }
   .home-dev-card-preview::after { display: none; }
@@ -422,6 +417,6 @@
 }
 
 @media (max-width: 600px) {
-  .home-dev-stage::before { inset: -3% 0; filter: blur(20px); }
-  .home-dev-stage::after { inset: 5% 0; filter: blur(18px); }
+  .home-dev-stage::before { display: none !important; }
+  .home-dev-stage::after { display: none !important; }
 }

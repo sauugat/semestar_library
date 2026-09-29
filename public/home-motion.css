@@ -316,12 +316,12 @@
   }
   .home-dev-preview-tabs-mini span.is-selected,
   .home-dev-preview-tabs-mini span:first-child {
-    background: rgba(var(--card-rgb, var(--stage-rgb)), 0.18);
-    color: rgba(var(--card-rgb, var(--stage-rgb)), 1);
-    border: 1px solid rgba(var(--card-rgb, var(--stage-rgb)), 0.45);
+    background: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.35);
     border-radius: 4px;
     padding: 1px 6px;
-    box-shadow: 0 0 10px rgba(var(--card-rgb, var(--stage-rgb)), 0.25);
+    box-shadow: none;
   }
 
   /* J. Syllabus, Docs, SEO & Profile Template Boxes */
@@ -334,7 +334,7 @@
     animation-delay: calc(var(--feat-index, 0) * 0.05s + 0.2s);
   }
   .home-dev-panel.is-active .home-card-seo .home-dev-pill-green {
-    animation: home-submission-ready 1.1s .3s ease both;
+    animation: dev-submission-ready 1.1s .3s ease both;
   }
   .home-dev-panel.is-active .home-card-profile .home-dev-user-circle {
     animation: home-icon-unfold .8s cubic-bezier(.16,1,.3,1) both;
@@ -346,8 +346,8 @@
   }
   .home-dev-feat-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 0 20px rgba(var(--card-rgb), .35);
-    border-color: rgba(var(--card-rgb), 0.65);
+    box-shadow: 0 4px 18px rgba(255, 255, 255, 0.22);
+    border-color: #ffffff;
   }
   .home-dev-feat-btn:active {
     transform: scale(.96);
@@ -360,16 +360,38 @@
   }
 }
 
-/* Template Micro Animations: Pulsing Dot & Palette Pop */
+/* Template Micro Animations (Monochrome Black, White & Gray Only) */
 @keyframes dev-dot-pulse {
   0%, 100% {
-    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.75);
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.75);
     transform: scale(1);
   }
   50% {
-    box-shadow: 0 0 0 5px rgba(16, 185, 129, 0);
+    box-shadow: 0 0 0 5px rgba(255, 255, 255, 0);
     transform: scale(1.15);
   }
+}
+
+@keyframes dev-terminal-ready {
+  0%, 100% { filter: none; }
+  50% { color: #ffffff; filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.8)); }
+}
+
+@keyframes dev-spark-awaken {
+  0% { transform: rotate(-90deg) scale(.65); filter: drop-shadow(0 0 0 transparent); }
+  45% { transform: rotate(12deg) scale(1.12); filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.7)); }
+  100% { transform: rotate(0) scale(1); filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.4)); }
+}
+
+@keyframes dev-spark-gleam {
+  0%, 100% { transform: rotate(0) scale(1); filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.8)); }
+  50% { transform: rotate(180deg) scale(1.2); filter: drop-shadow(0 0 8px rgba(255, 255, 255, 1)); }
+}
+
+@keyframes dev-submission-ready {
+  0% { opacity: 0; transform: translateY(7px); }
+  45% { opacity: 1; filter: drop-shadow(0 0 7px rgba(255, 255, 255, 0.4)); }
+  100% { opacity: 1; transform: translateY(0); filter: none; }
 }
 
 @keyframes dev-palette-pop {

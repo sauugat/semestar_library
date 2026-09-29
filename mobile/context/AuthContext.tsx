@@ -5,18 +5,45 @@ import { clearChatDb } from '@/services/chat-db';
 import { initChatRealtime, disconnectChatRealtime } from '@/services/chat-realtime';
 import { clearAppQueryCache } from '@/services/query-client';
 import { getAutoDetectedServerUrl, DEFAULT_SERVER_URL } from '@/services/api';
+
 const TOKEN_KEY = 'semester_library_mobile_token';
 const USER_KEY = 'semester_library_mobile_user';
 const SERVER_URL_KEY = 'semester_library_server_url';
 
 export interface StudentUser {
   studentId: string;
+  username?: string | null;
   name: string;
   role: string;
   isAdmin?: boolean;
-  avatarUrl?: string;
+  isCR?: boolean;
+  avatarUrl?: string | null;
+  bio?: string;
   department?: string;
   semester?: string;
+  gender?: string | null;
+  email?: string | null;
+  githubUrl?: string;
+  linkedinUrl?: string;
+  verificationStatus?: string;
+  stats?: {
+    filesCount: number;
+    likesReceived: number;
+    followersCount: number;
+    followingCount: number;
+  };
+}
+
+export interface RegisterPayload {
+  fullName: string;
+  studentId: string;
+  username: string;
+  email: string;
+  department: string;
+  semester: string;
+  gender?: string;
+  password: string;
+  confirmPassword: string;
 }
 
 interface AuthContextType {
@@ -24,7 +51,12 @@ interface AuthContextType {
   token: string | null;
   serverUrl: string;
   isLoading: boolean;
-  login: (studentId: string, password: string, customUrl?: string) => Promise<{ success: boolean; error?: string }>;
+  login: (identifier: string, password: string, customUrl?: string) => Promise<{ success: boolean; error?: string; code?: string }>;
+  register: (payload: RegisterPayload, customUrl?: string) => Promise<{ success: boolean; message?: string; error?: string }>;
+  forgotPassword: (identifier: string, customUrl?: string) => Promise<{ success: boolean; message?: string; error?: string }>;
+  resendVerification: (identifier: string, customUrl?: string) => Promise<{ success: boolean; message?: string; error?: string }>;
+  refreshProfile: () => Promise<StudentUser | null>;
+  updateProfile: (data: Partial<StudentUser>) => Promise<{ success: boolean; profile?: StudentUser; error?: string }>;
   logout: () => Promise<void>;
   updateServerUrl: (url: string) => Promise<void>;
 }
@@ -117,7 +149,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const login = async (studentId: string, password: string, customUrl?: string) => {
+  const login = async (identifier: string, password: string, customUrl?: string) => {
     const targetUrl = customUrl ? customUrl.trim() : serverUrl;
     try {
       const res = await fetch(`${targetUrl}/api/mobile/login`, {
@@ -127,7 +159,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           Accept: 'application/json',
         },
         body: JSON.stringify({
-          studentId: studentId.trim(),
+          identifier: identifier.trim(),
+          studentId: identifier.trim(),
           password,
         }),
       });
@@ -155,6 +188,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         return {
           success: false,
+          code: data.code,
           error: data.message || `Login failed (HTTP ${res.status})`,
         };
       }
@@ -163,6 +197,151 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         success: false,
         error: `Could not connect to ${targetUrl}. Ensure your phone is on the same Wi-Fi.`,
       };
+    }
+  };
+
+  const register = async (payload: RegisterPayload, customUrl?: string) => {
+    const targetUrl = customUrl ? customUrl.trim() : serverUrl;
+    try {
+      const res = await fetch(`${targetUrl}/api/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok) {
+        return {
+          success: true,
+          message: data.message || 'Account created successfully! Please verify your email before logging in.',
+        };
+      } else {
+        return {
+          success: false,
+          error: data.message || `Registration failed (HTTP ${res.status})`,
+        };
+      }
+    } catch (err: any) {
+      return {
+        success: false,
+        error: `Could not connect to ${targetUrl}. Ensure your phone is on the same Wi-Fi.`,
+      };
+    }
+  };
+
+  const forgotPassword = async (identifier: string, customUrl?: string) => {
+    const targetUrl = customUrl ? customUrl.trim() : serverUrl;
+    try {
+      const res = await fetch(`${targetUrl}/api/auth/forgot-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ identifier: identifier.trim() }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        return {
+          success: true,
+          message: data.message || 'Password reset link sent to your email address.',
+        };
+      } else {
+        return {
+          success: false,
+          error: data.message || 'Failed to send password reset link.',
+        };
+      }
+    } catch (err: any) {
+      return {
+        success: false,
+        error: `Could not connect to ${targetUrl}. Ensure your phone is on the same Wi-Fi.`,
+      };
+    }
+  };
+
+  const resendVerification = async (identifier: string, customUrl?: string) => {
+    const targetUrl = customUrl ? customUrl.trim() : serverUrl;
+    try {
+      const res = await fetch(`${targetUrl}/api/auth/resend-verification`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ identifier: identifier.trim() }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        return {
+          success: true,
+          message: data.message || 'Verification link sent to your email address.',
+        };
+      } else {
+        return {
+          success: false,
+          error: data.message || 'Failed to resend verification email.',
+        };
+      }
+    } catch (err: any) {
+      return {
+        success: false,
+        error: `Could not connect to ${targetUrl}. Ensure your phone is on the same Wi-Fi.`,
+      };
+    }
+  };
+
+  const refreshProfile = async (): Promise<StudentUser | null> => {
+    if (!token) return null;
+    try {
+      const res = await fetch(`${serverUrl}/api/profile`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+      });
+
+      if (res.ok) {
+        const fresh: StudentUser = await res.json();
+        setUser(fresh);
+        await SecureStore.setItemAsync(USER_KEY, JSON.stringify(fresh));
+        return fresh;
+      }
+    } catch (err) {
+      console.warn('Refresh profile error:', err);
+    }
+    return user;
+  };
+
+  const updateProfile = async (data: Partial<StudentUser>) => {
+    if (!token) return { success: false, error: 'Not authenticated' };
+    try {
+      const res = await fetch(`${serverUrl}/api/profile/update`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && json.profile) {
+        setUser(json.profile);
+        await SecureStore.setItemAsync(USER_KEY, JSON.stringify(json.profile));
+        return { success: true, profile: json.profile };
+      } else {
+        return { success: false, error: json.message || 'Failed to update profile' };
+      }
+    } catch (err: any) {
+      return { success: false, error: 'Network error while updating profile' };
     }
   };
 
@@ -206,6 +385,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         serverUrl,
         isLoading,
         login,
+        register,
+        forgotPassword,
+        resendVerification,
+        refreshProfile,
+        updateProfile,
         logout,
         updateServerUrl,
       }}

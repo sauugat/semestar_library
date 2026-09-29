@@ -1388,58 +1388,72 @@ export default function HomeScreen() {
         >
           {/* Author / Uploader Row */}
           <View style={styles.postAuthorRow}>
-            <View
-              style={[
-                styles.authorAvatar,
-                {
-                  backgroundColor: colors.surfaceRaised,
-                  borderColor: colors.border,
-                  borderWidth: 1,
-                  borderRadius: radii.full,
-                  overflow: 'hidden',
-                },
-              ]}
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={(e) => {
+                e.stopPropagation();
+                if (file.uploadedBy) {
+                  router.push({
+                    pathname: '/user/[id]',
+                    params: { id: file.uploadedBy },
+                  });
+                }
+              }}
+              style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
             >
-              {file.uploaderAvatar ? (
-                <Image
-                  source={{ uri: getFullImageUrl(file.uploaderAvatar) || file.uploaderAvatar }}
-                  style={{ width: '100%', height: '100%' }}
-                  contentFit="cover"
-                  cachePolicy="memory-disk"
-                />
-              ) : (
-                <Text variant="sm" weight="700" color="primary">
-                  {(file.uploaderName || 'S').charAt(0).toUpperCase()}
-                </Text>
-              )}
-            </View>
-            <View style={{ flex: 1, marginLeft: spacing.sm }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text variant="sm" weight="700" numberOfLines={1}>
-                  {file.uploaderName || 'Student'}
-                </Text>
-                {file.uploaderRole && file.uploaderRole !== 'student' && (
-                  <View
-                    style={[
-                      styles.rolePill,
-                      {
-                        backgroundColor: colors.surfaceRaised,
-                        borderColor: colors.border,
-                        borderWidth: 1,
-                        borderRadius: radii.sm,
-                      },
-                    ]}
-                  >
-                    <Text variant="xs" weight="700" color="secondary">
-                      {file.uploaderRole.toUpperCase()}
-                    </Text>
-                  </View>
+              <View
+                style={[
+                  styles.authorAvatar,
+                  {
+                    backgroundColor: colors.surfaceRaised,
+                    borderColor: colors.border,
+                    borderWidth: 1,
+                    borderRadius: radii.full,
+                    overflow: 'hidden',
+                  },
+                ]}
+              >
+                {file.uploaderAvatar ? (
+                  <Image
+                    source={{ uri: getFullImageUrl(file.uploaderAvatar) || file.uploaderAvatar }}
+                    style={{ width: '100%', height: '100%' }}
+                    contentFit="cover"
+                    cachePolicy="memory-disk"
+                  />
+                ) : (
+                  <Text variant="sm" weight="700" color="primary">
+                    {(file.uploaderName || 'S').charAt(0).toUpperCase()}
+                  </Text>
                 )}
               </View>
-              <Caption color="muted">
-                Uploaded {formatRelativeTime(file.uploadedAt)}
-              </Caption>
-            </View>
+              <View style={{ flex: 1, marginLeft: spacing.sm }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text variant="sm" weight="700" numberOfLines={1}>
+                    {file.uploaderName || 'Student'}
+                  </Text>
+                  {file.uploaderRole && file.uploaderRole !== 'student' && (
+                    <View
+                      style={[
+                        styles.rolePill,
+                        {
+                          backgroundColor: colors.surfaceRaised,
+                          borderColor: colors.border,
+                          borderWidth: 1,
+                          borderRadius: radii.sm,
+                        },
+                      ]}
+                    >
+                      <Text variant="xs" weight="700" color="secondary">
+                        {file.uploaderRole.toUpperCase()}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                <Caption color="muted">
+                  Uploaded {formatRelativeTime(file.uploadedAt)}
+                </Caption>
+              </View>
+            </TouchableOpacity>
 
             {/* Type Badge: NOTE / STUDY MATERIAL */}
             <View

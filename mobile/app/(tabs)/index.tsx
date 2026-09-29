@@ -2125,6 +2125,248 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </Modal>
 
+      {/* Post Comments Modal Dialog / Sheet */}
+      <Modal
+        visible={commentsModalOpen}
+        animationType="slide"
+        transparent
+        onRequestClose={() => {
+          setCommentsModalOpen(false);
+          setActiveCommentPost(null);
+        }}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' }}
+        >
+          <View
+            style={{
+              backgroundColor: colors.surface,
+              borderTopLeftRadius: radii.xl,
+              borderTopRightRadius: radii.xl,
+              maxHeight: '85%',
+              minHeight: '55%',
+              paddingBottom: Platform.OS === 'ios' ? 24 : 12,
+            }}
+          >
+            {/* Comments Header */}
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingHorizontal: spacing.lg,
+                paddingVertical: spacing.md,
+                borderBottomWidth: 1,
+                borderBottomColor: colors.border,
+              }}
+            >
+              <View>
+                <Heading style={{ fontSize: 16 }}>Comments</Heading>
+                <Caption color="muted">
+                  {activeCommentPost ? `On post by ${activeCommentPost.name}` : 'Post replies'}
+                </Caption>
+              </View>
+              <TouchableOpacity
+                onPress={() => {
+                  setCommentsModalOpen(false);
+                  setActiveCommentPost(null);
+                }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={{
+                  padding: 6,
+                  borderRadius: radii.full,
+                  backgroundColor: colors.surfaceRaised,
+                }}
+              >
+                <Ionicons name="close" size={20} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Comments List */}
+            <ScrollView
+              contentContainerStyle={{ padding: spacing.md, paddingBottom: 24 }}
+              keyboardShouldPersistTaps="handled"
+            >
+              {loadingComments ? (
+                <ActivityIndicator size="small" color={colors.primary} style={{ marginVertical: 32 }} />
+              ) : postComments.length === 0 ? (
+                <View style={{ alignItems: 'center', paddingVertical: 36 }}>
+                  <Ionicons name="chatbubbles-outline" size={42} color={colors.textMuted} style={{ marginBottom: 8 }} />
+                  <Text variant="sm" weight="600" color="secondary">
+                    No replies yet
+                  </Text>
+                  <Caption color="muted" style={{ marginTop: 4 }}>
+                    Be the first to join the conversation!
+                  </Caption>
+                </View>
+              ) : (
+                postComments.map((comment) => (
+                  <View
+                    key={comment.id}
+                    style={{
+                      flexDirection: 'row',
+                      marginBottom: spacing.md,
+                      backgroundColor: colors.surfaceRaised,
+                      padding: spacing.md,
+                      borderRadius: radii.lg,
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                    }}
+                  >
+                    {/* Commenter Avatar (tappable to profile) */}
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        setCommentsModalOpen(false);
+                        const sid = comment.studentId || comment.userId;
+                        if (sid) {
+                          router.push({
+                            pathname: '/user/[id]',
+                            params: { id: sid },
+                          });
+                        }
+                      }}
+                      style={{
+                        width: 34,
+                        height: 34,
+                        borderRadius: 17,
+                        backgroundColor: colors.surfaceSubtle,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        overflow: 'hidden',
+                        marginRight: spacing.sm,
+                      }}
+                    >
+                      {comment.avatarUrl ? (
+                        <Image
+                          source={{ uri: getFullImageUrl(comment.avatarUrl) || comment.avatarUrl }}
+                          style={{ width: '100%', height: '100%' }}
+                          contentFit="cover"
+                        />
+                      ) : (
+                        <Text variant="xs" weight="700" color="primary">
+                          {(comment.name || 'S').charAt(0).toUpperCase()}
+                        </Text>
+                      )}
+                    </TouchableOpacity>
+
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <TouchableOpacity
+                          activeOpacity={0.7}
+                          onPress={() => {
+                            setCommentsModalOpen(false);
+                            const sid = comment.studentId || comment.userId;
+                            if (sid) {
+                              router.push({
+                                pathname: '/user/[id]',
+                                params: { id: sid },
+                              });
+                            }
+                          }}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                        >
+                          <Text variant="xs" weight="700">
+                            {comment.name || 'Classmate'}
+                          </Text>
+                          {comment.role && comment.role !== 'student' && (
+                            <View
+                              style={{
+                                backgroundColor: colors.surfaceSubtle,
+                                paddingHorizontal: 4,
+                                paddingVertical: 1,
+                                borderRadius: 3,
+                              }}
+                            >
+                              <Text variant="xs" weight="700" color="accent" style={{ fontSize: 9 }}>
+                                {comment.role.toUpperCase()}
+                              </Text>
+                            </View>
+                          )}
+                        </TouchableOpacity>
+
+                        {comment.canDelete && (
+                          <TouchableOpacity
+                            onPress={() => handleDeletePostComment(comment.id)}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            <Ionicons name="trash-outline" size={14} color={colors.error} />
+                          </TouchableOpacity>
+                        )}
+                      </View>
+
+                      <Text variant="sm" style={{ marginTop: 4, lineHeight: 20 }}>
+                        {comment.content}
+                      </Text>
+                      <Caption color="muted" style={{ marginTop: 4, fontSize: 10 }}>
+                        {formatRelativeTime(comment.createdAt)}
+                      </Caption>
+                    </View>
+                  </View>
+                ))
+              )}
+            </ScrollView>
+
+            {/* Comment Composer Input Bar */}
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingHorizontal: spacing.md,
+                paddingVertical: spacing.sm,
+                borderTopWidth: 1,
+                borderTopColor: colors.border,
+                backgroundColor: colors.surface,
+                gap: spacing.sm,
+              }}
+            >
+              <TextInput
+                placeholder="Write a reply..."
+                placeholderTextColor={colors.textMuted}
+                value={commentInput}
+                onChangeText={setCommentInput}
+                style={{
+                  flex: 1,
+                  backgroundColor: colors.surfaceRaised,
+                  borderColor: colors.border,
+                  borderWidth: 1,
+                  borderRadius: radii.full,
+                  paddingHorizontal: spacing.md,
+                  paddingVertical: Platform.OS === 'ios' ? 10 : 7,
+                  color: colors.text,
+                  fontSize: 14,
+                  maxHeight: 90,
+                }}
+                multiline
+              />
+              <TouchableOpacity
+                onPress={handleAddPostComment}
+                disabled={!commentInput.trim() || postingComment}
+                style={{
+                  backgroundColor: commentInput.trim() ? colors.primary : colors.surfaceRaised,
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {postingComment ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Ionicons
+                    name="send"
+                    size={18}
+                    color={commentInput.trim() ? '#FFFFFF' : colors.textMuted}
+                  />
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
       {/* Floating Toast Notification */}
       {toastMessage && (
         <Animated.View

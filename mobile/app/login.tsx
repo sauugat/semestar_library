@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/constants/useTheme';
 import { Text, Heading, Caption, Subheading } from '@/components/ui/Typography';
@@ -216,13 +217,18 @@ export default function LoginScreen() {
               style={[
                 styles.logoBadge,
                 {
-                  backgroundColor: colors.primaryLight,
-                  borderColor: colors.primary,
-                  borderRadius: radii.xl,
+                  backgroundColor: colors.surfaceRaised,
+                  borderColor: colors.borderStrong,
+                  borderRadius: 22,
+                  overflow: 'hidden',
                 },
               ]}
             >
-              <Ionicons name="school" size={38} color={colors.primary} />
+              <Image
+                source={require('@/assets/images/app-logo.jpg')}
+                style={{ width: '100%', height: '100%' }}
+                contentFit="cover"
+              />
             </View>
             <Heading style={{ marginTop: spacing.sm, textAlign: 'center' }}>
               Semester Library

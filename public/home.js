@@ -314,37 +314,7 @@
     });
   });
 
-  if (devStage) {
-    let devFrame = 0;
-    let devX = 0;
-    let devY = 0;
-    const resetDevPointer = () => {
-      cancelAnimationFrame(devFrame);
-      devFrame = 0;
-      delete devStage.dataset.pointerActive;
-      ['--tilt-x', '--tilt-y', '--pointer-x', '--pointer-y'].forEach(p => devStage.style.removeProperty(p));
-    };
-    devStage.addEventListener('pointermove', event => {
-      if (reducedMotion.matches || !finePointer.matches || event.pointerType !== 'mouse') return;
-      devX = event.clientX;
-      devY = event.clientY;
-      if (devFrame) return;
-      devFrame = requestAnimationFrame(() => {
-        devFrame = 0;
-        const bounds = devStage.getBoundingClientRect();
-        const x = Math.min(1, Math.max(0, (devX - bounds.left) / bounds.width));
-        const y = Math.min(1, Math.max(0, (devY - bounds.top) / bounds.height));
-        devStage.dataset.pointerActive = 'true';
-        devStage.style.setProperty('--pointer-x', `${x * 100}%`);
-        devStage.style.setProperty('--pointer-y', `${y * 100}%`);
-        devStage.style.setProperty('--tilt-x', `${(0.5 - y) * 2.8}deg`);
-        devStage.style.setProperty('--tilt-y', `${(x - 0.5) * 2.8}deg`);
-      });
-    }, { passive: true });
-    devStage.addEventListener('pointerleave', resetDevPointer);
-    devStage.addEventListener('pointercancel', resetDevPointer);
-    resetPointers.push(resetDevPointer);
-  }
+  // devStage terminal window remains stationary with no tilt movement
 
   const motionObserver = 'IntersectionObserver' in window ? new IntersectionObserver(entries => {
     entries.forEach(entry => {

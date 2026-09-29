@@ -425,23 +425,30 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
           {!isMe && (
             <View style={styles.avatarGutter}>
               {isLastInGroup ? (
-                avatarFullUrl && !avatarLoadError ? (
-                  <Image
-                    source={{
-                      uri: avatarFullUrl,
-                      headers: authToken ? { Authorization: `Bearer ${authToken}` } : undefined,
-                      cacheKey: item.avatarUrl || avatarFullUrl,
-                    }}
-                    style={styles.avatarImage}
-                    cachePolicy="memory-disk"
-                    contentFit="cover"
-                    onError={() => setAvatarLoadError(true)}
-                  />
-                ) : (
-                  <View style={styles.avatarInitial}>
-                    <Text style={styles.avatarInitialText}>{initialChar}</Text>
-                  </View>
-                )
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => item.studentId && onPressAuthor?.(item.studentId)}
+                  disabled={!item.studentId || !onPressAuthor}
+                  accessibilityLabel={`View ${item.name || 'student'}'s profile`}
+                >
+                  {avatarFullUrl && !avatarLoadError ? (
+                    <Image
+                      source={{
+                        uri: avatarFullUrl,
+                        headers: authToken ? { Authorization: `Bearer ${authToken}` } : undefined,
+                        cacheKey: item.avatarUrl || avatarFullUrl,
+                      }}
+                      style={styles.avatarImage}
+                      cachePolicy="memory-disk"
+                      contentFit="cover"
+                      onError={() => setAvatarLoadError(true)}
+                    />
+                  ) : (
+                    <View style={styles.avatarInitial}>
+                      <Text style={styles.avatarInitialText}>{initialChar}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
               ) : (
                 <View style={styles.avatarSpacer} />
               )}
@@ -476,9 +483,17 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
 
               {/* Sender Name for Others (first message in group only) */}
               {!isMe && isFirstInGroup && (
-                <Text style={styles.senderNameText} numberOfLines={1}>
-                  {item.name || 'Classmate'}
-                </Text>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => item.studentId && onPressAuthor?.(item.studentId)}
+                  disabled={!item.studentId || !onPressAuthor}
+                  accessibilityLabel={`View ${item.name || 'student'}'s profile`}
+                  style={{ alignSelf: 'flex-start', marginBottom: 2 }}
+                >
+                  <Text style={styles.senderNameText} numberOfLines={1}>
+                    {item.name || 'Classmate'}
+                  </Text>
+                </TouchableOpacity>
               )}
 
               {/* Quoted Reply Block */}

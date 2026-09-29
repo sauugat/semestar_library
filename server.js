@@ -623,6 +623,9 @@ app.use(express.static(path.join(__dirname, 'public'), {
 function requireLogin(req, res, next) {
   if (req.user && req.user.studentId) {
     req.student = req.user;
+    if (!req.session) req.session = {};
+    req.session.studentId = req.user.studentId;
+    req.session.role = req.user.role || 'student';
     return next();
   }
   if (req.session && req.session.studentId) {

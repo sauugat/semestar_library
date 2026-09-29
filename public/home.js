@@ -248,24 +248,27 @@
 
   // Meet the Developers Interactive Showcase
   const devProfiles = {
-    saugat: {
-      name: 'Saugat Subedi',
-      path: 'saugat-subedi',
-      role: 'Lead Architect',
-      focus: 'Platform Architecture & Core Hub',
-      bio: "Spearheaded the platform architecture, relational database engineering, authentication security, and high-performance academic resource delivery for Semester Library.",
-      tags: ['Node.js', 'Express', 'SQLite', 'Session Auth', 'REST API']
-    },
     sandesh: {
       name: 'Sandesh Dhakal',
+      pfp: '/images/dev-sandesh.png',
       path: 'sandesh-dhakal',
       role: 'AI & Compiler',
       focus: 'AI Models & Cloud Execution',
       bio: "Engineered the contextual AI tutoring agent and built the high-speed browser compiler sandbox allowing Gandaki students to write, run, and debug code instantly.",
       tags: ['Gemini AI', 'Compiler Sandbox', 'Terminal IO', 'Python / C / Java', 'Web Workers']
     },
+    saugat: {
+      name: 'Saugat Subedi',
+      pfp: '/images/dev-saugat.png',
+      path: 'saugat-subedi',
+      role: 'Lead Architect',
+      focus: 'Platform Architecture & Core Hub',
+      bio: "Spearheaded the platform architecture, relational database engineering, authentication security, and high-performance academic resource delivery for Semester Library.",
+      tags: ['Node.js', 'Express', 'SQLite', 'Session Auth', 'REST API']
+    },
     subarna: {
       name: 'Subarna Poudel',
+      pfp: '/images/dev-subarna.png',
       path: 'subarna-poudel',
       role: 'Realtime & UI/UX',
       focus: 'Realtime Networks & Interactive UI',
@@ -283,6 +286,7 @@
   const spotlightChip = document.getElementById('dev-spotlight-chip');
   const spotlightBio = document.getElementById('dev-spotlight-bio');
   const spotlightTags = document.getElementById('dev-spotlight-tags');
+  const spotlightPfp = document.getElementById('dev-spotlight-pfp');
 
   function activateDev(devId) {
     const profile = devProfiles[devId];
@@ -296,6 +300,11 @@
 
     if (devStage) {
       devStage.dataset.activeDev = devId;
+    }
+
+    if (spotlightPfp) {
+      spotlightPfp.src = profile.pfp;
+      spotlightPfp.alt = profile.name;
     }
 
     if (stagePathDev) stagePathDev.textContent = profile.path;

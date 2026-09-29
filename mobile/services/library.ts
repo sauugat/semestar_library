@@ -211,3 +211,35 @@ export async function uploadNote(params: UploadNoteParams): Promise<UploadNoteRe
   return res.json();
 }
 
+export interface FileComment {
+  id: number;
+  fileId: number;
+  studentId: string;
+  commentText: string;
+  content: string;
+  createdAt: string;
+  commenterName: string;
+  name: string;
+  avatarUrl?: string | null;
+  role: string;
+  canDelete?: boolean;
+}
+
+export async function getFileComments(fileId: number): Promise<FileComment[]> {
+  return api.get<FileComment[]>(`/api/files/${fileId}/comments`);
+}
+
+export async function addFileComment(
+  fileId: number,
+  text: string
+): Promise<{ commentId: number; comment?: FileComment; commentCount: number }> {
+  return api.post(`/api/files/${fileId}/comments`, { text });
+}
+
+export async function deleteFileComment(
+  fileId: number,
+  commentId: number
+): Promise<{ message: string; commentCount: number }> {
+  return api.delete(`/api/files/${fileId}/comments/${commentId}`);
+}
+

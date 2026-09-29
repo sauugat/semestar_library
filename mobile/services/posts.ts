@@ -115,6 +115,30 @@ export async function getComments(postId: number): Promise<PostComment[]> {
 }
 
 /**
+ * Add a comment to a post.
+ */
+export async function addComment(
+  postId: number,
+  content: string
+): Promise<{ comment: PostComment; comment_count: number }> {
+  return api.post<{ comment: PostComment; comment_count: number }>(`/api/posts/${postId}/comments`, {
+    content,
+  });
+}
+
+/**
+ * Delete a comment from a post.
+ */
+export async function deleteComment(
+  postId: number,
+  commentId: number
+): Promise<{ message: string; comment_count: number }> {
+  return api.delete<{ message: string; comment_count: number }>(
+    `/api/posts/${postId}/comments/${commentId}`
+  );
+}
+
+/**
  * Deletes a post by ID.
  */
 export async function deletePost(postId: number): Promise<{ message: string }> {

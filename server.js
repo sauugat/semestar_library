@@ -729,26 +729,68 @@ app.post('/api/login', loginRateLimiter, async (req, res) => {
 });
 
 app.post('/api/mobile/login', loginRateLimiter, async (req, res) => {
-  const studentId = (req.body.studentId || '').trim();
+  const identifier = (req.body.identifier || req.body.studentId || req.body.username || req.body.email || '').trim();
   const password = req.body.password || '';
   const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
 
-  if (!studentId || !password) {
-    return res.status(400).json({ message: 'Student ID and password are required.' });
+  if (!identifier || !password) {
+    return res.status(400).json({ message: 'Username/email/student ID and password are required.' });
   }
 
-  const student = await db.get('SELECT * FROM students WHERE studentId = ?', studentId);
+  let student = null;
+  if (identifier.includes('@')) {
+    student = await db.get('SELECT * FROM students WHERE LOWER(email) = ?', identifier.toLowerCase());
+  } else {
+    student = await db.get(
+      'SELECT * FROM students WHERE LOWER(username) = ? OR LOWER(studentId) = ?',
+      identifier.toLowerCase(), identifier.toLowerCase()
+    );
+  }
 
   if (!student) {
+    await new Promise(r => setTimeout(r, 60 + Math.floor(Math.random() * 40)));
     await recordFailedLogin(ip);
-    return res.status(401).json({ message: 'Invalid Student ID or Password' });
+    return res.status(401).json({ message: 'Invalid username/email or password.' });
   }
 
-  const match = bcrypt.compareSync(password, student.passwordHash);
+  let authenticated = false;
 
-  if (!match) {
+  // 1. Try Supabase Auth if user has an email and Supabase credentials exist
+  if (student.email) {
+    try {
+      const { authenticateWithPassword } = require('./lib/supabase');
+      const { data, error } = await authenticateWithPassword({
+        email: student.email.toLowerCase(),
+        password: password,
+      });
+
+      if (error) {
+        const errLower = (error.message || '').toLowerCase();
+        if (errLower.includes('email not confirmed') || errLower.includes('not confirmed')) {
+          return res.status(403).json({
+            code: 'EMAIL_NOT_CONFIRMED',
+            message: 'Your email address has not been verified yet. Please check your inbox and verify your email before signing in.'
+          });
+        }
+      } else if (data && data.user) {
+        authenticated = true;
+      }
+    } catch (supabaseErr) {
+      // Ignore and try fallback to local passwordHash
+    }
+  }
+
+  // 2. If not authenticated via Supabase, fall back to bcrypt local passwordHash
+  if (!authenticated && student.passwordHash && student.passwordHash !== 'supabase_auth') {
+    if (bcrypt.compareSync(password, student.passwordHash)) {
+      authenticated = true;
+    }
+  }
+
+  if (!authenticated) {
+    await new Promise(r => setTimeout(r, 60 + Math.floor(Math.random() * 40)));
     await recordFailedLogin(ip);
-    return res.status(401).json({ message: 'Invalid Student ID or Password' });
+    return res.status(401).json({ message: 'Invalid username/email or password.' });
   }
 
   await clearLoginAttempts(ip);
@@ -765,14 +807,27 @@ app.post('/api/mobile/login', loginRateLimiter, async (req, res) => {
     token, student.studentId, createdAt, expiresAt
   );
 
+  const profile = await getStudentProfile(student.studentId, student.studentId);
+
   return res.json({
     token,
     user: {
       studentId: student.studentId,
+      username: student.username || null,
       name: student.name,
       role: student.role || 'student',
       department: student.department || 'BIT',
-      semester: student.semester || null
+      semester: student.semester || 'Semester 1',
+      gender: student.gender || null,
+      email: student.email || null,
+      avatarUrl: student.avatarUrl || null,
+      bio: student.bio || '',
+      githubUrl: student.githubUrl || '',
+      linkedinUrl: student.linkedinUrl || '',
+      verificationStatus: student.verification_status || student.verificationStatus || 'unverified',
+      isAdmin: (student.role === 'admin'),
+      isCR: (student.role === 'cr' || student.role === 'class_rep'),
+      stats: profile?.stats || { filesCount: 0, likesReceived: 0, followersCount: 0, followingCount: 0 }
     }
   });
 });

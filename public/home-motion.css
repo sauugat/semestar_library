@@ -232,7 +232,7 @@
      Template Previews Animations (Reusing Home Page Feature Demo Motion)
      ------------------------------------------------------------------ */
 
-  /* 1. Template Preview Container & Soft Sheen Pass */
+  /* 1. Template Preview Container & Soft Sheen Pass with Per-Card Glow */
   .home-dev-card-preview {
     position: relative;
     overflow: hidden;
@@ -243,7 +243,7 @@
     position: absolute;
     inset: 0;
     pointer-events: none;
-    background: linear-gradient(100deg, transparent 25%, rgba(var(--stage-rgb), .12), transparent 75%);
+    background: linear-gradient(100deg, transparent 25%, rgba(var(--card-rgb, var(--stage-rgb)), .18), transparent 75%);
     opacity: 0;
     transform: translateX(-100%);
   }
@@ -256,13 +256,14 @@
     animation: home-file-sheen 1.1s ease both;
   }
   .home-dev-feat-card:hover .home-dev-card-preview {
-    border-color: rgba(var(--stage-rgb), 0.28);
-    background: rgba(12, 14, 18, 0.88);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 6px 18px -4px rgba(var(--stage-rgb), 0.2);
+    border-color: rgba(var(--card-rgb, var(--stage-rgb)), 0.38);
+    background: rgba(12, 14, 18, 0.92);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 8px 22px -4px rgba(var(--card-rgb, var(--stage-rgb)), 0.28);
   }
 
-  /* 2. Compiler & Code Sandbox: Terminal code reveal line + short terminal cursor */
-  .home-dev-panel.is-active .home-dev-preview-code code {
+  /* 2. Compiler & Code Sandbox: Terminal code reveal line + blinking terminal cursor */
+  .home-dev-panel.is-active .home-dev-preview-code code,
+  .home-dev-feat-card:hover .home-dev-preview-code code {
     display: inline-block;
     animation: home-code-line-in .55s cubic-bezier(.16,1,.3,1) both;
     animation-delay: calc(var(--feat-index, 0) * 0.05s + 0.16s);
@@ -273,12 +274,11 @@
     margin-left: 4px;
     font-size: 8px;
     vertical-align: 0;
-    color: rgba(var(--stage-rgb, 167, 180, 255), 0.95);
-    animation: home-cursor-blink .65s step-end 4;
-    opacity: 0;
+    color: rgba(var(--card-rgb, var(--stage-rgb, 167, 180, 255)), 0.95);
+    animation: home-cursor-blink .75s step-end infinite;
   }
-  .home-dev-feat-card:hover .home-dev-preview-code code::after {
-    animation: home-cursor-blink .65s step-end 3;
+  .home-dev-dot-green {
+    animation: dev-dot-pulse 2.2s ease-in-out infinite;
   }
 
   /* 3. Status rows and live outputs */
@@ -294,6 +294,9 @@
   }
 
   /* 4. Conversational AI & Chat Bubbles */
+  .home-dev-preview-chat-bubble svg {
+    color: rgb(var(--card-rgb, var(--stage-rgb, 168, 156, 255)));
+  }
   .home-dev-panel.is-active .home-dev-preview-chat-bubble:nth-child(1) {
     animation: home-message-in .6s cubic-bezier(.16,1,.3,1) both;
     animation-delay: calc(var(--feat-index, 0) * 0.05s + 0.14s);
@@ -302,7 +305,8 @@
     animation: home-answer-in .7s cubic-bezier(.16,1,.3,1) both;
     animation-delay: calc(var(--feat-index, 0) * 0.05s + 0.25s);
   }
-  .home-dev-panel.is-active .home-dev-preview-chat-bubble svg {
+  .home-dev-panel.is-active .home-dev-preview-chat-bubble svg,
+  .home-dev-feat-card:hover .home-dev-preview-chat-bubble svg {
     animation: home-spark-awaken 2.2s cubic-bezier(.2,.8,.2,1) both;
     animation-delay: calc(var(--feat-index, 0) * 0.05s + 0.16s);
   }
@@ -324,24 +328,25 @@
 
   /* 6. UI/UX Palette Circles & Micro Tabs */
   .home-dev-panel.is-active .home-dev-preview-palette span:nth-child(1) {
-    animation: home-step-in .4s cubic-bezier(.16,1,.3,1) both;
+    animation: dev-palette-pop .45s cubic-bezier(.175,.885,.32,1.275) both;
     animation-delay: calc(var(--feat-index, 0) * 0.05s + 0.16s);
   }
   .home-dev-panel.is-active .home-dev-preview-palette span:nth-child(2) {
-    animation: home-step-in .4s cubic-bezier(.16,1,.3,1) both;
-    animation-delay: calc(var(--feat-index, 0) * 0.05s + 0.22s);
+    animation: dev-palette-pop .45s cubic-bezier(.175,.885,.32,1.275) both;
+    animation-delay: calc(var(--feat-index, 0) * 0.05s + 0.24s);
   }
   .home-dev-panel.is-active .home-dev-preview-palette span:nth-child(3) {
-    animation: home-step-in .4s cubic-bezier(.16,1,.3,1) both;
-    animation-delay: calc(var(--feat-index, 0) * 0.05s + 0.28s);
+    animation: dev-palette-pop .45s cubic-bezier(.175,.885,.32,1.275) both;
+    animation-delay: calc(var(--feat-index, 0) * 0.05s + 0.32s);
   }
-  .home-dev-preview-tabs-mini span.is-selected {
-    background: rgba(var(--stage-rgb), 0.18);
-    color: rgba(var(--stage-rgb), 1);
-    border: 1px solid rgba(var(--stage-rgb), 0.45);
+  .home-dev-preview-tabs-mini span.is-selected,
+  .home-dev-preview-tabs-mini span:first-child {
+    background: rgba(var(--card-rgb, var(--stage-rgb)), 0.18);
+    color: rgba(var(--card-rgb, var(--stage-rgb)), 1);
+    border: 1px solid rgba(var(--card-rgb, var(--stage-rgb)), 0.45);
     border-radius: 4px;
     padding: 1px 6px;
-    box-shadow: 0 0 10px rgba(var(--stage-rgb), 0.25);
+    box-shadow: 0 0 10px rgba(var(--card-rgb, var(--stage-rgb)), 0.25);
   }
 
   /* 7. User Circle & Profile */
@@ -352,12 +357,12 @@
 
   /* 8. Feature Button interactions (matching .home-code-run) */
   .home-dev-feat-btn {
-    transition: transform .2s, box-shadow .2s, border-color .2s;
+    transition: transform .2s cubic-bezier(.16,1,.3,1), box-shadow .2s, border-color .2s, background .2s, color .2s;
   }
   .home-dev-feat-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 0 20px rgba(var(--stage-rgb), .32);
-    border-color: rgba(var(--stage-rgb), 0.4);
+    transform: translateY(-2px);
+    box-shadow: 0 0 20px rgba(var(--card-rgb, var(--stage-rgb)), .35);
+    border-color: rgba(var(--card-rgb, var(--stage-rgb)), 0.6);
   }
   .home-dev-feat-btn:active {
     transform: scale(.96);
@@ -366,8 +371,35 @@
     transition: transform .2s cubic-bezier(.16,1,.3,1);
   }
   .home-dev-feat-card:hover .home-dev-feat-btn svg {
-    transform: translate(2px, -2px);
+    transform: translate(3px, -3px);
   }
+}
+
+/* Template Micro Animations: Pulsing Dot & Palette Pop */
+@keyframes dev-dot-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.75);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(16, 185, 129, 0);
+    transform: scale(1.15);
+  }
+}
+
+@keyframes dev-palette-pop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.25);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
 }
 
 /* Card Arrival Animation */

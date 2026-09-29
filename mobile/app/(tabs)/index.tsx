@@ -1725,7 +1725,7 @@ export default function HomeScreen() {
       {renderBrandHeader()}
 
       <FlatList
-        data={feedItems}
+        data={filteredFeedItems}
         keyExtractor={(item) => (item.feedType === 'post' ? `post-${item.post.id}` : `file-${item.file.id}`)}
         renderItem={renderFeedItem}
         ListHeaderComponent={renderFeedHeader}

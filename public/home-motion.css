@@ -177,7 +177,7 @@
     animation-delay: .2s;
   }
   .home-dev-panel.is-active .home-card-compiler .home-dev-preview-bar span:first-child {
-    animation: home-terminal-ready 1.6s 1.1s ease both;
+    animation: dev-terminal-ready 1.6s 1.1s ease both;
   }
   .home-card-compiler .home-dev-preview-code code::after {
     content: '▋';
@@ -185,7 +185,7 @@
     margin-left: 4px;
     font-size: 8px;
     vertical-align: 0;
-    color: rgba(var(--card-rgb, 113, 171, 255), 0.95);
+    color: #ffffff;
     animation: home-cursor-blink .65s step-end infinite;
   }
   .home-card-compiler .home-dev-dot-green {
@@ -200,7 +200,7 @@
   .home-dev-panel.is-active .home-card-ai .home-dev-preview-chat-bubble svg,
   .home-card-ai:hover .home-dev-preview-chat-bubble svg,
   .home-dev-panel.is-active .home-card-ai .home-dev-feat-icon-box svg {
-    animation: home-spark-awaken 2.4s cubic-bezier(.2,.8,.2,1) both;
+    animation: dev-spark-awaken 2.4s cubic-bezier(.2,.8,.2,1) both;
   }
   .home-dev-panel.is-active .home-card-ai .home-dev-preview-chat-bubble:nth-child(1),
   .home-card-ai:hover .home-dev-preview-chat-bubble:nth-child(1) {

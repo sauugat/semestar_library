@@ -561,7 +561,7 @@ export default function ProfileScreen() {
               variant="primary"
               size="sm"
               onPress={openEditModal}
-              leftIcon={<Ionicons name="create-outline" size={15} color="#FFFFFF" />}
+              leftIcon={<Ionicons name="create-outline" size={15} color={colors.primaryText} />}
               style={{ flex: 1, marginRight: spacing.xs }}
             />
             <Button

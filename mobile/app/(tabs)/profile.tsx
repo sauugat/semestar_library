@@ -705,6 +705,7 @@ export default function ProfileScreen() {
                 <Card
                   key={file.id}
                   variant="elevated"
+                  onPress={() => router.push(`/material/${file.id}?preview=1` as any)}
                   style={[styles.fileCard, { borderColor: colors.border, marginBottom: spacing.sm }]}
                 >
                   <View style={styles.fileCardHeader}>
@@ -817,30 +818,36 @@ export default function ProfileScreen() {
                   variant="elevated"
                   style={[styles.classmateCard, { borderColor: colors.border, marginBottom: spacing.sm }]}
                 >
-                  <View
-                    style={[
-                      styles.classmateAvatar,
-                      { backgroundColor: colors.primaryLight, borderColor: colors.primary },
-                    ]}
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={() => router.push({ pathname: '/user/[id]', params: { id: classmate.studentId } })}
+                    style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: spacing.sm }}
                   >
-                    {cAvatar ? (
-                      <Image source={{ uri: cAvatar }} style={styles.classmateAvatarImg} contentFit="cover" />
-                    ) : (
-                      <Text style={[styles.avatarInitial, { fontSize: 16 }]}>{cInitial}</Text>
-                    )}
-                  </View>
+                    <View
+                      style={[
+                        styles.classmateAvatar,
+                        { backgroundColor: colors.primaryLight, borderColor: colors.primary },
+                      ]}
+                    >
+                      {cAvatar ? (
+                        <Image source={{ uri: cAvatar }} style={styles.classmateAvatarImg} contentFit="cover" />
+                      ) : (
+                        <Text style={[styles.avatarInitial, { fontSize: 16 }]}>{cInitial}</Text>
+                      )}
+                    </View>
 
-                  <View style={{ flex: 1, marginLeft: spacing.sm }}>
-                    <Text variant="sm" weight="700">
-                      {classmate.name}
-                    </Text>
-                    <Caption color="muted">
-                      @{classmate.studentId} &middot; {classmate.department || 'BIT'}
-                    </Caption>
-                    <Caption color="secondary" style={{ marginTop: 2 }}>
-                      {filesShared} shared {filesShared === 1 ? 'file' : 'files'}
-                    </Caption>
-                  </View>
+                    <View style={{ flex: 1, marginLeft: spacing.sm }}>
+                      <Text variant="sm" weight="700">
+                        {classmate.name}
+                      </Text>
+                      <Caption color="muted">
+                        @{classmate.studentId} &middot; {classmate.department || 'BIT'}
+                      </Caption>
+                      <Caption color="secondary" style={{ marginTop: 2 }}>
+                        {filesShared} shared {filesShared === 1 ? 'file' : 'files'}
+                      </Caption>
+                    </View>
+                  </TouchableOpacity>
 
                   <Button
                     title={isFollowing ? 'Following' : 'Follow'}

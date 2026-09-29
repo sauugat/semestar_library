@@ -1152,20 +1152,28 @@ app.post('/api/auth/resend-verification', loginRateLimiter, async (req, res) => 
 });
 
 app.get('/api/me', requireLogin, async (req, res) => {
+  const studentId = req.user.studentId;
+  const profile = await getStudentProfile(studentId, studentId);
   const role = req.user.role || 'student';
   const isAdmin = role === 'admin';
+  const isCR = role === 'cr' || role === 'class_rep';
   res.json({
     studentId: req.user.studentId,
-    username: req.user.username || null,
+    username: req.user.username || profile?.username || null,
     name: req.user.name,
     role,
     isAdmin,
-    department: req.user.department || 'BIT',
-    semester: req.user.semester || null,
+    isCR,
+    department: req.user.department || profile?.department || 'BIT',
+    semester: req.user.semester || profile?.semester || 'Semester 1',
     gender: req.user.gender || null,
-    email: req.user.email || null,
-    avatarUrl: req.user.avatarUrl || null,
-    verificationStatus: req.user.verificationStatus || 'unverified',
+    email: req.user.email || profile?.email || null,
+    avatarUrl: req.user.avatarUrl || profile?.avatarUrl || null,
+    bio: profile?.bio || '',
+    githubUrl: profile?.githubUrl || '',
+    linkedinUrl: profile?.linkedinUrl || '',
+    verificationStatus: req.user.verificationStatus || profile?.verificationStatus || 'unverified',
+    stats: profile?.stats || { filesCount: 0, likesReceived: 0, followersCount: 0, followingCount: 0 }
   });
 });
 

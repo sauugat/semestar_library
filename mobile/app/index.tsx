@@ -17,7 +17,7 @@ export default function Index() {
   const [minTimeElapsed, setMinTimeElapsed] = useState(false);
 
   useEffect(() => {
-    // Smooth entrance animation for brand logo and text
+    // Smooth entrance animation for brand logo and wordmark
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -32,7 +32,7 @@ export default function Index() {
       }),
     ]).start();
 
-    // Pulse animation for bottom loading track
+    // Pulse animation for loading track
     const pulseLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
@@ -49,7 +49,7 @@ export default function Index() {
     );
     pulseLoop.start();
 
-    // Show brand intro cleanly for a brief moment
+    // Brief splash display before transition
     const timer = setTimeout(() => {
       setMinTimeElapsed(true);
     }, 750);
@@ -105,7 +105,7 @@ export default function Index() {
           />
         </View>
 
-        {/* Brand Name */}
+        {/* Semester Library Wordmark in Dashboard Header Font */}
         <Text
           style={[
             styles.appName,
@@ -115,16 +115,7 @@ export default function Index() {
           Semester Library
         </Text>
 
-        {/* University Subtitle */}
-        <Text
-          variant="sm"
-          color="muted"
-          style={styles.tagline}
-        >
-          Gandaki University Academic Portal
-        </Text>
-
-        {/* Minimal Progress Indicator */}
+        {/* Loading Progress Bar Only */}
         <View style={[styles.progressTrack, { backgroundColor: colors.surfaceSubtle }]}>
           <Animated.View
             style={[
@@ -149,42 +140,41 @@ const styles = StyleSheet.create({
   },
   content: {
     alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 24,
   },
   logoContainer: {
-    width: 96,
-    height: 96,
-    borderRadius: 26,
+    width: 86,
+    height: 86,
+    borderRadius: 22,
     borderWidth: 1.5,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 8,
-    marginBottom: 20,
+    shadowOpacity: 0.32,
+    shadowRadius: 10,
+    elevation: 6,
+    marginBottom: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   logoImage: {
     width: '100%',
     height: '100%',
   },
   appName: {
-    fontSize: 26,
-    fontWeight: '800',
-    letterSpacing: -0.5,
+    fontFamily: 'PlusJakartaSans_800ExtraBold',
+    fontSize: 25,
+    letterSpacing: -0.6,
     textAlign: 'center',
-    marginBottom: 6,
-  },
-  tagline: {
-    letterSpacing: 0.2,
-    textAlign: 'center',
-    marginBottom: 36,
+    marginBottom: 26,
   },
   progressTrack: {
-    width: 140,
-    height: 4,
+    width: 110,
+    height: 3.5,
     borderRadius: 2,
     overflow: 'hidden',
+    alignSelf: 'center',
   },
   progressBar: {
     width: '100%',

@@ -483,6 +483,109 @@ export default function HomeScreen() {
     });
   }, [posts, files]);
 
+  // Feed Filter Tab state
+  const [feedFilter, setFeedFilter] = useState<'all' | 'notes' | 'notices'>('all');
+
+  const filteredFeedItems = useMemo<FeedItem[]>(() => {
+    if (feedFilter === 'notes') {
+      return feedItems.filter((i) => i.feedType === 'file');
+    }
+    if (feedFilter === 'notices') {
+      return feedItems.filter((i) => i.feedType === 'post' && i.post.type === 'notice');
+    }
+    return feedItems;
+  }, [feedItems, feedFilter]);
+
+  // Post Comments bottom-sheet state
+  const [activeCommentPost, setActiveCommentPost] = useState<Post | null>(null);
+  const [postComments, setPostComments] = useState<PostComment[]>([]);
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [postingComment, setPostingComment] = useState(false);
+  const [commentInput, setCommentInput] = useState('');
+  const [commentsModalOpen, setCommentsModalOpen] = useState(false);
+
+  const handleOpenPostComments = async (post: Post) => {
+    setActiveCommentPost(post);
+    setCommentsModalOpen(true);
+    setLoadingComments(true);
+    try {
+      const data = await getComments(post.id);
+      setPostComments(data || []);
+    } catch {
+      showToast('Could not load comments');
+    } finally {
+      setLoadingComments(false);
+    }
+  };
+
+  const handleAddPostComment = async () => {
+    if (!activeCommentPost || !commentInput.trim() || postingComment) return;
+    const content = commentInput.trim();
+    setPostingComment(true);
+    try {
+      const res = await addComment(activeCommentPost.id, content);
+      setCommentInput('');
+      if (res.comment) {
+        setPostComments((prev) => [...prev, res.comment]);
+      }
+      const updatedCount = res.comment_count ?? (activeCommentPost.comment_count + 1);
+      setActiveCommentPost((prev) => (prev ? { ...prev, comment_count: updatedCount } : null));
+      setPosts((prev) =>
+        prev.map((p) => (p.id === activeCommentPost.id ? { ...p, comment_count: updatedCount } : p))
+      );
+      showToast('Reply posted');
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Could not post comment.');
+    } finally {
+      setPostingComment(false);
+    }
+  };
+
+  const handleDeletePostComment = (commentId: number) => {
+    if (!activeCommentPost) return;
+    Alert.alert('Delete Reply', 'Are you sure you want to delete this reply?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const res = await deleteComment(activeCommentPost.id, commentId);
+            setPostComments((prev) => prev.filter((c) => c.id !== commentId));
+            const updatedCount = res.comment_count ?? Math.max(0, activeCommentPost.comment_count - 1);
+            setActiveCommentPost((prev) => (prev ? { ...prev, comment_count: updatedCount } : null));
+            setPosts((prev) =>
+              prev.map((p) => (p.id === activeCommentPost.id ? { ...p, comment_count: updatedCount } : p))
+            );
+            showToast('Reply deleted');
+          } catch (err: any) {
+            Alert.alert('Error', err.message || 'Could not delete reply.');
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleSharePost = async (post: Post) => {
+    try {
+      const textToShare = `${post.name} posted: "${post.content}"\n\nShared via Semester Library`;
+      await Clipboard.setStringAsync(textToShare);
+      showToast('Post copied to clipboard');
+    } catch {
+      showToast('Could not copy post');
+    }
+  };
+
+  const handleShareFileItem = async (file: LibraryFile) => {
+    try {
+      const link = `${baseUrl || ''}/api/files/${file.id}/view`;
+      await Clipboard.setStringAsync(link);
+      showToast('File link copied to clipboard');
+    } catch {
+      showToast('Could not copy link');
+    }
+  };
+
   // Search Overlay state
   const [searchOpen, setSearchOpen] = useState(false);
 

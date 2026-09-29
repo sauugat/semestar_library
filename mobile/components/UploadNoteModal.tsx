@@ -358,12 +358,12 @@ export function UploadNoteModal({
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               {submitting ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
+                <ActivityIndicator size="small" color={colors.primaryText} />
               ) : (
                 <Text
                   variant="sm"
                   weight="700"
-                  style={{ color: !selectedFile ? colors.textMuted : '#FFFFFF' }}
+                  style={{ color: !selectedFile ? colors.textMuted : colors.primaryText }}
                 >
                   Publish
                 </Text>

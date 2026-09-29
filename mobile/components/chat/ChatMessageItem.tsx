@@ -39,6 +39,7 @@ interface ChatMessageItemProps {
   onDownloadFile: (item: ChatMessage) => void;
   onToggleReaction: (item: ChatMessage, emoji: string) => void;
   onRetry?: (item: ChatMessage) => void;
+  onPressAuthor?: (studentId: string) => void;
 }
 
 function formatMessageTime(isoString: string): string {

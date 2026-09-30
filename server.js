@@ -659,7 +659,6 @@ function requireLogin(req, res, next) {
     return next();
   }
   if (req.session && req.session.studentId) {
-    if (req.session.studentId === 'guest') return next();
     db.get('SELECT studentId, role, name, department, semester, email, avatarUrl FROM students WHERE studentId = ?', req.session.studentId)
       .then(student => {
         if (!student) {

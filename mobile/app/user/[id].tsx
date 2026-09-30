@@ -636,7 +636,7 @@ export default function StudentProfileScreen() {
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Input label="Full Name" placeholder="e.g. Saugat Subedi" value={editName} onChangeText={setEditName} autoCapitalize="words" />
+              <Input label="Full Name" placeholder="e.g. Full Name" value={editName} onChangeText={setEditName} autoCapitalize="words" />
               <Input label="Bio / Headline" placeholder="Brief intro for your classmates…" value={editBio} onChangeText={setEditBio} multiline numberOfLines={3} helper="Max 300 characters" />
               <View style={{ flexDirection: 'row' }}>
                 <View style={{ flex: 1, marginRight: spacing.xs }}>

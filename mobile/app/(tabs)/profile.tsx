@@ -1081,7 +1081,7 @@ export default function ProfileScreen() {
             <ScrollView showsVerticalScrollIndicator={false}>
               <Input
                 label="Full Name"
-                placeholder="e.g. Saugat Subedi"
+                placeholder="e.g. Full Name"
                 value={editName}
                 onChangeText={setEditName}
                 autoCapitalize="words"

@@ -43,8 +43,8 @@ export default function LoginScreen() {
   const [authMode, setAuthMode] = useState<'signin' | 'register' | 'forgot'>('signin');
 
   // Sign In State
-  const [identifier, setIdentifier] = useState('26020266'); // Pre-filled for demo
-  const [password, setPassword] = useState('saugat266');
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
   const [isUnverified, setIsUnverified] = useState(false);
 
   // Register State
@@ -187,12 +187,6 @@ export default function LoginScreen() {
     } else {
       setErrorMessage(result.error || 'Failed to resend verification.');
     }
-  };
-
-  const handleFillDemo = (id: string, pass: string) => {
-    setIdentifier(id);
-    setPassword(pass);
-    resetFeedback();
   };
 
   return (
@@ -371,7 +365,7 @@ export default function LoginScreen() {
             <Card style={{ padding: spacing.lg }}>
               <Input
                 label="Username, Email, or Student ID"
-                placeholder="e.g. 26020266 or saugat_subedi"
+                placeholder="Student ID, email, or username"
                 value={identifier}
                 onChangeText={(val) => {
                   setIdentifier(val);
@@ -411,33 +405,6 @@ export default function LoginScreen() {
                 onPress={handleLogin}
                 style={{ marginTop: spacing.xs }}
               />
-
-              {/* Quick Demo Fill Helper */}
-              <View style={[styles.demoRow, { marginTop: spacing.md }]}>
-                <Caption color="muted">Quick fill: </Caption>
-                <TouchableOpacity
-                  onPress={() => handleFillDemo('26020266', 'saugat266')}
-                  style={[
-                    styles.demoPill,
-                    { backgroundColor: colors.surfaceSubtle, borderRadius: radii.sm },
-                  ]}
-                >
-                  <Text variant="xs" color="accent" weight="600">
-                    Admin (Saugat)
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => handleFillDemo('26020230', 'aashrita230')}
-                  style={[
-                    styles.demoPill,
-                    { backgroundColor: colors.surfaceSubtle, borderRadius: radii.sm, marginLeft: spacing.xs },
-                  ]}
-                >
-                  <Text variant="xs" color="accent" weight="600">
-                    Student (Aashrita)
-                  </Text>
-                </TouchableOpacity>
-              </View>
             </Card>
           )}
 
@@ -446,7 +413,7 @@ export default function LoginScreen() {
             <Card style={{ padding: spacing.lg }}>
               <Input
                 label="Full Name"
-                placeholder="e.g. Saugat Subedi"
+                placeholder="e.g. Full Name"
                 value={regFullName}
                 onChangeText={setRegFullName}
                 leftIcon="person-outline"
@@ -457,7 +424,7 @@ export default function LoginScreen() {
                 <View style={{ flex: 1, marginRight: spacing.xs }}>
                   <Input
                     label="Student ID"
-                    placeholder="e.g. 26020266"
+                    placeholder="e.g. 26020001"
                     value={regStudentId}
                     onChangeText={setRegStudentId}
                     autoCapitalize="none"
@@ -466,7 +433,7 @@ export default function LoginScreen() {
                 <View style={{ flex: 1, marginLeft: spacing.xs }}>
                   <Input
                     label="Username"
-                    placeholder="e.g. saugat"
+                    placeholder="e.g. username"
                     value={regUsername}
                     onChangeText={setRegUsername}
                     autoCapitalize="none"
@@ -668,64 +635,66 @@ export default function LoginScreen() {
             </Card>
           )}
 
-          {/* Configurable Server URL Card */}
-          <Card
-            variant="flat"
-            style={{ marginTop: spacing.md, padding: spacing.md }}
-          >
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => setShowServerConfig(!showServerConfig)}
-              style={styles.serverHeaderRow}
+          {/* Configurable Server URL Card (Development only) */}
+          {__DEV__ && (
+            <Card
+              variant="flat"
+              style={{ marginTop: spacing.md, padding: spacing.md }}
             >
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => setShowServerConfig(!showServerConfig)}
+                style={styles.serverHeaderRow}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Ionicons
+                    name="server-outline"
+                    size={16}
+                    color={colors.textSecondary}
+                    style={{ marginRight: spacing.xs }}
+                  />
+                  <Text variant="sm" color="secondary" weight="600">
+                    Backend LAN Config (Dev Only)
+                  </Text>
+                </View>
                 <Ionicons
-                  name="server-outline"
+                  name={showServerConfig ? 'chevron-up' : 'chevron-down'}
                   size={16}
                   color={colors.textSecondary}
-                  style={{ marginRight: spacing.xs }}
                 />
-                <Text variant="sm" color="secondary" weight="600">
-                  Backend LAN Config
-                </Text>
-              </View>
-              <Ionicons
-                name={showServerConfig ? 'chevron-up' : 'chevron-down'}
-                size={16}
-                color={colors.textSecondary}
-              />
-            </TouchableOpacity>
+              </TouchableOpacity>
 
-            {showServerConfig && (
-              <View style={{ marginTop: spacing.sm }}>
-                <Input
-                  label="Target API Base URL"
-                  value={customUrl}
-                  onChangeText={setCustomUrl}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  placeholder="https://semestar-library.vercel.app"
-                  helper="Default: https://semestar-library.vercel.app"
-                />
-                <Button
-                  title="Save Server URL"
-                  variant="secondary"
-                  size="sm"
-                  onPress={async () => {
-                    await updateServerUrl(customUrl);
-                    setSuccessMessage('Server URL updated successfully!');
-                    setTimeout(() => setSuccessMessage(null), 3000);
-                  }}
-                />
-              </View>
-            )}
+              {showServerConfig && (
+                <View style={{ marginTop: spacing.sm }}>
+                  <Input
+                    label="Target API Base URL"
+                    value={customUrl}
+                    onChangeText={setCustomUrl}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    placeholder="https://semestar-library.vercel.app"
+                    helper="Default: https://semestar-library.vercel.app"
+                  />
+                  <Button
+                    title="Save Server URL"
+                    variant="secondary"
+                    size="sm"
+                    onPress={async () => {
+                      await updateServerUrl(customUrl);
+                      setSuccessMessage('Server URL updated successfully!');
+                      setTimeout(() => setSuccessMessage(null), 3000);
+                    }}
+                  />
+                </View>
+              )}
 
-            {!showServerConfig && (
-              <Caption color="muted" style={{ marginTop: spacing.xs }}>
-                Connected to: {customUrl}
-              </Caption>
-            )}
-          </Card>
+              {!showServerConfig && (
+                <Caption color="muted" style={{ marginTop: spacing.xs }}>
+                  Connected to: {customUrl}
+                </Caption>
+              )}
+            </Card>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -793,15 +762,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderWidth: 1,
-  },
-  demoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-  },
-  demoPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
   },
   serverHeaderRow: {
     flexDirection: 'row',

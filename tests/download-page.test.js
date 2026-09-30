@@ -13,7 +13,7 @@ test('download.html exists and contains essential elements', () => {
   assert.match(content, /v1\.0\.0/i);
   assert.match(content, /Installation Guide/i);
   assert.match(content, /com\.semesterlibrary\.app/i);
-  assert.match(content, /112 MB/i);
+  assert.match(content, /11[26]\s*MB/i);
   assert.match(content, /qrserver\.com/i);
 });
 

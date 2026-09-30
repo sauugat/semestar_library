@@ -26,6 +26,7 @@ const multer = require('multer');
 const crypto = require('crypto');
 const db = require('./db');
 const noteSearch = require('./lib/note-search');
+const pushNotifications = require('./lib/push-notifications');
 
 async function indexUploadedNote(file) {
   try {
@@ -1275,16 +1276,34 @@ app.post('/api/logout', (req, res) => {
 
 app.post('/api/mobile/logout', async (req, res) => {
   const authHeader = req.headers['authorization'];
+  let studentId = req.user?.studentId || req.session?.studentId;
+
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.substring(7).trim();
     if (token) {
       try {
+        if (!studentId) {
+          const rec = await db.get('SELECT studentId FROM mobile_tokens WHERE token = ?', token);
+          if (rec) studentId = rec.studentId || rec.studentid;
+        }
         await db.run('DELETE FROM mobile_tokens WHERE token = ?', token);
       } catch (err) {
         console.error('[Mobile Logout Error]:', err.message);
       }
     }
   }
+
+  if (studentId && req.body?.expoPushToken) {
+    try {
+      await pushNotifications.unregisterDeviceToken(db, {
+        studentId,
+        expoPushToken: req.body.expoPushToken
+      });
+    } catch (unregErr) {
+      console.error('[Mobile Logout Unregister Token Error]:', unregErr.message);
+    }
+  }
+
   return res.json({ message: 'Logged out successfully' });
 });
 
@@ -1922,6 +1941,21 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
         } catch (notifErr) {
           console.warn('[Notification insert warning]:', notifErr.message);
         }
+
+        // Push notification outbox enqueue (isolated failure)
+        try {
+          const { enqueueMaterialPush } = require('./lib/push-notifications');
+          await enqueueMaterialPush(db, {
+            fileId: insertedId,
+            originalName: f.originalname,
+            title: fileTitle,
+            semester,
+            subject,
+            uploaderStudentId: req.session.studentId
+          });
+        } catch (pushErr) {
+          console.error('[Material Push Enqueue Error]:', pushErr.message);
+        }
       }
     }
   } catch (err) {
@@ -2172,6 +2206,21 @@ app.post('/api/files/record-upload', requireLogin, async (req, res) => {
           }
         } catch (notifErr) {
           console.warn('[Notification insert warning]:', notifErr.message);
+        }
+
+        // Push notification outbox enqueue (isolated failure)
+        try {
+          const { enqueueMaterialPush } = require('./lib/push-notifications');
+          await enqueueMaterialPush(db, {
+            fileId: insertedId,
+            originalName,
+            title: fileTitle,
+            semester: cleanSemester,
+            subject: cleanSubject,
+            uploaderStudentId: req.session.studentId
+          });
+        } catch (pushErr) {
+          console.error('[Record Upload Push Enqueue Error]:', pushErr.message);
         }
       }
     }
@@ -3222,6 +3271,18 @@ app.post('/api/chat/messages', requireLogin, chatRateLimiter, handleChatUpload, 
       WHERE chat_messages.id = ?
     `, messageId);
 
+    // Push notification outbox enqueue (isolated failure)
+    try {
+      const { enqueueChatPushWithThrottle } = require('./lib/push-notifications');
+      await enqueueChatPushWithThrottle(db, {
+        messageId,
+        senderStudentId: req.session.studentId,
+        senderName: newMsg ? newMsg.name : null
+      });
+    } catch (pushErr) {
+      console.error('[Chat Push Enqueue Error]:', pushErr.message);
+    }
+
     if (newMsg) {
       if (clientId) newMsg.clientId = clientId;
       sendBroadcast('new_message', newMsg);
@@ -3339,6 +3400,113 @@ app.post('/api/notifications/:id/read', requireLogin, async (req, res) => {
     res.json({ success: true });
   } else {
     res.status(404).json({ message: 'Notification not found' });
+  }
+});
+
+// --- Push Notification Device Token & Preferences Endpoints ---
+
+app.post('/api/notifications/device-token', requireLogin, async (req, res) => {
+  try {
+    const studentId = req.user?.studentId || req.session?.studentId;
+    const { expoPushToken, platform, deviceName } = req.body || {};
+
+    if (!expoPushToken || typeof expoPushToken !== 'string') {
+      return res.status(400).json({ message: 'expoPushToken string is required.' });
+    }
+    if (!pushNotifications.isValidExpoPushToken(expoPushToken)) {
+      return res.status(400).json({ message: 'Invalid Expo push token format.' });
+    }
+
+    await pushNotifications.registerDeviceToken(db, {
+      studentId,
+      expoPushToken,
+      platform,
+      deviceName
+    });
+
+    return res.json({ success: true, message: 'Device token registered successfully.' });
+  } catch (err) {
+    console.error('[Device Token Register Error]:', err.message);
+    return res.status(500).json({ message: 'Failed to register device token.' });
+  }
+});
+
+app.delete('/api/notifications/device-token', requireLogin, async (req, res) => {
+  try {
+    const studentId = req.user?.studentId || req.session?.studentId;
+    const expoPushToken = req.body?.expoPushToken || req.query?.token;
+
+    if (!expoPushToken || typeof expoPushToken !== 'string') {
+      return res.status(400).json({ message: 'expoPushToken is required.' });
+    }
+
+    const result = await pushNotifications.unregisterDeviceToken(db, {
+      studentId,
+      expoPushToken
+    });
+
+    return res.json({ success: true, changes: result.changes, message: 'Device token unregistered successfully.' });
+  } catch (err) {
+    console.error('[Device Token Unregister Error]:', err.message);
+    return res.status(500).json({ message: 'Failed to unregister device token.' });
+  }
+});
+
+app.get('/api/notifications/preferences', requireLogin, async (req, res) => {
+  try {
+    const studentId = req.user?.studentId || req.session?.studentId;
+    const preferences = await pushNotifications.getNotificationPreferences(db, studentId);
+    return res.json({ success: true, preferences });
+  } catch (err) {
+    console.error('[Preferences Get Error]:', err.message);
+    return res.status(500).json({ message: 'Failed to load notification preferences.' });
+  }
+});
+
+app.put('/api/notifications/preferences', requireLogin, async (req, res) => {
+  try {
+    const studentId = req.user?.studentId || req.session?.studentId;
+    const updated = await pushNotifications.updateNotificationPreferences(db, studentId, req.body || {});
+    return res.json({ success: true, preferences: updated });
+  } catch (err) {
+    console.error('[Preferences Update Error]:', err.message);
+    return res.status(500).json({ message: 'Failed to update notification preferences.' });
+  }
+});
+
+function verifyInternalCron(req, res, next) {
+  const secret = process.env.CRON_SECRET;
+  if (!secret && process.env.NODE_ENV !== 'production') {
+    return next();
+  }
+  const authHeader = req.headers['authorization'];
+  const cronHeader = req.headers['x-cron-secret'];
+  if (secret && ((authHeader && authHeader === `Bearer ${secret}`) || (cronHeader && cronHeader === secret))) {
+    return next();
+  }
+  return res.status(401).json({ message: 'Unauthorized internal worker request.' });
+}
+
+app.post('/api/internal/push/process', verifyInternalCron, async (req, res) => {
+  try {
+    const result = await pushNotifications.processPushOutbox(db, { limit: req.body?.limit });
+    return res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('[Push Outbox Process Worker Error]:', err.message);
+    return res.status(500).json({ message: 'Push outbox processing failed.', error: err.message });
+  }
+});
+
+app.post('/api/internal/push/receipts', verifyInternalCron, async (req, res) => {
+  try {
+    const result = await pushNotifications.processPushReceipts(db, {
+      minAgeSeconds: req.body?.minAgeSeconds,
+      limit: req.body?.limit
+    });
+    return res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('[Push Receipts Worker Error]:', err.message);
+    return res.status(500).json({ message: 'Push receipts processing failed.', error: err.message });
   }
 });
 

@@ -12,6 +12,7 @@
       "bundleIdentifier": "com.semesterlibrary.app"
     },
     "android": {
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#0a0a0a",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -63,7 +64,8 @@
           "savePhotosPermission": "Save images from your class conversation to Photos."
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true

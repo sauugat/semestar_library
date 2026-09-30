@@ -1,5 +1,15 @@
 {
   "version": 2,
+  "crons": [
+    {
+      "path": "/api/internal/push/process",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/internal/push/receipts",
+      "schedule": "*/15 * * * *"
+    }
+  ],
   "rewrites": [
     {
       "source": "/(.*)",

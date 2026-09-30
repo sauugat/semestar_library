@@ -53,7 +53,7 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
   router.use(async (req, res, next) => {
     try {
       await db.initSchema();
-      req.postUser = req.student || await db.get('SELECT studentId, role FROM students WHERE studentId = ?', req.session.studentId);
+      req.postUser = req.student || await db.get('SELECT studentId, name, role FROM students WHERE studentId = ?', req.session.studentId);
       if (!req.postUser && req.method !== 'GET') {
         return res.status(403).json({ message: 'Sign in with a student account to post or like.' });
       }
@@ -171,6 +171,22 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
         VALUES (?, ?, ?, ?, ?)`, req.postUser.studentId, content.trim(), type, attachment_url, new Date().toISOString());
       req.postCreated = true;
       const post = await db.get(`${selectPosts} WHERE p.id = ?`, req.postUser.studentId, result.lastInsertRowid);
+
+      // Push notification outbox enqueue (isolated failure)
+      try {
+        const { enqueuePostOrNoticePush } = require('../lib/push-notifications');
+        await enqueuePostOrNoticePush(db, {
+          postId: result.lastInsertRowid,
+          authorStudentId: req.postUser.studentId,
+          authorName: req.postUser.name,
+          type,
+          isOfficial,
+          role: req.postUser.role
+        });
+      } catch (pushErr) {
+        console.error('[Post/Notice Push Enqueue Error]:', pushErr.message);
+      }
+
       res.status(201).json(formatPost(post, req));
     } catch (err) {
       next(err);

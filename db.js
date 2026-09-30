@@ -169,7 +169,7 @@ async function run(sql, ...params) {
     const hasReturning = /RETURNING/i.test(sql);
 
     if (isInsert && !hasReturning) {
-      const noIdTables = ['chat_read_receipts', 'chat_typing', 'file_likes', 'follows', 'chat_reactions', 'students', 'submissions', 'submission_events', 'post_likes', 'post_submissions', 'mobile_tokens', 'login_attempts'];
+      const noIdTables = ['chat_read_receipts', 'chat_typing', 'file_likes', 'follows', 'chat_reactions', 'students', 'submissions', 'submission_events', 'post_likes', 'post_submissions', 'mobile_tokens', 'login_attempts', 'student_device_tokens', 'student_notification_preferences', 'push_receipt_tickets'];
       const isNoIdTable = noIdTables.some(tbl => new RegExp(`INSERT\\s+INTO\\s+${tbl}\\b`, 'i').test(sql));
       if (!isNoIdTable) {
         pgSql += ' RETURNING id';
@@ -1012,6 +1012,7 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
       }
 
       await require('./lib/routine').ensureRoutineSchema({ exec, isPostgres });
+      await require('./lib/push-notifications').ensurePushNotificationSchema({ exec, isPostgres });
 
     } catch (err) {
       console.error('[DB Engine]: Schema initialization error:', err);

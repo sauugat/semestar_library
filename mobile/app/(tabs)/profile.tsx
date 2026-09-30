@@ -10,12 +10,14 @@ import {
   Platform,
   ActivityIndicator,
   RefreshControl,
+  Switch,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Linking from 'expo-linking';
 import * as Clipboard from 'expo-clipboard';
+import * as Notifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
 import { useAuth, StudentUser } from '@/context/AuthContext';
 import { useTheme } from '@/constants/useTheme';
@@ -24,6 +26,12 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { apiFetch } from '@/services/api';
+import {
+  getNotificationPreferences,
+  updateNotificationPreferences,
+  requestNotificationPermission,
+  NotificationPreferences,
+} from '@/services/notifications';
 
 interface SharedFileItem {
   id: number;
@@ -101,6 +109,76 @@ export default function ProfileScreen() {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
+
+  // Notification Preferences State
+  const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences>({
+    muteChat: false,
+    notifyNotes: true,
+    notifyPosts: true,
+    notifyNotices: true,
+  });
+  const [loadingPrefs, setLoadingPrefs] = useState(false);
+  const [updatingPrefKey, setUpdatingPrefKey] = useState<string | null>(null);
+  const [systemPermissionGranted, setSystemPermissionGranted] = useState<boolean | null>(null);
+
+  // Load preferences from server
+  useEffect(() => {
+    let isMounted = true;
+    if (!token) return;
+
+    void (async () => {
+      try {
+        setLoadingPrefs(true);
+        const perm = await Notifications.getPermissionsAsync().catch(() => null);
+        if (isMounted) setSystemPermissionGranted(perm?.status === 'granted');
+
+        const serverPrefs = await getNotificationPreferences();
+        if (isMounted && serverPrefs) {
+          setNotifPrefs(serverPrefs);
+        }
+      } catch (err) {
+        console.warn('Failed to load notification settings:', err);
+      } finally {
+        if (isMounted) setLoadingPrefs(false);
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [token]);
+
+  const handleTogglePref = async (key: keyof NotificationPreferences, nextValue: boolean) => {
+    // If user enables a category while OS notification permission is missing, prompt to request or open settings
+    if (nextValue && systemPermissionGranted === false && key !== 'muteChat') {
+      const granted = await requestNotificationPermission();
+      setSystemPermissionGranted(granted);
+      if (!granted) {
+        Alert.alert(
+          'Notifications Disabled in OS',
+          'Notifications for Semester Library are disabled in your device settings. Would you like to open Settings to enable them?',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Open Settings', onPress: () => Linking.openSettings().catch(() => {}) },
+          ]
+        );
+      }
+    }
+
+    // Optimistic UI update with rollback on failure
+    const prevPrefs = { ...notifPrefs };
+    const updated = { ...notifPrefs, [key]: nextValue };
+    setNotifPrefs(updated);
+    setUpdatingPrefKey(key);
+
+    const res = await updateNotificationPreferences({ [key]: nextValue });
+    setUpdatingPrefKey(null);
+
+    if (!res.success) {
+      setNotifPrefs(prevPrefs);
+      Alert.alert('Update Failed', res.error || 'Could not save notification preferences. Please try again.');
+    }
+  };
 
   // Helper for full avatar url
   const getFullAvatarUrl = (url?: string | null) => {
@@ -1004,6 +1082,111 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </Card>
 
+        {/* NOTIFICATION PREFERENCES CARD */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xs }}>
+          <Subheading>Notification Preferences</Subheading>
+          {loadingPrefs && <ActivityIndicator size="small" color={colors.primary} />}
+        </View>
+        <Card variant="elevated" padding="md" style={{ marginBottom: spacing.md }}>
+          {systemPermissionGranted === false && (
+            <TouchableOpacity
+              onPress={() => Linking.openSettings().catch(() => {})}
+              activeOpacity={0.8}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: colors.surfaceSubtle || '#262626',
+                padding: 10,
+                borderRadius: radii.sm,
+                marginBottom: spacing.sm,
+                borderWidth: 1,
+                borderColor: colors.border,
+              }}
+            >
+              <Ionicons name="notifications-off-outline" size={18} color="#EF4444" style={{ marginRight: 8 }} />
+              <View style={{ flex: 1 }}>
+                <Text variant="xs" weight="600">System Notifications Disabled</Text>
+                <Caption color="muted">Tap to open system settings and enable push alerts.</Caption>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+            </TouchableOpacity>
+          )}
+
+          {/* Group Chat */}
+          <View style={styles.notifPrefRow}>
+            <View style={{ flex: 1, marginRight: 12 }}>
+              <Text variant="sm" weight="600">Group Chat</Text>
+              <Caption color="muted">Incoming messages from your class group chat</Caption>
+            </View>
+            {updatingPrefKey === 'muteChat' ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Switch
+                value={!notifPrefs.muteChat}
+                onValueChange={(val) => void handleTogglePref('muteChat', !val)}
+                trackColor={{ false: colors.border, true: colors.primary }}
+              />
+            )}
+          </View>
+
+          <View style={styles.notifDivider} />
+
+          {/* Study Materials */}
+          <View style={styles.notifPrefRow}>
+            <View style={{ flex: 1, marginRight: 12 }}>
+              <Text variant="sm" weight="600">Study Materials</Text>
+              <Caption color="muted">New notes and PDFs uploaded for your semester</Caption>
+            </View>
+            {updatingPrefKey === 'notifyNotes' ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Switch
+                value={notifPrefs.notifyNotes}
+                onValueChange={(val) => void handleTogglePref('notifyNotes', val)}
+                trackColor={{ false: colors.border, true: colors.primary }}
+              />
+            )}
+          </View>
+
+          <View style={styles.notifDivider} />
+
+          {/* Feed Posts */}
+          <View style={styles.notifPrefRow}>
+            <View style={{ flex: 1, marginRight: 12 }}>
+              <Text variant="sm" weight="600">Feed Posts</Text>
+              <Caption color="muted">New discussions and questions on campus feed</Caption>
+            </View>
+            {updatingPrefKey === 'notifyPosts' ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Switch
+                value={notifPrefs.notifyPosts}
+                onValueChange={(val) => void handleTogglePref('notifyPosts', val)}
+                trackColor={{ false: colors.border, true: colors.primary }}
+              />
+            )}
+          </View>
+
+          <View style={styles.notifDivider} />
+
+          {/* Official Notices */}
+          <View style={styles.notifPrefRow}>
+            <View style={{ flex: 1, marginRight: 12 }}>
+              <Text variant="sm" weight="600">Official Notices</Text>
+              <Caption color="muted">Urgent announcements from campus administration</Caption>
+            </View>
+            {updatingPrefKey === 'notifyNotices' ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Switch
+                value={notifPrefs.notifyNotices}
+                onValueChange={(val) => void handleTogglePref('notifyNotices', val)}
+                trackColor={{ false: colors.border, true: colors.primary }}
+              />
+            )}
+          </View>
+        </Card>
+
         {/* SESSION SECURITY CARD */}
         <Subheading style={{ marginBottom: spacing.xs }}>Session Security</Subheading>
         <Card variant="elevated" padding="md" style={{ marginBottom: spacing.md }}>
@@ -1530,5 +1713,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginTop: 16,
     marginBottom: 24,
+  },
+  notifPrefRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+  },
+  notifDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    marginVertical: 4,
   },
 });

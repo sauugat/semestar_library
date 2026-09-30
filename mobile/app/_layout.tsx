@@ -10,9 +10,14 @@ import {
 
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { queryClient, asyncStoragePersister } from '@/services/query-client';
-import { AuthProvider } from '@/context/AuthContext';
+import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/constants/useTheme';
 import { AppUpdateChecker } from '@/components/AppUpdateChecker';
+import * as Notifications from 'expo-notifications';
+import {
+  configureNotificationChannels,
+  navigateFromNotification,
+} from '@/services/notifications';
 
 export {
   ErrorBoundary,
@@ -61,6 +66,63 @@ export default function RootLayout() {
 
 function RootLayoutNav() {
   const { colors } = useTheme();
+  const { token, isLoading } = useAuth();
+
+  // Configure Android notification channels and setup notification listeners
+  useEffect(() => {
+    void configureNotificationChannels();
+
+    // Foreground notification listener
+    const receivedSub = Notifications.addNotificationReceivedListener((notification) => {
+      if (__DEV__) {
+        console.log('[Push] notification received in foreground:', notification.request.content.title);
+      }
+    });
+
+    // Background & foreground notification tap response listener
+    const responseSub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data;
+      const identifier = response.notification.request.identifier;
+      if (__DEV__) {
+        console.log('[Push] Notification tapped from system tray:', identifier);
+      }
+      navigateFromNotification(data, Boolean(token), identifier);
+    });
+
+    return () => {
+      receivedSub.remove();
+      responseSub.remove();
+    };
+  }, [token]);
+
+  // Handle cold-start notification tap when the app starts from terminated state
+  useEffect(() => {
+    if (isLoading) return; // Wait until auth restoration is resolved
+
+    let isMounted = true;
+    void (async () => {
+      try {
+        const response = await Notifications.getLastNotificationResponseAsync();
+        if (isMounted && response?.notification) {
+          const data = response.notification.request.content.data;
+          const identifier = response.notification.request.identifier;
+          if (__DEV__) {
+            console.log('[Push] Cold-start notification response detected:', identifier);
+          }
+          navigateFromNotification(data, Boolean(token), identifier);
+          await Notifications.clearLastNotificationResponseAsync().catch(() => {});
+        }
+      } catch (err) {
+        if (__DEV__) {
+          console.warn('[Push] Error checking cold-start notification:', err);
+        }
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isLoading, token]);
 
   return (
     <Stack

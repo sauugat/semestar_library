@@ -5,6 +5,12 @@ import { clearChatDb } from '@/services/chat-db';
 import { initChatRealtime, disconnectChatRealtime } from '@/services/chat-realtime';
 import { clearAppQueryCache } from '@/services/query-client';
 import { getAutoDetectedServerUrl, getBaseUrl, DEFAULT_SERVER_URL } from '@/services/api';
+import {
+  registerPushToken,
+  unregisterPushToken,
+  consumePendingNotification,
+  navigateFromNotification,
+} from '@/services/notifications';
 
 const TOKEN_KEY = 'semester_library_mobile_token';
 const USER_KEY = 'semester_library_mobile_user';
@@ -110,6 +116,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setIsLoading(false);
           }
 
+          // Register / sync push token in background when session is restored
+          void registerPushToken();
+
+          // Check if a push notification was tapped before auth was restored
+          const pendingNav = consumePendingNotification();
+          if (pendingNav) {
+            setTimeout(() => {
+              navigateFromNotification(pendingNav, true);
+            }, 250);
+          }
+
           // 3. Verify token against /api/me in the background
           void (async () => {
             try {
@@ -129,7 +146,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 // Pre-warm realtime connection in background
                 void initChatRealtime(freshUser.studentId);
               } else if (res.status === 401) {
-                // Token invalid or revoked
+                // Token invalid or revoked - unregister push token first
+                await unregisterPushToken().catch(() => {});
                 await SecureStore.deleteItemAsync(TOKEN_KEY);
                 await SecureStore.deleteItemAsync(USER_KEY);
                 if (isMounted) {
@@ -194,7 +212,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           void initChatRealtime(data.user.studentId);
         }
 
-        router.replace('/(tabs)');
+        // Register push token with backend under this newly authenticated student
+        void registerPushToken();
+
+        // Check if user tapped a notification while logged out
+        const pendingNotification = consumePendingNotification();
+        if (pendingNotification) {
+          router.replace('/(tabs)');
+          setTimeout(() => {
+            navigateFromNotification(pendingNotification, true);
+          }, 200);
+        } else {
+          router.replace('/(tabs)');
+        }
         return { success: true };
       } else {
         return {
@@ -358,6 +388,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
+      // 1. Unregister Expo Push Token with backend while Supabase authentication is STILL valid
+      await unregisterPushToken().catch((pushErr) => {
+        console.warn('[Push] Push token unregistration on logout failed:', pushErr);
+      });
+
+      // 2. Invalidate server-side session
       if (token) {
         await fetch(`${serverUrl}/api/mobile/logout`, {
           method: 'POST',

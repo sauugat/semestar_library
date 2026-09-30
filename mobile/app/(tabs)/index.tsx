@@ -19,7 +19,7 @@ import {
 import { Image } from 'expo-image';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Sharing from 'expo-sharing';
@@ -627,6 +627,19 @@ export default function HomeScreen() {
       setLoadingComments(false);
     }
   };
+
+  // Push notification deep-link: open comment discussion for target post
+  const { postId } = useLocalSearchParams<{ postId?: string }>();
+  const handledNotificationPostId = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!postId || handledNotificationPostId.current === postId || posts.length === 0) return;
+    const targetPost = posts.find((p) => String(p.id) === String(postId));
+    if (targetPost) {
+      handledNotificationPostId.current = postId;
+      void handleOpenPostComments(targetPost);
+    }
+  }, [postId, posts]);
 
   const handleAddPostComment = async () => {
     if (!activeCommentPost || !commentInput.trim() || postingComment) return;

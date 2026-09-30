@@ -89,10 +89,11 @@ test('Note & File Preview - Component & Logic Verification', async (t) => {
     assert.match(searchContent, /\/material\/\$\{file\.id\}\?preview=1/, 'Search overlay note tap must pass ?preview=1');
   });
 
-  await t.test('Feed screen unlocks orientation during full-screen image viewing', () => {
+  await t.test('Feed screen uses Instagram-style pinch-to-zoom without full-screen jump on tap', () => {
     const indexContent = fs.readFileSync(indexScreenPath, 'utf8');
-    assert.match(indexContent, /ScreenOrientation\.unlockAsync/, 'Feed must unlock orientation for image viewer');
-    assert.match(indexContent, /viewerImageUri/, 'Image viewer must be connected to orientation effect');
+    assert.match(indexContent, /PanResponder/, 'Feed must use PanResponder for pinch-to-zoom');
+    assert.match(indexContent, /onZoomChange/, 'Feed must track pinch zoom state');
+    assert.doesNotMatch(indexContent, /viewerImageUri/, 'Image viewer must be removed so tapping does not jump to full-screen');
   });
 
   await t.test('FullScreenFilePreview adheres to app theme tokens in dark mode', () => {

@@ -14,6 +14,7 @@ import {
   ScrollView,
   Switch,
   Animated,
+  PanResponder,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -24,7 +25,6 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Clipboard from 'expo-clipboard';
-import * as ScreenOrientation from 'expo-screen-orientation';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/constants/useTheme';
 import { Text, Heading, Subheading, Caption } from '@/components/ui/Typography';
@@ -47,7 +47,6 @@ import {
 import { getBaseUrl, getAutoDetectedServerUrl } from '@/services/api';
 import { SearchOverlay } from '@/components/SearchOverlay';
 import { initChatRealtime } from '@/services/chat-realtime';
-import { FullScreenImageViewer } from '@/components/FullScreenImageViewer';
 import { UploadNoteModal } from '@/components/UploadNoteModal';
 
 function FeedSkeletonCard({ colors, radii }: { colors: any; radii: any }) {
@@ -292,24 +291,35 @@ function LikeButton({
   );
 }
 
-// Post Image with dynamic 4:5 max-height cap and double-tap to like with Instagram-style heart burst
+// Post Image with Instagram-style pinch-to-zoom and double-tap to like (single tap does nothing, no full-screen jump)
 function PostImageItem({
   imageUrl,
   colors,
   radii,
-  onSingleTap,
   onDoubleTap,
+  onZoomChange,
 }: {
   imageUrl: string;
   colors: any;
   radii: any;
-  onSingleTap: () => void;
   onDoubleTap: () => void;
+  onZoomChange?: (zooming: boolean) => void;
 }) {
   const [aspectRatio, setAspectRatio] = useState<number>(16 / 9);
-  const lastTapRef = useRef<number>(0);
-  const singleTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isZooming, setIsZooming] = useState<boolean>(false);
 
+  // Animated values for pinch zoom & pan
+  const scale = useRef(new Animated.Value(1)).current;
+  const translateX = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(0)).current;
+
+  // Gesture tracking refs
+  const initialDistance = useRef<number>(0);
+  const initialMidpoint = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const isPinching = useRef<boolean>(false);
+  const lastTapRef = useRef<number>(0);
+
+  // Heart burst animation refs
   const heartScale = useRef(new Animated.Value(0)).current;
   const heartOpacity = useRef(new Animated.Value(0)).current;
 
@@ -333,31 +343,114 @@ function PostImageItem({
     ]).start();
   };
 
-  const handlePress = () => {
+  const resetZoom = () => {
+    isPinching.current = false;
+    Animated.parallel([
+      Animated.spring(scale, {
+        toValue: 1,
+        friction: 7,
+        tension: 80,
+        useNativeDriver: true,
+      }),
+      Animated.spring(translateX, {
+        toValue: 0,
+        friction: 7,
+        tension: 80,
+        useNativeDriver: true,
+      }),
+      Animated.spring(translateY, {
+        toValue: 0,
+        friction: 7,
+        tension: 80,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setIsZooming(false);
+      onZoomChange?.(false);
+      initialDistance.current = 0;
+    });
+  };
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: (evt) => evt.nativeEvent.touches.length >= 2,
+      onStartShouldSetPanResponderCapture: (evt) => evt.nativeEvent.touches.length >= 2,
+      onMoveShouldSetPanResponder: (evt) => evt.nativeEvent.touches.length >= 2,
+      onMoveShouldSetPanResponderCapture: (evt) => evt.nativeEvent.touches.length >= 2,
+
+      onPanResponderGrant: (evt) => {
+        const touches = evt.nativeEvent.touches;
+        if (touches.length >= 2) {
+          isPinching.current = true;
+          setIsZooming(true);
+          onZoomChange?.(true);
+
+          const [t1, t2] = touches;
+          const dx = t1.pageX - t2.pageX;
+          const dy = t1.pageY - t2.pageY;
+          initialDistance.current = Math.sqrt(dx * dx + dy * dy);
+          initialMidpoint.current = {
+            x: (t1.pageX + t2.pageX) / 2,
+            y: (t1.pageY + t2.pageY) / 2,
+          };
+        }
+      },
+
+      onPanResponderMove: (evt) => {
+        const touches = evt.nativeEvent.touches;
+        if (touches.length >= 2 && initialDistance.current > 0) {
+          const [t1, t2] = touches;
+          const dx = t1.pageX - t2.pageX;
+          const dy = t1.pageY - t2.pageY;
+          const currentDistance = Math.sqrt(dx * dx + dy * dy);
+
+          const newScale = Math.max(1, Math.min(currentDistance / initialDistance.current, 4.5));
+          scale.setValue(newScale);
+
+          const midX = (t1.pageX + t2.pageX) / 2;
+          const midY = (t1.pageY + t2.pageY) / 2;
+          translateX.setValue(midX - initialMidpoint.current.x);
+          translateY.setValue(midY - initialMidpoint.current.y);
+        }
+      },
+
+      onPanResponderRelease: () => {
+        if (isPinching.current) {
+          resetZoom();
+        }
+      },
+
+      onPanResponderTerminate: () => {
+        if (isPinching.current) {
+          resetZoom();
+        }
+      },
+    })
+  ).current;
+
+  // Single tap explicitly does NOTHING (no jumping, no full-screen viewer)
+  // Double tap triggers Instagram heart burst like
+  const handleTouchEnd = (evt: any) => {
+    if (isPinching.current) return;
+    if (evt.nativeEvent.touches && evt.nativeEvent.touches.length > 0) return;
+
     const now = Date.now();
     const DOUBLE_TAP_DELAY = 280;
 
     if (now - lastTapRef.current < DOUBLE_TAP_DELAY) {
-      if (singleTapTimerRef.current) {
-        clearTimeout(singleTapTimerRef.current);
-        singleTapTimerRef.current = null;
-      }
       lastTapRef.current = 0;
       triggerHeartBurst();
       onDoubleTap();
     } else {
       lastTapRef.current = now;
-      singleTapTimerRef.current = setTimeout(() => {
-        onSingleTap();
-        singleTapTimerRef.current = null;
-      }, DOUBLE_TAP_DELAY);
+      // Single tap explicitly does nothing!
     }
   };
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.95}
-      onPress={handlePress}
+    <View
+      {...panResponder.panHandlers}
+      onTouchEnd={handleTouchEnd}
       style={[
         styles.imageContainer,
         {
@@ -367,22 +460,38 @@ function PostImageItem({
           borderWidth: 1,
           backgroundColor: colors.surfaceRaised,
           marginTop: 10,
+          overflow: isZooming ? 'visible' : 'hidden',
+          zIndex: isZooming ? 9999 : 1,
+          elevation: isZooming ? 30 : 0,
         },
       ]}
     >
-      <Image
-        source={{ uri: imageUrl }}
-        style={styles.postImage}
-        contentFit="cover"
-        transition={150}
-        cachePolicy="memory-disk"
-        onLoad={(e) => {
-          const { width, height } = e.source;
-          if (width > 0 && height > 0) {
-            setAspectRatio(Math.max(width / height, 0.8));
-          }
-        }}
-      />
+      <Animated.View
+        style={[
+          styles.postImage,
+          {
+            transform: [
+              { scale },
+              { translateX },
+              { translateY },
+            ],
+          },
+        ]}
+      >
+        <Image
+          source={{ uri: imageUrl }}
+          style={styles.postImage}
+          contentFit="cover"
+          transition={150}
+          cachePolicy="memory-disk"
+          onLoad={(e) => {
+            const { width, height } = e.source;
+            if (width > 0 && height > 0) {
+              setAspectRatio(Math.max(width / height, 0.8));
+            }
+          }}
+        />
+      </Animated.View>
 
       {/* Instagram-style heart burst overlay */}
       <Animated.View
@@ -397,7 +506,7 @@ function PostImageItem({
       >
         <Ionicons name="heart" size={84} color="#EF4444" style={styles.overlayHeartGlow} />
       </Animated.View>
-    </TouchableOpacity>
+    </View>
   );
 }
 
@@ -601,20 +710,8 @@ export default function HomeScreen() {
   const [submittingPost, setSubmittingPost] = useState(false);
   const [composerError, setComposerError] = useState<string | null>(null);
 
-  // Full-screen image viewer states
-  const [viewerImageUri, setViewerImageUri] = useState<string | null>(null);
-
-  // Support device rotation while full-screen image viewer is open
-  useEffect(() => {
-    if (viewerImageUri) {
-      ScreenOrientation.unlockAsync().catch(() => {});
-    } else {
-      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
-    }
-    return () => {
-      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
-    };
-  }, [viewerImageUri]);
+  // Track which post image is currently being pinched/zoomed
+  const [zoomingPostId, setZoomingPostId] = useState<number | null>(null);
 
   // Prefetch and pre-warm chat realtime connection and delta in background while user views Home
   useEffect(() => {
@@ -1364,6 +1461,8 @@ export default function HomeScreen() {
           styles.postItem,
           {
             borderBottomColor: colors.border,
+            zIndex: zoomingPostId === item.id ? 9999 : 1,
+            elevation: zoomingPostId === item.id ? 30 : 0,
           },
         ]}
       >
@@ -1496,14 +1595,14 @@ export default function HomeScreen() {
           </Text>
         </View>
 
-        {/* Attached Image: natural aspect ratio, 4:5 max height cap, double-tap to like */}
+        {/* Attached Image: natural aspect ratio, 4:5 max height cap, Instagram-style pinch-to-zoom & double-tap to like */}
         {imageUrl && (
           <PostImageItem
             imageUrl={imageUrl}
             colors={colors}
             radii={radii}
-            onSingleTap={() => setViewerImageUri(imageUrl)}
             onDoubleTap={() => handleDoubleTapLike(item.id)}
+            onZoomChange={(zooming) => setZoomingPostId(zooming ? item.id : null)}
           />
         )}
 
@@ -2129,13 +2228,6 @@ export default function HomeScreen() {
           </SafeAreaView>
         </KeyboardAvoidingView>
       </Modal>
-
-      {/* Shared Full-Screen Zoomable Image Viewer Component (Requirement 4) */}
-      <FullScreenImageViewer
-        visible={viewerImageUri !== null}
-        imageUri={viewerImageUri}
-        onClose={() => setViewerImageUri(null)}
-      />
 
       {/* Post Options Bottom Sheet Menu */}
       <Modal

@@ -135,17 +135,6 @@
       width: 100%;
     }
 
-    .dl-hero-centered .hero-community {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      margin: 28px auto 0;
-      font-size: 11px;
-      color: #929292;
-      text-align: center;
-    }
-
 
     /* Action buttons in hero */
     .dl-actions {
@@ -521,11 +510,6 @@
       margin: 0;
     }
 
-    /* Mobile Sticky Download Bar (Hidden on desktop) */
-    .dl-mobile-bar {
-      display: none;
-    }
-
     /* Toast notification */
     .dl-toast {
       position: fixed;
@@ -558,7 +542,6 @@
     @media (max-width: 768px) {
       body.home-page {
         overflow-x: hidden;
-        padding-bottom: 74px; /* Space for bottom floating bar */
       }
 
       /* Hero Section: Compact, visible above the fold on mobile */
@@ -621,250 +604,6 @@
         font-size: 13px;
         padding: 12px 16px;
         box-sizing: border-box;
-      }
-
-      .dl-hero-centered .hero-community {
-        margin-top: 16px;
-        font-size: 10.5px;
-        flex-wrap: wrap;
-        justify-content: center;
-      }
-
-      /* Feature Sections on Mobile */
-      .home-feature {
-        padding-block: 22px 38px;
-        gap: 22px;
-      }
-
-      .home-feature-copy h2,
-      .home-intro h2 {
-        font-size: clamp(24px, 7vw, 30px) !important;
-        line-height: 1.18;
-      }
-
-      .home-feature-copy > p,
-      .home-intro > p {
-        font-size: 13px;
-        line-height: 1.65;
-        margin-top: 10px;
-      }
-
-      .home-stage {
-        padding: 20px 12px 24px !important;
-        min-height: auto !important;
-      }
-
-      .dl-copy-btn {
-        width: 100%;
-        justify-content: center;
-        padding: 11px 16px;
-        font-size: 12.5px;
-      }
-
-      .dl-qr-card {
-        padding: 16px 10px;
-      }
-
-      .dl-qr-frame {
-        margin: 12px 0;
-        padding: 10px;
-      }
-
-      .dl-qr-frame img {
-        width: 140px;
-        height: 140px;
-      }
-
-      /* Platform Overview on Mobile */
-      .dl-platform-wrap {
-        padding: 14px 10px;
-      }
-
-      .dl-platform-item {
-        padding: 12px 10px;
-        gap: 12px;
-        border-radius: 10px;
-        margin-bottom: 10px;
-      }
-
-      .dl-platform-icon {
-        width: 36px;
-        height: 36px;
-        border-radius: 8px;
-      }
-
-      .dl-platform-icon svg {
-        width: 18px;
-        height: 18px;
-      }
-
-      .dl-platform-header strong {
-        font-size: 13px;
-      }
-
-      .dl-platform-desc {
-        font-size: 12px;
-        line-height: 1.5;
-      }
-
-      /* Installation Guide on Mobile */
-      .dl-guide-section {
-        padding: 30px 0 40px;
-      }
-
-      .dl-guide-grid {
-        gap: 12px;
-        margin-top: 18px;
-      }
-
-      .dl-step-card {
-        border-radius: 10px;
-      }
-
-      .dl-step-top {
-        padding: 10px 14px;
-        font-size: 10.5px;
-      }
-
-      .dl-step-body {
-        padding: 16px 14px;
-      }
-
-      .dl-step-index {
-        font-size: 20px;
-        margin-bottom: 4px;
-      }
-
-      .dl-step-body h4 {
-        font-size: 14.5px;
-        margin-bottom: 6px;
-      }
-
-      .dl-step-body p {
-        font-size: 13px;
-        line-height: 1.6;
-        margin-bottom: 10px;
-      }
-
-      .dl-step-note {
-        padding: 8px 12px;
-        font-size: 11px;
-        line-height: 1.55;
-      }
-
-      /* Specs Table on Mobile */
-      .dl-specs-section {
-        padding: 28px 0 40px;
-      }
-
-      .dl-table-window {
-        margin-top: 18px;
-        border-radius: 10px;
-      }
-
-      .dl-table td {
-        padding: 11px 12px;
-        font-size: 12px;
-      }
-
-      .dl-table td:first-child {
-        width: 38%;
-        font-size: 11.5px;
-      }
-
-      .dl-table td:last-child {
-        font-size: 12px;
-        word-break: break-word;
-      }
-
-      .dl-table td code {
-        font-size: 11px;
-        padding: 1px 5px;
-      }
-
-      /* Floating Bottom Mobile Bar */
-      .dl-mobile-bar {
-        display: block;
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        z-index: 100;
-        background: rgba(11, 12, 14, 0.94);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        border-top: 1px solid var(--home-line);
-        padding: 10px 16px;
-        padding-bottom: max(10px, env(safe-area-inset-bottom));
-        transform: translateY(115%);
-        transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
-        box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.6);
-      }
-
-      .dl-mobile-bar.is-visible {
-        transform: translateY(0);
-      }
-
-      .dl-mobile-bar-inner {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        max-width: 520px;
-        margin: 0 auto;
-      }
-
-      .dl-mobile-bar-info {
-        display: flex;
-        flex-direction: column;
-        min-width: 0;
-      }
-
-      .dl-mobile-bar-info strong {
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--home-ink);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-
-      .dl-mobile-bar-info span {
-        font-size: 11px;
-        color: var(--home-muted);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-
-      .dl-mobile-bar-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 7px;
-        background: #f1f1f1;
-        color: #111215;
-        border: 1px solid #ffffff;
-        border-radius: 8px;
-        padding: 9px 16px;
-        font-size: 12.5px;
-        font-weight: 600;
-        flex-shrink: 0;
-        text-decoration: none;
-        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
-      }
-
-      .dl-mobile-bar-btn svg {
-        width: 15px;
-        height: 15px;
-        fill: currentColor;
-      }
-
-      /* Mobile toast repositioning */
-      .dl-toast {
-        bottom: 74px;
-        right: 16px;
-        left: 16px;
-        justify-content: center;
       }
     }
 
@@ -968,12 +707,6 @@
           </a>
         </div>
 
-        <p class="hero-community" style="margin-top: 26px;">
-          <span class="hero-community-mark" aria-hidden="true">GU</span>
-          <span class="hero-community-copy">
-            Universal APK · Android 7.0+ · Official Build
-          </span>
-        </p>
       </div>
     </section>
 
@@ -1263,19 +996,6 @@
     </div>
   </footer>
 
-  <!-- Mobile Sticky Download Bar -->
-  <aside class="dl-mobile-bar" id="dlMobileBar" aria-label="Quick download mobile bar">
-    <div class="dl-mobile-bar-inner">
-      <div class="dl-mobile-bar-info">
-        <strong>Semester Library</strong>
-        <span>Universal Android APK · 116 MB</span>
-      </div>
-      <a href="/download/semlab.apk" download="semlab.apk" class="dl-mobile-bar-btn">
-        <svg viewBox="0 0 24 24"><path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.551 0 .9996.4482.9996.9993 0 .5511-.4486.9997-.9996.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.551 0 .9996.4482.9996.9993 0 .5511-.4486.9997-.9996.9997m11.4045-6.02l1.9973-3.4592a.416.416 0 00-.1521-.5676.416.416 0 00-.5676.1521l-2.0223 3.503C15.5898 8.4026 13.8546 8.084 12 8.084c-1.8546 0-3.5898.3186-5.1368.8657L4.8409 5.4467a.4161.4161 0 00-.5676-.1521.4157.4157 0 00-.1521.5676l1.9973 3.4592C2.6889 11.1867.3432 14.6589 0 18.761h24c-.3432-4.1021-2.6889-7.5743-6.1185-9.4396"/></svg>
-        <span>Download</span>
-      </a>
-    </div>
-  </aside>
 
   <!-- Link Copied Toast -->
   <div class="dl-toast" id="dlToast" role="alert" aria-live="polite">
@@ -1322,22 +1042,7 @@
       }, 3000);
     }
 
-    // Mobile sticky download bar reveal on scroll past hero button
-    const mobileBar = document.getElementById('dlMobileBar');
-    const heroBtn = document.getElementById('heroDownloadBtn');
 
-    if (mobileBar && heroBtn && 'IntersectionObserver' in window) {
-      const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-          if (!entry.isIntersecting && entry.boundingClientRect.top < 0) {
-            mobileBar.classList.add('is-visible');
-          } else {
-            mobileBar.classList.remove('is-visible');
-          }
-        });
-      }, { threshold: 0 });
-      observer.observe(heroBtn);
-    }
   </script>
 </body>
 </html>

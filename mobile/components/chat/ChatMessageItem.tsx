@@ -32,6 +32,7 @@ interface ChatMessageItemProps {
   downloadingFileId: string | null;
   isInitialLoadItem: boolean;
   isHighlighted: boolean;
+  isDelivered?: boolean;
   onLongPress: (item: ChatMessage) => void;
   onSwipeReply: (item: ChatMessage) => void;
   onJumpToReply: (replyToId: number) => void;
@@ -160,6 +161,147 @@ function renderMessageTextWithLinks(
   );
 }
 
+function MessageStatusMeta({
+  status,
+  isMe,
+  timeString,
+  isRead,
+  isDelivered,
+  isEdited,
+  onRetry,
+  overlay = false,
+}: {
+  status?: 'sent' | 'pending' | 'failed';
+  isMe: boolean;
+  timeString: string;
+  isRead: boolean;
+  isDelivered?: boolean;
+  isEdited?: boolean;
+  onRetry?: () => void;
+  overlay?: boolean;
+}) {
+  const isPending = status === 'pending';
+  const isFailed = status === 'failed';
+  const iconColor = overlay ? '#ffffff' : '#8e8e93';
+  const readColor = '#53bdeb';
+
+  if (isFailed) {
+    return (
+      <TouchableOpacity
+        onPress={onRetry}
+        style={{ flexDirection: 'row', alignItems: 'center' }}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      >
+        {Boolean(timeString) && (
+          <Text style={[overlay ? styles.imageOverlayTimeText : styles.timestampText, { color: '#ef4444' }]}>
+            {timeString}
+          </Text>
+        )}
+        <Ionicons name="alert-circle" size={13} color="#ef4444" style={{ marginLeft: 3 }} />
+      </TouchableOpacity>
+    );
+  }
+
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      {Boolean(isEdited) && (
+        <Text style={overlay ? styles.imageOverlayEditedText : styles.editedLabel}>
+          Edited{' '}
+        </Text>
+      )}
+      <Text style={overlay ? styles.imageOverlayTimeText : styles.timestampText}>
+        {timeString}
+      </Text>
+      {isMe && (
+        isPending ? (
+          <Ionicons
+            name="time-outline"
+            size={11}
+            color={iconColor}
+            style={{ marginLeft: 3 }}
+          />
+        ) : isRead ? (
+          <Ionicons
+            name="checkmark-done"
+            size={13}
+            color={readColor}
+            style={{ marginLeft: 3 }}
+          />
+        ) : isDelivered ? (
+          <Ionicons
+            name="checkmark-done"
+            size={13}
+            color={iconColor}
+            style={{ marginLeft: 3 }}
+          />
+        ) : (
+          <Ionicons
+            name="checkmark"
+            size={13}
+            color={iconColor}
+            style={{ marginLeft: 3 }}
+          />
+        )
+      )}
+    </View>
+  );
+}
+
+function areMessagePropsEqual(
+  prev: ChatMessageItemProps,
+  next: ChatMessageItemProps
+): boolean {
+  if (prev.item.id !== next.item.id) return false;
+  if (prev.item.clientId !== next.item.clientId) return false;
+  if (prev.item.status !== next.item.status) return false;
+  if (prev.item.text !== next.item.text) return false;
+  if (prev.item.attachmentName !== next.item.attachmentName) return false;
+  if (prev.isHighlighted !== next.isHighlighted) return false;
+  if (prev.downloadingFileId !== next.downloadingFileId) return false;
+  if (prev.isDelivered !== next.isDelivered) return false;
+  if (prev.index !== next.index) return false;
+
+  // Compare reactions
+  const prevReactions = prev.item.reactions || [];
+  const nextReactions = next.item.reactions || [];
+  if (prevReactions.length !== nextReactions.length) return false;
+  for (let i = 0; i < prevReactions.length; i++) {
+    if (
+      prevReactions[i].emoji !== nextReactions[i].emoji ||
+      prevReactions[i].studentId !== nextReactions[i].studentId
+    ) {
+      return false;
+    }
+  }
+
+  // Check read receipt state: only re-render if the read status for this specific message changed
+  const prevIsRead =
+    prev.currentUserId &&
+    String(prev.item.studentId) === String(prev.currentUserId) &&
+    prev.readReceipts.some(
+      (r) =>
+        String(r.studentId) !== String(prev.currentUserId) &&
+        r.lastReadMessageId >= prev.item.id
+    );
+  const nextIsRead =
+    next.currentUserId &&
+    String(next.item.studentId) === String(next.currentUserId) &&
+    next.readReceipts.some(
+      (r) =>
+        String(r.studentId) !== String(next.currentUserId) &&
+        r.lastReadMessageId >= next.item.id
+    );
+  if (prevIsRead !== nextIsRead) return false;
+
+  // Author grouping transitions
+  if (prev.prevMsg?.studentId !== next.prevMsg?.studentId) return false;
+  if (prev.nextMsg?.studentId !== next.nextMsg?.studentId) return false;
+  if (prev.prevMsg?.id !== next.prevMsg?.id) return false;
+  if (prev.nextMsg?.id !== next.nextMsg?.id) return false;
+
+  return true;
+}
+
 export const ChatMessageItem = React.memo(function ChatMessageItem({
   item,
   prevMsg,
@@ -171,6 +313,7 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
   downloadingFileId,
   isInitialLoadItem,
   isHighlighted,
+  isDelivered: isDeliveredProp,
   onLongPress,
   onSwipeReply,
   onJumpToReply,
@@ -268,6 +411,7 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
   const isRead = isMe && readReceipts.some(
     (r) => String(r.studentId) !== String(currentUserId) && r.lastReadMessageId >= item.id
   );
+  const isDelivered = isMe && (isDeliveredProp || isRead || (item.status === 'sent' && item.id > 0 && Boolean((item as any).delivered)));
 
   // Grouped Reactions: map to emoji -> count & userReacted
   const reactionMap = useMemo(() => {
@@ -561,36 +705,18 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
 
                   {/* If image only: overlay timestamp pill on bottom-right of image */}
                   {isImageOnly && (
-                    item.status === 'pending' ? (
-                      <View style={styles.imageOverlayMetaPill}>
-                        <ActivityIndicator size={10} color="#f5f5f5" style={{ marginRight: 4 }} />
-                        <Text style={styles.imageOverlayTimeText}>Sending…</Text>
-                      </View>
-                    ) : item.status === 'failed' ? (
-                      <TouchableOpacity
-                        onPress={() => onRetry?.(item)}
-                        style={[styles.imageOverlayMetaPill, { backgroundColor: 'rgba(180, 20, 20, 0.75)' }]}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      >
-                        <Ionicons name="alert-circle" size={12} color="#ffffff" style={{ marginRight: 4 }} />
-                        <Text style={styles.imageOverlayTimeText}>Failed - tap to retry</Text>
-                      </TouchableOpacity>
-                    ) : (
-                      <View style={styles.imageOverlayMetaPill}>
-                        {Boolean((item as any).isEdited) && (
-                          <Text style={styles.imageOverlayEditedText}>Edited</Text>
-                        )}
-                        <Text style={styles.imageOverlayTimeText}>{timeString}</Text>
-                        {isMe && (
-                          <Ionicons
-                            name={isRead ? 'checkmark-done' : 'checkmark'}
-                            size={13}
-                            color={isRead ? '#ffffff' : '#d1d1d6'}
-                            style={{ marginLeft: 3 }}
-                          />
-                        )}
-                      </View>
-                    )
+                    <View style={styles.imageOverlayMetaPill}>
+                      <MessageStatusMeta
+                        status={item.status}
+                        isMe={isMe}
+                        timeString={timeString}
+                        isRead={isRead}
+                        isDelivered={isDelivered}
+                        isEdited={Boolean((item as any).isEdited)}
+                        onRetry={() => onRetry?.(item)}
+                        overlay
+                      />
+                    </View>
                   )}
                 </TouchableOpacity>
               )}
@@ -639,43 +765,22 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
 
                     {/* Invisible spacer to reserve width for inline timestamp */}
                     <Text style={styles.invisibleMetaSpacer} pointerEvents="none">
-                      {'   '}{item.status === 'pending' ? 'Sending…' : item.status === 'failed' ? 'Failed - tap to retry' : timeString}{isMe ? '  ✓✓' : ''}
+                      {'   '}{timeString}{isMe ? '  ✓✓' : ''}
                       {Boolean((item as any).isEdited) ? '  Edited' : ''}
                     </Text>
                   </View>
 
                   {/* Absolute inline metadata placed at bottom-right */}
                   <View style={styles.inlineMetaBox}>
-                    {item.status === 'pending' ? (
-                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <ActivityIndicator size={9} color="#8e8e93" style={{ marginRight: 3 }} />
-                        <Text style={styles.timestampText}>Sending…</Text>
-                      </View>
-                    ) : item.status === 'failed' ? (
-                      <TouchableOpacity
-                        onPress={() => onRetry?.(item)}
-                        style={{ flexDirection: 'row', alignItems: 'center' }}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      >
-                        <Ionicons name="alert-circle" size={12} color="#ef4444" style={{ marginRight: 3 }} />
-                        <Text style={[styles.timestampText, { color: '#ef4444' }]}>Failed - tap to retry</Text>
-                      </TouchableOpacity>
-                    ) : (
-                      <>
-                        {Boolean((item as any).isEdited) && (
-                          <Text style={styles.editedLabel}>Edited </Text>
-                        )}
-                        <Text style={styles.timestampText}>{timeString}</Text>
-                        {isMe && (
-                          <Ionicons
-                            name={isRead ? 'checkmark-done' : 'checkmark'}
-                            size={13}
-                            color={isRead ? '#d4d4d8' : '#8e8e93'}
-                            style={{ marginLeft: 3 }}
-                          />
-                        )}
-                      </>
-                    )}
+                    <MessageStatusMeta
+                      status={item.status}
+                      isMe={isMe}
+                      timeString={timeString}
+                      isRead={isRead}
+                      isDelivered={isDelivered}
+                      isEdited={Boolean((item as any).isEdited)}
+                      onRetry={() => onRetry?.(item)}
+                    />
                   </View>
                 </View>
               )}
@@ -683,36 +788,15 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
               {/* If no text and not image-only (e.g. document only), render timestamp bar */}
               {!isImg && !Boolean(item.text && item.text.trim()) && (
                 <View style={styles.fileMetaRow}>
-                  {item.status === 'pending' ? (
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <ActivityIndicator size={9} color="#8e8e93" style={{ marginRight: 3 }} />
-                      <Text style={styles.timestampText}>Sending…</Text>
-                    </View>
-                  ) : item.status === 'failed' ? (
-                    <TouchableOpacity
-                      onPress={() => onRetry?.(item)}
-                      style={{ flexDirection: 'row', alignItems: 'center' }}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    >
-                      <Ionicons name="alert-circle" size={12} color="#ef4444" style={{ marginRight: 3 }} />
-                      <Text style={[styles.timestampText, { color: '#ef4444' }]}>Failed - tap to retry</Text>
-                    </TouchableOpacity>
-                  ) : (
-                    <>
-                      {Boolean((item as any).isEdited) && (
-                        <Text style={styles.editedLabel}>Edited </Text>
-                      )}
-                      <Text style={styles.timestampText}>{timeString}</Text>
-                      {isMe && (
-                        <Ionicons
-                          name={isRead ? 'checkmark-done' : 'checkmark'}
-                          size={13}
-                          color={isRead ? '#d4d4d8' : '#8e8e93'}
-                          style={{ marginLeft: 3 }}
-                        />
-                      )}
-                    </>
-                  )}
+                  <MessageStatusMeta
+                    status={item.status}
+                    isMe={isMe}
+                    timeString={timeString}
+                    isRead={isRead}
+                    isDelivered={isDelivered}
+                    isEdited={Boolean((item as any).isEdited)}
+                    onRetry={() => onRetry?.(item)}
+                  />
                 </View>
               )}
             </Pressable>
@@ -749,7 +833,7 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
       </View>
     </Animated.View>
   );
-});
+}, areMessagePropsEqual);
 
 const styles = StyleSheet.create({
   rowWrapper: {

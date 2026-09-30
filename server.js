@@ -3146,10 +3146,22 @@ const handleChatUpload = (req, res, next) => {
   });
 };
 
+const recentClientMessages = new Map(); // clientId -> { messageId, data, timestamp }
+
 app.post('/api/chat/messages', requireLogin, chatRateLimiter, handleChatUpload, async (req, res) => {
   const text = (req.body && req.body.text ? String(req.body.text) : '').trim();
   const file = req.file;
   const replyToId = req.body.replyToId ? parseInt(req.body.replyToId, 10) : null;
+  const clientId = (req.body && req.body.clientId ? String(req.body.clientId) : '').trim() || null;
+
+  // Idempotency: if client retries with the same clientId within 60s, return cached response
+  if (clientId && recentClientMessages.has(clientId)) {
+    const cached = recentClientMessages.get(clientId);
+    if (Date.now() - cached.timestamp < 60000) {
+      if (file) fs.unlink(file.path, () => {});
+      return res.json({ message: 'Sent', messageId: cached.messageId, data: cached.data, clientId });
+    }
+  }
 
   if (req.body.replyToId && (!Number.isSafeInteger(replyToId) || replyToId <= 0 || !await db.get('SELECT id FROM chat_messages WHERE id = ?', replyToId))) {
     if (file) fs.unlink(file.path, () => {});
@@ -3208,10 +3220,21 @@ app.post('/api/chat/messages', requireLogin, chatRateLimiter, handleChatUpload, 
     `, messageId);
 
     if (newMsg) {
+      if (clientId) newMsg.clientId = clientId;
       sendBroadcast('new_message', newMsg);
     }
 
-    res.json({ message: 'Sent', messageId, data: newMsg });
+    if (clientId && newMsg) {
+      recentClientMessages.set(clientId, { messageId, data: newMsg, timestamp: Date.now() });
+      if (recentClientMessages.size > 200) {
+        const cutoff = Date.now() - 60000;
+        for (const [key, val] of recentClientMessages.entries()) {
+          if (val.timestamp < cutoff) recentClientMessages.delete(key);
+        }
+      }
+    }
+
+    res.json({ message: 'Sent', messageId, data: newMsg, clientId });
   } catch (error) {
     console.error('Chat message insert error:', error.message);
     res.status(500).json({ message: 'Failed to send message.' });

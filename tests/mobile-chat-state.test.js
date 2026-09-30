@@ -66,3 +66,20 @@ test('pending sends stay newest and a broadcast cannot hide a disconnected histo
   assert.deepEqual(result.map(m => m.id), [100, 99]);
   assert.deepEqual(state.reconcileChatSnapshot(existing, [], 100, 10), []);
 });
+
+test('client-side clientId replaces pending temporary message in-place without duplicate bubbles', () => {
+  const pending1 = { ...message(-101), clientId: 'c_abc_1', status: 'pending', text: 'Hello 1' };
+  const pending2 = { ...message(-102), clientId: 'c_abc_2', status: 'pending', text: 'Hello 2' };
+  const existing = [pending2, pending1, message(50)];
+
+  // Server confirms pending1 with positive id 51 and matching clientId
+  const confirmed1 = { ...message(51), clientId: 'c_abc_1', status: 'sent', text: 'Hello 1' };
+  const updated = state.mergeChatMessages(existing, [confirmed1]);
+
+  // Should have exactly 3 messages, with pending1 (-101) replaced by confirmed1 (51)
+  assert.equal(updated.length, 3);
+  assert.equal(updated.find(m => m.clientId === 'c_abc_1').id, 51);
+  assert.equal(updated.find(m => m.clientId === 'c_abc_1').status, 'sent');
+  assert.equal(updated.filter(m => m.clientId === 'c_abc_1').length, 1);
+});
+

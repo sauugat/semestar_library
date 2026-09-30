@@ -17,6 +17,7 @@ export interface ChatMessage {
   status?: 'sent' | 'pending' | 'failed';
   localUri?: string;
   pendingFile?: { uri: string; name: string; mimeType: string } | null;
+  clientId?: string;
 }
 
 export interface ChatConfig {
@@ -32,6 +33,7 @@ export interface SendMessageParams {
     mimeType: string;
   } | null;
   replyToId?: number | null;
+  clientId?: string;
 }
 
 export async function fetchChatConfig(): Promise<ChatConfig> {
@@ -69,6 +71,9 @@ export async function sendChatMessage(
   }
   if (params.replyToId) {
     formData.append("replyToId", String(params.replyToId));
+  }
+  if (params.clientId) {
+    formData.append("clientId", params.clientId);
   }
   if (params.file) {
     formData.append("attachment", {

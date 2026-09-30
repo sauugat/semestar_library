@@ -45,6 +45,13 @@ async function read(db: SQLiteDatabase, key: string): Promise<ChatMessage[]> {
 function mutate(change: (messages: ChatMessage[]) => ChatMessage[]): Promise<void> {
   const key = scope;
   if (!key) return Promise.resolve();
+  // Optimistically update memory cache immediately so synchronous callers see state in 0ms
+  const currentMem = memory.get(key);
+  if (currentMem) {
+    const updated = change(currentMem);
+    let confirmed = 0;
+    memory.set(key, updated.filter(m => m.id < 0 || ++confirmed <= 500));
+  }
   const operation = writes.then(async () => {
     const db = await getChatDatabase();
     await db.withExclusiveTransactionAsync(async txn => {
@@ -95,7 +102,12 @@ export function reconcileCachedChat(snapshot: ChatMessage[], confirmedId: number
 }
 export const savePendingMessage = (message: ChatMessage) => upsertChatMessages([message]);
 export function resolvePendingMessage(id: number, message: ChatMessage) {
-  return mutate(previous => mergeChatMessages(previous.filter(m => m.id !== id), [{ ...message, status: 'sent' }]));
+  return mutate(previous =>
+    mergeChatMessages(
+      previous.filter(m => m.id !== id && (!message.clientId || m.clientId !== message.clientId)),
+      [{ ...message, status: 'sent' }]
+    )
+  );
 }
 export function markPendingMessageFailed(id: number) {
   return mutate(previous => previous.map(m => m.id === id ? { ...m, status: 'failed' } : m));

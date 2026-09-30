@@ -36,7 +36,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import * as MediaLibrary from "expo-media-library/legacy";
 import * as Clipboard from "expo-clipboard";
-import { ChatSendButton } from "@/components/chat/ChatSendButton";
+import { ChatComposer } from "@/components/chat/ChatComposer";
 import { ChatMessageItem } from "@/components/chat/ChatMessageItem";
 import { ChatMessageActionsSheet } from "@/components/chat/ChatMessageActionsSheet";
 import { FullScreenImageViewer } from "@/components/FullScreenImageViewer";
@@ -120,7 +120,6 @@ function MemberAvatarItem({
 export default function ChatScreen() {
   const { user, serverUrl, token } = useAuth();
   const insets = useSafeAreaInsets();
-  const [inputFocused, setInputFocused] = useState(false);
   const router = useRouter();
 
   const { height: windowHeight } = useWindowDimensions();
@@ -181,13 +180,10 @@ export default function ChatScreen() {
   const [membersLoading, setMembersLoading] = useState(false);
   const [membersError, setMembersError] = useState(false);
   const inputRef = useRef<TextInput>(null);
-  const sendingRef = useRef(false);
   const actionBusyRef = useRef(false);
   const canPin = Boolean(
     user?.isAdmin || user?.role === "admin" || user?.role === "cr",
   );
-  const [inputText, setInputText] = useState("");
-  const [sending, setSending] = useState(false);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [lastVisibleMessageId, setLastVisibleMessageId] = useState(0);
 
@@ -499,15 +495,16 @@ export default function ChatScreen() {
     setActionMessage(message);
   }, []);
 
-  // Handle typing throttling
-  const handleTextChange = (text: string) => {
-    setInputText(text);
-    const now = Date.now();
-    if (text.trim() && now - lastTypingSentRef.current > 2500) {
-      lastTypingSentRef.current = now;
-      sendChatTyping();
-    }
-  };
+  const handleOpenImage = useCallback((img: { uri: string; name: string }) => {
+    setViewerImage(img);
+  }, []);
+
+  const handlePressAuthor = useCallback(
+    (studentId: string) => {
+      router.push({ pathname: "/user/[id]", params: { id: studentId } });
+    },
+    [router]
+  );
 
   // Attachment Selection Handlers (Requirement 9: Camera, Photo Library, Documents)
   const handleTakePhoto = async () => {
@@ -578,135 +575,174 @@ export default function ChatScreen() {
     }
   };
 
-  // Send message
-  const handleSendMessage = async () => {
-    const trimmed = inputText.trim();
-    if (!trimmed && !selectedAttachment) return;
-    if (sendingRef.current) return;
-    if (trimmed.length > 2000) return;
-    sendingRef.current = true;
+  // Instant Send Flow (Principles 1, 2, 4, 5, 8: non-blocking, client-generated UUID, in-place resolution)
+  const handleSendMessage = useCallback(
+    ({
+      text,
+      file,
+      replyTo: replyTarget,
+    }: {
+      text: string;
+      file: { uri: string; name: string; mimeType: string; isImage?: boolean } | null;
+      replyTo: ChatMessage | null;
+    }) => {
+      const trimmed = text.trim();
+      if (!trimmed && !file) return;
+      if (trimmed.length > 2000) return;
 
-    setSending(true);
-    const textToSend = trimmed;
-    const attachmentToSend = selectedAttachment;
-    const replyToSend = replyTo;
+      // 1. Generate client-side UUID and temporary negative ID
+      const clientId =
+        "c_" + Date.now() + "_" + Math.random().toString(36).slice(2, 9);
+      const tempId = -Date.now();
 
-    // 1. Generate optimistic message with temporary negative ID
-    const tempId = -Date.now();
-    const optimisticMessage: ChatMessage = {
-      id: tempId,
-      text: textToSend,
-      localUri: attachmentToSend ? attachmentToSend.uri : undefined,
-      pendingFile: attachmentToSend
-        ? {
-            uri: attachmentToSend.uri,
-            name: attachmentToSend.name,
-            mimeType: attachmentToSend.mimeType,
-          }
-        : null,
-      attachmentName: attachmentToSend
-        ? attachmentToSend.isImage
-          ? 'pending_image.jpg'
-          : 'pending_document.pdf'
-        : null,
-      attachmentOriginalName: attachmentToSend?.name || null,
-      attachmentMimeType: attachmentToSend?.mimeType || null,
-      replyToId: replyToSend?.id || null,
-      replyText: replyToSend?.text || replyToSend?.attachmentOriginalName || undefined,
-      replySender: replyToSend?.name,
-      createdAt: new Date().toISOString(),
-      studentId: user?.studentId || 'me',
-      name: user?.name || 'Me',
-      avatarUrl: user?.avatarUrl || null,
-      reactions: [],
-      status: 'pending',
-    };
-
-    // 2. Render immediately in UI and persist to local SQLite
-    setMessages((prev) => mergeChatMessages(prev, [optimisticMessage]));
-    void savePendingMessage(optimisticMessage);
-
-    // 3. Clear inputs and scroll to bottom instantly
-    setInputText("");
-    setSelectedAttachment(null);
-    setReplyTo(null);
-    isNearBottomRef.current = true;
-    flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
-    setShowScrollToBottom(false);
-
-    try {
-      const res = await sendChatMessage({
-        text: textToSend,
-        replyToId: replyToSend?.id,
-        file: attachmentToSend
+      const optimisticMessage: ChatMessage = {
+        id: tempId,
+        clientId,
+        text: trimmed,
+        localUri: file ? file.uri : undefined,
+        pendingFile: file
           ? {
-              uri: attachmentToSend.uri,
-              name: attachmentToSend.name,
-              mimeType: attachmentToSend.mimeType,
+              uri: file.uri,
+              name: file.name,
+              mimeType: file.mimeType,
             }
           : null,
-      });
+        attachmentName: file
+          ? file.isImage
+            ? "pending_image.jpg"
+            : "pending_document.pdf"
+          : null,
+        attachmentOriginalName: file?.name || null,
+        attachmentMimeType: file?.mimeType || null,
+        replyToId: replyTarget?.id || null,
+        replyText:
+          replyTarget?.text || replyTarget?.attachmentOriginalName || undefined,
+        replySender: replyTarget?.name,
+        createdAt: new Date().toISOString(),
+        studentId: user?.studentId || "me",
+        name: user?.name || "Me",
+        avatarUrl: user?.avatarUrl || null,
+        reactions: [],
+        status: "pending",
+      };
 
-      if (res && res.data) {
-        await resolvePendingMessage(tempId, res.data);
-        await removeOutboxFile(attachmentToSend?.uri);
+      // 2. Insert into in-memory list IMMEDIATELY (new messages prepended at top for inverted list)
+      setMessages((prev) => [optimisticMessage, ...prev]);
+
+      // 3. Persist to local SQLite asynchronously in background (never blocks JS thread)
+      void savePendingMessage(optimisticMessage);
+
+      // 4. Scroll to bottom instantly if near bottom
+      isNearBottomRef.current = true;
+      flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+      setShowScrollToBottom(false);
+
+      // 5. Fire async network request in background (independent, non-blocking)
+      sendChatMessage({
+        text: trimmed,
+        replyToId: replyTarget?.id,
+        clientId,
+        file: file
+          ? {
+              uri: file.uri,
+              name: file.name,
+              mimeType: file.mimeType,
+            }
+          : null,
+      })
+        .then(async (res) => {
+          if (res && res.data) {
+            const confirmedMsg: ChatMessage = {
+              ...res.data,
+              clientId,
+              status: "sent",
+            };
+            await resolvePendingMessage(tempId, confirmedMsg);
+            await removeOutboxFile(file?.uri);
+
+            // In-place replacement: updates the temp message directly without removal & re-insertion (zero flicker/jump)
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === tempId || (m.clientId && m.clientId === clientId)
+                  ? confirmedMsg
+                  : m
+              )
+            );
+          }
+        })
+        .catch(async (err: any) => {
+          console.warn("Send message error:", err?.message || err);
+          await markPendingMessageFailed(tempId);
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === tempId || (m.clientId && m.clientId === clientId)
+                ? { ...m, status: "failed" }
+                : m
+            )
+          );
+        });
+    },
+    [user, setMessages]
+  );
+
+  const handleRetryMessage = useCallback(
+    async (failedMsg: ChatMessage) => {
+      // 1. Reset status to pending in state & SQLite
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === failedMsg.id || (failedMsg.clientId && m.clientId === failedMsg.clientId)
+            ? { ...m, status: "pending" }
+            : m
+        )
+      );
+      void savePendingMessage({ ...failedMsg, status: "pending" });
+
+      try {
+        const res = await sendChatMessage({
+          text: failedMsg.text,
+          replyToId: failedMsg.replyToId,
+          clientId: failedMsg.clientId,
+          file:
+            failedMsg.pendingFile ||
+            (failedMsg.localUri
+              ? {
+                  uri: failedMsg.localUri,
+                  name: failedMsg.attachmentOriginalName || "attachment.jpg",
+                  mimeType: failedMsg.attachmentMimeType || "image/jpeg",
+                }
+              : null),
+        });
+
+        if (res && res.data) {
+          const confirmedMsg: ChatMessage = {
+            ...res.data,
+            clientId: failedMsg.clientId,
+            status: "sent",
+          };
+          await resolvePendingMessage(failedMsg.id, confirmedMsg);
+          await removeOutboxFile(failedMsg.localUri);
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === failedMsg.id || (failedMsg.clientId && m.clientId === failedMsg.clientId)
+                ? confirmedMsg
+                : m
+            )
+          );
+        }
+      } catch (err: any) {
+        console.warn("Retry failed:", err?.message || err);
+        await markPendingMessageFailed(failedMsg.id);
         setMessages((prev) =>
-          mergeChatMessages(prev.filter(m => m.id !== tempId), [res.data])
+          prev.map((m) =>
+            m.id === failedMsg.id || (failedMsg.clientId && m.clientId === failedMsg.clientId)
+              ? { ...m, status: "failed" }
+              : m
+          )
         );
       }
-    } catch (err: any) {
-      const errMsg = err?.message || "Failed to send message.";
-      console.warn("Optimistic message failed:", errMsg);
-      await markPendingMessageFailed(tempId);
-      setMessages((prev) =>
-        prev.map((m) => (m.id === tempId ? { ...m, status: 'failed' } : m))
-      );
-      Alert.alert("Failed to Send", errMsg);
-    } finally {
-      sendingRef.current = false;
-      setSending(false);
-    }
-  };
-
-  const handleRetryMessage = async (failedMsg: ChatMessage) => {
-    if (sendingRef.current) return;
-    sendingRef.current = true;
-
-    // Reset status to pending in state & SQLite
-    setMessages((prev) =>
-      prev.map((m) => (m.id === failedMsg.id ? { ...m, status: 'pending' } : m))
-    );
-    void savePendingMessage({ ...failedMsg, status: 'pending' });
-
-    try {
-      const res = await sendChatMessage({
-        text: failedMsg.text,
-        replyToId: failedMsg.replyToId,
-        file: failedMsg.pendingFile || (failedMsg.localUri ? {
-          uri: failedMsg.localUri,
-          name: failedMsg.attachmentOriginalName || 'attachment.jpg',
-          mimeType: failedMsg.attachmentMimeType || 'image/jpeg',
-        } : null),
-      });
-
-      if (res && res.data) {
-        await resolvePendingMessage(failedMsg.id, res.data);
-        await removeOutboxFile(failedMsg.localUri);
-        setMessages((prev) =>
-          mergeChatMessages(prev.filter(m => m.id !== failedMsg.id), [res.data])
-        );
-      }
-    } catch (err: any) {
-      const errMsg = err?.message || "Failed to retry message.";
-      await markPendingMessageFailed(failedMsg.id);
-      setMessages((prev) =>
-        prev.map((m) => (m.id === failedMsg.id ? { ...m, status: 'failed' } : m))
-      );
-      Alert.alert("Retry Failed", errMsg);
-    } finally {
-      sendingRef.current = false;
-    }
-  };
+    },
+    [setMessages]
+  );
 
   // Scroll tracking in inverted list
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -721,7 +757,7 @@ export default function ChatScreen() {
   };
 
   // Document Download & Open Handler
-  const handleDownloadAttachment = async (msg: ChatMessage) => {
+  const handleDownloadAttachment = useCallback(async (msg: ChatMessage) => {
     if (!msg.attachmentName) return;
     const filename = msg.attachmentName;
     const originalName = msg.attachmentOriginalName || filename;
@@ -761,10 +797,11 @@ export default function ChatScreen() {
     } finally {
       setDownloadingFileId(null);
     }
-  };
+  }, [serverUrl]);
 
-  // Render message using the overhauled ChatMessageItem component
-  const renderMessageItem = ({ item, index }: { item: ChatMessage; index: number }) => {
+  // Render message using the memoized ChatMessageItem component with stable references
+  const renderMessageItem = useCallback(
+    ({ item, index }: { item: ChatMessage; index: number }) => {
       const prevMsg = messages[index + 1] || null;
       const nextMsg = messages[index - 1] || null;
       const isInitial = initialLoadedIds.current.has(item.id);
@@ -786,16 +823,32 @@ export default function ChatScreen() {
           onLongPress={handleOpenActions}
           onSwipeReply={handleSwipeReply}
           onJumpToReply={jumpToMessage}
-          onOpenImage={setViewerImage}
+          onOpenImage={handleOpenImage}
           onDownloadFile={handleDownloadAttachment}
           onToggleReaction={handleToggleReaction}
           onRetry={handleRetryMessage}
-          onPressAuthor={(studentId) =>
-            router.push({ pathname: '/user/[id]', params: { id: studentId } })
-          }
+          onPressAuthor={handlePressAuthor}
         />
       );
-    };
+    },
+    [
+      messages,
+      highlightedMessageId,
+      user?.studentId,
+      readReceipts,
+      serverUrl,
+      token,
+      downloadingFileId,
+      handleOpenActions,
+      handleSwipeReply,
+      jumpToMessage,
+      handleOpenImage,
+      handleDownloadAttachment,
+      handleToggleReaction,
+      handleRetryMessage,
+      handlePressAuthor,
+    ]
+  );
 
   return (
     <KeyboardAvoidingView
@@ -932,7 +985,7 @@ export default function ChatScreen() {
         <FlatList
           ref={flatListRef}
           data={messages}
-          keyExtractor={(item) => String(item.id)}
+          keyExtractor={(item) => item.clientId || String(item.id)}
           renderItem={renderMessageItem}
           contentContainerStyle={styles.messagesFeed}
           onScroll={handleScroll}
@@ -959,8 +1012,10 @@ export default function ChatScreen() {
           onEndReached={loadOlderMessages}
           onEndReachedThreshold={0.3}
           inverted
-          initialNumToRender={14}
-          windowSize={11}
+          initialNumToRender={15}
+          maxToRenderPerBatch={15}
+          windowSize={9}
+          removeClippedSubviews={Platform.OS === "android"}
           ListFooterComponent={
             loadingMore ? (
               <View style={styles.loadingMoreContainer}>
@@ -1035,123 +1090,22 @@ export default function ChatScreen() {
         </View>
       )}
 
-      {/* Replying-to Preview Bar (compact, 3px accent bar, no nested border) */}
-      {replyTo && (
-        <View style={styles.replyBanner}>
-          <Ionicons name="arrow-undo" size={16} color="#a1a1aa" />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.replyBannerSender}>REPLYING TO {replyTo.name || "CLASSMATE"}</Text>
-            <Text numberOfLines={1} style={styles.replyBannerPreview}>
-              {replyTo.text || replyTo.attachmentOriginalName || "Attachment"}
-            </Text>
-          </View>
-          <TouchableOpacity
-            disabled={sending}
-            accessibilityLabel="Cancel reply"
-            onPress={() => setReplyTo(null)}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons name="close" size={18} color="#a1a1aa" />
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {/* Selected Attachment Preview Bar (above text input) */}
-      {selectedAttachment && (
-        <View style={styles.attachmentPreviewBanner}>
-          <View style={styles.attachmentPreviewContent}>
-            {selectedAttachment.isImage ? (
-              <Image
-                source={{ uri: selectedAttachment.uri }}
-                style={styles.previewThumbnail}
-              />
-            ) : (
-              <View style={styles.previewIconBox}>
-                <Ionicons name="document-text" size={18} color="#e4e4e7" />
-              </View>
-            )}
-            <View style={{ flex: 1, marginLeft: 10 }}>
-              <Text variant="sm" weight="600" numberOfLines={1} style={{ color: "#f5f5f5" }}>
-                {selectedAttachment.name}
-              </Text>
-            </View>
-          </View>
-          <TouchableOpacity
-            disabled={sending}
-            accessibilityLabel="Remove attachment"
-            onPress={() => {
-              void removeOutboxFile(selectedAttachment?.uri);
-              setSelectedAttachment(null);
-            }}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            style={styles.removeAttachmentBtn}
-          >
-            <Ionicons name="close-circle" size={18} color="#a1a1aa" />
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {/* Message Composer (Requirement 16: Slim circular buttons, pill input, reduced excess padding) */}
-      <View
-        style={[
-          styles.composerContainer,
-          {
-            paddingBottom: isKeyboardVisible
-              ? 8
-              : Math.max(insets.bottom, 8),
-          },
-        ]}
-      >
-        {/* Slim circular '+' button */}
-        <TouchableOpacity
-          style={styles.attachButtonCircle}
-          onPress={() => setShowAttachModal(true)}
-          disabled={sending}
-          activeOpacity={0.7}
-          accessibilityLabel="Add attachment"
-        >
-          <Ionicons name="add" size={22} color="#f5f5f5" />
-        </TouchableOpacity>
-
-        {/* Pill-shaped input */}
-        <TextInput
-          ref={inputRef}
-          accessibilityLabel="Message your class"
-          keyboardAppearance="dark"
-          style={[
-            styles.pillTextInput,
-            inputFocused && { borderColor: "#48484a" },
-          ]}
-          placeholder="Message…"
-          placeholderTextColor="#71717a"
-          multiline
-          maxLength={2000}
-          value={inputText}
-          onChangeText={handleTextChange}
-          onFocus={() => setInputFocused(true)}
-          onBlur={() => setInputFocused(false)}
-          editable={!sending && Boolean(user)}
-        />
-
-        {/* Send button when content exists, otherwise camera button */}
-        {Boolean(inputText.trim() || selectedAttachment) ? (
-          <ChatSendButton
-            disabled={(!inputText.trim() && !selectedAttachment) || sending || !user}
-            sending={sending}
-            onPress={() => void handleSendMessage()}
-          />
-        ) : (
-          <TouchableOpacity
-            style={styles.cameraButtonCircle}
-            onPress={handlePickImage}
-            disabled={sending || !user}
-            activeOpacity={0.7}
-            accessibilityLabel="Share photo"
-          >
-            <Ionicons name="camera-outline" size={20} color="#a1a1aa" />
-          </TouchableOpacity>
-        )}
-      </View>
+      {/* Replying banner, Attachment Preview, and Message Composer */}
+      <ChatComposer
+        replyTo={replyTo}
+        onCancelReply={() => setReplyTo(null)}
+        selectedAttachment={selectedAttachment}
+        onClearAttachment={() => {
+          void removeOutboxFile(selectedAttachment?.uri);
+          setSelectedAttachment(null);
+        }}
+        onOpenAttachModal={() => setShowAttachModal(true)}
+        onPickCamera={handlePickImage}
+        onSendMessage={handleSendMessage}
+        inputRef={inputRef}
+        paddingBottom={isKeyboardVisible ? 8 : Math.max(insets.bottom, 8)}
+        userAvailable={Boolean(user)}
+      />
 
       {/* Class Members & Search Modal Panel */}
       <Modal

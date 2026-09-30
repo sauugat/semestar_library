@@ -6,9 +6,23 @@ export function mergeChatMessages(
   incoming: ChatMessage[],
 ): ChatMessage[] {
   const byId = new Map(existing.map((message) => [message.id, message]));
-  incoming.forEach((message) =>
-    byId.set(message.id, { ...byId.get(message.id), ...message }),
-  );
+  const byClientId = new Map<string, number>();
+  existing.forEach((message) => {
+    if (message.clientId) {
+      byClientId.set(message.clientId, message.id);
+    }
+  });
+
+  incoming.forEach((message) => {
+    if (message.clientId && byClientId.has(message.clientId)) {
+      const oldId = byClientId.get(message.clientId)!;
+      if (oldId !== message.id) {
+        byId.delete(oldId);
+      }
+    }
+    byId.set(message.id, { ...byId.get(message.id), ...message });
+  });
+
   return [...byId.values()].sort((a, b) => {
     if (a.id < 0 || b.id < 0) {
       if (a.id > 0) return 1;

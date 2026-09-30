@@ -161,7 +161,24 @@ export function useClassChat(studentId: string | undefined, serverUrl: string) {
       const unsubscribe = subscribeChatRealtime({
         onNewMessage: (newMsg) => {
           if (!active.current) return;
-          setMessages((prev) => mergeChatMessages(prev, [newMsg]));
+          setMessages((prev) => {
+            const existingIndex = prev.findIndex(
+              (m) =>
+                (newMsg.clientId && m.clientId === newMsg.clientId) ||
+                m.id === newMsg.id
+            );
+            if (existingIndex >= 0) {
+              const next = [...prev];
+              next[existingIndex] = {
+                ...next[existingIndex],
+                ...newMsg,
+                id: newMsg.id,
+                status: 'sent',
+              };
+              return next;
+            }
+            return [newMsg, ...prev];
+          });
           setActiveTypers((prev) => {
             const next = new Map(prev);
             next.delete(String(newMsg.studentId));

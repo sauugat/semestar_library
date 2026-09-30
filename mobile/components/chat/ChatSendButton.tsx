@@ -10,11 +10,11 @@ import { Ionicons } from "@expo/vector-icons";
 
 export function ChatSendButton({
   disabled,
-  sending,
+  sending = false,
   onPress,
 }: {
   disabled: boolean;
-  sending: boolean;
+  sending?: boolean;
   onPress: () => void;
 }) {
   const [scale] = useState(() => new Animated.Value(1));
@@ -49,8 +49,8 @@ export function ChatSendButton({
     <Animated.View style={{ transform: [{ scale }] }}>
       <TouchableOpacity
         accessibilityRole="button"
-        accessibilityLabel={sending ? "Sending message" : "Send message"}
-        accessibilityState={{ disabled, busy: sending }}
+        accessibilityLabel="Send message"
+        accessibilityState={{ disabled }}
         disabled={disabled}
         onPress={onPress}
         onPressIn={() => animate(0.92)}
@@ -61,15 +61,11 @@ export function ChatSendButton({
           { backgroundColor: disabled ? "#242426" : "#ffffff" },
         ]}
       >
-        {sending ? (
-          <ActivityIndicator color="#0a0a0a" size="small" />
-        ) : (
-          <Ionicons
-            name="arrow-up"
-            size={19}
-            color={disabled ? "#71717a" : "#0a0a0a"}
-          />
-        )}
+        <Ionicons
+          name="arrow-up"
+          size={19}
+          color={disabled ? "#71717a" : "#0a0a0a"}
+        />
       </TouchableOpacity>
     </Animated.View>
   );

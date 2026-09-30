@@ -7,3 +7,5 @@ database.db
 .DS_Store
 scratch/
 mobile-test/
+*.apk
+

@@ -527,6 +527,22 @@ app.get('/about', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'about.html'));
 });
 
+// Standalone Mobile App Download Page
+app.get(['/download', '/download.html', '/app'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'download.html'));
+});
+
+// Direct APK download endpoint (serves local binary if present, else redirects to Expo CDN)
+const LATEST_APK_CDN_URL = 'https://expo.dev/artifacts/eas/hVIYJ5jSHr7qS4YhW05kSnzSg3dH7va57cgevD5Ze2U.apk';
+app.get(['/download/apk', '/api/download/apk', '/download/Semester-library.apk'], (req, res) => {
+  const localApkPath = path.join(__dirname, 'Semester library.apk');
+  if (fs.existsSync(localApkPath)) {
+    return res.download(localApkPath, 'Semester-Library.apk');
+  }
+  return res.redirect(LATEST_APK_CDN_URL);
+});
+
+
 app.get('/semesters', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'semesters.html'));
 });

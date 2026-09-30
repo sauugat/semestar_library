@@ -1,0 +1,1194 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Download Mobile App — Semester Library</title>
+  <meta name="description" content="Download the official Semester Library Android app (.apk) for Gandaki University students. Access notes, exam routines, syllabus, campus notices, and study chats on mobile.">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://semestar-library.vercel.app/download">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Download Semester Library App — Android APK">
+  <meta property="og:description" content="Official Android app for Gandaki University students. Get fast offline notes, syllabus, exam routines, notices, and class chat.">
+  <meta property="og:image" content="/logo.jpg">
+  <meta property="og:url" content="https://semestar-library.vercel.app/download">
+
+  <!-- Web App Manifest & Favicons -->
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/logo.jpg">
+  <link rel="icon" type="image/png" sizes="192x192" href="/logo.jpg">
+  <meta name="theme-color" content="#0b0c10">
+
+  <!-- Anti-flash inline script -->
+  <script>
+    (function() {
+      try {
+        var t = localStorage.getItem('theme');
+        if (!t) {
+          t = 'dark';
+          try { localStorage.setItem('theme', 'dark'); } catch (e) {}
+        }
+        document.documentElement.setAttribute('data-theme', t);
+        if (t === 'dark') {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      } catch (e) {}
+    })();
+  </script>
+  <script src="/theme.js"></script>
+
+  <!-- Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Outfit:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.v4.css">
+  <link rel="stylesheet" href="/theme-overrides.css">
+
+  <style>
+    /* ==========================================================================
+       Download Page Premium Aesthetics & Theme Token Variables
+       ========================================================================== */
+    :root {
+      --dl-bg: #090a0f;
+      --dl-card-bg: rgba(18, 20, 29, 0.72);
+      --dl-card-border: rgba(255, 255, 255, 0.08);
+      --dl-card-hover-border: rgba(16, 185, 129, 0.35);
+      --dl-text-primary: #f8fafc;
+      --dl-text-secondary: #94a3b8;
+      --dl-text-muted: #64748b;
+      --dl-emerald: #10b981;
+      --dl-emerald-glow: rgba(16, 185, 129, 0.25);
+      --dl-cyan: #06b6d4;
+      --dl-indigo: #6366f1;
+      --dl-surface: #11131a;
+      --dl-radius-lg: 24px;
+      --dl-radius-md: 16px;
+      --dl-radius-sm: 10px;
+    }
+
+    [data-theme="light"],
+    body:not(.dark-mode):not([data-theme="dark"]) {
+      --dl-bg: #f8fafc;
+      --dl-card-bg: rgba(255, 255, 255, 0.9);
+      --dl-card-border: rgba(0, 0, 0, 0.08);
+      --dl-card-hover-border: rgba(16, 185, 129, 0.45);
+      --dl-text-primary: #0f172a;
+      --dl-text-secondary: #475569;
+      --dl-text-muted: #94a3b8;
+      --dl-surface: #ffffff;
+      --dl-emerald-glow: rgba(16, 185, 129, 0.15);
+    }
+
+    body.download-body {
+      background-color: var(--dl-bg);
+      color: var(--dl-text-primary);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* Ambient Glow Backgrounds */
+    .dl-ambient-glow {
+      position: fixed;
+      top: -10vw;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 75vw;
+      height: 45vh;
+      background: radial-gradient(circle at 50% 30%, rgba(16, 185, 129, 0.14) 0%, rgba(6, 182, 212, 0.08) 35%, rgba(99, 102, 241, 0.03) 70%, transparent 85%);
+      pointer-events: none;
+      z-index: 0;
+      filter: blur(60px);
+    }
+
+    .dl-ambient-secondary {
+      position: fixed;
+      bottom: -15vw;
+      right: 5%;
+      width: 50vw;
+      height: 45vh;
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.1) 0%, rgba(16, 185, 129, 0.04) 50%, transparent 80%);
+      pointer-events: none;
+      z-index: 0;
+      filter: blur(80px);
+    }
+
+    /* Layout Wrapper */
+    .dl-wrapper {
+      position: relative;
+      z-index: 1;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 30px 24px 80px;
+    }
+
+    /* Hero Section */
+    .dl-hero-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 48px;
+      align-items: center;
+      margin-top: 24px;
+      margin-bottom: 72px;
+    }
+
+    @media (max-width: 960px) {
+      .dl-hero-grid {
+        grid-template-columns: 1fr;
+        gap: 40px;
+        text-align: center;
+      }
+    }
+
+    /* Hero Badge */
+    .dl-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--dl-emerald);
+      margin-bottom: 20px;
+      letter-spacing: 0.02em;
+    }
+
+    .dl-badge-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--dl-emerald);
+      box-shadow: 0 0 10px var(--dl-emerald);
+      animation: dlPulse 2s infinite ease-in-out;
+    }
+
+    @keyframes dlPulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    /* Hero Title & Subtitle */
+    .dl-title {
+      font-family: 'Plus Jakarta Sans', 'Outfit', sans-serif;
+      font-size: clamp(2.4rem, 5.2vw, 3.8rem);
+      font-weight: 800;
+      line-height: 1.08;
+      letter-spacing: -0.035em;
+      margin: 0 0 20px;
+      color: var(--dl-text-primary);
+    }
+
+    .dl-title-gradient {
+      background: linear-gradient(135deg, #10b981 0%, #06b6d4 50%, #6366f1 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .dl-subtitle {
+      font-size: 1.12rem;
+      line-height: 1.65;
+      color: var(--dl-text-secondary);
+      margin: 0 0 32px;
+      max-width: 580px;
+    }
+
+    @media (max-width: 960px) {
+      .dl-subtitle {
+        margin-left: auto;
+        margin-right: auto;
+      }
+    }
+
+    /* CTA Button Group */
+    .dl-cta-group {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    @media (max-width: 960px) {
+      .dl-cta-group {
+        justify-content: center;
+      }
+    }
+
+    .dl-btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 14px;
+      padding: 16px 28px;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: #ffffff;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 700;
+      font-size: 1.05rem;
+      border-radius: 14px;
+      text-decoration: none;
+      box-shadow: 0 10px 28px rgba(16, 185, 129, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.15) inset;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .dl-btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 16px 36px rgba(16, 185, 129, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.25) inset;
+      background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    }
+
+    .dl-btn-primary:active {
+      transform: translateY(1px);
+      box-shadow: 0 6px 18px rgba(16, 185, 129, 0.3);
+    }
+
+    .dl-btn-icon {
+      width: 24px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+
+    .dl-btn-meta {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      line-height: 1.2;
+    }
+
+    .dl-btn-meta-main {
+      font-size: 1.05rem;
+      font-weight: 700;
+    }
+
+    .dl-btn-meta-sub {
+      font-size: 0.76rem;
+      opacity: 0.85;
+      font-weight: 500;
+    }
+
+    .dl-btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 15px 22px;
+      background: var(--dl-card-bg);
+      border: 1px solid var(--dl-card-border);
+      color: var(--dl-text-primary);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 600;
+      font-size: 0.95rem;
+      border-radius: 14px;
+      text-decoration: none;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      transition: all 0.2s ease;
+    }
+
+    .dl-btn-secondary:hover {
+      border-color: var(--dl-card-hover-border);
+      background: rgba(255, 255, 255, 0.08);
+      transform: translateY(-1px);
+    }
+
+    /* Small Quick Specs under CTA */
+    .dl-quick-specs {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      font-size: 0.84rem;
+      color: var(--dl-text-muted);
+    }
+
+    @media (max-width: 960px) {
+      .dl-quick-specs {
+        justify-content: center;
+      }
+    }
+
+    .dl-quick-spec-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .dl-quick-spec-item svg {
+      width: 14px;
+      height: 14px;
+      color: var(--dl-emerald);
+    }
+
+    /* Right Column: Phone Mockup & Scan Card */
+    .dl-hero-media {
+      display: flex;
+      justify-content: center;
+      position: relative;
+    }
+
+    .dl-device-card {
+      background: var(--dl-card-bg);
+      border: 1px solid var(--dl-card-border);
+      border-radius: var(--dl-radius-lg);
+      padding: 24px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      width: 100%;
+      max-width: 420px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .dl-device-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--dl-emerald), var(--dl-cyan), transparent);
+    }
+
+    .dl-qr-box {
+      background: #ffffff;
+      padding: 16px;
+      border-radius: 18px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+      margin: 16px 0 18px;
+      position: relative;
+      display: inline-block;
+    }
+
+    .dl-qr-box img {
+      width: 180px;
+      height: 180px;
+      display: block;
+      border-radius: 8px;
+    }
+
+    .dl-qr-logo-badge {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 38px;
+      height: 38px;
+      background: #ffffff;
+      border-radius: 10px;
+      padding: 3px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .dl-qr-logo-badge img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 7px;
+    }
+
+    .dl-qr-title {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin: 0 0 6px;
+      color: var(--dl-text-primary);
+    }
+
+    .dl-qr-desc {
+      font-size: 0.86rem;
+      color: var(--dl-text-secondary);
+      line-height: 1.45;
+      margin: 0 0 16px;
+      max-width: 320px;
+    }
+
+    .dl-copy-link-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--dl-card-border);
+      border-radius: 999px;
+      color: var(--dl-text-secondary);
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .dl-copy-link-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--dl-text-primary);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Platform Support Strip */
+    .dl-platforms {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 80px;
+    }
+
+    @media (max-width: 768px) {
+      .dl-platforms {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .dl-platform-card {
+      background: var(--dl-card-bg);
+      border: 1px solid var(--dl-card-border);
+      border-radius: var(--dl-radius-md);
+      padding: 24px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      transition: all 0.25s ease;
+    }
+
+    .dl-platform-card:hover {
+      border-color: var(--dl-card-hover-border);
+      transform: translateY(-2px);
+    }
+
+    .dl-platform-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .dl-platform-icon.android {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--dl-emerald);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .dl-platform-icon.apple {
+      background: rgba(99, 102, 241, 0.12);
+      color: #a5b4fc;
+      border: 1px solid rgba(99, 102, 241, 0.25);
+    }
+
+    .dl-platform-content h3 {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin: 0 0 4px;
+      color: var(--dl-text-primary);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .dl-platform-status {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .dl-platform-status.live {
+      background: rgba(16, 185, 129, 0.2);
+      color: var(--dl-emerald);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+    }
+
+    .dl-platform-status.soon {
+      background: rgba(245, 158, 11, 0.15);
+      color: #f59e0b;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .dl-platform-content p {
+      font-size: 0.88rem;
+      line-height: 1.5;
+      color: var(--dl-text-secondary);
+      margin: 0;
+    }
+
+    /* Section Headings */
+    .dl-section-header {
+      text-align: center;
+      max-width: 680px;
+      margin: 0 auto 48px;
+    }
+
+    .dl-section-tag {
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--dl-emerald);
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .dl-section-title {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: clamp(1.8rem, 3.6vw, 2.4rem);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin: 0 0 12px;
+      color: var(--dl-text-primary);
+    }
+
+    .dl-section-desc {
+      font-size: 1rem;
+      line-height: 1.6;
+      color: var(--dl-text-secondary);
+      margin: 0;
+    }
+
+    /* Feature Grid */
+    .dl-feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 24px;
+      margin-bottom: 88px;
+    }
+
+    .dl-feature-card {
+      background: var(--dl-card-bg);
+      border: 1px solid var(--dl-card-border);
+      border-radius: var(--dl-radius-md);
+      padding: 28px 24px;
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      transition: all 0.25s ease;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .dl-feature-card:hover {
+      border-color: var(--dl-card-hover-border);
+      transform: translateY(-4px);
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.25);
+    }
+
+    .dl-feature-icon-wrap {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      color: var(--dl-emerald);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+
+    .dl-feature-card h4 {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin: 0 0 10px;
+      color: var(--dl-text-primary);
+    }
+
+    .dl-feature-card p {
+      font-size: 0.9rem;
+      line-height: 1.55;
+      color: var(--dl-text-secondary);
+      margin: 0 0 16px;
+      flex-grow: 1;
+    }
+
+    .dl-feature-chip {
+      display: inline-flex;
+      align-self: flex-start;
+      font-size: 0.74rem;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--dl-card-border);
+      color: var(--dl-text-muted);
+    }
+
+    /* Installation Steps */
+    .dl-steps-container {
+      background: var(--dl-card-bg);
+      border: 1px solid var(--dl-card-border);
+      border-radius: var(--dl-radius-lg);
+      padding: 44px 36px;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      margin-bottom: 80px;
+    }
+
+    @media (max-width: 640px) {
+      .dl-steps-container {
+        padding: 28px 20px;
+      }
+    }
+
+    .dl-steps-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 32px;
+      position: relative;
+    }
+
+    @media (max-width: 860px) {
+      .dl-steps-grid {
+        grid-template-columns: 1fr;
+        gap: 28px;
+      }
+    }
+
+    .dl-step-item {
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .dl-step-number {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #10b981 0%, #06b6d4 100%);
+      color: #ffffff;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 800;
+      font-size: 1.1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 18px;
+      box-shadow: 0 6px 16px rgba(16, 185, 129, 0.3);
+    }
+
+    .dl-step-title {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin: 0 0 8px;
+      color: var(--dl-text-primary);
+    }
+
+    .dl-step-desc {
+      font-size: 0.9rem;
+      line-height: 1.55;
+      color: var(--dl-text-secondary);
+      margin: 0;
+    }
+
+    .dl-step-tip {
+      margin-top: 10px;
+      padding: 8px 12px;
+      background: rgba(16, 185, 129, 0.08);
+      border-left: 3px solid var(--dl-emerald);
+      border-radius: 4px;
+      font-size: 0.8rem;
+      color: var(--dl-text-secondary);
+      line-height: 1.4;
+    }
+
+    /* Specs & Release Notes Table */
+    .dl-specs-card {
+      background: var(--dl-card-bg);
+      border: 1px solid var(--dl-card-border);
+      border-radius: var(--dl-radius-lg);
+      padding: 36px;
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      margin-bottom: 60px;
+    }
+
+    .dl-specs-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+
+    .dl-specs-table tr {
+      border-bottom: 1px solid var(--dl-card-border);
+    }
+
+    .dl-specs-table tr:last-child {
+      border-bottom: none;
+    }
+
+    .dl-specs-table td {
+      padding: 14px 12px;
+      font-size: 0.92rem;
+    }
+
+    .dl-specs-table td:first-child {
+      color: var(--dl-text-muted);
+      font-weight: 500;
+      width: 35%;
+    }
+
+    .dl-specs-table td:last-child {
+      color: var(--dl-text-primary);
+      font-weight: 600;
+    }
+
+    /* Footer */
+    .dl-footer {
+      border-top: 1px solid var(--dl-card-border);
+      padding-top: 36px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      font-size: 0.88rem;
+      color: var(--dl-text-muted);
+    }
+
+    .dl-footer-links {
+      display: flex;
+      gap: 20px;
+    }
+
+    .dl-footer-links a {
+      color: var(--dl-text-secondary);
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+
+    .dl-footer-links a:hover {
+      color: var(--dl-emerald);
+    }
+
+    /* Notification Toast */
+    .dl-toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #10b981;
+      color: #ffffff;
+      padding: 12px 20px;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.3);
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .dl-toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  </style>
+</head>
+<body class="dash download-body">
+  <div class="dl-ambient-glow" aria-hidden="true"></div>
+  <div class="dl-ambient-secondary" aria-hidden="true"></div>
+
+  <!-- Header Navigation -->
+  <header class="dash-header">
+    <a href="/dashboard.html" class="lib-wordmark">Semester Library</a>
+
+    <nav class="dash-header-nav">
+      <a href="/dashboard.html" class="header-nav-item">Feed</a>
+      <a href="/library.html" class="header-nav-item">Library</a>
+      <a href="/code-lab/subjects.html" class="header-nav-item">Assignments</a>
+      <a href="/routine.html" class="header-nav-item">Routine</a>
+      <a href="/chat.html" class="header-nav-item">Chat</a>
+      <a href="/chatbot.html" class="header-nav-item">Kyana AI</a>
+      <a href="/download.html" class="header-nav-item active">App</a>
+    </nav>
+
+    <div class="dash-header-actions">
+      <button type="button" class="theme-toggle-btn" id="themeToggleBtn" aria-label="Toggle theme" title="Toggle theme">
+        <span class="theme-toggle-track">
+          <svg class="theme-icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+          <svg class="theme-icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+        </span>
+      </button>
+      <a href="/profile.html" class="dash-profile-chip" title="View Profile">
+        <div class="dash-profile-avatar" id="headerAvatar">·</div>
+        <span class="dash-profile-label" id="headerProfileName">Profile</span>
+      </a>
+    </div>
+  </header>
+
+  <div class="dl-wrapper">
+    <!-- Hero Section -->
+    <section class="dl-hero-grid" aria-labelledby="dlHeroTitle">
+      <div class="dl-hero-content">
+        <div class="dl-badge">
+          <span class="dl-badge-dot"></span>
+          <span>Official Android Release · v1.0.0</span>
+        </div>
+
+        <h1 class="dl-title" id="dlHeroTitle">
+          Your entire semester.<br>
+          <span class="dl-title-gradient">Now in your pocket.</span>
+        </h1>
+
+        <p class="dl-subtitle">
+          Designed specifically for Gandaki University students. Access verified semester notes, syllabi, class routines, university notices, and peer chat anytime, anywhere with high-speed performance.
+        </p>
+
+        <div class="dl-cta-group">
+          <a href="/download/apk" class="dl-btn-primary" id="downloadApkBtn" download="Semester-Library.apk">
+            <svg class="dl-btn-icon" viewBox="0 0 24 24" fill="currentColor">
+              <!-- Android Robot Icon -->
+              <path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.551 0 .9996.4482.9996.9993 0 .5511-.4486.9997-.9996.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.551 0 .9996.4482.9996.9993 0 .5511-.4486.9997-.9996.9997m11.4045-6.02l1.9973-3.4592a.416.416 0 00-.1521-.5676.416.416 0 00-.5676.1521l-2.0223 3.503C15.5898 8.4026 13.8546 8.084 12 8.084c-1.8546 0-3.5898.3186-5.1368.8657L4.8409 5.4467a.4161.4161 0 00-.5676-.1521.4157.4157 0 00-.1521.5676l1.9973 3.4592C2.6889 11.1867.3432 14.6589 0 18.761h24c-.3432-4.1021-2.6889-7.5743-6.1185-9.4396"/>
+            </svg>
+            <div class="dl-btn-meta">
+              <span class="dl-btn-meta-main">Download for Android</span>
+              <span class="dl-btn-meta-sub">Direct .APK · v1.0.0 · 112 MB</span>
+            </div>
+          </a>
+
+          <a href="#install-guide" class="dl-btn-secondary">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            <span>Installation Guide</span>
+          </a>
+        </div>
+
+        <div class="dl-quick-specs">
+          <div class="dl-quick-spec-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            <span>Android 7.0+ (Nougat & Newer)</span>
+          </div>
+          <div class="dl-quick-spec-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            <span>Safe & Verified Build</span>
+          </div>
+          <div class="dl-quick-spec-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            <span>100% Free for Students</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Scan to Install QR Card -->
+      <div class="dl-hero-media">
+        <div class="dl-device-card">
+          <span class="dl-badge" style="margin-bottom: 12px;">📱 Instant Mobile Scan</span>
+          <h3 class="dl-qr-title">Scan & Install on Phone</h3>
+          <p class="dl-qr-desc">
+            Point your phone's camera at the QR code below to download and install the app directly on your Android device.
+          </p>
+
+          <div class="dl-qr-box">
+            <!-- Dynamic high-res QR code pointing directly to the download page / APK -->
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=8&data=https%3A%2F%2Fexpo.dev%2Fartifacts%2Feas%2FhVIYJ5jSHr7qS4YhW05kSnzSg3dH7va57cgevD5Ze2U.apk" alt="QR Code to Download Semester Library APK" width="180" height="180">
+            <div class="dl-qr-logo-badge" title="Semester Library">
+              <img src="/logo.jpg" alt="Logo" width="32" height="32">
+            </div>
+          </div>
+
+          <button type="button" class="dl-copy-link-btn" id="copyDownloadLinkBtn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+            <span id="copyLinkText">Copy Download Link</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Platform Support Overview -->
+    <section class="dl-platforms" aria-label="Platform Availability">
+      <div class="dl-platform-card">
+        <div class="dl-platform-icon android">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.551 0 .9996.4482.9996.9993 0 .5511-.4486.9997-.9996.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.551 0 .9996.4482.9996.9993 0 .5511-.4486.9997-.9996.9997m11.4045-6.02l1.9973-3.4592a.416.416 0 00-.1521-.5676.416.416 0 00-.5676.1521l-2.0223 3.503C15.5898 8.4026 13.8546 8.084 12 8.084c-1.8546 0-3.5898.3186-5.1368.8657L4.8409 5.4467a.4161.4161 0 00-.5676-.1521.4157.4157 0 00-.1521.5676l1.9973 3.4592C2.6889 11.1867.3432 14.6589 0 18.761h24c-.3432-4.1021-2.6889-7.5743-6.1185-9.4396"/>
+          </svg>
+        </div>
+        <div class="dl-platform-content">
+          <h3>
+            Android Standalone (.APK)
+            <span class="dl-platform-status live">Available</span>
+          </h3>
+          <p>
+            Native Android release APK with offline storage, gesture navigation, and in-app file viewer. Compatible with Android 7.0 and up.
+          </p>
+        </div>
+      </div>
+
+      <div class="dl-platform-card">
+        <div class="dl-platform-icon apple">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.61-.75 1.04-1.8 0.92-2.87-.9.04-2.01.6-2.65 1.36-.57.66-.99 1.72-.86 2.76 1.01.08 2.05-.53 2.59-1.25z"/>
+          </svg>
+        </div>
+        <div class="dl-platform-content">
+          <h3>
+            Apple iOS (iPhone / iPad)
+            <span class="dl-platform-status soon">In Development</span>
+          </h3>
+          <p>
+            TestFlight beta coming soon. iPhone users can currently install via Safari: tap <strong>Share</strong> &rarr; <strong>Add to Home Screen</strong>.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Key App Features -->
+    <section aria-labelledby="dlFeatTitle">
+      <div class="dl-section-header">
+        <span class="dl-section-tag">Built for Academic Success</span>
+        <h2 class="dl-section-title" id="dlFeatTitle">Why use the Mobile App?</h2>
+        <p class="dl-section-desc">
+          Crafted to give Gandaki University students the fastest, smoothest experience for revision, timetable tracking, and classmate discussions.
+        </p>
+      </div>
+
+      <div class="dl-feature-grid">
+        <div class="dl-feature-card">
+          <div class="dl-feature-icon-wrap">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            </svg>
+          </div>
+          <h4>Offline Course Notes</h4>
+          <p>Instant PDF previews and notes viewer with fast caching so you can revise even without campus Wi-Fi.</p>
+          <span class="dl-feature-chip">Syllabus & Past Papers</span>
+        </div>
+
+        <div class="dl-feature-card">
+          <div class="dl-feature-icon-wrap">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+          </div>
+          <h4>Exam & Class Timetable</h4>
+          <p>Dedicated routine hub previewing semester schedules, exam dates, room numbers, and academic alerts.</p>
+          <span class="dl-feature-chip">Coming Soon in v1.1</span>
+        </div>
+
+        <div class="dl-feature-card">
+          <div class="dl-feature-icon-wrap">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+            </svg>
+          </div>
+          <h4>Campus Notices Feed</h4>
+          <p>Direct live announcements from Gandaki University administration, departments, and class coordinators.</p>
+          <span class="dl-feature-chip">Live Push Updates</span>
+        </div>
+
+        <div class="dl-feature-card">
+          <div class="dl-feature-icon-wrap">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            </svg>
+          </div>
+          <h4>Study Groups & Chat</h4>
+          <p>Connect with peers across all 8 semesters. Share notes, discuss assignments, and study together seamlessly.</p>
+          <span class="dl-feature-chip">Real-Time Messaging</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Installation Steps Guide -->
+    <section id="install-guide" aria-labelledby="dlGuideTitle">
+      <div class="dl-section-header">
+        <span class="dl-section-tag">Quick Walkthrough</span>
+        <h2 class="dl-section-title" id="dlGuideTitle">How to Install in 3 Easy Steps</h2>
+        <p class="dl-section-desc">
+          Because this APK is distributed directly to university students, your browser will ask for quick confirmation. Follow these 3 simple steps:
+        </p>
+      </div>
+
+      <div class="dl-steps-container">
+        <div class="dl-steps-grid">
+          <div class="dl-step-item">
+            <div class="dl-step-number">1</div>
+            <h4 class="dl-step-title">Download the .APK</h4>
+            <p class="dl-step-desc">
+              Tap the <strong>Download for Android</strong> button or scan the QR code above from your Android phone's camera.
+            </p>
+            <div class="dl-step-tip">
+              💡 File size is ~112 MB. Download over Wi-Fi or mobile data.
+            </div>
+          </div>
+
+          <div class="dl-step-item">
+            <div class="dl-step-number">2</div>
+            <h4 class="dl-step-title">Tap "Download Anyway"</h4>
+            <p class="dl-step-desc">
+              If Chrome or your browser warns: <em>"File might be harmful"</em>, tap <strong>Download anyway</strong>.
+            </p>
+            <div class="dl-step-tip">
+              🛡️ This is Android's standard notice for apps installed directly outside the Play Store.
+            </div>
+          </div>
+
+          <div class="dl-step-item">
+            <div class="dl-step-number">3</div>
+            <h4 class="dl-step-title">Open & Install</h4>
+            <p class="dl-step-desc">
+              Tap the downloaded file in your notification drawer or Downloads folder and select <strong>Install</strong>.
+            </p>
+            <div class="dl-step-tip">
+              ⚙️ If prompted for "Unknown Sources", tap <em>Settings</em> and toggle <em>Allow from this source</em>.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- App Specs Table -->
+    <section class="dl-specs-card" aria-labelledby="dlSpecsTitle">
+      <h3 class="dl-qr-title" id="dlSpecsTitle" style="font-size: 1.35rem; margin-bottom: 8px;">Technical Information & Release Notes</h3>
+      <p style="color: var(--dl-text-secondary); margin: 0 0 20px; font-size: 0.9rem;">
+        Official production preview build metadata verified by EAS Cloud Build.
+      </p>
+
+      <table class="dl-specs-table">
+        <tbody>
+          <tr>
+            <td>App Name</td>
+            <td>Semester Library</td>
+          </tr>
+          <tr>
+            <td>Version</td>
+            <td>v1.0.0 (Build 1)</td>
+          </tr>
+          <tr>
+            <td>Package Identifier</td>
+            <td><code>com.semesterlibrary.app</code></td>
+          </tr>
+          <tr>
+            <td>Target Architecture</td>
+            <td>Universal (arm64-v8a, armeabi-v7a, x86_64)</td>
+          </tr>
+          <tr>
+            <td>Operating System</td>
+            <td>Android 7.0 (Nougat) and higher (API 24+)</td>
+          </tr>
+          <tr>
+            <td>File Size</td>
+            <td>112 MB (.apk)</td>
+          </tr>
+          <tr>
+            <td>Release Date</td>
+            <td>September 2026</td>
+          </tr>
+          <tr>
+            <td>Official Build Verification</td>
+            <td><a href="https://expo.dev/accounts/sauu_gat/projects/semester-library/builds/52c59e5d-4d69-4093-a6fd-e26f1b443608" target="_blank" rel="noopener noreferrer" style="color: var(--dl-emerald); text-decoration: none;">View on Expo Dashboard ↗</a></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Footer -->
+    <footer class="dl-footer">
+      <div>
+        <strong>Semester Library</strong> · Built with ❤️ for Gandaki University students.
+      </div>
+      <div class="dl-footer-links">
+        <a href="/dashboard.html">Dashboard</a>
+        <a href="/library.html">Library</a>
+        <a href="/routine.html">Routine</a>
+        <a href="/about.html">About</a>
+        <a href="/privacy.html">Privacy</a>
+        <a href="/termsandconditions.html">Terms</a>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="dl-toast" id="dlToast" role="alert" aria-live="polite">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+    <span id="dlToastMsg">Link copied to clipboard!</span>
+  </div>
+
+  <script>
+    // Copy link helper
+    const copyBtn = document.getElementById('copyDownloadLinkBtn');
+    const toast = document.getElementById('dlToast');
+    const toastMsg = document.getElementById('dlToastMsg');
+    const copyText = document.getElementById('copyLinkText');
+
+    if (copyBtn) {
+      copyBtn.addEventListener('click', function() {
+        const downloadUrl = 'https://semestar-library.vercel.app/download';
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(downloadUrl).then(showToast).catch(fallbackCopy);
+        } else {
+          fallbackCopy();
+        }
+      });
+    }
+
+    function fallbackCopy() {
+      const textarea = document.createElement('textarea');
+      textarea.value = 'https://semestar-library.vercel.app/download';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        showToast();
+      } catch (err) {}
+      document.body.removeChild(textarea);
+    }
+
+    function showToast() {
+      if (!toast) return;
+      toast.classList.add('show');
+      copyText.textContent = 'Copied!';
+      setTimeout(() => {
+        toast.classList.remove('show');
+        copyText.textContent = 'Copy Download Link';
+      }, 3000);
+    }
+
+    // Populate user profile avatar if logged in
+    (function initUser() {
+      try {
+        const stored = localStorage.getItem('semester_user') || localStorage.getItem('user');
+        if (stored) {
+          const user = JSON.parse(stored);
+          const name = user.name || user.studentId || 'Profile';
+          const avatar = document.getElementById('headerAvatar');
+          const nameLabel = document.getElementById('headerProfileName');
+          if (avatar) avatar.textContent = name.charAt(0).toUpperCase();
+          if (nameLabel) nameLabel.textContent = name.split(' ')[0];
+        }
+      } catch (e) {}
+    })();
+  </script>
+</body>
+</html>

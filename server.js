@@ -542,6 +542,18 @@ app.get(['/download/apk', '/api/download/apk', '/download/Semester-library.apk']
   return res.redirect(LATEST_APK_CDN_URL);
 });
 
+// App version and update check endpoint
+app.get(['/api/app/version', '/api/version'], (req, res) => {
+  res.json({
+    latestVersion: '1.0.0',
+    versionCode: 2,
+    apkUrl: 'https://semestar-library.vercel.app/download/apk',
+    cdnUrl: LATEST_APK_CDN_URL,
+    releaseNotes: 'Official Semester Library logo outside on home screen and app drawer, enhanced performance and security.',
+    forceUpdate: false
+  });
+});
+
 
 app.get('/semesters', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'semesters.html'));

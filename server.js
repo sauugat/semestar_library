@@ -534,12 +534,16 @@ app.get(['/download', '/download.html', '/app'], (req, res) => {
 
 // Direct APK download endpoint (serves local binary if present, else redirects to permanent download URL)
 const LATEST_APK_CDN_URL = 'https://expo.dev/artifacts/eas/Y0YCF6X2hniqkWUyIjibZHFzXRC5saGbkdd-O6MvdYM.apk';
-const GITHUB_APK_DOWNLOAD_URL = 'https://github.com/sauugat/semestar_library/releases/latest/download/semlab.apk';
+const GITHUB_APK_DOWNLOAD_URL = 'https://github.com/sauugat/semestar_library/releases/latest/download/semlib.apk';
 
-app.get(['/download/apk', '/api/download/apk', '/download/semlab.apk', '/semlab.apk', '/download/Semester-library.apk'], (req, res) => {
-  const localApkPath = path.join(__dirname, 'semlab.apk');
+app.get(['/download/apk', '/api/download/apk', '/download/semlib.apk', '/semlib.apk', '/download/semlab.apk', '/semlab.apk', '/download/Semester-library.apk'], (req, res) => {
+  const localApkPath = path.join(__dirname, 'semlib.apk');
   if (fs.existsSync(localApkPath)) {
-    return res.download(localApkPath, 'semlab.apk');
+    return res.download(localApkPath, 'semlib.apk');
+  }
+  const fallbackApkPath = path.join(__dirname, 'semlab.apk');
+  if (fs.existsSync(fallbackApkPath)) {
+    return res.download(fallbackApkPath, 'semlib.apk');
   }
   return res.redirect(GITHUB_APK_DOWNLOAD_URL);
 });
@@ -549,9 +553,9 @@ app.get(['/api/app/version', '/api/version'], (req, res) => {
   res.json({
     latestVersion: '1.0.0',
     versionCode: 5,
-    apkUrl: 'https://semestar-library.vercel.app/download/semlab.apk',
+    apkUrl: 'https://semestar-library.vercel.app/download/semlib.apk',
     cdnUrl: GITHUB_APK_DOWNLOAD_URL,
-    releaseNotes: 'App name updated to semlab with semlab.apk package.',
+    releaseNotes: 'App name updated to semlib with semlib.apk package.',
     forceUpdate: false
   });
 });

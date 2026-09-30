@@ -35,7 +35,7 @@ export interface SearchOverlayProps {
   placeholder?: string;
 }
 
-const RECENT_SEARCHES_KEY = '@semlab_recent_searches';
+const RECENT_SEARCHES_KEY = '@semlib_recent_searches';
 
 interface CategoryItem {
   id: string;

@@ -19,7 +19,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "package": "com.semesterlibrary.app",
-      "versionCode": 3,
+      "versionCode": 4,
+      "softwareKeyboardLayoutMode": "resize",
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.READ_EXTERNAL_STORAGE",
@@ -73,6 +74,12 @@
         "projectId": "5be8be6b-6f00-4099-b32d-5ee89bdad342"
       }
     },
-    "owner": "sauu_gat"
+    "owner": "sauu_gat",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/5be8be6b-6f00-4099-b32d-5ee89bdad342"
+    }
   }
 }

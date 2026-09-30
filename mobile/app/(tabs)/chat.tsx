@@ -22,6 +22,9 @@ import {
   NativeScrollEvent,
   Pressable,
   ScrollView,
+  Keyboard,
+  useWindowDimensions,
+  Dimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useFocusEffect } from "expo-router";
@@ -119,6 +122,35 @@ export default function ChatScreen() {
   const insets = useSafeAreaInsets();
   const [inputFocused, setInputFocused] = useState(false);
   const router = useRouter();
+
+  const { height: windowHeight } = useWindowDimensions();
+  const screenHeight = Dimensions.get('screen').height;
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => {
+        setKeyboardHeight(e.endCoordinates.height);
+        if (isNearBottomRef.current) {
+          flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+        }
+      }
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        setKeyboardHeight(0);
+      }
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  const isWindowResized = screenHeight - windowHeight > 100;
+  const androidKeyboardOffset = isWindowResized ? 0 : keyboardHeight;
 
   // State
   const {
@@ -1065,7 +1097,16 @@ export default function ChatScreen() {
         style={[
           styles.composerContainer,
           {
-            paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
+            paddingBottom:
+              Platform.OS === "android"
+                ? androidKeyboardOffset > 0
+                  ? androidKeyboardOffset + 6
+                  : insets.bottom > 0
+                    ? insets.bottom
+                    : 8
+                : insets.bottom > 0
+                  ? insets.bottom
+                  : 8,
           },
         ]}
       >
@@ -1126,9 +1167,15 @@ export default function ChatScreen() {
         animationType="slide"
         transparent
         onRequestClose={() => setPanel(null)}
+        statusBarTranslucent
       >
         <KeyboardAvoidingView
-          style={styles.panelBackdrop}
+          style={[
+            styles.panelBackdrop,
+            {
+              paddingBottom: Platform.OS === "android" ? androidKeyboardOffset : 0,
+            },
+          ]}
           behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
           <Pressable
@@ -1139,7 +1186,7 @@ export default function ChatScreen() {
           <View
             style={[
               styles.panelSheet,
-              { paddingBottom: Math.max(insets.bottom, 20) },
+              { paddingBottom: Math.max(insets.bottom, 16) },
             ]}
             accessibilityViewIsModal
           >
@@ -1169,8 +1216,15 @@ export default function ChatScreen() {
               placeholderTextColor="#71717a"
               value={query}
               onChangeText={setQuery}
+              multiline={false}
+              numberOfLines={1}
+              autoCorrect={false}
             />
-            <ScrollView keyboardShouldPersistTaps="handled">
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+              style={{ maxHeight: 340 }}
+            >
               {panel === "members" ? (
                 membersLoading ? (
                   <ActivityIndicator color="#f5f5f5" />
@@ -1674,6 +1728,8 @@ const styles = StyleSheet.create({
     marginRight: 8,
     borderWidth: 1,
     borderColor: "#2e2e32",
+    includeFontPadding: false,
+    textAlignVertical: "center",
   },
   cameraButtonCircle: {
     width: 36,
@@ -1736,6 +1792,8 @@ const styles = StyleSheet.create({
     color: "#f5f5f5",
     fontSize: 15,
     marginBottom: 14,
+    includeFontPadding: false,
+    textAlignVertical: "center",
   },
   sheetAction: {
     paddingVertical: 14,

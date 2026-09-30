@@ -1,15 +1,15 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import {
   Modal,
   View,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
   ActivityIndicator,
   Alert,
   Dimensions,
   PanResponder,
   Animated,
+  StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -39,75 +39,224 @@ export function FullScreenImageViewer({
   const [savingImage, setSavingImage] = useState(false);
   const [sharingImage, setSharingImage] = useState(false);
   const [isZoomed, setIsZoomed] = useState(false);
-  const scrollViewRef = useRef<ScrollView>(null);
-  const lastTapRef = useRef<number>(0);
 
-  // Swipe-down to dismiss animation
+  // Animated values for zoom, pan, and swipe-down dismissal
+  const scale = useRef(new Animated.Value(1)).current;
+  const translateX = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(0)).current;
+  const dismissY = useRef(new Animated.Value(0)).current;
+
+  // Track synchronous values for gesture logic
+  const currentScale = useRef(1);
+  const currentTranslateX = useRef(0);
+  const currentTranslateY = useRef(0);
+
+  // Gesture tracking refs
+  const initialPinchDistance = useRef(0);
+  const pinchStartScale = useRef(1);
+  const startPanX = useRef(0);
+  const startPanY = useRef(0);
+  const isPinching = useRef(false);
+  const isPanning = useRef(false);
+  const isSwipingDismiss = useRef(false);
+  const lastTapRef = useRef(0);
+
+  // Listen to animated scale to update synchronous refs
+  useEffect(() => {
+    const scaleSub = scale.addListener(({ value }) => {
+      currentScale.current = value;
+      setIsZoomed(value > 1.05);
+    });
+    const txSub = translateX.addListener(({ value }) => {
+      currentTranslateX.current = value;
+    });
+    const tySub = translateY.addListener(({ value }) => {
+      currentTranslateY.current = value;
+    });
+    return () => {
+      scale.removeListener(scaleSub);
+      translateX.removeListener(txSub);
+      translateY.removeListener(tySub);
+    };
+  }, [scale, translateX, translateY]);
+
+  // Reset transforms whenever modal opens with a new image
+  useEffect(() => {
+    if (visible) {
+      scale.setValue(1);
+      translateX.setValue(0);
+      translateY.setValue(0);
+      dismissY.setValue(0);
+      currentScale.current = 1;
+      currentTranslateX.current = 0;
+      currentTranslateY.current = 0;
+      setIsZoomed(false);
+      lastTapRef.current = 0;
+    }
+  }, [visible, imageUri]);
+
+  const resetZoom = () => {
+    Animated.parallel([
+      Animated.spring(scale, { toValue: 1, friction: 7, tension: 90, useNativeDriver: true }),
+      Animated.spring(translateX, { toValue: 0, friction: 7, tension: 90, useNativeDriver: true }),
+      Animated.spring(translateY, { toValue: 0, friction: 7, tension: 90, useNativeDriver: true }),
+    ]).start();
+  };
+
+  const zoomTo = (targetScale: number) => {
+    Animated.parallel([
+      Animated.spring(scale, { toValue: targetScale, friction: 7, tension: 90, useNativeDriver: true }),
+      Animated.spring(translateX, { toValue: 0, friction: 7, tension: 90, useNativeDriver: true }),
+      Animated.spring(translateY, { toValue: 0, friction: 7, tension: 90, useNativeDriver: true }),
+    ]).start();
+  };
+
+  const handleDoubleTap = () => {
+    if (currentScale.current > 1.1) {
+      resetZoom();
+    } else {
+      zoomTo(2.5);
+    }
+  };
 
   const panResponder = useMemo(
     () =>
       PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
         onMoveShouldSetPanResponder: (_, gestureState) => {
-          // Only trigger swipe-down if not zoomed and dragging downward
-          return !isZoomed && gestureState.dy > 12 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx) * 1.5;
+          return (
+            gestureState.numberActiveTouches >= 2 ||
+            currentScale.current > 1.05 ||
+            (gestureState.dy > 8 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx) * 1.2)
+          );
         },
-        onPanResponderMove: (_, gestureState) => {
-          if (gestureState.dy > 0) {
-            translateY.setValue(gestureState.dy);
+        onPanResponderGrant: (evt) => {
+          const touches = evt.nativeEvent.touches;
+          if (touches.length >= 2) {
+            isPinching.current = true;
+            isPanning.current = false;
+            isSwipingDismiss.current = false;
+            const dx = touches[0].pageX - touches[1].pageX;
+            const dy = touches[0].pageY - touches[1].pageY;
+            initialPinchDistance.current = Math.sqrt(dx * dx + dy * dy);
+            pinchStartScale.current = currentScale.current;
+          } else {
+            isPinching.current = false;
+            if (currentScale.current > 1.05) {
+              isPanning.current = true;
+              isSwipingDismiss.current = false;
+              startPanX.current = currentTranslateX.current;
+              startPanY.current = currentTranslateY.current;
+            } else {
+              isPanning.current = false;
+              isSwipingDismiss.current = true;
+            }
+          }
+        },
+        onPanResponderMove: (evt, gestureState) => {
+          const touches = evt.nativeEvent.touches;
+          if (touches.length >= 2 && initialPinchDistance.current > 0) {
+            const dx = touches[0].pageX - touches[1].pageX;
+            const dy = touches[0].pageY - touches[1].pageY;
+            const currentDist = Math.sqrt(dx * dx + dy * dy);
+            const newScale = Math.max(
+              0.8,
+              Math.min(pinchStartScale.current * (currentDist / initialPinchDistance.current), 4.5)
+            );
+            scale.setValue(newScale);
+          } else if (isPanning.current && currentScale.current > 1.05) {
+            const maxDragX = (SCREEN_WIDTH * (currentScale.current - 1)) / 2 + 60;
+            const maxDragY = (SCREEN_HEIGHT * (currentScale.current - 1)) / 2 + 60;
+            const nextX = Math.max(-maxDragX, Math.min(startPanX.current + gestureState.dx, maxDragX));
+            const nextY = Math.max(-maxDragY, Math.min(startPanY.current + gestureState.dy, maxDragY));
+            translateX.setValue(nextX);
+            translateY.setValue(nextY);
+          } else if (isSwipingDismiss.current && currentScale.current <= 1.05) {
+            if (gestureState.dy > 0) {
+              dismissY.setValue(gestureState.dy);
+            }
           }
         },
         onPanResponderRelease: (_, gestureState) => {
-          if (gestureState.dy > 80 || gestureState.vy > 0.8) {
-            Animated.timing(translateY, {
-              toValue: SCREEN_HEIGHT,
-              duration: 180,
-              useNativeDriver: true,
-            }).start(() => {
-              translateY.setValue(0);
-              onClose();
-            });
-          } else {
-            Animated.spring(translateY, {
-              toValue: 0,
-              friction: 7,
-              tension: 90,
-              useNativeDriver: true,
-            }).start();
+          if (isPinching.current) {
+            isPinching.current = false;
+            initialPinchDistance.current = 0;
+            if (currentScale.current < 1.05) {
+              resetZoom();
+            } else if (currentScale.current > 4) {
+              zoomTo(4);
+            }
+            return;
+          }
+
+          if (isPanning.current) {
+            isPanning.current = false;
+            const maxDragX = (SCREEN_WIDTH * (currentScale.current - 1)) / 2;
+            const maxDragY = (SCREEN_HEIGHT * (currentScale.current - 1)) / 2;
+            const clampedX = Math.max(-maxDragX, Math.min(currentTranslateX.current, maxDragX));
+            const clampedY = Math.max(-maxDragY, Math.min(currentTranslateY.current, maxDragY));
+            Animated.parallel([
+              Animated.spring(translateX, {
+                toValue: clampedX,
+                friction: 7,
+                tension: 90,
+                useNativeDriver: true,
+              }),
+              Animated.spring(translateY, {
+                toValue: clampedY,
+                friction: 7,
+                tension: 90,
+                useNativeDriver: true,
+              }),
+            ]).start();
+            return;
+          }
+
+          if (isSwipingDismiss.current) {
+            isSwipingDismiss.current = false;
+            if (gestureState.dy > 80 || gestureState.vy > 0.8) {
+              Animated.timing(dismissY, {
+                toValue: SCREEN_HEIGHT,
+                duration: 180,
+                useNativeDriver: true,
+              }).start(() => {
+                dismissY.setValue(0);
+                onClose();
+              });
+            } else {
+              Animated.spring(dismissY, {
+                toValue: 0,
+                friction: 7,
+                tension: 90,
+                useNativeDriver: true,
+              }).start();
+            }
+          }
+
+          // Double tap detection (tap with minimal movement)
+          if (Math.abs(gestureState.dx) < 8 && Math.abs(gestureState.dy) < 8) {
+            const now = Date.now();
+            if (now - lastTapRef.current < 300) {
+              lastTapRef.current = 0;
+              handleDoubleTap();
+            } else {
+              lastTapRef.current = now;
+              // Single tap explicitly does not close the viewer!
+            }
           }
         },
         onPanResponderTerminate: () => {
-          Animated.spring(translateY, {
-            toValue: 0,
-            friction: 7,
-            useNativeDriver: true,
-          }).start();
+          isPinching.current = false;
+          isPanning.current = false;
+          isSwipingDismiss.current = false;
+          Animated.spring(dismissY, { toValue: 0, friction: 7, tension: 90, useNativeDriver: true }).start();
+          if (currentScale.current < 1.05) {
+            resetZoom();
+          }
         },
       }),
-    [isZoomed, onClose, translateY]
+    [onClose]
   );
-
-  const handleDoubleTap = () => {
-    const now = Date.now();
-    if (now - lastTapRef.current < 300) {
-      // Double tap detected
-      if (isZoomed) {
-        scrollViewRef.current?.scrollResponderZoomTo({ x: 0, y: 0, width: SCREEN_WIDTH, height: SCREEN_HEIGHT, animated: true });
-        setIsZoomed(false);
-      } else {
-        scrollViewRef.current?.scrollResponderZoomTo({ x: SCREEN_WIDTH / 4, y: SCREEN_HEIGHT / 4, width: SCREEN_WIDTH / 2, height: SCREEN_HEIGHT / 2, animated: true });
-        setIsZoomed(true);
-      }
-    } else {
-      // Single tap -> close
-      setTimeout(() => {
-        if (Date.now() - lastTapRef.current >= 300) {
-          onClose();
-        }
-      }, 310);
-    }
-    lastTapRef.current = now;
-  };
 
   const getLocalImageUri = async (): Promise<string> => {
     if (!imageUri) throw new Error('No image URL');
@@ -174,6 +323,12 @@ export function FullScreenImageViewer({
 
   if (!visible || !imageUri) return null;
 
+  const backdropOpacity = dismissY.interpolate({
+    inputRange: [0, SCREEN_HEIGHT / 2],
+    outputRange: [1, 0.4],
+    extrapolate: 'clamp',
+  });
+
   return (
     <Modal
       visible={visible}
@@ -182,14 +337,15 @@ export function FullScreenImageViewer({
       onRequestClose={onClose}
       statusBarTranslucent
     >
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
       <Animated.View
         style={[
           styles.backdrop,
           {
-            transform: [{ translateY }],
+            opacity: backdropOpacity,
+            transform: [{ translateY: dismissY }],
           },
         ]}
-        {...panResponder.panHandlers}
       >
         <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
           {/* Header Action Bar */}
@@ -247,26 +403,19 @@ export function FullScreenImageViewer({
             </TouchableOpacity>
           </View>
 
-          {/* Zoomable Image ScrollView */}
-          <ScrollView
-            ref={scrollViewRef}
-            style={{ flex: 1 }}
-            contentContainerStyle={styles.zoomContainer}
-            maximumZoomScale={4}
-            minimumZoomScale={1}
-            showsHorizontalScrollIndicator={false}
-            showsVerticalScrollIndicator={false}
-            centerContent
-            onScroll={(e) => {
-              const zoom = (e.nativeEvent as any).zoomScale || 1;
-              setIsZoomed(zoom > 1.05);
-            }}
-            scrollEventThrottle={32}
-          >
-            <TouchableOpacity
-              activeOpacity={1}
-              onPress={handleDoubleTap}
-              style={styles.imageWrapper}
+          {/* Interactive Zoom & Pan Area with PanResponder */}
+          <View style={styles.zoomContainer} {...panResponder.panHandlers}>
+            <Animated.View
+              style={[
+                styles.imageWrapper,
+                {
+                  transform: [
+                    { translateX },
+                    { translateY },
+                    { scale },
+                  ],
+                },
+              ]}
             >
               <Image
                 source={{
@@ -278,13 +427,15 @@ export function FullScreenImageViewer({
                 cachePolicy="memory-disk"
                 transition={120}
               />
-            </TouchableOpacity>
-          </ScrollView>
+            </Animated.View>
+          </View>
 
           {/* Footer Hint */}
-          <View style={styles.footer}>
+          <View style={styles.footer} pointerEvents="none">
             <Caption style={styles.footerText}>
-              Pinch or double-tap to zoom • Swipe down or tap to close
+              {isZoomed
+                ? 'Double-tap to reset • Pan with 1 finger • Pinch to adjust'
+                : 'Double-tap or pinch to zoom • Swipe down or tap ✕ to close'}
             </Caption>
           </View>
         </SafeAreaView>
@@ -339,6 +490,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   imageWrapper: {
     width: SCREEN_WIDTH,

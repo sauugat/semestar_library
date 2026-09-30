@@ -9,6 +9,10 @@ import {
   ActivityIndicator,
   Platform,
   KeyboardAvoidingView,
+  StatusBar,
+  Keyboard,
+  useWindowDimensions,
+  Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -61,10 +65,36 @@ export function SearchOverlay({
   const { user, serverUrl } = useAuth();
   const { colors, spacing, radii } = useTheme();
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
+  const screenHeight = Dimensions.get('screen').height;
 
-  // Dynamic top padding to prevent Dynamic Island and Notch collision on all iOS / Android screens
-  const topInset = Math.max(insets.top, Platform.OS === 'ios' ? 52 : 16);
+  // Dynamic top padding to prevent collision with Android status bar / notch / camera cutout
+  const topInset = Math.max(
+    insets.top,
+    Platform.OS === 'android' ? (StatusBar.currentHeight || 24) + 10 : 50
+  );
   const bottomInset = Math.max(insets.bottom, Platform.OS === 'ios' ? 24 : 12);
+
+  // Track keyboard height so we can adjust the content view on Android edge-to-edge
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => setKeyboardHeight(e.endCoordinates.height)
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardHeight(0)
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  const isWindowResized = screenHeight - windowHeight > 100;
+  const androidKeyboardOffset = isWindowResized ? 0 : keyboardHeight;
 
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -154,7 +184,9 @@ export function SearchOverlay({
       animationType="fade"
       presentationStyle="fullScreen"
       onRequestClose={handleClose}
+      statusBarTranslucent
     >
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         {/* Header Search Bar with Safe Area Top Inset */}
         <View
@@ -182,21 +214,24 @@ export function SearchOverlay({
               placeholder={
                 placeholder ||
                 (filterType === 'files'
-                  ? 'Search notes across subjects and chapters...'
-                  : 'Search notes, subjects, students...')
+                  ? 'Search notes across subjects & chapters…'
+                  : 'Search notes, subjects, students…')
               }
               placeholderTextColor={colors.textMuted}
               value={query}
               onChangeText={setQuery}
               autoFocus={true}
               autoCapitalize="none"
+              autoCorrect={false}
               returnKeyType="search"
+              multiline={false}
+              numberOfLines={1}
             />
             {query.length > 0 && (
               <TouchableOpacity
                 onPress={() => setQuery('')}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                style={{ padding: 2 }}
+                style={{ padding: 4 }}
               >
                 <Ionicons name="close-circle" size={18} color={colors.textMuted} />
               </TouchableOpacity>
@@ -214,10 +249,13 @@ export function SearchOverlay({
           </TouchableOpacity>
         </View>
 
-        {/* Content Body with Keyboard Handling */}
+        {/* Content Body with Dynamic Keyboard Handling */}
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={{ flex: 1 }}
+          style={{
+            flex: 1,
+            paddingBottom: Platform.OS === 'android' ? androidKeyboardOffset : 0,
+          }}
         >
           {isLoading ? (
             <View style={styles.centerContainer}>
@@ -240,7 +278,7 @@ export function SearchOverlay({
                 No results found
               </Text>
               <Text variant="sm" color="muted" style={{ textAlign: 'center', marginTop: 4, paddingHorizontal: 32 }}>
-                No notes, subjects, classmates, or assignments matched "{debouncedQuery}"
+                No notes, subjects, classmates, or assignments matched &quot;{debouncedQuery}&quot;
               </Text>
             </View>
           ) : !debouncedQuery.trim() ? (
@@ -264,8 +302,12 @@ export function SearchOverlay({
             </View>
           ) : (
             <ScrollView
-              contentContainerStyle={[styles.scrollContent, { paddingBottom: 40 + bottomInset }]}
+              contentContainerStyle={[
+                styles.scrollContent,
+                { paddingBottom: 24 + (Platform.OS === 'ios' ? bottomInset : 0) },
+              ]}
               keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
               showsVerticalScrollIndicator={false}
             >
             {/* 1. Files & Notes */}
@@ -803,15 +845,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
-    height: 40,
-    borderRadius: 20,
+    height: 44,
+    borderRadius: 22,
     borderWidth: 1,
   },
   input: {
     flex: 1,
     fontSize: 14,
     height: '100%',
-    padding: 0,
+    paddingVertical: 0,
+    paddingHorizontal: 0,
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   cancelBtn: {
     paddingVertical: 6,

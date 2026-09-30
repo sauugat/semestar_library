@@ -13,6 +13,8 @@ import { Text, Heading, Caption } from '@/components/ui/Typography';
 import { useTheme } from '@/constants/useTheme';
 import { getBaseUrl } from '@/services/api';
 
+import * as Updates from 'expo-updates';
+
 interface VersionInfo {
   latestVersion: string;
   versionCode: number;
@@ -26,14 +28,28 @@ export function AppUpdateChecker() {
   const { colors, radii, spacing } = useTheme();
   const [updateInfo, setUpdateInfo] = useState<VersionInfo | null>(null);
   const [visible, setVisible] = useState(false);
+  const [otaReady, setOtaReady] = useState(false);
 
   useEffect(() => {
-    // Only check for standalone Android APK updates
-    if (Platform.OS !== 'android') return;
-
     let isMounted = true;
 
-    async function checkForUpdates() {
+    // 1. Silent Over-The-Air (OTA) update check
+    async function checkOtaUpdates() {
+      if (Platform.OS === 'web' || !Updates.isEnabled) return;
+      try {
+        const update = await Updates.checkForUpdateAsync();
+        if (update.isAvailable) {
+          await Updates.fetchUpdateAsync();
+          if (isMounted) setOtaReady(true);
+        }
+      } catch {
+        // Silently ignore OTA errors
+      }
+    }
+
+    // 2. Binary APK version check (only prompts if native versionCode incremented)
+    async function checkBinaryUpdates() {
+      if (Platform.OS !== 'android') return;
       try {
         const baseUrl = getBaseUrl() || 'https://semestar-library.vercel.app';
         const res = await fetch(`${baseUrl}/api/app/version`, {
@@ -48,13 +64,15 @@ export function AppUpdateChecker() {
           setUpdateInfo(data);
           setVisible(true);
         }
-      } catch (err) {
+      } catch {
         // Silently ignore network failures on startup
       }
     }
 
-    // Delay check slightly so it doesn't block critical screen entrance animation
-    const timer = setTimeout(checkForUpdates, 1500);
+    const timer = setTimeout(() => {
+      checkOtaUpdates();
+      checkBinaryUpdates();
+    }, 1500);
 
     return () => {
       isMounted = false;
@@ -62,134 +80,179 @@ export function AppUpdateChecker() {
     };
   }, []);
 
-  if (!visible || !updateInfo) return null;
-
   const handleUpdate = () => {
-    const targetUrl = updateInfo.apkUrl || 'https://semestar-library.vercel.app/download/apk';
+    const targetUrl = updateInfo?.apkUrl || 'https://semestar-library.vercel.app/download/apk';
     Linking.openURL(targetUrl).catch(() => {});
-    if (!updateInfo.forceUpdate) {
+    if (!updateInfo?.forceUpdate) {
       setVisible(false);
     }
   };
 
+  if (!visible && !otaReady) return null;
+
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={() => {
-        if (!updateInfo.forceUpdate) setVisible(false);
-      }}
-    >
-      <View style={styles.overlay}>
-        <View
-          style={[
-            styles.dialog,
-            {
-              backgroundColor: colors.surfaceRaised,
-              borderColor: colors.borderStrong,
-              borderRadius: radii.xl,
-              padding: spacing.lg,
-            },
-          ]}
-        >
-          {/* Header Icon */}
+    <>
+      {/* 1. Seamless Over-The-Air Update Banner */}
+      {otaReady && !visible && (
+        <View style={styles.otaContainer} pointerEvents="box-none">
           <View
             style={[
-              styles.iconWrapper,
+              styles.otaCard,
               {
-                backgroundColor: colors.surfaceSubtle,
-                borderColor: colors.border,
+                backgroundColor: colors.surfaceRaised,
+                borderColor: colors.borderStrong,
+                borderRadius: radii.lg,
               },
             ]}
           >
-            <Ionicons name="sparkles" size={28} color={colors.primary} />
-          </View>
-
-          {/* Title & Badge */}
-          <Heading
-            variant="xl"
-            style={{ textAlign: 'center', marginTop: 12, marginBottom: 4 }}
-          >
-            Update Available
-          </Heading>
-          <View style={styles.badgeRow}>
-            <View style={[styles.pill, { backgroundColor: colors.surfaceSubtle, borderColor: colors.border }]}>
-              <Caption color="secondary" style={{ fontWeight: '700' }}>
-                v{updateInfo.latestVersion} (Build {updateInfo.versionCode})
-              </Caption>
+            <Ionicons name="sparkles" size={18} color={colors.primary} style={{ marginRight: 8 }} />
+            <View style={{ flex: 1 }}>
+              <Text variant="xs" weight="700" style={{ color: colors.text }}>
+                Update Ready
+              </Text>
+              <Caption color="muted">Restart to apply latest improvements</Caption>
             </View>
+            <TouchableOpacity
+              onPress={() => Updates.reloadAsync()}
+              style={[styles.otaReloadBtn, { backgroundColor: colors.primary, borderRadius: radii.sm }]}
+              activeOpacity={0.8}
+            >
+              <Text variant="xs" weight="700" style={{ color: '#000000' }}>
+                Restart
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setOtaReady(false)}
+              style={{ marginLeft: 8, padding: 4 }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="close" size={16} color={colors.textMuted} />
+            </TouchableOpacity>
           </View>
+        </View>
+      )}
 
-          {/* Release Notes */}
-          <Text
-            variant="sm"
-            color="secondary"
-            style={{ textAlign: 'center', marginVertical: 12, lineHeight: 20 }}
-          >
-            {updateInfo.releaseNotes ||
-              'A new build is available with the official Semester Library logo and performance updates.'}
-          </Text>
-
-          {/* Data Preservation Assurance */}
-          <View
-            style={[
-              styles.infoBox,
-              {
-                backgroundColor: colors.surfaceSubtle,
-                borderColor: colors.border,
-                borderRadius: radii.md,
-              },
-            ]}
-          >
-            <Ionicons name="shield-checkmark-outline" size={16} color={colors.primary} style={{ marginRight: 6 }} />
-            <Caption color="muted" style={{ flex: 1 }}>
-              Your login session, notes, and offline routine will not be lost.
-            </Caption>
-          </View>
-
-          {/* Action Buttons */}
-          <View style={styles.actionRow}>
-            {!updateInfo.forceUpdate && (
-              <TouchableOpacity
-                onPress={() => setVisible(false)}
+      {/* 2. Full Binary APK Update Dialog (only on native versionCode bump) */}
+      {visible && updateInfo && (
+        <Modal
+          visible={visible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => {
+            if (!updateInfo.forceUpdate) setVisible(false);
+          }}
+        >
+          <View style={styles.overlay}>
+            <View
+              style={[
+                styles.dialog,
+                {
+                  backgroundColor: colors.surfaceRaised,
+                  borderColor: colors.borderStrong,
+                  borderRadius: radii.xl,
+                  padding: spacing.lg,
+                },
+              ]}
+            >
+              {/* Header Icon */}
+              <View
                 style={[
-                  styles.button,
-                  styles.buttonSecondary,
+                  styles.iconWrapper,
                   {
+                    backgroundColor: colors.surfaceSubtle,
+                    borderColor: colors.border,
+                  },
+                ]}
+              >
+                <Ionicons name="sparkles" size={28} color={colors.primary} />
+              </View>
+
+              {/* Title & Badge */}
+              <Heading
+                variant="xl"
+                style={{ textAlign: 'center', marginTop: 12, marginBottom: 4 }}
+              >
+                Update Available
+              </Heading>
+              <View style={styles.badgeRow}>
+                <View style={[styles.pill, { backgroundColor: colors.surfaceSubtle, borderColor: colors.border }]}>
+                  <Caption color="secondary" style={{ fontWeight: '700' }}>
+                    v{updateInfo.latestVersion} (Build {updateInfo.versionCode})
+                  </Caption>
+                </View>
+              </View>
+
+              {/* Release Notes */}
+              <Text
+                variant="sm"
+                color="secondary"
+                style={{ textAlign: 'center', marginVertical: 12, lineHeight: 20 }}
+              >
+                {updateInfo.releaseNotes ||
+                  'A new build is available with official app enhancements.'}
+              </Text>
+
+              {/* Data Preservation Assurance */}
+              <View
+                style={[
+                  styles.infoBox,
+                  {
+                    backgroundColor: colors.surfaceSubtle,
                     borderColor: colors.border,
                     borderRadius: radii.md,
                   },
                 ]}
-                activeOpacity={0.7}
               >
-                <Text variant="sm" weight="600" color="muted">
-                  Later
-                </Text>
-              </TouchableOpacity>
-            )}
+                <Ionicons name="shield-checkmark-outline" size={16} color={colors.primary} style={{ marginRight: 6 }} />
+                <Caption color="muted" style={{ flex: 1 }}>
+                  Your login session, notes, and offline routine will not be lost.
+                </Caption>
+              </View>
 
-            <TouchableOpacity
-              onPress={handleUpdate}
-              style={[
-                styles.button,
-                styles.buttonPrimary,
-                {
-                  backgroundColor: colors.primary,
-                  borderRadius: radii.md,
-                },
-              ]}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="cloud-download-outline" size={16} color="#000000" style={{ marginRight: 6 }} />
-              <Text variant="sm" weight="700" style={{ color: '#000000' }}>
-                Update Now
-              </Text>
-            </TouchableOpacity>
+              {/* Action Buttons */}
+              <View style={styles.actionRow}>
+                {!updateInfo.forceUpdate && (
+                  <TouchableOpacity
+                    onPress={() => setVisible(false)}
+                    style={[
+                      styles.button,
+                      styles.buttonSecondary,
+                      {
+                        borderColor: colors.border,
+                        borderRadius: radii.md,
+                      },
+                    ]}
+                    activeOpacity={0.7}
+                  >
+                    <Text variant="sm" weight="600" color="muted">
+                      Later
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                <TouchableOpacity
+                  onPress={handleUpdate}
+                  style={[
+                    styles.button,
+                    styles.buttonPrimary,
+                    {
+                      backgroundColor: colors.primary,
+                      borderRadius: radii.md,
+                    },
+                  ]}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="cloud-download-outline" size={16} color="#000000" style={{ marginRight: 6 }} />
+                  <Text variant="sm" weight="700" style={{ color: '#000000' }}>
+                    Update Now
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
-        </View>
-      </View>
-    </Modal>
+        </Modal>
+      )}
+    </>
   );
 }
 
@@ -255,4 +318,30 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   buttonPrimary: {},
+  otaContainer: {
+    position: 'absolute',
+    top: 50,
+    left: 16,
+    right: 16,
+    zIndex: 99999,
+    alignItems: 'center',
+  },
+  otaCard: {
+    width: '100%',
+    maxWidth: 420,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  otaReloadBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
 });

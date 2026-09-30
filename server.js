@@ -546,10 +546,10 @@ app.get(['/download/apk', '/api/download/apk', '/download/Semester-library.apk']
 app.get(['/api/app/version', '/api/version'], (req, res) => {
   res.json({
     latestVersion: '1.0.0',
-    versionCode: 3,
+    versionCode: 4,
     apkUrl: 'https://semestar-library.vercel.app/download/apk',
     cdnUrl: LATEST_APK_CDN_URL,
-    releaseNotes: 'Official app logo, Instagram-style pinch-to-zoom on post photos, smooth feed animations, and update notifications.',
+    releaseNotes: 'Over-the-air (OTA) updates engine enabled, Android soft keyboard resize fix, enhanced search bar alignment, and photo zoom controls.',
     forceUpdate: false
   });
 });

@@ -533,7 +533,7 @@ app.get(['/download', '/download.html', '/app'], (req, res) => {
 });
 
 // Direct APK download endpoint (serves local binary if present, else redirects to Expo CDN)
-const LATEST_APK_CDN_URL = 'https://expo.dev/artifacts/eas/2fR7iXBZ0dzNJ5M4X5AgoS319FWJY99AldOGxAmHk3E.apk';
+const LATEST_APK_CDN_URL = 'https://expo.dev/artifacts/eas/oDHle6N3U1yPqtJe4JIMzHqdcw2odCLa9jnA4-kY6Fk.apk';
 app.get(['/download/apk', '/api/download/apk', '/download/Semester-library.apk'], (req, res) => {
   const localApkPath = path.join(__dirname, 'Semester library.apk');
   if (fs.existsSync(localApkPath)) {

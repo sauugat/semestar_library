@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Semester Library",
+    "name": "semlab",
     "slug": "semester-library",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -19,7 +19,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "package": "com.semesterlibrary.app",
-      "versionCode": 4,
+      "versionCode": 5,
       "softwareKeyboardLayoutMode": "resize",
       "predictiveBackGestureEnabled": false,
       "permissions": [

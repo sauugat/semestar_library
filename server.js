@@ -532,24 +532,26 @@ app.get(['/download', '/download.html', '/app'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'download.html'));
 });
 
-// Direct APK download endpoint (serves local binary if present, else redirects to Expo CDN)
+// Direct APK download endpoint (serves local binary if present, else redirects to permanent download URL)
 const LATEST_APK_CDN_URL = 'https://expo.dev/artifacts/eas/oDHle6N3U1yPqtJe4JIMzHqdcw2odCLa9jnA4-kY6Fk.apk';
-app.get(['/download/apk', '/api/download/apk', '/download/Semester-library.apk'], (req, res) => {
-  const localApkPath = path.join(__dirname, 'Semester library.apk');
+const GITHUB_APK_DOWNLOAD_URL = 'https://github.com/sauugat/semestar_library/releases/latest/download/semlab.apk';
+
+app.get(['/download/apk', '/api/download/apk', '/download/semlab.apk', '/semlab.apk', '/download/Semester-library.apk'], (req, res) => {
+  const localApkPath = path.join(__dirname, 'semlab.apk');
   if (fs.existsSync(localApkPath)) {
-    return res.download(localApkPath, 'Semester-Library.apk');
+    return res.download(localApkPath, 'semlab.apk');
   }
-  return res.redirect(LATEST_APK_CDN_URL);
+  return res.redirect(GITHUB_APK_DOWNLOAD_URL);
 });
 
 // App version and update check endpoint
 app.get(['/api/app/version', '/api/version'], (req, res) => {
   res.json({
     latestVersion: '1.0.0',
-    versionCode: 4,
-    apkUrl: 'https://semestar-library.vercel.app/download/apk',
-    cdnUrl: LATEST_APK_CDN_URL,
-    releaseNotes: 'Over-the-air (OTA) updates engine enabled, Android soft keyboard resize fix, enhanced search bar alignment, and photo zoom controls.',
+    versionCode: 5,
+    apkUrl: 'https://semestar-library.vercel.app/download/semlab.apk',
+    cdnUrl: GITHUB_APK_DOWNLOAD_URL,
+    releaseNotes: 'App name updated to semlab with semlab.apk package.',
     forceUpdate: false
   });
 });

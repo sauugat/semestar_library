@@ -1887,6 +1887,7 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
     });
   }
 
+  const currentStudentId = req.session?.studentId || req.user?.studentId;
   const results = [];
 
   try {
@@ -1895,7 +1896,7 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
       const result = await db.run(`
         INSERT INTO files (storedName, originalName, title, semester, subject, chapter, uploadedBy, sizeBytes, uploadedAt, previewName)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `, f.filename, f.originalname, fileTitle, semester, subject, chapter, req.session.studentId, f.size, new Date().toISOString(), previewFilename);
+      `, f.filename, f.originalname, fileTitle, semester, subject, chapter, currentStudentId, f.size, new Date().toISOString(), previewFilename);
 
       const insertedId = result.lastInsertRowid;
       const indexing = await indexUploadedNote({ id: insertedId, storedName: f.filename, originalName: f.originalname, title: fileTitle, semester, subject, chapter, sizeBytes: f.size });
@@ -1911,7 +1912,7 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
       if (insertedId) {
         // If Saugat Subedi (26020266) uploads, automatically add random natural likes from student accounts (17-44 likes)
         try {
-          if (req.session.studentId === '26020266') {
+          if (currentStudentId === '26020266') {
             const targetLikes = Math.floor(Math.random() * (44 - 17 + 1)) + 17;
             if (db.isPostgres) {
               await db.run(`
@@ -1939,25 +1940,32 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
             await db.run(`
               INSERT INTO notifications (recipientStudentId, type, relatedFileId, message)
               SELECT studentId, 'notice', ?, ? FROM students WHERE studentId != ?
-            `, insertedId, `New Official Notice: ${fileTitle || f.originalname}`, req.session.studentId);
+            `, insertedId, `New Official Notice: ${fileTitle || f.originalname}`, currentStudentId);
           }
         } catch (notifErr) {
           console.warn('[Notification insert warning]:', notifErr.message);
         }
 
-        // Push notification outbox enqueue (isolated failure)
+        // Push notification outbox enqueue and bounded synchronous dispatch (isolated failure)
         try {
-          const { enqueueMaterialPush } = require('./lib/push-notifications');
-          await enqueueMaterialPush(db, {
+          const { enqueueMaterialPush, dispatchImmediateOutbox } = require('./lib/push-notifications');
+          const enqueueResult = await enqueueMaterialPush(db, {
             fileId: insertedId,
             originalName: f.originalname,
             title: fileTitle,
             semester,
             subject,
-            uploaderStudentId: req.session.studentId
+            uploaderStudentId: req.session?.studentId || req.user?.studentId
           });
+          if (enqueueResult && enqueueResult.enqueuedCount > 0) {
+            await dispatchImmediateOutbox(db, {
+              eventType: 'material',
+              eventId: insertedId,
+              timeoutMs: 3500
+            });
+          }
         } catch (pushErr) {
-          console.error('[Material Push Enqueue Error]:', pushErr.message);
+          console.error('[Material Push Enqueue/Dispatch Error]:', pushErr.message);
         }
       }
     }
@@ -2141,8 +2149,9 @@ app.post('/api/files/record-upload', requireLogin, async (req, res) => {
   const cleanSubject = (subject || '').trim() || null;
   const cleanChapter = (chapter || '').trim() || null;
   const cleanTitle = (title || '').trim() || null;
+  const currentStudentId = req.session?.studentId || req.user?.studentId;
 
-  const isAdmin = await isStudentAdmin(req.session.studentId);
+  const isAdmin = await isStudentAdmin(currentStudentId);
   const results = [];
 
   try {
@@ -2161,7 +2170,7 @@ app.post('/api/files/record-upload', requireLogin, async (req, res) => {
       const result = await db.run(`
         INSERT INTO files (storedName, originalName, title, semester, subject, chapter, uploadedBy, sizeBytes, uploadedAt, previewName)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `, storedName, originalName, fileTitle, cleanSemester, cleanSubject, cleanChapter, req.session.studentId, sizeBytes, new Date().toISOString(), null);
+      `, storedName, originalName, fileTitle, cleanSemester, cleanSubject, cleanChapter, currentStudentId, sizeBytes, new Date().toISOString(), null);
 
       const insertedId = result.lastInsertRowid;
       const indexing = await indexUploadedNote({ id: insertedId, storedName, originalName, title: fileTitle, semester: cleanSemester, subject: cleanSubject, chapter: cleanChapter, sizeBytes });
@@ -2176,7 +2185,7 @@ app.post('/api/files/record-upload', requireLogin, async (req, res) => {
       if (insertedId) {
         // Auto-likes if applicable
         try {
-          if (req.session.studentId === '26020266') {
+          if (currentStudentId === '26020266') {
             const targetLikes = Math.floor(Math.random() * (44 - 17 + 1)) + 17;
             if (db.isPostgres) {
               await db.run(`
@@ -2205,25 +2214,32 @@ app.post('/api/files/record-upload', requireLogin, async (req, res) => {
             await db.run(`
               INSERT INTO notifications (recipientStudentId, type, relatedFileId, message)
               SELECT studentId, 'notice', ?, ? FROM students WHERE studentId != ?
-            `, insertedId, `New Study Material: ${fileTitle}`, req.session.studentId);
+            `, insertedId, `New Study Material: ${fileTitle}`, currentStudentId);
           }
         } catch (notifErr) {
           console.warn('[Notification insert warning]:', notifErr.message);
         }
 
-        // Push notification outbox enqueue (isolated failure)
+        // Push notification outbox enqueue and bounded synchronous dispatch (isolated failure)
         try {
-          const { enqueueMaterialPush } = require('./lib/push-notifications');
-          await enqueueMaterialPush(db, {
+          const { enqueueMaterialPush, dispatchImmediateOutbox } = require('./lib/push-notifications');
+          const enqueueResult = await enqueueMaterialPush(db, {
             fileId: insertedId,
             originalName,
             title: fileTitle,
             semester: cleanSemester,
             subject: cleanSubject,
-            uploaderStudentId: req.session.studentId
+            uploaderStudentId: req.session?.studentId || req.user?.studentId
           });
+          if (enqueueResult && enqueueResult.enqueuedCount > 0) {
+            await dispatchImmediateOutbox(db, {
+              eventType: 'material',
+              eventId: insertedId,
+              timeoutMs: 3500
+            });
+          }
         } catch (pushErr) {
-          console.error('[Record Upload Push Enqueue Error]:', pushErr.message);
+          console.error('[Record Upload Push Enqueue/Dispatch Error]:', pushErr.message);
         }
       }
     }
@@ -3255,12 +3271,22 @@ app.post('/api/chat/messages', requireLogin, chatRateLimiter, handleChatUpload, 
   }
 
   try {
+    const currentSenderId = req.session?.studentId || req.user?.studentId;
+    console.log('[PUSH-DIAG-CHAT] 1. Sender Student ID:', currentSenderId);
+
     const result = await db.run(`
       INSERT INTO chat_messages (studentId, text, attachmentName, attachmentOriginalName, attachmentMimeType, replyToId, createdAt)
       VALUES (?, ?, ?, ?, ?, ?, ?)
-    `, req.session.studentId, text, attachmentName, attachmentOriginalName, attachmentMimeType, replyToId, new Date().toISOString());
+    `, currentSenderId, text, attachmentName, attachmentOriginalName, attachmentMimeType, replyToId, new Date().toISOString());
 
     const messageId = result.lastInsertRowid;
+    console.log('[PUSH-DIAG-CHAT] 2. Message persisted successfully with ID:', messageId);
+
+    await db.run(
+      "INSERT INTO push_diagnostics_log (tag, details) VALUES (?, ?)",
+      'CHAT_MESSAGE_SAVED',
+      JSON.stringify({ messageId, senderStudentId: currentSenderId, hasText: Boolean(text), hasAttachment: Boolean(file) })
+    ).catch(() => {});
 
     // Fetch the newly inserted message with all joins to broadcast it exactly as GET /api/chat/messages would
     const newMsg = await db.get(`
@@ -3274,16 +3300,61 @@ app.post('/api/chat/messages', requireLogin, chatRateLimiter, handleChatUpload, 
       WHERE chat_messages.id = ?
     `, messageId);
 
-    // Push notification outbox enqueue (isolated failure)
+    // Push notification outbox enqueue and bounded synchronous dispatch (isolated failure)
     try {
-      const { enqueueChatPushWithThrottle } = require('./lib/push-notifications');
-      await enqueueChatPushWithThrottle(db, {
+      const { enqueueChatPushWithThrottle, dispatchImmediateOutbox } = require('./lib/push-notifications');
+      const enqueueResult = await enqueueChatPushWithThrottle(db, {
         messageId,
-        senderStudentId: req.session.studentId,
+        senderStudentId: currentSenderId,
         senderName: newMsg ? newMsg.name : null
       });
+      console.log('[PUSH-DIAG-CHAT] 3. Enqueue result:', JSON.stringify(enqueueResult));
+
+      const targetOutboxRow = await db.get(
+        "SELECT id, recipient_student_id, status FROM push_notification_outbox WHERE event_type = 'chat' AND recipient_student_id = '464676' AND (event_id = ? OR idempotency_key LIKE ?)",
+        String(messageId), `%:${messageId}:464676`
+      );
+      console.log('[PUSH-DIAG-CHAT] 4. Outbox row for target student 464676:', targetOutboxRow ? {
+        id: targetOutboxRow.id,
+        recipient: targetOutboxRow.recipient_student_id,
+        status: targetOutboxRow.status
+      } : 'NONE_FOUND');
+
+      await db.run(
+        "INSERT INTO push_diagnostics_log (tag, details) VALUES (?, ?)",
+        'CHAT_ENQUEUE_RESULT',
+        JSON.stringify({
+          messageId,
+          senderStudentId: currentSenderId,
+          enqueueResult,
+          targetRow: targetOutboxRow ? { id: targetOutboxRow.id, status: targetOutboxRow.status } : null
+        })
+      ).catch(() => {});
+
+      if (enqueueResult && enqueueResult.enqueuedCount > 0) {
+        console.log('[PUSH-DIAG-CHAT] 5. Invoking dispatchImmediateOutbox for message ID:', messageId);
+        const dispatchResult = await dispatchImmediateOutbox(db, {
+          eventType: 'chat',
+          eventId: messageId,
+          timeoutMs: 3000
+        });
+        console.log('[PUSH-DIAG-CHAT] 6. dispatchImmediateOutbox result:', JSON.stringify(dispatchResult));
+
+        await db.run(
+          "INSERT INTO push_diagnostics_log (tag, details) VALUES (?, ?)",
+          'CHAT_DISPATCH_RESULT',
+          JSON.stringify({ messageId, dispatchResult })
+        ).catch(() => {});
+      } else {
+        console.log('[PUSH-DIAG-CHAT] 5. dispatchImmediateOutbox skipped (enqueuedCount == 0)');
+      }
     } catch (pushErr) {
-      console.error('[Chat Push Enqueue Error]:', pushErr.message);
+      console.error('[PUSH-DIAG-CHAT] Push Enqueue/Dispatch Error:', pushErr.message);
+      await db.run(
+        "INSERT INTO push_diagnostics_log (tag, details) VALUES (?, ?)",
+        'CHAT_DISPATCH_ERROR',
+        JSON.stringify({ messageId, error: pushErr.message })
+      ).catch(() => {});
     }
 
     if (newMsg) {
@@ -3490,17 +3561,21 @@ function verifyInternalCron(req, res, next) {
   return res.status(401).json({ message: 'Unauthorized internal worker request.' });
 }
 
-app.post('/api/internal/push/process', verifyInternalCron, async (req, res) => {
+app.all(['/api/internal/push/process', '/api/internal/push/worker'], verifyInternalCron, async (req, res) => {
   try {
-    const result = await pushNotifications.processPushOutbox(db, { limit: req.body?.limit });
-    return res.json({ success: true, ...result });
+    const outboxResult = await pushNotifications.processPushOutbox(db, { limit: req.body?.limit || 100 });
+    let receiptResult = null;
+    if (req.method === 'GET' || req.body?.includeReceipts || req.headers['x-vercel-cron']) {
+      receiptResult = await pushNotifications.processPushReceipts(db, { limit: 100 }).catch(() => null);
+    }
+    return res.json({ success: true, ...outboxResult, receipts: receiptResult });
   } catch (err) {
     console.error('[Push Outbox Process Worker Error]:', err.message);
     return res.status(500).json({ message: 'Push outbox processing failed.', error: err.message });
   }
 });
 
-app.post('/api/internal/push/receipts', verifyInternalCron, async (req, res) => {
+app.all('/api/internal/push/receipts', verifyInternalCron, async (req, res) => {
   try {
     const result = await pushNotifications.processPushReceipts(db, {
       minAgeSeconds: req.body?.minAgeSeconds,

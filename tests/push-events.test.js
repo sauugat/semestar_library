@@ -6,6 +6,10 @@ const db = require('../db');
 const push = require('../lib/push-notifications');
 
 test('Push Notifications Integration & Event Hooks (Phase B)', async (t) => {
+  // Disable immediate synchronous dispatch to test isolated enqueue & coalescing queue states before manual worker
+  process.env.DISABLE_IMMEDIATE_PUSH_DISPATCH = '1';
+  t.after(() => { delete process.env.DISABLE_IMMEDIATE_PUSH_DISPATCH; });
+
   await db.initSchema();
   // Clean up any stale test records from previous runs
   await db.run("DELETE FROM push_notification_outbox WHERE recipient_student_id LIKE 'STUDENT_%' OR recipient_student_id LIKE 'MUTED_%' OR recipient_student_id LIKE 'SENDER_%' OR recipient_student_id LIKE 'ADMIN_%'");
@@ -34,13 +38,13 @@ test('Push Notifications Integration & Event Hooks (Phase B)', async (t) => {
   ]) {
     if (db.isPostgres) {
       await db.run(
-        'INSERT INTO students (studentId, name, role, semester) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING',
-        s.id, s.name, s.role, s.semester
+        'INSERT INTO students (studentId, name, role, semester, passwordHash) VALUES (?, ?, ?, ?, ?) ON CONFLICT DO NOTHING',
+        s.id, s.name, s.role, s.semester, 'test_hash'
       );
     } else {
       await db.run(
-        'INSERT OR IGNORE INTO students (studentId, name, role, semester) VALUES (?, ?, ?, ?)',
-        s.id, s.name, s.role, s.semester
+        'INSERT OR IGNORE INTO students (studentId, name, role, semester, passwordHash) VALUES (?, ?, ?, ?, ?)',
+        s.id, s.name, s.role, s.semester, 'test_hash'
       );
     }
   }
@@ -87,7 +91,6 @@ test('Push Notifications Integration & Event Hooks (Phase B)', async (t) => {
       await db.run('DELETE FROM students WHERE studentId = ?', id);
     }
     server.close();
-    await db.close().catch(() => {});
   });
 
   // -------------------------------------------------------------

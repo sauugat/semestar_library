@@ -172,10 +172,10 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       req.postCreated = true;
       const post = await db.get(`${selectPosts} WHERE p.id = ?`, req.postUser.studentId, result.lastInsertRowid);
 
-      // Push notification outbox enqueue (isolated failure)
+      // Push notification outbox enqueue and bounded synchronous dispatch (isolated failure)
       try {
-        const { enqueuePostOrNoticePush } = require('../lib/push-notifications');
-        await enqueuePostOrNoticePush(db, {
+        const { enqueuePostOrNoticePush, dispatchImmediateOutbox } = require('../lib/push-notifications');
+        const enqueueResult = await enqueuePostOrNoticePush(db, {
           postId: result.lastInsertRowid,
           authorStudentId: req.postUser.studentId,
           authorName: req.postUser.name,
@@ -183,8 +183,16 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
           isOfficial,
           role: req.postUser.role
         });
+        if (enqueueResult && enqueueResult.enqueuedCount > 0) {
+          const isOfficialNotice = type === 'notice' && (Boolean(isOfficial) || ['admin', 'cr', 'teacher'].includes(req.postUser.role));
+          await dispatchImmediateOutbox(db, {
+            eventType: isOfficialNotice ? 'notice' : 'post',
+            eventId: result.lastInsertRowid,
+            timeoutMs: 3500
+          });
+        }
       } catch (pushErr) {
-        console.error('[Post/Notice Push Enqueue Error]:', pushErr.message);
+        console.error('[Post/Notice Push Enqueue/Dispatch Error]:', pushErr.message);
       }
 
       res.status(201).json(formatPost(post, req));

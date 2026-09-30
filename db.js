@@ -841,6 +841,14 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
           await exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_students_supabase_uid ON students (supabase_uid);`);
           await exec(`CREATE INDEX IF NOT EXISTS idx_students_verification_status ON students (verification_status);`);
 
+          const chatCols = await all(`PRAGMA table_info(chat_messages)`);
+          const chatColNames = chatCols.map(c => c.name);
+          if (!chatColNames.includes('replyToId')) await exec(`ALTER TABLE chat_messages ADD COLUMN replyToId INTEGER;`);
+          if (!chatColNames.includes('pinned')) await exec(`ALTER TABLE chat_messages ADD COLUMN pinned INTEGER DEFAULT 0;`);
+          if (!chatColNames.includes('pinnedBy')) await exec(`ALTER TABLE chat_messages ADD COLUMN pinnedBy TEXT;`);
+          if (!chatColNames.includes('pinnedAt')) await exec(`ALTER TABLE chat_messages ADD COLUMN pinnedAt TEXT;`);
+          if (!chatColNames.includes('reactions')) await exec(`ALTER TABLE chat_messages ADD COLUMN reactions TEXT;`);
+
           const cols = await all(`PRAGMA table_info(submissions)`);
           const colNames = cols.map(c => c.name);
           if (!colNames.includes('stdout')) await exec(`ALTER TABLE submissions ADD COLUMN stdout TEXT;`);

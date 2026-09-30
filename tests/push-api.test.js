@@ -14,14 +14,13 @@ test('Push Notification API Endpoints (Phase A)', async (t) => {
 
   t.after(async () => {
     server.close();
-    await db.close().catch(() => {});
   });
 
   const testStudentId = 'API-STUDENT-' + Date.now();
   if (db.isPostgres) {
-    await db.run('INSERT INTO students (studentId, name, role) VALUES (?, ?, ?) ON CONFLICT DO NOTHING', testStudentId, 'API Student', 'student');
+    await db.run('INSERT INTO students (studentId, name, role, passwordHash) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING', testStudentId, 'API Student', 'student', 'test_password_hash');
   } else {
-    await db.run('INSERT OR IGNORE INTO students (studentId, name, role) VALUES (?, ?, ?)', testStudentId, 'API Student', 'student');
+    await db.run('INSERT OR IGNORE INTO students (studentId, name, role, passwordHash) VALUES (?, ?, ?, ?)', testStudentId, 'API Student', 'student', 'test_password_hash');
   }
 
   // Create mock mobile token to authenticate via requireLogin

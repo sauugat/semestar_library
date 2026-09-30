@@ -21,11 +21,11 @@ test('Push Notifications Foundation (Phase A)', async (t) => {
 
     // Ensure students exist in DB
     if (db.isPostgres) {
-      await db.run('INSERT INTO students (studentId, name, role) VALUES (?, ?, ?) ON CONFLICT DO NOTHING', studentA, 'Alice', 'student');
-      await db.run('INSERT INTO students (studentId, name, role) VALUES (?, ?, ?) ON CONFLICT DO NOTHING', studentB, 'Bob', 'student');
+      await db.run('INSERT INTO students (studentId, name, role, passwordHash) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING', studentA, 'Alice', 'student', 'test_hash');
+      await db.run('INSERT INTO students (studentId, name, role, passwordHash) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING', studentB, 'Bob', 'student', 'test_hash');
     } else {
-      await db.run('INSERT OR IGNORE INTO students (studentId, name, role) VALUES (?, ?, ?)', studentA, 'Alice', 'student');
-      await db.run('INSERT OR IGNORE INTO students (studentId, name, role) VALUES (?, ?, ?)', studentB, 'Bob', 'student');
+      await db.run('INSERT OR IGNORE INTO students (studentId, name, role, passwordHash) VALUES (?, ?, ?, ?)', studentA, 'Alice', 'student', 'test_hash');
+      await db.run('INSERT OR IGNORE INTO students (studentId, name, role, passwordHash) VALUES (?, ?, ?, ?)', studentB, 'Bob', 'student', 'test_hash');
     }
 
     const tokenPhone = `ExponentPushToken[phone_${Date.now()}]`;
@@ -84,9 +84,9 @@ test('Push Notifications Foundation (Phase A)', async (t) => {
   await t.test('Student notification preferences CRUD and default fallback', async () => {
     const student = 'TEST-PREFS-' + Date.now();
     if (db.isPostgres) {
-      await db.run('INSERT INTO students (studentId, name, role) VALUES (?, ?, ?) ON CONFLICT DO NOTHING', student, 'Pref Student', 'student');
+      await db.run('INSERT INTO students (studentId, name, role, passwordHash) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING', student, 'Pref Student', 'student', 'test_hash');
     } else {
-      await db.run('INSERT OR IGNORE INTO students (studentId, name, role) VALUES (?, ?, ?)', student, 'Pref Student', 'student');
+      await db.run('INSERT OR IGNORE INTO students (studentId, name, role, passwordHash) VALUES (?, ?, ?, ?)', student, 'Pref Student', 'student', 'test_hash');
     }
 
     // 1. Defaults when unconfigured
@@ -122,9 +122,9 @@ test('Push Notifications Foundation (Phase A)', async (t) => {
   await t.test('Push notification outbox enforces idempotency and duplicate prevention', async () => {
     const student = 'TEST-OUTBOX-' + Date.now();
     if (db.isPostgres) {
-      await db.run('INSERT INTO students (studentId, name, role) VALUES (?, ?, ?) ON CONFLICT DO NOTHING', student, 'Outbox Student', 'student');
+      await db.run('INSERT INTO students (studentId, name, role, passwordHash) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING', student, 'Outbox Student', 'student', 'test_hash');
     } else {
-      await db.run('INSERT OR IGNORE INTO students (studentId, name, role) VALUES (?, ?, ?)', student, 'Outbox Student', 'student');
+      await db.run('INSERT OR IGNORE INTO students (studentId, name, role, passwordHash) VALUES (?, ?, ?, ?)', student, 'Outbox Student', 'student', 'test_hash');
     }
 
     const idempotencyKey = `chat:9999:${student}`;
@@ -156,9 +156,9 @@ test('Push Notifications Foundation (Phase A)', async (t) => {
   await t.test('processPushOutbox skips notifications when student has muted chat', async () => {
     const student = 'TEST-MUTED-' + Date.now();
     if (db.isPostgres) {
-      await db.run('INSERT INTO students (studentId, name, role) VALUES (?, ?, ?) ON CONFLICT DO NOTHING', student, 'Muted Student', 'student');
+      await db.run('INSERT INTO students (studentId, name, role, passwordHash) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING', student, 'Muted Student', 'student', 'test_hash');
     } else {
-      await db.run('INSERT OR IGNORE INTO students (studentId, name, role) VALUES (?, ?, ?)', student, 'Muted Student', 'student');
+      await db.run('INSERT OR IGNORE INTO students (studentId, name, role, passwordHash) VALUES (?, ?, ?, ?)', student, 'Muted Student', 'student', 'test_hash');
     }
 
     // Set mute_chat = true
@@ -174,7 +174,7 @@ test('Push Notifications Foundation (Phase A)', async (t) => {
       idempotencyKey: key,
     });
 
-    const result = await push.processPushOutbox(db, { limit: 10 });
+    const result = await push.processPushOutbox(db, { limit: 10, recipientStudentId: student });
     assert.equal(result.skipped >= 1, true, 'Outbox job should be marked skipped due to mute preference');
 
     const job = await db.get('SELECT status FROM push_notification_outbox WHERE idempotency_key = ?', key);

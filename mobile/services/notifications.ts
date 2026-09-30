@@ -92,7 +92,7 @@ export async function configureNotificationChannels(): Promise<void> {
     await Notifications.setNotificationChannelAsync(NOTIFICATION_CHANNELS.CHAT, {
       name: 'Group Chat',
       description: 'Incoming messages from class group chat',
-      importance: Notifications.AndroidImportance.DEFAULT,
+      importance: Notifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: '#6366F1',
     });
@@ -110,7 +110,7 @@ export async function configureNotificationChannels(): Promise<void> {
     await Notifications.setNotificationChannelAsync(NOTIFICATION_CHANNELS.SOCIAL, {
       name: 'Feed Posts',
       description: 'New questions and discussions on campus feed',
-      importance: Notifications.AndroidImportance.DEFAULT,
+      importance: Notifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 200, 200, 200],
       lightColor: '#8B5CF6',
     });
@@ -122,6 +122,15 @@ export async function configureNotificationChannels(): Promise<void> {
       importance: Notifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 300, 200, 300],
       lightColor: '#EF4444',
+    });
+
+    // 5. Default Fallback Channel
+    await Notifications.setNotificationChannelAsync('default', {
+      name: 'General',
+      description: 'General system notifications',
+      importance: Notifications.AndroidImportance.HIGH,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#6366F1',
     });
 
     if (__DEV__) {

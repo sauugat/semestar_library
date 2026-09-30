@@ -53,8 +53,21 @@
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
 
-    /* Sub-header badge */
-    .dl-hero-badge {
+    /* Hero Centered Layout */
+    .hero-inner.dl-hero-centered {
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: center !important;
+      text-align: center !important;
+      justify-content: center !important;
+      max-width: 780px !important;
+      margin: 0 auto !important;
+      padding: 88px 24px 72px !important;
+      grid-template-columns: none !important;
+      width: 100% !important;
+    }
+
+    .dl-hero-centered .dl-hero-badge {
       display: inline-flex;
       align-items: center;
       gap: 10px;
@@ -63,15 +76,58 @@
       font-weight: 600;
       letter-spacing: .08em;
       text-transform: uppercase;
+      margin: 0 auto;
     }
 
-    .dl-hero-badge .hero-dot {
+    .dl-hero-centered .dl-hero-badge .hero-dot {
       width: 6px;
       height: 6px;
       border-radius: 50%;
       background: #e5e5e5;
       box-shadow: 0 0 14px #ffffff88;
     }
+
+    .dl-hero-centered h1 {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+      font-size: clamp(48px, 6.8vw, 84px);
+      line-height: 1.05;
+      letter-spacing: -.045em;
+      font-weight: 600;
+      margin: 24px auto 0;
+      text-align: center;
+      color: #f5f5f5;
+    }
+
+    .dl-hero-centered .hero-desc {
+      max-width: 580px;
+      margin: 22px auto 0;
+      font-size: 15px;
+      line-height: 1.8;
+      color: #acacac;
+      text-align: center;
+    }
+
+    .dl-hero-centered .dl-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      margin: 32px auto 0;
+      width: 100%;
+    }
+
+    .dl-hero-centered .hero-community {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin: 28px auto 0;
+      font-size: 11px;
+      color: #929292;
+      text-align: center;
+    }
+
 
     /* Action buttons in hero */
     .dl-actions {
@@ -438,16 +494,14 @@
         <div class="hero-horizon"></div>
       </div>
 
-      <div class="hero-inner hero-intro" style="padding-bottom: 60px;">
+      <div class="hero-inner dl-hero-centered">
         <div class="dl-hero-badge">
           <span class="hero-dot" aria-hidden="true"></span>
           <span>Android Standalone Build · v1.0.0</span>
-          <span class="hero-badge-tag">Gandaki University</span>
         </div>
 
         <h1 id="hero-title" style="margin-top: 24px;">
-          <span class="hero-word hero-w1">Semester Library.</span>
-          <span class="hero-word hero-w2">In your pocket.</span>
+          <span class="hero-word hero-w1">Semester Library</span>
         </h1>
 
         <p class="hero-desc">
@@ -473,7 +527,6 @@
           <span class="hero-community-mark" aria-hidden="true">GU</span>
           <span class="hero-community-copy">
             Universal APK · Android 7.0+ · EAS Cloud Verified
-            <small>Gandaki University BIT</small>
           </span>
         </p>
       </div>

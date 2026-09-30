@@ -149,8 +149,7 @@ export default function ChatScreen() {
     };
   }, []);
 
-  const isWindowResized = screenHeight - windowHeight > 100;
-  const androidKeyboardOffset = isWindowResized ? 0 : keyboardHeight;
+  const isKeyboardVisible = keyboardHeight > 0;
 
   // State
   const {
@@ -801,8 +800,8 @@ export default function ChatScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.screenContainer}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={0}
     >
       <StatusBar barStyle="light-content" />
 
@@ -1097,16 +1096,9 @@ export default function ChatScreen() {
         style={[
           styles.composerContainer,
           {
-            paddingBottom:
-              Platform.OS === "android"
-                ? androidKeyboardOffset > 0
-                  ? androidKeyboardOffset + 6
-                  : insets.bottom > 0
-                    ? insets.bottom
-                    : 8
-                : insets.bottom > 0
-                  ? insets.bottom
-                  : 8,
+            paddingBottom: isKeyboardVisible
+              ? 8
+              : Math.max(insets.bottom, 8),
           },
         ]}
       >
@@ -1170,13 +1162,8 @@ export default function ChatScreen() {
         statusBarTranslucent
       >
         <KeyboardAvoidingView
-          style={[
-            styles.panelBackdrop,
-            {
-              paddingBottom: Platform.OS === "android" ? androidKeyboardOffset : 0,
-            },
-          ]}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={styles.panelBackdrop}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
           <Pressable
             style={{ flex: 1 }}

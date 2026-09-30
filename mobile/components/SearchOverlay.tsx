@@ -10,14 +10,12 @@ import {
   Platform,
   KeyboardAvoidingView,
   StatusBar,
-  Keyboard,
-  useWindowDimensions,
-  Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/constants/useTheme';
 import { Text, Caption } from '@/components/ui/Typography';
@@ -36,6 +34,96 @@ export interface SearchOverlayProps {
   filterType?: 'all' | 'files';
   placeholder?: string;
 }
+
+const RECENT_SEARCHES_KEY = '@semlab_recent_searches';
+
+interface CategoryItem {
+  id: string;
+  label: string;
+  description: string;
+  query: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  iconColor: string;
+  bgColor: string;
+}
+
+const GLOBAL_CATEGORIES: CategoryItem[] = [
+  {
+    id: 'files',
+    label: 'Files',
+    description: 'Notes, question banks & past papers',
+    query: 'Notes',
+    icon: 'document-text-outline',
+    iconColor: '#38bdf8',
+    bgColor: 'rgba(56, 189, 248, 0.12)',
+  },
+  {
+    id: 'subjects',
+    label: 'Subjects',
+    description: 'Course curriculum & semester subjects',
+    query: 'CIT',
+    icon: 'book-outline',
+    iconColor: '#a855f7',
+    bgColor: 'rgba(168, 85, 247, 0.12)',
+  },
+  {
+    id: 'students',
+    label: 'Students',
+    description: 'Campus classmates & peer directory',
+    query: 'Student',
+    icon: 'people-outline',
+    iconColor: '#34d399',
+    bgColor: 'rgba(52, 211, 153, 0.12)',
+  },
+  {
+    id: 'assignments',
+    label: 'Assignments',
+    description: 'Lab submissions & coding tasks',
+    query: 'Assignment',
+    icon: 'clipboard-outline',
+    iconColor: '#fbbf24',
+    bgColor: 'rgba(251, 191, 36, 0.12)',
+  },
+];
+
+const LIBRARY_CATEGORIES: CategoryItem[] = [
+  {
+    id: 'notes',
+    label: 'Notes & Slides',
+    description: 'Chapter notes and lecture slides',
+    query: 'Notes',
+    icon: 'document-text-outline',
+    iconColor: '#38bdf8',
+    bgColor: 'rgba(56, 189, 248, 0.12)',
+  },
+  {
+    id: 'pyq',
+    label: 'Question Papers',
+    description: 'Past semester and board questions',
+    query: 'Question',
+    icon: 'reader-outline',
+    iconColor: '#f43f5e',
+    bgColor: 'rgba(244, 63, 94, 0.12)',
+  },
+  {
+    id: 'labs',
+    label: 'Lab Manuals',
+    description: 'Practical guides & code documentation',
+    query: 'Lab',
+    icon: 'flask-outline',
+    iconColor: '#a855f7',
+    bgColor: 'rgba(168, 85, 247, 0.12)',
+  },
+  {
+    id: 'syllabus',
+    label: 'Syllabus',
+    description: 'Curriculum breakdown & chapter units',
+    query: 'Syllabus',
+    icon: 'list-outline',
+    iconColor: '#34d399',
+    bgColor: 'rgba(52, 211, 153, 0.12)',
+  },
+];
 
 function getFileType(filename: string): string {
   const lower = (filename || '').toLowerCase();
@@ -65,8 +153,6 @@ export function SearchOverlay({
   const { user, serverUrl } = useAuth();
   const { colors, spacing, radii } = useTheme();
   const insets = useSafeAreaInsets();
-  const { height: windowHeight } = useWindowDimensions();
-  const screenHeight = Dimensions.get('screen').height;
 
   // Dynamic top padding to prevent collision with Android status bar / notch / camera cutout
   const topInset = Math.max(
@@ -75,26 +161,55 @@ export function SearchOverlay({
   );
   const bottomInset = Math.max(insets.bottom, Platform.OS === 'ios' ? 24 : 12);
 
-  // Track keyboard height so we can adjust the content view on Android edge-to-edge
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  // Local storage for recent searches (max 5)
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
 
   useEffect(() => {
-    const showSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      (e) => setKeyboardHeight(e.endCoordinates.height)
-    );
-    const hideSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => setKeyboardHeight(0)
-    );
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, []);
+    if (visible) {
+      AsyncStorage.getItem(RECENT_SEARCHES_KEY)
+        .then((raw) => {
+          if (raw) {
+            try {
+              const list = JSON.parse(raw);
+              if (Array.isArray(list)) {
+                setRecentSearches(list.slice(0, 5));
+              }
+            } catch {}
+          }
+        })
+        .catch(() => {});
+    }
+  }, [visible]);
 
-  const isWindowResized = screenHeight - windowHeight > 100;
-  const androidKeyboardOffset = isWindowResized ? 0 : keyboardHeight;
+  const saveRecentSearch = async (term: string) => {
+    const trimmed = term.trim();
+    if (!trimmed || trimmed.length < 2) return;
+    try {
+      setRecentSearches((prev) => {
+        const filtered = prev.filter((item) => item.toLowerCase() !== trimmed.toLowerCase());
+        const next = [trimmed, ...filtered].slice(0, 5);
+        void AsyncStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(next));
+        return next;
+      });
+    } catch {}
+  };
+
+  const removeRecentSearch = async (termToRemove: string) => {
+    try {
+      setRecentSearches((prev) => {
+        const next = prev.filter((item) => item !== termToRemove);
+        void AsyncStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(next));
+        return next;
+      });
+    } catch {}
+  };
+
+  const clearRecentSearches = async () => {
+    try {
+      setRecentSearches([]);
+      await AsyncStorage.removeItem(RECENT_SEARCHES_KEY);
+    } catch {}
+  };
 
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -214,8 +329,8 @@ export function SearchOverlay({
               placeholder={
                 placeholder ||
                 (filterType === 'files'
-                  ? 'Search notes across subjects & chapters…'
-                  : 'Search notes, subjects, students…')
+                  ? 'Search notes across subjects & chapters...'
+                  : 'Search notes, subjects, students...')
               }
               placeholderTextColor={colors.textMuted}
               value={query}
@@ -226,6 +341,11 @@ export function SearchOverlay({
               returnKeyType="search"
               multiline={false}
               numberOfLines={1}
+              onSubmitEditing={() => {
+                if (query.trim()) {
+                  void saveRecentSearch(query);
+                }
+              }}
             />
             {query.length > 0 && (
               <TouchableOpacity
@@ -251,11 +371,8 @@ export function SearchOverlay({
 
         {/* Content Body with Dynamic Keyboard Handling */}
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={{
-            flex: 1,
-            paddingBottom: Platform.OS === 'android' ? androidKeyboardOffset : 0,
-          }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
         >
           {isLoading ? (
             <View style={styles.centerContainer}>
@@ -282,24 +399,128 @@ export function SearchOverlay({
               </Text>
             </View>
           ) : !debouncedQuery.trim() ? (
-            <View style={styles.centerContainer}>
-              <View
-                style={[
-                  styles.emptyIconCircle,
-                  { backgroundColor: colors.surfaceRaised, borderColor: colors.border },
-                ]}
-              >
-                <Ionicons name="search" size={28} color={colors.textSecondary} />
+            <ScrollView
+              contentContainerStyle={[
+                styles.emptyStateScroll,
+                { paddingBottom: 32 + (Platform.OS === 'ios' ? bottomInset : 0) },
+              ]}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+              showsVerticalScrollIndicator={false}
+            >
+              {/* Recent Searches (stored locally, up to 5) */}
+              {recentSearches.length > 0 && (
+                <View style={styles.emptyStateSection}>
+                  <View style={styles.emptyStateSectionHeader}>
+                    <Text variant="xs" weight="700" color="secondary" style={styles.sectionTitle}>
+                      RECENT SEARCHES
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => void clearRecentSearches()}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityLabel="Clear recent searches"
+                    >
+                      <Text variant="xs" weight="600" color="primary">
+                        Clear all
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={styles.recentList}>
+                    {recentSearches.map((term, index) => (
+                      <View
+                        key={`recent-${index}-${term}`}
+                        style={[
+                          styles.recentItemRow,
+                          {
+                            backgroundColor: colors.surface,
+                            borderColor: colors.border,
+                          },
+                        ]}
+                      >
+                        <TouchableOpacity
+                          style={styles.recentItemTouchable}
+                          onPress={() => {
+                            setQuery(term);
+                            setDebouncedQuery(term);
+                            void saveRecentSearch(term);
+                          }}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons
+                            name="time-outline"
+                            size={16}
+                            color={colors.textMuted}
+                            style={{ marginRight: 10 }}
+                          />
+                          <Text
+                            variant="sm"
+                            weight="600"
+                            numberOfLines={1}
+                            style={{ flex: 1, color: colors.text }}
+                          >
+                            {term}
+                          </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          onPress={() => void removeRecentSearch(term)}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          style={{ padding: 4 }}
+                          accessibilityLabel={`Remove ${term} from recent searches`}
+                        >
+                          <Ionicons name="close" size={16} color={colors.textMuted} />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
+
+              {/* Suggested Categories (Files, Subjects, Students, Assignments) */}
+              <View style={styles.emptyStateSection}>
+                <View style={styles.emptyStateSectionHeader}>
+                  <Text variant="xs" weight="700" color="secondary" style={styles.sectionTitle}>
+                    {filterType === 'files' ? 'SUGGESTED STUDY CATEGORIES' : 'SUGGESTED CATEGORIES'}
+                  </Text>
+                </View>
+
+                <View style={styles.categoryGrid}>
+                  {(filterType === 'files' ? LIBRARY_CATEGORIES : GLOBAL_CATEGORIES).map((cat) => (
+                    <TouchableOpacity
+                      key={cat.id}
+                      style={[
+                        styles.categoryCard,
+                        {
+                          backgroundColor: colors.surface,
+                          borderColor: colors.border,
+                        },
+                      ]}
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        setQuery(cat.query);
+                        setDebouncedQuery(cat.query);
+                        void saveRecentSearch(cat.query);
+                      }}
+                      accessibilityLabel={`Search ${cat.label}`}
+                    >
+                      <View style={[styles.categoryIconWrap, { backgroundColor: cat.bgColor }]}>
+                        <Ionicons name={cat.icon} size={20} color={cat.iconColor} />
+                      </View>
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text variant="sm" weight="700" style={{ color: colors.text }}>
+                          {cat.label}
+                        </Text>
+                        <Caption color="muted" numberOfLines={1} style={{ marginTop: 2 }}>
+                          {cat.description}
+                        </Caption>
+                      </View>
+                      <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
-              <Text variant="md" weight="700" style={{ marginTop: 14 }}>
-                {filterType === 'files' ? 'Search Library Notes' : 'Search Campus'}
-              </Text>
-              <Text variant="sm" color="muted" style={{ textAlign: 'center', marginTop: 4, paddingHorizontal: 32 }}>
-                {filterType === 'files'
-                  ? 'Type to find notes across all semesters, subjects, and chapters.'
-                  : 'Type to find study notes, subjects, classmates, and assignments.'}
-              </Text>
-            </View>
+            </ScrollView>
           ) : (
             <ScrollView
               contentContainerStyle={[
@@ -332,6 +553,7 @@ export function SearchOverlay({
                       ]}
                       activeOpacity={0.7}
                       onPress={() => {
+                        void saveRecentSearch(query.trim() || file.title || file.originalName);
                         handleClose();
                         router.push(`/material/${file.id}?preview=1` as any);
                       }}
@@ -410,6 +632,7 @@ export function SearchOverlay({
                     ]}
                     activeOpacity={0.7}
                     onPress={() => {
+                      void saveRecentSearch(query.trim() || sub.subject);
                       handleClose();
                       router.push({
                         pathname: '/(tabs)/library',
@@ -463,6 +686,7 @@ export function SearchOverlay({
                       ]}
                       activeOpacity={0.7}
                       onPress={() => {
+                        void saveRecentSearch(query.trim() || student.name);
                         handleClose();
                         if (user?.studentId && user.studentId === student.studentId) {
                           router.push('/(tabs)/profile');
@@ -549,7 +773,10 @@ export function SearchOverlay({
                       },
                     ]}
                     activeOpacity={0.7}
-                    onPress={() => setSelectedAssignment(assignment)}
+                    onPress={() => {
+                      void saveRecentSearch(query.trim() || assignment.title);
+                      setSelectedAssignment(assignment);
+                    }}
                   >
                     <View
                       style={[
@@ -976,5 +1203,52 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 16,
+  },
+  emptyStateScroll: {
+    padding: 16,
+    paddingTop: 12,
+  },
+  emptyStateSection: {
+    marginBottom: 24,
+  },
+  emptyStateSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+    paddingHorizontal: 4,
+  },
+  recentList: {
+    gap: 8,
+  },
+  recentItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  recentItemTouchable: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  categoryGrid: {
+    gap: 10,
+  },
+  categoryCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  categoryIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

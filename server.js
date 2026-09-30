@@ -1036,10 +1036,10 @@ app.post('/api/auth/login', loginRateLimiter, async (req, res) => {
   if (identifier.includes('@')) {
     resolvedEmail = identifier.toLowerCase();
   } else {
-    // Resolve username to email server-side
+    // Resolve username or student ID to email server-side
     const student = await db.get(
-      'SELECT email FROM students WHERE LOWER(username) = ?',
-      identifier.toLowerCase()
+      'SELECT email FROM students WHERE LOWER(username) = ? OR LOWER(studentId) = ?',
+      identifier.toLowerCase(), identifier.toLowerCase()
     );
     if (student && student.email) {
       resolvedEmail = student.email.toLowerCase();
@@ -1126,7 +1126,7 @@ app.post('/api/auth/forgot-password', loginRateLimiter, async (req, res) => {
   if (identifier.includes('@')) {
     emailToSend = identifier.toLowerCase();
   } else {
-    const student = await db.get('SELECT email FROM students WHERE LOWER(username) = ?', identifier.toLowerCase());
+    const student = await db.get('SELECT email FROM students WHERE LOWER(username) = ? OR LOWER(studentId) = ?', identifier.toLowerCase(), identifier.toLowerCase());
     if (student && student.email) {
       emailToSend = student.email.toLowerCase();
     }
@@ -1162,7 +1162,7 @@ app.post('/api/auth/resend-verification', loginRateLimiter, async (req, res) => 
   if (identifier.includes('@')) {
     emailToSend = identifier.toLowerCase();
   } else {
-    const student = await db.get('SELECT email FROM students WHERE LOWER(username) = ?', identifier.toLowerCase());
+    const student = await db.get('SELECT email FROM students WHERE LOWER(username) = ? OR LOWER(studentId) = ?', identifier.toLowerCase(), identifier.toLowerCase());
     if (student && student.email) {
       emailToSend = student.email.toLowerCase();
     }

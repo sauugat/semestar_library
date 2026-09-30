@@ -608,7 +608,7 @@ export default function LoginScreen() {
 
               <Input
                 label="Username or Email"
-                placeholder="e.g. saugat_subedi or email@example.com"
+                placeholder="e.g. username or student@example.com"
                 value={fpIdentifier}
                 onChangeText={setFpIdentifier}
                 leftIcon="mail-outline"

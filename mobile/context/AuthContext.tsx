@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { clearChatDb } from '@/services/chat-db';
 import { initChatRealtime, disconnectChatRealtime } from '@/services/chat-realtime';
 import { clearAppQueryCache } from '@/services/query-client';
-import { getAutoDetectedServerUrl, DEFAULT_SERVER_URL } from '@/services/api';
+import { getAutoDetectedServerUrl, getBaseUrl, DEFAULT_SERVER_URL } from '@/services/api';
 
 const TOKEN_KEY = 'semester_library_mobile_token';
 const USER_KEY = 'semester_library_mobile_user';
@@ -77,7 +77,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         // 1. Load custom server URL if configured
         const savedUrl = await SecureStore.getItemAsync(SERVER_URL_KEY);
-        const activeUrl = savedUrl || getAutoDetectedServerUrl();
+        let activeUrl = savedUrl ? savedUrl.trim().replace(/\/+$/, '') : '';
+        if (
+          !__DEV__ &&
+          activeUrl &&
+          (activeUrl.includes('192.168.') || activeUrl.includes('localhost') || activeUrl.includes('127.0.0.1') || activeUrl.includes('10.0.2.2'))
+        ) {
+          await SecureStore.deleteItemAsync(SERVER_URL_KEY);
+          activeUrl = '';
+        }
+        if (!activeUrl) {
+          activeUrl = await getBaseUrl();
+        }
         if (isMounted) setServerUrl(activeUrl);
 
         // 2. Load stored token & cached user profile

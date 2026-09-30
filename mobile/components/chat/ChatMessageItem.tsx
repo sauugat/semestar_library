@@ -226,7 +226,7 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
     if (item.avatarUrl.startsWith('http://') || item.avatarUrl.startsWith('https://')) {
       return item.avatarUrl;
     }
-    const base = serverUrl || 'http://localhost:3000';
+    const base = serverUrl || 'https://semestar-library.vercel.app';
     return `${base.replace(/\/+$/, '')}/${item.avatarUrl.replace(/^\/+/, '')}`;
   }, [item.avatarUrl, serverUrl]);
 

@@ -5,7 +5,7 @@ import Constants from 'expo-constants';
 export const DEFAULT_SERVER_URL =
   process.env.EXPO_PUBLIC_API_URL ||
   (Constants.expoConfig?.extra as any)?.apiUrl ||
-  'http://192.168.1.65:3000';
+  'https://semestar-library.vercel.app';
 export const TOKEN_STORAGE_KEY = 'semester_library_mobile_token';
 export const SERVER_URL_STORAGE_KEY = 'semester_library_server_url';
 
@@ -23,11 +23,13 @@ export class ApiError extends Error {
 
 export function getAutoDetectedServerUrl(): string {
   try {
-    const hostUri = Constants.expoConfig?.hostUri || (Constants as any).manifest2?.extra?.expoGo?.debuggerHost;
-    if (hostUri) {
-      const host = hostUri.split(':')[0];
-      if (host) {
-        return `http://${host}:3000`;
+    if (__DEV__) {
+      const hostUri = Constants.expoConfig?.hostUri || (Constants as any).manifest2?.extra?.expoGo?.debuggerHost;
+      if (hostUri) {
+        const host = hostUri.split(':')[0];
+        if (host && host !== 'localhost' && host !== '127.0.0.1') {
+          return `http://${host}:3000`;
+        }
       }
     }
   } catch {}
@@ -38,15 +40,26 @@ export async function getBaseUrl(): Promise<string> {
   try {
     const saved = await SecureStore.getItemAsync(SERVER_URL_STORAGE_KEY);
     if (saved && saved.trim()) {
-      return saved.trim().replace(/\/+$/, '');
+      const clean = saved.trim().replace(/\/+$/, '');
+      // Purge stale local development IPs in production builds
+      if (!__DEV__ && (clean.includes('192.168.') || clean.includes('localhost') || clean.includes('127.0.0.1') || clean.includes('10.0.2.2'))) {
+        await SecureStore.deleteItemAsync(SERVER_URL_STORAGE_KEY);
+      } else {
+        return clean;
+      }
     }
   } catch {}
 
-  if (process.env.EXPO_PUBLIC_API_URL) {
+  if (process.env.EXPO_PUBLIC_API_URL && process.env.EXPO_PUBLIC_API_URL.trim()) {
     return process.env.EXPO_PUBLIC_API_URL.trim().replace(/\/+$/, '');
   }
 
-  return getAutoDetectedServerUrl();
+  const extraUrl = (Constants.expoConfig?.extra as any)?.apiUrl;
+  if (extraUrl && typeof extraUrl === 'string' && extraUrl.trim()) {
+    return extraUrl.trim().replace(/\/+$/, '');
+  }
+
+  return DEFAULT_SERVER_URL;
 }
 
 export async function getAuthToken(): Promise<string | null> {

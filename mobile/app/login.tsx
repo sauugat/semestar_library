@@ -704,8 +704,8 @@ export default function LoginScreen() {
                   onChangeText={setCustomUrl}
                   autoCapitalize="none"
                   autoCorrect={false}
-                  placeholder="http://192.168.1.65:3000"
-                  helper="Change if your computer's Wi-Fi IP changes."
+                  placeholder="https://semestar-library.vercel.app"
+                  helper="Default: https://semestar-library.vercel.app"
                 />
                 <Button
                   title="Save Server URL"

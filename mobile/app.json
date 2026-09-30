@@ -70,6 +70,7 @@
     },
     "extra": {
       "router": {},
+      "apiUrl": "https://semestar-library.vercel.app",
       "eas": {
         "projectId": "5be8be6b-6f00-4099-b32d-5ee89bdad342"
       }

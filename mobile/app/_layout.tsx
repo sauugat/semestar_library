@@ -12,6 +12,7 @@ import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client
 import { queryClient, asyncStoragePersister } from '@/services/query-client';
 import { AuthProvider } from '@/context/AuthContext';
 import { useTheme } from '@/constants/useTheme';
+import { AppUpdateChecker } from '@/components/AppUpdateChecker';
 
 export {
   ErrorBoundary,
@@ -52,6 +53,7 @@ export default function RootLayout() {
     >
       <AuthProvider>
         <RootLayoutNav />
+        <AppUpdateChecker />
       </AuthProvider>
     </PersistQueryClientProvider>
   );

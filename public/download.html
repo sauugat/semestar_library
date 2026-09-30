@@ -567,11 +567,20 @@
       }
 
       .dl-hero-centered .dl-hero-badge {
-        font-size: 10px;
-        letter-spacing: .05em;
+        font-size: 8.5px;
+        letter-spacing: .04em;
+        gap: 6px;
         white-space: normal;
         text-align: center;
-        line-height: 1.4;
+        line-height: 1.35;
+        max-width: 100%;
+        justify-content: center;
+      }
+
+      .dl-hero-centered .dl-hero-badge .hero-dot {
+        width: 5px;
+        height: 5px;
+        flex-shrink: 0;
       }
 
       .dl-hero-centered h1 {
@@ -868,6 +877,17 @@
         padding: 6px 11px;
         font-size: 10.5px;
         min-height: 32px;
+      }
+
+      .dl-hero-centered .dl-hero-badge {
+        font-size: 8px;
+        letter-spacing: .03em;
+        gap: 5px;
+      }
+
+      .dl-hero-centered .dl-hero-badge .hero-dot {
+        width: 4px;
+        height: 4px;
       }
     }
   </style>

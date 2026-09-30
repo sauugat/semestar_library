@@ -16,25 +16,44 @@ export const NOTIFICATION_CHANNELS = {
   NOTICES: 'notices',
 } as const;
 
-// Strict typing for incoming push notification data payloads
-export interface ChatNotificationData {
+// Strict typing for incoming push notification data payloads adhering to production contract
+export interface BaseNotificationData {
+  eventId?: string;
+  entityId?: string;
+  actorId?: string;
+  actorName?: string;
+  groupKey?: string;
+  collapseId?: string;
+  createdAt?: string;
+}
+
+export interface ChatNotificationData extends BaseNotificationData {
   type: 'chat';
   messageId?: number;
+  groupId?: string;
+  groupName?: string;
+  count?: number;
+  senders?: string[];
 }
 
-export interface MaterialNotificationData {
+export interface MaterialNotificationData extends BaseNotificationData {
   type: 'material';
   fileId: number;
+  materialId?: number;
+  title?: string;
+  subject?: string | null;
+  semester?: string | null;
 }
 
-export interface PostNotificationData {
+export interface PostNotificationData extends BaseNotificationData {
   type: 'post';
   postId: number;
 }
 
-export interface NoticeNotificationData {
+export interface NoticeNotificationData extends BaseNotificationData {
   type: 'notice';
   noticeId: number;
+  postId?: number;
 }
 
 export type NotificationPayload =
@@ -48,11 +67,17 @@ export interface NotificationPreferences {
   notifyNotes: boolean;
   notifyPosts: boolean;
   notifyNotices: boolean;
+  hideLockscreenPreview: boolean;
 }
 
 // In-memory pending notification destination if tapped while unauthenticated
 let pendingNotificationDestination: NotificationPayload | null = null;
 let lastHandledNotificationId: string | null = null;
+let isChatScreenActive = false;
+
+export function setChatScreenActive(active: boolean): void {
+  isChatScreenActive = active;
+}
 
 export function getPendingNotification(): NotificationPayload | null {
   return pendingNotificationDestination;
@@ -70,16 +95,60 @@ export function consumePendingNotification(): NotificationPayload | null {
 
 /**
  * Configure default foreground notification behavior.
- * When the app is in foreground, banners and lists show according to channel importance.
+ * When the user is already inside the active chat screen, banner is suppressed to avoid redundant alerts.
  */
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
+  handleNotification: async (notification) => {
+    const data = notification?.request?.content?.data as Record<string, any> | undefined;
+    const isChat = data?.type === 'chat';
+
+    if (isChat && isChatScreenActive) {
+      // User is actively reading the chat in foreground; suppress intrusive heads-up banner and let Realtime UI handle it
+      return {
+        shouldShowBanner: false,
+        shouldShowList: true,
+        shouldPlaySound: false,
+        shouldSetBadge: false,
+      };
+    }
+
+    return {
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    };
+  },
 });
+
+/**
+ * Sync server-side unread badge count to device icon.
+ */
+export async function syncAppBadge(count?: number): Promise<void> {
+  try {
+    if (typeof count === 'number') {
+      await Notifications.setBadgeCountAsync(Math.max(0, count));
+      return;
+    }
+    const res = await apiFetch('/api/notifications/unread-count');
+    if (res.ok) {
+      const data = await res.json().catch(() => ({}));
+      if (typeof data.count === 'number') {
+        await Notifications.setBadgeCountAsync(Math.max(0, data.count));
+      }
+    }
+  } catch (err) {
+    if (__DEV__) console.warn('[Push] Error syncing app badge count:', err);
+  }
+}
+
+export async function clearAppBadge(): Promise<void> {
+  try {
+    await Notifications.setBadgeCountAsync(0);
+  } catch (err) {
+    if (__DEV__) console.warn('[Push] Error clearing app badge count:', err);
+  }
+}
 
 /**
  * Configure Android notification channels programmatically.
@@ -88,49 +157,59 @@ export async function configureNotificationChannels(): Promise<void> {
   if (Platform.OS !== 'android') return;
 
   try {
-    // 1. Group Chat
+    // 1. Group Chat (Importance: Default, normal sound, grouping enabled)
     await Notifications.setNotificationChannelAsync(NOTIFICATION_CHANNELS.CHAT, {
       name: 'Group Chat',
       description: 'Incoming messages from class group chat',
-      importance: Notifications.AndroidImportance.HIGH,
+      importance: Notifications.AndroidImportance.DEFAULT,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: '#6366F1',
+      enableLights: true,
+      enableVibrate: true,
     });
 
     // 2. Study Materials (Academic)
     await Notifications.setNotificationChannelAsync(NOTIFICATION_CHANNELS.ACADEMIC, {
       name: 'Study Materials',
       description: 'New notes and study materials shared for your semester',
-      importance: Notifications.AndroidImportance.HIGH,
+      importance: Notifications.AndroidImportance.DEFAULT,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: '#10B981',
+      enableLights: true,
+      enableVibrate: true,
     });
 
     // 3. Social / Feed Posts
     await Notifications.setNotificationChannelAsync(NOTIFICATION_CHANNELS.SOCIAL, {
       name: 'Feed Posts',
       description: 'New questions and discussions on campus feed',
-      importance: Notifications.AndroidImportance.HIGH,
+      importance: Notifications.AndroidImportance.DEFAULT,
       vibrationPattern: [0, 200, 200, 200],
       lightColor: '#8B5CF6',
+      enableLights: true,
+      enableVibrate: true,
     });
 
-    // 4. Official Notices
+    // 4. Official Notices (Importance: High)
     await Notifications.setNotificationChannelAsync(NOTIFICATION_CHANNELS.NOTICES, {
       name: 'Official Notices',
       description: 'Urgent notices and administrative announcements',
       importance: Notifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 300, 200, 300],
       lightColor: '#EF4444',
+      enableLights: true,
+      enableVibrate: true,
     });
 
     // 5. Default Fallback Channel
     await Notifications.setNotificationChannelAsync('default', {
       name: 'General',
       description: 'General system notifications',
-      importance: Notifications.AndroidImportance.HIGH,
+      importance: Notifications.AndroidImportance.DEFAULT,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: '#6366F1',
+      enableLights: true,
+      enableVibrate: true,
     });
 
     if (__DEV__) {
@@ -305,7 +384,7 @@ export async function unregisterPushToken(): Promise<void> {
 }
 
 /**
- * Validate untrusted incoming push notification data.
+ * Validate untrusted incoming push notification data against strict typed contract.
  */
 export function parseNotificationData(raw: unknown): NotificationPayload | null {
   if (!raw || typeof raw !== 'object') return null;
@@ -317,28 +396,64 @@ export function parseNotificationData(raw: unknown): NotificationPayload | null 
     const messageId = Number(data.messageId);
     return {
       type: 'chat',
+      eventId: data.eventId ? String(data.eventId) : undefined,
+      entityId: data.entityId ? String(data.entityId) : undefined,
       messageId: Number.isFinite(messageId) ? messageId : undefined,
+      groupId: data.groupId || 'bit',
+      groupName: data.groupName || 'BIT Group Chat',
+      count: Number(data.count) || 1,
+      senders: Array.isArray(data.senders) ? data.senders : undefined,
+      actorId: data.actorId ? String(data.actorId) : undefined,
+      actorName: data.actorName ? String(data.actorName) : undefined,
+      groupKey: data.groupKey || 'chat_group_bit',
+      collapseId: data.collapseId || 'chat_group_bit',
     };
   }
 
   if (type === 'material') {
-    const fileId = Number(data.fileId);
+    const fileId = Number(data.fileId || data.materialId);
     if (Number.isFinite(fileId) && fileId > 0) {
-      return { type: 'material', fileId };
+      return {
+        type: 'material',
+        fileId,
+        materialId: fileId,
+        title: data.title ? String(data.title) : undefined,
+        subject: data.subject ? String(data.subject) : null,
+        semester: data.semester ? String(data.semester) : null,
+        actorId: data.actorId ? String(data.actorId) : undefined,
+        actorName: data.actorName ? String(data.actorName) : undefined,
+        groupKey: data.groupKey,
+        collapseId: data.collapseId,
+      };
     }
   }
 
   if (type === 'post') {
     const postId = Number(data.postId);
     if (Number.isFinite(postId) && postId > 0) {
-      return { type: 'post', postId };
+      return {
+        type: 'post',
+        postId,
+        actorId: data.actorId ? String(data.actorId) : undefined,
+        actorName: data.actorName ? String(data.actorName) : undefined,
+        groupKey: data.groupKey,
+        collapseId: data.collapseId,
+      };
     }
   }
 
   if (type === 'notice') {
-    const noticeId = Number(data.noticeId);
+    const noticeId = Number(data.noticeId || data.postId);
     if (Number.isFinite(noticeId) && noticeId > 0) {
-      return { type: 'notice', noticeId };
+      return {
+        type: 'notice',
+        noticeId,
+        postId: noticeId,
+        actorId: data.actorId ? String(data.actorId) : undefined,
+        actorName: data.actorName ? String(data.actorName) : undefined,
+        groupKey: data.groupKey,
+        collapseId: data.collapseId,
+      };
     }
   }
 
@@ -411,8 +526,11 @@ export function navigateFromNotification(
         break;
 
       case 'notice':
-        // Navigate to dedicated notices screen
-        router.push('/notices');
+        // Navigate to dedicated notices screen targeting notice
+        router.push({
+          pathname: '/notices',
+          params: { id: String(payload.noticeId) },
+        });
         break;
 
       default:
@@ -441,6 +559,7 @@ export async function getNotificationPreferences(): Promise<NotificationPreferen
           notifyNotes: data.preferences.notifyNotes !== false,
           notifyPosts: data.preferences.notifyPosts !== false,
           notifyNotices: data.preferences.notifyNotices !== false,
+          hideLockscreenPreview: Boolean(data.preferences.hideLockscreenPreview),
         };
       }
     }

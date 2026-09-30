@@ -1955,7 +1955,8 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
             title: fileTitle,
             semester,
             subject,
-            uploaderStudentId: req.session?.studentId || req.user?.studentId
+            uploaderStudentId: req.session?.studentId || req.user?.studentId,
+            uploaderName: req.user?.name || req.session?.studentName || null
           });
           if (enqueueResult && enqueueResult.enqueuedCount > 0) {
             await dispatchImmediateOutbox(db, {
@@ -2229,7 +2230,8 @@ app.post('/api/files/record-upload', requireLogin, async (req, res) => {
             title: fileTitle,
             semester: cleanSemester,
             subject: cleanSubject,
-            uploaderStudentId: req.session?.studentId || req.user?.studentId
+            uploaderStudentId: req.session?.studentId || req.user?.studentId,
+            uploaderName: req.user?.name || req.session?.studentName || null
           });
           if (enqueueResult && enqueueResult.enqueuedCount > 0) {
             await dispatchImmediateOutbox(db, {

@@ -69,6 +69,7 @@ import {
   sendChatMessage,
   sendChatTyping,
 } from "@/services/chat";
+import { setChatScreenActive, clearAppBadge } from "@/services/notifications";
 
 function MemberAvatarItem({
   member,
@@ -147,6 +148,16 @@ export default function ChatScreen() {
       hideSub.remove();
     };
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      setChatScreenActive(true);
+      void clearAppBadge();
+      return () => {
+        setChatScreenActive(false);
+      };
+    }, [])
+  );
 
   const isKeyboardVisible = keyboardHeight > 0;
 

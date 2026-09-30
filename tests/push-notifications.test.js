@@ -96,7 +96,7 @@ test('Push Notifications Foundation (Phase A)', async (t) => {
       notifyNotes: true,
       notifyPosts: true,
       notifyNotices: true,
-      hideLockscreenPreview: true,
+      hideLockscreenPreview: false,
     });
 
     // 2. Custom preferences update
@@ -105,18 +105,19 @@ test('Push Notifications Foundation (Phase A)', async (t) => {
       notifyNotes: false,
       notifyPosts: true,
       notifyNotices: true,
-      hideLockscreenPreview: false,
+      hideLockscreenPreview: true,
     });
 
     assert.equal(updated.muteChat, true);
     assert.equal(updated.notifyNotes, false);
-    assert.equal(updated.hideLockscreenPreview, false);
+    assert.equal(updated.hideLockscreenPreview, true);
 
     // 3. Verify retrieval
     const retrieved = await push.getNotificationPreferences(db, student);
     assert.equal(retrieved.muteChat, true);
     assert.equal(retrieved.notifyNotes, false);
     assert.equal(retrieved.notifyPosts, true);
+    assert.equal(retrieved.hideLockscreenPreview, true);
   });
 
   await t.test('Push notification outbox enforces idempotency and duplicate prevention', async () => {

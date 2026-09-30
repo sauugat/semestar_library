@@ -181,7 +181,9 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
           authorName: req.postUser.name,
           type,
           isOfficial,
-          role: req.postUser.role
+          role: req.postUser.role,
+          content: content.trim(),
+          semester: req.postUser.semester
         });
         if (enqueueResult && enqueueResult.enqueuedCount > 0) {
           const isOfficialNotice = type === 'notice' && (Boolean(isOfficial) || ['admin', 'cr', 'teacher'].includes(req.postUser.role));

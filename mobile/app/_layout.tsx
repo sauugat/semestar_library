@@ -17,6 +17,7 @@ import * as Notifications from 'expo-notifications';
 import {
   configureNotificationChannels,
   navigateFromNotification,
+  syncAppBadge,
 } from '@/services/notifications';
 
 export {
@@ -71,6 +72,7 @@ function RootLayoutNav() {
   // Configure Android notification channels and setup notification listeners
   useEffect(() => {
     void configureNotificationChannels();
+    if (token) void syncAppBadge();
 
     // Foreground notification listener
     const receivedSub = Notifications.addNotificationReceivedListener((notification) => {

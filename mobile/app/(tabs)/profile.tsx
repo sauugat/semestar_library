@@ -116,6 +116,7 @@ export default function ProfileScreen() {
     notifyNotes: true,
     notifyPosts: true,
     notifyNotices: true,
+    hideLockscreenPreview: false,
   });
   const [loadingPrefs, setLoadingPrefs] = useState(false);
   const [updatingPrefKey, setUpdatingPrefKey] = useState<string | null>(null);
@@ -1181,6 +1182,25 @@ export default function ProfileScreen() {
               <Switch
                 value={notifPrefs.notifyNotices}
                 onValueChange={(val) => void handleTogglePref('notifyNotices', val)}
+                trackColor={{ false: colors.border, true: colors.primary }}
+              />
+            )}
+          </View>
+
+          <View style={styles.notifDivider} />
+
+          {/* Hide Lock Screen Previews */}
+          <View style={styles.notifPrefRow}>
+            <View style={{ flex: 1, marginRight: 12 }}>
+              <Text variant="sm" weight="600">Hide Lock Screen Previews</Text>
+              <Caption color="muted">Mask notification titles and details on the lock screen for privacy</Caption>
+            </View>
+            {updatingPrefKey === 'hideLockscreenPreview' ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Switch
+                value={notifPrefs.hideLockscreenPreview}
+                onValueChange={(val) => void handleTogglePref('hideLockscreenPreview', val)}
                 trackColor={{ false: colors.border, true: colors.primary }}
               />
             )}

@@ -533,7 +533,7 @@ app.get(['/download', '/download.html', '/app'], (req, res) => {
 });
 
 // Direct APK download endpoint (serves local binary if present, else redirects to permanent download URL)
-const LATEST_APK_CDN_URL = 'https://expo.dev/artifacts/eas/oDHle6N3U1yPqtJe4JIMzHqdcw2odCLa9jnA4-kY6Fk.apk';
+const LATEST_APK_CDN_URL = 'https://expo.dev/artifacts/eas/Y0YCF6X2hniqkWUyIjibZHFzXRC5saGbkdd-O6MvdYM.apk';
 const GITHUB_APK_DOWNLOAD_URL = 'https://github.com/sauugat/semestar_library/releases/latest/download/semlab.apk';
 
 app.get(['/download/apk', '/api/download/apk', '/download/semlab.apk', '/semlab.apk', '/download/Semester-library.apk'], (req, res) => {

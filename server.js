@@ -546,10 +546,10 @@ app.get(['/download/apk', '/api/download/apk', '/download/Semester-library.apk']
 app.get(['/api/app/version', '/api/version'], (req, res) => {
   res.json({
     latestVersion: '1.0.0',
-    versionCode: 2,
+    versionCode: 3,
     apkUrl: 'https://semestar-library.vercel.app/download/apk',
     cdnUrl: LATEST_APK_CDN_URL,
-    releaseNotes: 'Official Semester Library logo outside on home screen and app drawer, enhanced performance and security.',
+    releaseNotes: 'Official app logo, Instagram-style pinch-to-zoom on post photos, smooth feed animations, and update notifications.',
     forceUpdate: false
   });
 });

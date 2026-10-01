@@ -6,6 +6,7 @@ interface CardProps {
   variant?: 'elevated' | 'outlined' | 'flat';
   padding?: 'none' | 'sm' | 'md' | 'lg';
   onPress?: () => void;
+  onLayout?: (event: any) => void;
   style?: any;
   children: React.ReactNode;
 }
@@ -14,6 +15,7 @@ export function Card({
   variant = 'elevated',
   padding = 'md',
   onPress,
+  onLayout,
   style,
   children,
 }: CardProps) {
@@ -53,6 +55,7 @@ export function Card({
       <TouchableOpacity
         activeOpacity={0.7}
         onPress={onPress}
+        onLayout={onLayout}
         style={cardStyle}
       >
         {children}
@@ -61,7 +64,7 @@ export function Card({
   }
 
   return (
-    <View style={cardStyle}>
+    <View style={cardStyle} onLayout={onLayout}>
       {children}
     </View>
   );

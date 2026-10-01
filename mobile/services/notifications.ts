@@ -70,13 +70,32 @@ export interface NotificationPreferences {
   hideLockscreenPreview: boolean;
 }
 
-// In-memory pending notification destination if tapped while unauthenticated
+// Centralized notification navigation state machine
 let pendingNotificationDestination: NotificationPayload | null = null;
+let isHandlingNotificationNavigation = false;
+let notificationNavigationCompleted = false;
 let lastHandledNotificationId: string | null = null;
+let lastHandledTimestamp = 0;
 let isChatScreenActive = false;
 
 export function setChatScreenActive(active: boolean): void {
   isChatScreenActive = active;
+}
+
+export function isNotificationNavigating(): boolean {
+  return isHandlingNotificationNavigation || pendingNotificationDestination !== null;
+}
+
+export function hasNotificationNavigationCompleted(): boolean {
+  return notificationNavigationCompleted;
+}
+
+export function resetNotificationNavigationState(): void {
+  isHandlingNotificationNavigation = false;
+  notificationNavigationCompleted = false;
+  pendingNotificationDestination = null;
+  lastHandledNotificationId = null;
+  lastHandledTimestamp = 0;
 }
 
 export function getPendingNotification(): NotificationPayload | null {
@@ -85,12 +104,21 @@ export function getPendingNotification(): NotificationPayload | null {
 
 export function setPendingNotification(payload: NotificationPayload | null): void {
   pendingNotificationDestination = payload;
+  if (payload) {
+    isHandlingNotificationNavigation = true;
+  }
 }
 
 export function consumePendingNotification(): NotificationPayload | null {
   const pending = pendingNotificationDestination;
   pendingNotificationDestination = null;
   return pending;
+}
+
+export function executePendingNotificationNavigation(isAuthenticated: boolean): void {
+  const pending = consumePendingNotification();
+  if (!pending) return;
+  navigateFromNotification(pending, isAuthenticated);
 }
 
 /**
@@ -469,15 +497,17 @@ export function navigateFromNotification(
   isAuthenticated: boolean,
   notificationIdentifier?: string
 ): void {
-  // Duplicate navigation protection
-  if (notificationIdentifier) {
-    if (lastHandledNotificationId === notificationIdentifier) {
-      if (__DEV__) {
-        console.log('[Push] Duplicate notification tap ignored:', notificationIdentifier);
-      }
-      return;
+  const now = Date.now();
+  // Duplicate navigation protection with 4000ms window
+  if (
+    notificationIdentifier &&
+    lastHandledNotificationId === notificationIdentifier &&
+    now - lastHandledTimestamp < 4000
+  ) {
+    if (__DEV__) {
+      console.log('[Push] Duplicate notification tap ignored:', notificationIdentifier);
     }
-    lastHandledNotificationId = notificationIdentifier;
+    return;
   }
 
   const payload = parseNotificationData(rawPayload);
@@ -485,18 +515,22 @@ export function navigateFromNotification(
     if (__DEV__) {
       console.warn('[Push] notification tapped with unknown or invalid payload:', rawPayload);
     }
-    // Safe fallback to home
-    if (isAuthenticated) {
-      router.push('/(tabs)');
-    }
     return;
   }
 
+  if (notificationIdentifier) {
+    lastHandledNotificationId = notificationIdentifier;
+  }
+  lastHandledTimestamp = now;
+
+  // Claim navigation ownership IMMEDIATELY to prevent competing startup redirects
+  isHandlingNotificationNavigation = true;
+
   if (__DEV__) {
-    console.log('[Push] notification tapped:', payload.type);
+    console.log('[Push] Centralized notification navigation triggered for:', payload.type, 'isAuthenticated:', isAuthenticated);
   }
 
-  // If user is not yet logged in, store the pending destination
+  // If user is not yet logged in, store the pending destination and redirect to login
   if (!isAuthenticated) {
     if (__DEV__) {
       console.log('[Push] Stashing pending notification destination until login completes');
@@ -506,20 +540,21 @@ export function navigateFromNotification(
     return;
   }
 
-  // Centralized route dispatcher using verified screen routes
+  // Centralized route dispatcher using verified screen routes and router.replace
+  // to ensure previous/splash route does not compete or trigger delayed redirects
   try {
     switch (payload.type) {
       case 'chat':
-        router.push('/(tabs)/chat');
+        router.replace('/(tabs)/chat');
         break;
 
       case 'material':
-        router.push(`/material/${payload.fileId}`);
+        router.replace(`/material/${payload.fileId}`);
         break;
 
       case 'post':
-        // Navigate to home feed with highlighted postId
-        router.push({
+        // Navigate to home feed with highlighted postId (opens comments discussion)
+        router.replace({
           pathname: '/(tabs)',
           params: { postId: String(payload.postId) },
         });
@@ -527,21 +562,25 @@ export function navigateFromNotification(
 
       case 'notice':
         // Navigate to dedicated notices screen targeting notice
-        router.push({
+        router.replace({
           pathname: '/notices',
           params: { id: String(payload.noticeId) },
         });
         break;
 
       default:
-        router.push('/(tabs)');
+        router.replace('/(tabs)');
         break;
     }
+
+    notificationNavigationCompleted = true;
+    isHandlingNotificationNavigation = false;
   } catch (navErr) {
     console.warn('[Push] Navigation error from notification tap:', navErr);
     try {
-      router.push('/(tabs)');
+      router.replace('/(tabs)');
     } catch {}
+    isHandlingNotificationNavigation = false;
   }
 }
 

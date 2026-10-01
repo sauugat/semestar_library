@@ -633,13 +633,32 @@ export default function HomeScreen() {
   const handledNotificationPostId = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!postId || handledNotificationPostId.current === postId || posts.length === 0) return;
+    if (!postId || handledNotificationPostId.current === postId) return;
     const targetPost = posts.find((p) => String(p.id) === String(postId));
     if (targetPost) {
       handledNotificationPostId.current = postId;
       void handleOpenPostComments(targetPost);
+    } else if (!loadingInitial && posts.length > 0) {
+      handledNotificationPostId.current = postId;
+      const fallbackPost: Post = {
+        id: Number(postId),
+        user_id: '',
+        name: 'Post Discussion',
+        content: '',
+        type: 'status',
+        attachment_url: null,
+        created_at: new Date().toISOString(),
+        role: 'student',
+        avatarUrl: null,
+        studentId: '',
+        like_count: 0,
+        comment_count: 0,
+        submission_count: 0,
+        liked_by_me: false,
+      };
+      void handleOpenPostComments(fallbackPost);
     }
-  }, [postId, posts]);
+  }, [postId, posts, loadingInitial]);
 
   const handleAddPostComment = async () => {
     if (!activeCommentPost || !commentInput.trim() || postingComment) return;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@/constants/useTheme';
 import { useAuth } from '@/context/AuthContext';
 import { Text, Heading, Subheading, Caption } from '@/components/ui/Typography';
@@ -30,8 +30,10 @@ interface NoticeItem {
 
 export default function NoticesScreen() {
   const router = useRouter();
+  const { id: targetNoticeId } = useLocalSearchParams<{ id?: string }>();
   const { colors, spacing, radii } = useTheme();
   const { serverUrl } = useAuth();
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const [notices, setNotices] = useState<NoticeItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,7 +67,8 @@ export default function NoticesScreen() {
 
   const fetchNotices = useCallback(async () => {
     try {
-      const res = await apiFetch('/api/posts?type=notice&limit=50');
+      const limit = targetNoticeId ? '100' : '50';
+      const res = await apiFetch(`/api/posts?type=notice&limit=${limit}`);
       if (res.ok) {
         const data = await res.json();
         const list = Array.isArray(data.posts) ? data.posts : Array.isArray(data) ? data : [];
@@ -77,7 +80,7 @@ export default function NoticesScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [targetNoticeId]);
 
   useEffect(() => {
     fetchNotices();
@@ -90,6 +93,7 @@ export default function NoticesScreen() {
 
   return (
     <ScrollView
+      ref={scrollViewRef}
       contentContainerStyle={[styles.container, { padding: spacing.md, backgroundColor: colors.background }]}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
     >
@@ -133,14 +137,50 @@ export default function NoticesScreen() {
           const noticeImage = getFullUrl(notice.imageUrl);
           const isAdmin = notice.role === 'admin';
           const isCR = notice.role === 'cr';
+          const isTarget = Boolean(targetNoticeId && String(notice.id) === String(targetNoticeId));
 
           return (
             <Card
               key={notice.id}
               variant="elevated"
               padding="md"
-              style={[styles.noticeCard, { borderColor: colors.border, marginBottom: spacing.sm }]}
+              style={[
+                styles.noticeCard,
+                {
+                  borderColor: isTarget ? colors.primary : colors.border,
+                  borderWidth: isTarget ? 2 : 1,
+                  backgroundColor: isTarget ? colors.surfaceRaised : colors.surface,
+                  marginBottom: spacing.sm,
+                },
+              ]}
+              onLayout={(e) => {
+                if (isTarget) {
+                  const y = e.nativeEvent.layout.y;
+                  scrollViewRef.current?.scrollTo({ y: Math.max(0, y - 16), animated: true });
+                }
+              }}
             >
+              {/* Highlight badge for targeted notice from push notification */}
+              {isTarget && (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    backgroundColor: colors.primary,
+                    alignSelf: 'flex-start',
+                    paddingHorizontal: 8,
+                    paddingVertical: 3,
+                    borderRadius: 6,
+                    marginBottom: 10,
+                  }}
+                >
+                  <Ionicons name="bookmark" size={12} color="#ffffff" style={{ marginRight: 4 }} />
+                  <Text variant="xs" weight="700" style={{ color: '#ffffff', fontSize: 11 }}>
+                    Selected Notice
+                  </Text>
+                </View>
+              )}
+
               {/* Header row: Author & Badge */}
               <View style={styles.noticeHeader}>
                 <TouchableOpacity

@@ -5,6 +5,10 @@ import { Image } from 'expo-image';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/constants/useTheme';
 import { Text } from '@/components/ui/Typography';
+import {
+  isNotificationNavigating,
+  hasNotificationNavigationCompleted,
+} from '@/services/notifications';
 
 export default function Index() {
   const router = useRouter();
@@ -61,12 +65,22 @@ export default function Index() {
   }, []);
 
   useEffect(() => {
+    // If a notification has claimed navigation or completed navigation,
+    // SUPPRESS the default redirect to Home or Login completely!
+    if (isNotificationNavigating() || hasNotificationNavigationCompleted()) {
+      return;
+    }
+
     if (!isLoading && minTimeElapsed) {
       Animated.timing(fadeAnim, {
         toValue: 0,
         duration: 220,
         useNativeDriver: true,
       }).start(() => {
+        // Double check again after fade animation completes
+        if (isNotificationNavigating() || hasNotificationNavigationCompleted()) {
+          return;
+        }
         if (token) {
           router.replace('/(tabs)');
         } else {

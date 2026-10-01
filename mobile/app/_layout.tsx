@@ -18,6 +18,10 @@ import {
   configureNotificationChannels,
   navigateFromNotification,
   syncAppBadge,
+  getPendingNotification,
+  setPendingNotification,
+  executePendingNotificationNavigation,
+  parseNotificationData,
 } from '@/services/notifications';
 
 export {
@@ -69,9 +73,27 @@ function RootLayoutNav() {
   const { colors } = useTheme();
   const { token, isLoading } = useAuth();
 
-  // Configure Android notification channels and setup notification listeners
+  // 1. Initial channel setup and pre-emptive cold-start notification lock
   useEffect(() => {
     void configureNotificationChannels();
+
+    // Pre-emptively inspect cold-start notification to lock navigation before splash timer
+    void (async () => {
+      try {
+        const response = await Notifications.getLastNotificationResponseAsync();
+        if (response?.notification) {
+          const data = response.notification.request.content.data;
+          const payload = parseNotificationData(data);
+          if (payload) {
+            setPendingNotification(payload);
+          }
+        }
+      } catch {}
+    })();
+  }, []);
+
+  // 2. Notification response listeners
+  useEffect(() => {
     if (token) void syncAppBadge();
 
     // Foreground notification listener
@@ -88,22 +110,41 @@ function RootLayoutNav() {
       if (__DEV__) {
         console.log('[Push] Notification tapped from system tray:', identifier);
       }
-      navigateFromNotification(data, Boolean(token), identifier);
+      if (isLoading) {
+        // Auth session restore is still loading: queue destination to prevent false unauth redirect
+        const payload = parseNotificationData(data);
+        if (payload) {
+          setPendingNotification(payload);
+        }
+      } else {
+        navigateFromNotification(data, Boolean(token), identifier);
+      }
     });
 
     return () => {
       receivedSub.remove();
       responseSub.remove();
     };
-  }, [token]);
+  }, [token, isLoading]);
 
-  // Handle cold-start notification tap when the app starts from terminated state
+  // 3. Dispatch pending or cold-start notification once auth session restoration resolves
   useEffect(() => {
     if (isLoading) return; // Wait until auth restoration is resolved
 
     let isMounted = true;
     void (async () => {
       try {
+        // Check if a notification response was queued during initial mount / auth loading
+        const pending = getPendingNotification();
+        if (pending) {
+          if (isMounted) {
+            executePendingNotificationNavigation(Boolean(token));
+            await Notifications.clearLastNotificationResponseAsync().catch(() => {});
+          }
+          return;
+        }
+
+        // Check native cold-start notification response
         const response = await Notifications.getLastNotificationResponseAsync();
         if (isMounted && response?.notification) {
           const data = response.notification.request.content.data;

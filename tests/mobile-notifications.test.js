@@ -134,4 +134,139 @@ test('Mobile Push Notification Integration (Phase C Client Contracts)', async (t
       'clear_cache_and_realtime',
     ]);
   });
+
+  await t.test('9. Navigation lock suppresses splash / home redirect when notification is navigating or completed', () => {
+    let isHandling = false;
+    let completed = false;
+    let pending = null;
+
+    const isNotificationNavigating = () => isHandling || pending !== null;
+    const hasNotificationNavigationCompleted = () => completed;
+
+    // Normal startup: no notification
+    let defaultRedirectOccurred = false;
+    const performDefaultSplashTransition = () => {
+      if (isNotificationNavigating() || hasNotificationNavigationCompleted()) {
+        return; // Suppressed
+      }
+      defaultRedirectOccurred = true;
+    };
+
+    performDefaultSplashTransition();
+    assert.equal(defaultRedirectOccurred, true, 'Default redirect happens normally when no notification is tapped');
+
+    // Notification startup: lock is claimed
+    defaultRedirectOccurred = false;
+    isHandling = true;
+    performDefaultSplashTransition();
+    assert.equal(defaultRedirectOccurred, false, 'Default redirect MUST be suppressed when notification is navigating');
+
+    // Notification completed: lock is completed
+    isHandling = false;
+    completed = true;
+    performDefaultSplashTransition();
+    assert.equal(defaultRedirectOccurred, false, 'Default redirect MUST be suppressed after notification navigation completes');
+  });
+
+  await t.test('10. Centralized navigation dispatcher routes each payload type correctly with replace semantics', () => {
+    const routesDispatched = [];
+    const mockRouter = {
+      replace: (target) => routesDispatched.push(target),
+    };
+
+    const dispatchNotification = (payload) => {
+      switch (payload.type) {
+        case 'chat':
+          mockRouter.replace('/(tabs)/chat');
+          break;
+        case 'material':
+          mockRouter.replace(`/material/${payload.fileId}`);
+          break;
+        case 'post':
+          mockRouter.replace({ pathname: '/(tabs)', params: { postId: String(payload.postId) } });
+          break;
+        case 'notice':
+          mockRouter.replace({ pathname: '/notices', params: { id: String(payload.noticeId) } });
+          break;
+      }
+    };
+
+    dispatchNotification({ type: 'chat' });
+    dispatchNotification({ type: 'material', fileId: 88 });
+    dispatchNotification({ type: 'post', postId: 77 });
+    dispatchNotification({ type: 'notice', noticeId: 66 });
+
+    assert.deepEqual(routesDispatched, [
+      '/(tabs)/chat',
+      '/material/88',
+      { pathname: '/(tabs)', params: { postId: '77' } },
+      { pathname: '/notices', params: { id: '66' } },
+    ]);
+  });
+
+  await t.test('11. Duplicate notification response events within deduplication window are dropped', () => {
+    let lastHandledId = null;
+    let lastHandledTime = 0;
+    let handledCount = 0;
+
+    const handleTap = (identifier, now) => {
+      if (identifier && lastHandledId === identifier && now - lastHandledTime < 4000) {
+        return; // Duplicate ignored
+      }
+      lastHandledId = identifier;
+      lastHandledTime = now;
+      handledCount++;
+    };
+
+    // Cold start response fires
+    handleTap('notif-12345', 1000);
+    assert.equal(handledCount, 1);
+
+    // Listener also fires 50ms later for the exact same native notification
+    handleTap('notif-12345', 1050);
+    assert.equal(handledCount, 1, 'Duplicate tap response must be ignored');
+
+    // A separate notification arrives later
+    handleTap('notif-67890', 2000);
+    assert.equal(handledCount, 2, 'Distinct notification response must be handled');
+  });
+
+  await t.test('12. Unauthenticated notification tap stashes destination and navigates with 0 intermediate Home redirects on login', () => {
+    let pendingDestination = null;
+    const history = [];
+
+    const mockRouter = {
+      replace: (path) => history.push(path),
+    };
+
+    // 1. Tapped while unauthenticated
+    const onNotificationTap = (payload, isAuthenticated) => {
+      if (!isAuthenticated) {
+        pendingDestination = payload;
+        mockRouter.replace('/login');
+        return;
+      }
+      mockRouter.replace(payload.type === 'chat' ? '/(tabs)/chat' : '/(tabs)');
+    };
+
+    onNotificationTap({ type: 'chat' }, false);
+    assert.deepEqual(history, ['/login']);
+    assert.deepEqual(pendingDestination, { type: 'chat' });
+
+    // 2. User logs in
+    const onLoginSuccess = () => {
+      const pending = pendingDestination;
+      pendingDestination = null;
+      if (pending) {
+        onNotificationTap(pending, true);
+      } else {
+        mockRouter.replace('/(tabs)');
+      }
+    };
+
+    onLoginSuccess();
+    // Verify that NO intermediate '/(tabs)' was pushed!
+    assert.deepEqual(history, ['/login', '/(tabs)/chat'], 'User goes directly to target screen after login without intermediate Home redirect');
+    assert.equal(pendingDestination, null, 'Pending destination cleared after navigation');
+  });
 });

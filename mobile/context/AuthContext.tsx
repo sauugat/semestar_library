@@ -10,6 +10,7 @@ import {
   unregisterPushToken,
   consumePendingNotification,
   navigateFromNotification,
+  resetNotificationNavigationState,
 } from '@/services/notifications';
 
 const TOKEN_KEY = 'semester_library_mobile_token';
@@ -119,14 +120,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Register / sync push token in background when session is restored
           void registerPushToken();
 
-          // Check if a push notification was tapped before auth was restored
-          const pendingNav = consumePendingNotification();
-          if (pendingNav) {
-            setTimeout(() => {
-              navigateFromNotification(pendingNav, true);
-            }, 250);
-          }
-
           // 3. Verify token against /api/me in the background
           void (async () => {
             try {
@@ -218,10 +211,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Check if user tapped a notification while logged out
         const pendingNotification = consumePendingNotification();
         if (pendingNotification) {
-          router.replace('/(tabs)');
-          setTimeout(() => {
-            navigateFromNotification(pendingNotification, true);
-          }, 200);
+          navigateFromNotification(pendingNotification, true);
         } else {
           router.replace('/(tabs)');
         }
@@ -409,6 +399,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await disconnectChatRealtime();
       await clearChatDb();
       await clearAppQueryCache();
+      resetNotificationNavigationState();
     } catch (e) {
       console.warn('Logout error:', e);
     } finally {

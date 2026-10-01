@@ -368,7 +368,13 @@ export default function MaterialDetailScreen() {
         <Button
           title="Back to Library"
           variant="primary"
-          onPress={() => router.back()}
+          onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace('/(tabs)/library');
+            }
+          }}
         />
       </View>
     );
@@ -670,7 +676,13 @@ export default function MaterialDetailScreen() {
             title="Back to Library"
             variant="secondary"
             size="md"
-            onPress={() => router.back()}
+            onPress={() => {
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace('/(tabs)/library');
+              }
+            }}
           />
         </View>
 

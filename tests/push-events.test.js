@@ -131,7 +131,7 @@ test('Push Notifications Integration & Event Hooks (Phase B)', async (t) => {
     const row1 = s2Outbox1[0];
     const payload1 = typeof row1.payload_json === 'string' ? JSON.parse(row1.payload_json) : row1.payload_json;
     assert.ok(payload1.title === 'Sender User' || payload1.title === 'Semester Library');
-    assert.match(payload1.body, /BIT Group Chat/);
+    assert.ok(payload1.body === 'Hello group chat!' || /BIT Group Chat/.test(payload1.body));
     assert.equal(payload1.data.type, 'chat');
     assert.equal(payload1.data.messageId, msgId1);
 

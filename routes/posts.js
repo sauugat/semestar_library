@@ -175,6 +175,7 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       // Push notification outbox enqueue and bounded synchronous dispatch (isolated failure)
       try {
         const { enqueuePostOrNoticePush, dispatchImmediateOutbox } = require('../lib/push-notifications');
+        const passedTitle = (req.body?.title || req.body?.heading || '').trim();
         const enqueueResult = await enqueuePostOrNoticePush(db, {
           postId: result.lastInsertRowid,
           authorStudentId: req.postUser.studentId,
@@ -182,6 +183,7 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
           type,
           isOfficial,
           role: req.postUser.role,
+          title: passedTitle || null,
           content: content.trim(),
           semester: req.postUser.semester
         });

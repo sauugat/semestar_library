@@ -3308,7 +3308,10 @@ app.post('/api/chat/messages', requireLogin, chatRateLimiter, handleChatUpload, 
       const enqueueResult = await enqueueChatPushWithThrottle(db, {
         messageId,
         senderStudentId: currentSenderId,
-        senderName: newMsg ? newMsg.name : null
+        senderName: newMsg ? newMsg.name : null,
+        text: text ? text.trim() : null,
+        attachmentMimeType: attachmentMimeType || (file ? file.mimetype : null),
+        attachmentOriginalName: attachmentOriginalName || (file ? file.originalname : null)
       });
       console.log('[PUSH-DIAG-CHAT] 3. Enqueue result:', JSON.stringify(enqueueResult));
 

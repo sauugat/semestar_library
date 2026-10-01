@@ -120,7 +120,7 @@ async function run() {
     const dispatchResult = await push.dispatchImmediateOutbox(db, {
       eventType: 'chat',
       eventId: messageId,
-      limit: 50
+      limit: 100
     });
     const tDisp = Date.now() - tDisp0;
     console.log(`🚀 Dispatch result (${tDisp}ms) | Total Latency: ${Date.now() - t0}ms:`, dispatchResult);
@@ -157,7 +157,7 @@ async function run() {
     const dispatchResult = await push.dispatchImmediateOutbox(db, {
       eventType: 'chat',
       eventId: messageId,
-      limit: 50
+      limit: 100
     });
     const tDisp = Date.now() - tDisp0;
     console.log(`🚀 Dispatch result (${tDisp}ms) | Total Latency: ${Date.now() - t0}ms:`, dispatchResult);
@@ -214,10 +214,12 @@ async function run() {
     const steps = [
       { senderId: aaravId, senderName: aaravName, text: 'Hello', delayBefore: 0 },
       { senderId: aaravId, senderName: aaravName, text: 'Are you coming today?', delayBefore: 2000 },
-      { senderId: sumanId, senderName: sumanName, text: 'Yes, I will come', delayBefore: 2000 }
+      { senderId: sumanId, senderName: sumanName, text: 'Yes, I will come', delayBefore: 2000 },
+      { senderId: aaravId, senderName: aaravName, text: 'Bring your laptop too', delayBefore: 2000 },
+      { senderId: sumanId, senderName: sumanName, text: 'Got it, see you at library', delayBefore: 2000 }
     ];
 
-    console.log(`💬 Starting Real Messaging Flow (3 sequential messages, 2s apart)...\n`);
+    console.log(`💬 Starting Real Messaging Flow (5 sequential messages, ~2s apart)...\n`);
     const results = [];
 
     for (let i = 0; i < steps.length; i++) {
@@ -228,7 +230,7 @@ async function run() {
       }
 
       console.log(`\n------------------------------------------------------`);
-      console.log(`[Step ${i + 1}/3] ${step.senderName}: "${step.text}"`);
+      console.log(`[Step ${i + 1}/${steps.length}] ${step.senderName}: "${step.text}"`);
       const t0 = Date.now();
 
       const res = await db.run(
@@ -251,14 +253,28 @@ async function run() {
       const dispatchResult = await push.dispatchImmediateOutbox(db, {
         eventType: 'chat',
         eventId: messageId,
-        limit: 50
+        limit: 100
       });
       const tDisp = Date.now() - tDisp0;
-      const totalLatency = Date.now() - t0;
+      const totalBackendTime = Date.now() - t0;
+
+      const expoHttpMs = dispatchResult.expoHttpMs || 0;
+      const ticketReturnMs = Math.max(0, tDisp - expoHttpMs);
+
+      // Verify ticket created for target student 464676
+      const ticketRow = await db.get(
+        'SELECT t.ticket_id, t.status, o.id as outbox_id FROM push_receipt_tickets t JOIN push_notification_outbox o ON o.id = t.outbox_id WHERE o.event_type = ? AND o.event_id = ? AND o.recipient_student_id = ?',
+        'chat', String(messageId), TARGET_STUDENT_ID
+      );
 
       console.log(`  Message ID: ${messageId}`);
-      console.log(`  Timing: Persistence: ${tPersist}ms | Enqueue: ${tEnq}ms | Expo Dispatch: ${tDisp}ms | Total Latency: ${totalLatency}ms`);
-      console.log(`  Dispatch Result:`, dispatchResult);
+      console.log(`  ⏱ Latency Profile:`);
+      console.log(`    - Message persistence: ${tPersist}ms`);
+      console.log(`    - Recipient lookup/enqueue: ${tEnq}ms`);
+      console.log(`    - Expo HTTP request: ${expoHttpMs}ms`);
+      console.log(`    - Ticket return & status update: ${ticketReturnMs}ms`);
+      console.log(`    - Total backend latency: ${totalBackendTime}ms`);
+      console.log(`  🎫 Ticket ID: ${ticketRow?.ticket_id || 'N/A'} (status: ${ticketRow?.status || 'N/A'})`);
 
       results.push({
         step: i + 1,
@@ -267,17 +283,23 @@ async function run() {
         expectedTitle: 'BIT Group Chat',
         expectedBody: `${step.senderName}: ${step.text}`,
         messageId,
-        totalLatencyMs: totalLatency,
-        dispatchResult
+        tPersist,
+        tEnq,
+        expoHttpMs,
+        ticketReturnMs,
+        totalBackendTime,
+        ticketId: ticketRow?.ticket_id || null,
+        ticketStatus: ticketRow?.status || null
       });
     }
 
     console.log(`\n======================================================`);
-    console.log(`  Real Messaging Sequence Completed`);
+    console.log(`  Real Messaging 5-Message Sequence Completed`);
     console.log(`======================================================`);
     for (const r of results) {
       console.log(`[#${r.step}] Title: "${r.expectedTitle}" | Body: "${r.expectedBody}"`);
-      console.log(`    API to Expo Latency: ${r.totalLatencyMs}ms`);
+      console.log(`    Persistence: ${r.tPersist}ms | Enqueue: ${r.tEnq}ms | Expo HTTP: ${r.expoHttpMs}ms | Ticket/DB: ${r.ticketReturnMs}ms | Total: ${r.totalBackendTime}ms`);
+      console.log(`    Ticket: ${r.ticketId} (${r.ticketStatus})`);
     }
     return;
   }

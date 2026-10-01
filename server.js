@@ -3282,13 +3282,6 @@ app.post('/api/chat/messages', requireLogin, chatRateLimiter, handleChatUpload, 
     `, currentSenderId, text, attachmentName, attachmentOriginalName, attachmentMimeType, replyToId, new Date().toISOString());
 
     const messageId = result.lastInsertRowid;
-    console.log('[PUSH-DIAG-CHAT] 2. Message persisted successfully with ID:', messageId);
-
-    await db.run(
-      "INSERT INTO push_diagnostics_log (tag, details) VALUES (?, ?)",
-      'CHAT_MESSAGE_SAVED',
-      JSON.stringify({ messageId, senderStudentId: currentSenderId, hasText: Boolean(text), hasAttachment: Boolean(file) })
-    ).catch(() => {});
 
     // Fetch the newly inserted message with all joins to broadcast it exactly as GET /api/chat/messages would
     const newMsg = await db.get(`
@@ -3313,53 +3306,17 @@ app.post('/api/chat/messages', requireLogin, chatRateLimiter, handleChatUpload, 
         attachmentMimeType: attachmentMimeType || (file ? file.mimetype : null),
         attachmentOriginalName: attachmentOriginalName || (file ? file.originalname : null)
       });
-      console.log('[PUSH-DIAG-CHAT] 3. Enqueue result:', JSON.stringify(enqueueResult));
-
-      const targetOutboxRow = await db.get(
-        "SELECT id, recipient_student_id, status FROM push_notification_outbox WHERE event_type = 'chat' AND recipient_student_id = '464676' AND (event_id = ? OR idempotency_key LIKE ?)",
-        String(messageId), `%:${messageId}:464676`
-      );
-      console.log('[PUSH-DIAG-CHAT] 4. Outbox row for target student 464676:', targetOutboxRow ? {
-        id: targetOutboxRow.id,
-        recipient: targetOutboxRow.recipient_student_id,
-        status: targetOutboxRow.status
-      } : 'NONE_FOUND');
-
-      await db.run(
-        "INSERT INTO push_diagnostics_log (tag, details) VALUES (?, ?)",
-        'CHAT_ENQUEUE_RESULT',
-        JSON.stringify({
-          messageId,
-          senderStudentId: currentSenderId,
-          enqueueResult,
-          targetRow: targetOutboxRow ? { id: targetOutboxRow.id, status: targetOutboxRow.status } : null
-        })
-      ).catch(() => {});
 
       if (enqueueResult && enqueueResult.enqueuedCount > 0) {
-        console.log('[PUSH-DIAG-CHAT] 5. Invoking dispatchImmediateOutbox for message ID:', messageId);
-        const dispatchResult = await dispatchImmediateOutbox(db, {
+        await dispatchImmediateOutbox(db, {
           eventType: 'chat',
           eventId: messageId,
-          timeoutMs: 3000
+          limit: 100,
+          timeoutMs: 3500
         });
-        console.log('[PUSH-DIAG-CHAT] 6. dispatchImmediateOutbox result:', JSON.stringify(dispatchResult));
-
-        await db.run(
-          "INSERT INTO push_diagnostics_log (tag, details) VALUES (?, ?)",
-          'CHAT_DISPATCH_RESULT',
-          JSON.stringify({ messageId, dispatchResult })
-        ).catch(() => {});
-      } else {
-        console.log('[PUSH-DIAG-CHAT] 5. dispatchImmediateOutbox skipped (enqueuedCount == 0)');
       }
     } catch (pushErr) {
-      console.error('[PUSH-DIAG-CHAT] Push Enqueue/Dispatch Error:', pushErr.message);
-      await db.run(
-        "INSERT INTO push_diagnostics_log (tag, details) VALUES (?, ?)",
-        'CHAT_DISPATCH_ERROR',
-        JSON.stringify({ messageId, error: pushErr.message })
-      ).catch(() => {});
+      console.warn('[PUSH-CHAT] Push Enqueue/Dispatch Error:', pushErr.message);
     }
 
     if (newMsg) {

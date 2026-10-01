@@ -133,7 +133,9 @@ test('Push Notifications Integration & Event Hooks (Phase B)', async (t) => {
     assert.equal(payload1.body, 'Sender User: Hello group chat!');
     assert.equal(payload1.data.type, 'chat');
     assert.equal(payload1.data.messageId, msgId1);
-    assert.equal(payload1.collapseId, 'chat_group_bit');
+    assert.equal(payload1.groupKey, 'chat_group_bit');
+    assert.equal(payload1.collapseId, undefined);
+    assert.equal(payload1.tag, `chat_msg_${msgId1}`);
 
     // Duplicate retry attempt with the exact same messageId: must not duplicate outbox jobs
     const retryEnqueue = await push.enqueueChatPushWithThrottle(db, {
@@ -174,7 +176,9 @@ test('Push Notifications Integration & Event Hooks (Phase B)', async (t) => {
       : s2OutboxAll[1].payload_json;
     assert.equal(msg2Payload.title, 'BIT Group Chat');
     assert.equal(msg2Payload.body, 'Sender User: Rapid follow-up message!');
-    assert.equal(msg2Payload.collapseId, 'chat_group_bit');
+    assert.equal(msg2Payload.groupKey, 'chat_group_bit');
+    assert.equal(msg2Payload.collapseId, undefined);
+    assert.equal(msg2Payload.tag, `chat_msg_${data2.messageId}`);
 
     // Delivery architecture test: process outbox and verify muted student preference is respected
     const processResult = await push.processPushOutbox(db, { recipientStudentId: mutedStudentId, limit: 10 });

@@ -342,6 +342,68 @@ async function run() {
     return;
   }
 
+  // 4a. Photo Attachment Chat Message
+  if (command === 'photo-chat') {
+    const senderId = 'SENDER_AARAV';
+    const senderName = 'Aarav Sharma';
+    await ensureSender(senderId, senderName, 'student', 'Semester 3');
+
+    const res = await db.run(
+      'INSERT INTO chat_messages (studentId, text, attachmentName, attachmentOriginalName, attachmentMimeType, createdAt) VALUES (?, ?, ?, ?, ?, ?)',
+      senderId, '', 'photo_123.jpg', 'diagram.jpg', 'image/jpeg', new Date().toISOString()
+    );
+    const messageId = res.lastInsertRowid;
+    console.log(`💬 Inserted photo chat message ID ${messageId} from ${senderName}`);
+
+    const enqueueResult = await push.enqueueChatPushWithThrottle(db, {
+      messageId,
+      senderStudentId: senderId,
+      senderName,
+      text: '',
+      attachmentMimeType: 'image/jpeg',
+      attachmentOriginalName: 'diagram.jpg'
+    });
+    console.log(`💬 Enqueue result:`, enqueueResult);
+
+    const dispatchResult = await push.dispatchImmediateOutbox(db, {
+      eventType: 'chat',
+      eventId: messageId
+    });
+    console.log(`🚀 Dispatch result:`, dispatchResult);
+    return;
+  }
+
+  // 4b. File Attachment Chat Message
+  if (command === 'file-chat') {
+    const senderId = 'SENDER_AARAV';
+    const senderName = 'Aarav Sharma';
+    await ensureSender(senderId, senderName, 'student', 'Semester 3');
+
+    const res = await db.run(
+      'INSERT INTO chat_messages (studentId, text, attachmentName, attachmentOriginalName, attachmentMimeType, createdAt) VALUES (?, ?, ?, ?, ?, ?)',
+      senderId, '', 'doc_123.pdf', 'dbms_syllabus.pdf', 'application/pdf', new Date().toISOString()
+    );
+    const messageId = res.lastInsertRowid;
+    console.log(`💬 Inserted file chat message ID ${messageId} from ${senderName}`);
+
+    const enqueueResult = await push.enqueueChatPushWithThrottle(db, {
+      messageId,
+      senderStudentId: senderId,
+      senderName,
+      text: '',
+      attachmentMimeType: 'application/pdf',
+      attachmentOriginalName: 'dbms_syllabus.pdf'
+    });
+    console.log(`💬 Enqueue result:`, enqueueResult);
+
+    const dispatchResult = await push.dispatchImmediateOutbox(db, {
+      eventType: 'chat',
+      eventId: messageId
+    });
+    console.log(`🚀 Dispatch result:`, dispatchResult);
+    return;
+  }
+
   // 5. Feed Post with Title
   if (command === 'feed-post-title') {
     const authorId = 'SENDER_AARAV';

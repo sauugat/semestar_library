@@ -80,16 +80,15 @@ test('Push Notifications Integration & Event Hooks (Phase B)', async (t) => {
 
   t.after(async () => {
     // Clean up outbox items created by tests
-    for (const id of allTestStudentIds) {
-      await db.run('DELETE FROM push_notification_outbox WHERE recipient_student_id = ?', id);
-      await db.run('DELETE FROM student_device_tokens WHERE student_id = ?', id);
-      await db.run('DELETE FROM student_notification_preferences WHERE student_id = ?', id);
-      await db.run('DELETE FROM mobile_tokens WHERE studentId = ?', id);
-      await db.run('DELETE FROM chat_messages WHERE studentId = ?', id);
-      await db.run('DELETE FROM files WHERE uploadedBy = ?', id);
-      await db.run('DELETE FROM posts WHERE user_id = ?', id);
-      await db.run('DELETE FROM students WHERE studentId = ?', id);
-    }
+    const p = allTestStudentIds.map(() => '?').join(',');
+    await db.run(`DELETE FROM push_notification_outbox WHERE recipient_student_id IN (${p})`, ...allTestStudentIds).catch(() => {});
+    await db.run(`DELETE FROM student_device_tokens WHERE student_id IN (${p})`, ...allTestStudentIds).catch(() => {});
+    await db.run(`DELETE FROM student_notification_preferences WHERE student_id IN (${p})`, ...allTestStudentIds).catch(() => {});
+    await db.run(`DELETE FROM mobile_tokens WHERE studentId IN (${p})`, ...allTestStudentIds).catch(() => {});
+    await db.run(`DELETE FROM chat_messages WHERE studentId IN (${p})`, ...allTestStudentIds).catch(() => {});
+    await db.run(`DELETE FROM files WHERE uploadedBy IN (${p})`, ...allTestStudentIds).catch(() => {});
+    await db.run(`DELETE FROM posts WHERE user_id IN (${p})`, ...allTestStudentIds).catch(() => {});
+    await db.run(`DELETE FROM students WHERE studentId IN (${p})`, ...allTestStudentIds).catch(() => {});
     server.close();
   });
 
@@ -130,31 +129,27 @@ test('Push Notifications Integration & Event Hooks (Phase B)', async (t) => {
     assert.ok(s2Outbox1.length >= 1, 'Eligible recipient should have a pending chat outbox entry');
     const row1 = s2Outbox1[0];
     const payload1 = typeof row1.payload_json === 'string' ? JSON.parse(row1.payload_json) : row1.payload_json;
-    assert.ok(payload1.title === 'Sender User' || payload1.title === 'Semester Library');
-    assert.ok(payload1.body === 'Hello group chat!' || /BIT Group Chat/.test(payload1.body));
+    assert.equal(payload1.title, 'BIT Group Chat');
+    assert.equal(payload1.body, 'Sender User: Hello group chat!');
     assert.equal(payload1.data.type, 'chat');
     assert.equal(payload1.data.messageId, msgId1);
+    assert.equal(payload1.collapseId, 'chat_group_bit');
 
-    // Duplicate retry attempt with the exact same clientId/messageId: must not duplicate outbox jobs
-    const retryRes = await fetch(`${baseUrl}/api/chat/messages`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${tokens[senderId]}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        text: 'Hello group chat!',
-        clientId: `client_msg_1_${ts}`
-      })
+    // Duplicate retry attempt with the exact same messageId: must not duplicate outbox jobs
+    const retryEnqueue = await push.enqueueChatPushWithThrottle(db, {
+      messageId: msgId1,
+      senderStudentId: senderId,
+      senderName: 'Sender User',
+      text: 'Hello group chat!'
     });
-    assert.equal(retryRes.status, 200);
+    assert.equal(retryEnqueue.enqueuedCount, 0, 'Duplicate retry for same messageId must not duplicate outbox rows');
     const s2OutboxAfterRetry = await db.all(
-      'SELECT id FROM push_notification_outbox WHERE recipient_student_id = ? AND event_type = ? AND status = ?',
-      studentS2Id, 'chat', 'pending'
+      'SELECT id FROM push_notification_outbox WHERE recipient_student_id = ? AND event_type = ? AND event_id = ?',
+      studentS2Id, 'chat', String(msgId1)
     );
-    assert.equal(s2OutboxAfterRetry.length, 1, 'Duplicate retry request must not create duplicate pending outbox rows');
+    assert.equal(s2OutboxAfterRetry.length, 1, 'Same messageId must not duplicate outbox row');
 
-    // Rapid second message from sender: should coalesce into existing pending outbox row
+    // Rapid second message from sender: creates immediate notification update without delay or generic counter
     const res2 = await fetch(`${baseUrl}/api/chat/messages`, {
       method: 'POST',
       headers: {
@@ -169,19 +164,20 @@ test('Push Notifications Integration & Event Hooks (Phase B)', async (t) => {
     const data2 = await res2.json();
     assert.equal(res2.status, 200);
 
-    const s2OutboxCoalesced = await db.all(
-      'SELECT id, payload_json, status FROM push_notification_outbox WHERE recipient_student_id = ? AND event_type = ? AND status = ?',
+    const s2OutboxAll = await db.all(
+      'SELECT id, payload_json, status FROM push_notification_outbox WHERE recipient_student_id = ? AND event_type = ? AND status = ? ORDER BY id ASC',
       studentS2Id, 'chat', 'pending'
     );
-    assert.equal(s2OutboxCoalesced.length, 1, 'Rapid messages must coalesce into one pending outbox row');
-    const coalescedPayload = typeof s2OutboxCoalesced[0].payload_json === 'string'
-      ? JSON.parse(s2OutboxCoalesced[0].payload_json)
-      : s2OutboxCoalesced[0].payload_json;
-    assert.match(coalescedPayload.body, /2 new messages/, 'Payload body should reflect coalesced count');
-    assert.equal(coalescedPayload.data.count, 2);
+    assert.equal(s2OutboxAll.length, 2, 'Rapid messages must create immediate notification updates in outbox');
+    const msg2Payload = typeof s2OutboxAll[1].payload_json === 'string'
+      ? JSON.parse(s2OutboxAll[1].payload_json)
+      : s2OutboxAll[1].payload_json;
+    assert.equal(msg2Payload.title, 'BIT Group Chat');
+    assert.equal(msg2Payload.body, 'Sender User: Rapid follow-up message!');
+    assert.equal(msg2Payload.collapseId, 'chat_group_bit');
 
     // Delivery architecture test: process outbox and verify muted student preference is respected
-    const processResult = await push.processPushOutbox(db, { limit: 200 });
+    const processResult = await push.processPushOutbox(db, { recipientStudentId: mutedStudentId, limit: 10 });
     assert.ok(processResult.processed >= 1);
 
     // The muted student's chat notification must have been marked 'skipped'

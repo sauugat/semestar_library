@@ -163,7 +163,7 @@ export async function configureNotificationChannels(): Promise<void> {
       description: 'Incoming messages from class group chat',
       importance: Notifications.AndroidImportance.DEFAULT,
       vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#6366F1',
+      lightColor: '#000000',
       enableLights: true,
       enableVibrate: true,
     });
@@ -207,7 +207,7 @@ export async function configureNotificationChannels(): Promise<void> {
       description: 'General system notifications',
       importance: Notifications.AndroidImportance.DEFAULT,
       vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#6366F1',
+      lightColor: '#000000',
       enableLights: true,
       enableVibrate: true,
     });

@@ -91,32 +91,194 @@ async function run() {
   }
 
   // 1. Normal Chat Message
-  if (command === 'normal-chat' || command === 'single-chat') {
+  if (command === 'normal-chat' || command === 'single-chat' || command === 'chat-1' || command === 'msg1') {
     const senderId = 'SENDER_AARAV';
     const senderName = 'Aarav Sharma';
-    const messageText = 'Are we meeting in the library today?';
+    const messageText = command === 'chat-1' || command === 'msg1' ? 'Hello' : 'Are you coming to college?';
     await ensureSender(senderId, senderName, 'student', 'Semester 3');
 
+    const t0 = Date.now();
     const res = await db.run(
       'INSERT INTO chat_messages (studentId, text, createdAt) VALUES (?, ?, ?)',
       senderId, messageText, new Date().toISOString()
     );
     const messageId = res.lastInsertRowid;
-    console.log(`💬 Inserted chat message ID ${messageId} from ${senderName}: "${messageText}"`);
+    const tPersist = Date.now() - t0;
+    console.log(`💬 Inserted chat message ID ${messageId} from ${senderName}: "${messageText}" (${tPersist}ms)`);
 
+    const tEnq0 = Date.now();
     const enqueueResult = await push.enqueueChatPushWithThrottle(db, {
       messageId,
       senderStudentId: senderId,
       senderName,
       text: messageText
     });
-    console.log(`💬 Enqueue result:`, enqueueResult);
+    const tEnq = Date.now() - tEnq0;
+    console.log(`💬 Enqueue result (${tEnq}ms):`, enqueueResult);
 
+    const tDisp0 = Date.now();
     const dispatchResult = await push.dispatchImmediateOutbox(db, {
       eventType: 'chat',
-      eventId: messageId
+      eventId: messageId,
+      limit: 50
     });
-    console.log(`🚀 Dispatch result:`, dispatchResult);
+    const tDisp = Date.now() - tDisp0;
+    console.log(`🚀 Dispatch result (${tDisp}ms) | Total Latency: ${Date.now() - t0}ms:`, dispatchResult);
+    return;
+  }
+
+  // 1b. Chat Message 2: Aarav sends "Are you coming today?"
+  if (command === 'chat-2' || command === 'msg2') {
+    const senderId = 'SENDER_AARAV';
+    const senderName = 'Aarav Sharma';
+    const messageText = 'Are you coming today?';
+    await ensureSender(senderId, senderName, 'student', 'Semester 3');
+
+    const t0 = Date.now();
+    const res = await db.run(
+      'INSERT INTO chat_messages (studentId, text, createdAt) VALUES (?, ?, ?)',
+      senderId, messageText, new Date().toISOString()
+    );
+    const messageId = res.lastInsertRowid;
+    const tPersist = Date.now() - t0;
+    console.log(`💬 Inserted chat message ID ${messageId} from ${senderName}: "${messageText}" (${tPersist}ms)`);
+
+    const tEnq0 = Date.now();
+    const enqueueResult = await push.enqueueChatPushWithThrottle(db, {
+      messageId,
+      senderStudentId: senderId,
+      senderName,
+      text: messageText
+    });
+    const tEnq = Date.now() - tEnq0;
+    console.log(`💬 Enqueue result (${tEnq}ms):`, enqueueResult);
+
+    const tDisp0 = Date.now();
+    const dispatchResult = await push.dispatchImmediateOutbox(db, {
+      eventType: 'chat',
+      eventId: messageId,
+      limit: 50
+    });
+    const tDisp = Date.now() - tDisp0;
+    console.log(`🚀 Dispatch result (${tDisp}ms) | Total Latency: ${Date.now() - t0}ms:`, dispatchResult);
+    return;
+  }
+
+  // 1c. Chat Message 3: Suman sends "Yes, I will come"
+  if (command === 'chat-3' || command === 'msg3') {
+    const senderId = 'SENDER_SUMAN';
+    const senderName = 'Suman Gurung';
+    const messageText = 'Yes, I will come';
+    await ensureSender(senderId, senderName, 'student', 'Semester 3');
+
+    const t0 = Date.now();
+    const res = await db.run(
+      'INSERT INTO chat_messages (studentId, text, createdAt) VALUES (?, ?, ?)',
+      senderId, messageText, new Date().toISOString()
+    );
+    const messageId = res.lastInsertRowid;
+    const tPersist = Date.now() - t0;
+    console.log(`💬 Inserted chat message ID ${messageId} from ${senderName}: "${messageText}" (${tPersist}ms)`);
+
+    const tEnq0 = Date.now();
+    const enqueueResult = await push.enqueueChatPushWithThrottle(db, {
+      messageId,
+      senderStudentId: senderId,
+      senderName,
+      text: messageText
+    });
+    const tEnq = Date.now() - tEnq0;
+    console.log(`💬 Enqueue result (${tEnq}ms):`, enqueueResult);
+
+    const tDisp0 = Date.now();
+    const dispatchResult = await push.dispatchImmediateOutbox(db, {
+      eventType: 'chat',
+      eventId: messageId,
+      limit: 50
+    });
+    const tDisp = Date.now() - tDisp0;
+    console.log(`🚀 Dispatch result (${tDisp}ms) | Total Latency: ${Date.now() - t0}ms:`, dispatchResult);
+    return;
+  }
+
+  // 1d. Continuous Messaging: 3 rapid messages (Aarav -> Aarav -> Suman) with latency measurement
+  if (command === 'continuous-chat' || command === 'real-messaging') {
+    const aaravId = 'SENDER_AARAV';
+    const aaravName = 'Aarav Sharma';
+    const sumanId = 'SENDER_SUMAN';
+    const sumanName = 'Suman Gurung';
+
+    await ensureSender(aaravId, aaravName, 'student', 'Semester 3');
+    await ensureSender(sumanId, sumanName, 'student', 'Semester 3');
+
+    const steps = [
+      { senderId: aaravId, senderName: aaravName, text: 'Hello', delayBefore: 0 },
+      { senderId: aaravId, senderName: aaravName, text: 'Are you coming today?', delayBefore: 2000 },
+      { senderId: sumanId, senderName: sumanName, text: 'Yes, I will come', delayBefore: 2000 }
+    ];
+
+    console.log(`💬 Starting Real Messaging Flow (3 sequential messages, 2s apart)...\n`);
+    const results = [];
+
+    for (let i = 0; i < steps.length; i++) {
+      const step = steps[i];
+      if (step.delayBefore > 0) {
+        console.log(`\n⏱ Waiting ${step.delayBefore / 1000}s before sending next message...`);
+        await new Promise(r => setTimeout(r, step.delayBefore));
+      }
+
+      console.log(`\n------------------------------------------------------`);
+      console.log(`[Step ${i + 1}/3] ${step.senderName}: "${step.text}"`);
+      const t0 = Date.now();
+
+      const res = await db.run(
+        'INSERT INTO chat_messages (studentId, text, createdAt) VALUES (?, ?, ?)',
+        step.senderId, step.text, new Date().toISOString()
+      );
+      const messageId = res.lastInsertRowid;
+      const tPersist = Date.now() - t0;
+
+      const tEnq0 = Date.now();
+      const enqueueResult = await push.enqueueChatPushWithThrottle(db, {
+        messageId,
+        senderStudentId: step.senderId,
+        senderName: step.senderName,
+        text: step.text
+      });
+      const tEnq = Date.now() - tEnq0;
+
+      const tDisp0 = Date.now();
+      const dispatchResult = await push.dispatchImmediateOutbox(db, {
+        eventType: 'chat',
+        eventId: messageId,
+        limit: 50
+      });
+      const tDisp = Date.now() - tDisp0;
+      const totalLatency = Date.now() - t0;
+
+      console.log(`  Message ID: ${messageId}`);
+      console.log(`  Timing: Persistence: ${tPersist}ms | Enqueue: ${tEnq}ms | Expo Dispatch: ${tDisp}ms | Total Latency: ${totalLatency}ms`);
+      console.log(`  Dispatch Result:`, dispatchResult);
+
+      results.push({
+        step: i + 1,
+        sender: step.senderName,
+        text: step.text,
+        expectedTitle: 'BIT Group Chat',
+        expectedBody: `${step.senderName}: ${step.text}`,
+        messageId,
+        totalLatencyMs: totalLatency,
+        dispatchResult
+      });
+    }
+
+    console.log(`\n======================================================`);
+    console.log(`  Real Messaging Sequence Completed`);
+    console.log(`======================================================`);
+    for (const r of results) {
+      console.log(`[#${r.step}] Title: "${r.expectedTitle}" | Body: "${r.expectedBody}"`);
+      console.log(`    API to Expo Latency: ${r.totalLatencyMs}ms`);
+    }
     return;
   }
 
@@ -177,50 +339,6 @@ async function run() {
       eventId: messageId
     });
     console.log(`🚀 Dispatch result:`, dispatchResult);
-    return;
-  }
-
-  // 4. 5 Rapid Messages (Coalescing with Latest Preview)
-  if (command === 'rapid-chat') {
-    const senderId = 'SENDER_AARAV';
-    const senderName = 'Aarav Sharma';
-    await ensureSender(senderId, senderName, 'student', 'Semester 3');
-
-    const rapidTexts = [
-      'Hey guys',
-      'Are you free this afternoon?',
-      'Let me know when you reach campus',
-      'I grabbed a table on the 2nd floor',
-      "I'll be at the library at 2 PM"
-    ];
-
-    console.log(`💬 Sending 5 rapid chat messages from ${senderName} within coalescing window...`);
-    let lastMessageId = null;
-    for (let i = 0; i < rapidTexts.length; i++) {
-      const text = rapidTexts[i];
-      const res = await db.run(
-        'INSERT INTO chat_messages (studentId, text, createdAt) VALUES (?, ?, ?)',
-        senderId, text, new Date().toISOString()
-      );
-      const messageId = res.lastInsertRowid;
-      lastMessageId = messageId;
-
-      const enqueueRes = await push.enqueueChatPushWithThrottle(db, {
-        messageId,
-        senderStudentId: senderId,
-        senderName,
-        text
-      });
-      console.log(`  Message #${i + 1} (ID ${messageId}): "${text}" -> enqueue:`, enqueueRes);
-      await new Promise(r => setTimeout(r, 350));
-    }
-
-    console.log(`🚀 Dispatching outbox for coalesced messages (event ID ${lastMessageId})...`);
-    const dispatchResult = await push.dispatchImmediateOutbox(db, {
-      eventType: 'chat',
-      eventId: lastMessageId
-    });
-    console.log(`🚀 Coalesced dispatch result:`, dispatchResult);
     return;
   }
 
@@ -366,10 +484,13 @@ async function run() {
   }
 
   console.log(`Available commands:
-  - normal-chat
-  - long-chat
-  - emoji-chat
-  - rapid-chat
+  - msg1 (Aarav: "Hello")
+  - msg2 (Aarav: "Are you coming today?")
+  - msg3 (Suman: "Yes, I will come")
+  - continuous-chat / real-messaging (3 rapid sequential messages)
+  - normal-chat (Aarav: "Are you coming to college?")
+  - long-chat (clean truncation)
+  - emoji-chat (preserve Unicode/emojis)
   - feed-post-title
   - feed-status
   - material

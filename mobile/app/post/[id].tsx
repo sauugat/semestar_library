@@ -26,6 +26,7 @@ import { Button } from '@/components/ui/Button';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
 import { StickyComposer } from '@/components/ui/StickyComposer';
+import { COMPOSER_GEOMETRY } from '@/constants/composerGeometry';
 import { formatTimeAgo } from '@/utils/date';
 import { queryClient } from '@/services/query-client';
 import {
@@ -680,34 +681,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     width: '100%',
-  },
-  inputBar: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    paddingHorizontal: 12,
-    paddingTop: 8,
-    borderTopWidth: 1,
+    gap: COMPOSER_GEOMETRY.innerHorizontalGap,
   },
   textInput: {
     flex: 1,
-    minHeight: 44,
-    maxHeight: 110,
-    borderRadius: 22,
+    minHeight: COMPOSER_GEOMETRY.minInputHeight,
+    maxHeight: COMPOSER_GEOMETRY.maxInputHeight,
+    borderRadius: COMPOSER_GEOMETRY.borderRadius,
     borderWidth: 1,
-    paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'ios' ? 12 : 9,
-    paddingBottom: Platform.OS === 'ios' ? 12 : 9,
-    fontSize: 15,
-    marginRight: 8,
+    paddingHorizontal: COMPOSER_GEOMETRY.inputPaddingHorizontal,
+    paddingTop: COMPOSER_GEOMETRY.inputPaddingTop,
+    paddingBottom: COMPOSER_GEOMETRY.inputPaddingBottom,
+    fontSize: COMPOSER_GEOMETRY.fontSize,
+    lineHeight: COMPOSER_GEOMETRY.lineHeight,
   },
   sendButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: COMPOSER_GEOMETRY.minActionTouchTarget,
+    height: COMPOSER_GEOMETRY.minActionTouchTarget,
+    borderRadius: COMPOSER_GEOMETRY.minActionTouchTarget / 2,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
-    marginBottom: 1,
   },
   imageModalBackground: {
     flex: 1,

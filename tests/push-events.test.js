@@ -275,6 +275,108 @@ test('Push Notifications Integration & Event Hooks (Phase B)', async (t) => {
   });
 
   // -------------------------------------------------------------
+  // 2b. Multi-File Batch Material Push Tests
+  // -------------------------------------------------------------
+  await t.test('2b. Multi-file batch push: 1 batch notification for N files, handles partial failures & idempotency', async () => {
+    const tsBatch = Date.now();
+    const batchId = `test_batch_${tsBatch}`;
+
+    // Case 1: Batch of 3 files persisted
+    const f1Res = await db.run(`
+      INSERT INTO files (storedName, originalName, title, semester, subject, chapter, uploadedBy, sizeBytes, uploadedAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, `batch_f1_${tsBatch}.pdf`, 'DBMS_Unit4.pdf', 'DBMS Unit 4', 'Semester 2', 'Database Management Systems', 'Unit 4: Normalization', senderId, 2400000, new Date().toISOString());
+
+    const f2Res = await db.run(`
+      INSERT INTO files (storedName, originalName, title, semester, subject, chapter, uploadedBy, sizeBytes, uploadedAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, `batch_f2_${tsBatch}.pdf`, 'DBMS_Unit5.pdf', 'DBMS Unit 5', 'Semester 2', 'Database Management Systems', 'Unit 4: Normalization', senderId, 3100000, new Date().toISOString());
+
+    const f3Res = await db.run(`
+      INSERT INTO files (storedName, originalName, title, semester, subject, chapter, uploadedBy, sizeBytes, uploadedAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, `batch_f3_${tsBatch}.pptx`, 'Normalization_Slides.pptx', 'Normalization Slides', 'Semester 2', 'Database Management Systems', 'Unit 4: Normalization', senderId, 5800000, new Date().toISOString());
+
+    const batchFiles = [
+      { id: f1Res.lastInsertRowid, originalName: 'DBMS_Unit4.pdf', title: 'DBMS Unit 4' },
+      { id: f2Res.lastInsertRowid, originalName: 'DBMS_Unit5.pdf', title: 'DBMS Unit 5' },
+      { id: f3Res.lastInsertRowid, originalName: 'Normalization_Slides.pptx', title: 'Normalization Slides' }
+    ];
+
+    // Enqueue batch push
+    const batchEnqueueRes = await push.enqueueMaterialBatchPush(db, {
+      batchId,
+      files: batchFiles,
+      semester: 'Semester 2',
+      subject: 'Database Management Systems',
+      chapter: 'Unit 4: Normalization',
+      uploaderStudentId: senderId,
+      uploaderName: 'Prof. Sharma'
+    });
+
+    assert.ok(batchEnqueueRes.enqueuedCount >= 1, 'Should enqueue batch push notification');
+
+    // Verify exactly ONE notification row was created for studentS2Id (NOT 3 separate pushes!)
+    const s2BatchRows = await db.all(
+      'SELECT id, payload_json, idempotency_key FROM push_notification_outbox WHERE recipient_student_id = ? AND event_type = ? AND event_id = ?',
+      studentS2Id, 'material', batchId
+    );
+    assert.equal(s2BatchRows.length, 1, 'Semester 2 student should receive exactly 1 batch notification, not 3');
+
+    const batchPayload = typeof s2BatchRows[0].payload_json === 'string'
+      ? JSON.parse(s2BatchRows[0].payload_json)
+      : s2BatchRows[0].payload_json;
+
+    assert.equal(batchPayload.title, 'Database Management Systems');
+    assert.ok(batchPayload.body.includes('3 new files') || batchPayload.body.includes('3 new study materials'));
+    assert.equal(batchPayload.data.type, 'material_batch');
+    assert.equal(batchPayload.data.batchId, batchId);
+    assert.equal(batchPayload.data.materialCount, 3);
+    assert.deepEqual(batchPayload.data.fileIds, batchFiles.map(f => Number(f.id)));
+    assert.equal(s2BatchRows[0].idempotency_key, `material-batch:${batchId}:${studentS2Id}`);
+
+    // Verify uploader is excluded
+    const uploaderBatchRows = await db.all(
+      'SELECT id FROM push_notification_outbox WHERE recipient_student_id = ? AND event_type = ? AND event_id = ?',
+      senderId, 'material', batchId
+    );
+    assert.equal(uploaderBatchRows.length, 0, 'Uploader must not receive notification');
+
+    // Verify other semester student is excluded
+    const s4BatchRows = await db.all(
+      'SELECT id FROM push_notification_outbox WHERE recipient_student_id = ? AND event_type = ? AND event_id = ?',
+      studentS4Id, 'material', batchId
+    );
+    assert.equal(s4BatchRows.length, 0, 'Semester 4 student must not receive Semester 2 batch notification');
+
+    // Case 2: Idempotent retry with same batchId does NOT create duplicate outbox entries
+    const retryBatchRes = await push.enqueueMaterialBatchPush(db, {
+      batchId,
+      files: batchFiles,
+      semester: 'Semester 2',
+      subject: 'Database Management Systems',
+      chapter: 'Unit 4: Normalization',
+      uploaderStudentId: senderId,
+      uploaderName: 'Prof. Sharma'
+    });
+    const s2BatchRowsAfterRetry = await db.all(
+      'SELECT id FROM push_notification_outbox WHERE recipient_student_id = ? AND event_type = ? AND event_id = ?',
+      studentS2Id, 'material', batchId
+    );
+    assert.equal(s2BatchRowsAfterRetry.length, 1, 'Retry must not duplicate batch notifications');
+
+    // Case 3: Empty files array yields 0 notifications
+    const emptyRes = await push.enqueueMaterialBatchPush(db, {
+      batchId: 'empty_batch',
+      files: [],
+      semester: 'Semester 2',
+      subject: 'Database Management Systems',
+      uploaderStudentId: senderId
+    });
+    assert.equal(emptyRes.enqueuedCount, 0, 'Empty upload batch must produce 0 notifications');
+  });
+
+  // -------------------------------------------------------------
   // 3. Feed Post Tests
   // -------------------------------------------------------------
   await t.test('3. Feed post push: enqueues for students, excludes author, idempotency works', async () => {

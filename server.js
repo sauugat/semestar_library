@@ -1805,16 +1805,27 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
   const subject = (req.body.subject || '').trim() || null;
   const chapter = (req.body.chapter || '').trim() || null;
 
+  let fileTitlesMap = null;
+  if (req.body.fileTitles) {
+    try {
+      fileTitlesMap = typeof req.body.fileTitles === 'string' ? JSON.parse(req.body.fileTitles) : req.body.fileTitles;
+    } catch (_) {}
+  }
+
   const isAdmin = await isStudentAdmin(req.session.studentId);
   const processedItems = [];
 
   // Generate previews asynchronously (e.g. for PPTX via LibreOffice PDF / node-pptx-parser or DOCX via mammoth)
   for (let i = 0; i < uploadedFiles.length; i++) {
     const f = uploadedFiles[i];
-    let fileTitle = title;
-    if (uploadedFiles.length > 1 && title) {
+    let fileTitle = null;
+    if (Array.isArray(fileTitlesMap) && fileTitlesMap[i] && String(fileTitlesMap[i]).trim()) {
+      fileTitle = String(fileTitlesMap[i]).trim();
+    } else if (uploadedFiles.length > 1 && title) {
       fileTitle = `${title} (${f.originalname.replace(/\.[^/.]+$/, '')})`;
-    } else if (!fileTitle) {
+    } else if (title) {
+      fileTitle = title;
+    } else {
       fileTitle = f.originalname.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
     }
 
@@ -1948,29 +1959,57 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
         } catch (notifErr) {
           console.warn('[Notification insert warning]:', notifErr.message);
         }
+      }
+    }
 
-        // Push notification outbox enqueue and bounded synchronous dispatch (isolated failure)
-        try {
-          const { enqueueMaterialPush, dispatchImmediateOutbox } = require('./lib/push-notifications');
+    // Material push notification enqueue and bounded synchronous dispatch (strictly AFTER successful persistence)
+    if (results.length > 0) {
+      try {
+        const { enqueueMaterialPush, enqueueMaterialBatchPush, dispatchImmediateOutbox } = require('./lib/push-notifications');
+        const uploaderStudentId = req.session?.studentId || req.user?.studentId;
+        const uploaderName = req.user?.name || req.session?.studentName || null;
+        const batchId = (req.body.batchId || req.headers['x-upload-batch-id'] || `batch_${Date.now()}_${crypto.randomBytes(6).toString('hex')}`).trim();
+
+        if (results.length === 1) {
+          // Exactly one file persisted -> single material notification
+          const single = results[0];
           const enqueueResult = await enqueueMaterialPush(db, {
-            fileId: insertedId,
-            originalName: f.originalname,
-            title: fileTitle,
+            fileId: single.id,
+            originalName: single.originalName,
+            title: single.title,
             semester,
             subject,
-            uploaderStudentId: req.session?.studentId || req.user?.studentId,
-            uploaderName: req.user?.name || req.session?.studentName || null
+            uploaderStudentId,
+            uploaderName
           });
           if (enqueueResult && enqueueResult.enqueuedCount > 0) {
             await dispatchImmediateOutbox(db, {
               eventType: 'material',
-              eventId: insertedId,
+              eventId: single.id,
               timeoutMs: 3500
             });
           }
-        } catch (pushErr) {
-          console.error('[Material Push Enqueue/Dispatch Error]:', pushErr.message);
+        } else {
+          // Multi-file batch -> ONE combined batch notification referencing all persisted files
+          const enqueueResult = await enqueueMaterialBatchPush(db, {
+            batchId,
+            files: results.map(r => ({ id: r.id, originalName: r.originalName, title: r.title })),
+            semester,
+            subject,
+            chapter,
+            uploaderStudentId,
+            uploaderName
+          });
+          if (enqueueResult && enqueueResult.enqueuedCount > 0) {
+            await dispatchImmediateOutbox(db, {
+              eventType: 'material',
+              eventId: batchId,
+              timeoutMs: 3500
+            });
+          }
         }
+      } catch (pushErr) {
+        console.error('[Material Push Enqueue/Dispatch Error]:', pushErr.message);
       }
     }
   } catch (err) {

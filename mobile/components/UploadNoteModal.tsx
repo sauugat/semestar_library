@@ -15,17 +15,19 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { useQuery } from '@tanstack/react-query';
 import { useTheme } from '@/constants/useTheme';
+import { useAuth } from '@/context/AuthContext';
 import { Text, Heading, Caption } from '@/components/ui/Typography';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { KeyboardAwareForm } from '@/components/ui/KeyboardAwareForm';
+import { SelectionSheet, SelectionOption } from '@/components/ui/SelectionSheet';
 import {
   SEMESTERS,
   SemesterItem,
   SubjectItem,
   ChapterItem,
 } from '@/constants/subjects.config';
-import { uploadNote, getLibraryStats, LibraryStat } from '@/services/library';
+import { uploadNote, getLibraryStats, LibraryStat, UploadFileItem } from '@/services/library';
 import { normalizeUploadFile, validateFileSize } from '@/utils/file-upload';
 
 function isMatchingSemester(dbSemester: string | null | undefined, semItem: SemesterItem): boolean {
@@ -64,7 +66,30 @@ function formatBytes(bytes: number | string): string {
   return `${parseFloat((b / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 }
 
+function getFileExtension(filename: string): string {
+  const parts = filename.split('.');
+  if (parts.length > 1) {
+    const ext = parts.pop()?.toUpperCase() || 'FILE';
+    if (ext === 'JPEG' || ext === 'JPG' || ext === 'PNG' || ext === 'WEBP') return 'IMG';
+    return ext;
+  }
+  return 'FILE';
+}
+
+function cleanFilenameTitle(filename: string): string {
+  return filename.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ').trim();
+}
+
 type UploadStep = 1 | 2 | 3;
+
+interface QueuedFile {
+  id: string;
+  uri: string;
+  name: string;
+  size?: number;
+  mimeType?: string;
+  title: string;
+}
 
 export function UploadNoteModal({
   visible,
@@ -75,9 +100,18 @@ export function UploadNoteModal({
   initialChapterTitle,
 }: UploadNoteModalProps) {
   const { colors, spacing, radii, touchTarget } = useTheme();
+  const { user } = useAuth();
 
-  // Step state: 1 (File) -> 2 (Subject) -> 3 (Details & Publish)
+  // Role permissions: Teachers and Admins can upload multiple files in a batch
+  const isTeacherOrAdmin = user?.role === 'teacher' || user?.role === 'admin' || Boolean(user?.isAdmin);
+
+  // Step state: 1 (Files) -> 2 (Course) -> 3 (Details & Publish)
   const [currentStep, setCurrentStep] = useState<UploadStep>(1);
+
+  // Selection Sheet visibility states
+  const [showSemesterSheet, setShowSemesterSheet] = useState(false);
+  const [showSubjectSheet, setShowSubjectSheet] = useState(false);
+  const [showChapterSheet, setShowChapterSheet] = useState(false);
 
   // Fetch live library stats to include custom/teacher-added subjects
   const { data: libraryStats = [] } = useQuery<LibraryStat[]>({
@@ -86,13 +120,8 @@ export function UploadNoteModal({
     staleTime: 60 * 1000,
   });
 
-  // Selected file state
-  const [selectedFile, setSelectedFile] = useState<{
-    uri: string;
-    name: string;
-    size?: number;
-    mimeType?: string;
-  } | null>(null);
+  // Selected files queue
+  const [selectedFiles, setSelectedFiles] = useState<QueuedFile[]>([]);
 
   // Form fields
   const [semesterId, setSemesterId] = useState<string>(initialSemesterId || 'Semester II');
@@ -104,8 +133,9 @@ export function UploadNoteModal({
   const [customChapter, setCustomChapter] = useState<string>('');
   const [isCustomChapter, setIsCustomChapter] = useState<boolean>(false);
 
-  const [title, setTitle] = useState<string>('');
+  const [commonTitle, setCommonTitle] = useState<string>('');
   const [submitting, setSubmitting] = useState<boolean>(false);
+  const [uploadProgressText, setUploadProgressText] = useState<string>('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Sync initial props when opened
@@ -122,6 +152,8 @@ export function UploadNoteModal({
         setIsCustomChapter(false);
       }
       setErrorMsg(null);
+      setSubmitting(false);
+      setUploadProgressText('');
     }
   }, [visible, initialSemesterId, initialSubjectTitle, initialChapterTitle]);
 
@@ -181,7 +213,41 @@ export function UploadNoteModal({
     return currentSubject?.chapters || [];
   }, [currentSubject]);
 
-  // When semester changes, reset subject if it doesn't exist in new semester
+  // Semester Selection Options
+  const semesterOptions: SelectionOption<string>[] = useMemo(() => {
+    return SEMESTERS.map((s) => ({
+      id: s.id,
+      label: s.label,
+      sublabel: `${s.subjects.length} subjects`,
+    }));
+  }, []);
+
+  // Subject Selection Options
+  const subjectOptions: SelectionOption<string>[] = useMemo(() => {
+    return availableSubjects.map((sub) => ({
+      id: sub.title,
+      label: sub.title,
+      sublabel: sub.chapters && sub.chapters.length > 0 ? `${sub.chapters.length} units` : undefined,
+      badge: sub.code && sub.code !== 'CUSTOM' ? sub.code : undefined,
+    }));
+  }, [availableSubjects]);
+
+  // Chapter Selection Options
+  const chapterOptions: SelectionOption<string>[] = useMemo(() => {
+    const list: SelectionOption<string>[] = [
+      { id: '__NO_UNIT__', label: 'No specific unit', sublabel: 'General material' },
+    ];
+    availableChapters.forEach((chap) => {
+      list.push({
+        id: chap.title,
+        label: chap.title,
+        sublabel: chap.shortTitle && chap.shortTitle !== chap.title ? chap.shortTitle : undefined,
+      });
+    });
+    return list;
+  }, [availableChapters]);
+
+  // When semester changes, reset subject and chapter if not matching
   const handleSelectSemester = (newSemId: string) => {
     setSemesterId(newSemId);
     const targetSem = SEMESTERS.find((s) => s.id === newSemId);
@@ -193,7 +259,7 @@ export function UploadNoteModal({
     }
   };
 
-  // When subject changes, reset chapter if it doesn't exist in new subject
+  // When subject changes, reset chapter if not matching
   const handleSelectSubject = (subTitle: string) => {
     setIsCustomSubject(false);
     setSelectedSubjectTitle(subTitle);
@@ -204,32 +270,35 @@ export function UploadNoteModal({
     }
   };
 
-  // Pick file via DocumentPicker
+  // Pick files via DocumentPicker
   const handlePickDocument = async () => {
     try {
       setErrorMsg(null);
       const res = await DocumentPicker.getDocumentAsync({
         type: '*/*',
         copyToCacheDirectory: true,
-        multiple: false,
+        multiple: isTeacherOrAdmin,
       });
 
       if (!res.canceled && res.assets && res.assets.length > 0) {
-        const asset = res.assets[0];
-        const normalized = normalizeUploadFile(asset, 'note.pdf');
-        validateFileSize(normalized.size, 250 * 1024 * 1024, 'Document');
+        const newFiles: QueuedFile[] = [];
+        for (const asset of res.assets) {
+          const normalized = normalizeUploadFile(asset, 'note.pdf');
+          validateFileSize(normalized.size, 250 * 1024 * 1024, 'Document');
+          newFiles.push({
+            id: `doc_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+            uri: normalized.uri,
+            name: normalized.name,
+            size: normalized.size,
+            mimeType: normalized.type,
+            title: cleanFilenameTitle(normalized.name),
+          });
+        }
 
-        setSelectedFile({
-          uri: normalized.uri,
-          name: normalized.name,
-          size: normalized.size,
-          mimeType: normalized.type,
-        });
-
-        // Pre-fill title if currently blank
-        if (!title.trim()) {
-          const cleanName = normalized.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
-          setTitle(cleanName);
+        if (isTeacherOrAdmin) {
+          setSelectedFiles((prev) => [...prev, ...newFiles]);
+        } else {
+          setSelectedFiles(newFiles.slice(0, 1));
         }
       }
     } catch (err: any) {
@@ -238,31 +307,36 @@ export function UploadNoteModal({
     }
   };
 
-  // Pick photo / images of notes via ImagePicker
+  // Pick photos / images of notes via ImagePicker
   const handlePickPhoto = async () => {
     try {
       setErrorMsg(null);
       const res = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: false,
+        allowsMultipleSelection: isTeacherOrAdmin,
         quality: 0.9,
       });
 
       if (!res.canceled && res.assets && res.assets.length > 0) {
-        const asset = res.assets[0];
-        const normalized = normalizeUploadFile(asset, 'note_photo.jpg');
-        validateFileSize(normalized.size, 250 * 1024 * 1024, 'Photo');
+        const newFiles: QueuedFile[] = [];
+        for (const asset of res.assets) {
+          const normalized = normalizeUploadFile(asset, 'note_photo.jpg');
+          validateFileSize(normalized.size, 250 * 1024 * 1024, 'Photo');
+          newFiles.push({
+            id: `img_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+            uri: normalized.uri,
+            name: normalized.name,
+            size: normalized.size,
+            mimeType: normalized.type,
+            title: cleanFilenameTitle(normalized.name),
+          });
+        }
 
-        setSelectedFile({
-          uri: normalized.uri,
-          name: normalized.name,
-          size: normalized.size,
-          mimeType: normalized.type,
-        });
-
-        if (!title.trim()) {
-          const cleanName = normalized.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
-          setTitle(cleanName);
+        if (isTeacherOrAdmin) {
+          setSelectedFiles((prev) => [...prev, ...newFiles]);
+        } else {
+          setSelectedFiles(newFiles.slice(0, 1));
         }
       }
     } catch (err: any) {
@@ -271,19 +345,29 @@ export function UploadNoteModal({
     }
   };
 
-  // Submit flow
+  const handleRemoveFile = (fileId: string) => {
+    setSelectedFiles((prev) => prev.filter((f) => f.id !== fileId));
+  };
+
+  const handleUpdateFileTitle = (fileId: string, text: string) => {
+    setSelectedFiles((prev) =>
+      prev.map((f) => (f.id === fileId ? { ...f, title: text } : f))
+    );
+  };
+
+  // Submit batch flow
   const handleSubmit = async () => {
     if (submitting) return;
 
-    if (!selectedFile) {
-      setErrorMsg('Please select a file to upload.');
+    if (selectedFiles.length === 0) {
+      setErrorMsg('Please select at least one file to upload.');
       setCurrentStep(1);
       return;
     }
 
     const effectiveSubject = isCustomSubject ? customSubject.trim() : selectedSubjectTitle.trim();
     if (!effectiveSubject) {
-      setErrorMsg('Please select or specify a subject for this note.');
+      setErrorMsg('Please select or specify a subject for this upload.');
       setCurrentStep(2);
       return;
     }
@@ -292,36 +376,45 @@ export function UploadNoteModal({
 
     setErrorMsg(null);
     setSubmitting(true);
+    setUploadProgressText(`Uploading ${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''}...`);
 
     try {
+      const batchId = `batch_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
+      const filesPayload: UploadFileItem[] = selectedFiles.map((f) => ({
+        uri: f.uri,
+        name: f.name,
+        type: f.mimeType,
+        size: f.size,
+        title: f.title || cleanFilenameTitle(f.name),
+      }));
+
       const res = await uploadNote({
-        fileUri: selectedFile.uri,
-        fileName: selectedFile.name,
-        fileType: selectedFile.mimeType,
-        fileSize: selectedFile.size,
-        title: title.trim() || undefined,
+        files: filesPayload,
+        batchId,
+        title: commonTitle.trim() || undefined,
         semester: currentSemester.label,
         subject: effectiveSubject,
         chapter: effectiveChapter || undefined,
       });
 
       // Reset state and notify parent
-      setSelectedFile(null);
-      setTitle('');
+      setSelectedFiles([]);
+      setCommonTitle('');
       setCustomSubject('');
       setCustomChapter('');
       setCurrentStep(1);
-      onSuccess(res.message || 'Note uploaded successfully!');
+      onSuccess(res.message || 'Notes uploaded successfully!');
       onClose();
     } catch (err: any) {
       console.error('Upload failed:', err);
-      setErrorMsg(err.message || 'Failed to upload note. Please check your connection and try again.');
+      setErrorMsg(err.message || 'Failed to upload notes. Please check your connection and try again.');
     } finally {
       setSubmitting(false);
+      setUploadProgressText('');
     }
   };
 
-  const ext = selectedFile ? (selectedFile.name.split('.').pop() || 'FILE').toUpperCase() : '';
   const effectiveSubjectName = isCustomSubject ? customSubject : selectedSubjectTitle;
   const effectiveChapterName = isCustomChapter ? customChapter : selectedChapterTitle;
 
@@ -334,9 +427,7 @@ export function UploadNoteModal({
         if (!submitting) onClose();
       }}
     >
-      <View
-        style={[styles.modalRoot, { backgroundColor: colors.background }]}
-      >
+      <View style={[styles.modalRoot, { backgroundColor: colors.background }]}>
         <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top', 'bottom']}>
           {/* Header Bar */}
           <View style={[styles.headerBar, { borderBottomColor: colors.border }]}>
@@ -358,7 +449,7 @@ export function UploadNoteModal({
             </TouchableOpacity>
 
             <View style={{ alignItems: 'center' }}>
-              <Heading style={styles.headerTitle}>Upload Note</Heading>
+              <Heading style={styles.headerTitle}>Upload Notes</Heading>
               <Caption color="muted">Step {currentStep} of 3</Caption>
             </View>
 
@@ -366,8 +457,8 @@ export function UploadNoteModal({
               <TouchableOpacity
                 onPress={() => {
                   if (currentStep === 1) {
-                    if (!selectedFile) {
-                      setErrorMsg('Please select a file to continue.');
+                    if (selectedFiles.length === 0) {
+                      setErrorMsg('Please select at least one file to continue.');
                       return;
                     }
                     setErrorMsg(null);
@@ -392,11 +483,11 @@ export function UploadNoteModal({
             ) : (
               <TouchableOpacity
                 onPress={handleSubmit}
-                disabled={submitting || !selectedFile}
+                disabled={submitting || selectedFiles.length === 0}
                 style={[
                   styles.publishBtn,
                   {
-                    backgroundColor: !selectedFile || submitting ? colors.surfaceRaised : colors.primary,
+                    backgroundColor: selectedFiles.length === 0 || submitting ? colors.surfaceRaised : colors.primary,
                     borderColor: colors.border,
                   },
                 ]}
@@ -408,9 +499,9 @@ export function UploadNoteModal({
                   <Text
                     variant="sm"
                     weight="700"
-                    style={{ color: !selectedFile ? colors.textMuted : colors.primaryText }}
+                    style={{ color: selectedFiles.length === 0 ? colors.textMuted : colors.primaryText }}
                   >
-                    Publish
+                    Upload {selectedFiles.length}
                   </Text>
                 )}
               </TouchableOpacity>
@@ -420,7 +511,7 @@ export function UploadNoteModal({
           {/* Stepper Progress Bar */}
           <View style={[styles.stepperContainer, { borderBottomColor: colors.border }]}>
             {[
-              { step: 1, label: '1. File' },
+              { step: 1, label: '1. Files' },
               { step: 2, label: '2. Course' },
               { step: 3, label: '3. Details' },
             ].map((s) => {
@@ -431,8 +522,8 @@ export function UploadNoteModal({
                   key={s.step}
                   onPress={() => {
                     if (s.step === 1) setCurrentStep(1);
-                    if (s.step === 2 && selectedFile) setCurrentStep(2);
-                    if (s.step === 3 && selectedFile && (selectedSubjectTitle || customSubject)) setCurrentStep(3);
+                    if (s.step === 2 && selectedFiles.length > 0) setCurrentStep(2);
+                    if (s.step === 3 && selectedFiles.length > 0 && (selectedSubjectTitle || customSubject)) setCurrentStep(3);
                   }}
                   style={[
                     styles.stepperTab,
@@ -473,54 +564,109 @@ export function UploadNoteModal({
               </View>
             )}
 
-            {/* STEP 1: CHOOSE FILE */}
+            {/* STEP 1: CHOOSE MATERIALS */}
             {currentStep === 1 && (
               <View>
-                <Text variant="xs" weight="700" color="secondary" style={styles.fieldLabel}>
-                  ATTACH STUDY DOCUMENT OR PHOTO *
-                </Text>
+                <View style={styles.sectionHeaderRow}>
+                  <Text variant="xs" weight="700" color="secondary" style={styles.fieldLabel}>
+                    CHOOSE MATERIALS *
+                  </Text>
+                  {isTeacherOrAdmin && (
+                    <Caption color="muted">
+                      Multi-file batch enabled
+                    </Caption>
+                  )}
+                </View>
 
-                {selectedFile ? (
-                  <Card variant="elevated" padding="md" style={{ marginBottom: spacing.normal, borderColor: colors.border }}>
-                    <View style={styles.fileSelectedRow}>
-                      <View
+                {selectedFiles.length > 0 ? (
+                  <View style={{ marginBottom: spacing.normal }}>
+                    <Text variant="xs" weight="700" color="muted" style={{ marginBottom: 8 }}>
+                      Selected files ({selectedFiles.length})
+                    </Text>
+
+                    {/* File Queue List */}
+                    {selectedFiles.map((file, idx) => {
+                      const ext = getFileExtension(file.name);
+                      return (
+                        <Card
+                          key={file.id}
+                          variant="elevated"
+                          padding="sm"
+                          style={[styles.fileQueueCard, { borderColor: colors.border }]}
+                        >
+                          <View style={styles.fileSelectedRow}>
+                            <View
+                              style={[
+                                styles.fileBadge,
+                                { backgroundColor: colors.surfaceRaised, borderRadius: radii.card },
+                              ]}
+                            >
+                              <Text variant="xs" weight="800" style={{ color: colors.primary }}>
+                                {ext}
+                              </Text>
+                            </View>
+
+                            <View style={{ flex: 1, marginLeft: 10 }}>
+                              <Text variant="sm" weight="700" numberOfLines={1}>
+                                {file.name}
+                              </Text>
+                              <Caption color="muted" style={{ marginTop: 2 }}>
+                                {formatBytes(file.size || 0)}
+                              </Caption>
+                            </View>
+
+                            <TouchableOpacity
+                              onPress={() => handleRemoveFile(file.id)}
+                              accessibilityLabel={`Remove ${file.name}`}
+                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                              style={[styles.removeFileBtn, { backgroundColor: colors.surfaceRaised }]}
+                            >
+                              <Ionicons name="close" size={16} color={colors.textSecondary} />
+                            </TouchableOpacity>
+                          </View>
+                        </Card>
+                      );
+                    })}
+
+                    {/* Add More Files Button (for teachers/admins or single file replacement) */}
+                    <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+                      <TouchableOpacity
+                        onPress={handlePickDocument}
+                        activeOpacity={0.7}
                         style={[
-                          styles.fileBadge,
-                          { backgroundColor: colors.surfaceRaised, borderRadius: radii.card },
+                          styles.addMoreBtn,
+                          {
+                            backgroundColor: colors.surfaceRaised,
+                            borderColor: colors.border,
+                            borderRadius: radii.button,
+                          },
                         ]}
                       >
-                        <Text variant="xs" weight="800" style={{ color: colors.primary }}>
-                          {ext}
+                        <Ionicons name="document-text-outline" size={16} color={colors.primary} />
+                        <Text variant="xs" weight="700" style={{ marginLeft: 6 }}>
+                          + Add document
                         </Text>
-                      </View>
+                      </TouchableOpacity>
 
-                      <View style={{ flex: 1, marginLeft: 12 }}>
-                        <Text variant="sm" weight="700" numberOfLines={1}>
-                          {selectedFile.name}
+                      <TouchableOpacity
+                        onPress={handlePickPhoto}
+                        activeOpacity={0.7}
+                        style={[
+                          styles.addMoreBtn,
+                          {
+                            backgroundColor: colors.surfaceRaised,
+                            borderColor: colors.border,
+                            borderRadius: radii.button,
+                          },
+                        ]}
+                      >
+                        <Ionicons name="images-outline" size={16} color={colors.primary} />
+                        <Text variant="xs" weight="700" style={{ marginLeft: 6 }}>
+                          + Add photo
                         </Text>
-                        <Caption color="muted" style={{ marginTop: 2 }}>
-                          {formatBytes(selectedFile.size || 0)} • Ready for upload
-                        </Caption>
-                      </View>
-
-                      <View style={{ flexDirection: 'row', gap: 8 }}>
-                        <TouchableOpacity
-                          onPress={handlePickDocument}
-                          accessibilityLabel="Change document"
-                          style={[styles.changeFileBtn, { backgroundColor: colors.surfaceRaised }]}
-                        >
-                          <Ionicons name="document-text-outline" size={16} color={colors.textSecondary} />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          onPress={handlePickPhoto}
-                          accessibilityLabel="Change photo"
-                          style={[styles.changeFileBtn, { backgroundColor: colors.surfaceRaised }]}
-                        >
-                          <Ionicons name="image-outline" size={16} color={colors.textSecondary} />
-                        </TouchableOpacity>
-                      </View>
+                      </TouchableOpacity>
                     </View>
-                  </Card>
+                  </View>
                 ) : (
                   <View
                     style={[
@@ -537,7 +683,7 @@ export function UploadNoteModal({
                       <Ionicons name="cloud-upload-outline" size={32} color={colors.primary} />
                     </View>
                     <Text variant="sm" weight="700" style={{ marginTop: 10 }}>
-                      Select File to Share
+                      Select Files to Share
                     </Text>
                     <Caption color="muted" style={{ marginTop: 4, textAlign: 'center' }}>
                       PDF, DOCX, PPTX, Images, Notes up to 250MB
@@ -557,7 +703,7 @@ export function UploadNoteModal({
                         ]}
                       >
                         <Ionicons name="document-text-outline" size={18} color={colors.primary} />
-                        <Text variant="xs" weight="700">Document</Text>
+                        <Text variant="xs" weight="700">Choose Documents</Text>
                       </TouchableOpacity>
 
                       <TouchableOpacity
@@ -573,17 +719,17 @@ export function UploadNoteModal({
                         ]}
                       >
                         <Ionicons name="images-outline" size={18} color={colors.primary} />
-                        <Text variant="xs" weight="700">Photo / Notes</Text>
+                        <Text variant="xs" weight="700">Photos / Notes</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
                 )}
 
                 <Button
-                  title={selectedFile ? 'Continue to Course Selection →' : 'Choose a File Above'}
+                  title={selectedFiles.length > 0 ? `Continue with ${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''} →` : 'Choose Files Above'}
                   variant="primary"
                   size="lg"
-                  disabled={!selectedFile}
+                  disabled={selectedFiles.length === 0}
                   onPress={() => {
                     setErrorMsg(null);
                     setCurrentStep(2);
@@ -593,48 +739,37 @@ export function UploadNoteModal({
               </View>
             )}
 
-            {/* STEP 2: COURSE & SUBJECT */}
+            {/* STEP 2: COURSE & SUBJECT SELECTORS */}
             {currentStep === 2 && (
               <View>
-                {/* Semester Selector */}
+                {/* Semester Selector Field */}
                 <Text variant="xs" weight="700" color="secondary" style={styles.fieldLabel}>
                   SEMESTER *
                 </Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={{ gap: 8, paddingBottom: spacing.tight, marginBottom: spacing.tight }}
+                <TouchableOpacity
+                  onPress={() => setShowSemesterSheet(true)}
+                  activeOpacity={0.7}
+                  style={[
+                    styles.selectorField,
+                    {
+                      backgroundColor: colors.surface,
+                      borderColor: colors.border,
+                      borderRadius: radii.card,
+                    },
+                  ]}
                 >
-                  {SEMESTERS.map((sem) => {
-                    const isSelected = sem.id === semesterId;
-                    return (
-                      <TouchableOpacity
-                        key={sem.id}
-                        onPress={() => handleSelectSemester(sem.id)}
-                        style={[
-                          styles.semesterPill,
-                          {
-                            backgroundColor: isSelected ? colors.primary : colors.surfaceRaised,
-                            borderColor: isSelected ? colors.primary : colors.border,
-                            borderRadius: radii.pill,
-                            minHeight: touchTarget.min,
-                            justifyContent: 'center',
-                          },
-                        ]}
-                      >
-                        <Text
-                          variant="xs"
-                          weight="700"
-                          style={{ color: isSelected ? colors.primaryText : colors.text }}
-                        >
-                          {sem.label}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
+                  <View style={{ flex: 1 }}>
+                    <Text variant="sm" weight="700" style={{ color: colors.text }}>
+                      {currentSemester.label}
+                    </Text>
+                    <Caption color="muted">
+                      {availableSubjects.length} subjects available
+                    </Caption>
+                  </View>
+                  <Ionicons name="chevron-down" size={20} color={colors.textSecondary} />
+                </TouchableOpacity>
 
-                {/* Course / Subject Selector */}
+                {/* Subject Selector Field */}
                 <Text
                   variant="xs"
                   weight="700"
@@ -643,84 +778,58 @@ export function UploadNoteModal({
                 >
                   SUBJECT / COURSE *
                 </Text>
-                <View style={styles.chipGrid}>
-                  {availableSubjects.map((sub) => {
-                    const isSelected = !isCustomSubject && selectedSubjectTitle === sub.title;
-                    return (
-                      <TouchableOpacity
-                        key={sub.code || sub.title}
-                        onPress={() => handleSelectSubject(sub.title)}
-                        style={[
-                          styles.subjectChip,
-                          {
-                            backgroundColor: isSelected ? colors.primary : colors.surfaceRaised,
-                            borderColor: isSelected ? colors.primary : colors.border,
-                            borderRadius: radii.card,
-                            minHeight: touchTarget.min,
-                            justifyContent: 'center',
-                          },
-                        ]}
-                      >
-                        <Text
-                          variant="xs"
-                          weight="700"
-                          numberOfLines={1}
-                          style={{ color: isSelected ? colors.primaryText : colors.text }}
-                        >
-                          {sub.code ? `${sub.code} • ` : ''}{sub.title}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-
-                  <TouchableOpacity
-                    onPress={() => {
-                      setIsCustomSubject(true);
-                      setSelectedSubjectTitle('');
-                    }}
-                    style={[
-                      styles.subjectChip,
-                      {
-                        backgroundColor: isCustomSubject ? colors.primary : colors.surfaceRaised,
-                        borderColor: isCustomSubject ? colors.primary : colors.border,
-                        borderRadius: radii.card,
-                        minHeight: touchTarget.min,
-                        justifyContent: 'center',
-                      },
-                    ]}
-                  >
+                <TouchableOpacity
+                  onPress={() => setShowSubjectSheet(true)}
+                  activeOpacity={0.7}
+                  style={[
+                    styles.selectorField,
+                    {
+                      backgroundColor: colors.surface,
+                      borderColor: colors.border,
+                      borderRadius: radii.card,
+                    },
+                  ]}
+                >
+                  <View style={{ flex: 1 }}>
                     <Text
-                      variant="xs"
+                      variant="sm"
                       weight="700"
-                      style={{ color: isCustomSubject ? colors.primaryText : colors.textSecondary }}
+                      numberOfLines={1}
+                      style={{ color: effectiveSubjectName ? colors.text : colors.textMuted }}
                     >
-                      + Custom Subject
+                      {effectiveSubjectName || 'Select a subject...'}
                     </Text>
-                  </TouchableOpacity>
-                </View>
+                    {currentSubject?.code && currentSubject.code !== 'CUSTOM' ? (
+                      <Caption color="muted">{currentSubject.code}</Caption>
+                    ) : null}
+                  </View>
+                  <Ionicons name="chevron-down" size={20} color={colors.textSecondary} />
+                </TouchableOpacity>
 
+                {/* Custom Subject Input if enabled */}
                 {isCustomSubject && (
-                  <TextInput
-                    style={[
-                      styles.textInput,
-                      {
-                        backgroundColor: colors.surface,
-                        borderColor: colors.border,
-                        color: colors.text,
-                        borderRadius: radii.input,
-                        marginTop: 8,
-                        marginBottom: spacing.normal,
-                      },
-                    ]}
-                    placeholder="Enter custom subject name..."
-                    placeholderTextColor={colors.textMuted}
-                    value={customSubject}
-                    onChangeText={setCustomSubject}
-                    autoFocus
-                  />
+                  <View style={{ marginTop: 8 }}>
+                    <TextInput
+                      style={[
+                        styles.textInput,
+                        {
+                          backgroundColor: colors.surface,
+                          borderColor: colors.border,
+                          color: colors.text,
+                          borderRadius: radii.input,
+                        },
+                      ]}
+                      placeholder="Enter custom subject name..."
+                      placeholderTextColor={colors.textMuted}
+                      value={customSubject}
+                      onChangeText={setCustomSubject}
+                      autoFocus
+                    />
+                  </View>
                 )}
 
-                <View style={{ flexDirection: 'row', gap: 10, marginTop: spacing.normal }}>
+                {/* Navigation Buttons */}
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: spacing.large }}>
                   <Button
                     title="← Back"
                     variant="outline"
@@ -753,15 +862,9 @@ export function UploadNoteModal({
               <View>
                 {/* Upload Summary Card */}
                 <Card variant="elevated" padding="md" style={{ marginBottom: spacing.normal, borderColor: colors.border }}>
-                  <Text variant="xs" weight="700" color="muted" style={{ marginBottom: 6 }}>
+                  <Text variant="xs" weight="700" color="muted" style={{ marginBottom: 8 }}>
                     UPLOAD SUMMARY
                   </Text>
-                  <View style={styles.summaryRow}>
-                    <Text variant="xs" color="secondary">File:</Text>
-                    <Text variant="xs" weight="700" numberOfLines={1} style={{ flex: 1, textAlign: 'right' }}>
-                      {selectedFile?.name || '—'}
-                    </Text>
-                  </View>
                   <View style={styles.summaryRow}>
                     <Text variant="xs" color="secondary">Semester:</Text>
                     <Text variant="xs" weight="700">{currentSemester.label}</Text>
@@ -770,11 +873,81 @@ export function UploadNoteModal({
                     <Text variant="xs" color="secondary">Subject:</Text>
                     <Text variant="xs" weight="700">{effectiveSubjectName || '—'}</Text>
                   </View>
+                  <View style={styles.summaryRow}>
+                    <Text variant="xs" color="secondary">Unit:</Text>
+                    <Text variant="xs" weight="700">{effectiveChapterName || 'No specific unit'}</Text>
+                  </View>
+                  <View style={styles.summaryRow}>
+                    <Text variant="xs" color="secondary">Files:</Text>
+                    <Text variant="xs" weight="700">{selectedFiles.length} file{selectedFiles.length > 1 ? 's' : ''} selected</Text>
+                  </View>
+
+                  {/* Individual file items preview */}
+                  <View style={styles.summaryFileList}>
+                    {selectedFiles.map((file, i) => (
+                      <View key={file.id} style={styles.summaryFileItem}>
+                        <View style={[styles.summaryFileBadge, { backgroundColor: colors.surfaceRaised }]}>
+                          <Text variant="xs" weight="800" style={{ color: colors.primary }}>
+                            {getFileExtension(file.name)}
+                          </Text>
+                        </View>
+                        <Text variant="xs" weight="600" numberOfLines={1} style={{ flex: 1, marginLeft: 8 }}>
+                          {file.title || file.name}
+                        </Text>
+                        <Caption color="muted">{formatBytes(file.size || 0)}</Caption>
+                      </View>
+                    ))}
+                  </View>
                 </Card>
 
-                {/* Resource Title */}
+                {/* Chapter / Unit Selector Field */}
                 <Text variant="xs" weight="700" color="secondary" style={styles.fieldLabel}>
-                  NOTE TITLE (OPTIONAL)
+                  CHAPTER / UNIT (OPTIONAL)
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setShowChapterSheet(true)}
+                  activeOpacity={0.7}
+                  style={[
+                    styles.selectorField,
+                    {
+                      backgroundColor: colors.surface,
+                      borderColor: colors.border,
+                      borderRadius: radii.card,
+                      marginBottom: isCustomChapter ? 8 : spacing.normal,
+                    },
+                  ]}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text variant="sm" weight="600" style={{ color: colors.text }}>
+                      {effectiveChapterName || 'No specific unit'}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-down" size={20} color={colors.textSecondary} />
+                </TouchableOpacity>
+
+                {isCustomChapter && (
+                  <TextInput
+                    style={[
+                      styles.textInput,
+                      {
+                        backgroundColor: colors.surface,
+                        borderColor: colors.border,
+                        color: colors.text,
+                        borderRadius: radii.input,
+                        marginBottom: spacing.normal,
+                      },
+                    ]}
+                    placeholder="Enter unit/chapter name (e.g. Unit 1: Introduction)..."
+                    placeholderTextColor={colors.textMuted}
+                    value={customChapter}
+                    onChangeText={setCustomChapter}
+                    autoFocus
+                  />
+                )}
+
+                {/* Optional Common Title Field */}
+                <Text variant="xs" weight="700" color="secondary" style={styles.fieldLabel}>
+                  BATCH / NOTE TITLE (OPTIONAL)
                 </Text>
                 <TextInput
                   style={[
@@ -789,126 +962,90 @@ export function UploadNoteModal({
                   ]}
                   placeholder="e.g. Complete Lecture Slides & Numerical Solutions"
                   placeholderTextColor={colors.textMuted}
-                  value={title}
-                  onChangeText={setTitle}
+                  value={commonTitle}
+                  onChangeText={setCommonTitle}
                   maxLength={100}
                 />
-                <Caption color="muted" style={{ marginBottom: spacing.normal }}>
-                  Defaults to the original file name if left blank.
+                <Caption color="muted" style={{ marginBottom: spacing.large }}>
+                  If left blank, each file will use its clean filename.
                 </Caption>
 
-                {/* Chapter / Unit Selector */}
-                <Text variant="xs" weight="700" color="secondary" style={styles.fieldLabel}>
-                  CHAPTER / UNIT (OPTIONAL)
-                </Text>
-                {availableChapters.length > 0 && !isCustomSubject ? (
-                  <View style={styles.chipGrid}>
-                    {availableChapters.map((chap) => {
-                      const isSelected = !isCustomChapter && selectedChapterTitle === chap.title;
-                      return (
-                        <TouchableOpacity
-                          key={chap.id}
-                          onPress={() => {
-                            setIsCustomChapter(false);
-                            setSelectedChapterTitle(chap.title);
-                          }}
-                          style={[
-                            styles.chapterChip,
-                            {
-                              backgroundColor: isSelected ? colors.primary : colors.surfaceRaised,
-                              borderColor: isSelected ? colors.primary : colors.border,
-                              borderRadius: radii.card,
-                              minHeight: touchTarget.min,
-                              justifyContent: 'center',
-                            },
-                          ]}
-                        >
-                          <Text
-                            variant="xs"
-                            weight="600"
-                            numberOfLines={1}
-                            style={{ color: isSelected ? colors.primaryText : colors.text }}
-                          >
-                            {chap.title}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-
-                    <TouchableOpacity
-                      onPress={() => {
-                        setIsCustomChapter(true);
-                        setSelectedChapterTitle('');
-                      }}
-                      style={[
-                        styles.chapterChip,
-                        {
-                          backgroundColor: isCustomChapter ? colors.primary : colors.surfaceRaised,
-                          borderColor: isCustomChapter ? colors.primary : colors.border,
-                          borderRadius: radii.card,
-                          minHeight: touchTarget.min,
-                          justifyContent: 'center',
-                        },
-                      ]}
-                    >
-                      <Text
-                        variant="xs"
-                        weight="600"
-                        style={{ color: isCustomChapter ? colors.primaryText : colors.textSecondary }}
-                      >
-                        + Custom Unit
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                ) : null}
-
-                {(isCustomChapter || isCustomSubject || availableChapters.length === 0) && (
-                  <TextInput
-                    style={[
-                      styles.textInput,
-                      {
-                        backgroundColor: colors.surface,
-                        borderColor: colors.border,
-                        color: colors.text,
-                        borderRadius: radii.input,
-                        marginTop: 8,
-                        marginBottom: spacing.normal,
-                      },
-                    ]}
-                    placeholder="Enter unit/chapter name (e.g. Unit 1: Introduction)..."
-                    placeholderTextColor={colors.textMuted}
-                    value={isCustomChapter ? customChapter : selectedChapterTitle}
-                    onChangeText={(val) => {
-                      if (isCustomChapter) setCustomChapter(val);
-                      else setSelectedChapterTitle(val);
-                    }}
-                  />
-                )}
-
-                {/* Bottom Submit Action */}
-                <View style={{ flexDirection: 'row', gap: 10, marginTop: spacing.normal }}>
+                {/* Primary CTA and Back */}
+                <View style={{ flexDirection: 'row', gap: 10 }}>
                   <Button
                     title="← Back"
                     variant="outline"
                     size="lg"
                     onPress={() => setCurrentStep(2)}
+                    disabled={submitting}
                     style={{ flex: 1 }}
                   />
                   <Button
-                    title={submitting ? 'Uploading...' : 'Publish to Library'}
+                    title={
+                      submitting
+                        ? uploadProgressText || 'Uploading...'
+                        : `Upload ${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''}`
+                    }
                     variant="primary"
                     size="lg"
-                    loading={submitting}
-                    disabled={!selectedFile || submitting}
+                    disabled={submitting || selectedFiles.length === 0}
                     onPress={handleSubmit}
-                    leftIcon={<Ionicons name="cloud-upload-outline" size={18} color={colors.primaryText} />}
-                    style={{ flex: 2 }}
+                    style={{ flex: 1 }}
                   />
                 </View>
               </View>
             )}
           </KeyboardAwareForm>
         </SafeAreaView>
+
+        {/* Semester Selection Sheet */}
+        <SelectionSheet
+          visible={showSemesterSheet}
+          onClose={() => setShowSemesterSheet(false)}
+          title="Choose semester"
+          options={semesterOptions}
+          selectedId={semesterId}
+          onSelect={(opt) => handleSelectSemester(opt.id)}
+        />
+
+        {/* Subject Selection Sheet */}
+        <SelectionSheet
+          visible={showSubjectSheet}
+          onClose={() => setShowSubjectSheet(false)}
+          title="Choose subject"
+          options={subjectOptions}
+          selectedId={isCustomSubject ? null : selectedSubjectTitle}
+          searchable
+          searchPlaceholder="Search subjects by name or code..."
+          customActionLabel="+ Custom Subject"
+          onCustomAction={() => {
+            setIsCustomSubject(true);
+            setSelectedSubjectTitle('');
+          }}
+          onSelect={(opt) => handleSelectSubject(opt.id)}
+        />
+
+        {/* Chapter / Unit Selection Sheet */}
+        <SelectionSheet
+          visible={showChapterSheet}
+          onClose={() => setShowChapterSheet(false)}
+          title="Choose unit / chapter"
+          options={chapterOptions}
+          selectedId={selectedChapterTitle || '__NO_UNIT__'}
+          customActionLabel="+ Custom Unit"
+          onCustomAction={() => {
+            setIsCustomChapter(true);
+            setSelectedChapterTitle('');
+          }}
+          onSelect={(opt) => {
+            setIsCustomChapter(false);
+            if (opt.id === '__NO_UNIT__') {
+              setSelectedChapterTitle('');
+            } else {
+              setSelectedChapterTitle(opt.id);
+            }
+          }}
+        />
       </View>
     </Modal>
   );
@@ -924,114 +1061,39 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    borderBottomWidth: 1,
   },
   headerBtn: {
     paddingVertical: 6,
     paddingHorizontal: 8,
-    minHeight: 36,
-    justifyContent: 'center',
+    minWidth: 64,
+  },
+  headerTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   publishBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 8,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    minWidth: 80,
   },
   stepperContainer: {
     flexDirection: 'row',
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: 1,
   },
   stepperTab: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
   scrollContent: {
     paddingBottom: 40,
-  },
-  fieldLabel: {
-    fontSize: 11,
-    letterSpacing: 0.8,
-    marginBottom: 8,
-  },
-  dropzoneCard: {
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 28,
-    paddingHorizontal: 16,
-  },
-  dropzoneIconCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  uploadActionBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderWidth: 1,
-    gap: 8,
-    minHeight: 44,
-  },
-  fileSelectedRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  fileBadge: {
-    width: 48,
-    height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  changeFileBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  semesterPill: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderWidth: 1,
-  },
-  chipGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 8,
-  },
-  subjectChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderWidth: 1,
-  },
-  chapterChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderWidth: 1,
-  },
-  textInput: {
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 14,
-    minHeight: 48,
   },
   errorBanner: {
     flexDirection: 'row',
@@ -1041,10 +1103,101 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginBottom: 16,
   },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  fieldLabel: {
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  fileQueueCard: {
+    marginBottom: 8,
+  },
+  fileSelectedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  fileBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+  },
+  removeFileBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addMoreBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderWidth: 1,
+  },
+  dropzoneCard: {
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dropzoneIconCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  uploadActionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    gap: 8,
+    borderWidth: 1,
+  },
+  selectorField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 52,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderWidth: 1,
+  },
+  textInput: {
+    minHeight: 46,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 14,
+  },
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 4,
+    marginVertical: 4,
+  },
+  summaryFileList: {
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255,255,255,0.1)',
+  },
+  summaryFileItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 4,
+  },
+  summaryFileBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
 });

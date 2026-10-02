@@ -147,11 +147,25 @@ export async function toggleFileLike(
   };
 }
 
+export interface UploadFileItem {
+  uri: string;
+  name: string;
+  type?: string;
+  size?: number;
+  title?: string;
+}
+
 export interface UploadNoteParams {
-  fileUri: string;
-  fileName: string;
+  // Single file support
+  fileUri?: string;
+  fileName?: string;
   fileType?: string;
   fileSize?: number;
+
+  // Multi-file batch support
+  files?: UploadFileItem[];
+  batchId?: string;
+
   title?: string;
   semester: string;
   subject: string;
@@ -162,33 +176,60 @@ export interface UploadNoteResponse {
   message: string;
   fileId?: number;
   files?: any[];
+  count?: number;
 }
 
 /**
- * Upload a note/material to the library.
+ * Upload a note/material (or batch of materials) to the library.
  * Endpoint: POST /api/files/upload
  */
 export async function uploadNote(params: UploadNoteParams): Promise<UploadNoteResponse> {
-  const normalized = normalizeUploadFile(
-    {
+  const formData = new FormData();
+  const fileList: UploadFileItem[] = [];
+
+  if (params.files && params.files.length > 0) {
+    fileList.push(...params.files);
+  } else if (params.fileUri && params.fileName) {
+    fileList.push({
       uri: params.fileUri,
       name: params.fileName,
       type: params.fileType,
       size: params.fileSize,
-    },
-    'note.pdf'
-  );
+      title: params.title,
+    });
+  }
 
-  validateFileSize(normalized.size, 250 * 1024 * 1024, 'Document');
+  if (fileList.length === 0) {
+    throw new ApiError('No files selected for upload.', 400);
+  }
 
-  const formData = new FormData();
+  const titles: string[] = [];
+  for (const item of fileList) {
+    const normalized = normalizeUploadFile(
+      {
+        uri: item.uri,
+        name: item.name,
+        type: item.type,
+        size: item.size,
+      },
+      'note.pdf'
+    );
+    validateFileSize(normalized.size, 250 * 1024 * 1024, 'Document');
 
-  formData.append('files', {
-    uri: normalized.uri,
-    name: normalized.name,
-    type: normalized.type || 'application/octet-stream',
-  } as any);
+    formData.append('files', {
+      uri: normalized.uri,
+      name: normalized.name,
+      type: normalized.type || 'application/octet-stream',
+    } as any);
 
+    titles.push(item.title || item.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '));
+  }
+
+  formData.append('fileTitles', JSON.stringify(titles));
+
+  if (params.batchId) {
+    formData.append('batchId', params.batchId);
+  }
   if (params.title && params.title.trim()) {
     formData.append('title', params.title.trim());
   }

@@ -8,6 +8,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { Text } from "@/components/ui/Typography";
+import { COMPOSER_GEOMETRY } from "@/constants/composerGeometry";
 import { ChatMessage, sendChatTyping } from "@/services/chat";
 import { ChatSendButton } from "./ChatSendButton";
 
@@ -30,7 +31,7 @@ export interface ChatComposerProps {
     replyTo: ChatMessage | null;
   }) => void;
   inputRef: React.RefObject<TextInput | null>;
-  paddingBottom: number;
+  paddingBottom?: number;
   userAvailable: boolean;
 }
 
@@ -43,7 +44,7 @@ export const ChatComposer = React.memo(function ChatComposer({
   onPickCamera,
   onSendMessage,
   inputRef,
-  paddingBottom,
+  paddingBottom = 0,
   userAvailable,
 }: ChatComposerProps) {
   const [inputText, setInputText] = useState("");
@@ -142,19 +143,19 @@ export const ChatComposer = React.memo(function ChatComposer({
       <View
         style={[
           styles.composerContainer,
-          {
-            paddingBottom,
-          },
+          paddingBottom > 0 && { paddingBottom },
         ]}
       >
         {/* Attach '+' button */}
         <TouchableOpacity
-          style={styles.attachButtonCircle}
+          style={styles.actionTouchArea}
           onPress={onOpenAttachModal}
           activeOpacity={0.7}
           accessibilityLabel="Add attachment"
         >
-          <Ionicons name="add" size={22} color="#f5f5f5" />
+          <View style={styles.actionIconCircle}>
+            <Ionicons name="add" size={22} color="#f5f5f5" />
+          </View>
         </TouchableOpacity>
 
         {/* Pill-shaped text input */}
@@ -164,7 +165,7 @@ export const ChatComposer = React.memo(function ChatComposer({
           keyboardAppearance="dark"
           style={[
             styles.pillTextInput,
-            inputFocused && { borderColor: "#48484a" },
+            inputFocused && { borderColor: "#52525b" },
           ]}
           placeholder="Message…"
           placeholderTextColor="#71717a"
@@ -185,13 +186,15 @@ export const ChatComposer = React.memo(function ChatComposer({
           />
         ) : (
           <TouchableOpacity
-            style={styles.cameraButtonCircle}
+            style={styles.actionTouchArea}
             onPress={onPickCamera}
             disabled={!userAvailable}
             activeOpacity={0.7}
             accessibilityLabel="Share photo"
           >
-            <Ionicons name="camera-outline" size={20} color="#f5f5f5" />
+            <View style={styles.actionIconCircle}>
+              <Ionicons name="camera-outline" size={20} color="#f5f5f5" />
+            </View>
           </TouchableOpacity>
         )}
       </View>
@@ -201,44 +204,39 @@ export const ChatComposer = React.memo(function ChatComposer({
 
 const styles = StyleSheet.create({
   outerContainer: {
-    backgroundColor: "#0d0d0e",
-    borderTopWidth: 1,
-    borderTopColor: "#1c1c1e",
+    width: "100%",
   },
   composerContainer: {
     flexDirection: "row",
     alignItems: "flex-end",
-    paddingHorizontal: 8,
-    paddingTop: 8,
-    backgroundColor: "#0d0d0e",
-    gap: 8,
+    gap: COMPOSER_GEOMETRY.innerHorizontalGap,
   },
   pillTextInput: {
     flex: 1,
     backgroundColor: "#1c1c1e",
-    borderRadius: 20,
+    borderRadius: COMPOSER_GEOMETRY.borderRadius,
     borderWidth: 1,
     borderColor: "#27272a",
-    paddingHorizontal: 14,
-    paddingTop: 8,
-    paddingBottom: 8,
+    paddingHorizontal: COMPOSER_GEOMETRY.inputPaddingHorizontal,
+    paddingTop: COMPOSER_GEOMETRY.inputPaddingTop,
+    paddingBottom: COMPOSER_GEOMETRY.inputPaddingBottom,
     color: "#f5f5f5",
-    fontSize: 15,
-    maxHeight: 120,
-    minHeight: 38,
+    fontSize: COMPOSER_GEOMETRY.fontSize,
+    lineHeight: COMPOSER_GEOMETRY.lineHeight,
+    minHeight: COMPOSER_GEOMETRY.minInputHeight,
+    maxHeight: COMPOSER_GEOMETRY.maxInputHeight,
   },
-  attachButtonCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#1c1c1e",
+  actionTouchArea: {
+    width: COMPOSER_GEOMETRY.minActionTouchTarget,
+    height: COMPOSER_GEOMETRY.minActionTouchTarget,
     alignItems: "center",
     justifyContent: "center",
+    flexShrink: 0,
   },
-  cameraButtonCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  actionIconCircle: {
+    width: COMPOSER_GEOMETRY.actionButtonSize,
+    height: COMPOSER_GEOMETRY.actionButtonSize,
+    borderRadius: COMPOSER_GEOMETRY.actionButtonRadius,
     backgroundColor: "#1c1c1e",
     alignItems: "center",
     justifyContent: "center",

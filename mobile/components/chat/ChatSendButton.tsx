@@ -5,8 +5,11 @@ import {
   Animated,
   StyleSheet,
   TouchableOpacity,
+  View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+
+import { COMPOSER_GEOMETRY } from "@/constants/composerGeometry";
 
 export function ChatSendButton({
   disabled,
@@ -50,33 +53,48 @@ export function ChatSendButton({
       <TouchableOpacity
         accessibilityRole="button"
         accessibilityLabel="Send message"
-        accessibilityState={{ disabled }}
-        disabled={disabled}
+        accessibilityState={{ disabled: disabled || sending }}
+        disabled={disabled || sending}
         onPress={onPress}
         onPressIn={() => animate(0.92)}
         onPressOut={() => animate(1)}
         activeOpacity={0.8}
-        style={[
-          styles.button,
-          { backgroundColor: disabled ? "#242426" : "#ffffff" },
-        ]}
+        style={styles.touchArea}
       >
-        <Ionicons
-          name="arrow-up"
-          size={19}
-          color={disabled ? "#71717a" : "#0a0a0a"}
-        />
+        <View
+          style={[
+            styles.button,
+            { backgroundColor: disabled ? "#242426" : "#ffffff" },
+          ]}
+        >
+          {sending ? (
+            <ActivityIndicator size="small" color="#0a0a0a" />
+          ) : (
+            <Ionicons
+              name="arrow-up"
+              size={20}
+              color={disabled ? "#71717a" : "#0a0a0a"}
+            />
+          )}
+        </View>
       </TouchableOpacity>
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
+  touchArea: {
+    width: COMPOSER_GEOMETRY.minActionTouchTarget,
+    height: COMPOSER_GEOMETRY.minActionTouchTarget,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   button: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: COMPOSER_GEOMETRY.actionButtonSize,
+    height: COMPOSER_GEOMETRY.actionButtonSize,
+    borderRadius: COMPOSER_GEOMETRY.actionButtonRadius,
     alignItems: "center",
     justifyContent: "center",
   },
 });
+

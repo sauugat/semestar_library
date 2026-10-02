@@ -37,6 +37,7 @@ import * as Sharing from "expo-sharing";
 import * as MediaLibrary from "expo-media-library/legacy";
 import * as Clipboard from "expo-clipboard";
 import { ChatComposer } from "@/components/chat/ChatComposer";
+import { StickyComposer } from "@/components/ui/StickyComposer";
 import { ChatMessageItem } from "@/components/chat/ChatMessageItem";
 import { ChatMessageActionsSheet } from "@/components/chat/ChatMessageActionsSheet";
 import { FullScreenImageViewer } from "@/components/FullScreenImageViewer";
@@ -1070,7 +1071,7 @@ export default function ChatScreen() {
       )}
 
       {/* Replying banner, Attachment Preview, and Message Composer */}
-      <KeyboardStickyView offset={{ closed: 0, opened: insets.bottom }}>
+      <StickyComposer bordered>
         <ChatComposer
           replyTo={replyTo}
           onCancelReply={() => setReplyTo(null)}
@@ -1083,10 +1084,9 @@ export default function ChatScreen() {
           onPickCamera={handlePickImage}
           onSendMessage={handleSendMessage}
           inputRef={inputRef}
-          paddingBottom={Math.max(insets.bottom, Platform.OS === 'android' ? 14 : 12)}
           userAvailable={Boolean(user)}
         />
-      </KeyboardStickyView>
+      </StickyComposer>
 
       {/* Class Members & Search Modal Panel */}
       <Modal

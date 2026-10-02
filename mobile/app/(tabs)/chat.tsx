@@ -5,6 +5,7 @@ import React, {
   useMemo,
   useCallback,
 } from "react";
+import { runOnJS } from "react-native-reanimated";
 import {
   View,
   StyleSheet,
@@ -25,7 +26,7 @@ import {
   useWindowDimensions,
   Dimensions,
 } from "react-native";
-import { KeyboardStickyView } from "react-native-keyboard-controller";
+import { KeyboardStickyView, useKeyboardHandler } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -228,6 +229,7 @@ export default function ChatScreen() {
   // Refs
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
   const isNearBottomRef = useRef(true);
+  const listLayoutHeightRef = useRef(0);
   const lastTypingSentRef = useRef<number>(0);
   const [typingPulsingAnim] = useState(() => new Animated.Value(0.3));
 
@@ -280,6 +282,29 @@ export default function ChatScreen() {
       setLastVisibleMessageId(0);
     }, []),
   );
+
+  // Keyboard-aware scroll: when the keyboard finishes appearing and the user
+  // is reading the latest messages, scroll the inverted list to offset 0 so
+  // the newest message stays visible above the composer.  This is the root
+  // fix for the bug where messages disappear behind the keyboard on Android.
+  const scrollToBottomIfNeeded = useCallback(() => {
+    if (isNearBottomRef.current) {
+      // Let the layout settle after the resize before scrolling
+      requestAnimationFrame(() => {
+        flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+      });
+    }
+  }, []);
+
+  useKeyboardHandler({
+    onEnd: (e) => {
+      "worklet";
+      // Only auto-scroll when the keyboard has just opened (height > 0)
+      if (e.height > 0) {
+        runOnJS(scrollToBottomIfNeeded)();
+      }
+    },
+  }, [scrollToBottomIfNeeded]);
 
   useEffect(() => {
     const newestConfirmed = messages.find(m => m.id > 0);
@@ -967,14 +992,33 @@ export default function ChatScreen() {
           data={messages}
           keyExtractor={(item) => item.clientId || String(item.id)}
           renderItem={renderMessageItem}
+          style={styles.messagesList}
           contentContainerStyle={styles.messagesFeed}
           onScroll={handleScroll}
           scrollEventThrottle={16}
           keyboardDismissMode="on-drag"
           keyboardShouldPersistTaps="handled"
+          automaticallyAdjustContentInsets={false}
           maintainVisibleContentPosition={{
             minIndexForVisible: 0,
             autoscrollToTopThreshold: 80,
+          }}
+          onLayout={(e) => {
+            const nextHeight = e.nativeEvent.layout.height;
+            const prev = listLayoutHeightRef.current;
+            listLayoutHeightRef.current = nextHeight;
+            // When the layout shrinks (keyboard opened) and user is near
+            // bottom, nudge the list back to offset 0 so newest messages
+            // remain visible.  This covers the resize-driven viewport
+            // change that onContentSizeChange does not detect.
+            if (prev > 0 && nextHeight < prev && isNearBottomRef.current) {
+              requestAnimationFrame(() => {
+                flatListRef.current?.scrollToOffset({
+                  offset: 0,
+                  animated: true,
+                });
+              });
+            }
           }}
           onContentSizeChange={() => {
             if (isNearBottomRef.current)
@@ -1458,6 +1502,9 @@ const styles = StyleSheet.create({
   errorBannerText: {
     color: "#f5f5f5",
     fontSize: 12,
+  },
+  messagesList: {
+    flex: 1,
   },
   messagesFeed: {
     paddingHorizontal: 12,

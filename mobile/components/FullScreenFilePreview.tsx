@@ -20,6 +20,7 @@ import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
 import { LibraryFile } from '@/services/library';
 import { useTheme } from '@/constants/useTheme';
+import { getBaseUrl, getAuthToken } from '@/services/api';
 
 export interface FullScreenFilePreviewProps {
   visible: boolean;
@@ -313,6 +314,7 @@ export function FullScreenFilePreview({
   const [pdfBase64, setPdfBase64] = useState<string | null>(null);
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [textContent, setTextContent] = useState<string | null>(null);
+  const [officeHtml, setOfficeHtml] = useState<string | null>(null);
   const [copiedText, setCopiedText] = useState(false);
   const [activeUri, setActiveUri] = useState<string | null>(localFileUri);
 
@@ -342,13 +344,91 @@ export function FullScreenFilePreview({
     return file ? getFileCategory(file.originalName) : 'other';
   }, [file]);
 
-  // Prepare file for rendering (download if needed, extract base64 for Android PDF or Image, or text UTF-8)
+  // Prepare file for rendering (download if needed, extract base64 for Android PDF or Image, or text UTF-8, or fetch HTML slides)
   const preparePreview = useCallback(async () => {
     if (!file) return;
     setErrorMsg(null);
     setPreparing(true);
 
     try {
+      const cat = getFileCategory(file.originalName);
+
+      if (cat === 'office') {
+        if (file.id) {
+          try {
+            const baseUrl = await getBaseUrl();
+            const token = await getAuthToken();
+            const viewUrl = `${baseUrl}/api/files/${file.id}/view`;
+            const res = await fetch(viewUrl, {
+              headers: token ? { Authorization: `Bearer ${token}` } : {},
+            });
+            if (res.ok) {
+              const contentType = res.headers.get('content-type') || '';
+              if (contentType.includes('application/pdf')) {
+                const blob = await res.blob();
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                  const result = reader.result as string;
+                  if (result) {
+                    const base64data = result.includes(',') ? result.split(',')[1] : result;
+                    setPdfBase64(base64data);
+                  }
+                };
+                reader.readAsDataURL(blob);
+              } else if (contentType.includes('text/html')) {
+                let html = await res.text();
+                const themeCss = `
+                  <style>
+                    :root {
+                      ${isDark ? `
+                        --bg: #0a0a0a !important;
+                        --card-bg: #171717 !important;
+                        --text: #f5f5f5 !important;
+                        --text-muted: #a1a1aa !important;
+                        --border: rgba(255, 255, 255, 0.12) !important;
+                        --shadow-sm: none !important;
+                        --shadow-md: none !important;
+                      ` : ''}
+                    }
+                    .preview-navbar { display: none !important; }
+                    body {
+                      ${isDark ? 'background: #0a0a0a !important; color: #f5f5f5 !important;' : ''}
+                      padding: 16px 12px 60px !important;
+                    }
+                    ${isDark ? `
+                      .slide-card { background: #171717 !important; border: 1px solid rgba(255,255,255,0.12) !important; color: #f5f5f5 !important; }
+                      .slide-card-header { border-bottom: 1px solid rgba(255,255,255,0.08) !important; background: rgba(255,255,255,0.03) !important; }
+                      .slide-badge { background: #262626 !important; color: #fb923c !important; }
+                      .slide-card-body { color: #e4e4e7 !important; }
+                      .slide-card-body p { color: #e4e4e7 !important; }
+                      .empty-slide-note { color: #a1a1aa !important; }
+                      .docx-content { color: #f5f5f5 !important; }
+                      .docx-content p { color: #e4e4e7 !important; }
+                      .docx-content h1, .docx-content h2, .docx-content h3 { color: #f5f5f5 !important; }
+                    ` : ''}
+                  </style>
+                `;
+                if (html.includes('</head>')) {
+                  html = html.replace('</head>', `${themeCss}</head>`);
+                } else {
+                  html = `${themeCss}${html}`;
+                }
+                setOfficeHtml(html);
+              }
+            }
+          } catch (viewErr) {
+            console.warn('[FullScreenFilePreview] Failed to fetch in-app office preview HTML:', viewErr);
+          }
+        }
+        // Also ensure localFileUri is downloaded for sharing/saving if not yet present
+        if (!activeUri && !localFileUri) {
+          onDownloadFile().then((uri) => {
+            if (uri) setActiveUri(uri);
+          }).catch(() => {});
+        }
+        return;
+      }
+
       let targetUri = activeUri || localFileUri;
       if (!targetUri) {
         targetUri = await onDownloadFile();
@@ -357,8 +437,6 @@ export function FullScreenFilePreview({
         }
         setActiveUri(targetUri);
       }
-
-      const cat = getFileCategory(file.originalName);
 
       if (cat === 'pdf') {
         if (Platform.OS === 'android') {
@@ -384,7 +462,7 @@ export function FullScreenFilePreview({
     } finally {
       setPreparing(false);
     }
-  }, [file, activeUri, localFileUri, onDownloadFile]);
+  }, [file, activeUri, localFileUri, onDownloadFile, isDark]);
 
   // Trigger preparePreview whenever visible becomes true or activeUri updates
   useEffect(() => {
@@ -394,6 +472,7 @@ export function FullScreenFilePreview({
       setPdfBase64(null);
       setImageBase64(null);
       setTextContent(null);
+      setOfficeHtml(null);
       setCopiedText(false);
       setErrorMsg(null);
     }
@@ -822,10 +901,10 @@ export function FullScreenFilePreview({
           )}
 
           {/* 3. PDF Viewer */}
-          {!isLoading && !errorMsg && fileCategory === 'pdf' && activeUri && (
+          {!isLoading && !errorMsg && ((fileCategory === 'pdf' && activeUri) || (fileCategory === 'office' && Boolean(pdfBase64))) && (
             <WebView
               source={
-                Platform.OS === 'ios'
+                Platform.OS === 'ios' && activeUri && fileCategory === 'pdf'
                   ? { uri: activeUri }
                   : { html: getPdfJsHtml(pdfBase64 || '', file?.title || '', isDark) }
               }
@@ -917,46 +996,69 @@ export function FullScreenFilePreview({
             </View>
           )}
 
-          {/* 6. Dedicated Office Documents Card (Word, Excel, PowerPoint) */}
-          {!isLoading && !errorMsg && fileCategory === 'office' && (() => {
-            const officeMeta = getOfficeDocMeta(file?.originalName || '');
-            return (
-              <View style={styles.docBox}>
-                <View style={[styles.docIconCircle, { borderColor: officeMeta.color + '40', backgroundColor: officeMeta.color + '15' }]}>
-                  <Ionicons name={officeMeta.icon as any} size={48} color={officeMeta.color} />
-                </View>
-                <View style={[styles.officeBadge, { backgroundColor: officeMeta.color }]}>
-                  <Text style={styles.officeBadgeText}>{officeMeta.label}</Text>
-                </View>
-                <Text style={styles.docTitle}>{file?.title || file?.originalName}</Text>
-                <Text style={styles.docSubtitle}>
-                  {ext} • {formatBytes(file?.sizeBytes || 0)}
-                </Text>
-                <Text style={styles.docDescription}>
-                  {`Ready to view in your device's document reader (${officeMeta.appHint}).`}
-                </Text>
-                <View style={{ width: '100%', maxWidth: 280, gap: 10 }}>
-                  <TouchableOpacity
-                    style={[styles.primaryButton, { backgroundColor: officeMeta.color }]}
-                    onPress={onShareFile}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="open-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
-                    <Text style={[styles.primaryButtonText, { color: '#FFFFFF' }]}>Open in Document Reader</Text>
-                  </TouchableOpacity>
+          {/* 6. In-App Office Document / Presentation Viewer (PowerPoint, Word) */}
+          {!isLoading && !errorMsg && fileCategory === 'office' && !pdfBase64 && (
+            officeHtml ? (
+              <WebView
+                source={{ html: officeHtml }}
+                originWhitelist={['*']}
+                scalesPageToFit={true}
+                nestedScrollEnabled={true}
+                javaScriptEnabled={true}
+                domStorageEnabled={true}
+                startInLoadingState={true}
+                renderLoading={() => (
+                  <View style={styles.centerBox}>
+                    <ActivityIndicator size="small" color={colors.primary} />
+                    <Text style={styles.loadingText}>Loading presentation slides...</Text>
+                  </View>
+                )}
+                onError={(e) => {
+                  console.warn('WebView error displaying office preview:', e.nativeEvent.description);
+                  setOfficeHtml(null);
+                }}
+                style={styles.webView}
+              />
+            ) : (() => {
+              const officeMeta = getOfficeDocMeta(file?.originalName || '');
+              return (
+                <View style={styles.docBox}>
+                  <View style={[styles.docIconCircle, { borderColor: officeMeta.color + '40', backgroundColor: officeMeta.color + '15' }]}>
+                    <Ionicons name={officeMeta.icon as any} size={48} color={officeMeta.color} />
+                  </View>
+                  <View style={[styles.officeBadge, { backgroundColor: officeMeta.color }]}>
+                    <Text style={styles.officeBadgeText}>{officeMeta.label}</Text>
+                  </View>
+                  <Text style={styles.docTitle}>{file?.title || file?.originalName}</Text>
+                  <Text style={styles.docSubtitle}>
+                    {ext} • {formatBytes(file?.sizeBytes || 0)}
+                  </Text>
+                  <Text style={styles.docDescription}>
+                    {`Ready to view in your device's document reader (${officeMeta.appHint}).`}
+                  </Text>
+                  <View style={{ width: '100%', maxWidth: 280, gap: 10 }}>
+                    <TouchableOpacity
+                      style={[styles.primaryButton, { backgroundColor: officeMeta.color }]}
+                      onPress={onShareFile}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="open-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+                      <Text style={[styles.primaryButtonText, { color: '#FFFFFF' }]}>Open in Document Reader</Text>
+                    </TouchableOpacity>
 
-                  <TouchableOpacity
-                    style={styles.secondaryButton}
-                    onPress={onShareFile}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="share-outline" size={18} color={colors.text} style={{ marginRight: 6 }} />
-                    <Text style={styles.secondaryButtonText}>Share / Export File</Text>
-                  </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.secondaryButton}
+                      onPress={onShareFile}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="share-outline" size={18} color={colors.text} style={{ marginRight: 6 }} />
+                      <Text style={styles.secondaryButtonText}>Share / Export File</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              </View>
-            );
-          })()}
+              );
+            })()
+          )}
 
           {/* 7. Other / Unsupported Formats */}
           {!isLoading && !errorMsg && fileCategory === 'other' && (

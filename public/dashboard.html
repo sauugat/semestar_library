@@ -879,22 +879,26 @@
       display: none !important;
     }
 
+    /* ═════════════════════════════════════════════════════════════════════════
+       CREATE POST MODAL — REFACTORED PRODUCTION DESIGN SYSTEM
+       ═════════════════════════════════════════════════════════════════════════ */
     .post-modal-card {
-      background: var(--ap-surface, #ffffff);
+      background: var(--surface, #ffffff);
       border: 1px solid var(--border-color, rgba(0, 0, 0, 0.12));
       border-radius: 20px;
       width: 100%;
-      max-width: 520px;
+      max-width: 540px;
       padding: 24px;
-      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.24);
-      transform: scale(0.96) translateY(8px);
-      transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.32), 0 2px 8px rgba(0, 0, 0, 0.08);
+      transform: scale(0.97) translateY(8px);
+      transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
       display: flex;
       flex-direction: column;
-      max-height: 90vh;
+      max-height: calc(100dvh - 40px);
       overflow-y: auto;
       box-sizing: border-box;
       margin: auto;
+      color: var(--text-primary, #111111);
     }
 
     .post-modal-overlay.open .post-modal-card {
@@ -908,19 +912,22 @@
 
     [data-theme="dark"] .post-modal-card,
     body.dark-mode .post-modal-card {
-      background: #171717 !important;
+      background: #18181b !important;
       border-color: rgba(255, 255, 255, 0.12) !important;
-      color: #f5f5f7 !important;
-      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.75) !important;
+      color: #f4f4f5 !important;
+      box-shadow: 0 28px 72px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.06) !important;
     }
 
+    /* Section 1: Header */
     .post-modal-card .modal-header {
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
       gap: 16px;
-      margin-bottom: 16px;
-      padding-bottom: 14px;
+      width: 100%;
+      box-sizing: border-box;
+      margin: 0 0 16px 0;
+      padding: 0 0 14px 0;
       border-bottom: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
     }
 
@@ -932,56 +939,72 @@
     .post-modal-card .modal-header-left {
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 3px;
       min-width: 0;
+      flex: 1;
     }
 
-    .post-modal-card .modal-title {
-      font-size: 18px;
-      font-weight: 700;
-      letter-spacing: -0.015em;
-      color: var(--text-primary, #1d1d1f);
-      margin: 0;
+    .post-modal-card .modal-title-row {
       display: inline-flex;
       align-items: center;
       gap: 8px;
       line-height: 1.25;
     }
 
+    .post-modal-card .modal-title-icon {
+      flex-shrink: 0;
+      color: #a1a1aa;
+    }
+
+    [data-theme="dark"] .post-modal-card .modal-title-icon,
+    body.dark-mode .post-modal-card .modal-title-icon {
+      color: #e4e4e7 !important;
+    }
+
+    .post-modal-card .modal-title {
+      font-size: 17.5px;
+      font-weight: 700;
+      letter-spacing: -0.015em;
+      color: var(--text-primary, #111111);
+      margin: 0;
+      line-height: 1.25;
+    }
+
     [data-theme="dark"] .post-modal-card .modal-title,
     body.dark-mode .post-modal-card .modal-title {
-      color: #f5f5f7 !important;
+      color: #f4f4f5 !important;
     }
 
-    .post-modal-card .modal-title svg {
-      flex-shrink: 0;
-      color: var(--accent-color, #0071e3);
-    }
-
+    /* Subtitle aligned directly with title text (skipping icon width + gap = 26px) */
     .post-modal-card .modal-subtitle {
       font-size: 13px;
-      color: var(--text-secondary, #86868b);
+      color: var(--text-secondary, #71717a);
       margin: 0;
+      padding-left: 26px;
       line-height: 1.35;
     }
 
+    [data-theme="dark"] .post-modal-card .modal-subtitle,
+    body.dark-mode .post-modal-card .modal-subtitle {
+      color: #a1a1aa !important;
+    }
+
+    /* Close Button: 36px x 36px, centered SVG X */
     .post-modal-card .modal-close {
       background: transparent;
-      border: none;
-      font-size: 20px;
-      line-height: 1;
-      color: var(--text-secondary, #86868b);
+      border: 1px solid transparent;
+      color: var(--text-secondary, #71717a);
       cursor: pointer;
-      width: 32px;
-      height: 32px;
-      min-width: 32px;
-      min-height: 32px;
+      width: 36px;
+      height: 36px;
+      min-width: 36px;
+      min-height: 36px;
       padding: 0;
       border-radius: 50%;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      transition: color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+      transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
       margin-top: -2px;
       margin-right: -4px;
       flex-shrink: 0;
@@ -990,335 +1013,445 @@
     .post-modal-card .modal-close:hover {
       color: var(--text-primary, #111111);
       background: rgba(0, 0, 0, 0.06);
+      border-color: rgba(0, 0, 0, 0.08);
+    }
+
+    [data-theme="dark"] .post-modal-card .modal-close,
+    body.dark-mode .post-modal-card .modal-close {
+      color: #a1a1aa !important;
     }
 
     [data-theme="dark"] .post-modal-card .modal-close:hover,
     body.dark-mode .post-modal-card .modal-close:hover {
-      color: #ffffff;
-      background: rgba(255, 255, 255, 0.10);
+      color: #ffffff !important;
+      background: rgba(255, 255, 255, 0.10) !important;
+      border-color: rgba(255, 255, 255, 0.12) !important;
     }
 
+    /* Section 2: Composer Form & Textarea */
     .modal-post-composer {
       display: flex;
       flex-direction: column;
+      width: 100%;
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
       background: transparent !important;
       border: none !important;
-      box-shadow: none !important;
-      padding: 0 !important;
-      margin: 0 !important;
-      transform: none !important;
-      animation: none !important;
+    }
+
+    .modal-composer-field {
+      width: 100%;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .modal-field-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary, #71717a);
+      margin: 0 0 8px 0;
+      display: block;
+      line-height: 1.2;
+    }
+
+    [data-theme="dark"] .modal-field-label,
+    body.dark-mode .modal-field-label {
+      color: #a1a1aa !important;
     }
 
     .modal-post-composer textarea {
       width: 100%;
       box-sizing: border-box;
-      background: var(--bg-secondary, #f5f5f7);
-      border: 1.5px solid var(--border-color, #e5e5ea);
-      border-radius: 14px;
-      color: var(--text-primary, #1d1d1f);
+      background: #f4f4f5;
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      border-radius: 12px;
+      color: #111111;
       font-family: inherit;
       font-size: 14.5px;
       line-height: 1.5;
-      padding: 13px 15px;
+      padding: 13px 14px;
       resize: vertical;
-      min-height: 110px;
-      margin: 0 0 12px 0;
+      min-height: 120px;
+      max-height: 220px;
       outline: none;
-      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
     }
 
     .modal-post-composer textarea:focus {
-      border-color: var(--accent-color, #0071e3);
-      box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.18);
+      border-color: #525252;
+      box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.08);
+      background: #ffffff;
     }
 
     [data-theme="dark"] .modal-post-composer textarea,
     body.dark-mode .modal-post-composer textarea {
-      background: #111111 !important;
-      border-color: rgba(255, 255, 255, 0.12) !important;
-      color: #f5f5f7 !important;
+      background: #242427 !important;
+      border-color: rgba(255, 255, 255, 0.14) !important;
+      color: #f4f4f5 !important;
     }
 
     [data-theme="dark"] .modal-post-composer textarea:focus,
     body.dark-mode .modal-post-composer textarea:focus {
-      border-color: #0071e3 !important;
-      box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.25) !important;
+      background: #1c1c1f !important;
+      border-color: rgba(255, 255, 255, 0.35) !important;
+      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.08) !important;
     }
 
-    .modal-post-composer .post-image-preview {
+    /* Section 3: Media Preview Card */
+    .post-image-preview-container {
+      width: 100%;
+      box-sizing: border-box;
+      margin-top: 14px;
+    }
+
+    .post-image-preview-container[hidden],
+    .post-image-preview-container:not(.has-image) {
+      display: none !important;
+    }
+
+    .post-image-preview-card {
       position: relative;
       width: 100%;
-      max-width: 100%;
-      max-height: 240px;
-      margin: 0 0 14px 0;
+      max-height: 260px;
       border-radius: 12px;
       overflow: hidden;
-      border: 1px solid var(--border-color, rgba(0, 0, 0, 0.12));
-      background: var(--bg-secondary, #f5f5f7);
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      background: #f4f4f5;
       display: flex;
       align-items: center;
       justify-content: center;
       box-sizing: border-box;
     }
 
-    [data-theme="dark"] .modal-post-composer .post-image-preview,
-    body.dark-mode .modal-post-composer .post-image-preview {
-      background: #111111 !important;
-      border-color: rgba(255, 255, 255, 0.12) !important;
+    [data-theme="dark"] .post-image-preview-card,
+    body.dark-mode .post-image-preview-card {
+      border-color: rgba(255, 255, 255, 0.14) !important;
+      background: #242427 !important;
     }
 
-    .modal-post-composer .post-image-preview img {
-      display: block;
+    .post-image-preview-card img {
       width: 100%;
       height: 100%;
-      max-height: 240px;
+      max-height: 260px;
       object-fit: cover;
+      display: block;
       border-radius: 11px;
     }
 
-    .modal-post-composer .post-image-remove {
+    /* Remove Button: Nested cleanly inside top-right of preview */
+    .post-image-remove-btn {
       position: absolute;
       top: 10px;
       right: 10px;
-      width: 32px;
-      height: 32px;
+      width: 30px;
+      height: 30px;
       border-radius: 50%;
-      border: 1px solid rgba(255, 255, 255, 0.25);
-      background: rgba(0, 0, 0, 0.65);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      background: rgba(0, 0, 0, 0.70);
       color: #ffffff;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      font-size: 13px;
-      line-height: 1;
       padding: 0;
       backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px);
-      transition: background 0.15s ease, transform 0.15s ease;
-      z-index: 2;
+      transition: background 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+      z-index: 5;
     }
 
-    .modal-post-composer .post-image-remove:hover {
-      background: #ef4444;
+    .post-image-remove-btn:hover {
+      background: #dc2626;
+      border-color: #ef4444;
       transform: scale(1.08);
     }
 
-    .modal-post-composer .post-composer-actions {
-      display: flex !important;
-      align-items: center !important;
-      justify-content: space-between !important;
-      gap: 12px !important;
-      margin-top: 4px !important;
-      width: 100% !important;
+    /* Image Preview Error State */
+    .post-image-error-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 32px 20px;
+      color: #ef4444;
+      font-size: 13.5px;
+      font-weight: 500;
+      text-align: center;
+      width: 100%;
+    }
+
+    .post-image-error-state svg {
+      color: #ef4444;
+    }
+
+    .post-image-retry-btn {
+      font-size: 12.5px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: inherit;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    .post-image-retry-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Section 4: Footer Action Row */
+    .modal-composer-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      width: 100%;
+      box-sizing: border-box;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+    }
+
+    [data-theme="dark"] .modal-composer-footer,
+    body.dark-mode .modal-composer-footer {
+      border-top-color: rgba(255, 255, 255, 0.10) !important;
+    }
+
+    .modal-footer-tools {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    /* Shared 40px Height on All Footer Controls */
+    .modal-tool-btn,
+    .modal-type-selector-wrap,
+    .modal-post-submit-btn {
+      height: 40px !important;
+      min-height: 40px !important;
+      max-height: 40px !important;
       box-sizing: border-box !important;
+      border-radius: 10px !important;
+      line-height: 1 !important;
     }
 
-    .modal-post-composer .post-composer-tools {
-      display: inline-flex !important;
-      align-items: center !important;
-      gap: 10px !important;
-      min-width: 0 !important;
-      flex-shrink: 0 !important;
-    }
-
-    .modal-post-composer button#choosePostImage,
-    button#choosePostImage.post-action-btn.post-photo-button {
+    /* Add Media Button: [icon] Add media */
+    .modal-tool-btn.post-photo-button {
       display: inline-flex !important;
       align-items: center !important;
       justify-content: center !important;
-      width: 38px !important;
-      height: 38px !important;
-      min-width: 38px !important;
-      min-height: 38px !important;
-      max-width: 38px !important;
-      max-height: 38px !important;
-      padding: 0 !important;
-      margin: 0 !important;
-      border-radius: 50% !important;
-      border: 1px solid var(--border-color, #e5e5ea) !important;
-      background: var(--bg-secondary, #f5f5f7) !important;
-      color: var(--text-primary, #1d1d1f) !important;
+      gap: 7px !important;
+      padding: 0 14px !important;
+      border: 1px solid rgba(0, 0, 0, 0.12) !important;
+      background: #f4f4f5 !important;
+      color: #18181b !important;
+      font-size: 13.5px !important;
+      font-weight: 500 !important;
       cursor: pointer !important;
-      flex-shrink: 0 !important;
-      box-shadow: none !important;
-      transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.15s ease !important;
+      transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease !important;
     }
 
-    .modal-post-composer button#choosePostImage:hover,
-    button#choosePostImage.post-action-btn.post-photo-button:hover {
-      border-color: var(--accent-color, #0071e3) !important;
-      color: var(--accent-color, #0071e3) !important;
-      background: rgba(0, 113, 227, 0.08) !important;
-      transform: scale(1.04);
+    .modal-tool-btn.post-photo-button:hover {
+      background: #ebebeb !important;
+      border-color: rgba(0, 0, 0, 0.22) !important;
     }
 
-    [data-theme="dark"] .modal-post-composer button#choosePostImage,
-    body.dark-mode .modal-post-composer button#choosePostImage {
-      background: #242424 !important;
+    [data-theme="dark"] .modal-tool-btn.post-photo-button,
+    body.dark-mode .modal-tool-btn.post-photo-button {
+      background: #242427 !important;
       border-color: rgba(255, 255, 255, 0.14) !important;
-      color: #f5f5f7 !important;
+      color: #f4f4f5 !important;
     }
 
-    [data-theme="dark"] .modal-post-composer button#choosePostImage:hover,
-    body.dark-mode .modal-post-composer button#choosePostImage:hover {
-      border-color: #0071e3 !important;
-      color: #38bdf8 !important;
-      background: rgba(56, 189, 248, 0.12) !important;
+    [data-theme="dark"] .modal-tool-btn.post-photo-button:hover,
+    body.dark-mode .modal-tool-btn.post-photo-button:hover {
+      background: #2e2e32 !important;
+      border-color: rgba(255, 255, 255, 0.25) !important;
     }
 
-    .modal-post-composer button#choosePostImage svg,
-    button#choosePostImage.post-action-btn.post-photo-button svg {
-      width: 19px !important;
-      height: 19px !important;
-      display: block !important;
+    .modal-tool-btn.post-photo-button.has-attachment {
+      border-color: #525252 !important;
+      background: rgba(255, 255, 255, 0.12) !important;
+    }
+
+    .modal-tool-btn.post-photo-button svg {
+      width: 17px !important;
+      height: 17px !important;
       flex-shrink: 0 !important;
+      display: block !important;
     }
 
-    .modal-post-composer .post-type-selector-wrap {
+    /* Post Type Selector: Compact Status ▾ */
+    .modal-type-selector-wrap {
       display: inline-flex !important;
       align-items: center !important;
-      gap: 8px !important;
-      background: var(--bg-secondary, #f5f5f7) !important;
-      border: 1px solid var(--border-color, #e5e5ea) !important;
-      border-radius: 10px !important;
-      padding: 0 10px 0 12px !important;
-      height: 38px !important;
-      box-sizing: border-box !important;
-      flex-shrink: 0 !important;
+      position: relative !important;
+      background: #f4f4f5 !important;
+      border: 1px solid rgba(0, 0, 0, 0.12) !important;
+      padding: 0 10px 0 14px !important;
+      cursor: pointer !important;
+      transition: background 0.15s ease, border-color 0.15s ease !important;
     }
 
-    [data-theme="dark"] .modal-post-composer .post-type-selector-wrap,
-    body.dark-mode .modal-post-composer .post-type-selector-wrap {
-      background: #242424 !important;
+    .modal-type-selector-wrap:hover {
+      border-color: rgba(0, 0, 0, 0.22) !important;
+    }
+
+    [data-theme="dark"] .modal-type-selector-wrap,
+    body.dark-mode .modal-type-selector-wrap {
+      background: #242427 !important;
       border-color: rgba(255, 255, 255, 0.14) !important;
     }
 
-    .modal-post-composer .post-type-selector-wrap label {
-      font-size: 12.5px !important;
-      font-weight: 600 !important;
-      color: var(--text-secondary, #86868b) !important;
-      white-space: nowrap !important;
-      user-select: none !important;
+    [data-theme="dark"] .modal-type-selector-wrap:hover,
+    body.dark-mode .modal-type-selector-wrap:hover {
+      border-color: rgba(255, 255, 255, 0.25) !important;
+    }
+
+    .modal-type-selector-wrap select#postType {
+      appearance: none !important;
+      -webkit-appearance: none !important;
+      background: transparent !important;
+      border: none !important;
+      color: #18181b !important;
+      font-size: 13.5px !important;
+      font-weight: 500 !important;
+      font-family: inherit !important;
+      padding: 0 16px 0 0 !important;
       margin: 0 !important;
+      height: 100% !important;
+      outline: none !important;
       cursor: pointer !important;
     }
 
-    [data-theme="dark"] .modal-post-composer .post-type-selector-wrap label,
-    body.dark-mode .modal-post-composer .post-type-selector-wrap label {
+    [data-theme="dark"] .modal-type-selector-wrap select#postType,
+    body.dark-mode .modal-type-selector-wrap select#postType {
+      color: #f4f4f5 !important;
+    }
+
+    [data-theme="dark"] .modal-type-selector-wrap select#postType option,
+    body.dark-mode .modal-type-selector-wrap select#postType option {
+      background: #1c1c1f !important;
+      color: #f4f4f5 !important;
+    }
+
+    .modal-type-chevron {
+      position: absolute !important;
+      right: 9px !important;
+      pointer-events: none !important;
+      color: #71717a !important;
+    }
+
+    [data-theme="dark"] .modal-type-chevron,
+    body.dark-mode .modal-type-chevron {
       color: #a1a1aa !important;
     }
 
-    .modal-post-composer select#postType {
-      background: transparent !important;
-      color: var(--text-primary, #1d1d1f) !important;
-      border: none !important;
-      padding: 0 4px !important;
-      font-size: 13.5px !important;
-      font-weight: 600 !important;
-      font-family: inherit !important;
-      outline: none !important;
-      cursor: pointer !important;
-      height: 100% !important;
-    }
-
-    [data-theme="dark"] .modal-post-composer select#postType,
-    body.dark-mode .modal-post-composer select#postType {
-      color: #f5f5f7 !important;
-    }
-
-    [data-theme="dark"] .modal-post-composer select#postType option,
-    body.dark-mode .modal-post-composer select#postType option {
-      background: #1c1c1e !important;
-      color: #f5f5f7 !important;
-    }
-
-    .modal-post-composer .post-composer-actions button#publishPost,
-    button#publishPost.post-action-btn {
-      margin-left: auto !important;
-      background: #0071e3 !important;
-      color: #ffffff !important;
-      border: none !important;
-      font-weight: 600 !important;
-      font-size: 14px !important;
-      padding: 0 22px !important;
-      height: 38px !important;
-      min-height: 38px !important;
-      border-radius: 980px !important;
-      cursor: pointer !important;
+    /* Post Button: Clean Monochrome (near-white button, black text; dark gray disabled) */
+    .modal-post-submit-btn {
       display: inline-flex !important;
       align-items: center !important;
       justify-content: center !important;
-      flex-shrink: 0 !important;
-      box-shadow: 0 2px 8px rgba(0, 113, 227, 0.3) !important;
-      transition: transform 0.15s ease, background 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease !important;
-    }
-
-    .modal-post-composer .post-composer-actions button#publishPost:hover,
-    button#publishPost.post-action-btn:hover {
-      background: #0077ed !important;
+      margin-left: auto !important;
+      padding: 0 24px !important;
+      font-size: 14px !important;
+      font-weight: 600 !important;
+      cursor: pointer !important;
+      background: #18181b !important;
       color: #ffffff !important;
-      transform: scale(1.02) !important;
-      box-shadow: 0 4px 14px rgba(0, 113, 227, 0.45) !important;
+      border: 1px solid rgba(0, 0, 0, 0.12) !important;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+      transition: background 0.15s ease, transform 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease !important;
     }
 
-    .modal-post-composer .post-composer-actions button#publishPost:disabled,
-    button#publishPost.post-action-btn:disabled {
-      opacity: 0.55 !important;
+    .modal-post-submit-btn:hover:not(:disabled) {
+      background: #000000 !important;
+      color: #ffffff !important;
+      transform: translateY(-1px);
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.16) !important;
+    }
+
+    .modal-post-submit-btn:disabled {
+      background: #e4e4e7 !important;
+      color: #a1a1aa !important;
+      border-color: rgba(0, 0, 0, 0.06) !important;
       cursor: not-allowed !important;
+      opacity: 0.7 !important;
       transform: none !important;
       box-shadow: none !important;
     }
 
+    /* Dark mode: near-white button with black text as requested */
+    [data-theme="dark"] .modal-post-submit-btn,
+    body.dark-mode .modal-post-submit-btn {
+      background: #f5f5f5 !important;
+      color: #111111 !important;
+      border-color: rgba(255, 255, 255, 0.15) !important;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25) !important;
+    }
+
+    [data-theme="dark"] .modal-post-submit-btn:hover:not(:disabled),
+    body.dark-mode .modal-post-submit-btn:hover:not(:disabled) {
+      background: #ffffff !important;
+      color: #000000 !important;
+      box-shadow: 0 3px 12px rgba(255, 255, 255, 0.15) !important;
+    }
+
+    [data-theme="dark"] .modal-post-submit-btn:disabled,
+    body.dark-mode .modal-post-submit-btn:disabled {
+      background: #27272a !important;
+      color: #71717a !important;
+      border-color: rgba(255, 255, 255, 0.08) !important;
+      box-shadow: none !important;
+    }
+
     .modal-post-composer .post-feedback {
-      margin: 10px 0 0;
+      margin: 12px 0 0 0;
       font-size: 13px;
       text-align: center;
       font-weight: 500;
+      color: #ef4444;
+      min-height: 18px;
     }
 
+    /* Responsive adjustments */
     @media (max-width: 480px) {
       .post-modal-overlay {
         padding: 12px !important;
-        align-items: flex-end !important;
       }
 
       .post-modal-card {
-        padding: 18px 16px 20px !important;
-        border-radius: 20px 20px 16px 16px !important;
+        padding: 20px 16px !important;
+        border-radius: 18px !important;
         max-height: calc(100dvh - 24px) !important;
       }
 
-      .modal-post-composer .post-composer-actions {
-        flex-direction: column !important;
-        align-items: stretch !important;
-        gap: 12px !important;
+      .post-modal-card .modal-subtitle {
+        padding-left: 0;
       }
 
-      .modal-post-composer .post-composer-tools {
-        width: 100% !important;
-        display: flex !important;
-        justify-content: space-between !important;
+      .modal-footer-tools {
+        gap: 8px !important;
       }
 
-      .modal-post-composer .post-type-selector-wrap {
-        flex: 1 !important;
-        justify-content: space-between !important;
+      .modal-tool-btn.post-photo-button {
+        padding: 0 10px !important;
+        font-size: 13px !important;
       }
 
-      .modal-post-composer select#postType {
-        flex: 1 !important;
-        text-align: right !important;
+      .modal-type-selector-wrap {
+        padding: 0 8px 0 10px !important;
+        font-size: 13px !important;
       }
 
-      .modal-post-composer .post-composer-actions button#publishPost,
-      button#publishPost.post-action-btn {
-        width: 100% !important;
-        margin-left: 0 !important;
-        height: 42px !important;
-        min-height: 42px !important;
-        font-size: 15px !important;
+      .modal-post-submit-btn {
+        padding: 0 18px !important;
+        font-size: 13.5px !important;
       }
     }
 
@@ -1719,42 +1852,78 @@
   <!-- Create Post Modal Dialog -->
   <div class="modal-overlay post-modal-overlay" id="postModalOverlay" role="dialog" aria-modal="true" aria-labelledby="postModalTitle" hidden>
     <div class="modal-card post-modal-card">
+      <!-- 1. Header -->
       <div class="modal-header">
         <div class="modal-header-left">
-          <h2 class="modal-title" id="postModalTitle">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <div class="modal-title-row">
+            <svg class="modal-title-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M12 20h9"></path>
               <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
             </svg>
-            Create Post
-          </h2>
+            <h2 class="modal-title" id="postModalTitle">Create Post</h2>
+          </div>
           <p class="modal-subtitle">Share an update or notice with your class</p>
         </div>
-        <button type="button" class="modal-close" id="closePostModalBtn" aria-label="Close dialog" title="Close">&times;</button>
+        <button type="button" class="modal-close" id="closePostModalBtn" aria-label="Close dialog" title="Close">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
       </div>
 
+      <!-- 2. Composer Form -->
       <form id="postComposer" class="post-composer modal-post-composer">
-        <label for="postContent" class="sr-only">Share with your class</label>
-        <textarea id="postContent" name="content" rows="4" maxlength="5000" required placeholder="What's on your mind?"></textarea>
-        <input type="file" id="postImageInput" name="image" accept="image/*" hidden>
-        <div id="postImagePreview" class="post-image post-image-preview" hidden>
-          <img id="postImagePreviewImg" alt="Selected image preview">
-          <button type="button" id="removePostImage" class="post-image-remove" aria-label="Remove selected image" title="Remove image">✕</button>
+        <div class="modal-composer-field">
+          <label for="postContent" class="modal-field-label">Share with your class</label>
+          <textarea id="postContent" name="content" rows="4" maxlength="5000" required placeholder="What's on your mind?"></textarea>
         </div>
-        <div class="post-composer-actions">
-          <div class="post-composer-tools">
-            <button type="button" id="choosePostImage" class="post-action-btn post-photo-button" aria-label="Add photo" title="Add photo (up to 5 MB)">
-              <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+
+        <!-- 3. Media Preview Section -->
+        <input type="file" id="postImageInput" name="image" accept="image/*" hidden>
+        <div id="postImagePreview" class="post-image-preview-container" hidden>
+          <div class="post-image-preview-card">
+            <img id="postImagePreviewImg" alt="Selected media preview" style="display: none;">
+            <div id="postImageError" class="post-image-error-state" style="display: none;">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+              </svg>
+              <span>Couldn't preview this image</span>
+              <button type="button" id="retryPostImage" class="post-image-retry-btn">Retry</button>
+            </div>
+            <button type="button" id="removePostImage" class="post-image-remove-btn" aria-label="Remove selected image" title="Remove image">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
             </button>
-            <div class="post-type-selector-wrap">
-              <label for="postType">Post type</label>
-              <select id="postType" name="type">
+          </div>
+        </div>
+
+        <!-- 4. Footer Actions Row -->
+        <div class="modal-composer-footer">
+          <div class="modal-footer-tools">
+            <button type="button" id="choosePostImage" class="modal-tool-btn post-photo-button" aria-label="Add media" title="Add photo (up to 5 MB)">
+              <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="3" y="3" width="18" height="18" rx="3"></rect>
+                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                <path d="m21 15-5-5L5 21"></path>
+              </svg>
+              <span class="post-photo-label">Add media</span>
+            </button>
+            <div class="modal-type-selector-wrap">
+              <select id="postType" name="type" aria-label="Post type">
                 <option value="status">Status</option>
                 <option value="notice">Notice</option>
               </select>
+              <svg class="modal-type-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
             </div>
           </div>
-          <button type="submit" id="publishPost" class="post-action-btn">Post</button>
+          <button type="submit" id="publishPost" class="modal-post-submit-btn" disabled>Post</button>
         </div>
         <p id="postComposerMessage" class="post-feedback" role="status" aria-live="polite"></p>
       </form>
@@ -2601,6 +2770,7 @@
       modal.classList.add('open');
       document.body.style.overflow = 'hidden';
       const contentEl = document.getElementById('postContent');
+      if (typeof updatePostButtonState === 'function') updatePostButtonState();
       if (contentEl) setTimeout(() => contentEl.focus(), 60);
     }
 
@@ -2641,39 +2811,87 @@
       }
     });
 
+    const postContentInput = document.getElementById('postContent');
+    if (postContentInput) {
+      postContentInput.addEventListener('input', () => {
+        if (typeof updatePostButtonState === 'function') updatePostButtonState();
+      });
+    }
+
     const postImageInput = document.getElementById('postImageInput');
     const postImagePreview = document.getElementById('postImagePreview');
     const postImagePreviewImg = document.getElementById('postImagePreviewImg');
+    const postImageError = document.getElementById('postImageError');
     const choosePostImageBtn = document.getElementById('choosePostImage');
     const removePostImageBtn = document.getElementById('removePostImage');
+    const retryPostImageBtn = document.getElementById('retryPostImage');
     let postImagePreviewUrl = null;
+
+    function updatePostButtonState() {
+      const content = document.getElementById('postContent');
+      const fileInput = document.getElementById('postImageInput');
+      const button = document.getElementById('publishPost');
+      if (!content || !button) return;
+      const hasText = content.value.trim().length > 0;
+      const hasImage = !!(fileInput && fileInput.files && fileInput.files.length > 0);
+      button.disabled = !hasText && !hasImage;
+    }
 
     function clearPostImage() {
       if (postImagePreviewUrl) URL.revokeObjectURL(postImagePreviewUrl);
       postImagePreviewUrl = null;
-      postImageInput.value = '';
-      postImagePreviewImg.removeAttribute('src');
-      postImagePreview.hidden = true;
+      if (postImageInput) postImageInput.value = '';
+      if (postImagePreviewImg) {
+        postImagePreviewImg.removeAttribute('src');
+        if (postImagePreviewImg.style) postImagePreviewImg.style.display = 'none';
+      }
+      if (postImageError && postImageError.style) postImageError.style.display = 'none';
+      if (postImagePreview) {
+        postImagePreview.hidden = true;
+        if (postImagePreview.classList) postImagePreview.classList.remove('has-image');
+      }
+      if (choosePostImageBtn && choosePostImageBtn.classList) choosePostImageBtn.classList.remove('has-attachment');
+      if (typeof updatePostButtonState === 'function') updatePostButtonState();
     }
 
-    choosePostImageBtn.addEventListener('click', () => postImageInput.click());
-    removePostImageBtn.addEventListener('click', clearPostImage);
-    postImageInput.addEventListener('change', () => {
-      const file = postImageInput.files[0];
-      const message = document.getElementById('postComposerMessage');
-      message.textContent = '';
-      if (!file) return clearPostImage();
-      if (!file.type.startsWith('image/') || file.size > 5 * 1024 * 1024) {
-        clearPostImage();
-        message.textContent = file.size > 5 * 1024 * 1024
-          ? 'Images must be 5 MB or smaller.' : 'Please choose an image file.';
-        return;
-      }
-      if (postImagePreviewUrl) URL.revokeObjectURL(postImagePreviewUrl);
-      postImagePreviewUrl = URL.createObjectURL(file);
-      postImagePreviewImg.src = postImagePreviewUrl;
-      postImagePreview.hidden = false;
-    });
+    if (choosePostImageBtn) choosePostImageBtn.addEventListener('click', () => postImageInput && postImageInput.click());
+    if (removePostImageBtn) removePostImageBtn.addEventListener('click', clearPostImage);
+    if (retryPostImageBtn) retryPostImageBtn.addEventListener('click', () => postImageInput && postImageInput.click());
+
+    if (postImageInput) {
+      postImageInput.addEventListener('change', () => {
+        const file = postImageInput.files[0];
+        const message = document.getElementById('postComposerMessage');
+        if (message) message.textContent = '';
+        if (!file) return clearPostImage();
+        if (!file.type.startsWith('image/') || file.size > 5 * 1024 * 1024) {
+          clearPostImage();
+          if (message) {
+            message.textContent = file.size > 5 * 1024 * 1024
+              ? 'Images must be 5 MB or smaller.' : 'Please choose a valid image file.';
+          }
+          return;
+        }
+        if (postImagePreviewUrl) URL.revokeObjectURL(postImagePreviewUrl);
+        postImagePreviewUrl = URL.createObjectURL(file);
+
+        if (postImagePreviewImg) {
+          postImagePreviewImg.src = postImagePreviewUrl;
+          if (postImagePreviewImg.style) postImagePreviewImg.style.display = 'block';
+          postImagePreviewImg.onerror = () => {
+            if (postImagePreviewImg.style) postImagePreviewImg.style.display = 'none';
+            if (postImageError && postImageError.style) postImageError.style.display = 'flex';
+          };
+        }
+        if (postImageError && postImageError.style) postImageError.style.display = 'none';
+        if (postImagePreview) {
+          postImagePreview.hidden = false;
+          if (postImagePreview.classList) postImagePreview.classList.add('has-image');
+        }
+        if (choosePostImageBtn && choosePostImageBtn.classList) choosePostImageBtn.classList.add('has-attachment');
+        if (typeof updatePostButtonState === 'function') updatePostButtonState();
+      });
+    }
 
     document.getElementById('postComposer').addEventListener('submit', async (event) => {
       event.preventDefault();
@@ -2682,13 +2900,17 @@
       const button = document.getElementById('publishPost');
       const message = document.getElementById('postComposerMessage');
       if (button.disabled) return;
-      if (!content.value.trim()) {
+      const hasText = content.value.trim().length > 0;
+      const hasImage = !!(postImageInput && postImageInput.files && postImageInput.files.length > 0);
+      if (!hasText && !hasImage) {
         message.textContent = 'Write something before posting.';
         content.focus();
         return;
       }
       button.disabled = content.disabled = type.disabled = true;
-      postImageInput.disabled = choosePostImageBtn.disabled = removePostImageBtn.disabled = true;
+      if (postImageInput) postImageInput.disabled = true;
+      if (choosePostImageBtn) choosePostImageBtn.disabled = true;
+      if (removePostImageBtn) removePostImageBtn.disabled = true;
       button.textContent = 'Posting…';
       message.textContent = '';
       try {
@@ -2696,7 +2918,7 @@
         const formData = new FormData();
         formData.append('content', content.value);
         formData.append('type', type.value);
-        if (postImageInput.files[0]) formData.append('image', postImageInput.files[0]);
+        if (postImageInput && postImageInput.files[0]) formData.append('image', postImageInput.files[0]);
         const response = await fetch('/api/posts', {
           method: 'POST',
           body: formData
@@ -2713,8 +2935,11 @@
       } catch (err) {
         message.textContent = err.message || 'Could not publish your post. Please try again.';
       } finally {
-        button.disabled = content.disabled = type.disabled = false;
-        postImageInput.disabled = choosePostImageBtn.disabled = removePostImageBtn.disabled = false;
+        button.disabled = false;
+        content.disabled = type.disabled = false;
+        if (postImageInput) postImageInput.disabled = false;
+        if (choosePostImageBtn) choosePostImageBtn.disabled = false;
+        if (removePostImageBtn) removePostImageBtn.disabled = false;
         button.textContent = 'Post';
       }
     });

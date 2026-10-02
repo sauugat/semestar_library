@@ -56,7 +56,7 @@ export default function NoticesScreen() {
   const fetchNotices = useCallback(async () => {
     try {
       const limit = targetNoticeId ? '100' : '50';
-      const res = await apiFetch(`/api/posts?type=notice&limit=${limit}`);
+      const res = await apiFetch(`/api/posts?type=notice&official=true&limit=${limit}`);
       if (res.ok) {
         const data = await res.json();
         const list = Array.isArray(data.posts) ? data.posts : Array.isArray(data) ? data : [];

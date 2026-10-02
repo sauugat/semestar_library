@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Account & Data Deletion — Semester Library</title>
+
+  <!-- Web App Manifest & Favicon -->
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/logo.jpg">
+  <link rel="icon" type="image/png" sizes="192x192" href="/logo.jpg">
+
+  <!-- Anti-flash inline script: theme preference -->
+  <script>
+    (function () {
+      try {
+        var stored = localStorage.getItem('theme');
+        var theme = stored || ((window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', theme);
+        if (theme === 'dark') document.documentElement.classList.add('dark');
+        else document.documentElement.classList.remove('dark');
+      } catch (e) { }
+    })();
+  </script>
+
+  <script src="/theme.js"></script>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="/style.v4.css">
+  <link rel="stylesheet" href="/theme-overrides.css">
+  <link rel="stylesheet" href="/auth-ui.css">
+
+  <style>
+    .danger-card {
+      border: 1px solid rgba(239, 68, 68, 0.35);
+      border-radius: 16px;
+      padding: 32px 28px;
+      max-width: 540px;
+      margin: 40px auto;
+      background: var(--card-bg, #ffffff);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    }
+    .dark .danger-card {
+      background: #18181b;
+      border-color: rgba(239, 68, 68, 0.4);
+    }
+    .badge-danger {
+      display: inline-block;
+      padding: 4px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-radius: 6px;
+      background: rgba(239, 68, 68, 0.12);
+      color: #ef4444;
+      margin-bottom: 14px;
+    }
+    .deletion-list {
+      margin: 16px 0 24px;
+      padding-left: 20px;
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--muted, #64748b);
+    }
+    .deletion-list li {
+      margin-bottom: 8px;
+    }
+    .btn-danger {
+      background: #dc2626;
+      color: #ffffff;
+      border: none;
+      font-weight: 600;
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 15px;
+      transition: background 0.15s ease;
+    }
+    .btn-danger:hover {
+      background: #b91c1c;
+    }
+    .btn-danger:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .policy-box {
+      font-size: 13px;
+      line-height: 1.5;
+      padding: 14px;
+      border-radius: 8px;
+      background: rgba(100, 116, 139, 0.08);
+      margin-bottom: 20px;
+      color: var(--muted, #64748b);
+    }
+  </style>
+</head>
+
+<body class="apple-signin-page">
+
+  <!-- Theme Toggle -->
+  <div class="theme-toggle-wrap">
+    <button type="button" class="theme-toggle-btn" id="themeToggleBtn" aria-label="Toggle theme">
+      <svg class="theme-icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="5"></circle>
+        <line x1="12" y1="1" x2="12" y2="3"></line>
+        <line x1="12" y1="21" x2="12" y2="23"></line>
+      </svg>
+      <svg class="theme-icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+      </svg>
+    </button>
+  </div>
+
+  <main class="danger-card">
+    <div style="text-align: center;">
+      <img src="/logo.jpg" alt="Semester Library" style="width: 52px; height: 52px; border-radius: 12px; margin-bottom: 12px;">
+      <br>
+      <span class="badge-danger">Google Play Data Safety & User Rights</span>
+      <h1 style="font-size: 24px; font-weight: 700; margin: 0 0 8px; letter-spacing: -0.02em;">Delete Your Account & Data</h1>
+      <p style="font-size: 14px; color: var(--muted, #64748b); margin: 0 0 20px;">
+        Gandaki University Academic Portal · Semester Library
+      </p>
+    </div>
+
+    <!-- Alert Banner -->
+    <div id="alertBox" class="auth-banner" style="display: none; margin-bottom: 20px;" role="alert">
+      <div class="auth-banner-title" id="alertTitle"></div>
+      <div class="auth-banner-msg" id="alertMsg"></div>
+    </div>
+
+    <!-- Success View -->
+    <div id="successBox" style="display: none; text-align: center; padding: 20px 0;">
+      <div style="font-size: 40px; margin-bottom: 12px;">🗑️</div>
+      <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 8px; color: #ef4444;">Account Permanently Deleted</h2>
+      <p style="font-size: 14px; color: var(--muted, #64748b); line-height: 1.6; margin-bottom: 24px;">
+        Your student credentials, active sessions, push notification tokens, personal likes, and private settings have been erased from our servers.
+      </p>
+      <a href="/login.html" class="btn btn-primary" style="display: inline-block; text-decoration: none; padding: 10px 24px; border-radius: 8px;">Back to Home</a>
+    </div>
+
+    <div id="deletionContent">
+      <div class="policy-box">
+        <strong>What will be deleted immediately upon confirmation:</strong>
+        <ul class="deletion-list" style="margin-top: 8px; margin-bottom: 4px;">
+          <li><strong>Student Profile:</strong> Student ID, full name, email address, password hash, bio, and avatar.</li>
+          <li><strong>Authentication & Sessions:</strong> All active web login sessions and mobile bearer tokens across all devices.</li>
+          <li><strong>Device Tokens & Preferences:</strong> Expo Push Tokens, FCM registrations, and notification preferences.</li>
+          <li><strong>Social Interactions:</strong> Personal post likes, note likes, comments, and follower/following relationships.</li>
+        </ul>
+        <div style="margin-top: 10px; font-size: 12px; color: var(--muted, #64748b);">
+          <em>Note:</em> Publicly shared academic course materials (e.g. past question papers or curriculum notes) contributed to library folders are decoupled from your personal identity to preserve academic continuity for students.
+        </div>
+      </div>
+
+      <form id="deleteForm" onsubmit="handleAccountDeletion(event)">
+        <div class="field" style="margin-bottom: 16px;">
+          <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px;">Student ID</label>
+          <input type="text" id="studentId" required placeholder="e.g. 26020000" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border, #cbd5e1); border-radius: 8px; font-size: 14px; background: transparent; color: inherit;">
+        </div>
+
+        <div class="field" style="margin-bottom: 20px;">
+          <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px;">Current Password</label>
+          <input type="password" id="password" required placeholder="Enter your password to confirm" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border, #cbd5e1); border-radius: 8px; font-size: 14px; background: transparent; color: inherit;">
+        </div>
+
+        <div style="display: flex; align-items: flex-start; gap: 10px; margin-bottom: 24px;">
+          <input type="checkbox" id="confirmCheckbox" required style="margin-top: 3px; cursor: pointer;">
+          <label for="confirmCheckbox" style="font-size: 13px; line-height: 1.5; color: var(--text, #1e293b); cursor: pointer;">
+            I confirm that I wish to permanently delete my Semester Library account. I understand that this action is immediate, irreversible, and revokes all device access.
+          </label>
+        </div>
+
+        <button type="submit" id="deleteBtn" class="btn-danger">Permanently Delete Account</button>
+      </form>
+
+      <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border, #e2e8f0); text-align: center; font-size: 13px; color: var(--muted, #64748b);">
+        Need manual assistance or forgot your password?<br>
+        Email: <a href="mailto:privacy@gandakiuniversity.edu.np" style="color: var(--primary, #3b82f6); text-decoration: none;">privacy@gandakiuniversity.edu.np</a>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    async function handleAccountDeletion(e) {
+      e.preventDefault();
+      const studentId = document.getElementById('studentId').value.trim();
+      const password = document.getElementById('password').value;
+      const confirmPermanent = document.getElementById('confirmCheckbox').checked;
+
+      const alertBox = document.getElementById('alertBox');
+      const alertTitle = document.getElementById('alertTitle');
+      const alertMsg = document.getElementById('alertMsg');
+      const deleteBtn = document.getElementById('deleteBtn');
+
+      alertBox.style.display = 'none';
+
+      if (!studentId || !password || !confirmPermanent) {
+        alertTitle.textContent = 'Validation Error';
+        alertMsg.textContent = 'Please fill out all fields and check the confirmation box.';
+        alertBox.style.display = 'block';
+        return;
+      }
+
+      if (!confirm('FINAL CONFIRMATION: Are you absolutely certain you want to permanently delete your account and all associated data? This cannot be undone.')) {
+        return;
+      }
+
+      deleteBtn.disabled = true;
+      deleteBtn.textContent = 'Deleting Account...';
+
+      try {
+        const res = await fetch('/api/account/delete-request', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ studentId, password, confirmPermanent })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          document.getElementById('deletionContent').style.display = 'none';
+          document.getElementById('successBox').style.display = 'block';
+        } else {
+          alertTitle.textContent = 'Deletion Failed';
+          alertMsg.textContent = data.message || 'Unable to delete account. Please verify credentials.';
+          alertBox.style.display = 'block';
+          deleteBtn.disabled = false;
+          deleteBtn.textContent = 'Permanently Delete Account';
+        }
+      } catch (err) {
+        alertTitle.textContent = 'Network Error';
+        alertMsg.textContent = 'Unable to reach the server. Please check your internet connection.';
+        alertBox.style.display = 'block';
+        deleteBtn.disabled = false;
+        deleteBtn.textContent = 'Permanently Delete Account';
+      }
+    }
+  </script>
+</body>
+
+</html>

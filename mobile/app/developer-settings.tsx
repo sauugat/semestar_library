@@ -24,6 +24,16 @@ export default function DeveloperSettingsScreen() {
   const { colors, spacing, radii } = useTheme();
   const { serverUrl, updateServerUrl } = useAuth();
 
+  React.useEffect(() => {
+    if (!__DEV__) {
+      router.replace('/settings');
+    }
+  }, [router]);
+
+  if (!__DEV__) {
+    return null;
+  }
+
   const autoDetected = getAutoDetectedServerUrl();
   const [customUrl, setCustomUrl] = useState(serverUrl);
   const [isSaving, setIsSaving] = useState(false);

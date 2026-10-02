@@ -622,6 +622,11 @@ app.get(['/terms', '/termsandconditions'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'termsandconditions.html'));
 });
 
+app.get(['/delete-account', '/delete-account.html', '/account-deletion'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'delete-account.html'));
+});
+
+
 // Google Search Console Site Verification Protection
 app.get('/google:hash.html', (req, res, next) => {
   const file = `google${req.params.hash}.html`;
@@ -1241,8 +1246,9 @@ app.post('/api/change-password', requireLogin, async (req, res) => {
     return res.status(401).json({ message: 'Incorrect current password' });
   }
 
+  const studentId = req.student?.studentId || req.session?.studentId;
   const newHash = bcrypt.hashSync(newPassword, 10);
-  await db.run('UPDATE students SET passwordHash = ? WHERE studentId = ?', newHash, req.session.studentId);
+  await db.run('UPDATE students SET passwordHash = ? WHERE studentId = ?', newHash, studentId);
 
   // Revoke other active sessions for this student upon password change
   const currentSid = req.sessionID;
@@ -1250,20 +1256,156 @@ app.post('/api/change-password', requireLogin, async (req, res) => {
     if (db.isPostgres) {
       await db.run(
         `DELETE FROM session WHERE sid != $1 AND (sess->>'studentId' = $2 OR sess::text LIKE '%' || $2 || '%')`,
-        currentSid, req.session.studentId
+        currentSid, studentId
       );
     } else {
       await db.run(
         `DELETE FROM session WHERE sid != ? AND sess LIKE ?`,
-        currentSid, `%"studentId":"${req.session.studentId}"%`
+        currentSid, `%"studentId":"${studentId}"%`
       );
     }
   } catch (sessErr) {
     console.warn('[Session Revocation Warning]:', sessErr.message);
   }
 
+  // Revoke all mobile bearer tokens for this student upon password change
+  try {
+    await db.run('DELETE FROM mobile_tokens WHERE studentId = ?', studentId);
+  } catch (tokErr) {
+    console.warn('[Mobile Token Revocation Warning]:', tokErr.message);
+  }
+
   res.json({ message: 'Password successfully updated' });
 });
+
+// ============================================================
+// ACCOUNT DELETION ENDPOINTS (Google Play Policy Compliance)
+// ============================================================
+
+// Authenticated in-app account deletion
+app.all(['/api/account/delete', '/api/account'], requireLogin, async (req, res) => {
+  if (req.method !== 'POST' && req.method !== 'DELETE') {
+    return res.status(405).json({ message: 'Method not allowed' });
+  }
+
+  const studentId = req.student?.studentId || req.session?.studentId;
+  if (!studentId) {
+    return res.status(401).json({ message: 'Authentication required.' });
+  }
+
+  const { password } = req.body || {};
+  if (!password || typeof password !== 'string') {
+    return res.status(400).json({ message: 'Current password is required to confirm account deletion.' });
+  }
+
+  const student = await db.get('SELECT * FROM students WHERE studentId = ?', studentId);
+  if (!student) {
+    return res.status(404).json({ message: 'Account not found.' });
+  }
+
+  const match = bcrypt.compareSync(password, student.passwordHash);
+  if (!match) {
+    return res.status(401).json({ message: 'Incorrect password. Account deletion aborted.' });
+  }
+
+  try {
+    // 1. Revoke all mobile bearer tokens
+    await db.run('DELETE FROM mobile_tokens WHERE studentId = ?', studentId);
+
+    // 2. Remove registered device push tokens and queued notifications
+    await db.run('DELETE FROM student_device_tokens WHERE student_id = ?', studentId);
+    await db.run('DELETE FROM student_notification_preferences WHERE student_id = ?', studentId);
+    await db.run('DELETE FROM push_notification_outbox WHERE recipient_student_id = ?', studentId);
+    await db.run('DELETE FROM notifications WHERE recipientStudentId = ?', studentId);
+
+    // 3. Remove personal social interactions
+    await db.run('DELETE FROM file_likes WHERE studentId = ?', studentId);
+    await db.run('DELETE FROM file_comments WHERE studentId = ?', studentId);
+    await db.run('DELETE FROM post_likes WHERE user_id = ?', studentId);
+    await db.run('DELETE FROM post_comments WHERE user_id = ?', studentId);
+    await db.run('DELETE FROM follows WHERE followerId = ? OR followingId = ?', studentId, studentId);
+
+    // 4. Invalidate all active web sessions for this student
+    if (db.isPostgres) {
+      await db.run(`DELETE FROM session WHERE sess->>'studentId' = $1 OR sess::text LIKE '%' || $1 || '%'`, studentId);
+    } else {
+      await db.run(`DELETE FROM session WHERE sess LIKE ?`, `%"studentId":"${studentId}"%`);
+    }
+
+    // 5. Delete student record from students table
+    await db.run('DELETE FROM students WHERE studentId = ?', studentId);
+
+    // 6. Terminate current session
+    if (req.session && typeof req.session.destroy === 'function') {
+      req.session.destroy(() => {});
+    }
+    if (res.clearCookie) {
+      res.clearCookie('__gu_session');
+    }
+
+    return res.json({
+      success: true,
+      message: 'Your account and personal data have been permanently deleted.'
+    });
+  } catch (deleteErr) {
+    console.error('[Account Deletion Error]:', deleteErr);
+    return res.status(500).json({ message: 'Failed to complete account deletion. Please try again or contact support.' });
+  }
+});
+
+// Public web deletion request endpoint (for users without the app)
+app.post('/api/account/delete-request', async (req, res) => {
+  const { studentId, password, confirmPermanent } = req.body || {};
+
+  if (!studentId || !password) {
+    return res.status(400).json({ message: 'Student ID and password are required.' });
+  }
+
+  if (!confirmPermanent) {
+    return res.status(400).json({ message: 'You must confirm that you understand this action is permanent.' });
+  }
+
+  const student = await db.get('SELECT * FROM students WHERE studentId = ?', String(studentId).trim());
+  if (!student) {
+    return res.status(401).json({ message: 'Invalid credentials. Account deletion request rejected.' });
+  }
+
+  const match = bcrypt.compareSync(password, student.passwordHash);
+  if (!match) {
+    return res.status(401).json({ message: 'Invalid credentials. Account deletion request rejected.' });
+  }
+
+  const sid = student.studentId;
+  try {
+    await db.run('DELETE FROM mobile_tokens WHERE studentId = ?', sid);
+    await db.run('DELETE FROM student_device_tokens WHERE student_id = ?', sid);
+    await db.run('DELETE FROM student_notification_preferences WHERE student_id = ?', sid);
+    await db.run('DELETE FROM push_notification_outbox WHERE recipient_student_id = ?', sid);
+    await db.run('DELETE FROM notifications WHERE recipientStudentId = ?', sid);
+    await db.run('DELETE FROM file_likes WHERE studentId = ?', sid);
+    await db.run('DELETE FROM file_comments WHERE studentId = ?', sid);
+    await db.run('DELETE FROM post_likes WHERE user_id = ?', sid);
+    await db.run('DELETE FROM post_comments WHERE user_id = ?', sid);
+    await db.run('DELETE FROM follows WHERE followerId = ? OR followingId = ?', sid, sid);
+
+    if (db.isPostgres) {
+      await db.run(`DELETE FROM session WHERE sess->>'studentId' = $1 OR sess::text LIKE '%' || $1 || '%'`, sid);
+    } else {
+      await db.run(`DELETE FROM session WHERE sess LIKE ?`, `%"studentId":"${sid}"%`);
+    }
+
+    await db.run('DELETE FROM students WHERE studentId = ?', sid);
+
+    return res.json({
+      success: true,
+      message: 'Account successfully and permanently deleted.'
+    });
+  } catch (err) {
+    console.error('[Public Account Deletion Error]:', err);
+    return res.status(500).json({ message: 'Failed to delete account. Please contact privacy support.' });
+  }
+});
+
 
 app.post('/api/logout', (req, res) => {
   if (!req.session) {
@@ -1922,31 +2064,6 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
       });
 
       if (insertedId) {
-        // Natural likes for Saugat Subedi (26020266)
-        try {
-          if (currentStudentId === '26020266') {
-            const targetLikes = Math.floor(Math.random() * (44 - 17 + 1)) + 17;
-            if (db.isPostgres) {
-              await db.run(`
-                INSERT INTO file_likes (fileId, studentId)
-                SELECT ?, studentId FROM (
-                  SELECT studentId FROM students ORDER BY RANDOM() LIMIT ${targetLikes}
-                ) rand_students
-                ON CONFLICT (fileId, studentId) DO NOTHING RETURNING fileId
-              `, insertedId);
-            } else {
-              await db.run(`
-                INSERT OR IGNORE INTO file_likes (fileId, studentId)
-                SELECT ?, studentId FROM (
-                  SELECT studentId FROM students ORDER BY RANDOM() LIMIT ${targetLikes}
-                )
-              `, insertedId);
-            }
-          }
-        } catch (likeErr) {
-          console.warn('[Like insert warning]:', likeErr.message);
-        }
-
         try {
           if (isAdmin) {
             await db.run(`
@@ -2255,81 +2372,124 @@ app.post('/api/files/record-upload', requireLogin, async (req, res) => {
         originalName,
         title: fileTitle
       });
-
-      if (insertedId) {
-        // Auto-likes if applicable
-        try {
-          if (currentStudentId === '26020266') {
-            const targetLikes = Math.floor(Math.random() * (44 - 17 + 1)) + 17;
-            if (db.isPostgres) {
-              await db.run(`
-                INSERT INTO file_likes (fileId, studentId)
-                SELECT ?, studentId FROM (
-                  SELECT studentId FROM students ORDER BY RANDOM() LIMIT ${targetLikes}
-                ) rand_students
-                ON CONFLICT (fileId, studentId) DO NOTHING RETURNING fileId
-              `, insertedId);
-            } else {
-              await db.run(`
-                INSERT OR IGNORE INTO file_likes (fileId, studentId)
-                SELECT ?, studentId FROM (
-                  SELECT studentId FROM students ORDER BY RANDOM() LIMIT ${targetLikes}
-                )
-              `, insertedId);
-            }
-          }
-        } catch (likeErr) {
-          console.warn('[Like insert warning]:', likeErr.message);
-        }
-
-        // Send notification for official uploads
-        try {
-          if (isAdmin) {
-            await db.run(`
-              INSERT INTO notifications (recipientStudentId, type, relatedFileId, message)
-              SELECT studentId, 'notice', ?, ? FROM students WHERE studentId != ?
-            `, insertedId, `New Study Material: ${fileTitle}`, currentStudentId);
-          }
-        } catch (notifErr) {
-          console.warn('[Notification insert warning]:', notifErr.message);
-        }
-
-        // Push notification outbox enqueue and bounded synchronous dispatch (isolated failure)
-        try {
-          const { enqueueMaterialPush, dispatchImmediateOutbox } = require('./lib/push-notifications');
-          const enqueueResult = await enqueueMaterialPush(db, {
-            fileId: insertedId,
-            originalName,
-            title: fileTitle,
-            semester: cleanSemester,
-            subject: cleanSubject,
-            uploaderStudentId: req.session?.studentId || req.user?.studentId,
-            uploaderName: req.user?.name || req.session?.studentName || null
-          });
-          if (enqueueResult && enqueueResult.enqueuedCount > 0) {
-            await dispatchImmediateOutbox(db, {
-              eventType: 'material',
-              eventId: insertedId,
-              timeoutMs: 3500
-            });
-          }
-        } catch (pushErr) {
-          console.error('[Record Upload Push Enqueue/Dispatch Error]:', pushErr.message);
-        }
-      }
     }
   } catch (err) {
     console.error('Record upload DB insert error:', err);
     return res.status(500).json({ message: 'Failed to save file metadata.' });
   }
 
+  const batchId = (req.body?.batchId || '').trim() || crypto.randomUUID();
+  const successfulFiles = results.filter(r => r.id);
+
+  if (isAdmin && successfulFiles.length > 0) {
+    try {
+      const notifMessage = successfulFiles.length === 1
+        ? `New Study Material: ${successfulFiles[0].title}`
+        : `${successfulFiles.length} New Study Materials shared for ${cleanSemester || 'your semester'}`;
+      await db.run(`
+        INSERT INTO notifications (recipientStudentId, type, relatedFileId, message)
+        SELECT studentId, 'notice', ?, ? FROM students WHERE studentId != ?
+      `, successfulFiles[0].id, notifMessage, currentStudentId);
+    } catch (notifErr) {
+      console.warn('[Notification insert warning]:', notifErr.message);
+    }
+  }
+
+  if (successfulFiles.length > 0) {
+    try {
+      const { enqueueMaterialPush, enqueueMaterialBatchPush, dispatchImmediateOutbox } = require('./lib/push-notifications');
+      const uploaderStudentId = currentStudentId;
+      const uploaderName = req.user?.name || req.session?.studentName || null;
+
+      if (successfulFiles.length === 1) {
+        const single = successfulFiles[0];
+        const enqueueResult = await enqueueMaterialPush(db, {
+          fileId: single.id,
+          originalName: single.originalName,
+          title: single.title,
+          semester: cleanSemester,
+          subject: cleanSubject,
+          uploaderStudentId,
+          uploaderName
+        });
+        if (enqueueResult && enqueueResult.enqueuedCount > 0) {
+          await dispatchImmediateOutbox(db, {
+            eventType: 'material',
+            eventId: single.id,
+            timeoutMs: 3500
+          });
+        }
+      } else {
+        // Multi-file batch -> ONE combined batch notification referencing ONLY successfully persisted files
+        const enqueueResult = await enqueueMaterialBatchPush(db, {
+          batchId,
+          files: successfulFiles.map(r => ({ id: r.id, originalName: r.originalName, title: r.title })),
+          semester: cleanSemester,
+          subject: cleanSubject,
+          chapter: cleanChapter,
+          uploaderStudentId,
+          uploaderName
+        });
+        if (enqueueResult && enqueueResult.enqueuedCount > 0) {
+          await dispatchImmediateOutbox(db, {
+            eventType: 'material',
+            eventId: batchId,
+            timeoutMs: 3500
+          });
+        }
+      }
+    } catch (pushErr) {
+      console.error('[Record Upload Push Enqueue/Dispatch Error]:', pushErr.message);
+    }
+  }
+
   res.json({
-    message: `${uploadedFiles.length} file${uploadedFiles.length > 1 ? 's' : ''} saved successfully`,
-    fileId: results[0]?.id,
-    files: results,
-    count: uploadedFiles.length,
+    message: `${successfulFiles.length} file${successfulFiles.length > 1 ? 's' : ''} saved successfully`,
+    batchId,
+    fileId: successfulFiles[0]?.id,
+    files: successfulFiles,
+    count: successfulFiles.length,
     isOfficial: isAdmin
   });
+});
+
+// Fetch details of a single file/material by ID
+app.get(['/api/files/:id', '/api/library/files/:id'], requireLogin, async (req, res) => {
+  const fileId = req.params.id;
+  const currentStudentId = req.student?.studentId || req.session?.studentId;
+
+  if (!fileId || isNaN(parseInt(fileId, 10))) {
+    return res.status(400).json({ message: 'Invalid file ID' });
+  }
+
+  const query = `
+    SELECT files.id, files.originalName, files.title, files.semester, files.subject, files.chapter, files.sizeBytes, files.uploadedAt, files.uploadedBy,
+      students.name AS uploaderName, students.avatarUrl AS uploaderAvatar, students.role AS uploaderRole,
+      (SELECT COUNT(*) FROM file_likes WHERE file_likes.fileId = files.id) AS likeCount,
+      EXISTS(SELECT 1 FROM file_likes WHERE fileId = files.id AND studentId = ?) AS liked,
+      (SELECT COUNT(*) FROM file_comments WHERE file_comments.fileId = files.id) AS commentCount
+    FROM files
+    JOIN students ON students.studentId = files.uploadedBy
+    WHERE files.id = ?
+  `;
+
+  const [viewerIsAdmin, file] = await Promise.all([
+    req.student ? Promise.resolve(req.student.role === 'admin') : isStudentAdmin(currentStudentId),
+    db.get(query, currentStudentId, parseInt(fileId, 10))
+  ]);
+
+  if (!file) {
+    return res.status(404).json({ message: 'Material not found' });
+  }
+
+  const processed = {
+    ...file,
+    uploaderRole: file.uploaderRole || 'student',
+    isOfficial: file.uploaderRole === 'admin',
+    canDelete: viewerIsAdmin || file.uploadedBy === currentStudentId
+  };
+
+  res.json(processed);
 });
 
 app.get('/api/files', requireLogin, async (req, res) => {
@@ -2971,14 +3131,14 @@ app.get('/api/search', requireLogin, async (req, res) => {
       SELECT a.*, s.name AS teacherName,
         (SELECT COUNT(*) FROM assignment_questions aq WHERE aq.assignmentId = a.id) AS questionCount,
         (SELECT COUNT(DISTINCT studentId) FROM submissions sub WHERE sub.assignmentId = a.id) AS submissionCount,
-        ${currentStudentId ? `(SELECT COUNT(DISTINCT COALESCE(sub.questionId, sub.id)) FROM submissions sub WHERE sub.assignmentId = a.id AND sub.studentId = '${currentStudentId}')` : '0'} AS mySubmissionCount
+        (SELECT COUNT(DISTINCT COALESCE(sub.questionId, sub.id)) FROM submissions sub WHERE sub.assignmentId = a.id AND sub.studentId = ?) AS mySubmissionCount
       FROM assignments a
       JOIN students s ON s.studentId = a.createdBy
       WHERE LOWER(a.title) LIKE LOWER(?) OR LOWER(a.subject) LIKE LOWER(?) OR LOWER(a.semester) LIKE LOWER(?) OR LOWER(a.createdBy) LIKE LOWER(?) OR LOWER(s.name) LIKE LOWER(?)
       ORDER BY a.createdAt DESC
       LIMIT 15
     `;
-    assignments = await db.all(assignmentsQuery, likeQuery, likeQuery, likeQuery, cleanLikeQuery, cleanLikeQuery);
+    assignments = await db.all(assignmentsQuery, currentStudentId || '', likeQuery, likeQuery, likeQuery, cleanLikeQuery, cleanLikeQuery);
   } catch (err) {
     console.error('Assignment search error:', err);
   }

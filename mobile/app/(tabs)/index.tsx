@@ -1476,6 +1476,14 @@ export default function HomeScreen() {
     const badge = getTypeBadgeProps(item.type, item.is_official, colors);
     const imageUrl = getFullImageUrl(item.attachment_url);
 
+    const openDetail = () => {
+      if (item.type === 'notice') {
+        router.push(`/notice/${item.id}`);
+      } else {
+        router.push(`/post/${item.id}`);
+      }
+    };
+
     return (
       <View
         style={[
@@ -1573,10 +1581,10 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* Post Text Content - Tap to open Post Detail */}
+        {/* Post Text Content - Tap to open Post or Notice Detail */}
         <TouchableOpacity
           activeOpacity={0.8}
-          onPress={() => router.push(`/post/${item.id}`)}
+          onPress={openDetail}
           style={{ marginTop: spacing.sm }}
         >
           <Text
@@ -1621,10 +1629,10 @@ export default function HomeScreen() {
             onPress={() => handleToggleLike(item.id)}
           />
 
-          {/* Comment Count / Open Post Detail Page */}
+          {/* Comment Count / Open Post or Notice Detail Page */}
           <TouchableOpacity
             style={styles.actionButton}
-            onPress={() => router.push(`/post/${item.id}`)}
+            onPress={openDetail}
             accessibilityLabel="View comments on post"
           >
             <Ionicons name="chatbubble-outline" size={17} color={colors.textMuted} />
@@ -1657,7 +1665,7 @@ export default function HomeScreen() {
         {item.comment_count > 0 && (
           <TouchableOpacity
             activeOpacity={0.7}
-            onPress={() => router.push(`/post/${item.id}`)}
+            onPress={openDetail}
             style={{
               marginTop: spacing.compact,
               paddingTop: spacing.tight,

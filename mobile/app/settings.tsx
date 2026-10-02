@@ -9,6 +9,7 @@ import {
   Alert,
   Modal,
   Platform,
+  Linking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -50,6 +51,13 @@ export default function SettingsScreen() {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
+
+  // Delete Account Modal State
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
 
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const devTapRef = React.useRef(0);
@@ -144,6 +152,48 @@ export default function SettingsScreen() {
         },
       },
     ]);
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeleteError(null);
+    if (!deletePassword) {
+      setDeleteError('Please enter your password to confirm account deletion.');
+      return;
+    }
+
+    Alert.alert(
+      'Permanent Account Deletion',
+      'Are you completely certain? Your profile credentials, session access, registered push tokens, and interactions will be permanently erased. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Forever',
+          style: 'destructive',
+          onPress: async () => {
+            setIsDeletingAccount(true);
+            try {
+              const res = await apiFetch('/api/account/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: deletePassword }),
+              });
+              const data = await res.json().catch(() => ({}));
+              if (res.ok && data.success) {
+                setShowDeleteModal(false);
+                await logout();
+                Alert.alert('Account Deleted', 'Your account and personal data have been permanently removed.');
+              } else {
+                setDeleteError(data.message || 'Failed to delete account. Please verify your password.');
+              }
+            } catch {
+              setDeleteError('Network error deleting account. Check your connection.');
+            } finally {
+              setIsDeletingAccount(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -366,10 +416,25 @@ export default function SettingsScreen() {
           leftIcon={<Ionicons name="key-outline" size={17} color={colors.text} />}
           onPress={() => setShowPasswordModal(true)}
         />
+
+        <View style={{ marginTop: spacing.sm }}>
+          <Button
+            title="Delete Account"
+            variant="ghost"
+            size="sm"
+            textStyle={{ color: colors.error }}
+            leftIcon={<Ionicons name="trash-outline" size={16} color={colors.error} />}
+            onPress={() => {
+              setDeletePassword('');
+              setDeleteError(null);
+              setShowDeleteModal(true);
+            }}
+          />
+        </View>
       </Card>
 
       {/* 4. ABOUT SECTION */}
-      <Subheading style={{ marginTop: spacing.md, marginBottom: spacing.xs }}>About</Subheading>
+      <Subheading style={{ marginTop: spacing.md, marginBottom: spacing.xs }}>About & Legal</Subheading>
       <Card variant="elevated" padding="md" style={styles.card}>
         <View style={{ alignItems: 'center', paddingVertical: 10 }}>
           <Text variant="md" weight="700" style={{ letterSpacing: -0.3 }}>
@@ -381,6 +446,7 @@ export default function SettingsScreen() {
           <TouchableOpacity
             activeOpacity={1}
             onPress={() => {
+              if (!__DEV__) return;
               devTapRef.current += 1;
               if (devTapRef.current >= 7) {
                 devTapRef.current = 0;
@@ -393,7 +459,35 @@ export default function SettingsScreen() {
             </Text>
           </TouchableOpacity>
         </View>
+
+        <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+        {/* Privacy Policy Link */}
+        <TouchableOpacity
+          style={styles.linkRow}
+          onPress={() => Linking.openURL('https://semestar-library.vercel.app/privacy')}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <Ionicons name="shield-checkmark-outline" size={18} color={colors.primary} />
+            <Text variant="sm" weight="600">Privacy Policy</Text>
+          </View>
+          <Ionicons name="open-outline" size={16} color={colors.textMuted} />
+        </TouchableOpacity>
+
+        {/* Web Deletion Portal Link */}
+        <TouchableOpacity
+          style={styles.linkRow}
+          onPress={() => Linking.openURL('https://semestar-library.vercel.app/delete-account')}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <Ionicons name="trash-bin-outline" size={18} color={colors.error} />
+            <Text variant="sm" weight="600">Account Deletion Policy & Web Portal</Text>
+          </View>
+          <Ionicons name="open-outline" size={16} color={colors.textMuted} />
+        </TouchableOpacity>
       </Card>
+
+
 
       {/* 5. SEPARATED DESTRUCTIVE ACTION: SIGN OUT */}
       <View style={{ marginTop: spacing.lg, marginBottom: spacing.xl }}>
@@ -480,6 +574,73 @@ export default function SettingsScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* DELETE ACCOUNT CONFIRMATION MODAL */}
+      <Modal
+        visible={showDeleteModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowDeleteModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.border, maxHeight: '90%' }]}>
+            <View style={styles.modalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="warning" size={22} color={colors.error} />
+                <Heading style={{ fontSize: 18, color: colors.error }}>Delete Account</Heading>
+              </View>
+              <TouchableOpacity onPress={() => setShowDeleteModal(false)} style={{ padding: 4 }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="close" size={22} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <KeyboardAwareForm clearance={24} showsVerticalScrollIndicator={false}>
+              <View style={[styles.modalBanner, { backgroundColor: colors.errorBg, borderColor: colors.error }]}>
+                <Ionicons name="alert-circle" size={18} color={colors.error} style={{ marginRight: 8 }} />
+                <Caption style={{ color: colors.error, flex: 1, fontWeight: '600' }}>
+                  Warning: This action permanently erases your student profile, active sessions, push notification tokens, and personal interactions. It cannot be undone.
+                </Caption>
+              </View>
+
+              {deleteError && (
+                <View style={[styles.modalBanner, { backgroundColor: colors.errorBg, borderColor: colors.error }]}>
+                  <Ionicons name="alert-circle" size={18} color={colors.error} style={{ marginRight: 8 }} />
+                  <Caption style={{ color: colors.error, flex: 1 }}>{deleteError}</Caption>
+                </View>
+              )}
+
+
+              <Text variant="sm" color="secondary" style={{ marginBottom: 12 }}>
+                To confirm permanent deletion of account <Text variant="sm" weight="700">{user?.studentId || 'your account'}</Text>, please enter your password below:
+              </Text>
+
+              <PasswordField
+                label="Confirm Password"
+                placeholder="Enter your current password"
+                value={deletePassword}
+                onChangeText={setDeletePassword}
+              />
+
+              <Button
+                title="Permanently Delete Account"
+                variant="danger"
+                size="lg"
+                loading={isDeletingAccount}
+                onPress={handleDeleteAccount}
+                style={{ marginTop: spacing.sm }}
+              />
+
+              <Button
+                title="Cancel"
+                variant="ghost"
+                size="md"
+                onPress={() => setShowDeleteModal(false)}
+                style={{ marginTop: spacing.xs }}
+              />
+            </KeyboardAwareForm>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -529,6 +690,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 5,
   },
+  linkRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',
@@ -555,3 +722,4 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
 });
+

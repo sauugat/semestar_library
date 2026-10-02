@@ -55,6 +55,8 @@ test('Atomic Material Upload & Batch Notification Semantics', async (t) => {
 
   await db.run('INSERT INTO mobile_tokens (token, studentId, createdAt, expiresAt) VALUES (?, ?, ?, ?)', teacherToken, teacherId, new Date().toISOString(), expiresAt);
   await db.run('INSERT INTO mobile_tokens (token, studentId, createdAt, expiresAt) VALUES (?, ?, ?, ?)', studentToken, studentS2Id, new Date().toISOString(), expiresAt);
+  await db.run('INSERT INTO student_device_tokens (student_id, expo_push_token, platform, device_name, updated_at) VALUES (?, ?, ?, ?, ?)', studentS2Id, `ExponentPushToken[sem2_test_${ts}]`, 'android', 'Pixel 8', new Date().toISOString());
+
 
   // -------------------------------------------------------------
   // Test 1: Empty upload -> 400 Bad Request, 0 DB records, 0 notifications

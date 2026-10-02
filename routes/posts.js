@@ -116,8 +116,11 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       if (type !== undefined) {
         whereConditions.push('p.type = ?');
         params.push(type);
+        if (type === 'notice') {
+          whereConditions.push("s.role IN ('admin', 'cr', 'teacher')");
+        }
       }
-      if (official === 'true') {
+      if (official === 'true' && type !== 'notice') {
         whereConditions.push("s.role IN ('admin', 'cr', 'teacher')");
       }
       const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
@@ -147,12 +150,21 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       if (!['status', 'assignment', 'notice'].includes(type)) {
         return rejectPost('Choose status, assignment, or notice.');
       }
-      const isOfficial = Boolean(req.body?.official === true || req.body?.official === 'true' || req.body?.is_official === true);
-      const isAuthorizedRole = ['admin', 'cr', 'teacher'].includes(req.postUser.role);
-      if (isOfficial && !isAuthorizedRole) {
-        if (req.file) await removeUploadedImage(req.file.path);
-        return res.status(403).json({ message: 'Only authorized roles (admin, CR, teacher) can publish official notices.' });
+      if (type === 'notice') {
+        const canPostNotice = ['admin', 'cr', 'teacher'].includes(req.postUser?.role);
+        if (!canPostNotice) {
+          if (req.file) await removeUploadedImage(req.file.path);
+          return res.status(403).json({ message: 'Only authorized roles (admin, CR, teacher) can publish notices.' });
+        }
       }
+      if (type === 'assignment') {
+        const canPostAssignment = ['admin', 'teacher'].includes(req.postUser?.role);
+        if (!canPostAssignment) {
+          if (req.file) await removeUploadedImage(req.file.path);
+          return res.status(403).json({ message: 'Only teachers and administrators can create assignments.' });
+        }
+      }
+      const isOfficial = type === 'notice' || (['admin', 'cr', 'teacher'].includes(req.postUser?.role) && Boolean(req.body?.official === true || req.body?.official === 'true' || req.body?.is_official === true));
       if (req.file) {
         attachment_url = `/uploads/posts/${req.file.filename}`;
       } else if (attachment_url !== null) {

@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "semlib",
+    "name": "Semester Library",
     "slug": "semester-library",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "mobile",
+    "scheme": "semesterlibrary",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
@@ -20,7 +20,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "package": "com.semesterlibrary.app",
-      "versionCode": 5,
+      "versionCode": 6,
       "softwareKeyboardLayoutMode": "resize",
       "predictiveBackGestureEnabled": false,
       "metaData": {
@@ -28,11 +28,8 @@
       },
       "permissions": [
         "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
-        "android.permission.READ_MEDIA_IMAGES",
-        "android.permission.READ_MEDIA_VIDEO",
-        "android.permission.READ_MEDIA_AUDIO"
+        "android.permission.READ_MEDIA_IMAGES"
       ]
     },
     "web": {
@@ -42,12 +39,6 @@
     },
     "plugins": [
       "expo-router",
-      [
-        "expo-dev-launcher",
-        {
-          "toolsButton": false
-        }
-      ],
       [
         "expo-splash-screen",
         {
@@ -70,7 +61,10 @@
         "expo-media-library",
         {
           "photosPermission": "Access photos you choose to share with your class.",
-          "savePhotosPermission": "Save images from your class conversation to Photos."
+          "savePhotosPermission": "Save images from your class conversation to Photos.",
+          "granularPermissions": [
+            "photo"
+          ]
         }
       ],
       "expo-sqlite",
@@ -80,6 +74,16 @@
           "icon": "./assets/images/android-icon-monochrome.png",
           "color": "#000000",
           "defaultChannel": "default"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 36,
+            "targetSdkVersion": 36,
+            "buildToolsVersion": "36.0.0"
+          }
         }
       ]
     ],

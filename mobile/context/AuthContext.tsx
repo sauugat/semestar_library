@@ -82,19 +82,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     async function initializeAuth() {
       try {
-        // 1. Load custom server URL if configured
-        const savedUrl = await SecureStore.getItemAsync(SERVER_URL_KEY);
-        let activeUrl = savedUrl ? savedUrl.trim().replace(/\/+$/, '') : '';
-        if (
-          !__DEV__ &&
-          activeUrl &&
-          (activeUrl.includes('192.168.') || activeUrl.includes('localhost') || activeUrl.includes('127.0.0.1') || activeUrl.includes('10.0.2.2'))
-        ) {
-          await SecureStore.deleteItemAsync(SERVER_URL_KEY);
-          activeUrl = '';
-        }
-        if (!activeUrl) {
+        // 1. In production (!__DEV__), purge stored server URL key and force getBaseUrl()
+        let activeUrl = '';
+        if (!__DEV__) {
+          await SecureStore.deleteItemAsync(SERVER_URL_KEY).catch(() => {});
           activeUrl = await getBaseUrl();
+        } else {
+          const savedUrl = await SecureStore.getItemAsync(SERVER_URL_KEY);
+          activeUrl = savedUrl ? savedUrl.trim().replace(/\/+$/, '') : '';
+          if (!activeUrl) {
+            activeUrl = await getBaseUrl();
+          }
         }
         if (isMounted) setServerUrl(activeUrl);
 
@@ -226,7 +224,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (err: any) {
       return {
         success: false,
-        error: `Could not connect to ${targetUrl}. Ensure your phone is on the same Wi-Fi.`,
+        error: __DEV__
+          ? `Could not connect to ${targetUrl}. Ensure your phone is on the same Wi-Fi.`
+          : 'Unable to connect to Semester Library. Check your internet connection and try again.',
       };
     }
   };
@@ -259,7 +259,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (err: any) {
       return {
         success: false,
-        error: `Could not connect to ${targetUrl}. Ensure your phone is on the same Wi-Fi.`,
+        error: __DEV__
+          ? `Could not connect to ${targetUrl}. Ensure your phone is on the same Wi-Fi.`
+          : 'Unable to connect to Semester Library. Check your internet connection and try again.',
       };
     }
   };
@@ -291,7 +293,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (err: any) {
       return {
         success: false,
-        error: `Could not connect to ${targetUrl}. Ensure your phone is on the same Wi-Fi.`,
+        error: __DEV__
+          ? `Could not connect to ${targetUrl}. Ensure your phone is on the same Wi-Fi.`
+          : 'Unable to connect to Semester Library. Check your internet connection and try again.',
       };
     }
   };
@@ -323,7 +327,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (err: any) {
       return {
         success: false,
-        error: `Could not connect to ${targetUrl}. Ensure your phone is on the same Wi-Fi.`,
+        error: __DEV__
+          ? `Could not connect to ${targetUrl}. Ensure your phone is on the same Wi-Fi.`
+          : 'Unable to connect to Semester Library. Check your internet connection and try again.',
       };
     }
   };
@@ -410,6 +416,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateServerUrl = async (newUrl: string) => {
+    if (!__DEV__) {
+      // In production builds, custom server URLs are strictly ignored and prohibited
+      return;
+    }
     const sanitized = newUrl.trim().replace(/\/+$/, '');
     await SecureStore.setItemAsync(SERVER_URL_KEY, sanitized);
     setServerUrl(sanitized);

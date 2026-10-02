@@ -37,16 +37,30 @@ export function getAutoDetectedServerUrl(): string {
 }
 
 export async function getBaseUrl(): Promise<string> {
+  // In production builds (!__DEV__), NEVER allow custom/arbitrary server URL overrides.
+  // Purge any stored key and lock strictly to trusted production configuration.
+  if (!__DEV__) {
+    try {
+      await SecureStore.deleteItemAsync(SERVER_URL_STORAGE_KEY).catch(() => {});
+    } catch {}
+
+    if (process.env.EXPO_PUBLIC_API_URL && process.env.EXPO_PUBLIC_API_URL.trim()) {
+      return process.env.EXPO_PUBLIC_API_URL.trim().replace(/\/+$/, '');
+    }
+
+    const extraUrl = (Constants.expoConfig?.extra as any)?.apiUrl;
+    if (extraUrl && typeof extraUrl === 'string' && extraUrl.trim()) {
+      return extraUrl.trim().replace(/\/+$/, '');
+    }
+
+    return DEFAULT_SERVER_URL;
+  }
+
+  // Development builds: allow developer override from SecureStore
   try {
     const saved = await SecureStore.getItemAsync(SERVER_URL_STORAGE_KEY);
     if (saved && saved.trim()) {
-      const clean = saved.trim().replace(/\/+$/, '');
-      // Purge stale local development IPs in production builds
-      if (!__DEV__ && (clean.includes('192.168.') || clean.includes('localhost') || clean.includes('127.0.0.1') || clean.includes('10.0.2.2'))) {
-        await SecureStore.deleteItemAsync(SERVER_URL_STORAGE_KEY);
-      } else {
-        return clean;
-      }
+      return saved.trim().replace(/\/+$/, '');
     }
   } catch {}
 
@@ -221,10 +235,10 @@ export async function apiFetch(
     }
     if (netErr instanceof ApiError) throw netErr;
     const msg = netErr?.message || 'Network request failed';
-    throw new ApiError(
-      `${msg} (Cannot connect to server at ${baseUrl}. Ensure your phone and computer are on the same Wi-Fi.)`,
-      0
-    );
+    const errorText = __DEV__
+      ? `${msg} (Cannot connect to server at ${baseUrl}. Ensure your phone and computer are on the same Wi-Fi.)`
+      : 'Unable to connect to Semester Library. Check your internet connection and try again.';
+    throw new ApiError(errorText, 0);
   }
 
   // Handle 401 Unauthorized (expired token or invalid session)

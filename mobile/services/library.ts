@@ -111,10 +111,14 @@ export async function getFiles(params: GetFilesParams = {}): Promise<LibraryFile
  */
 export async function getFileById(id: number | string): Promise<LibraryFile | null> {
   const targetId = Number(id);
-  // Fetch files and locate the file with matching ID
-  const allFiles = await api.get<LibraryFile[]>('/api/library/files');
-  const found = allFiles.find((f) => Number(f.id) === targetId);
-  return found || null;
+  if (!Number.isFinite(targetId) || targetId <= 0) return null;
+  try {
+    const file = await api.get<LibraryFile>(`/api/files/${targetId}`);
+    return file || null;
+  } catch (err: any) {
+    if (err?.status === 404) return null;
+    throw err;
+  }
 }
 
 /**

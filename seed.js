@@ -93,30 +93,6 @@ async function seed() {
   }
   console.log(`\nAuto-followed: All ${students.length - 1} classmates now follow Saugat Subedi (${saugatId}).`);
 
-  // Auto-like notes uploaded by Saugat Subedi with natural randomized student distribution (17-44 likes)
-  const saugatFiles = await db.all('SELECT id FROM files WHERE uploadedBy = ?', saugatId);
-  for (const f of saugatFiles) {
-    const targetLikes = Math.floor(Math.random() * (44 - 17 + 1)) + 17;
-    const shuffledStudents = [...students].sort(() => Math.random() - 0.5).slice(0, targetLikes);
-    for (const s of shuffledStudents) {
-      if (db.isPostgres) {
-        await db.run(
-          `INSERT INTO file_likes (fileId, studentId) VALUES (?, ?)
-           ON CONFLICT (fileId, studentId) DO NOTHING RETURNING fileId`,
-          f.id, s.studentId
-        );
-      } else {
-        await db.run(
-          `INSERT OR IGNORE INTO file_likes (fileId, studentId) VALUES (?, ?)`,
-          f.id, s.studentId
-        );
-      }
-    }
-  }
-  if (saugatFiles.length > 0) {
-    console.log(`Auto-liked: Natural randomized likes (17-44) distributed across ${saugatFiles.length} notes by Saugat.`);
-  }
-
   console.log('\nDone! You can now log in with any of the above credentials.');
 }
 

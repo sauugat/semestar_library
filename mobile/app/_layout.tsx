@@ -196,9 +196,8 @@ function RootLayoutNav() {
       <Stack.Screen name="notice/[id]" options={{ title: 'Notice Details', headerBackTitle: 'Notices' }} />
       <Stack.Screen name="post/[id]" options={{ title: 'Post', headerBackTitle: 'Back' }} />
       <Stack.Screen name="settings" options={{ title: 'Settings', headerBackTitle: 'Profile' }} />
-      <Stack.Screen name="developer-settings" options={{ title: 'Developer Settings', headerBackTitle: 'Settings' }} />
+      <Stack.Screen name="user/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="routine" options={{ title: 'Class Routine', headerBackTitle: 'Back' }} />
-      <Stack.Screen name="forum" options={{ title: 'Campus Forum', headerBackTitle: 'Back' }} />
       <Stack.Screen name="material/[id]" options={{ title: 'Material Details', headerBackTitle: 'Back' }} />
       <Stack.Screen
         name="edit-profile"

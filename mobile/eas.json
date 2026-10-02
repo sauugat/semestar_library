@@ -21,6 +21,16 @@
       },
       "channel": "preview"
     },
+    "production-apk": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://semestar-library.vercel.app"
+      },
+      "channel": "production"
+    },
     "production": {
       "autoIncrement": true,
       "android": {

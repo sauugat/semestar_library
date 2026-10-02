@@ -76,8 +76,9 @@ body[data-theme="light"] {
   --ky-text-subtle: #a1a1aa;
 }
 
-/* Root Resets */
-html,
+/* Root Resets — Strictly scoped to Kyana Fullpage Workspace */
+html.kyana-workspace-html,
+html:has(body.kyana-workspace-body),
 body.kyana-workspace-body {
   margin: 0;
   padding: 0;

@@ -1,0 +1,526 @@
+{
+  "timestamp": "2026-10-02T09:57:47.330Z",
+  "studentId": "26020266",
+  "deletedCount": 50,
+  "preservedCount": 2,
+  "preservedRows": [
+    {
+      "fileId": 149,
+      "title": "Chapter 6 (ELX 121)",
+      "uploadedBy": "26020260",
+      "uploadedAt": "2026-08-25T14:08:55.437Z",
+      "status": "PRESERVED_UNCERTAIN_ROW"
+    },
+    {
+      "fileId": 172,
+      "title": "Web Technology Important Questions (Part 1)",
+      "uploadedBy": "26020268",
+      "uploadedAt": "2026-09-14T17:15:12.015Z",
+      "status": "PRESERVED_UNCERTAIN_ROW"
+    }
+  ],
+  "deletedRows": [
+    {
+      "studentId": "26020266",
+      "fileId": 6,
+      "title": null,
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-07T10:57:48.946Z",
+      "reason": "SEED_SCRIPT_FABRICATION (File ID <= 10 from database-seed.js)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 9,
+      "title": null,
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-16T15:06:35.668Z",
+      "reason": "SEED_SCRIPT_FABRICATION (File ID <= 10 from database-seed.js)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 12,
+      "title": "Movie Time",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-17T20:23:33.971Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 16,
+      "title": "04. Operators and Control Flow",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-25T11:25:29.706Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 18,
+      "title": "06. Exception Handling Java",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-25T11:26:19.175Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 21,
+      "title": "GUI with AWT and Swing",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-25T11:27:20.075Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 28,
+      "title": "Chapter2 Complete Notes GU 2",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-25T11:46:35.351Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 29,
+      "title": "Chapter2 Slide GU",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-25T11:46:35.352Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 30,
+      "title": "Chapter3 Complete Notes GU",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-25T11:46:51.275Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 31,
+      "title": "Chapter3 Slide GU",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-25T11:46:51.276Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 32,
+      "title": "Chapter4 Complete Notes GU",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-25T11:47:13.143Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 41,
+      "title": "U4 L1",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-25T11:55:55.146Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 42,
+      "title": "U4 L2",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-25T11:55:55.146Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 44,
+      "title": "U4 L4",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-25T11:55:55.146Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 46,
+      "title": "U4 L5 Initial Value Problem",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-25T11:55:55.147Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 47,
+      "title": "U4 L7 2nd Order DE",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-25T11:55:55.147Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 48,
+      "title": "Exercise 2nd Order ODE 2",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-25T11:55:55.147Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 49,
+      "title": "exercise on ODE 2",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-25T11:55:55.147Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 51,
+      "title": "L1",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-25T12:06:15.865Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 54,
+      "title": "L4",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-25T12:06:15.865Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 55,
+      "title": "Exercise on Complex Number",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-25T12:06:15.865Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 56,
+      "title": "Exercise on Complex Variable Function",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-25T12:06:15.865Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 59,
+      "title": "Lecture 4 Predicate and Quantifiers",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-25T12:26:30.400Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 81,
+      "title": "Lecture 8 Proofs, Direct and Indirect",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-25T12:33:59.786Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 90,
+      "title": "Lecture 9 Sequential Circuits and FSM",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-25T12:40:46.913Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 91,
+      "title": "Lecture 10 Deterministic FSA",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-25T12:40:46.913Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 93,
+      "title": "Lecture 12 Conversion of NFA to DFA",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-25T12:40:46.913Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 94,
+      "title": "Lecture 19 Recursive Definition",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-25T12:43:12.808Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 95,
+      "title": "Lecture 20 Solution of Linear Recurrence Relations",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-25T12:43:12.809Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 98,
+      "title": "Lecture 13 Graph Theory Introduction and Types",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-25T12:49:50.350Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 99,
+      "title": "Lecture 14 Graph Types",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-25T12:49:50.350Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 101,
+      "title": "Lecture 16 Graph Isomorphism",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-25T12:49:50.350Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 102,
+      "title": "Lecture 17 Shortest Path Algorithm",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-25T12:49:50.350Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 103,
+      "title": "Lecture 18 Graph Coloring and Its Application",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-25T12:49:50.350Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 132,
+      "title": "Function of Several Variables",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-25T13:06:26.872Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 133,
+      "title": "Homogeneous Functions ",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-25T13:06:26.872Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 134,
+      "title": "Maxima and Minima of a Functions of Several Variables",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-25T13:06:26.872Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 135,
+      "title": "Partial Derivatives of Higher Order",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-25T13:06:26.872Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 136,
+      "title": "Total Derivatives",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-25T13:06:26.872Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 137,
+      "title": "Application of partial derivatives",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-25T13:06:26.872Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 140,
+      "title": "Exercise on Partial Derivative of Higher Order",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-25T13:06:26.872Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 143,
+      "title": "Alternating Series Test 2",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-25T13:10:04.158Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 145,
+      "title": "Exercise on infinite series 2",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-25T13:10:04.158Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 146,
+      "title": "GU BIT Exercise Per Com",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-25T13:12:18.254Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 147,
+      "title": "Permutations and Combinations",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-25T13:12:18.255Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 166,
+      "title": "Discrete Mathematics",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-08-31T08:54:53.713Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 168,
+      "title": "Lecture 7 Rules of Inference for Quantified Statements",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-09-01T09:34:33.206Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 169,
+      "title": "Testing File",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-09-07T12:18:31.938Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 170,
+      "title": "Preboard  Exam Schedule  2083 Shrawan.xlsx   Table 1 2",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-09-07T12:20:14.445Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    },
+    {
+      "studentId": "26020266",
+      "fileId": 171,
+      "title": "Model Questions",
+      "uploadedBy": "26020266",
+      "uploadedAt": "2026-09-14T04:53:09.589Z",
+      "reason": "SELF_UPLOAD_AUTOLIKE_BUG (server.js auto-liked on upload by 26020266)",
+      "confidence": "PROVEN_SYNTHETIC"
+    }
+  ],
+  "rollbackSql": [
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (6, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (9, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (12, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (16, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (18, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (21, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (28, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (29, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (30, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (31, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (32, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (41, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (42, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (44, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (46, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (47, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (48, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (49, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (51, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (54, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (55, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (56, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (59, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (81, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (90, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (91, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (93, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (94, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (95, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (98, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (99, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (101, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (102, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (103, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (132, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (133, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (134, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (135, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (136, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (137, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (140, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (143, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (145, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (146, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (147, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (166, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (168, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (169, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (170, '26020266') ON CONFLICT DO NOTHING;",
+    "INSERT INTO file_likes (\"fileId\", \"studentId\") VALUES (171, '26020266') ON CONFLICT DO NOTHING;"
+  ]
+}

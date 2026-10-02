@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
+  ScrollView,
   StyleSheet,
   Modal,
   TouchableOpacity,
@@ -14,6 +15,7 @@ import {
 import * as ScreenOrientation from 'expo-screen-orientation';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
+import * as Clipboard from 'expo-clipboard';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
 import { LibraryFile } from '@/services/library';
@@ -40,7 +42,9 @@ function formatBytes(bytes: number | string): string {
   return `${parseFloat((b / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 }
 
-function getFileCategory(filename: string): 'pdf' | 'image' | 'office' | 'other' {
+export type FilePreviewCategory = 'pdf' | 'image' | 'text' | 'office' | 'other';
+
+export function getFileCategory(filename: string): FilePreviewCategory {
   const lower = (filename || '').toLowerCase();
   if (lower.endsWith('.pdf')) return 'pdf';
   if (
@@ -55,16 +59,60 @@ function getFileCategory(filename: string): 'pdf' | 'image' | 'office' | 'other'
     return 'image';
   }
   if (
+    lower.endsWith('.txt') ||
+    lower.endsWith('.md') ||
+    lower.endsWith('.csv') ||
+    lower.endsWith('.json') ||
+    lower.endsWith('.log')
+  ) {
+    return 'text';
+  }
+  if (
     lower.endsWith('.pptx') ||
     lower.endsWith('.ppt') ||
     lower.endsWith('.docx') ||
     lower.endsWith('.doc') ||
-    lower.endsWith('.txt') ||
+    lower.endsWith('.xlsx') ||
+    lower.endsWith('.xls') ||
     lower.endsWith('.html')
   ) {
     return 'office';
   }
   return 'other';
+}
+
+export function getOfficeDocMeta(filename: string): { label: string; icon: string; color: string; appHint: string } {
+  const lower = (filename || '').toLowerCase();
+  if (lower.endsWith('.docx') || lower.endsWith('.doc')) {
+    return {
+      label: 'Word Document',
+      icon: 'document-text',
+      color: '#2563EB',
+      appHint: 'Microsoft 365, Google Docs, or WPS Office',
+    };
+  }
+  if (lower.endsWith('.xlsx') || lower.endsWith('.xls')) {
+    return {
+      label: 'Excel Spreadsheet',
+      icon: 'grid-outline',
+      color: '#16A34A',
+      appHint: 'Microsoft Excel, Google Sheets, or WPS Office',
+    };
+  }
+  if (lower.endsWith('.pptx') || lower.endsWith('.ppt')) {
+    return {
+      label: 'PowerPoint Presentation',
+      icon: 'easel-outline',
+      color: '#EA580C',
+      appHint: 'Microsoft PowerPoint, Google Slides, or Keynote',
+    };
+  }
+  return {
+    label: 'Office Document',
+    icon: 'document-text-outline',
+    color: '#71717A',
+    appHint: 'Microsoft 365, Google Docs, WPS Office, or your document viewer',
+  };
 }
 
 function getImageMime(filename: string): string {
@@ -264,6 +312,8 @@ export function FullScreenFilePreview({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [pdfBase64, setPdfBase64] = useState<string | null>(null);
   const [imageBase64, setImageBase64] = useState<string | null>(null);
+  const [textContent, setTextContent] = useState<string | null>(null);
+  const [copiedText, setCopiedText] = useState(false);
   const [activeUri, setActiveUri] = useState<string | null>(localFileUri);
 
   // Sync activeUri with incoming localFileUri
@@ -292,7 +342,7 @@ export function FullScreenFilePreview({
     return file ? getFileCategory(file.originalName) : 'other';
   }, [file]);
 
-  // Prepare file for rendering (download if needed, extract base64 for Android PDF or Image)
+  // Prepare file for rendering (download if needed, extract base64 for Android PDF or Image, or text UTF-8)
   const preparePreview = useCallback(async () => {
     if (!file) return;
     setErrorMsg(null);
@@ -322,6 +372,11 @@ export function FullScreenFilePreview({
           encoding: FileSystem.EncodingType.Base64,
         });
         setImageBase64(b64);
+      } else if (cat === 'text') {
+        const txt = await FileSystem.readAsStringAsync(targetUri, {
+          encoding: FileSystem.EncodingType.UTF8,
+        });
+        setTextContent(txt);
       }
     } catch (err: any) {
       console.error('Error preparing preview:', err);
@@ -338,6 +393,8 @@ export function FullScreenFilePreview({
     } else if (!visible) {
       setPdfBase64(null);
       setImageBase64(null);
+      setTextContent(null);
+      setCopiedText(false);
       setErrorMsg(null);
     }
   }, [visible, file, preparePreview]);
@@ -564,6 +621,69 @@ export function FullScreenFilePreview({
       marginBottom: 24,
       maxWidth: 320,
     },
+    textContainer: {
+      flex: 1,
+      backgroundColor: isDark ? '#111111' : '#f8fafc',
+    },
+    textActionBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      backgroundColor: isDark ? '#18181b' : '#f1f5f9',
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    textMeta: {
+      color: colors.textSecondary,
+      fontSize: 12,
+      fontFamily: 'PlusJakartaSans_600SemiBold',
+      flex: 1,
+      marginRight: 10,
+    },
+    copyBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: colors.surfaceRaised,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 6,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    copyBtnText: {
+      fontSize: 12,
+      color: colors.text,
+      fontFamily: 'PlusJakartaSans_600SemiBold',
+    },
+    textScroll: {
+      flex: 1,
+    },
+    textContentContainer: {
+      padding: 16,
+      paddingBottom: 40,
+    },
+    codeText: {
+      fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+      fontSize: 13,
+      lineHeight: 20,
+      color: colors.text,
+    },
+    officeBadge: {
+      paddingHorizontal: 12,
+      paddingVertical: 4,
+      borderRadius: 12,
+      marginBottom: 12,
+    },
+    officeBadgeText: {
+      color: '#FFFFFF',
+      fontSize: 12,
+      fontFamily: 'PlusJakartaSans_700Bold',
+      letterSpacing: 0.5,
+      textTransform: 'uppercase',
+    },
     hintPill: {
       position: 'absolute',
       bottom: 16,
@@ -761,18 +881,95 @@ export function FullScreenFilePreview({
             />
           )}
 
-          {/* 5. Office Documents / Other Formats */}
-          {!isLoading && !errorMsg && fileCategory !== 'pdf' && fileCategory !== 'image' && (
+          {/* 5. In-App Text Viewer (TXT, MD, CSV, JSON, LOG) */}
+          {!isLoading && !errorMsg && fileCategory === 'text' && (
+            <View style={styles.textContainer}>
+              <View style={styles.textActionBar}>
+                <Text numberOfLines={1} style={styles.textMeta}>
+                  {file?.originalName} • {formatBytes(file?.sizeBytes || 0)}
+                </Text>
+                <TouchableOpacity
+                  style={styles.copyBtn}
+                  onPress={async () => {
+                    if (textContent) {
+                      await Clipboard.setStringAsync(textContent);
+                      setCopiedText(true);
+                      setTimeout(() => setCopiedText(false), 2000);
+                    }
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name={copiedText ? 'checkmark' : 'copy-outline'}
+                    size={15}
+                    color={copiedText ? '#10B981' : colors.text}
+                  />
+                  <Text style={[styles.copyBtnText, copiedText && { color: '#10B981' }]}>
+                    {copiedText ? 'Copied!' : 'Copy Text'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <ScrollView style={styles.textScroll} contentContainerStyle={styles.textContentContainer}>
+                <Text selectable style={styles.codeText}>
+                  {textContent || 'Empty document.'}
+                </Text>
+              </ScrollView>
+            </View>
+          )}
+
+          {/* 6. Dedicated Office Documents Card (Word, Excel, PowerPoint) */}
+          {!isLoading && !errorMsg && fileCategory === 'office' && (() => {
+            const officeMeta = getOfficeDocMeta(file?.originalName || '');
+            return (
+              <View style={styles.docBox}>
+                <View style={[styles.docIconCircle, { borderColor: officeMeta.color + '40', backgroundColor: officeMeta.color + '15' }]}>
+                  <Ionicons name={officeMeta.icon as any} size={48} color={officeMeta.color} />
+                </View>
+                <View style={[styles.officeBadge, { backgroundColor: officeMeta.color }]}>
+                  <Text style={styles.officeBadgeText}>{officeMeta.label}</Text>
+                </View>
+                <Text style={styles.docTitle}>{file?.title || file?.originalName}</Text>
+                <Text style={styles.docSubtitle}>
+                  {ext} • {formatBytes(file?.sizeBytes || 0)}
+                </Text>
+                <Text style={styles.docDescription}>
+                  {`Ready to view in your device's document reader (${officeMeta.appHint}).`}
+                </Text>
+                <View style={{ width: '100%', maxWidth: 280, gap: 10 }}>
+                  <TouchableOpacity
+                    style={[styles.primaryButton, { backgroundColor: officeMeta.color }]}
+                    onPress={onShareFile}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="open-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+                    <Text style={[styles.primaryButtonText, { color: '#FFFFFF' }]}>Open in Document Reader</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.secondaryButton}
+                    onPress={onShareFile}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="share-outline" size={18} color={colors.text} style={{ marginRight: 6 }} />
+                    <Text style={styles.secondaryButtonText}>Share / Export File</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          })()}
+
+          {/* 7. Other / Unsupported Formats */}
+          {!isLoading && !errorMsg && fileCategory === 'other' && (
             <View style={styles.docBox}>
               <View style={styles.docIconCircle}>
-                <Ionicons name="document-text-outline" size={54} color={colors.text} />
+                <Ionicons name="document-outline" size={54} color={colors.text} />
               </View>
               <Text style={styles.docTitle}>{file?.title || file?.originalName}</Text>
               <Text style={styles.docSubtitle}>
                 Format: {ext} • {formatBytes(file?.sizeBytes || 0)}
               </Text>
               <Text style={styles.docDescription}>
-                This document can be opened and viewed with your preferred mobile app (Microsoft 365, Google Docs, Keynote, etc.).
+                This file format cannot be rendered directly in the app. You can export or open it with an external viewer.
               </Text>
               <TouchableOpacity
                 style={styles.primaryButton}
@@ -780,7 +977,7 @@ export function FullScreenFilePreview({
                 activeOpacity={0.8}
               >
                 <Ionicons name="open-outline" size={18} color={colors.primaryText} style={{ marginRight: 6 }} />
-                <Text style={styles.primaryButtonText}>Open in Reader / Share</Text>
+                <Text style={styles.primaryButtonText}>Open in External App</Text>
               </TouchableOpacity>
             </View>
           )}

@@ -5,11 +5,22 @@ import { normalizeUploadFile, validateFileSize, RawFileAsset } from '../utils/fi
 export type { LibraryFile };
 export { toggleFileLike };
 
+export interface PostMediaItem {
+  id: number;
+  post_id: number;
+  media_type: 'image' | 'video' | 'file';
+  url: string;
+  mime_type?: string | null;
+  sort_order: number;
+  created_at?: string;
+}
+
 export interface CreatePostParams {
-  content: string;
+  content?: string;
   type?: 'status' | 'assignment' | 'notice';
   imageUri?: string | null;
   image?: RawFileAsset | null;
+  images?: RawFileAsset[];
   official?: boolean;
 }
 
@@ -30,6 +41,8 @@ export interface Post {
   liked_by_me: boolean;
   is_official?: boolean;
   canDelete?: boolean;
+  canEdit?: boolean;
+  media?: PostMediaItem[];
 }
 
 export interface PostComment {
@@ -201,27 +214,33 @@ export async function deletePost(postId: number): Promise<{ message: string }> {
 }
 
 /**
- * Creates a new post with text, optional image, and type.
+ * Creates a new post with text, optional multiple images, and type.
  */
 export async function createPost(params: CreatePostParams): Promise<Post> {
   const formData = new FormData();
-  formData.append('content', params.content.trim());
+  formData.append('content', (params.content || '').trim());
   formData.append('type', params.type || 'status');
 
   if (params.official) {
     formData.append('official', 'true');
   }
 
-  const rawImage = params.image || (params.imageUri ? { uri: params.imageUri } : null);
-  if (rawImage && rawImage.uri) {
-    const normalized = normalizeUploadFile(rawImage, `post_${Date.now()}.jpg`);
-    validateFileSize(normalized.size, 5 * 1024 * 1024, 'Post image');
+  const imagesToUpload = Array.isArray(params.images) && params.images.length > 0
+    ? params.images
+    : (params.image || params.imageUri ? [params.image || { uri: params.imageUri! }] : []);
 
-    formData.append('image', {
-      uri: normalized.uri,
-      name: normalized.name,
-      type: normalized.type,
-    } as any);
+  for (let i = 0; i < imagesToUpload.length; i++) {
+    const rawImage = imagesToUpload[i];
+    if (rawImage && rawImage.uri) {
+      const normalized = normalizeUploadFile(rawImage, `post_${Date.now()}_${i}.jpg`);
+      validateFileSize(normalized.size, 5 * 1024 * 1024, `Post image ${i + 1}`);
+
+      formData.append('images', {
+        uri: normalized.uri,
+        name: normalized.name,
+        type: normalized.type,
+      } as any);
+    }
   }
 
   const res = await apiFetch('/api/posts', {
@@ -232,6 +251,53 @@ export async function createPost(params: CreatePostParams): Promise<Post> {
   if (!res.ok) {
     const errBody = await res.json().catch(() => ({}));
     throw new ApiError(errBody.message || `Failed to create post (HTTP ${res.status})`, res.status, errBody);
+  }
+
+  return res.json();
+}
+
+export interface UpdatePostParams {
+  content?: string;
+  keepMediaUrls?: string[];
+  newImages?: (RawFileAsset | { uri: string; name?: string; type?: string })[];
+}
+
+/**
+ * Updates an existing post (caption, keeping/removing existing images, adding new images).
+ */
+export async function updatePost(postId: number, params: UpdatePostParams): Promise<Post> {
+  const formData = new FormData();
+  if (params.content !== undefined) {
+    formData.append('content', params.content.trim());
+  }
+  if (params.keepMediaUrls !== undefined) {
+    formData.append('keepMediaUrls', JSON.stringify(params.keepMediaUrls));
+  }
+
+  if (Array.isArray(params.newImages)) {
+    for (let i = 0; i < params.newImages.length; i++) {
+      const rawImage = params.newImages[i];
+      if (rawImage && rawImage.uri) {
+        const normalized = normalizeUploadFile(rawImage, `post_edit_${Date.now()}_${i}.jpg`);
+        validateFileSize(normalized.size, 5 * 1024 * 1024, `Post image ${i + 1}`);
+
+        formData.append('images', {
+          uri: normalized.uri,
+          name: normalized.name,
+          type: normalized.type,
+        } as any);
+      }
+    }
+  }
+
+  const res = await apiFetch(`/api/posts/${postId}`, {
+    method: 'PUT',
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const errBody = await res.json().catch(() => ({}));
+    throw new ApiError(errBody.message || `Failed to update post (HTTP ${res.status})`, res.status, errBody);
   }
 
   return res.json();

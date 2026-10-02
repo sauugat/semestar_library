@@ -55,6 +55,12 @@ function getMimeType(filename: string): string {
   if (lower.endsWith('.ppt')) return 'application/vnd.ms-powerpoint';
   if (lower.endsWith('.docx')) return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
   if (lower.endsWith('.doc')) return 'application/msword';
+  if (lower.endsWith('.xlsx')) return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  if (lower.endsWith('.xls')) return 'application/vnd.ms-excel';
+  if (lower.endsWith('.txt')) return 'text/plain';
+  if (lower.endsWith('.md')) return 'text/markdown';
+  if (lower.endsWith('.csv')) return 'text/csv';
+  if (lower.endsWith('.json')) return 'application/json';
   if (lower.endsWith('.zip')) return 'application/zip';
   return 'application/octet-stream';
 }
@@ -63,12 +69,20 @@ function getUTI(filename: string): string | undefined {
   const lower = (filename || '').toLowerCase();
   if (lower.endsWith('.pdf')) return 'com.adobe.pdf';
   if (lower.endsWith('.pptx')) return 'org.openxmlformats.presentationml.presentation';
+  if (lower.endsWith('.ppt')) return 'com.microsoft.powerpoint.ppt';
   if (lower.endsWith('.docx')) return 'org.openxmlformats.wordprocessingml.document';
+  if (lower.endsWith('.doc')) return 'com.microsoft.word.doc';
+  if (lower.endsWith('.xlsx')) return 'org.openxmlformats.spreadsheetml.sheet';
+  if (lower.endsWith('.xls')) return 'com.microsoft.excel.xls';
+  if (lower.endsWith('.txt')) return 'public.plain-text';
+  if (lower.endsWith('.md')) return 'net.daringfireball.markdown';
+  if (lower.endsWith('.csv')) return 'public.comma-separated-values-text';
+  if (lower.endsWith('.json')) return 'public.json';
   if (lower.endsWith('.zip')) return 'public.zip-archive';
   return undefined;
 }
 
-function getFileCategory(filename: string): 'pdf' | 'image' | 'office' | 'other' {
+function getFileCategory(filename: string): 'pdf' | 'image' | 'text' | 'office' | 'other' {
   const lower = (filename || '').toLowerCase();
   if (lower.endsWith('.pdf')) return 'pdf';
   if (
@@ -83,11 +97,21 @@ function getFileCategory(filename: string): 'pdf' | 'image' | 'office' | 'other'
     return 'image';
   }
   if (
+    lower.endsWith('.txt') ||
+    lower.endsWith('.md') ||
+    lower.endsWith('.csv') ||
+    lower.endsWith('.json') ||
+    lower.endsWith('.log')
+  ) {
+    return 'text';
+  }
+  if (
     lower.endsWith('.pptx') ||
     lower.endsWith('.ppt') ||
     lower.endsWith('.docx') ||
     lower.endsWith('.doc') ||
-    lower.endsWith('.txt') ||
+    lower.endsWith('.xlsx') ||
+    lower.endsWith('.xls') ||
     lower.endsWith('.html')
   ) {
     return 'office';
@@ -382,7 +406,7 @@ export default function MaterialDetailScreen() {
   }
 
   const category = getFileCategory(file.originalName);
-  const isPreviewable = category === 'pdf' || category === 'image' || category === 'office';
+  const isPreviewable = category === 'pdf' || category === 'image' || category === 'text' || category === 'office';
   const ext = (file.originalName.split('.').pop() || 'file').toUpperCase();
 
   return (
@@ -411,6 +435,10 @@ export default function MaterialDetailScreen() {
                   ? 'document-text'
                   : category === 'image'
                   ? 'image'
+                  : category === 'text'
+                  ? 'code-working-outline'
+                  : category === 'office'
+                  ? 'easel-outline'
                   : 'file-tray-full'
               }
               size={32}

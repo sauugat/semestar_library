@@ -691,7 +691,23 @@ function requireLogin(req, res, next) {
   return res.status(401).json({ message: 'Authentication required. Please sign in.' });
 }
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', server: 'Semester Library', time: new Date().toISOString() });
+  res.json({
+    status: 'ok',
+    phase: 'phase2a',
+    postMultiImage: true,
+    postEdit: true,
+    server: 'Semester Library',
+    time: new Date().toISOString()
+  });
+});
+app.get('/api/version', (req, res) => {
+  res.json({
+    phase: 'phase2a',
+    postMultiImage: true,
+    postEdit: true,
+    server: 'Semester Library',
+    time: new Date().toISOString()
+  });
 });
 app.use('/api/posts', require('./routes/posts')(db, requireLogin));
 
@@ -1233,50 +1249,96 @@ app.post('/api/change-password', requireLogin, async (req, res) => {
     return res.status(400).json({ message: 'Current and new password are required' });
   }
 
-  if (newPassword.length < 6) {
-    return res.status(400).json({ message: 'New password must be at least 6 characters long' });
+  if (newPassword.length < 8) {
+    return res.status(400).json({ message: 'New password must be at least 8 characters long' });
   }
 
-  const student = await db.get('SELECT * FROM students WHERE studentId = ?', req.session.studentId);
+  const studentId = req.user?.studentId || req.student?.studentId || req.session?.studentId;
+  if (!studentId) {
+    return res.status(401).json({ message: 'Authentication required. Please sign in.' });
+  }
+
+  const student = await db.get(
+    'SELECT studentId, email, passwordHash, supabase_uid FROM students WHERE studentId = ?',
+    studentId
+  );
   if (!student) {
     return res.status(404).json({ message: 'User not found' });
   }
 
-  const match = bcrypt.compareSync(currentPassword, student.passwordHash);
-  if (!match) {
+  // Validate current password:
+  // Check 1: local bcrypt passwordHash (if present and not a dummy placeholder)
+  let passwordMatches = false;
+  if (student.passwordHash && student.passwordHash !== 'supabase_auth') {
+    try {
+      passwordMatches = bcrypt.compareSync(currentPassword, student.passwordHash);
+    } catch (_) {}
+  }
+
+  // Check 2: If not matched via local bcrypt and student has an email, verify via Supabase Auth
+  if (!passwordMatches && student.email) {
+    try {
+      const { authenticateWithPassword } = require('./lib/supabase');
+      const { data, error } = await authenticateWithPassword({
+        email: student.email.toLowerCase(),
+        password: currentPassword,
+      });
+      if (!error && data && data.user) {
+        passwordMatches = true;
+      }
+    } catch (_) {}
+  }
+
+  if (!passwordMatches) {
     return res.status(401).json({ message: 'Incorrect current password' });
   }
 
-  const studentId = req.student?.studentId || req.session?.studentId;
+  // Hash and persist new password locally
   const newHash = bcrypt.hashSync(newPassword, 10);
   await db.run('UPDATE students SET passwordHash = ? WHERE studentId = ?', newHash, studentId);
 
-  // Revoke other active sessions for this student upon password change
+  // If student has a linked Supabase Auth UID, update password in Supabase Auth as well
+  if (student.supabase_uid) {
+    try {
+      const { getSupabaseAdminClient } = require('./lib/supabase');
+      const admin = getSupabaseAdminClient();
+      await admin.auth.admin.updateUserById(student.supabase_uid, { password: newPassword });
+    } catch (supErr) {
+      console.warn('[Supabase Password Sync Warning]:', supErr.message);
+    }
+  }
+
+  // Revoke other active web sessions for this student upon password change
   const currentSid = req.sessionID;
   try {
     if (db.isPostgres) {
       await db.run(
         `DELETE FROM session WHERE sid != $1 AND (sess->>'studentId' = $2 OR sess::text LIKE '%' || $2 || '%')`,
-        currentSid, studentId
+        currentSid || '', studentId
       );
     } else {
       await db.run(
         `DELETE FROM session WHERE sid != ? AND sess LIKE ?`,
-        currentSid, `%"studentId":"${studentId}"%`
+        currentSid || '', `%"studentId":"${studentId}"%`
       );
     }
   } catch (sessErr) {
     console.warn('[Session Revocation Warning]:', sessErr.message);
   }
 
-  // Revoke all mobile bearer tokens for this student upon password change
+  // Revoke other mobile bearer tokens for this student (preserve caller's active token so current session continues working)
+  const callerMobileToken = req.mobileToken || (req.headers['authorization']?.startsWith('Bearer ') ? req.headers['authorization'].slice(7).trim() : null);
   try {
-    await db.run('DELETE FROM mobile_tokens WHERE studentId = ?', studentId);
+    if (callerMobileToken) {
+      await db.run('DELETE FROM mobile_tokens WHERE studentId = ? AND token != ?', studentId, callerMobileToken);
+    } else {
+      await db.run('DELETE FROM mobile_tokens WHERE studentId = ?', studentId);
+    }
   } catch (tokErr) {
     console.warn('[Mobile Token Revocation Warning]:', tokErr.message);
   }
 
-  res.json({ message: 'Password successfully updated' });
+  res.json({ success: true, message: 'Password successfully updated' });
 });
 
 // ============================================================
@@ -2124,6 +2186,7 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
       const { enqueueMaterialPush, enqueueMaterialBatchPush, dispatchImmediateOutbox } = require('./lib/push-notifications');
       const uploaderStudentId = currentStudentId;
       const uploaderName = req.user?.name || req.session?.studentName || null;
+      const uploaderDepartment = req.body?.department || req.user?.department || req.session?.department || null;
 
       if (successfulFiles.length === 1) {
         // Exactly one file persisted -> single material notification
@@ -2133,6 +2196,7 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
           originalName: single.originalName,
           title: single.title,
           semester,
+          department: uploaderDepartment,
           subject,
           uploaderStudentId,
           uploaderName
@@ -2150,6 +2214,7 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
           batchId,
           files: successfulFiles.map(r => ({ id: r.id, originalName: r.originalName, title: r.title })),
           semester,
+          department: uploaderDepartment,
           subject,
           chapter,
           uploaderStudentId,
@@ -2429,6 +2494,7 @@ app.post('/api/files/record-upload', requireLogin, async (req, res) => {
       const { enqueueMaterialPush, enqueueMaterialBatchPush, dispatchImmediateOutbox } = require('./lib/push-notifications');
       const uploaderStudentId = currentStudentId;
       const uploaderName = req.user?.name || req.session?.studentName || null;
+      const uploaderDepartment = req.body?.department || req.user?.department || req.session?.department || null;
 
       if (successfulFiles.length === 1) {
         const single = successfulFiles[0];
@@ -2437,6 +2503,7 @@ app.post('/api/files/record-upload', requireLogin, async (req, res) => {
           originalName: single.originalName,
           title: single.title,
           semester: cleanSemester,
+          department: uploaderDepartment,
           subject: cleanSubject,
           uploaderStudentId,
           uploaderName
@@ -2454,6 +2521,7 @@ app.post('/api/files/record-upload', requireLogin, async (req, res) => {
           batchId,
           files: successfulFiles.map(r => ({ id: r.id, originalName: r.originalName, title: r.title })),
           semester: cleanSemester,
+          department: uploaderDepartment,
           subject: cleanSubject,
           chapter: cleanChapter,
           uploaderStudentId,

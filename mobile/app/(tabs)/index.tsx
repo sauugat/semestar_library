@@ -52,6 +52,9 @@ import { getBaseUrl, getAutoDetectedServerUrl } from '@/services/api';
 import { SearchOverlay } from '@/components/SearchOverlay';
 import { initChatRealtime } from '@/services/chat-realtime';
 import { UploadNoteModal } from '@/components/UploadNoteModal';
+import { PostMediaGallery } from '@/components/PostMediaGallery';
+import { EditPostModal } from '@/components/EditPostModal';
+import { RawFileAsset } from '@/utils/file-upload';
 
 function FeedSkeletonCard({ colors, radii }: { colors: any; radii: any }) {
   return (
@@ -726,8 +729,8 @@ export default function HomeScreen() {
   const [postContent, setPostContent] = useState('');
   const [postType, setPostType] = useState<'status' | 'notice' | 'assignment'>('status');
   const [isOfficialNotice, setIsOfficialNotice] = useState(false);
-  const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
-  const [selectedImageAsset, setSelectedImageAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
+  const [selectedImages, setSelectedImages] = useState<RawFileAsset[]>([]);
+  const [editingPost, setEditingPost] = useState<Post | null>(null);
   const [submittingPost, setSubmittingPost] = useState(false);
   const [composerError, setComposerError] = useState<string | null>(null);
 
@@ -968,33 +971,56 @@ export default function HomeScreen() {
 
   const handlePickImage = async () => {
     try {
+      const remainingSlots = 10 - selectedImages.length;
+      if (remainingSlots <= 0) {
+        Alert.alert('Limit Reached', 'You can attach up to 10 photos per post.');
+        return;
+      }
+
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert(
           'Photo Library Access Required',
-          'Please allow access to your photos to attach an image to your post.'
+          'Please allow access to your photos to attach images to your post.'
         );
         return;
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
-        allowsEditing: true,
+        allowsMultipleSelection: true,
+        selectionLimit: remainingSlots,
         quality: 0.8,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setSelectedImageUri(result.assets[0].uri);
-        setSelectedImageAsset(result.assets[0]);
+        setSelectedImages((prev) => {
+          const existingUris = new Set(prev.map((a) => a.uri));
+          const newAssets: RawFileAsset[] = result.assets
+            .filter((a) => !existingUris.has(a.uri))
+            .map((a, idx) => ({
+              uri: a.uri,
+              name: a.fileName || `post_photo_${Date.now()}_${idx}.jpg`,
+              type: a.mimeType || 'image/jpeg',
+              size: a.fileSize,
+            }));
+          return [...prev, ...newAssets].slice(0, 10);
+        });
       }
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Could not select image.');
+      Alert.alert('Error', err.message || 'Could not select images.');
     }
   };
 
+  const handleRemoveComposerImage = (indexToRemove: number) => {
+    setSelectedImages((prev) => prev.filter((_, idx) => idx !== indexToRemove));
+  };
+
   const handlePublishPost = async () => {
-    if (!postContent.trim()) {
-      setComposerError('Please write some content before posting.');
+    const hasText = Boolean(postContent.trim());
+    const hasImages = selectedImages.length > 0;
+    if (!hasText && !hasImages) {
+      setComposerError('Please write some content or attach at least one photo.');
       return;
     }
 
@@ -1006,8 +1032,7 @@ export default function HomeScreen() {
         content: postContent,
         type: isPrivileged ? postType : 'status',
         official: isPrivileged && postType === 'notice' && isOfficialNotice,
-        imageUri: selectedImageUri,
-        image: selectedImageAsset,
+        images: selectedImages,
       });
 
       setPosts((prev) => [newPost, ...prev]);
@@ -1017,8 +1042,7 @@ export default function HomeScreen() {
       );
 
       setPostContent('');
-      setSelectedImageUri(null);
-      setSelectedImageAsset(null);
+      setSelectedImages([]);
       setPostType('status');
       setIsOfficialNotice(false);
       setComposerOpen(false);
@@ -1608,14 +1632,13 @@ export default function HomeScreen() {
           </Text>
         </TouchableOpacity>
 
-        {/* Attached Image: natural aspect ratio, 4:5 max height cap, Instagram-style pinch-to-zoom & double-tap to like */}
-        {imageUrl && (
-          <PostImageItem
-            imageUrl={imageUrl}
-            colors={colors}
-            radii={radii}
+        {/* Attached Images: responsive grid (1, 2, 3, 4+) with swipeable fullscreen gallery */}
+        {((Array.isArray(item.media) && item.media.length > 0) || item.attachment_url) && (
+          <PostMediaGallery
+            media={item.media}
+            imageUrl={item.attachment_url}
+            getFullUrl={getFullImageUrl}
             onDoubleTap={() => handleDoubleTapLike(item.id)}
-            onZoomChange={(zooming) => setZoomingPostId(zooming ? item.id : null)}
           />
         )}
 
@@ -2030,7 +2053,7 @@ export default function HomeScreen() {
                 size="sm"
                 variant="primary"
                 loading={submittingPost}
-                disabled={!postContent.trim() || submittingPost}
+                disabled={(!postContent.trim() && selectedImages.length === 0) || submittingPost}
                 onPress={handlePublishPost}
                 style={{ minWidth: 68 }}
               />
@@ -2165,32 +2188,68 @@ export default function HomeScreen() {
                 </Caption>
               </View>
 
-              {/* Attached Image Preview */}
-              {selectedImageUri && (
-                <View
-                  style={[
-                    styles.attachedPreviewContainer,
-                    {
-                      borderColor: colors.border,
-                      borderRadius: radii.md,
-                      backgroundColor: colors.surfaceRaised,
-                      marginTop: spacing.sm,
-                    },
-                  ]}
-                >
-                  <Image
-                    source={{ uri: selectedImageUri }}
-                    style={styles.attachedPreviewImage}
-                    contentFit="cover"
-                    cachePolicy="memory-disk"
-                  />
-                  <TouchableOpacity
-                    onPress={() => setSelectedImageUri(null)}
-                    style={[styles.removeImageBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                    accessibilityLabel="Remove attached image"
+              {/* Attached Images Preview Strip */}
+              {selectedImages.length > 0 && (
+                <View style={{ marginTop: spacing.sm }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <Caption color="muted">
+                      Attached Photos ({selectedImages.length} / 10)
+                    </Caption>
+                    {selectedImages.length < 10 && (
+                      <TouchableOpacity
+                        onPress={handlePickImage}
+                        disabled={submittingPost}
+                        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                      >
+                        <Text variant="xs" weight="700" style={{ color: colors.primary }}>
+                          + Add More
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ gap: 8, paddingVertical: 4 }}
                   >
-                    <Ionicons name="close" size={18} color={colors.text} />
-                  </TouchableOpacity>
+                    {selectedImages.map((asset, idx) => (
+                      <View
+                        key={`asset-${asset.uri}-${idx}`}
+                        style={{
+                          width: 80,
+                          height: 80,
+                          borderRadius: radii.md,
+                          overflow: 'hidden',
+                          borderWidth: 1,
+                          borderColor: colors.border,
+                          backgroundColor: colors.surfaceRaised,
+                          position: 'relative',
+                        }}
+                      >
+                        <Image
+                          source={{ uri: asset.uri }}
+                          style={{ width: '100%', height: '100%' }}
+                          contentFit="cover"
+                        />
+                        <TouchableOpacity
+                          onPress={() => handleRemoveComposerImage(idx)}
+                          disabled={submittingPost}
+                          style={{
+                            position: 'absolute',
+                            top: 2,
+                            right: 2,
+                            backgroundColor: '#ffffff',
+                            borderRadius: 10,
+                            zIndex: 10,
+                          }}
+                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                          accessibilityLabel="Remove photo"
+                        >
+                          <Ionicons name="close-circle" size={20} color="#EF4444" />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </ScrollView>
                 </View>
               )}
 
@@ -2198,31 +2257,31 @@ export default function HomeScreen() {
               <View style={[styles.modalToolbar, { borderTopColor: colors.border, marginTop: spacing.lg }]}>
                 <TouchableOpacity
                   onPress={handlePickImage}
+                  disabled={submittingPost || selectedImages.length >= 10}
                   style={[
                     styles.attachPhotoBtn,
                     {
                       backgroundColor: colors.surfaceRaised,
                       borderColor: colors.border,
                       borderRadius: radii.md,
+                      opacity: selectedImages.length >= 10 ? 0.5 : 1,
                     },
                   ]}
                 >
                   <Ionicons name="image-outline" size={18} color={colors.text} style={{ marginRight: 6 }} />
                   <Text variant="xs" weight="600" color="primary">
-                    {selectedImageUri ? 'Change Photo' : 'Attach Photo'}
+                    {selectedImages.length > 0 ? '+ Add More Photos' : 'Add Photos'}
                   </Text>
                 </TouchableOpacity>
 
-                {selectedImageUri && (
+                {selectedImages.length > 0 && (
                   <TouchableOpacity
-                    onPress={() => {
-                      setSelectedImageUri(null);
-                      setSelectedImageAsset(null);
-                    }}
+                    onPress={() => setSelectedImages([])}
+                    disabled={submittingPost}
                     style={{ padding: 8 }}
                   >
                     <Text variant="xs" color="secondary">
-                      Remove
+                      Clear All
                     </Text>
                   </TouchableOpacity>
                 )}
@@ -2319,7 +2378,36 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               )}
 
-              {/* Option 3: Delete Post (Conditional) */}
+              {/* Option 3: Edit Post (Author or Admin) */}
+              {Boolean(
+                selectedMenuPost?.canEdit ||
+                (user?.studentId && selectedMenuPost?.user_id === user.studentId) ||
+                (user?.studentId && selectedMenuPost?.studentId === user.studentId) ||
+                (user?.role && user.role.toLowerCase() === 'admin')
+              ) && (
+                <TouchableOpacity
+                  onPress={() => {
+                    const postToEdit = selectedMenuPost;
+                    setSelectedMenuPost(null);
+                    setEditingPost(postToEdit);
+                  }}
+                  style={[
+                    styles.menuItem,
+                    {
+                      borderBottomColor: colors.border,
+                      borderBottomWidth: StyleSheet.hairlineWidth,
+                    },
+                  ]}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="pencil-outline" size={19} color={colors.text} style={styles.menuItemIcon} />
+                  <Text variant="sm" weight="600" color="primary">
+                    Edit post
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              {/* Option 4: Delete Post (Conditional) */}
               {Boolean(
                 selectedMenuPost?.canDelete ||
                 (user?.studentId && selectedMenuPost?.studentId === user.studentId) ||
@@ -2358,6 +2446,28 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
+
+      {/* Edit Post Modal */}
+      <EditPostModal
+        visible={Boolean(editingPost)}
+        post={editingPost}
+        getFullUrl={getFullImageUrl}
+        onClose={() => setEditingPost(null)}
+        onPostUpdated={(updatedPost) => {
+          setPosts((prev) => prev.map((p) => (p.id === updatedPost.id ? { ...p, ...updatedPost } : p)));
+          queryClient.setQueryData(['campus-feed'], (old: any) =>
+            old
+              ? {
+                  ...old,
+                  posts: (old.posts || []).map((p: Post) =>
+                    p.id === updatedPost.id ? { ...p, ...updatedPost } : p
+                  ),
+                }
+              : old
+          );
+          showToast('Post updated');
+        }}
+      />
 
       {/* Post Comments Modal Dialog / Sheet */}
       <Modal

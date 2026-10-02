@@ -45,6 +45,16 @@ export interface MaterialNotificationData extends BaseNotificationData {
   semester?: string | null;
 }
 
+export interface MaterialBatchNotificationData extends BaseNotificationData {
+  type: 'material_batch';
+  batchId: string;
+  materialCount?: number;
+  fileIds?: number[];
+  subject?: string | null;
+  semester?: string | null;
+  chapter?: string | null;
+}
+
 export interface PostNotificationData extends BaseNotificationData {
   type: 'post';
   postId: number;
@@ -59,6 +69,7 @@ export interface NoticeNotificationData extends BaseNotificationData {
 export type NotificationPayload =
   | ChatNotificationData
   | MaterialNotificationData
+  | MaterialBatchNotificationData
   | PostNotificationData
   | NoticeNotificationData;
 
@@ -456,6 +467,26 @@ export function parseNotificationData(raw: unknown): NotificationPayload | null 
     }
   }
 
+  if (type === 'material_batch') {
+    const fileIds = Array.isArray(data.fileIds)
+      ? data.fileIds.map((id: any) => Number(id)).filter((n: number) => Number.isFinite(n) && n > 0)
+      : [];
+    return {
+      type: 'material_batch',
+      batchId: String(data.batchId || data.eventId || ''),
+      eventId: data.eventId ? String(data.eventId) : undefined,
+      materialCount: Number(data.materialCount) || fileIds.length || 1,
+      fileIds,
+      subject: data.subject ? String(data.subject) : null,
+      semester: data.semester ? String(data.semester) : null,
+      chapter: data.chapter ? String(data.chapter) : null,
+      actorId: data.actorId ? String(data.actorId) : undefined,
+      actorName: data.actorName ? String(data.actorName) : undefined,
+      groupKey: data.groupKey,
+      collapseId: data.collapseId,
+    };
+  }
+
   if (type === 'post') {
     const postId = Number(data.postId);
     if (Number.isFinite(postId) && postId > 0) {
@@ -550,6 +581,14 @@ export function navigateFromNotification(
 
       case 'material':
         router.replace(`/material/${payload.fileId}`);
+        break;
+
+      case 'material_batch':
+        if (payload.fileIds && payload.fileIds.length > 0) {
+          router.replace(`/material/${payload.fileIds[0]}`);
+        } else {
+          router.replace('/(tabs)/library');
+        }
         break;
 
       case 'post':

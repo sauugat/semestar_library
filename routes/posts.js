@@ -40,7 +40,7 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       // Use a server-generated name and image extension, never the supplied filename.
       filename: (req, file, cb) => cb(null, crypto.randomUUID() + (imageExtensions[file.mimetype] || '.img'))
     }),
-    limits: { fileSize: 5 * 1024 * 1024, files: 1, fields: 3, fieldSize: 32 * 1024 },
+    limits: { fileSize: 5 * 1024 * 1024, files: 10, fields: 20, fieldSize: 64 * 1024 },
     fileFilter: (req, file, cb) => {
       if (file.mimetype.startsWith('image/')) return cb(null, true);
       const err = new Error('Please choose an image file.');
@@ -79,8 +79,70 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
     LEFT JOIN (SELECT post_id, COUNT(*) AS submission_count FROM post_submissions GROUP BY post_id) sub
       ON sub.post_id = p.id AND p.type = 'assignment'`;
 
+  async function attachMediaToPosts(posts) {
+    if (!Array.isArray(posts) || posts.length === 0) return posts;
+    const postIds = posts.map(p => Number(p.id)).filter(id => Number.isInteger(id) && id > 0);
+    if (postIds.length === 0) return posts;
+
+    const placeholders = postIds.map(() => '?').join(',');
+    let mediaRows = [];
+    try {
+      mediaRows = await db.all(
+        `SELECT id, post_id, media_type, url, mime_type, sort_order, created_at
+         FROM post_media
+         WHERE post_id IN (${placeholders})
+         ORDER BY sort_order ASC, id ASC`,
+        ...postIds
+      );
+    } catch (err) {
+      // Table may not have been queried yet
+      console.warn('[Post Media Fetch Warning]:', err.message);
+    }
+
+    const mediaByPost = new Map();
+    for (const row of mediaRows) {
+      const pid = Number(row.post_id);
+      if (!mediaByPost.has(pid)) mediaByPost.set(pid, []);
+      mediaByPost.get(pid).push({
+        id: Number(row.id),
+        post_id: pid,
+        media_type: row.media_type || 'image',
+        url: row.url,
+        mime_type: row.mime_type || null,
+        sort_order: Number(row.sort_order || 0),
+        created_at: row.created_at
+      });
+    }
+
+    for (const post of posts) {
+      const pid = Number(post.id);
+      const mediaList = mediaByPost.get(pid) || [];
+      if (mediaList.length > 0) {
+        post.media = mediaList;
+        if (!post.attachment_url) {
+          post.attachment_url = mediaList[0].url;
+        }
+      } else if (post.attachment_url) {
+        post.media = [{
+          id: 0,
+          post_id: pid,
+          media_type: 'image',
+          url: post.attachment_url,
+          mime_type: null,
+          sort_order: 0,
+          created_at: post.created_at
+        }];
+      } else {
+        post.media = [];
+      }
+    }
+    return posts;
+  }
+
   function formatPost(post, req) {
     const isOfficialNotice = post.type === 'notice' && ['admin', 'cr', 'teacher'].includes(post.role);
+    const isAuthor = post.user_id === req.postUser?.studentId;
+    const isAdmin = req.postUser?.role === 'admin';
     return {
       ...post,
       id: Number(post.id),
@@ -94,7 +156,9 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       submittedCount: Number(post.submission_count),
       liked: Boolean(post.liked_by_me),
       is_official: isOfficialNotice,
-      canDelete: post.user_id === req.postUser?.studentId || req.postUser?.role === 'admin'
+      canDelete: isAuthor || isAdmin,
+      canEdit: isAuthor || isAdmin,
+      media: Array.isArray(post.media) ? post.media : []
     };
   }
 
@@ -129,6 +193,7 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
         ${whereClause} ORDER BY p.id DESC LIMIT ?`, ...params);
       const hasMore = rows.length > Number(limit);
       const posts = rows.slice(0, Number(limit)).map(row => formatPost(row, req));
+      await attachMediaToPosts(posts);
       res.setHeader('Cache-Control', 'no-store');
       res.json({ posts, nextCursor: hasMore ? posts[posts.length - 1].id : null });
     } catch (err) {
@@ -136,16 +201,37 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
     }
   });
 
-  router.post('/', requireLogin, upload.single('image'), async (req, res, next) => {
+  router.post('/', requireLogin, upload.any(), async (req, res, next) => {
     try {
       const { content, type = 'status' } = req.body || {};
       let attachment_url = req.body?.attachment_url ?? null;
+      const uploadedFiles = Array.isArray(req.files) ? req.files : (req.file ? [req.file] : []);
+
       async function rejectPost(message) {
-        if (req.file) await removeUploadedImage(req.file.path);
+        for (const f of uploadedFiles) await removeUploadedImage(f.path);
         return res.status(400).json({ message });
       }
-      if (typeof content !== 'string' || !content.trim() || content.trim().length > 5000) {
-        return rejectPost('Post content must be between 1 and 5,000 characters.');
+
+      if (uploadedFiles.length > 10) {
+        return rejectPost('Maximum 10 images allowed per post.');
+      }
+
+      for (const f of uploadedFiles) {
+        if (!f.mimetype || !f.mimetype.startsWith('image/')) {
+          return rejectPost('Please choose an image file.');
+        }
+      }
+
+      const rawContent = typeof content === 'string' ? content : '';
+      const trimmedContent = rawContent.trim();
+      const hasText = trimmedContent.length > 0;
+      const hasImages = uploadedFiles.length > 0 || Boolean(attachment_url);
+
+      if (!hasText && !hasImages) {
+        return rejectPost('Post must contain either text content or at least one photo.');
+      }
+      if (trimmedContent.length > 5000) {
+        return rejectPost('Post content cannot exceed 5,000 characters.');
       }
       if (!['status', 'assignment', 'notice'].includes(type)) {
         return rejectPost('Choose status, assignment, or notice.');
@@ -153,20 +239,37 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       if (type === 'notice') {
         const canPostNotice = ['admin', 'cr', 'teacher'].includes(req.postUser?.role);
         if (!canPostNotice) {
-          if (req.file) await removeUploadedImage(req.file.path);
+          for (const f of uploadedFiles) await removeUploadedImage(f.path);
           return res.status(403).json({ message: 'Only authorized roles (admin, CR, teacher) can publish notices.' });
         }
       }
       if (type === 'assignment') {
         const canPostAssignment = ['admin', 'teacher'].includes(req.postUser?.role);
         if (!canPostAssignment) {
-          if (req.file) await removeUploadedImage(req.file.path);
+          for (const f of uploadedFiles) await removeUploadedImage(f.path);
           return res.status(403).json({ message: 'Only teachers and administrators can create assignments.' });
         }
       }
       const isOfficial = type === 'notice' || (['admin', 'cr', 'teacher'].includes(req.postUser?.role) && Boolean(req.body?.official === true || req.body?.official === 'true' || req.body?.is_official === true));
-      if (req.file) {
-        attachment_url = `/uploads/posts/${req.file.filename}`;
+
+      const savedBlobs = [];
+      const mediaRecords = [];
+      req.savedBlobs = savedBlobs;
+
+      for (let i = 0; i < uploadedFiles.length; i++) {
+        const file = uploadedFiles[i];
+        const saved = await db.saveFileBlob(file.filename, await fs.promises.readFile(file.path), file.mimetype);
+        if (!saved) throw new Error('Could not persist post image.');
+        savedBlobs.push(file.filename);
+        mediaRecords.push({
+          url: `/uploads/posts/${file.filename}`,
+          mimeType: file.mimetype,
+          sortOrder: i
+        });
+      }
+
+      if (mediaRecords.length > 0) {
+        attachment_url = mediaRecords[0].url;
       } else if (attachment_url !== null) {
         let url;
         try { url = typeof attachment_url === 'string' && new URL(attachment_url); } catch (_) { }
@@ -174,15 +277,23 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
           return rejectPost('Attachment must be an HTTP or HTTPS URL.');
         }
       }
-      if (req.file) {
-        const saved = await db.saveFileBlob(req.file.filename, await fs.promises.readFile(req.file.path), req.file.mimetype);
-        if (!saved) throw new Error('Could not persist post image.');
-        req.postImageSaved = true;
-      }
+
       const result = await db.run(`INSERT INTO posts (user_id, content, type, attachment_url, created_at)
-        VALUES (?, ?, ?, ?, ?)`, req.postUser.studentId, content.trim(), type, attachment_url, new Date().toISOString());
+        VALUES (?, ?, ?, ?, ?)`, req.postUser.studentId, trimmedContent, type, attachment_url, new Date().toISOString());
       req.postCreated = true;
-      const post = await db.get(`${selectPosts} WHERE p.id = ?`, req.postUser.studentId, result.lastInsertRowid);
+      const newPostId = result.lastInsertRowid;
+
+      for (const media of mediaRecords) {
+        await db.run(
+          `INSERT INTO post_media (post_id, media_type, url, mime_type, sort_order, created_at)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          newPostId, 'image', media.url, media.mimeType, media.sortOrder, new Date().toISOString()
+        );
+      }
+
+      const post = await db.get(`${selectPosts} WHERE p.id = ?`, req.postUser.studentId, newPostId);
+      const formatted = formatPost(post, req);
+      await attachMediaToPosts([formatted]);
 
       // Push notification outbox enqueue and bounded synchronous dispatch (isolated failure)
       try {
@@ -196,7 +307,7 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
           isOfficial,
           role: req.postUser.role,
           title: passedTitle || null,
-          content: content.trim(),
+          content: trimmedContent,
           semester: req.postUser.semester
         });
         if (enqueueResult && enqueueResult.enqueuedCount > 0) {
@@ -211,7 +322,7 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
         console.error('[Post/Notice Push Enqueue/Dispatch Error]:', pushErr.message);
       }
 
-      res.status(201).json(formatPost(post, req));
+      res.status(201).json(formatted);
     } catch (err) {
       next(err);
     }
@@ -231,8 +342,10 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       const currentUserId = req.student?.studentId || req.user?.studentId || req.session?.studentId || null;
       const row = await db.get(`${selectPosts} WHERE p.id = ?`, currentUserId, postId);
       if (!row) return res.status(404).json({ message: 'Post not found.' });
+      const formatted = formatPost(row, req);
+      await attachMediaToPosts([formatted]);
       res.setHeader('Cache-Control', 'no-store');
-      res.json(formatPost(row, req));
+      res.json(formatted);
     } catch (err) {
       next(err);
     }
@@ -356,19 +469,206 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
     }
   });
 
+  const handleEditPost = async (req, res, next) => {
+    try {
+      const postId = Number(req.params.id);
+      const post = await db.get('SELECT * FROM posts WHERE id = ?', postId);
+      const uploadedFiles = Array.isArray(req.files) ? req.files : (req.file ? [req.file] : []);
+
+      if (!post) {
+        for (const f of uploadedFiles) await removeUploadedImage(f.path);
+        return res.status(404).json({ message: 'Post not found.' });
+      }
+
+      // Backend ownership check: Never trust client userId / studentId!
+      const isAuthor = post.user_id === req.postUser.studentId;
+      const isAdmin = req.postUser.role === 'admin';
+      if (!isAuthor && !isAdmin) {
+        for (const f of uploadedFiles) await removeUploadedImage(f.path);
+        return res.status(403).json({ message: 'Only the original post author can edit this post.' });
+      }
+
+      const { content } = req.body || {};
+      let newContent = post.content || '';
+      if (content !== undefined) {
+        if (typeof content !== 'string') {
+          for (const f of uploadedFiles) await removeUploadedImage(f.path);
+          return res.status(400).json({ message: 'Invalid content format.' });
+        }
+        if (content.trim().length > 5000) {
+          for (const f of uploadedFiles) await removeUploadedImage(f.path);
+          return res.status(400).json({ message: 'Post content cannot exceed 5,000 characters.' });
+        }
+        newContent = content.trim();
+      }
+
+      // Parse keepMediaUrls
+      let keepUrls = null;
+      if (req.body?.keepMediaUrls !== undefined) {
+        if (Array.isArray(req.body.keepMediaUrls)) {
+          keepUrls = req.body.keepMediaUrls;
+        } else if (typeof req.body.keepMediaUrls === 'string') {
+          try {
+            const parsed = JSON.parse(req.body.keepMediaUrls);
+            if (Array.isArray(parsed)) keepUrls = parsed;
+            else keepUrls = [req.body.keepMediaUrls];
+          } catch (_) {
+            keepUrls = req.body.keepMediaUrls.split(',').map(s => s.trim()).filter(Boolean);
+          }
+        }
+      }
+
+      for (const f of uploadedFiles) {
+        if (!f.mimetype || !f.mimetype.startsWith('image/')) {
+          for (const file of uploadedFiles) await removeUploadedImage(file.path);
+          return res.status(400).json({ message: 'Please choose an image file.' });
+        }
+      }
+
+      const existingMedia = await db.all(
+        'SELECT * FROM post_media WHERE post_id = ? ORDER BY sort_order ASC, id ASC',
+        postId
+      );
+
+      // Kept count
+      let keptCount = 0;
+      if (keepUrls !== null) {
+        keptCount = keepUrls.length;
+      } else {
+        keptCount = existingMedia.length > 0 ? existingMedia.length : (post.attachment_url ? 1 : 0);
+      }
+
+      if (keptCount + uploadedFiles.length > 10) {
+        for (const f of uploadedFiles) await removeUploadedImage(f.path);
+        return res.status(400).json({ message: 'Maximum 10 images allowed per post.' });
+      }
+
+      const finalImageCount = keptCount + uploadedFiles.length;
+      if (!newContent && finalImageCount === 0) {
+        for (const f of uploadedFiles) await removeUploadedImage(f.path);
+        return res.status(400).json({ message: 'Post must contain either text content or at least one photo.' });
+      }
+
+      // Handle removed media and safe cleanup
+      if (keepUrls !== null) {
+        for (const row of existingMedia) {
+          if (!keepUrls.includes(row.url)) {
+            await db.run('DELETE FROM post_media WHERE id = ?', row.id);
+            // Safe cleanup: delete blob only if no other post or post_media uses it
+            const refCount1 = await db.get('SELECT COUNT(*) AS c FROM post_media WHERE url = ? AND id != ?', row.url, row.id);
+            const refCount2 = await db.get('SELECT COUNT(*) AS c FROM posts WHERE attachment_url = ? AND id != ?', row.url, postId);
+            if ((Number(refCount1?.c || 0) + Number(refCount2?.c || 0)) === 0) {
+              if (/^\/uploads\/posts\/[a-f0-9-]+\.[a-z0-9]+$/i.test(row.url)) {
+                const filename = path.basename(row.url);
+                await db.deleteFileBlob(filename);
+                await removeUploadedImage(path.join(uploadDir, filename));
+              }
+            }
+          }
+        }
+
+        // Also check if legacy post.attachment_url was removed
+        if (post.attachment_url && !keepUrls.includes(post.attachment_url) && existingMedia.length === 0) {
+          const refCount1 = await db.get('SELECT COUNT(*) AS c FROM post_media WHERE url = ?', post.attachment_url);
+          const refCount2 = await db.get('SELECT COUNT(*) AS c FROM posts WHERE attachment_url = ? AND id != ?', post.attachment_url, postId);
+          if ((Number(refCount1?.c || 0) + Number(refCount2?.c || 0)) === 0) {
+            if (/^\/uploads\/posts\/[a-f0-9-]+\.[a-z0-9]+$/i.test(post.attachment_url)) {
+              const filename = path.basename(post.attachment_url);
+              await db.deleteFileBlob(filename);
+              await removeUploadedImage(path.join(uploadDir, filename));
+            }
+          }
+        }
+
+        // Reorder kept media if requested
+        for (let i = 0; i < keepUrls.length; i++) {
+          const u = keepUrls[i];
+          await db.run('UPDATE post_media SET sort_order = ? WHERE post_id = ? AND url = ?', i, postId, u);
+        }
+      }
+
+      // Persist newly uploaded files
+      const savedBlobs = [];
+      req.savedBlobs = savedBlobs;
+      const baseSortOrder = keepUrls !== null ? keepUrls.length : existingMedia.length;
+      for (let i = 0; i < uploadedFiles.length; i++) {
+        const file = uploadedFiles[i];
+        const saved = await db.saveFileBlob(file.filename, await fs.promises.readFile(file.path), file.mimetype);
+        if (!saved) throw new Error('Could not persist post image.');
+        savedBlobs.push(file.filename);
+        const fileUrl = `/uploads/posts/${file.filename}`;
+        await db.run(
+          `INSERT INTO post_media (post_id, media_type, url, mime_type, sort_order, created_at)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          postId, 'image', fileUrl, file.mimetype, baseSortOrder + i, new Date().toISOString()
+        );
+      }
+
+      // Determine updated primary attachment_url
+      const allCurrentMedia = await db.all(
+        'SELECT url FROM post_media WHERE post_id = ? ORDER BY sort_order ASC, id ASC',
+        postId
+      );
+      let updatedAttachmentUrl = null;
+      if (allCurrentMedia.length > 0) {
+        updatedAttachmentUrl = allCurrentMedia[0].url;
+      } else if (keepUrls === null) {
+        updatedAttachmentUrl = post.attachment_url;
+      } else if (keepUrls.includes(post.attachment_url)) {
+        updatedAttachmentUrl = post.attachment_url;
+      }
+
+      // Update post in place (preserves comments, likes, submissions, created_at, user_id)
+      await db.run(
+        'UPDATE posts SET content = ?, attachment_url = ? WHERE id = ?',
+        newContent, updatedAttachmentUrl, postId
+      );
+      req.postEdited = true;
+
+      const updatedRow = await db.get(`${selectPosts} WHERE p.id = ?`, req.postUser.studentId, postId);
+      const formatted = formatPost(updatedRow, req);
+      await attachMediaToPosts([formatted]);
+      res.json(formatted);
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  router.put('/:id', requireLogin, upload.any(), handleEditPost);
+  router.patch('/:id', requireLogin, upload.any(), handleEditPost);
+
   router.delete('/:id', async (req, res, next) => {
     try {
-      const post = await db.get('SELECT user_id, attachment_url FROM posts WHERE id = ?', Number(req.params.id));
+      const postId = Number(req.params.id);
+      const post = await db.get('SELECT user_id, attachment_url FROM posts WHERE id = ?', postId);
       if (!post) return res.status(404).json({ message: 'Post not found.' });
       if (post.user_id !== req.postUser.studentId && req.postUser.role !== 'admin') {
         return res.status(403).json({ message: 'Only the owner or an admin can delete this post.' });
       }
-      await db.run('DELETE FROM posts WHERE id = ?', Number(req.params.id));
-      if (/^\/uploads\/posts\/[a-f0-9-]+\.[a-z]+$/.test(post.attachment_url || '')) {
-        const filename = path.basename(post.attachment_url);
-        await db.deleteFileBlob(filename);
-        await removeUploadedImage(path.join(uploadDir, filename));
+
+      // Fetch all media URLs for this post before deleting
+      const mediaList = await db.all('SELECT url FROM post_media WHERE post_id = ?', postId);
+      const urlsToClean = new Set();
+      if (post.attachment_url) urlsToClean.add(post.attachment_url);
+      for (const m of mediaList) {
+        if (m.url) urlsToClean.add(m.url);
       }
+
+      await db.run('DELETE FROM posts WHERE id = ?', postId);
+
+      // Clean up blobs safely (only if no other record references it)
+      for (const url of urlsToClean) {
+        if (/^\/uploads\/posts\/[a-f0-9-]+\.[a-z0-9]+$/i.test(url)) {
+          const ref1 = await db.get('SELECT COUNT(*) AS c FROM post_media WHERE url = ?', url);
+          const ref2 = await db.get('SELECT COUNT(*) AS c FROM posts WHERE attachment_url = ?', url);
+          if ((Number(ref1?.c || 0) + Number(ref2?.c || 0)) === 0) {
+            const filename = path.basename(url);
+            await db.deleteFileBlob(filename);
+            await removeUploadedImage(path.join(uploadDir, filename));
+          }
+        }
+      }
+
       res.json({ message: 'Post deleted.' });
     } catch (err) {
       next(err);
@@ -376,13 +676,25 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
   });
 
   router.use(async (err, req, res, next) => {
-    if (!req.postCreated) {
-      if (req.postImageSaved) await db.deleteFileBlob(req.file.filename);
-      if (req.file?.path) await removeUploadedImage(req.file.path);
+    if (!req.postCreated && !req.postEdited) {
+      if (req.savedBlobs && Array.isArray(req.savedBlobs)) {
+        for (const filename of req.savedBlobs) {
+          await db.deleteFileBlob(filename);
+        }
+      } else if (req.postImageSaved && req.file?.filename) {
+        await db.deleteFileBlob(req.file.filename);
+      }
+      if (req.files && Array.isArray(req.files)) {
+        for (const file of req.files) {
+          if (file.path) await removeUploadedImage(file.path);
+        }
+      } else if (req.file?.path) {
+        await removeUploadedImage(req.file.path);
+      }
     }
     if (err instanceof multer.MulterError) {
       return res.status(err.code === 'LIMIT_FILE_SIZE' ? 413 : 400).json({
-        message: err.code === 'LIMIT_FILE_SIZE' ? 'Images must be 5 MB or smaller.' : 'Upload one image and the post text fields only.'
+        message: err.code === 'LIMIT_FILE_SIZE' ? 'Images must be 5 MB or smaller.' : err.code === 'LIMIT_FILE_COUNT' ? 'Maximum 10 images allowed per post.' : 'Upload valid images and text fields only.'
       });
     }
     if (err.code === 'INVALID_IMAGE_TYPE') return res.status(400).json({ message: err.message });

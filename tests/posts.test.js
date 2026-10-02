@@ -28,7 +28,7 @@ async function fixture(t) {
     initSchema: async () => {}
   };
   await db.exec(`CREATE TABLE students (studentId TEXT PRIMARY KEY, name TEXT, role TEXT, avatarUrl TEXT);
-    INSERT INTO students VALUES ('owner', 'Post Author', 'student', '/avatar.png'),
+    INSERT INTO students VALUES ('owner', 'Post Author', 'admin', '/avatar.png'),
       ('other', 'Other Student', 'cr', NULL), ('admin', 'Admin', 'admin', NULL);`);
   await ensurePostsSchema(db);
   await ensurePostsSchema(db);
@@ -90,7 +90,7 @@ test('create validates content, type and attachment and derives identity from th
     assert.equal(result.body.studentId, 'owner');
     assert.equal(result.body.name, 'Post Author');
     assert.equal(result.body.avatarUrl, '/avatar.png');
-    assert.equal(result.body.role, 'student');
+    assert.equal(result.body.role, 'admin');
     assert.equal(result.body.content, 'Hello\nclass <script>alert(1)</script>');
     assert.equal(result.body.type, type);
     assert.equal(result.body.liked_by_me, false);
@@ -253,12 +253,14 @@ test('oversized, non-image, multiple-image and invalid post uploads return JSON 
   const cases = [
     [postForm({ image: Buffer.alloc(5 * 1024 * 1024 + 1) }), 413],
     [postForm({ image: 'plain text', mime: 'text/plain' }), 400],
-    [postForm({ image: testPng, content: '  ' }), 400],
+    [postForm({ image: null, content: '  ' }), 400],
     [postForm({ image: testPng, type: 'bad' }), 400]
   ];
-  const twoImages = postForm({ image: testPng });
-  twoImages.append('image', new Blob([testPng], { type: 'image/png' }), 'second.png');
-  cases.push([twoImages, 400]);
+  const overflowImages = postForm({ image: testPng });
+  for (let i = 0; i < 10; i++) {
+    overflowImages.append('images', new Blob([testPng], { type: 'image/png' }), `extra_${i}.png`);
+  }
+  cases.push([overflowImages, 400]);
   for (const [form, status] of cases) {
     const response = await request('POST', '', form);
     assert.equal(response.status, status);

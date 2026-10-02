@@ -271,14 +271,14 @@ export function UploadNoteModal({
     }
   };
 
-  // Pick files via DocumentPicker
+  // Pick files via DocumentPicker (supports multi-file selection and queue appending)
   const handlePickDocument = async () => {
     try {
       setErrorMsg(null);
       const res = await DocumentPicker.getDocumentAsync({
         type: '*/*',
         copyToCacheDirectory: true,
-        multiple: isTeacherOrAdmin,
+        multiple: true,
       });
 
       if (!res.canceled && res.assets && res.assets.length > 0) {
@@ -296,11 +296,11 @@ export function UploadNoteModal({
           });
         }
 
-        if (isTeacherOrAdmin) {
-          setSelectedFiles((prev) => [...prev, ...newFiles]);
-        } else {
-          setSelectedFiles(newFiles.slice(0, 1));
-        }
+        setSelectedFiles((prev) => {
+          const existingKeys = new Set(prev.map((f) => `${f.name}_${f.size || 0}`));
+          const toAdd = newFiles.filter((f) => !existingKeys.has(`${f.name}_${f.size || 0}`));
+          return [...prev, ...toAdd];
+        });
       }
     } catch (err: any) {
       console.error('File pick error:', err);
@@ -308,14 +308,14 @@ export function UploadNoteModal({
     }
   };
 
-  // Pick photos / images of notes via ImagePicker
+  // Pick photos / images of notes via ImagePicker (supports multi-photo selection and queue appending)
   const handlePickPhoto = async () => {
     try {
       setErrorMsg(null);
       const res = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: false,
-        allowsMultipleSelection: isTeacherOrAdmin,
+        allowsMultipleSelection: true,
         quality: 0.9,
       });
 
@@ -334,11 +334,11 @@ export function UploadNoteModal({
           });
         }
 
-        if (isTeacherOrAdmin) {
-          setSelectedFiles((prev) => [...prev, ...newFiles]);
-        } else {
-          setSelectedFiles(newFiles.slice(0, 1));
-        }
+        setSelectedFiles((prev) => {
+          const existingKeys = new Set(prev.map((f) => `${f.name}_${f.size || 0}`));
+          const toAdd = newFiles.filter((f) => !existingKeys.has(`${f.name}_${f.size || 0}`));
+          return [...prev, ...toAdd];
+        });
       }
     } catch (err: any) {
       console.error('Photo pick error:', err);

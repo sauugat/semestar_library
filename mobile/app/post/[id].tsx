@@ -39,6 +39,8 @@ import {
   Post,
   PostComment,
 } from '@/services/posts';
+import { PostMediaGallery } from '@/components/PostMediaGallery';
+import { EditPostModal } from '@/components/EditPostModal';
 
 export default function PostDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -62,6 +64,7 @@ export default function PostDetailScreen() {
   const [submittingComment, setSubmittingComment] = useState(false);
   const [isLiking, setIsLiking] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const inputRef = useRef<TextInput>(null);
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -324,16 +327,33 @@ export default function PostDetailScreen() {
               </View>
             </TouchableOpacity>
 
-            {/* Post actions: Delete if author/admin */}
-            {post.canDelete && (
-              <TouchableOpacity
-                onPress={handleDeletePost}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                style={{ padding: 4 }}
-              >
-                <Ionicons name="trash-outline" size={18} color={colors.error || '#EF4444'} />
-              </TouchableOpacity>
-            )}
+            {/* Post actions: Edit & Delete if author/admin */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              {Boolean(
+                post.canEdit ||
+                (user?.studentId && (post.user_id === user.studentId || post.studentId === user.studentId)) ||
+                (user?.role && user.role.toLowerCase() === 'admin')
+              ) && (
+                <TouchableOpacity
+                  onPress={() => setShowEditModal(true)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  style={{ padding: 4 }}
+                  accessibilityLabel="Edit post"
+                >
+                  <Ionicons name="pencil-outline" size={18} color={colors.textSecondary} />
+                </TouchableOpacity>
+              )}
+              {post.canDelete && (
+                <TouchableOpacity
+                  onPress={handleDeletePost}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  style={{ padding: 4 }}
+                  accessibilityLabel="Delete post"
+                >
+                  <Ionicons name="trash-outline" size={18} color={colors.error || '#EF4444'} />
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
 
           {/* Post Content Body */}
@@ -348,20 +368,15 @@ export default function PostDetailScreen() {
             {post.content}
           </Text>
 
-          {/* Attached Image if any */}
-          {postImage ? (
-            <TouchableOpacity
-              activeOpacity={0.9}
-              onPress={() => setShowImageModal(true)}
-              style={[styles.imageContainer, { borderColor: colors.border, borderRadius: radii.md }]}
-            >
-              <Image source={{ uri: postImage }} style={styles.attachedImage} contentFit="cover" />
-              <View style={styles.imageOverlayBadge}>
-                <Ionicons name="expand" size={14} color="#ffffff" style={{ marginRight: 4 }} />
-                <Text style={{ color: '#ffffff', fontSize: 11, fontWeight: '600' }}>Tap to view full</Text>
-              </View>
-            </TouchableOpacity>
-          ) : null}
+          {/* Attached Images: responsive grid with swipeable fullscreen gallery */}
+          {((Array.isArray(post.media) && post.media.length > 0) || post.attachment_url) && (
+            <PostMediaGallery
+              media={post.media}
+              imageUrl={post.attachment_url}
+              getFullUrl={getFullUrl}
+              onDoubleTap={handleToggleLike}
+            />
+          )}
 
           {/* Engagement / Reaction Bar */}
           <View style={[styles.engagementBar, { borderTopColor: colors.border }]}>
@@ -535,29 +550,26 @@ export default function PostDetailScreen() {
         </View>
       </StickyComposer>
 
-      {/* Full-Screen Image Modal */}
-      {postImage && (
-        <Modal
-          visible={showImageModal}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setShowImageModal(false)}
-        >
-          <View style={styles.imageModalBackground}>
-            <TouchableOpacity
-              onPress={() => setShowImageModal(false)}
-              style={styles.imageModalCloseBtn}
-            >
-              <Ionicons name="close" size={26} color="#ffffff" />
-            </TouchableOpacity>
-            <Image
-              source={{ uri: postImage }}
-              style={styles.fullModalImage}
-              contentFit="contain"
-            />
-          </View>
-        </Modal>
-      )}
+      {/* Edit Post Modal */}
+      <EditPostModal
+        visible={showEditModal}
+        post={post}
+        getFullUrl={getFullUrl}
+        onClose={() => setShowEditModal(false)}
+        onPostUpdated={(updatedPost) => {
+          setPost((prev) => (prev ? { ...prev, ...updatedPost } : updatedPost));
+          queryClient.setQueryData(['campus-feed'], (old: any) =>
+            old
+              ? {
+                  ...old,
+                  posts: (old.posts || []).map((p: Post) =>
+                    p.id === updatedPost.id ? { ...p, ...updatedPost } : p
+                  ),
+                }
+              : old
+          );
+        }}
+      />
     </View>
   );
 }

@@ -83,11 +83,26 @@ export default function DeveloperSettingsScreen() {
       const latencyMs = Date.now() - startTime;
       const text = await res.text();
 
+      let versionData: any = null;
+      try {
+        const vController = new AbortController();
+        const vTimer = setTimeout(() => vController.abort(), 3000);
+        const vRes = await fetch(`${target}/api/version`, { method: 'GET', signal: vController.signal });
+        clearTimeout(vTimer);
+        if (vRes.ok) {
+          versionData = await vRes.json();
+        }
+      } catch {}
+
+      const versionSummary = versionData?.phase
+        ? `Phase: ${versionData.phase} • Multi-Photo: ${versionData.postMultiImage ? 'Yes' : 'No'} • Edit: ${versionData.postEdit ? 'Yes' : 'No'}`
+        : text.slice(0, 100);
+
       setTestResult({
         success: res.ok,
         status: res.status,
         latencyMs,
-        message: text.slice(0, 100),
+        message: versionSummary,
       });
     } catch (err: any) {
       const latencyMs = Date.now() - startTime;

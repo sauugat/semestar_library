@@ -1358,6 +1358,28 @@
       color: #ffffff !important;
       border-color: #5a5a5e !important;
     }
+    /* Assignment Open Button: White box, black text and icon */
+    a[href*="/code-lab/assignment"].file-action.primary,
+    [data-theme="dark"] a[href*="/code-lab/assignment"].file-action.primary,
+    body.dark-mode a[href*="/code-lab/assignment"].file-action.primary {
+      background: #ffffff !important;
+      color: #000000 !important;
+      border: 1px solid rgba(0, 0, 0, 0.16) !important;
+    }
+    a[href*="/code-lab/assignment"].file-action.primary *,
+    [data-theme="dark"] a[href*="/code-lab/assignment"].file-action.primary *,
+    body.dark-mode a[href*="/code-lab/assignment"].file-action.primary *,
+    html[data-theme="dark"] body a[href*="/code-lab/assignment"].file-action.primary :is(*, span, svg) {
+      color: #000000 !important;
+      fill: #000000 !important;
+      stroke: #000000 !important;
+    }
+    a[href*="/code-lab/assignment"].file-action.primary:hover,
+    [data-theme="dark"] a[href*="/code-lab/assignment"].file-action.primary:hover,
+    body.dark-mode a[href*="/code-lab/assignment"].file-action.primary:hover {
+      background: #f5f5f7 !important;
+      color: #000000 !important;
+    }
     .post-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 4px; }
     .post-tag { font-size: 12px; padding: 3px 10px; border-radius: 20px; background: var(--bg-secondary); color: var(--text-muted); border: 1px solid var(--border-color); }
     body.dash .feed .post-card .post-actions { justify-content: flex-start; gap: 8px 32px !important; }

@@ -1240,17 +1240,44 @@
             padding: 5px 12px;
             font-size: 12px;
             font-weight: 600;
-            color: #111113;
-            background: #ffffff;
-            border: 1.5px solid rgba(0, 0, 0, 0.16);
+            color: #000000 !important;
+            background: #ffffff !important;
+            border: 1.5px solid rgba(0, 0, 0, 0.16) !important;
             border-radius: 7px;
             text-decoration: none;
             transition: all 0.15s ease;
         }
 
+        .cl-pdf-tool-btn *,
+        .cl-pdf-tool-btn span,
+        .cl-pdf-tool-btn svg {
+            color: #000000 !important;
+            stroke: #000000 !important;
+        }
+
         .cl-pdf-tool-btn:hover {
-            background: #f3f4f6;
-            border-color: #111113;
+            background: #f3f4f6 !important;
+            border-color: #111113 !important;
+            color: #000000 !important;
+        }
+
+        [data-theme="dark"] .cl-pdf-tool-btn,
+        body.dark-mode .cl-pdf-tool-btn {
+            background: #ffffff !important;
+            color: #000000 !important;
+            border-color: #ffffff !important;
+        }
+
+        [data-theme="dark"] .cl-pdf-tool-btn *,
+        body.dark-mode .cl-pdf-tool-btn * {
+            color: #000000 !important;
+            stroke: #000000 !important;
+        }
+
+        [data-theme="dark"] .cl-pdf-tool-btn:hover,
+        body.dark-mode .cl-pdf-tool-btn:hover {
+            background: #e5e5ea !important;
+            color: #000000 !important;
         }
 
         .cl-pdf-frame-wrapper {

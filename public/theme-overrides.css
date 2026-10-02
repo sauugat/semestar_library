@@ -153,7 +153,7 @@
   html[data-theme="dark"] body :is(
     .btn-modal-cancel, .btn-confirm-cancel, .cl-cancel-btn, .cl-add-btn, .cl-remove-btn,
     .cl-btn-secondary, .cl-btn-glass, .cl-crumb-link, .cl-tool-link, .cl-copy-btn,
-    .cl-grade-draft-btn, .cl-mark-all-btn, .cl-pdf-tool-btn, .preview-action-btn,
+    .cl-grade-draft-btn, .cl-mark-all-btn, .preview-action-btn,
     .preview-mobile-back-btn, .btn-file-view, .btn-file-delete, .btn-unit-delete-all,
     .batch-btn-toggle, .ag-inspect-btn, .cl-modal-btn.cancel
   ) { color: #f5f5f5 !important; background: #242424 !important; border-color: rgba(255, 255, 255, 0.20) !important; }
@@ -190,7 +190,7 @@
   ) { background: #171717 !important; color: #f5f5f5 !important; border-color: rgba(255, 255, 255, 0.10) !important; box-shadow: none !important; }
   html[data-theme="dark"] body :is(
     .apple-card-link, .roadmap-pill, .bento-routine-tab, .year-credits-badge,
-    .cl-q-badge, .cl-open-pill, .cl-time-badge, .profile-secondary-btn,
+    .cl-q-badge, .cl-time-badge, .profile-secondary-btn,
     .profile-tab, .portal-chip-btn, .nf-btn.secondary, .cl-add-tc-btn
   ) { background: #242424 !important; color: #dedede !important; border-color: rgba(255, 255, 255, 0.20) !important; }
   html[data-theme="dark"] body :is(
@@ -204,9 +204,18 @@
   ) { color: #b5b5b5 !important; }
   html[data-theme="dark"] body :is(.cl-testcases-wrapper, .cl-pdf-upload-box, .cl-pdf-selected-badge) :is(span, label, div) { color: #dedede !important; }
   html[data-theme="dark"] body #report > p { color: #f5f5f5 !important; }
-  html[data-theme="dark"] body :is(.cl-sub-link-btn) :is(span, svg) { color: #111111 !important; }
-  html[data-theme="dark"] body :is(.btn-file-get, .attach-btn-download, .file-action.primary, .btn-file-action.btn-file-get) { color: #ffffff !important; }
-  html[data-theme="dark"] body :is(.btn-file-get, .attach-btn-download, .file-action.primary, .btn-file-action.btn-file-get) :is(span, svg, *) { color: #ffffff !important; stroke: #ffffff !important; }
+  html[data-theme="dark"] body :is(.cl-sub-link-btn, .attach-action-btn.attach-btn-download, .attach-btn-download, .cl-pdf-tool-btn, .cl-open-pill) {
+    background: #ffffff !important;
+    color: #000000 !important;
+    border-color: #ffffff !important;
+  }
+  html[data-theme="dark"] body :is(.cl-sub-link-btn, .attach-action-btn.attach-btn-download, .attach-btn-download, .cl-pdf-tool-btn, .cl-open-pill) :is(span, svg, *) {
+    color: #000000 !important;
+    stroke: #000000 !important;
+    fill: currentColor !important;
+  }
+  html[data-theme="dark"] body :is(.btn-file-get, .file-action.primary, .btn-file-action.btn-file-get) { color: #ffffff !important; }
+  html[data-theme="dark"] body :is(.btn-file-get, .file-action.primary, .btn-file-action.btn-file-get) :is(span, svg, *) { color: #ffffff !important; stroke: #ffffff !important; }
   html[data-theme="dark"] body :is(.portal-title-gradient, .ag-title-gradient) {
     background: none !important; color: #f5f5f5 !important; -webkit-text-fill-color: #f5f5f5 !important;
   }

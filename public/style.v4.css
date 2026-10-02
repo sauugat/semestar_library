@@ -614,6 +614,13 @@ body.dark-mode .attach-action-btn.attach-btn-download {
   transition: background 0.15s ease, border-color 0.15s ease, filter 0.15s ease;
 }
 
+[data-theme="dark"] .attach-action-btn.attach-btn-download *,
+body.dark-mode .attach-action-btn.attach-btn-download * {
+  color: var(--fill-active-text) !important;
+  stroke: var(--fill-active-text) !important;
+  fill: currentColor !important;
+}
+
 /* "Get" Action Buttons: Gray Background, White Text */
 .btn-file-get,
 a.btn-file-get,

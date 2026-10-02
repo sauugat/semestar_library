@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   StyleSheet,
   ScrollView,
-  KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
+  TextInput,
+  Keyboard,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useAuth } from '@/context/AuthContext';
@@ -15,7 +15,12 @@ import { useTheme } from '@/constants/useTheme';
 import { Text, Heading, Caption, Subheading } from '@/components/ui/Typography';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import { TextField } from '@/components/ui/TextField';
+import { PasswordField } from '@/components/ui/PasswordField';
+import { Chip } from '@/components/ui/Chip';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { Screen } from '@/components/ui/Screen';
+import { KeyboardAwareForm } from '@/components/ui/KeyboardAwareForm';
 
 const DEPARTMENTS = ['BIT', 'BBA', 'BPharm', 'BTech', 'BLLB'];
 const SEMESTERS = [
@@ -35,12 +40,60 @@ const GENDERS = [
   { label: 'Prefer not to say', value: 'prefer_not_to_say' },
 ];
 
+function formatHumanError(rawError: string | undefined): string {
+  if (!rawError) return 'An unexpected error occurred. Please try again.';
+  const lower = rawError.toLowerCase();
+  if (
+    lower.includes('unique constraint') ||
+    lower.includes('duplicate key') ||
+    lower.includes('already registered') ||
+    lower.includes('already exists')
+  ) {
+    if (lower.includes('username')) return 'This username is already taken. Please choose another.';
+    if (lower.includes('email')) return 'An account with this email already exists.';
+    if (lower.includes('studentid') || lower.includes('student_id')) return 'This Student ID is already registered.';
+    return 'An account with these student credentials already exists.';
+  }
+  if (lower.includes('invalid login credentials') || lower.includes('invalid credentials')) {
+    return 'Invalid username/email or password. Please verify and try again.';
+  }
+  if (lower.includes('network request failed') || lower.includes('failed to fetch') || lower.includes('timeout')) {
+    return 'Unable to reach the server. Please check your internet connection.';
+  }
+  if (lower.includes('email not confirmed')) {
+    return 'Your email has not been verified yet. Please check your inbox for the confirmation link.';
+  }
+  if (
+    lower.includes('500') ||
+    lower.includes('internal server error') ||
+    lower.includes('postgres') ||
+    lower.includes('relation') ||
+    lower.includes('column')
+  ) {
+    return 'Server error processing your request. Please try again shortly.';
+  }
+  return rawError;
+}
+
 export default function LoginScreen() {
-  const { login, register, forgotPassword, resendVerification, serverUrl, updateServerUrl } = useAuth();
-  const { colors, spacing, radii } = useTheme();
+  const { login, register, forgotPassword, resendVerification } = useAuth();
+  const { colors, spacing, radii, touchTarget } = useTheme();
 
   // Mode: 'signin' | 'register' | 'forgot'
   const [authMode, setAuthMode] = useState<'signin' | 'register' | 'forgot'>('signin');
+
+  // Input Refs for smooth keyboard 'Next' chaining
+  const loginPasswordRef = useRef<TextInput>(null);
+
+  const regFullNameRef = useRef<TextInput>(null);
+  const regStudentIdRef = useRef<TextInput>(null);
+  const regUsernameRef = useRef<TextInput>(null);
+  const regEmailRef = useRef<TextInput>(null);
+  const regPasswordRef = useRef<TextInput>(null);
+  const regConfirmPasswordRef = useRef<TextInput>(null);
+
+  const fpIdentifierRef = useRef<TextInput>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
 
   // Sign In State
   const [identifier, setIdentifier] = useState('');
@@ -66,10 +119,6 @@ export default function LoginScreen() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Backend LAN Config
-  const [customUrl, setCustomUrl] = useState(serverUrl);
-  const [showServerConfig, setShowServerConfig] = useState(false);
-
   const resetFeedback = () => {
     setErrorMessage(null);
     setSuccessMessage(null);
@@ -77,12 +126,17 @@ export default function LoginScreen() {
   };
 
   const switchMode = (mode: 'signin' | 'register' | 'forgot') => {
+    Keyboard.dismiss();
     setAuthMode(mode);
     resetFeedback();
+    setTimeout(() => {
+      scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+    }, 60);
   };
 
   const handleLogin = async () => {
-    if (!identifier.trim() || !password) {
+    const cleanId = identifier.trim();
+    if (!cleanId || !password) {
       setErrorMessage('Please enter your username, email, or student ID and password.');
       return;
     }
@@ -90,86 +144,110 @@ export default function LoginScreen() {
     setLoading(true);
     resetFeedback();
 
-    const result = await login(identifier, password, customUrl);
+    const result = await login(cleanId, password);
     setLoading(false);
 
     if (!result.success) {
       if (result.code === 'EMAIL_NOT_CONFIRMED') {
         setIsUnverified(true);
       }
-      setErrorMessage(result.error || 'Invalid credentials or connection error.');
+      setErrorMessage(formatHumanError(result.error));
     }
   };
 
   const handleRegister = async () => {
-    if (
-      !regFullName.trim() ||
-      !regStudentId.trim() ||
-      !regUsername.trim() ||
-      !regEmail.trim() ||
-      !regPassword ||
-      !regConfirmPassword
-    ) {
-      setErrorMessage('Please fill in all required fields.');
+    const cleanFullName = regFullName.trim();
+    const cleanStudentId = regStudentId.trim();
+    const cleanUsername = regUsername.trim().toLowerCase();
+    const cleanEmail = regEmail.trim().toLowerCase();
+
+    if (!cleanFullName) {
+      setErrorMessage('Full Name is required.');
+      regFullNameRef.current?.focus();
       return;
     }
-
+    if (!cleanStudentId) {
+      setErrorMessage('Student ID is required.');
+      regStudentIdRef.current?.focus();
+      return;
+    }
+    if (!cleanUsername) {
+      setErrorMessage('Username is required.');
+      regUsernameRef.current?.focus();
+      return;
+    }
+    if (!cleanEmail) {
+      setErrorMessage('Email address is required.');
+      regEmailRef.current?.focus();
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cleanEmail)) {
+      setErrorMessage('Please enter a valid email address.');
+      regEmailRef.current?.focus();
+      return;
+    }
+    if (!regPassword) {
+      setErrorMessage('Password is required.');
+      regPasswordRef.current?.focus();
+      return;
+    }
     if (regPassword.length < 8) {
-      setErrorMessage('Password must be at least 8 characters long.');
+      setErrorMessage('Password must contain at least 8 characters.');
+      regPasswordRef.current?.focus();
       return;
     }
-
     if (regPassword !== regConfirmPassword) {
-      setErrorMessage('Passwords do not match.');
+      setErrorMessage('Passwords do not match. Please re-enter your password.');
+      regConfirmPasswordRef.current?.focus();
       return;
     }
 
     setLoading(true);
     resetFeedback();
 
-    const result = await register(
-      {
-        fullName: regFullName.trim(),
-        studentId: regStudentId.trim(),
-        username: regUsername.trim(),
-        email: regEmail.trim(),
-        department: regDept,
-        semester: regSem,
-        gender: regGender,
-        password: regPassword,
-        confirmPassword: regConfirmPassword,
-      },
-      customUrl
-    );
+    const result = await register({
+      fullName: cleanFullName,
+      studentId: cleanStudentId,
+      username: cleanUsername,
+      email: cleanEmail,
+      department: regDept,
+      semester: regSem,
+      gender: regGender,
+      password: regPassword,
+      confirmPassword: regConfirmPassword,
+    });
 
     setLoading(false);
 
     if (result.success) {
       setSuccessMessage(result.message || 'Account created! Please verify your email before logging in.');
       setAuthMode('signin');
-      setIdentifier(regUsername.trim() || regEmail.trim());
+      setIdentifier(cleanUsername || cleanEmail);
       setPassword('');
     } else {
-      setErrorMessage(result.error || 'Registration failed.');
+      setErrorMessage(formatHumanError(result.error));
     }
   };
 
   const handleForgotPassword = async () => {
-    if (!fpIdentifier.trim()) {
+    const cleanFp = fpIdentifier.trim();
+    if (!cleanFp) {
       setErrorMessage('Please provide your username or email address.');
+      fpIdentifierRef.current?.focus();
       return;
     }
 
     setLoading(true);
     resetFeedback();
 
-    const result = await forgotPassword(fpIdentifier, customUrl);
+    const result = await forgotPassword(cleanFp);
     setLoading(false);
 
     if (result.success) {
       setSuccessMessage(result.message || 'Password reset link sent to your registered email.');
     } else {
-      setErrorMessage(result.error || 'Could not send reset link.');
+      setErrorMessage(formatHumanError(result.error));
     }
   };
 
@@ -178,7 +256,7 @@ export default function LoginScreen() {
     if (!target) return;
 
     setLoading(true);
-    const result = await resendVerification(target, customUrl);
+    const result = await resendVerification(target);
     setLoading(false);
 
     if (result.success) {
@@ -190,44 +268,42 @@ export default function LoginScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
-      <KeyboardAvoidingView
+    <Screen edges={['top', 'left', 'right', 'bottom']}>
+      <KeyboardAwareForm
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingHorizontal: spacing.screenHorizontal,
+            paddingTop: spacing.normal,
+          },
+        ]}
+        clearance={24}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        <ScrollView
-          contentContainerStyle={[
-            styles.scrollContent,
-            {
-              padding: spacing.md,
-              justifyContent: authMode === 'register' ? 'flex-start' : 'center',
-            },
-          ]}
-          keyboardShouldPersistTaps="handled"
-        >
           {/* Brand Header */}
-          <View style={[styles.headerContainer, { marginVertical: spacing.md }]}>
+          <View style={[styles.headerContainer, { marginBottom: spacing.normal }]}>
             <View
               style={[
                 styles.logoBadge,
                 {
                   backgroundColor: colors.surfaceRaised,
                   borderColor: colors.borderStrong,
-                  borderRadius: 22,
-                  overflow: 'hidden',
+                  borderRadius: radii.card,
                 },
               ]}
             >
               <Image
                 source={require('@/assets/images/app-logo.jpg')}
-                style={{ width: '100%', height: '100%' }}
+                style={styles.logoImage}
                 contentFit="cover"
               />
             </View>
-            <Heading style={{ marginTop: spacing.sm, textAlign: 'center' }}>
+            <Heading style={{ marginTop: spacing.compact, textAlign: 'center' }}>
               Semester Library
             </Heading>
-            <Caption style={{ marginTop: spacing.xs, textAlign: 'center' }}>
+            <Caption color="muted" style={{ marginTop: spacing.micro, textAlign: 'center' }}>
               {authMode === 'signin' && 'Sign in with your student credentials'}
               {authMode === 'register' && 'Create your verified student account'}
               {authMode === 'forgot' && 'Recover access to your account'}
@@ -235,67 +311,17 @@ export default function LoginScreen() {
           </View>
 
           {/* Segmented Auth Navigation */}
-          <View
-            style={[
-              styles.segmentContainer,
-              {
-                backgroundColor: colors.surfaceSubtle,
-                borderColor: colors.border,
-                borderRadius: radii.lg,
-                marginBottom: spacing.md,
-              },
-            ]}
-          >
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => switchMode('signin')}
-              style={[
-                styles.segmentTab,
-                authMode === 'signin' && {
-                  backgroundColor: colors.surface,
-                  borderRadius: radii.md,
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 1 },
-                  shadowOpacity: 0.1,
-                  shadowRadius: 2,
-                  elevation: 2,
-                },
+          {authMode !== 'forgot' && (
+            <SegmentedControl
+              items={[
+                { key: 'signin', label: 'Sign In' },
+                { key: 'register', label: 'Create Account' },
               ]}
-            >
-              <Text
-                variant="sm"
-                weight={authMode === 'signin' ? '700' : '500'}
-                color={authMode === 'signin' ? undefined : 'muted'}
-              >
-                Sign In
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => switchMode('register')}
-              style={[
-                styles.segmentTab,
-                authMode === 'register' && {
-                  backgroundColor: colors.surface,
-                  borderRadius: radii.md,
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 1 },
-                  shadowOpacity: 0.1,
-                  shadowRadius: 2,
-                  elevation: 2,
-                },
-              ]}
-            >
-              <Text
-                variant="sm"
-                weight={authMode === 'register' ? '700' : '500'}
-                color={authMode === 'register' ? undefined : 'muted'}
-              >
-                Create Account
-              </Text>
-            </TouchableOpacity>
-          </View>
+              selectedKey={authMode}
+              onSelect={(key) => switchMode(key as 'signin' | 'register')}
+              style={{ marginBottom: spacing.normal }}
+            />
+          )}
 
           {/* Feedback Banners */}
           {errorMessage && (
@@ -303,11 +329,11 @@ export default function LoginScreen() {
               style={[
                 styles.banner,
                 {
-                  backgroundColor: colors.errorBg || '#FEF2F2',
+                  backgroundColor: colors.errorBg || '#2A1215',
                   borderColor: colors.error,
-                  borderRadius: radii.md,
-                  padding: spacing.sm + 2,
-                  marginBottom: spacing.md,
+                  borderRadius: radii.input,
+                  padding: spacing.compact,
+                  marginBottom: spacing.normal,
                 },
               ]}
             >
@@ -315,7 +341,7 @@ export default function LoginScreen() {
                 name="alert-circle-outline"
                 size={20}
                 color={colors.error}
-                style={{ marginRight: spacing.xs }}
+                style={{ marginRight: spacing.tight, marginTop: 1 }}
               />
               <View style={{ flex: 1 }}>
                 <Text color="error" variant="sm" weight="600">
@@ -324,7 +350,8 @@ export default function LoginScreen() {
                 {isUnverified && (
                   <TouchableOpacity
                     onPress={handleResendVerification}
-                    style={{ marginTop: spacing.xs }}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    style={{ marginTop: spacing.tight }}
                   >
                     <Text variant="xs" color="accent" weight="700">
                       Resend Verification Email →
@@ -340,11 +367,11 @@ export default function LoginScreen() {
               style={[
                 styles.banner,
                 {
-                  backgroundColor: colors.successBg || '#ECFDF5',
+                  backgroundColor: colors.successBg || '#0F291E',
                   borderColor: colors.success,
-                  borderRadius: radii.md,
-                  padding: spacing.sm + 2,
-                  marginBottom: spacing.md,
+                  borderRadius: radii.input,
+                  padding: spacing.compact,
+                  marginBottom: spacing.normal,
                 },
               ]}
             >
@@ -352,7 +379,7 @@ export default function LoginScreen() {
                 name="checkmark-circle-outline"
                 size={20}
                 color={colors.success}
-                style={{ marginRight: spacing.xs }}
+                style={{ marginRight: spacing.tight, marginTop: 1 }}
               />
               <Text color="success" variant="sm" weight="600" style={{ flex: 1 }}>
                 {successMessage}
@@ -362,8 +389,8 @@ export default function LoginScreen() {
 
           {/* MODE 1: SIGN IN */}
           {authMode === 'signin' && (
-            <Card style={{ padding: spacing.lg }}>
-              <Input
+            <Card style={{ padding: spacing.cardPadding }}>
+              <TextField
                 label="Username, Email, or Student ID"
                 placeholder="Student ID, email, or username"
                 value={identifier}
@@ -374,9 +401,13 @@ export default function LoginScreen() {
                 leftIcon="person-outline"
                 autoCapitalize="none"
                 autoCorrect={false}
+                returnKeyType="next"
+                blurOnSubmit={false}
+                onSubmitEditing={() => loginPasswordRef.current?.focus()}
               />
 
-              <Input
+              <PasswordField
+                ref={loginPasswordRef}
                 label="Password"
                 placeholder="Enter your password"
                 value={password}
@@ -385,12 +416,16 @@ export default function LoginScreen() {
                   if (errorMessage) resetFeedback();
                 }}
                 leftIcon="lock-closed-outline"
-                isPassword
-                autoCapitalize="none"
+                returnKeyType="done"
+                onSubmitEditing={handleLogin}
               />
 
               <View style={styles.forgotRow}>
-                <TouchableOpacity onPress={() => switchMode('forgot')}>
+                <TouchableOpacity
+                  onPress={() => switchMode('forgot')}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  style={{ minHeight: touchTarget.min, justifyContent: 'center' }}
+                >
                   <Text variant="xs" color="accent" weight="600">
                     Forgot password?
                   </Text>
@@ -402,46 +437,62 @@ export default function LoginScreen() {
                 variant="primary"
                 size="lg"
                 loading={loading}
+                disabled={loading}
                 onPress={handleLogin}
-                style={{ marginTop: spacing.xs }}
+                style={{ marginTop: spacing.micro }}
               />
             </Card>
           )}
 
           {/* MODE 2: CREATE ACCOUNT (REGISTER) */}
           {authMode === 'register' && (
-            <Card style={{ padding: spacing.lg }}>
-              <Input
+            <Card style={{ padding: spacing.cardPadding }}>
+              <TextField
+                ref={regFullNameRef}
                 label="Full Name"
-                placeholder="e.g. Full Name"
+                placeholder="e.g. Aarav Sharma"
                 value={regFullName}
                 onChangeText={setRegFullName}
                 leftIcon="person-outline"
                 autoCapitalize="words"
+                returnKeyType="next"
+                blurOnSubmit={false}
+                onSubmitEditing={() => regStudentIdRef.current?.focus()}
               />
 
               <View style={styles.gridRow}>
-                <View style={{ flex: 1, marginRight: spacing.xs }}>
-                  <Input
+                <View style={{ flex: 1, marginRight: spacing.tight }}>
+                  <TextField
+                    ref={regStudentIdRef}
                     label="Student ID"
                     placeholder="e.g. 26020001"
                     value={regStudentId}
                     onChangeText={setRegStudentId}
                     autoCapitalize="none"
+                    autoCorrect={false}
+                    returnKeyType="next"
+                    blurOnSubmit={false}
+                    onSubmitEditing={() => regUsernameRef.current?.focus()}
                   />
                 </View>
-                <View style={{ flex: 1, marginLeft: spacing.xs }}>
-                  <Input
+                <View style={{ flex: 1, marginLeft: spacing.tight }}>
+                  <TextField
+                    ref={regUsernameRef}
                     label="Username"
-                    placeholder="e.g. username"
+                    placeholder="e.g. aarav26"
                     value={regUsername}
-                    onChangeText={setRegUsername}
+                    onChangeText={(val) => setRegUsername(val.toLowerCase().replace(/\s+/g, ''))}
                     autoCapitalize="none"
+                    autoCorrect={false}
+                    returnKeyType="next"
+                    blurOnSubmit={false}
+                    onSubmitEditing={() => regEmailRef.current?.focus()}
                   />
                 </View>
               </View>
 
-              <Input
+              <TextField
+                ref={regEmailRef}
                 label="Email Address (for verification)"
                 placeholder="student@example.com"
                 value={regEmail}
@@ -449,130 +500,110 @@ export default function LoginScreen() {
                 leftIcon="mail-outline"
                 keyboardType="email-address"
                 autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="next"
+                blurOnSubmit={false}
+                onSubmitEditing={() => regPasswordRef.current?.focus()}
               />
 
               {/* Department Selector */}
-              <View style={{ marginBottom: spacing.md }}>
-                <Text style={[styles.fieldLabel, { color: colors.textSecondary, marginBottom: spacing.xs }]}>
+              <View style={{ marginBottom: spacing.normal }}>
+                <Text
+                  style={[
+                    styles.fieldLabel,
+                    { color: colors.textSecondary, marginBottom: spacing.tight },
+                  ]}
+                >
                   Department
                 </Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row' }}>
-                  {DEPARTMENTS.map((dept) => {
-                    const isSelected = regDept === dept;
-                    return (
-                      <TouchableOpacity
-                        key={dept}
-                        onPress={() => setRegDept(dept)}
-                        style={[
-                          styles.chip,
-                          {
-                            backgroundColor: isSelected ? colors.primary : colors.surfaceSubtle,
-                            borderColor: isSelected ? colors.primary : colors.border,
-                            borderRadius: radii.full,
-                            marginRight: spacing.xs + 2,
-                          },
-                        ]}
-                      >
-                        <Text
-                          variant="xs"
-                          weight="700"
-                          style={{ color: isSelected ? colors.primaryText : colors.text }}
-                        >
-                          {dept}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: spacing.tight }}
+                >
+                  {DEPARTMENTS.map((dept) => (
+                    <Chip
+                      key={dept}
+                      label={dept}
+                      selected={regDept === dept}
+                      onPress={() => setRegDept(dept)}
+                      size="sm"
+                    />
+                  ))}
                 </ScrollView>
               </View>
 
               {/* Semester Selector */}
-              <View style={{ marginBottom: spacing.md }}>
-                <Text style={[styles.fieldLabel, { color: colors.textSecondary, marginBottom: spacing.xs }]}>
+              <View style={{ marginBottom: spacing.normal }}>
+                <Text
+                  style={[
+                    styles.fieldLabel,
+                    { color: colors.textSecondary, marginBottom: spacing.tight },
+                  ]}
+                >
                   Semester
                 </Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row' }}>
-                  {SEMESTERS.map((sem) => {
-                    const isSelected = regSem === sem;
-                    return (
-                      <TouchableOpacity
-                        key={sem}
-                        onPress={() => setRegSem(sem)}
-                        style={[
-                          styles.chip,
-                          {
-                            backgroundColor: isSelected ? colors.primary : colors.surfaceSubtle,
-                            borderColor: isSelected ? colors.primary : colors.border,
-                            borderRadius: radii.full,
-                            marginRight: spacing.xs + 2,
-                          },
-                        ]}
-                      >
-                        <Text
-                          variant="xs"
-                          weight="700"
-                          style={{ color: isSelected ? colors.primaryText : colors.text }}
-                        >
-                          {sem}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: spacing.tight }}
+                >
+                  {SEMESTERS.map((sem) => (
+                    <Chip
+                      key={sem}
+                      label={sem}
+                      selected={regSem === sem}
+                      onPress={() => setRegSem(sem)}
+                      size="sm"
+                    />
+                  ))}
                 </ScrollView>
               </View>
 
               {/* Gender Selector */}
-              <View style={{ marginBottom: spacing.md }}>
-                <Text style={[styles.fieldLabel, { color: colors.textSecondary, marginBottom: spacing.xs }]}>
+              <View style={{ marginBottom: spacing.normal }}>
+                <Text
+                  style={[
+                    styles.fieldLabel,
+                    { color: colors.textSecondary, marginBottom: spacing.tight },
+                  ]}
+                >
                   Gender
                 </Text>
                 <View style={styles.genderRow}>
-                  {GENDERS.map((g) => {
-                    const isSelected = regGender === g.value;
-                    return (
-                      <TouchableOpacity
-                        key={g.value}
-                        onPress={() => setRegGender(g.value)}
-                        style={[
-                          styles.genderChip,
-                          {
-                            backgroundColor: isSelected ? colors.primary : colors.surfaceSubtle,
-                            borderColor: isSelected ? colors.primary : colors.border,
-                            borderRadius: radii.full,
-                          },
-                        ]}
-                      >
-                        <Text
-                          variant="xs"
-                          weight="700"
-                          style={{ color: isSelected ? colors.primaryText : colors.textSecondary }}
-                        >
-                          {g.label}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
+                  {GENDERS.map((g) => (
+                    <Chip
+                      key={g.value}
+                      label={g.label}
+                      selected={regGender === g.value}
+                      onPress={() => setRegGender(g.value)}
+                      size="sm"
+                    />
+                  ))}
                 </View>
               </View>
 
-              <Input
+              <PasswordField
+                ref={regPasswordRef}
                 label="Password (min 8 chars)"
                 placeholder="Choose a strong password"
                 value={regPassword}
                 onChangeText={setRegPassword}
                 leftIcon="lock-closed-outline"
-                isPassword
-                autoCapitalize="none"
+                returnKeyType="next"
+                blurOnSubmit={false}
+                onSubmitEditing={() => regConfirmPasswordRef.current?.focus()}
               />
 
-              <Input
+              <PasswordField
+                ref={regConfirmPasswordRef}
                 label="Confirm Password"
                 placeholder="Re-enter your password"
                 value={regConfirmPassword}
                 onChangeText={setRegConfirmPassword}
                 leftIcon="lock-closed-outline"
-                isPassword
-                autoCapitalize="none"
+                returnKeyType="done"
+                onSubmitEditing={handleRegister}
               />
 
               <Button
@@ -580,13 +611,20 @@ export default function LoginScreen() {
                 variant="primary"
                 size="lg"
                 loading={loading}
+                disabled={loading}
                 onPress={handleRegister}
-                style={{ marginTop: spacing.xs }}
+                style={{ marginTop: spacing.micro }}
               />
 
               <TouchableOpacity
                 onPress={() => switchMode('signin')}
-                style={{ marginTop: spacing.md, alignItems: 'center' }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={{
+                  marginTop: spacing.normal,
+                  alignItems: 'center',
+                  minHeight: touchTarget.min,
+                  justifyContent: 'center',
+                }}
               >
                 <Text variant="sm" color="secondary">
                   Already have an account?{' '}
@@ -600,13 +638,14 @@ export default function LoginScreen() {
 
           {/* MODE 3: FORGOT PASSWORD */}
           {authMode === 'forgot' && (
-            <Card style={{ padding: spacing.lg }}>
-              <Subheading style={{ marginBottom: spacing.xs }}>Reset Your Password</Subheading>
-              <Caption color="muted" style={{ marginBottom: spacing.md }}>
+            <Card style={{ padding: spacing.cardPadding }}>
+              <Subheading style={{ marginBottom: spacing.tight }}>Reset Your Password</Subheading>
+              <Caption color="muted" style={{ marginBottom: spacing.normal }}>
                 Enter your username or registered email address. We'll send you a secure link to reset your password.
               </Caption>
 
-              <Input
+              <TextField
+                ref={fpIdentifierRef}
                 label="Username or Email"
                 placeholder="e.g. username or student@example.com"
                 value={fpIdentifier}
@@ -614,6 +653,8 @@ export default function LoginScreen() {
                 leftIcon="mail-outline"
                 autoCapitalize="none"
                 autoCorrect={false}
+                returnKeyType="done"
+                onSubmitEditing={handleForgotPassword}
               />
 
               <Button
@@ -621,8 +662,9 @@ export default function LoginScreen() {
                 variant="primary"
                 size="lg"
                 loading={loading}
+                disabled={loading}
                 onPress={handleForgotPassword}
-                style={{ marginTop: spacing.xs }}
+                style={{ marginTop: spacing.micro }}
               />
 
               <Button
@@ -630,105 +672,33 @@ export default function LoginScreen() {
                 variant="outline"
                 size="md"
                 onPress={() => switchMode('signin')}
-                style={{ marginTop: spacing.sm }}
+                style={{ marginTop: spacing.compact }}
               />
             </Card>
           )}
-
-          {/* Configurable Server URL Card (Development only) */}
-          {__DEV__ && (
-            <Card
-              variant="flat"
-              style={{ marginTop: spacing.md, padding: spacing.md }}
-            >
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => setShowServerConfig(!showServerConfig)}
-                style={styles.serverHeaderRow}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Ionicons
-                    name="server-outline"
-                    size={16}
-                    color={colors.textSecondary}
-                    style={{ marginRight: spacing.xs }}
-                  />
-                  <Text variant="sm" color="secondary" weight="600">
-                    Backend LAN Config (Dev Only)
-                  </Text>
-                </View>
-                <Ionicons
-                  name={showServerConfig ? 'chevron-up' : 'chevron-down'}
-                  size={16}
-                  color={colors.textSecondary}
-                />
-              </TouchableOpacity>
-
-              {showServerConfig && (
-                <View style={{ marginTop: spacing.sm }}>
-                  <Input
-                    label="Target API Base URL"
-                    value={customUrl}
-                    onChangeText={setCustomUrl}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    placeholder="https://semestar-library.vercel.app"
-                    helper="Default: https://semestar-library.vercel.app"
-                  />
-                  <Button
-                    title="Save Server URL"
-                    variant="secondary"
-                    size="sm"
-                    onPress={async () => {
-                      await updateServerUrl(customUrl);
-                      setSuccessMessage('Server URL updated successfully!');
-                      setTimeout(() => setSuccessMessage(null), 3000);
-                    }}
-                  />
-                </View>
-              )}
-
-              {!showServerConfig && (
-                <Caption color="muted" style={{ marginTop: spacing.xs }}>
-                  Connected to: {customUrl}
-                </Caption>
-              )}
-            </Card>
-          )}
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        </KeyboardAwareForm>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-  },
   scrollContent: {
     flexGrow: 1,
-    paddingBottom: 60,
   },
   headerContainer: {
     alignItems: 'center',
   },
   logoBadge: {
-    width: 76,
-    height: 76,
+    width: 72,
+    height: 72,
     borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
-  segmentContainer: {
-    flexDirection: 'row',
-    padding: 4,
-    borderWidth: 1,
-  },
-  segmentTab: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
+  logoImage: {
+    width: '100%',
+    height: '100%',
   },
   banner: {
     flexDirection: 'row',
@@ -738,7 +708,7 @@ const styles = StyleSheet.create({
   forgotRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    marginBottom: 12,
+    marginBottom: 8,
     marginTop: -4,
   },
   gridRow: {
@@ -746,26 +716,11 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontSize: 13,
-    fontWeight: '500',
-  },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderWidth: 1,
+    fontWeight: '600',
   },
   genderRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-  },
-  genderChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderWidth: 1,
-  },
-  serverHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
   },
 });

@@ -77,8 +77,8 @@ describe('Mobile Class Group Chat (mobile/app/(tabs)/chat.tsx & mobile/services/
     assert.match(chatScreenContent, /showScrollToBottom/);
   });
 
-  test('7. KeyboardAvoidingView and safe area insets are respected', () => {
-    assert.match(chatScreenContent, /KeyboardAvoidingView/);
+  test('7. KeyboardStickyView and safe area insets are respected', () => {
+    assert.match(chatScreenContent, /KeyboardStickyView/);
     assert.match(chatScreenContent, /useSafeAreaInsets/);
   });
 });

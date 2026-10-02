@@ -17,6 +17,10 @@ import { useAuth } from '@/context/AuthContext';
 import { Text, Heading, Subheading, Caption } from '@/components/ui/Typography';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Avatar } from '@/components/ui/Avatar';
+import { Badge } from '@/components/ui/Badge';
+import { Chip } from '@/components/ui/Chip';
 import { getFiles, LibraryFile, getLibraryStats, LibraryStat } from '@/services/library';
 import { getBaseUrl } from '@/services/api';
 import { SearchOverlay } from '@/components/SearchOverlay';
@@ -527,16 +531,13 @@ export default function LibraryScreen() {
 
           {/* Empty State */}
           {!loadingFiles && !filesError && files.length === 0 && (
-            <Card variant="flat" padding="lg" style={styles.centerCard}>
-              <Ionicons name="folder-open-outline" size={44} color={colors.textMuted} style={{ marginBottom: spacing.sm }} />
-              <Heading style={{ marginBottom: spacing.xs, textAlign: 'center' }}>No Notes Yet</Heading>
-              <Text variant="sm" color="secondary" style={{ textAlign: 'center', marginBottom: spacing.sm }}>
-                No study materials have been uploaded for {selectedChapter.title} yet.
-              </Text>
-              <Caption color="muted" style={{ textAlign: 'center' }}>
-                Check back soon or ask classmates in the community chat!
-              </Caption>
-            </Card>
+            <EmptyState
+              icon="folder-open-outline"
+              title="No Notes Yet"
+              description={`No study materials have been uploaded for ${selectedChapter.title} yet.`}
+              actionTitle="Upload Note"
+              onAction={() => setUploadModalOpen(true)}
+            />
           )}
 
           {/* Files List */}
@@ -840,17 +841,23 @@ export default function LibraryScreen() {
                   </Text>
 
                   {/* Bottom Row */}
-                  <View style={styles.subjectBottomRow}>
-                    <Caption color="secondary">
-                      {unitCount} Syllabus {unitCount === 1 ? 'Unit' : 'Units'} • Notes & PYQs
-                    </Caption>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <Text variant="xs" weight="600" color="muted" style={{ marginRight: 4 }}>
-                        Open
-                      </Text>
-                      <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
+                    <View style={styles.subjectBottomRow}>
+                      <Caption color="secondary">
+                        {unitCount} Syllabus {unitCount === 1 ? 'Unit' : 'Units'} • Notes & PYQs
+                      </Caption>
+                      <View
+                        style={[
+                          styles.openPill,
+                          {
+                            backgroundColor: colors.surfaceSubtle,
+                            borderColor: colors.borderSubtle,
+                            borderRadius: radii.pill,
+                          },
+                        ]}
+                      >
+                        <Ionicons name="arrow-forward" size={14} color={colors.textSecondary} />
+                      </View>
                     </View>
-                  </View>
                 </View>
               </Card>
             );
@@ -978,15 +985,19 @@ const styles = StyleSheet.create({
   navHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    minHeight: 40,
   },
   backButton: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
+    minHeight: 36,
+    paddingHorizontal: 12,
   },
   breadcrumbTextContainer: {
     flex: 1,
     marginLeft: 10,
+    justifyContent: 'center',
   },
   headerCard: {
     borderWidth: 1,
@@ -1019,6 +1030,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: 2,
+  },
+  openPill: {
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
   },
   chapterCard: {
     borderWidth: 1,

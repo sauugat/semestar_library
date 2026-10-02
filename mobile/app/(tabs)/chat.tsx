@@ -14,7 +14,6 @@ import {
   ActivityIndicator,
   Modal,
   Platform,
-  KeyboardAvoidingView,
   Animated,
   StatusBar,
   Alert,
@@ -26,6 +25,7 @@ import {
   useWindowDimensions,
   Dimensions,
 } from "react-native";
+import { KeyboardStickyView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -123,32 +123,6 @@ export default function ChatScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
-  const { height: windowHeight } = useWindowDimensions();
-  const screenHeight = Dimensions.get('screen').height;
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
-
-  useEffect(() => {
-    const showSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      (e) => {
-        setKeyboardHeight(e.endCoordinates.height);
-        if (isNearBottomRef.current) {
-          flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
-        }
-      }
-    );
-    const hideSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => {
-        setKeyboardHeight(0);
-      }
-    );
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, []);
-
   useFocusEffect(
     useCallback(() => {
       setChatScreenActive(true);
@@ -158,8 +132,6 @@ export default function ChatScreen() {
       };
     }, [])
   );
-
-  const isKeyboardVisible = keyboardHeight > 0;
 
   // State
   const {
@@ -862,11 +834,7 @@ export default function ChatScreen() {
   );
 
   return (
-    <KeyboardAvoidingView
-      style={styles.screenContainer}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={0}
-    >
+    <View style={styles.screenContainer}>
       <StatusBar barStyle="light-content" />
 
       {/* Overhauled WhatsApp-styled Header (Requirement 14 & 15) */}
@@ -1102,21 +1070,23 @@ export default function ChatScreen() {
       )}
 
       {/* Replying banner, Attachment Preview, and Message Composer */}
-      <ChatComposer
-        replyTo={replyTo}
-        onCancelReply={() => setReplyTo(null)}
-        selectedAttachment={selectedAttachment}
-        onClearAttachment={() => {
-          void removeOutboxFile(selectedAttachment?.uri);
-          setSelectedAttachment(null);
-        }}
-        onOpenAttachModal={() => setShowAttachModal(true)}
-        onPickCamera={handlePickImage}
-        onSendMessage={handleSendMessage}
-        inputRef={inputRef}
-        paddingBottom={isKeyboardVisible ? 8 : Math.max(insets.bottom, 8)}
-        userAvailable={Boolean(user)}
-      />
+      <KeyboardStickyView offset={{ closed: 0, opened: insets.bottom }}>
+        <ChatComposer
+          replyTo={replyTo}
+          onCancelReply={() => setReplyTo(null)}
+          selectedAttachment={selectedAttachment}
+          onClearAttachment={() => {
+            void removeOutboxFile(selectedAttachment?.uri);
+            setSelectedAttachment(null);
+          }}
+          onOpenAttachModal={() => setShowAttachModal(true)}
+          onPickCamera={handlePickImage}
+          onSendMessage={handleSendMessage}
+          inputRef={inputRef}
+          paddingBottom={Math.max(insets.bottom, Platform.OS === 'android' ? 14 : 12)}
+          userAvailable={Boolean(user)}
+        />
+      </KeyboardStickyView>
 
       {/* Class Members & Search Modal Panel */}
       <Modal
@@ -1126,9 +1096,9 @@ export default function ChatScreen() {
         onRequestClose={() => setPanel(null)}
         statusBarTranslucent
       >
-        <KeyboardAvoidingView
+        <KeyboardStickyView
           style={styles.panelBackdrop}
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          offset={{ closed: 0, opened: insets.bottom }}
         >
           <Pressable
             style={{ flex: 1 }}
@@ -1282,7 +1252,7 @@ export default function ChatScreen() {
               )}
             </ScrollView>
           </View>
-        </KeyboardAvoidingView>
+        </KeyboardStickyView>
       </Modal>
 
       {/* Overhauled Message Actions Sheet (Requirement 1 & 7: Instant Sheet & Haptics) */}
@@ -1408,7 +1378,7 @@ export default function ChatScreen() {
         headers={imageAuthHeaders}
         onClose={() => setViewerImage(null)}
       />
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 

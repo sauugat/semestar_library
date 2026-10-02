@@ -23,6 +23,9 @@
       "versionCode": 5,
       "softwareKeyboardLayoutMode": "resize",
       "predictiveBackGestureEnabled": false,
+      "metaData": {
+        "EXDevMenuShowFloatingActionButton": false
+      },
       "permissions": [
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
@@ -39,6 +42,12 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-dev-launcher",
+        {
+          "toolsButton": false
+        }
+      ],
       [
         "expo-splash-screen",
         {

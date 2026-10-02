@@ -1,10 +1,13 @@
 /**
- * Semester Library — AI Academic Assistant (ChatGPT & Google Gemini Inspired)
- * Client-side widget & full-page engine with Markdown, KaTeX, Code Copy & Visual Cards
+ * Semester Library — Kyana AI Workspace Engine
+ * Visual Philosophy: LOGO = Identity · LIGHT & MOTION = Intelligence (Kyana Aura)
+ * Clean Architecture: Gemini/ChatGPT/Claude Maturity with Original Identity
  */
 
 (function () {
   'use strict';
+
+  // --- 1. Pure Helper Utilities (Shared with Tests & Node) ---
 
   function escapeHtml(value) {
     return String(value == null ? '' : value).replace(/[&<>"']/g, char => ({
@@ -24,8 +27,44 @@
     }
   }
 
-  // Keep code readable even if the optional Markdown/CDN dependencies fail.
-  // Every model-provided character is escaped before it reaches innerHTML.
+  function protectCodeBlocks(markdown) {
+    if (!markdown) return { text: '', tokenMap: new Map() };
+    const tokenMap = new Map();
+    let counter = 0;
+
+    // Fenced code blocks (``` or ~~~) - both closed fences and unclosed streaming fences
+    const fencedRegex = /(^|\n)(`{3,}|~{3,})([\w+-]*)\r?\n([\s\S]*?)(?:\r?\n\2[ \t]*(?=\r?\n|$)|$)/g;
+    let text = String(markdown).replace(fencedRegex, (match, prefix) => {
+      const id = `___KYANA_PROTECTED_CODE_${counter++}___`;
+      tokenMap.set(id, match);
+      return (prefix || '') + id;
+    });
+
+    // Inline code (`...`)
+    const inlineRegex = /(`+)([\s\S]*?[^`])\1(?!`)/g;
+    text = text.replace(inlineRegex, (match) => {
+      const id = `___KYANA_PROTECTED_CODE_${counter++}___`;
+      tokenMap.set(id, match);
+      return id;
+    });
+
+    return { text, tokenMap };
+  }
+
+  function restoreCodeBlocks(text, tokenMap) {
+    if (!text || !tokenMap || tokenMap.size === 0) return text;
+    let restored = text;
+    for (const [token, original] of tokenMap.entries()) {
+      restored = restored.split(token).join(original);
+    }
+    if (/___KYANA_PROTECTED_CODE_\d+___/.test(restored)) {
+      for (const [token, original] of tokenMap.entries()) {
+        restored = restored.split(token).join(original);
+      }
+    }
+    return restored;
+  }
+
   function fallbackMarkdown(text) {
     const output = [];
     let fence = null;
@@ -43,13 +82,237 @@
       }
       const match = line.match(/^\s*(`{3,}|~{3,})([\w+-]*)[^\n]*$/);
       if (match) fence = { character: match[1][0], length: match[1].length, language: match[2] };
-      else output.push(escapeHtml(line) + '<br>');
+      else {
+        let escapedLine = escapeHtml(line);
+        escapedLine = escapedLine.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+        output.push(escapedLine + '<br>');
+      }
     }
     if (fence) finishCode();
     return output.join('');
   }
 
-  // SSE lines may span arbitrary network chunks, including the middle of CRLF.
+  function normalizeLatexDelimiters(text) {
+    if (!text) return '';
+    const { text: protectedText, tokenMap } = protectCodeBlocks(text);
+    const transformed = protectedText
+      .replace(/\\\[([\s\S]*?)\\\]/g, '$$$$$1$$$$')
+      .replace(/\\\(([\s\S]*?)\\\)/g, '$$$1$$');
+    return restoreCodeBlocks(transformed, tokenMap);
+  }
+
+  // Safety Assertion Guardian: Ensures placeholder tokens NEVER reach user-visible UI
+  function assertAndCleanPlaceholders(target) {
+    if (!target) return target;
+    const tokenPattern = /___(?:CHAT_TOK|KYANA_PROTECTED_CODE)_\d+___/g;
+
+    if (typeof target === 'string') {
+      if (tokenPattern.test(target)) {
+        console.warn('[Kyana Renderer Safety] Detected unprocessed placeholder token in output string. Cleaning...');
+        return target.replace(tokenPattern, '');
+      }
+      return target;
+    }
+
+    if (target && target.innerHTML && tokenPattern.test(target.innerHTML)) {
+      console.warn('[Kyana Renderer Safety] Detected unprocessed placeholder token in rendered DOM. Cleaning...');
+      target.innerHTML = target.innerHTML.replace(tokenPattern, '');
+    }
+    return target;
+  }
+
+  // High-Fidelity Syntax Highlighting Engine (Single-pass lexer, zero temporary placeholders, zero double-escaping)
+  function highlightChatCode(rawCode, lang) {
+    if (!rawCode) return '';
+    const l = (lang || '').toLowerCase();
+
+    // 1. If Prism is loaded and supports the language, use it safely
+    const prismLangMap = {
+      'c': 'c', 'cpp': 'cpp', 'c++': 'cpp',
+      'java': 'java', 'python': 'python', 'py': 'python',
+      'javascript': 'javascript', 'js': 'javascript',
+      'html': 'markup', 'markup': 'markup', 'xml': 'markup',
+      'css': 'css', 'json': 'json', 'sql': 'sql', 'bash': 'bash', 'sh': 'bash'
+    };
+    const pLang = prismLangMap[l] || l;
+    if (typeof Prism !== 'undefined' && Prism.languages && Prism.languages[pLang]) {
+      try {
+        const highlighted = Prism.highlight(rawCode, Prism.languages[pLang], pLang);
+        if (highlighted && typeof highlighted === 'string') {
+          return assertAndCleanPlaceholders(highlighted);
+        }
+      } catch (_) {}
+    }
+
+    // 2. High-fidelity sequential lexer
+    const isHtml = l === 'html' || l === 'xml' || l === 'markup';
+    const isPy = l === 'python' || l === 'py';
+    const isCpp = l === 'cpp' || l === 'c++';
+    const isC = l === 'c' || isCpp;
+
+    const keywords = new Set([
+      'public', 'private', 'protected', 'class', 'interface', 'static', 'void', 'int',
+      'float', 'double', 'char', 'boolean', 'bool', 'long', 'short', 'unsigned', 'signed',
+      'String', 'new', 'return', 'if', 'else', 'for', 'while', 'do', 'switch', 'case',
+      'break', 'continue', 'try', 'catch', 'finally', 'throw', 'throws', 'import', 'package',
+      'def', 'elif', 'from', 'as', 'with', 'lambda', 'yield', 'struct', 'typedef', 'const',
+      'virtual', 'override', 'namespace', 'using', 'auto', 'sizeof', 'final', 'abstract',
+      'let', 'var', 'function', 'async', 'await', 'select', 'where', 'insert',
+      'delete', 'update', 'into', 'values', 'set', 'null', 'undefined', 'true', 'false',
+      'True', 'False', 'None', 'self', 'this', 'super', 'template', 'typename', 'pass', 'raise'
+    ]);
+
+    const builtins = new Set([
+      'System', 'out', 'println', 'print', 'Scanner', 'cin', 'cout', 'endl', 'cerr',
+      'vector', 'string', 'map', 'set', 'list', 'pair', 'printf', 'scanf', 'NULL', 'nullptr',
+      'console', 'log', 'warn', 'error', 'document', 'window', 'Math', 'JSON', 'Promise',
+      'main', 'len', 'range', 'input'
+    ]);
+
+    let html = '';
+    let i = 0;
+    const len = rawCode.length;
+
+    while (i < len) {
+      // Line comments
+      if (rawCode.startsWith('//', i)) {
+        let end = rawCode.indexOf('\n', i);
+        if (end === -1) end = len;
+        html += `<span class="token comment">${escapeHtml(rawCode.slice(i, end))}</span>`;
+        i = end;
+        continue;
+      }
+
+      // Block comments
+      if (rawCode.startsWith('/*', i)) {
+        let end = rawCode.indexOf('*/', i);
+        if (end === -1) end = len;
+        else end += 2;
+        html += `<span class="token comment">${escapeHtml(rawCode.slice(i, end))}</span>`;
+        i = end;
+        continue;
+      }
+
+      // Hash comments (Python/Shell/Ruby - not C/C++ preprocessor)
+      if (rawCode[i] === '#' && (isPy || (!isC && !rawCode.slice(i).match(/^#(?:include|define|ifdef|ifndef|endif|pragma)\b/)))) {
+        let end = rawCode.indexOf('\n', i);
+        if (end === -1) end = len;
+        html += `<span class="token comment">${escapeHtml(rawCode.slice(i, end))}</span>`;
+        i = end;
+        continue;
+      }
+
+      // C/C++ Preprocessor Directives (#include <stdio.h>, #define, etc.)
+      if (rawCode[i] === '#' && (isC || !l)) {
+        const rest = rawCode.slice(i);
+        const match = rest.match(/^#(?:include|define|ifdef|ifndef|endif|pragma|undef|if|elif|else)\b[^\r\n]*/);
+        if (match) {
+          const fullDirective = match[0];
+          const dirParts = fullDirective.match(/^(#(?:include|define|ifdef|ifndef|endif|pragma|undef|if|elif|else)\b)(\s*)(<[^>]+>|"[^"]+")?(.*)$/);
+          if (dirParts) {
+            html += `<span class="token keyword directive">${escapeHtml(dirParts[1])}</span>`;
+            if (dirParts[2]) html += dirParts[2];
+            if (dirParts[3]) html += `<span class="token string">${escapeHtml(dirParts[3])}</span>`;
+            if (dirParts[4]) html += escapeHtml(dirParts[4]);
+          } else {
+            html += `<span class="token keyword directive">${escapeHtml(fullDirective)}</span>`;
+          }
+          i += match[0].length;
+          continue;
+        }
+      }
+
+      // Strings & Characters
+      if (rawCode[i] === '"' || rawCode[i] === "'" || rawCode[i] === '`') {
+        const quote = rawCode[i];
+        let j = i + 1;
+        let escaped = false;
+        while (j < len) {
+          if (escaped) {
+            escaped = false;
+          } else if (rawCode[j] === '\\') {
+            escaped = true;
+          } else if (rawCode[j] === quote) {
+            j++;
+            break;
+          } else if (rawCode[j] === '\n' && quote !== '`') {
+            break;
+          }
+          j++;
+        }
+        html += `<span class="token string">${escapeHtml(rawCode.slice(i, j))}</span>`;
+        i = j;
+        continue;
+      }
+
+      // HTML/XML Tags
+      if (isHtml && rawCode[i] === '<') {
+        const tagMatch = rawCode.slice(i).match(/^<\/?([a-zA-Z][\w:-]*)/);
+        if (tagMatch) {
+          html += `<span class="token punctuation">&lt;${tagMatch[0].startsWith('</') ? '/' : ''}</span><span class="token tag">${escapeHtml(tagMatch[1])}</span>`;
+          i += tagMatch[0].length;
+          continue;
+        }
+      }
+
+      // Numbers
+      const numMatch = rawCode.slice(i).match(/^(?:0x[0-9a-fA-F]+|\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?(?:[fFuUlL]+)?)\b/);
+      if (numMatch && (i === 0 || !/[a-zA-Z0-9_]/.test(rawCode[i - 1]))) {
+        html += `<span class="token number">${escapeHtml(numMatch[0])}</span>`;
+        i += numMatch[0].length;
+        continue;
+      }
+
+      // Identifiers / Keywords / Builtins / Function calls
+      const identMatch = rawCode.slice(i).match(/^[a-zA-Z_]\w*/);
+      if (identMatch) {
+        const word = identMatch[0];
+        const afterPos = i + word.length;
+        const isCall = /^\s*\(/.test(rawCode.slice(afterPos));
+
+        if (keywords.has(word)) {
+          html += `<span class="token keyword">${escapeHtml(word)}</span>`;
+        } else if (builtins.has(word)) {
+          html += `<span class="token class-name">${escapeHtml(word)}</span>`;
+        } else if (isCall) {
+          html += `<span class="token function">${escapeHtml(word)}</span>`;
+        } else {
+          html += escapeHtml(word);
+        }
+        i += word.length;
+        continue;
+      }
+
+      // Multi-character operators
+      const multiOpMatch = rawCode.slice(i).match(/^(?:&&|\|\||==|!=|<=|>=|<<|>>|\+=|-=|\*=|\/=|%=|->|\+\+|--|::|=>|\*\*)/);
+      if (multiOpMatch) {
+        html += `<span class="token operator">${escapeHtml(multiOpMatch[0])}</span>`;
+        i += multiOpMatch[0].length;
+        continue;
+      }
+
+      // Single-character operators
+      if (/[+\-*/%!=<>&|^~?]/.test(rawCode[i])) {
+        html += `<span class="token operator">${escapeHtml(rawCode[i])}</span>`;
+        i++;
+        continue;
+      }
+
+      // Punctuation
+      if (/[{}()\[\];,.]/.test(rawCode[i])) {
+        html += `<span class="token punctuation">${escapeHtml(rawCode[i])}</span>`;
+        i++;
+        continue;
+      }
+
+      // Whitespace or any other char
+      html += escapeHtml(rawCode[i]);
+      i++;
+    }
+
+    return html;
+  }
+
   function createEventStreamParser(onEvent) {
     let buffer = '';
     let eventName = 'message';
@@ -87,7 +350,6 @@
           line(value);
         }
         if (buffer.length > 1024 * 1024) throw new Error('This response is too large. Try a shorter question.');
-        // A partial last event is deliberately not dispatched: result is required.
       }
     };
   }
@@ -129,190 +391,150 @@
     }
   }
 
-  // Pure helpers are also exercised by Node tests, without booting a browser.
+  // Pure helpers export for Node unit test runners
   if (typeof module !== 'undefined' && module.exports && typeof window === 'undefined') {
-    module.exports = { createEventStreamParser, readChatResponse, escapeHtml, safeLink, fallbackMarkdown, normalizeLatexDelimiters };
+    module.exports = {
+      createEventStreamParser,
+      readChatResponse,
+      escapeHtml,
+      safeLink,
+      protectCodeBlocks,
+      restoreCodeBlocks,
+      fallbackMarkdown,
+      normalizeLatexDelimiters,
+      highlightChatCode,
+      assertAndCleanPlaceholders
+    };
     return;
   }
 
-  // Prevent multiple initializations
-  if (window.__SLA_CHATBOT_INITIALIZED__) return;
-  window.__SLA_CHATBOT_INITIALIZED__ = true;
+  // Prevent multiple initializations in browser
+  if (window.__KYANA_WORKSPACE_INITIALIZED__) return;
+  window.__KYANA_WORKSPACE_INITIALIZED__ = true;
 
-  // --- 1. Load External Dependencies (KaTeX, Marked, DOMPurify) ---
+  const isFullPage = document.body.classList.contains('sla-fullpage-mode') || window.location.pathname.includes('chatbot.html');
+  if (!isFullPage) return;
+
+  // --- 2. Dynamic CDN Asset Loading (Marked, DOMPurify, KaTeX, Prism) ---
   function loadScript(src) {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       if (document.querySelector(`script[src="${src}"]`)) return resolve();
       const s = document.createElement('script');
       s.src = src;
       s.crossOrigin = 'anonymous';
       s.onload = () => resolve();
-      s.onerror = (e) => reject(e);
+      s.onerror = () => resolve();
       document.head.appendChild(s);
     });
   }
 
-  function loadCSS(href) {
-    if (document.querySelector(`link[href="${href}"]`)) return;
-    const l = document.createElement('link');
-    l.rel = 'stylesheet';
-    l.href = href;
-    l.crossOrigin = 'anonymous';
-    document.head.appendChild(l);
-  }
-
-  loadCSS('https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css');
-
   Promise.all([
     loadScript('https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js'),
     loadScript('https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js'),
-    loadScript('https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js')
+    loadScript('https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js'),
+    loadScript('https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js')
   ]).then(() => {
-    return loadScript('https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js');
-  }).catch(err => {
-    console.warn('[AI Assistant] CDN notice:', err.message);
-  });
+    return Promise.all([
+      loadScript('https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js'),
+      loadScript('https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-c.min.js'),
+      loadScript('https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-cpp.min.js'),
+      loadScript('https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-java.min.js'),
+      loadScript('https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js'),
+      loadScript('https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-javascript.min.js'),
+      loadScript('https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-markup.min.js'),
+      loadScript('https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-css.min.js'),
+      loadScript('https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-json.min.js'),
+      loadScript('https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-sql.min.js'),
+      loadScript('https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-bash.min.js')
+    ]);
+  }).catch(() => {});
 
-  const isFullPage = document.body.classList.contains('sla-fullpage-mode') || window.location.pathname.includes('chatbot.html');
+  // --- 3. Component Architecture Definitions ---
 
-  // If not on the dedicated chatbot page, do not inject floating bot icon
-  if (!isFullPage) {
-    return;
-  }
+  // KyanaCodeBlock Component
+  const KyanaCodeBlock = {
+    enhance(container) {
+      container.querySelectorAll('pre code').forEach((codeBlock) => {
+        const pre = codeBlock.parentElement;
+        if (pre.parentElement.classList.contains('kyana-code-block')) return;
 
-  // --- 2. DOM Elements Binding (Full-Screen Assistant) ---
-  let messagesContainer = document.getElementById('slaMessages');
-  let chatInput = document.getElementById('slaInput');
-  let sendBtn = document.getElementById('slaSendBtn');
-  let chatForm = document.getElementById('slaForm');
-  let clearBtn = document.getElementById('slaClearBtn');
-  let newChatBtn = document.getElementById('slaNewChatBtn');
-  let suggestionsTray = document.getElementById('slaSuggestions');
-  let welcomeHero = document.getElementById('slaWelcomeHero');
-  let closeBtn = null;
-  let fab = null;
-  let panel = null;
+        const rawCode = codeBlock.textContent || '';
+        const langMatch = codeBlock.className.match(/language-(\w+)/);
+        const langName = langMatch ? langMatch[1] : 'Code';
+        const langKey = langName.toLowerCase();
+        const compilerSupported = /^(java|c|cpp|c\+\+|html|css|javascript|js|python|py|sql)$/.test(langKey);
 
-  let isOpen = true;
-  let isSending = false;
-  let activeRequest = null;
-  const conversationHistory = [];
+        codeBlock.dataset.rawCode = rawCode;
+        codeBlock.innerHTML = highlightChatCode(rawCode, langKey);
+        assertAndCleanPlaceholders(codeBlock);
 
-  // --- 2.5 Starfield Generator (Gentle, Low-Density Stars in Upper Sky) ---
-  function initStarfield() {
-    const starfield = document.getElementById('slaStarfield');
-    if (!starfield) return;
+        const wrap = document.createElement('div');
+        wrap.className = 'kyana-code-block';
 
-    starfield.innerHTML = '';
-    // Subtle, gentle quantity (30 - 40 stars)
-    const starCount = Math.min(Math.floor((window.innerWidth * window.innerHeight) / 24000), 40);
-    const fragment = document.createDocumentFragment();
+        const header = document.createElement('div');
+        header.className = 'kyana-code-header';
+        header.innerHTML = `
+          <span class="kyana-code-lang">${escapeHtml(langName)}</span>
+          <div class="kyana-code-actions">
+            <button type="button" class="kyana-code-btn kyana-copy-code-btn">
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              </svg>
+              <span>Copy</span>
+            </button>
+            ${compilerSupported ? `
+            <button type="button" class="kyana-code-btn kyana-run-compiler-btn" title="Open in Semester Library Code Lab">
+              <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor">
+                <polygon points="6,3 20,12 6,21"/>
+              </svg>
+              <span>Run in Compiler</span>
+            </button>` : ''}
+          </div>
+        `;
 
-    for (let i = 0; i < starCount; i++) {
-      const star = document.createElement('div');
-      star.className = 'sla-star';
+        const copyBtn = header.querySelector('.kyana-copy-code-btn');
+        copyBtn.addEventListener('click', () => {
+          const codeToCopy = codeBlock.dataset.rawCode || codeBlock.innerText;
+          navigator.clipboard.writeText(codeToCopy).then(() => {
+            copyBtn.innerHTML = `<span>✓ Copied!</span>`;
+            setTimeout(() => {
+              copyBtn.innerHTML = `
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+                <span>Copy</span>
+              `;
+            }, 2000);
+          });
+        });
 
-      const size = Math.random() < 0.8 ? (Math.random() * 1.2 + 1.0) : (Math.random() * 1.5 + 2.0); // 1.0px - 3.5px
-      const posX = (Math.random() * 96 + 2).toFixed(2); // 2% to 98%
-      // Upper & mid sky only (top 65%), keeping bottom area clear
-      const posY = (Math.pow(Math.random(), 1.25) * 65 + 3).toFixed(2);
-      const duration = (Math.random() * 3 + 3.0).toFixed(2); // 3.0s - 6.0s
-      const delay = (Math.random() * 4).toFixed(2);
-      const opacity = (Math.random() * 0.45 + 0.3).toFixed(2); // 0.3 - 0.75
+        const runBtn = header.querySelector('.kyana-run-compiler-btn');
+        if (runBtn) {
+          runBtn.addEventListener('click', () => {
+            try {
+              sessionStorage.setItem('pendingCompilerCode', JSON.stringify({
+                code: codeBlock.dataset.rawCode || codeBlock.innerText,
+                lang: langKey
+              }));
+              window.location.href = 'compiler.html';
+            } catch (_) {}
+          });
+        }
 
-      star.style.width = `${size.toFixed(1)}px`;
-      star.style.height = `${size.toFixed(1)}px`;
-      star.style.left = `${posX}%`;
-      star.style.top = `${posY}%`;
-      star.style.setProperty('--twinkle-duration', `${duration}s`);
-      star.style.setProperty('--twinkle-delay', `${delay}s`);
-      star.style.setProperty('--star-base-opacity', opacity);
-
-      fragment.appendChild(star);
+        pre.className = 'kyana-code-pre';
+        pre.parentNode.insertBefore(wrap, pre);
+        wrap.appendChild(header);
+        wrap.appendChild(pre);
+      });
     }
+  };
 
-    starfield.appendChild(fragment);
-  }
-
-  initStarfield();
-  window.addEventListener('resize', () => {
-    clearTimeout(window.__starResizeTimer);
-    window.__starResizeTimer = setTimeout(initStarfield, 250);
-  });
-
-  // --- 3. Auto-resizing Multiline Textarea ---
-  function adjustTextareaHeight() {
-    if (!chatInput) return;
-    chatInput.style.height = 'auto';
-    const newHeight = Math.min(chatInput.scrollHeight, 160);
-    chatInput.style.height = `${Math.max(newHeight, 24)}px`;
-  }
-
-  if (chatInput) {
-    chatInput.addEventListener('input', adjustTextareaHeight);
-    chatInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        handleSend();
-      }
-    });
-  }
-
-  // --- 4. LaTeX & Markdown Parser ---
-  function normalizeLatexDelimiters(text) {
-    if (!text) return '';
-    // Never rewrite escapes inside generated code (including an unfinished fence).
-    return String(text).replace(
-      /(^|\n)(`{3,}|~{3,})[^\n]*\n[\s\S]*?(?:\n\2[ \t]*(?=\n|$)|$)|(`+)[\s\S]*?\3|\\\[([\s\S]*?)\\\]|\\\(([\s\S]*?)\\\)/g,
-      (match, prefix, fence, ticks, displayMath, inlineMath) => {
-        if (displayMath !== undefined) return '$$' + displayMath + '$$';
-        if (inlineMath !== undefined) return '$' + inlineMath + '$';
-        return match;
-      }
-    );
-  }
-
-  function highlightChatCode(rawCode, lang) {
-    if (!rawCode) return '';
-    const l = (lang || '').toLowerCase();
-    const prismLangMap = {
-      'c': 'c', 'cpp': 'cpp', 'c++': 'cpp',
-      'java': 'java', 'python': 'python', 'py': 'python',
-      'javascript': 'javascript', 'js': 'javascript',
-      'html': 'markup', 'css': 'css', 'json': 'json', 'sql': 'sql'
-    };
-    const pLang = prismLangMap[l] || l;
-    if (typeof Prism !== 'undefined' && Prism.languages && Prism.languages[pLang]) {
-      try {
-        return Prism.highlight(rawCode, Prism.languages[pLang], pLang);
-      } catch (e) {}
-    }
-    let code = escapeHtml(rawCode);
-    const tokens = [];
-    const pushToken = (content, cls) => {
-      const id = `___CHAT_TOK_${tokens.length}___`;
-      tokens.push(`<span class="token ${cls}">${content}</span>`);
-      return id;
-    };
-    code = code.replace(/(&quot;[\s\S]*?&quot;|&#39;[\s\S]*?&#39;|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`[\s\S]*?`)/g, m => pushToken(m, 'string'));
-    code = code.replace(/(\/\/.*|\/\*[\s\S]*?\*\/|#.*)/g, m => pushToken(m, 'comment'));
-    code = code.replace(/(#(?:include|define|ifdef|ifndef|endif|pragma)\b[^\n]*)/g, m => pushToken(m, 'keyword'));
-    const keywords = /\b(public|private|protected|class|interface|static|void|int|float|double|char|boolean|bool|long|short|unsigned|signed|String|new|return|if|else|for|while|do|switch|case|break|continue|try|catch|finally|throw|throws|import|package|def|elif|from|as|with|lambda|yield|struct|typedef|const|virtual|override|namespace|using|auto|sizeof|final|abstract|let|var|const|function|async|await|select|from|where|insert|delete|update)\b/gi;
-    code = code.replace(keywords, m => pushToken(m, 'keyword'));
-    code = code.replace(/\b(\d+(?:\.\d+)?(?:f|d|u|l|ul|ll)?)\b/gi, m => pushToken(m, 'number'));
-    const types = /\b(System|out|println|print|Scanner|cin|cout|endl|vector|string|printf|scanf|NULL|nullptr|True|False|None|true|false|null|this|super|self|console|log|document|window)\b/g;
-    code = code.replace(types, m => pushToken(m, 'class-name'));
-    code = code.replace(/\b([a-zA-Z_]\w*)(?=\s*\()/g, m => pushToken(m, 'function'));
-    code = code.replace(/(&amp;&amp;|\|\||==|!=|&lt;=|&gt;=|&lt;&lt;|&gt;&gt;|\+=|-=|\*=|\/=|%=|-&gt;|\+\+|--|[+\-*\/%!=&lt;&gt;=&amp;|^~])/g, m => pushToken(m, 'operator'));
-    tokens.forEach((t, i) => {
-      code = code.replace(`___CHAT_TOK_${i}___`, t);
-    });
-    return code;
-  }
-
+  // Markdown Formatter with KaTeX
   function renderFormattedContent(element, rawMarkdown, streaming = false) {
+    if (!element) return;
     const normalized = normalizeLatexDelimiters(rawMarkdown);
-
     if (window.marked && typeof window.marked.parse === 'function' &&
         window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') {
       element.innerHTML = window.DOMPurify.sanitize(window.marked.parse(normalized), {
@@ -320,85 +542,19 @@
         FORBID_TAGS: ['style', 'iframe', 'form', 'input', 'button'],
         FORBID_ATTR: ['style']
       });
-    } else if (window.markdownit) {
-      const md = window.markdownit({
-        html: false,
-        linkify: true,
-        typographer: false,
-        breaks: true
-      });
-      element.innerHTML = md.render(normalized);
     } else {
       element.innerHTML = fallbackMarkdown(normalized);
     }
 
+    assertAndCleanPlaceholders(element);
+
     element.querySelectorAll('a[target="_blank"]').forEach(link => { link.rel = 'noopener noreferrer'; });
+
     if (streaming) return;
 
-    // Enhance Code Blocks with Syntax Highlighting, Headers and Copy Buttons
-    element.querySelectorAll('pre code').forEach((codeBlock) => {
-      const pre = codeBlock.parentElement;
-      if (pre.parentElement.classList.contains('sla-code-block-wrap')) return;
+    KyanaCodeBlock.enhance(element);
+    assertAndCleanPlaceholders(element);
 
-      const rawCode = codeBlock.textContent || '';
-      const langMatch = codeBlock.className.match(/language-(\w+)/);
-      const langName = langMatch ? langMatch[1] : 'Code';
-      const langKey = langName.toLowerCase();
-      const compilerSupported = /^(java|c|html|css|javascript|js)$/.test(langKey);
-
-      codeBlock.innerHTML = highlightChatCode(rawCode, langKey);
-
-      const wrap = document.createElement('div');
-      wrap.className = 'sla-code-block-wrap';
-
-      const header = document.createElement('div');
-      header.className = 'sla-code-header';
-
-      header.innerHTML = `
-        <span>${langName}</span>
-        <div class="sla-code-header-actions">
-          <button type="button" class="sla-copy-code-btn">
-            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-            <span>Copy</span>
-          </button>
-          ${compilerSupported ? `
-          <button type="button" class="sla-run-compiler-btn">
-            <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><polygon points="6,3 20,12 6,21"/></svg>
-            <span>Run in Compiler</span>
-          </button>` : ''}
-        </div>
-      `;
-
-      const copyBtn = header.querySelector('.sla-copy-code-btn');
-      copyBtn.addEventListener('click', () => {
-        navigator.clipboard.writeText(codeBlock.innerText).then(() => {
-          copyBtn.innerHTML = `<span>✓ Copied!</span>`;
-          setTimeout(() => {
-            copyBtn.innerHTML = `
-              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-              <span>Copy</span>
-            `;
-          }, 2000);
-        });
-      });
-
-      const runBtn = header.querySelector('.sla-run-compiler-btn');
-      if (runBtn) {
-        runBtn.addEventListener('click', () => {
-          sessionStorage.setItem('pendingCompilerCode', JSON.stringify({
-            code: codeBlock.innerText,
-            lang: langKey
-          }));
-          window.location.href = 'compiler.html';
-        });
-      }
-
-      pre.parentNode.insertBefore(wrap, pre);
-      wrap.appendChild(header);
-      wrap.appendChild(pre);
-    });
-
-    // Render KaTeX Math Expressions
     if (window.renderMathInElement) {
       try {
         window.renderMathInElement(element, {
@@ -410,558 +566,1152 @@
           ],
           throwOnError: false
         });
-      } catch (kErr) {
-        console.warn('[AI KaTeX error]:', kErr);
-      }
-    }
-  }
-
-  function scrollToBottom() {
-    if (messagesContainer) {
-      messagesContainer.scrollTop = messagesContainer.scrollHeight;
-    }
-  }
-
-  // --- 5. Message Append Functions ---
-  function appendUserMessage(text) {
-    if (welcomeHero) welcomeHero.style.display = 'none';
-
-    const row = document.createElement('div');
-    row.className = 'sla-msg-row sla-user';
-    const bubble = document.createElement('div');
-    bubble.className = 'sla-msg-bubble';
-    bubble.textContent = text;
-    row.appendChild(bubble);
-    messagesContainer.appendChild(row);
-    scrollToBottom();
-  }
-
-  function createAssistantRow() {
-    if (welcomeHero) welcomeHero.style.display = 'none';
-    const row = document.createElement('div');
-    row.className = 'sla-msg-row sla-ai';
-    const avatar = document.createElement('div');
-    avatar.className = 'sla-msg-avatar';
-    avatar.innerHTML = `
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-        <path d="M12 2L14.8 8.2L21 11L14.8 13.8L12 20L9.2 13.8L3 11L9.2 8.2L12 2Z"/>
-      </svg>
-    `;
-    row.appendChild(avatar);
-
-    const bubble = document.createElement('div');
-    bubble.className = 'sla-msg-bubble';
-    row.appendChild(bubble);
-    messagesContainer.appendChild(row);
-    return row;
-  }
-
-  function appendAIMessage(data, existingRow) {
-    const row = existingRow || createAssistantRow();
-    const bubble = row.querySelector('.sla-msg-bubble');
-    bubble.innerHTML = '';
-    const webSources = Array.isArray(data.webSources)
-      ? data.webSources.filter(source => source && safeLink(source.url, true)) : [];
-
-    // Show provenance only when the server actually supplied sources.
-    if (webSources.length) {
-      const webBadge = document.createElement('div');
-      webBadge.className = 'sla-web-search-badge';
-      webBadge.innerHTML = `
-        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
-        <span>Web search</span>
-      `;
-      bubble.appendChild(webBadge);
+      } catch (_) {}
     }
 
-    // Prose Text Response
-    const textContent = document.createElement('div');
-    textContent.className = 'sla-msg-text';
-    renderFormattedContent(textContent, data.reply || '');
-    bubble.appendChild(textContent);
+    assertAndCleanPlaceholders(element);
+  }
 
-    // Web Search Citations & Verification Links (if grounded search returned citations)
-    if (webSources.length > 0) {
-      const sourcesWrap = document.createElement('div');
-      sourcesWrap.className = 'sla-web-sources-section';
-      sourcesWrap.innerHTML = `
-        <div class="sla-web-sources-header">
-          <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
-          <span>Web Sources & Citations</span>
+  // KyanaSourceCard Component (Strict Monochrome, No Gradients)
+  const KyanaSourceCard = {
+    renderSources(container, data) {
+      const files = Array.isArray(data.matchedFiles) ? data.matchedFiles : [];
+      const courses = Array.isArray(data.matchedCourses) ? data.matchedCourses : [];
+      const routines = Array.isArray(data.matchedRoutine) ? data.matchedRoutine : [];
+      const webSources = Array.isArray(data.webSources) ? data.webSources.filter(s => s && safeLink(s.url, true)) : [];
+
+      if (!files.length && !courses.length && !routines.length && !webSources.length) return;
+
+      const wrap = document.createElement('div');
+      wrap.className = 'kyana-sources-wrap';
+      wrap.innerHTML = `
+        <div class="kyana-sources-heading">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+          </svg>
+          <span>Sources & References</span>
         </div>
-        <div class="sla-web-sources-list"></div>
+        <div class="kyana-sources-list"></div>
       `;
-      const listEl = sourcesWrap.querySelector('.sla-web-sources-list');
-      webSources.forEach(src => {
-        const a = document.createElement('a');
-        a.className = 'sla-web-source-pill';
-        a.href = src.url;
-        a.target = '_blank';
-        a.rel = 'noopener noreferrer';
-        a.innerHTML = `
-          <span class="sla-web-source-title">${escapeHtml(src.title || src.domain || 'Source')}</span>
-          <span class="sla-web-source-domain">${escapeHtml(src.domain || '')}</span>
-          <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
-        `;
-        listEl.appendChild(a);
-      });
-      bubble.appendChild(sourcesWrap);
-    }
+      const list = wrap.querySelector('.kyana-sources-list');
 
-    // --- STRUCTURED CARDS SECTION ---
-
-    // 1. Matched File Cards (Exact Library Style with View & Get Buttons)
-    if (data.matchedFiles && data.matchedFiles.length > 0) {
-      const sec = document.createElement('div');
-      sec.className = 'sla-structured-section sla-files-section';
-      sec.innerHTML = `
-        <div class="sla-section-header">
-          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-          <span>Library Files (${data.matchedFiles.length})</span>
-        </div>
-      `;
-
-      const list = document.createElement('div');
-      list.className = 'sla-files-clean-list';
-
-      function getFileBadge(filename) {
-        if (!filename) return 'DOC';
-        const ext = (filename.split('.').pop() || '').toLowerCase();
-        if (['pdf'].includes(ext)) return 'PDF';
-        if (['ppt', 'pptx'].includes(ext)) return 'PPT';
-        if (['doc', 'docx', 'txt', 'rtf'].includes(ext)) return 'DOC';
-        if (['png', 'jpg', 'jpeg', 'webp', 'svg'].includes(ext)) return 'IMG';
-        if (['zip', 'rar', '7z'].includes(ext)) return 'ZIP';
-        return 'DOC';
-      }
-
-      data.matchedFiles.forEach(f => {
-        const item = document.createElement('div');
-        item.className = 'clean-file-item sla-clean-file-item';
-        const badge = getFileBadge(f.originalName || f.title);
-        const fileName = f.title || f.originalName || 'Study Note';
-        const metaText = `${f.subject || 'Library'}${f.chapter ? ' · ' + f.chapter : ''}${f.semester ? ' · ' + f.semester : ''}`;
-
-        item.innerHTML = `
-          <div class="clean-file-left">
-            <div class="clean-file-icon ${badge.toLowerCase()}">${badge}</div>
-            <div style="min-width:0;">
-              <p class="clean-file-title" title="${escapeHtml(fileName)}">${escapeHtml(fileName)}</p>
-              <p class="clean-file-meta">${escapeHtml(metaText)}</p>
+      // 1. Files
+      files.forEach(f => {
+        const card = document.createElement('a');
+        card.className = 'kyana-source-card';
+        card.href = `/api/files/${encodeURIComponent(f.id)}/view`;
+        card.target = '_blank';
+        card.rel = 'noopener noreferrer';
+        const ext = ((f.originalName || f.title || '').split('.').pop() || 'doc').toUpperCase().slice(0, 4);
+        const meta = [f.subject || 'Study Notes', f.chapter ? `Ch. ${f.chapter}` : '', f.semester ? `Sem ${f.semester}` : ''].filter(Boolean).join(' · ');
+        card.innerHTML = `
+          <div class="kyana-source-left">
+            <div class="kyana-source-icon">${escapeHtml(ext)}</div>
+            <div class="kyana-source-info">
+              <span class="kyana-source-title">${escapeHtml(f.title || f.originalName || 'Study Material')}</span>
+              <span class="kyana-source-meta">${escapeHtml(meta)}</span>
             </div>
           </div>
-          <div class="clean-file-actions">
-            <a href="/api/files/${encodeURIComponent(f.id)}/view" target="_blank" rel="noopener noreferrer" class="btn-file-action btn-file-view">View</a>
-            <a href="/api/files/${encodeURIComponent(f.id)}/download" download="${escapeHtml(f.originalName || 'file')}" target="_blank" rel="noopener noreferrer" class="btn-file-action btn-file-get">Get</a>
-          </div>
-        `;
-        list.appendChild(item);
-      });
-      sec.appendChild(list);
-      bubble.appendChild(sec);
-    }
-
-    // 2. Matched Syllabus Course Cards (Curriculum Layout)
-    if (data.matchedCourses && data.matchedCourses.length > 0) {
-      const sec = document.createElement('div');
-      sec.className = 'sla-structured-section sla-syllabus-section';
-      sec.innerHTML = `
-        <div class="sla-section-header">
-          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
-          <span>Curriculum & Syllabus (${data.matchedCourses.length})</span>
-        </div>
-      `;
-
-      const list = document.createElement('div');
-      list.className = 'sla-syllabus-cards-list';
-
-      data.matchedCourses.forEach(c => {
-        const card = document.createElement('div');
-        card.className = 'sla-syllabus-card';
-        const year = c.year || 'Year 1';
-        const courseKey = c.code ? `${c.code}-${c.title}` : c.title;
-        const syllabusLink = `syllabus.html#${encodeURIComponent(year)}/${encodeURIComponent(c.semester)}/${encodeURIComponent(courseKey)}`;
-
-        card.innerHTML = `
-          <div class="sla-syllabus-card-header">
-            <span class="sla-syllabus-code">${escapeHtml(c.code || 'COURSE')}</span>
-            <span class="sla-syllabus-sem">Semester ${escapeHtml(c.semester)}</span>
-            <span class="sla-syllabus-credits">${escapeHtml(c.credit)} Credits</span>
-          </div>
-          <div class="sla-syllabus-card-body">
-            <h4 class="sla-syllabus-title">${escapeHtml(c.title)}</h4>
-            <p class="sla-syllabus-nature">${escapeHtml(c.nature || 'Core Curriculum')}</p>
-          </div>
-          <div class="sla-syllabus-card-footer">
-            <a href="${syllabusLink}" class="sla-syllabus-link">
-              <span>View Full Syllabus Outline</span>
-              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-            </a>
-          </div>
+          <span class="kyana-source-arrow" aria-hidden="true">&rarr;</span>
         `;
         list.appendChild(card);
       });
-      sec.appendChild(list);
-      bubble.appendChild(sec);
-    }
 
-    // 3. Matched Pre-Board Exam Routine Cards (Timetable Date Block Layout)
-    if (data.matchedRoutine && data.matchedRoutine.length > 0) {
-      const sec = document.createElement('div');
-      sec.className = 'sla-structured-section sla-routine-section';
-      sec.innerHTML = `
-        <div class="sla-section-header">
-          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-          <span>Examination Timetable (${data.matchedRoutine.length})</span>
-        </div>
-      `;
-
-      const list = document.createElement('div');
-      list.className = 'sla-routine-exams-list';
-
-      data.matchedRoutine.forEach(r => {
-        const item = document.createElement('div');
-        item.className = 'sla-routine-exam-row';
-        const dateStr = r.date || '';
-        let day = '??';
-        let monthYear = '?? / ????';
-        if (dateStr) {
-          const parts = dateStr.split('/');
-          const dashParts = dateStr.split('-');
-          if (parts.length === 3) {
-            day = parts[2];
-            monthYear = `${parts[1]} / ${parts[0]}`;
-          } else if (dashParts.length === 3) {
-            day = dashParts[2];
-            monthYear = `${dashParts[1]} / ${dashParts[0]}`;
-          } else {
-            day = dateStr;
-            monthYear = '';
-          }
-        }
-
-        const subjectCode = r.subject_code || '';
-        const examMeta = [r.type || 'Examination', r.time, r.day, r.room ? `Room ${r.room}` : ''].filter(Boolean).join(' · ');
-        const routineUrl = `routine.html?semester=${encodeURIComponent(r.semester)}`;
-
-        item.innerHTML = `
-          <div class="sla-routine-date-box">
-            <span class="sla-routine-day">${escapeHtml(day)}</span>
-            <span class="sla-routine-month">${escapeHtml(monthYear)} ${escapeHtml(r.calendar || 'Calendar unconfirmed')}</span>
-          </div>
-          <div class="sla-routine-info">
-            <div class="sla-routine-tags">
-              <span class="sla-routine-sem-tag">Semester ${escapeHtml(r.semester)}</span>
-              ${subjectCode ? `<span class="sla-routine-code-tag">${escapeHtml(subjectCode)}</span>` : ''}
+      // 2. Syllabus
+      courses.forEach(c => {
+        const card = document.createElement('a');
+        card.className = 'kyana-source-card';
+        const courseKey = c.code ? `${c.code}-${c.title}` : c.title;
+        card.href = `syllabus.html#${encodeURIComponent(c.year || 'Year 1')}/${encodeURIComponent(c.semester)}/${encodeURIComponent(courseKey)}`;
+        const meta = [`Semester ${c.semester}`, `${c.credit} Credits`, c.nature || 'Curriculum'].filter(Boolean).join(' · ');
+        card.innerHTML = `
+          <div class="kyana-source-left">
+            <div class="kyana-source-icon">SYL</div>
+            <div class="kyana-source-info">
+              <span class="kyana-source-title">${escapeHtml(c.title)}</span>
+              <span class="kyana-source-meta">${escapeHtml(meta)}</span>
             </div>
-            <h4 class="sla-routine-title">${escapeHtml(r.subject)}</h4>
-            <p class="sla-routine-time-sub">${escapeHtml(examMeta)}</p>
           </div>
-          <a href="${routineUrl}" class="sla-routine-open-btn" title="Open Routine Page">
-            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-          </a>
+          <span class="kyana-source-arrow" aria-hidden="true">&rarr;</span>
         `;
-        list.appendChild(item);
+        list.appendChild(card);
       });
-      sec.appendChild(list);
-      bubble.appendChild(sec);
-    }
 
-    // Action Navigation Buttons
-    if (data.actions && data.actions.length > 0) {
-      const actionsRow = document.createElement('div');
-      actionsRow.className = 'sla-actions-row';
-      data.actions.forEach(act => {
-        if (!act || !safeLink(act.url)) return;
-        const btn = document.createElement('a');
-        btn.className = 'sla-action-pill';
-        btn.href = act.url;
-        btn.innerHTML = `<span>${escapeHtml(act.label)}</span> &rarr;`;
-        actionsRow.appendChild(btn);
+      // 3. Routine
+      routines.forEach(r => {
+        const card = document.createElement('a');
+        card.className = 'kyana-source-card';
+        card.href = `routine.html?semester=${encodeURIComponent(r.semester)}`;
+        const meta = [`Semester ${r.semester}`, r.date, r.time, r.room ? `Room ${r.room}` : ''].filter(Boolean).join(' · ');
+        card.innerHTML = `
+          <div class="kyana-source-left">
+            <div class="kyana-source-icon">EXAM</div>
+            <div class="kyana-source-info">
+              <span class="kyana-source-title">${escapeHtml(r.subject)}</span>
+              <span class="kyana-source-meta">${escapeHtml(meta)}</span>
+            </div>
+          </div>
+          <span class="kyana-source-arrow" aria-hidden="true">&rarr;</span>
+        `;
+        list.appendChild(card);
       });
-      bubble.appendChild(actionsRow);
+
+      // 4. Web Sources
+      webSources.forEach(s => {
+        const card = document.createElement('a');
+        card.className = 'kyana-source-card';
+        card.href = s.url;
+        card.target = '_blank';
+        card.rel = 'noopener noreferrer';
+        card.innerHTML = `
+          <div class="kyana-source-left">
+            <div class="kyana-source-icon">WEB</div>
+            <div class="kyana-source-info">
+              <span class="kyana-source-title">${escapeHtml(s.title || s.domain || 'Web Source')}</span>
+              <span class="kyana-source-meta">${escapeHtml(s.domain || 'External citation')}</span>
+            </div>
+          </div>
+          <span class="kyana-source-arrow" aria-hidden="true">&rarr;</span>
+        `;
+        list.appendChild(card);
+      });
+
+      container.appendChild(wrap);
     }
+  };
 
-    // Message Actions Bar (Copy Text Tool)
-    const actionsBar = document.createElement('div');
-    actionsBar.className = 'sla-msg-actions-bar';
+  // KyanaResponseActions Component with Subtle Single-Pass Completion Shimmer
+  const KyanaResponseActions = {
+    render(container, textToCopy, onRegenerate, isFreshComplete = false) {
+      const actions = document.createElement('div');
+      actions.className = 'kyana-response-actions' + (isFreshComplete ? ' kyana-completion-pulse' : '');
+      actions.innerHTML = `
+        <button type="button" class="kyana-action-btn kyana-copy-btn" title="Copy response">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+          </svg>
+          <span>Copy</span>
+        </button>
+        <button type="button" class="kyana-action-btn kyana-helpful-btn" title="Good response">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>
+          </svg>
+        </button>
+        <button type="button" class="kyana-action-btn kyana-unhelpful-btn" title="Bad response">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-3"/>
+          </svg>
+        </button>
+        ${onRegenerate ? `
+        <button type="button" class="kyana-action-btn kyana-regen-btn" title="Regenerate response">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+          </svg>
+          <span>Regenerate</span>
+        </button>` : ''}
+      `;
 
-    let badgeHtml = '';
-    if (webSources.length) {
-      badgeHtml = `
-        <div class="sla-citation-badge sla-badge-web">
-          <span>Web Sources</span>
+      const copyBtn = actions.querySelector('.kyana-copy-btn');
+      copyBtn.addEventListener('click', () => {
+        navigator.clipboard.writeText(textToCopy).then(() => {
+          copyBtn.innerHTML = `<span>✓ Copied!</span>`;
+          setTimeout(() => {
+            copyBtn.innerHTML = `
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              </svg>
+              <span>Copy</span>
+            `;
+          }, 2000);
+        });
+      });
+
+      const helpfulBtn = actions.querySelector('.kyana-helpful-btn');
+      helpfulBtn.addEventListener('click', () => {
+        helpfulBtn.classList.toggle('active');
+        actions.querySelector('.kyana-unhelpful-btn').classList.remove('active');
+      });
+
+      const unhelpfulBtn = actions.querySelector('.kyana-unhelpful-btn');
+      unhelpfulBtn.addEventListener('click', () => {
+        unhelpfulBtn.classList.toggle('active');
+        actions.querySelector('.kyana-helpful-btn').classList.remove('active');
+      });
+
+      const regenBtn = actions.querySelector('.kyana-regen-btn');
+      if (regenBtn && onRegenerate) {
+        regenBtn.addEventListener('click', onRegenerate);
+      }
+
+      container.appendChild(actions);
+    }
+  };
+
+  // KyanaUserMessage Component (Strict Monochrome Dark Gray Bubble)
+  const KyanaUserMessage = {
+    create(text) {
+      const row = document.createElement('div');
+      row.className = 'kyana-user-row';
+      const bubble = document.createElement('div');
+      bubble.className = 'kyana-user-bubble';
+      bubble.textContent = text;
+      row.appendChild(bubble);
+      return row;
+    }
+  };
+
+  // KyanaResponse Component (Clean Typography — No Redundant Header)
+  const KyanaResponse = {
+    create() {
+      const row = document.createElement('div');
+      row.className = 'kyana-response-row';
+      row.innerHTML = `<div class="kyana-response-doc"></div>`;
+      return row;
+    }
+  };
+
+  // KyanaLogo Component (Official Monochrome Glass-Ribbon Identity)
+  const KyanaLogo = {
+    render({ size = 28, animated = false, thinking = false, className = '', alt = 'Kyana AI' } = {}) {
+      let src = '/images/kyana-mono-header.png';
+      if (size >= 64) {
+        src = '/images/kyana-mono-hero.png';
+      } else if (thinking || size <= 28) {
+        src = '/images/kyana-mono-thinking.png';
+      }
+
+      const classes = [
+        'kyana-logo-comp',
+        thinking ? 'kyana-logo-thinking' : '',
+        animated ? 'kyana-logo-animated' : '',
+        className
+      ].filter(Boolean).join(' ');
+
+      return `
+        <span class="${classes}" style="width: ${size}px; height: ${size}px;" role="img" aria-label="${escapeHtml(alt)}">
+          <span class="kyana-logo-aura" aria-hidden="true"></span>
+          <span class="kyana-logo-glass-frame">
+            <img class="kyana-logo-img" src="${src}" alt="${escapeHtml(alt)}" width="${size}" height="${size}" />
+            <span class="kyana-logo-highlight-sweep" aria-hidden="true"></span>
+          </span>
+        </span>
+      `.trim();
+    },
+
+    create({ size = 28, animated = false, thinking = false, className = '', alt = 'Kyana AI' } = {}) {
+      const container = document.createElement('div');
+      container.innerHTML = this.render({ size, animated, thinking, className, alt });
+      return container.firstElementChild;
+    }
+  };
+
+  // KyanaThinking Component (Monochrome Living Glass Logo + Minimal Status Text)
+  const KyanaThinking = {
+    create() {
+      const wrap = document.createElement('div');
+      wrap.className = 'kyana-thinking-wrap';
+      wrap.id = 'kyanaThinkingIndicator';
+      wrap.innerHTML = `
+        <div class="kyana-thinking-mark-slot">
+          ${KyanaLogo.render({ size: 24, thinking: true, alt: 'Kyana thinking' })}
+        </div>
+        <div class="kyana-thinking-status">
+          <span>Kyana is thinking</span>
         </div>
       `;
-    } else if ((data.matchedFiles && data.matchedFiles.length) ||
-               (data.matchedCourses && data.matchedCourses.length) ||
-               (data.matchedRoutine && data.matchedRoutine.length)) {
-      badgeHtml = `
-        <div class="sla-citation-badge">
-          <span>Library Sources</span>
-        </div>
-      `;
+      return wrap;
     }
+  };
 
-    actionsBar.innerHTML = `
-      <button type="button" class="sla-msg-tool-action sla-copy-msg-btn">
-        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-        <span>Copy</span>
-      </button>
-      ${badgeHtml}
-    `;
+  // KyanaErrorState Component
+  const KyanaErrorState = {
+    create(message, onRetry) {
+      const card = document.createElement('div');
+      card.className = 'kyana-error-card';
+      card.innerHTML = `
+        <span>${escapeHtml(message || "Kyana couldn't complete that response.")}</span>
+        ${onRetry ? `<button type="button" class="kyana-retry-btn">Try again</button>` : ''}
+      `;
+      if (onRetry) {
+        card.querySelector('.kyana-retry-btn').addEventListener('click', onRetry);
+      }
+      return card;
+    }
+  };
 
-    const copyBtn = actionsBar.querySelector('.sla-copy-msg-btn');
-    copyBtn.addEventListener('click', () => {
-      navigator.clipboard.writeText(data.reply || '').then(() => {
-        copyBtn.innerHTML = `<span>✓ Copied!</span>`;
-        setTimeout(() => {
-          copyBtn.innerHTML = `
-            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-            <span>Copy response</span>
-          `;
-        }, 2000);
-      });
+  // --- 4. Conversation Sessions Storage & History Management ---
+  const STORAGE_KEY = 'kyana_chat_sessions_v1';
+  const ACTIVE_SESSION_KEY = 'kyana_active_session_id';
+
+  const SessionStore = {
+    getAll() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : [];
+      } catch (_) {
+        return [];
+      }
+    },
+    saveAll(sessions) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions.slice(0, 50)));
+      } catch (_) {}
+    },
+    getActiveId() {
+      try {
+        return localStorage.getItem(ACTIVE_SESSION_KEY);
+      } catch (_) {
+        return null;
+      }
+    },
+    setActiveId(id) {
+      try {
+        if (id) localStorage.setItem(ACTIVE_SESSION_KEY, id);
+        else localStorage.removeItem(ACTIVE_SESSION_KEY);
+      } catch (_) {}
+    },
+    get(id) {
+      return this.getAll().find(s => s.id === id);
+    },
+    create(initialPrompt = '') {
+      const id = 'chat_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+      const title = initialPrompt ? (initialPrompt.length > 36 ? initialPrompt.substring(0, 36) + '…' : initialPrompt) : 'New conversation';
+      const session = {
+        id,
+        title,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        messages: []
+      };
+      const all = this.getAll();
+      all.unshift(session);
+      this.saveAll(all);
+      this.setActiveId(id);
+      return session;
+    },
+    update(session) {
+      const all = this.getAll();
+      const idx = all.findIndex(s => s.id === session.id);
+      if (idx >= 0) {
+        session.updatedAt = Date.now();
+        all[idx] = session;
+        all.sort((a, b) => b.updatedAt - a.updatedAt);
+        this.saveAll(all);
+      }
+    },
+    delete(id) {
+      const all = this.getAll().filter(s => s.id !== id);
+      this.saveAll(all);
+      if (this.getActiveId() === id) {
+        this.setActiveId(all[0] ? all[0].id : null);
+      }
+    },
+    rename(id, newTitle) {
+      const all = this.getAll();
+      const session = all.find(s => s.id === id);
+      if (session) {
+        session.title = newTitle.trim() || 'Untitled';
+        this.saveAll(all);
+      }
+    }
+  };
+
+  // Grouping helper
+  function groupSessionsByDate(sessions) {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const startOfYesterday = startOfToday - 86400000;
+    const startOf7Days = startOfToday - 86400000 * 7;
+
+    const groups = {
+      today: [],
+      yesterday: [],
+      previous7Days: [],
+      older: []
+    };
+
+    sessions.forEach(s => {
+      const t = s.updatedAt || s.createdAt || 0;
+      if (t >= startOfToday) groups.today.push(s);
+      else if (t >= startOfYesterday) groups.yesterday.push(s);
+      else if (t >= startOf7Days) groups.previous7Days.push(s);
+      else groups.older.push(s);
     });
 
-    bubble.appendChild(actionsBar);
-    scrollToBottom();
-    return row;
+    return groups;
   }
 
-  function showTypingIndicator() {
-    const row = document.createElement('div');
-    row.className = 'sla-msg-row sla-ai sla-typing-row';
-    row.id = 'slaTypingIndicator';
-    row.innerHTML = `
-      <div class="sla-msg-avatar sla-avatar-thinking">
-        <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
-          <path d="M12 2L14.8 8.2L21 11L14.8 13.8L12 20L9.2 13.8L3 11L9.2 8.2L12 2Z"/>
-        </svg>
-      </div>
-      <div class="sla-msg-bubble">
-        <div class="sla-minimal-thinking">
-          <span class="sla-thinking-label">Thinking</span>
-          <span class="sla-thinking-dots">
-            <span class="sla-dot"></span>
-            <span class="sla-dot"></span>
-            <span class="sla-dot"></span>
-          </span>
+  // --- 5. Main UI Controller ---
+
+  let activeSession = null;
+  let activeRequest = null;
+  let isSending = false;
+  let userHasScrolledUp = false;
+
+  // DOM Elements
+  const appEl = document.getElementById('kyanaApp');
+  const sidebarEl = document.getElementById('kyanaSidebar');
+  const sidebarCloseBtn = document.getElementById('kyanaSidebarCloseBtn');
+  const sidebarOpenBtn = document.getElementById('kyanaSidebarOpenBtn');
+  const drawerBackdrop = document.getElementById('kyanaDrawerBackdrop');
+  const newChatBtn = document.getElementById('kyanaNewChatBtn');
+  const headerNewChatBtn = document.getElementById('kyanaHeaderNewChatBtn');
+  const historySearchInput = document.getElementById('kyanaHistorySearchInput');
+  const searchClearBtn = document.getElementById('kyanaSearchClearBtn');
+  const historyListEl = document.getElementById('kyanaSidebarHistory');
+  const viewportEl = document.getElementById('kyanaViewport');
+  const welcomeHeroEl = document.getElementById('kyanaWelcomeHero');
+  const messagesListEl = document.getElementById('kyanaMessagesList');
+  const scrollBottomBtn = document.getElementById('kyanaScrollBottomBtn');
+  const composerContainer = document.getElementById('kyanaComposerContainer');
+  const composerForm = document.getElementById('kyanaComposerForm');
+  const chatInput = document.getElementById('kyanaInput');
+  const submitBtn = document.getElementById('kyanaSubmitBtn');
+  const attachBtn = document.getElementById('kyanaAttachBtn');
+  const attachPopover = document.getElementById('kyanaAttachPopover');
+  const renameModal = document.getElementById('kyanaRenameModal');
+  const deleteModal = document.getElementById('kyanaDeleteModal');
+  const themeToggleBtn = document.getElementById('kyanaThemeToggleBtn');
+
+  // --- 6. Scroll Management & User Scroll Detection ---
+
+  function isAtBottom(tolerance = 80) {
+    if (!viewportEl) return true;
+    return (viewportEl.scrollHeight - viewportEl.scrollTop - viewportEl.clientHeight) <= tolerance;
+  }
+
+  function scrollToBottom(smooth = false) {
+    if (!viewportEl) return;
+    viewportEl.scrollTo({
+      top: viewportEl.scrollHeight,
+      behavior: smooth ? 'smooth' : 'auto'
+    });
+    userHasScrolledUp = false;
+    updateScrollButton();
+  }
+
+  function updateScrollButton() {
+    if (!scrollBottomBtn) return;
+    if (appEl && appEl.classList.contains('is-empty')) {
+      scrollBottomBtn.classList.remove('visible');
+      return;
+    }
+    const shouldShow = userHasScrolledUp && (viewportEl.scrollHeight > viewportEl.clientHeight + 100);
+    scrollBottomBtn.classList.toggle('visible', shouldShow);
+  }
+
+  if (viewportEl) {
+    viewportEl.addEventListener('scroll', () => {
+      userHasScrolledUp = !isAtBottom();
+      updateScrollButton();
+    });
+  }
+
+  if (scrollBottomBtn) {
+    scrollBottomBtn.addEventListener('click', () => {
+      scrollToBottom(true);
+    });
+  }
+
+  // --- 7. Sidebar & Mobile Drawer Toggles ---
+
+  function setSidebarOpen(open) {
+    const isMobile = window.innerWidth <= 768;
+    if (isMobile) {
+      appEl.classList.toggle('sidebar-open', open);
+    } else {
+      appEl.classList.toggle('sidebar-collapsed', !open);
+    }
+  }
+
+  if (sidebarCloseBtn) sidebarCloseBtn.addEventListener('click', () => setSidebarOpen(false));
+  if (sidebarOpenBtn) sidebarOpenBtn.addEventListener('click', () => {
+    const isMobile = window.innerWidth <= 768;
+    if (isMobile) setSidebarOpen(true);
+    else setSidebarOpen(appEl.classList.contains('sidebar-collapsed'));
+  });
+  if (drawerBackdrop) drawerBackdrop.addEventListener('click', () => setSidebarOpen(false));
+
+  // --- 8. Theme Toggle Integration ---
+  if (themeToggleBtn) {
+    themeToggleBtn.addEventListener('click', () => {
+      if (typeof window.toggleTheme === 'function') {
+        window.toggleTheme();
+      } else {
+        const curr = document.documentElement.getAttribute('data-theme') || 'dark';
+        const next = curr === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        document.body.classList.toggle('dark-mode', next === 'dark');
+        try { localStorage.setItem('theme', next); } catch (_) {}
+      }
+    });
+  }
+
+  // --- 9. Composer Auto-Resizing & Enter Handling ---
+
+  function adjustTextareaHeight() {
+    if (!chatInput) return;
+    chatInput.style.height = 'auto';
+    const newHeight = Math.min(chatInput.scrollHeight, 160);
+    chatInput.style.height = `${Math.max(newHeight, 24)}px`;
+
+    const hasText = Boolean(chatInput.value.trim());
+    if (submitBtn && !isSending) {
+      submitBtn.disabled = !hasText;
+      submitBtn.classList.toggle('active', hasText);
+    }
+  }
+
+  if (chatInput) {
+    chatInput.addEventListener('input', adjustTextareaHeight);
+    chatInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        if (!isSending) handleSend();
+      }
+    });
+  }
+
+  // Attach quick prompts popover toggle
+  if (attachBtn && attachPopover) {
+    attachBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isVisible = attachPopover.style.display !== 'none';
+      attachPopover.style.display = isVisible ? 'none' : 'block';
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!attachPopover.contains(e.target) && e.target !== attachBtn) {
+        attachPopover.style.display = 'none';
+      }
+    });
+
+    attachPopover.querySelectorAll('.kyana-popover-item').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const action = btn.dataset.action;
+        let prompt = '';
+        if (action === 'notes') prompt = 'Find study notes for ';
+        else if (action === 'routine') prompt = 'Show exam routine for ';
+        else if (action === 'syllabus') prompt = 'What is the syllabus for ';
+        else if (action === 'questions') prompt = 'Find past questions for ';
+        if (prompt && chatInput) {
+          chatInput.value = prompt;
+          chatInput.focus();
+          chatInput.setSelectionRange(prompt.length, prompt.length);
+          adjustTextareaHeight();
+        }
+        attachPopover.style.display = 'none';
+      });
+    });
+  }
+
+  // --- 10. Sidebar History Renderer (Strict Monochrome) ---
+
+  let historyFilter = '';
+
+  function renderHistoryList() {
+    if (!historyListEl) return;
+    const all = SessionStore.getAll();
+    const filtered = historyFilter
+      ? all.filter(s => s.title.toLowerCase().includes(historyFilter.toLowerCase()))
+      : all;
+
+    if (!filtered.length) {
+      historyListEl.innerHTML = `
+        <div class="kyana-history-empty">
+          <span>${historyFilter ? 'No matching conversations' : 'No conversations yet'}</span>
         </div>
-      </div>
+      `;
+      return;
+    }
+
+    const groups = groupSessionsByDate(filtered);
+    const groupDefs = [
+      { key: 'today', label: 'TODAY', items: groups.today },
+      { key: 'yesterday', label: 'YESTERDAY', items: groups.yesterday },
+      { key: 'previous7Days', label: 'PREVIOUS 7 DAYS', items: groups.previous7Days },
+      { key: 'older', label: 'OLDER', items: groups.older }
+    ];
+
+    historyListEl.innerHTML = '';
+    const activeId = activeSession ? activeSession.id : null;
+
+    groupDefs.forEach(g => {
+      if (!g.items.length) return;
+      const groupEl = document.createElement('div');
+      groupEl.className = 'kyana-history-group';
+      groupEl.innerHTML = `<div class="kyana-group-label">${escapeHtml(g.label)}</div>`;
+
+      g.items.forEach(s => {
+        const itemEl = document.createElement('div');
+        itemEl.className = 'kyana-history-item' + (s.id === activeId ? ' active' : '');
+        itemEl.dataset.id = s.id;
+        itemEl.innerHTML = `
+          <span class="kyana-history-title" title="${escapeHtml(s.title)}">${escapeHtml(s.title)}</span>
+          <button type="button" class="kyana-item-menu-btn" title="Options" aria-label="Conversation options">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+              <circle cx="12" cy="12" r="1.5"></circle>
+              <circle cx="6" cy="12" r="1.5"></circle>
+              <circle cx="18" cy="12" r="1.5"></circle>
+            </svg>
+          </button>
+        `;
+
+        itemEl.addEventListener('click', (e) => {
+          if (e.target.closest('.kyana-item-menu-btn')) return;
+          loadSession(s.id);
+          if (window.innerWidth <= 768) setSidebarOpen(false);
+        });
+
+        const menuBtn = itemEl.querySelector('.kyana-item-menu-btn');
+        menuBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          showSessionMenu(s, menuBtn);
+        });
+
+        groupEl.appendChild(itemEl);
+      });
+
+      historyListEl.appendChild(groupEl);
+    });
+  }
+
+  // Overflow Session Menu (Rename / Delete)
+  let activeMenuEl = null;
+  function showSessionMenu(session, triggerBtn) {
+    if (activeMenuEl) activeMenuEl.remove();
+
+    const menu = document.createElement('div');
+    menu.className = 'kyana-attach-popover';
+    menu.style.position = 'fixed';
+    const rect = triggerBtn.getBoundingClientRect();
+    menu.style.top = `${rect.bottom + 4}px`;
+    menu.style.left = `${Math.min(rect.left, window.innerWidth - 200)}px`;
+    menu.style.zIndex = '2000';
+
+    menu.innerHTML = `
+      <button type="button" class="kyana-popover-item kyana-menu-rename">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+        </svg>
+        <span>Rename</span>
+      </button>
+      <button type="button" class="kyana-popover-item kyana-menu-delete" style="color: #ef4444;">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="3 6 5 6 21 6"></polyline>
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+        </svg>
+        <span>Delete</span>
+      </button>
     `;
-    messagesContainer.appendChild(row);
+
+    document.body.appendChild(menu);
+    activeMenuEl = menu;
+
+    menu.querySelector('.kyana-menu-rename').addEventListener('click', () => {
+      menu.remove();
+      promptRename(session);
+    });
+
+    menu.querySelector('.kyana-menu-delete').addEventListener('click', () => {
+      menu.remove();
+      promptDelete(session);
+    });
+
+    const closeHandler = (e) => {
+      if (!menu.contains(e.target) && e.target !== triggerBtn) {
+        menu.remove();
+        activeMenuEl = null;
+        document.removeEventListener('click', closeHandler);
+      }
+    };
+    setTimeout(() => document.addEventListener('click', closeHandler), 10);
+  }
+
+  // Rename Dialog
+  function promptRename(session) {
+    if (!renameModal) return;
+    const input = document.getElementById('kyanaRenameInput');
+    const confirmBtn = document.getElementById('kyanaRenameConfirmBtn');
+    const cancelBtn = document.getElementById('kyanaRenameCancelBtn');
+    if (input) input.value = session.title;
+    renameModal.style.display = 'flex';
+    if (input) {
+      input.focus();
+      input.select();
+    }
+
+    const close = () => { renameModal.style.display = 'none'; };
+    cancelBtn.onclick = close;
+    confirmBtn.onclick = () => {
+      const val = (input.value || '').trim();
+      if (val) {
+        SessionStore.rename(session.id, val);
+        if (activeSession && activeSession.id === session.id) {
+          activeSession.title = val;
+        }
+        renderHistoryList();
+      }
+      close();
+    };
+  }
+
+  // Delete Dialog
+  function promptDelete(session) {
+    if (!deleteModal) return;
+    const confirmBtn = document.getElementById('kyanaDeleteConfirmBtn');
+    const cancelBtn = document.getElementById('kyanaDeleteCancelBtn');
+    deleteModal.style.display = 'flex';
+
+    const close = () => { deleteModal.style.display = 'none'; };
+    cancelBtn.onclick = close;
+    confirmBtn.onclick = () => {
+      SessionStore.delete(session.id);
+      if (activeSession && activeSession.id === session.id) {
+        startNewChat();
+      } else {
+        renderHistoryList();
+      }
+      close();
+    };
+  }
+
+  // Search filter listener
+  if (historySearchInput) {
+    historySearchInput.addEventListener('input', (e) => {
+      historyFilter = (e.target.value || '').trim();
+      if (searchClearBtn) searchClearBtn.style.display = historyFilter ? 'flex' : 'none';
+      renderHistoryList();
+    });
+  }
+
+  if (searchClearBtn) {
+    searchClearBtn.addEventListener('click', () => {
+      historySearchInput.value = '';
+      historyFilter = '';
+      searchClearBtn.style.display = 'none';
+      renderHistoryList();
+      historySearchInput.focus();
+    });
+  }
+
+  // --- 11. Conversation Session Loader & Messages Viewport ---
+
+  function setConversationState(hasMessages, animateTransition = false) {
+    if (!appEl) return;
+    if (hasMessages) {
+      if (animateTransition && appEl.classList.contains('is-empty')) {
+        // FLIP transition on composer
+        const capsule = composerForm;
+        const firstRect = capsule ? capsule.getBoundingClientRect() : null;
+
+        appEl.classList.remove('is-empty');
+        appEl.classList.add('has-messages');
+
+        if (welcomeHeroEl) {
+          welcomeHeroEl.classList.add('fade-out');
+        }
+
+        if (capsule && firstRect) {
+          const lastRect = capsule.getBoundingClientRect();
+          const deltaY = firstRect.top - lastRect.top;
+          capsule.style.transition = 'none';
+          capsule.style.transform = `translateY(${deltaY}px)`;
+
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              capsule.style.transition = 'transform 220ms cubic-bezier(0.16, 1, 0.3, 1)';
+              capsule.style.transform = 'translateY(0)';
+
+              const cleanup = () => {
+                capsule.style.transition = '';
+                capsule.style.transform = '';
+                capsule.removeEventListener('transitionend', cleanup);
+                if (welcomeHeroEl) {
+                  welcomeHeroEl.style.display = 'none';
+                  welcomeHeroEl.classList.remove('fade-out');
+                }
+              };
+              capsule.addEventListener('transitionend', cleanup, { once: true });
+            });
+          });
+        } else if (welcomeHeroEl) {
+          setTimeout(() => {
+            welcomeHeroEl.style.display = 'none';
+            welcomeHeroEl.classList.remove('fade-out');
+          }, 220);
+        }
+      } else {
+        appEl.classList.remove('is-empty');
+        appEl.classList.add('has-messages');
+        if (welcomeHeroEl) {
+          welcomeHeroEl.style.display = 'none';
+          welcomeHeroEl.classList.remove('fade-out');
+        }
+      }
+    } else {
+      appEl.classList.add('is-empty');
+      appEl.classList.remove('has-messages');
+      if (welcomeHeroEl) {
+        welcomeHeroEl.style.display = 'flex';
+        welcomeHeroEl.classList.remove('fade-out');
+      }
+      if (scrollBottomBtn) {
+        scrollBottomBtn.classList.remove('visible');
+      }
+    }
+  }
+
+  function renderSessionMessages(session) {
+    if (!messagesListEl) return;
+    messagesListEl.innerHTML = '';
+
+    if (!session || !session.messages || !session.messages.length) {
+      setConversationState(false, false);
+      return;
+    }
+
+    setConversationState(true, false);
+
+    session.messages.forEach((msg, idx) => {
+      if (msg.role === 'user') {
+        const row = KyanaUserMessage.create(msg.content);
+        messagesListEl.appendChild(row);
+      } else if (msg.role === 'assistant') {
+        const row = KyanaResponse.create();
+        const doc = row.querySelector('.kyana-response-doc');
+        renderFormattedContent(doc, msg.content || '');
+        KyanaSourceCard.renderSources(doc, msg);
+        KyanaResponseActions.render(doc, msg.content || '', idx === session.messages.length - 1 ? () => handleRegenerate() : null, false);
+        messagesListEl.appendChild(row);
+      }
+    });
+
     scrollToBottom();
   }
 
-  function removeTypingIndicator() {
-    const indicator = document.getElementById('slaTypingIndicator');
-    if (indicator) indicator.remove();
+  function loadSession(id) {
+    cancelActiveRequest();
+    const session = SessionStore.get(id);
+    if (session) {
+      activeSession = session;
+      SessionStore.setActiveId(id);
+      renderHistoryList();
+      renderSessionMessages(session);
+      if (chatInput) chatInput.focus();
+    }
   }
 
-  // --- 6. Message Submission Handler ---
+  function startNewChat() {
+    cancelActiveRequest();
+    activeSession = null;
+    SessionStore.setActiveId(null);
+    renderHistoryList();
+    if (messagesListEl) messagesListEl.innerHTML = '';
+    setConversationState(false, false);
+    if (chatInput) {
+      chatInput.value = '';
+      adjustTextareaHeight();
+      chatInput.focus();
+    }
+    scrollToBottom();
+  }
+
+  if (newChatBtn) newChatBtn.addEventListener('click', startNewChat);
+  if (headerNewChatBtn) headerNewChatBtn.addEventListener('click', startNewChat);
+
+  // Suggestion card clicks delegate
+  document.addEventListener('click', (e) => {
+    const card = e.target.closest('.kyana-suggestion-card');
+    if (card && card.dataset.prompt) {
+      handleSend(card.dataset.prompt);
+    }
+  });
+
+  // --- 12. Message Submission & Streaming Execution ---
+
   function cancelActiveRequest() {
     if (!activeRequest) return;
     activeRequest.controller.abort();
     if (activeRequest.frame != null) cancelAnimationFrame(activeRequest.frame);
     clearTimeout(activeRequest.timeout);
     activeRequest = null;
-    removeTypingIndicator();
-    isSending = false;
-    if (sendBtn) sendBtn.disabled = false;
+    removeThinkingIndicator();
+    setGeneratingState(false);
+  }
+
+  function setGeneratingState(generating) {
+    isSending = generating;
+    if (appEl) appEl.classList.toggle('is-generating', generating);
+    if (!submitBtn) return;
+
+    if (generating) {
+      submitBtn.disabled = false;
+      submitBtn.classList.add('generating');
+      submitBtn.classList.remove('active');
+      submitBtn.title = 'Stop generating';
+      submitBtn.setAttribute('aria-label', 'Stop generating');
+      submitBtn.querySelector('.kyana-send-icon').style.display = 'none';
+      submitBtn.querySelector('.kyana-stop-icon').style.display = 'block';
+    } else {
+      submitBtn.classList.remove('generating');
+      submitBtn.querySelector('.kyana-send-icon').style.display = 'block';
+      submitBtn.querySelector('.kyana-stop-icon').style.display = 'none';
+      submitBtn.title = 'Send message (Enter)';
+      submitBtn.setAttribute('aria-label', 'Send message');
+      adjustTextareaHeight();
+    }
+  }
+
+  function showThinkingIndicator() {
+    removeThinkingIndicator();
+    const ind = KyanaThinking.create();
+    messagesListEl.appendChild(ind);
+    if (!userHasScrolledUp) scrollToBottom();
+  }
+
+  function removeThinkingIndicator() {
+    const ind = document.getElementById('kyanaThinkingIndicator');
+    if (ind) {
+      ind.classList.add('fading');
+      setTimeout(() => {
+        if (ind && ind.parentNode) ind.remove();
+      }, 140);
+    }
   }
 
   async function handleSend(textToSend) {
     const query = (textToSend || (chatInput ? chatInput.value : '')).trim();
-    if (!query || isSending) return;
+    if (!query) return;
 
+    if (isSending) {
+      cancelActiveRequest();
+      return;
+    }
+
+    // Ensure session exists
+    if (!activeSession) {
+      activeSession = SessionStore.create(query);
+      renderHistoryList();
+    }
+
+    setConversationState(true, true);
+
+    // Clear input
     if (chatInput) {
       chatInput.value = '';
       adjustTextareaHeight();
     }
-    appendUserMessage(query);
-    isSending = true;
-    if (sendBtn) sendBtn.disabled = true;
-    showTypingIndicator();
 
-    const request = { controller: new AbortController(), frame: null, row: null, partial: '', timedOut: false };
+    // Append User Message to UI & Session
+    const userRow = KyanaUserMessage.create(query);
+    messagesListEl.appendChild(userRow);
+    activeSession.messages.push({ role: 'user', content: query, timestamp: Date.now() });
+    SessionStore.update(activeSession);
+    renderHistoryList();
+    scrollToBottom();
+
+    setGeneratingState(true);
+    showThinkingIndicator();
+
+    const request = {
+      controller: new AbortController(),
+      frame: null,
+      row: null,
+      doc: null,
+      partial: '',
+      timedOut: false
+    };
     activeRequest = request;
+
     request.timeout = setTimeout(() => {
       request.timedOut = true;
       request.controller.abort();
     }, 90000);
 
-    function finish(data) {
-      if (activeRequest !== request) return;
-      if (request.frame != null) cancelAnimationFrame(request.frame);
-      request.frame = null;
-      removeTypingIndicator();
-      request.row = appendAIMessage(data, request.row);
-    }
+    const historyPayload = activeSession.messages.slice(-12).map(m => ({
+      role: m.role,
+      content: m.content.slice(0, 8000)
+    }));
 
     try {
       const response = await fetch('/api/ai/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream'
+        },
         signal: request.controller.signal,
         body: JSON.stringify({
           message: query,
-          history: conversationHistory.slice(-12).map(item => ({ role: item.role, content: item.content.slice(0, 8000) })),
+          history: historyPayload,
           stream: true
         })
       });
+
       if (activeRequest !== request) return;
 
       if (response.status === 401) {
-        finish({
-          reply: 'Your session has expired. Please [sign in again](login.html) to chat.',
-          actions: [{ label: 'Sign In', url: 'login.html' }]
-        });
-        return;
-      }
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        finish({ reply: errorData.message || (response.status === 429
-          ? 'You’ve reached the chat limit. Try again in a bit.'
-          : 'Couldn’t finish the reply. Please try again.') });
+        removeThinkingIndicator();
+        const errRow = KyanaResponse.create();
+        const errDoc = errRow.querySelector('.kyana-response-doc');
+        errDoc.innerHTML = `<p>Your session has expired. Please <a href="login.html">sign in again</a> to chat.</p>`;
+        messagesListEl.appendChild(errRow);
         return;
       }
 
-      const data = await readChatResponse(response, text => {
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        removeThinkingIndicator();
+        const safeMsg = response.status === 429
+          ? (errorData?.message || 'Too many requests. Please wait a moment before sending more messages!')
+          : (errorData.message || "Kyana couldn't complete that response.");
+        const errRow = KyanaResponse.create();
+        const errDoc = errRow.querySelector('.kyana-response-doc');
+        errDoc.appendChild(KyanaErrorState.create(safeMsg, () => handleSend(query)));
+        messagesListEl.appendChild(errRow);
+        return;
+      }
+
+      // Read streaming SSE response
+      const data = await readChatResponse(response, deltaText => {
         if (activeRequest !== request) return;
-        request.partial += text;
+        request.partial += deltaText;
+
         if (!request.row) {
-          removeTypingIndicator();
-          request.row = createAssistantRow();
-          const content = document.createElement('div');
-          content.className = 'sla-msg-text';
-          request.row.querySelector('.sla-msg-bubble').appendChild(content);
+          removeThinkingIndicator();
+          request.row = KyanaResponse.create();
+          request.doc = request.row.querySelector('.kyana-response-doc');
+          messagesListEl.appendChild(request.row);
         }
+
         if (request.frame == null) {
           request.frame = requestAnimationFrame(() => {
             request.frame = null;
             if (activeRequest !== request) return;
-            renderFormattedContent(request.row.querySelector('.sla-msg-text'), request.partial, true);
-            scrollToBottom();
+            renderFormattedContent(request.doc, request.partial, true);
+            if (!userHasScrolledUp) scrollToBottom();
           });
         }
       });
+
       if (activeRequest !== request) return;
-      finish(data);
-      conversationHistory.push({ role: 'user', content: query.slice(0, 8000) });
-      if (data.reply) conversationHistory.push({ role: 'assistant', content: data.reply.slice(0, 8000) });
-      if (conversationHistory.length > 12) conversationHistory.splice(0, conversationHistory.length - 12);
+
+      removeThinkingIndicator();
+
+      // Final complete render with syntax highlighting, sources, and response action tools
+      if (!request.row) {
+        request.row = KyanaResponse.create();
+        request.doc = request.row.querySelector('.kyana-response-doc');
+        messagesListEl.appendChild(request.row);
+      }
+
+      request.doc.innerHTML = '';
+      renderFormattedContent(request.doc, data.reply || '');
+      KyanaSourceCard.renderSources(request.doc, data);
+      KyanaResponseActions.render(request.doc, data.reply || '', () => handleRegenerate(), true);
+
+      // Save to session history
+      activeSession.messages.push({
+        role: 'assistant',
+        content: data.reply || '',
+        matchedFiles: data.matchedFiles,
+        matchedCourses: data.matchedCourses,
+        matchedRoutine: data.matchedRoutine,
+        webSources: data.webSources,
+        timestamp: Date.now()
+      });
+      SessionStore.update(activeSession);
+      renderHistoryList();
+      if (!userHasScrolledUp) scrollToBottom();
+
     } catch (err) {
       if (activeRequest !== request) return;
-      const message = request.timedOut ? 'That took too long. Please try again.'
-        : (err instanceof TypeError ? 'Connection lost. Please try again.' : err.message || 'Couldn’t finish the reply. Please try again.');
-      // Keep a partial answer and the failure in one bubble; do not record it as history.
-      finish({ reply: request.partial ? request.partial + '\n\n' + message : message });
+      removeThinkingIndicator();
+
+      const isOffline = !navigator.onLine;
+      const errorMsg = isOffline
+        ? "You're offline. Check your connection and try again."
+        : (request.timedOut ? 'That request took too long. Try again.' : "Kyana couldn't complete that response.");
+
+      if (request.partial && request.doc) {
+        renderFormattedContent(request.doc, request.partial);
+        request.doc.appendChild(KyanaErrorState.create(errorMsg, () => handleSend(query)));
+      } else {
+        const errRow = KyanaResponse.create();
+        const errDoc = errRow.querySelector('.kyana-response-doc');
+        errDoc.appendChild(KyanaErrorState.create(errorMsg, () => handleSend(query)));
+        messagesListEl.appendChild(errRow);
+      }
+      scrollToBottom();
     } finally {
       clearTimeout(request.timeout);
       if (activeRequest === request) {
         if (request.frame != null) cancelAnimationFrame(request.frame);
         activeRequest = null;
-        removeTypingIndicator();
-        isSending = false;
-        if (sendBtn) sendBtn.disabled = false;
+        setGeneratingState(false);
         if (chatInput) chatInput.focus();
       }
     }
   }
 
-  // --- 7. Event Listeners & Reset Actions ---
-  function resetConversation() {
-    cancelActiveRequest();
-    conversationHistory.length = 0;
-    messagesContainer.innerHTML = '';
-    if (welcomeHero) {
-      messagesContainer.appendChild(welcomeHero);
-      welcomeHero.style.display = 'flex';
-    } else {
-      messagesContainer.innerHTML = `
-        <div class="sla-msg-row sla-ai">
-          <div class="sla-msg-avatar">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-              <path d="M12 2L14.8 8.2L21 11L14.8 13.8L12 20L9.2 13.8L3 11L9.2 8.2L12 2Z"/>
-            </svg>
-          </div>
-          <div class="sla-msg-bubble">
-            <p>Conversation refreshed. How can I help you find notes, syllabus, or exam routines?</p>
-          </div>
-        </div>
-      `;
-    }
-    if (chatInput) {
-      chatInput.value = '';
-      adjustTextareaHeight();
-      chatInput.focus();
+  function handleRegenerate() {
+    if (!activeSession || !activeSession.messages.length) return;
+    const lastIdx = activeSession.messages.length - 1;
+    if (activeSession.messages[lastIdx].role === 'assistant') {
+      activeSession.messages.pop();
+      const lastUser = activeSession.messages[activeSession.messages.length - 1];
+      if (lastUser && lastUser.role === 'user') {
+        const query = lastUser.content;
+        activeSession.messages.pop();
+        SessionStore.update(activeSession);
+        renderSessionMessages(activeSession);
+        handleSend(query);
+      }
     }
   }
 
-  function togglePanel(show) {
-    if (isFullPage) return;
-    isOpen = (typeof show === 'boolean') ? show : !isOpen;
-    if (isOpen) {
-      panel.classList.add('sla-visible');
-      fab.classList.add('sla-open');
-      setTimeout(() => chatInput && chatInput.focus(), 150);
-    } else {
-      panel.classList.remove('sla-visible');
-      fab.classList.remove('sla-open');
-    }
-  }
-
-  if (fab) fab.addEventListener('click', () => togglePanel());
-  if (closeBtn) closeBtn.addEventListener('click', () => togglePanel(false));
-
-  window.addEventListener('pagehide', cancelActiveRequest);
-
-  if (clearBtn) clearBtn.addEventListener('click', resetConversation);
-  if (newChatBtn) newChatBtn.addEventListener('click', resetConversation);
-
-  if (chatForm) {
-    chatForm.addEventListener('submit', (e) => {
+  if (composerForm) {
+    composerForm.addEventListener('submit', (e) => {
       e.preventDefault();
       handleSend();
     });
   }
 
-  // Global delegate for suggestion chips, starter prompt cards, and topic buttons
-  document.addEventListener('click', (e) => {
-    const trigger = e.target.closest('.sla-suggestion-chip') ||
-      e.target.closest('.sla-topic-btn') ||
-      e.target.closest('.sla-starter-card');
-    if (trigger && trigger.dataset.q) {
-      handleSend(trigger.dataset.q);
-    }
-  });
+  // --- 13. Initialization & External Hooks ---
 
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && isOpen && !isFullPage) {
-      togglePanel(false);
-    }
-  });
+  // Expose KyanaLogo component on window
+  window.KyanaLogo = KyanaLogo;
 
-  // Global helper for external pages
+  // Global helper for external pages (e.g. from Library or Assignment search)
   window.askAiAssistant = function (query) {
-    if (isFullPage) {
-      handleSend(query);
-    } else {
-      togglePanel(true);
-      handleSend(query);
+    if (query && query.trim()) {
+      handleSend(query.trim());
     }
   };
 
-  // Auto-send or prefill query from URL params (?q=... or ?prompt=...)
+  // Hydrate initial session or start fresh
+  const storedActiveId = SessionStore.getActiveId();
+  if (storedActiveId && SessionStore.get(storedActiveId)) {
+    loadSession(storedActiveId);
+  } else {
+    renderHistoryList();
+    setConversationState(false, false);
+  }
+
+  // Auto-send or prefill from URL parameters (?q=... or ?prompt=...)
   try {
     const urlParams = new URLSearchParams(window.location.search);
-    const initialQ = urlParams.get('q') || urlParams.get('prompt');
-    if (initialQ && initialQ.trim()) {
+    const initialQuery = urlParams.get('q') || urlParams.get('prompt');
+    if (initialQuery && initialQuery.trim()) {
       setTimeout(() => {
-        handleSend(initialQ.trim());
-      }, 350);
+        handleSend(initialQuery.trim());
+      }, 300);
     }
-  } catch (err) { }
+  } catch (_) {}
 
 })();

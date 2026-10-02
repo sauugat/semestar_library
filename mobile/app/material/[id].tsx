@@ -21,6 +21,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Text, Heading, Subheading, Caption } from '@/components/ui/Typography';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { formatDate, formatTimeAgo } from '@/utils/date';
 import {
   getFileById,
   LibraryFile,
@@ -699,7 +700,7 @@ export default function MaterialDetailScreen() {
           </View>
           <View style={styles.metaRow}>
             <Text variant="sm" color="secondary">Uploaded Date:</Text>
-            <Text variant="sm" weight="600">{new Date(file.uploadedAt).toLocaleDateString()}</Text>
+            <Text variant="sm" weight="600">{formatDate(file.uploadedAt || (file as any).created_at || (file as any).createdAt)}</Text>
           </View>
           <View style={styles.metaRow}>
             <Text variant="sm" color="secondary">Uploader Role:</Text>
@@ -848,7 +849,7 @@ export default function MaterialDetailScreen() {
                 {c.content || c.commentText}
               </Text>
               <Caption color="muted" style={{ marginTop: 4, fontSize: 10 }}>
-                {new Date(c.createdAt).toLocaleDateString()}
+                {formatTimeAgo(c.createdAt || (c as any).created_at)}
               </Caption>
             </Card>
           ))

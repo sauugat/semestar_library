@@ -6,7 +6,6 @@ import {
   Alert,
   TouchableOpacity,
   Modal,
-  KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
   RefreshControl,
@@ -23,6 +22,9 @@ import { useTheme } from '@/constants/useTheme';
 import { Text, Heading, Subheading, Caption } from '@/components/ui/Typography';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ResourceCard } from '@/components/ui/ResourceCard';
+import { formatTimeAgo } from '@/utils/date';
 import { Input } from '@/components/ui/Input';
 import { apiFetch } from '@/services/api';
 
@@ -63,15 +65,6 @@ export default function StudentProfileScreen() {
   const [isFollowing, setIsFollowing] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
 
-  // Edit Modal State (when viewing self)
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editName, setEditName] = useState('');
-  const [editBio, setEditBio] = useState('');
-  const [editDept, setEditDept] = useState('');
-  const [editSem, setEditSem] = useState('');
-  const [editGithub, setEditGithub] = useState('');
-  const [editLinkedin, setEditLinkedin] = useState('');
-  const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
   const targetStudentId = id || currentUser?.studentId;
@@ -89,33 +82,6 @@ export default function StudentProfileScreen() {
     const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(b) / Math.log(k));
     return `${(b / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
-  };
-
-  const formatTimeAgo = (isoString?: string) => {
-    if (!isoString) return '';
-    const date = new Date(isoString);
-    const now = new Date();
-    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-    if (seconds < 60) return 'just now';
-    const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `${minutes}m ago`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h ago`;
-    const days = Math.floor(hours / 24);
-    if (days < 30) return `${days}d ago`;
-    return date.toLocaleDateString();
-  };
-
-  const getFileIcon = (name: string): { icon: keyof typeof Ionicons.glyphMap; color: string } => {
-    const ext = (name || '').split('.').pop()?.toLowerCase();
-    if (ext === 'pdf') return { icon: 'document-text', color: '#EF4444' };
-    if (['ppt', 'pptx'].includes(ext || '')) return { icon: 'easel', color: '#F97316' };
-    if (['doc', 'docx'].includes(ext || '')) return { icon: 'document', color: '#3B82F6' };
-    if (['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext || '')) return { icon: 'image', color: '#10B981' };
-    if (['zip', 'rar', '7z', 'tar'].includes(ext || '')) return { icon: 'archive', color: '#8B5CF6' };
-    if (['c', 'cpp', 'py', 'java', 'js', 'html', 'css', 'sql'].includes(ext || ''))
-      return { icon: 'code-slash', color: '#06B6D4' };
-    return { icon: 'document-outline', color: '#6B7280' };
   };
 
   const fetchProfileData = useCallback(async () => {
@@ -185,40 +151,7 @@ export default function StudentProfileScreen() {
   };
 
   const openEditModal = () => {
-    if (!profile) return;
-    setEditName(profile.name || '');
-    setEditBio(profile.bio || '');
-    setEditDept(profile.department || 'BIT');
-    setEditSem(profile.semester || 'Semester 1');
-    setEditGithub(profile.githubUrl || '');
-    setEditLinkedin(profile.linkedinUrl || '');
-    setShowEditModal(true);
-  };
-
-  const handleSaveProfile = async () => {
-    if (!editName.trim()) {
-      Alert.alert('Validation Error', 'Full Name is required.');
-      return;
-    }
-
-    setIsSavingProfile(true);
-    const result = await updateProfile({
-      name: editName.trim(),
-      bio: editBio.trim(),
-      department: editDept.trim(),
-      semester: editSem.trim(),
-      githubUrl: editGithub.trim(),
-      linkedinUrl: editLinkedin.trim(),
-    });
-    setIsSavingProfile(false);
-
-    if (result.success) {
-      setShowEditModal(false);
-      await fetchProfileData();
-      Alert.alert('Success', 'Profile updated successfully!');
-    } else {
-      Alert.alert('Error', result.error || 'Failed to update profile.');
-    }
+    router.push('/edit-profile');
   };
 
   const handlePickAvatar = async () => {
@@ -300,17 +233,12 @@ export default function StudentProfileScreen() {
   if (!profile) {
     return (
       <SafeAreaView style={[styles.centerContainer, { backgroundColor: colors.background }]}>
-        <Ionicons name="person-circle-outline" size={54} color={colors.textMuted} />
-        <Heading style={{ marginTop: spacing.sm }}>Student Not Found</Heading>
-        <Caption color="muted" style={{ textAlign: 'center', marginTop: 4 }}>
-          Could not locate student with ID: {targetStudentId}
-        </Caption>
-        <Button
-          title="Go Back"
-          variant="primary"
-          size="sm"
-          onPress={() => router.back()}
-          style={{ marginTop: spacing.md }}
+        <EmptyState
+          icon="person-circle-outline"
+          title="Student Not Found"
+          description={`Could not locate student with ID: ${targetStudentId}`}
+          actionTitle="Go Back"
+          onAction={() => router.back()}
         />
       </SafeAreaView>
     );
@@ -549,114 +477,30 @@ export default function StudentProfileScreen() {
           </View>
 
           {files.length === 0 ? (
-            <Card style={styles.emptyCard}>
-              <Ionicons name="folder-open-outline" size={38} color={colors.textMuted} />
-              <Text variant="sm" weight="600" style={{ marginTop: spacing.xs }}>
-                No resources uploaded yet
-              </Text>
-              <Caption color="muted" style={{ textAlign: 'center', marginTop: 4 }}>
-                Study materials shared by {profile.name} will appear here.
-              </Caption>
-            </Card>
+            <EmptyState
+              icon="folder-open-outline"
+              title="No resources uploaded yet"
+              description={`Study materials shared by ${profile.name} will appear here.`}
+            />
           ) : (
-            files.map((file) => {
-              const fileStyle = getFileIcon(file.originalName);
-              return (
-                <Card
-                  key={file.id}
-                  variant="elevated"
-                  onPress={() => router.push(`/material/${file.id}?preview=1` as any)}
-                  style={[styles.fileCard, { borderColor: colors.border, marginBottom: spacing.sm }]}
-                >
-                  <View style={styles.fileCardHeader}>
-                    <View style={[styles.fileIconBadge, { backgroundColor: `${fileStyle.color}15`, borderColor: `${fileStyle.color}40` }]}>
-                      <Ionicons name={fileStyle.icon} size={22} color={fileStyle.color} />
-                    </View>
-
-                    <View style={{ flex: 1, marginLeft: spacing.sm }}>
-                      <Text variant="sm" weight="700" numberOfLines={1}>
-                        {file.title || file.originalName}
-                      </Text>
-                      <Caption color="muted" numberOfLines={1}>
-                        {formatBytes(file.sizeBytes)} &middot; {formatTimeAgo(file.uploadedAt)}
-                      </Caption>
-                    </View>
-                    <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-                  </View>
-
-                  {(file.subject || file.chapter) && (
-                    <View style={styles.fileTagsRow}>
-                      {file.subject ? (
-                        <View style={[styles.fileTagChip, { backgroundColor: colors.surfaceSubtle, borderColor: colors.border }]}>
-                          <Text variant="xs" color="secondary" weight="500">
-                            {file.subject}
-                          </Text>
-                        </View>
-                      ) : null}
-                      {file.chapter ? (
-                        <View style={[styles.fileTagChip, { backgroundColor: colors.surfaceSubtle, borderColor: colors.border }]}>
-                          <Text variant="xs" color="secondary" weight="500">
-                            {file.chapter}
-                          </Text>
-                        </View>
-                      ) : null}
-                    </View>
-                  )}
-
-                  <View style={[styles.fileCardFooter, { borderTopColor: colors.border }]}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <Ionicons
-                        name={file.liked ? 'heart' : 'heart-outline'}
-                        size={14}
-                        color={file.liked ? colors.error : colors.textMuted}
-                        style={{ marginRight: 4 }}
-                      />
-                      <Text variant="xs" color="muted">
-                        {file.likeCount || 0} likes
-                      </Text>
-                    </View>
-                    <Caption color="muted">Tap to view note</Caption>
-                  </View>
-                </Card>
-              );
-            })
+            files.map((file) => (
+              <ResourceCard
+                key={file.id}
+                id={file.id}
+                title={file.title || file.originalName}
+                originalName={file.originalName}
+                sizeBytes={file.sizeBytes}
+                uploadedAt={file.uploadedAt}
+                subject={file.subject}
+                chapter={file.chapter}
+                liked={file.liked}
+                likeCount={file.likeCount}
+                onPress={() => router.push(`/material/${file.id}?preview=1` as any)}
+              />
+            ))
           )}
         </View>
       </ScrollView>
-
-      {/* EDIT PROFILE MODAL */}
-      <Modal visible={showEditModal} animationType="slide" transparent onRequestClose={() => setShowEditModal(false)}>
-        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <View style={styles.modalHeader}>
-              <Heading style={{ fontSize: 18 }}>Edit Profile</Heading>
-              <TouchableOpacity onPress={() => setShowEditModal(false)}>
-                <Ionicons name="close" size={22} color={colors.text} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <Input label="Full Name" placeholder="e.g. Full Name" value={editName} onChangeText={setEditName} autoCapitalize="words" />
-              <Input label="Bio / Headline" placeholder="Brief intro for your classmates…" value={editBio} onChangeText={setEditBio} multiline numberOfLines={3} helper="Max 300 characters" />
-              <View style={{ flexDirection: 'row' }}>
-                <View style={{ flex: 1, marginRight: spacing.xs }}>
-                  <Input label="Department" placeholder="BIT" value={editDept} onChangeText={setEditDept} />
-                </View>
-                <View style={{ flex: 1, marginLeft: spacing.xs }}>
-                  <Input label="Semester" placeholder="Semester 1" value={editSem} onChangeText={setEditSem} />
-                </View>
-              </View>
-              <Input label="GitHub Profile URL" placeholder="https://github.com/username" value={editGithub} onChangeText={setEditGithub} autoCapitalize="none" keyboardType="url" />
-              <Input label="LinkedIn Profile URL" placeholder="https://linkedin.com/in/username" value={editLinkedin} onChangeText={setEditLinkedin} autoCapitalize="none" keyboardType="url" />
-
-              <View style={styles.modalActionButtons}>
-                <Button title="Cancel" variant="outline" size="md" onPress={() => setShowEditModal(false)} style={{ flex: 1, marginRight: spacing.xs }} />
-                <Button title="Save Changes" variant="primary" size="md" loading={isSavingProfile} onPress={handleSaveProfile} style={{ flex: 1, marginLeft: spacing.xs }} />
-              </View>
-            </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
     </SafeAreaView>
   );
 }

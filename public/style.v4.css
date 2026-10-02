@@ -1513,9 +1513,8 @@ body.dark-mode .post-delete-btn:hover {
 [data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not(.header-search-input):not(#headerSearchInput),
 body.dark-mode input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not(.header-search-input):not(#headerSearchInput),
 [data-theme="dark"] select,
-body.dark-mode select,
-[data-theme="dark"] textarea,
-body.dark-mode textarea,
+[data-theme="dark"] textarea:not(.kyana-composer-textarea):not(#kyanaInput),
+body.dark-mode textarea:not(.kyana-composer-textarea):not(#kyanaInput),
 [data-theme="dark"] .search-input,
 body.dark-mode .search-input,
 [data-theme="dark"] .cl-search-input,
@@ -1547,8 +1546,8 @@ body.dark-mode .lib-search-pill {
 body.dark-mode input:not(.header-search-input):not(#headerSearchInput):focus,
 [data-theme="dark"] select:focus,
 body.dark-mode select:focus,
-[data-theme="dark"] textarea:focus,
-body.dark-mode textarea:focus,
+[data-theme="dark"] textarea:not(.kyana-composer-textarea):not(#kyanaInput):focus,
+body.dark-mode textarea:not(.kyana-composer-textarea):not(#kyanaInput):focus,
 [data-theme="dark"] .cl-student-q-input:focus,
 body.dark-mode .cl-student-q-input:focus {
   border-color: var(--border-strong) !important;

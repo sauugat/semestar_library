@@ -2,6 +2,7 @@ import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
+import { requireOptionalNativeModule } from 'expo';
 import 'react-native-reanimated';
 import {
   PlusJakartaSans_700Bold,
@@ -11,9 +12,10 @@ import {
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { queryClient, asyncStoragePersister } from '@/services/query-client';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
-import { useTheme } from '@/constants/useTheme';
+import { useTheme, ThemeProvider } from '@/constants/useTheme';
 import { AppUpdateChecker } from '@/components/AppUpdateChecker';
 import * as Notifications from 'expo-notifications';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import {
   configureNotificationChannels,
   navigateFromNotification,
@@ -61,10 +63,14 @@ export default function RootLayout() {
       client={queryClient}
       persistOptions={{ persister: asyncStoragePersister, maxAge: 1000 * 60 * 60 * 24 }}
     >
-      <AuthProvider>
-        <RootLayoutNav />
-        <AppUpdateChecker />
-      </AuthProvider>
+      <ThemeProvider>
+        <KeyboardProvider statusBarTranslucent navigationBarTranslucent>
+          <AuthProvider>
+            <RootLayoutNav />
+            <AppUpdateChecker />
+          </AuthProvider>
+        </KeyboardProvider>
+      </ThemeProvider>
     </PersistQueryClientProvider>
   );
 }
@@ -73,7 +79,7 @@ function RootLayoutNav() {
   const { colors } = useTheme();
   const { token, isLoading } = useAuth();
 
-  // 1. Initial channel setup and pre-emptive cold-start notification lock
+  // 1. Initial channel setup, developer overlay suppression, and pre-emptive cold-start notification lock
   useEffect(() => {
     void configureNotificationChannels();
 
@@ -186,12 +192,29 @@ function RootLayoutNav() {
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="login" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="notices" options={{ title: 'Notices', headerBackTitle: 'Back' }} />
+      <Stack.Screen name="notices" options={{ title: 'Official Notices', headerBackTitle: 'Back' }} />
+      <Stack.Screen name="notice/[id]" options={{ title: 'Notice Details', headerBackTitle: 'Notices' }} />
+      <Stack.Screen name="post/[id]" options={{ title: 'Post', headerBackTitle: 'Back' }} />
+      <Stack.Screen name="settings" options={{ title: 'Settings', headerBackTitle: 'Profile' }} />
+      <Stack.Screen name="developer-settings" options={{ title: 'Developer Settings', headerBackTitle: 'Settings' }} />
       <Stack.Screen name="routine" options={{ title: 'Class Routine', headerBackTitle: 'Back' }} />
       <Stack.Screen name="forum" options={{ title: 'Campus Forum', headerBackTitle: 'Back' }} />
       <Stack.Screen name="material/[id]" options={{ title: 'Material Details', headerBackTitle: 'Back' }} />
-      <Stack.Screen name="user/[id]" options={{ headerShown: false }} />
-      <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+      <Stack.Screen
+        name="edit-profile"
+        options={{
+          presentation: 'modal',
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="modal"
+        options={{
+          presentation: 'modal',
+          title: 'About Semester Library',
+          headerBackTitle: 'Close',
+        }}
+      />
     </Stack>
   );
 }

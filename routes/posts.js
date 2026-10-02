@@ -70,7 +70,7 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       COALESCE(sub.submission_count, 0) AS submission_count,
       (mine.user_id IS NOT NULL) AS liked_by_me
     FROM posts p
-    JOIN students s ON s.studentId = p.user_id
+    LEFT JOIN students s ON s.studentId = p.user_id
     LEFT JOIN (SELECT post_id, COUNT(*) AS like_count FROM post_likes GROUP BY post_id) l
       ON l.post_id = p.id
     LEFT JOIN (SELECT post_id, COUNT(*) AS comment_count FROM post_comments GROUP BY post_id) c
@@ -208,6 +208,22 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
   router.param('id', (req, res, next, id) => {
     if (!positiveId(id)) return res.status(400).json({ message: 'Invalid post ID.' });
     next();
+  });
+
+  router.get('/:id', async (req, res, next) => {
+    try {
+      const postId = Number(req.params.id);
+      if (!Number.isInteger(postId) || postId <= 0) {
+        return res.status(400).json({ message: 'Invalid post ID.' });
+      }
+      const currentUserId = req.student?.studentId || req.user?.studentId || req.session?.studentId || null;
+      const row = await db.get(`${selectPosts} WHERE p.id = ?`, currentUserId, postId);
+      if (!row) return res.status(404).json({ message: 'Post not found.' });
+      res.setHeader('Cache-Control', 'no-store');
+      res.json(formatPost(row, req));
+    } catch (err) {
+      next(err);
+    }
   });
 
   async function setLike(req, res, next) {

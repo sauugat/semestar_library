@@ -684,6 +684,9 @@ function requireLogin(req, res, next) {
   }
   return res.status(401).json({ message: 'Authentication required. Please sign in.' });
 }
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', server: 'Semester Library', time: new Date().toISOString() });
+});
 app.use('/api/posts', require('./routes/posts')(db, requireLogin));
 
 // --- Code Lab Rate Limiting ---
@@ -3918,15 +3921,9 @@ app.get('/api/students/suggested', requireLogin, async (req, res) => {
 
 // --- AI Assistant Service ---
 const aiAssistant = require('./ai-assistant');
-const { createDailyRateLimiter } = require('./lib/chat-ratelimit');
 
-// Daily AI Rate Limiter: Max 10 messages per student/session per day, resetting at midnight
-const aiDailyRateLimiter = createDailyRateLimiter({
-  max: 10,
-  message: "You’ve reached your daily limit of 10 AI chat messages. Your limit will reset at midnight — see you tomorrow! 🎓"
-});
-
-app.post('/api/ai/chat', aiDailyRateLimiter, require('./lib/chat-http').createChatHandler(db, aiAssistant));
+// Unlimited AI Chat: Users can chat with Kyana without message caps or rate limits
+app.post('/api/ai/chat', require('./lib/chat-http').createChatHandler(db, aiAssistant));
 
 app.get('/api/ai/suggestions', (req, res) => {
   res.json([

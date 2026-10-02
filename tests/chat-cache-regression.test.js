@@ -151,6 +151,11 @@ test('native photo/file controls expose long-press actions and visible actions; 
     'expo-haptics': { impactAsync: async () => {}, ImpactFeedbackStyle: { Light: 'Light' } },
     '@/components/ui/Typography': { Text: 'Text' },
     '@/services/chat-state': state,
+    '@/utils/date': {
+      formatMessageTime: () => '12:00 PM',
+      formatChatDateSeparator: () => 'Today',
+      formatTimeAgo: () => 'Just now',
+    },
     'react-native-safe-area-context': { useSafeAreaInsets: () => ({ bottom: 0 }) },
   };
   function nodes(tree) {

@@ -117,9 +117,9 @@ test('fallback chain: Groq succeeds when DeepSeek fails', async () => {
   assert.match(calledUrls[1], /api\.groq\.com/);
 });
 
-test('daily rate limiter allows 10 messages and rejects 11th with friendly message', () => {
+test('hourly rate limiter allows 100 messages and rejects 101st with friendly message', () => {
   const store = new Map();
-  const limiter = createDailyRateLimiter({ max: 10, store, getToday: () => '2026-09-27' });
+  const limiter = createDailyRateLimiter({ max: 100, store, getHourKey: () => '2026-09-27T10' });
 
   const studentReq = {
     session: { studentId: '26020266' },
@@ -129,8 +129,8 @@ test('daily rate limiter allows 10 messages and rejects 11th with friendly messa
   let nextCalls = 0;
   const next = () => { nextCalls++; };
 
-  // First 10 requests should succeed
-  for (let i = 0; i < 10; i++) {
+  // First 100 requests should succeed
+  for (let i = 0; i < 100; i++) {
     let statusCalled = null;
     let jsonSent = null;
     const res = {
@@ -140,25 +140,25 @@ test('daily rate limiter allows 10 messages and rejects 11th with friendly messa
     limiter(studentReq, res, next);
     assert.equal(statusCalled, null, `Request ${i + 1} should not be blocked`);
   }
-  assert.equal(nextCalls, 10);
+  assert.equal(nextCalls, 100);
 
-  // 11th request must be rejected with 429 and friendly message
-  let status11 = null;
-  let json11 = null;
-  const res11 = {
-    status(s) { status11 = s; return this; },
-    json(data) { json11 = data; }
+  // 101st request must be rejected with 429 and friendly message
+  let status101 = null;
+  let json101 = null;
+  const res101 = {
+    status(s) { status101 = s; return this; },
+    json(data) { json101 = data; }
   };
-  limiter(studentReq, res11, next);
-  assert.equal(nextCalls, 10, 'next() should not be called for 11th request');
-  assert.equal(status11, 429);
-  assert.match(json11.message, /daily limit of 10/);
+  limiter(studentReq, res101, next);
+  assert.equal(nextCalls, 100, 'next() should not be called for 101st request');
+  assert.equal(status101, 429);
+  assert.match(json101.message, /limit of 100/);
 });
 
-test('daily rate limiter resets at midnight (new date)', () => {
+test('hourly rate limiter resets on the next hour', () => {
   const store = new Map();
-  let currentDate = '2026-09-27';
-  const limiter = createDailyRateLimiter({ max: 10, store, getToday: () => currentDate });
+  let currentHour = '2026-09-27T10';
+  const limiter = createDailyRateLimiter({ max: 100, store, getHourKey: () => currentHour });
 
   const sessionReq = {
     sessionID: 'sess_abc123',
@@ -167,32 +167,32 @@ test('daily rate limiter resets at midnight (new date)', () => {
 
   const next = () => {};
 
-  // Consume all 10 messages on day 1
-  for (let i = 0; i < 10; i++) {
+  // Consume all 100 messages in hour 10
+  for (let i = 0; i < 100; i++) {
     limiter(sessionReq, { status() { return this; }, json() {} }, next);
   }
 
-  // 11th request is blocked on day 1
+  // 101st request is blocked
   let blockedStatus = null;
   limiter(sessionReq, { status(s) { blockedStatus = s; return this; }, json() {} }, next);
   assert.equal(blockedStatus, 429);
 
-  // Midnight arrives! Date flips to 2026-09-28
-  currentDate = '2026-09-28';
+  // Next hour arrives!
+  currentHour = '2026-09-27T11';
   let allowed = false;
   limiter(sessionReq, { status() { return this; }, json() {} }, () => { allowed = true; });
-  assert.equal(allowed, true, 'Request should be allowed after midnight');
+  assert.equal(allowed, true, 'Request should be allowed in the next hour');
 });
 
 test('rate limiter tracks different students separately', () => {
   const store = new Map();
-  const limiter = createDailyRateLimiter({ max: 10, store, getToday: () => '2026-09-27' });
+  const limiter = createDailyRateLimiter({ max: 100, store, getHourKey: () => '2026-09-27T10' });
 
   const studentA = { session: { studentId: 'student_1' }, body: { message: 'hi' } };
   const studentB = { session: { studentId: 'student_2' }, body: { message: 'hi' } };
 
   // Max out student A
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 100; i++) {
     limiter(studentA, { status() { return this; }, json() {} }, () => {});
   }
 

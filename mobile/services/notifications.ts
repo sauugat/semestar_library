@@ -553,19 +553,13 @@ export function navigateFromNotification(
         break;
 
       case 'post':
-        // Navigate to home feed with highlighted postId (opens comments discussion)
-        router.replace({
-          pathname: '/(tabs)',
-          params: { postId: String(payload.postId) },
-        });
+        // Navigate to dedicated post detail page
+        router.replace(`/post/${payload.postId}`);
         break;
 
       case 'notice':
-        // Navigate to dedicated notices screen targeting notice
-        router.replace({
-          pathname: '/notices',
-          params: { id: String(payload.noticeId) },
-        });
+        // Navigate to dedicated notice detail page
+        router.replace(`/notice/${payload.noticeId}`);
         break;
 
       default:

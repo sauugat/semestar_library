@@ -85,6 +85,61 @@ export async function getPosts(
 }
 
 /**
+ * Fetch a single post or notice by ID with multi-tier resilient fallback.
+ */
+export async function getPostById(postId: number): Promise<Post> {
+  const numericId = Number(postId);
+  if (!numericId || isNaN(numericId)) {
+    throw new ApiError('Invalid post ID', 400);
+  }
+
+  // Tier 1: Dedicated single-post endpoint
+  try {
+    const direct = await api.get<Post>(`/api/posts/${numericId}`);
+    if (direct && Number(direct.id) === numericId) {
+      return direct;
+    }
+  } catch (err: any) {
+    if (__DEV__) {
+      console.log(`[getPostById] Tier 1 GET /api/posts/${numericId} failed (${err?.status || err?.message}); trying Tier 2 cursor fallback...`);
+    }
+  }
+
+  // Tier 2: Fetch descending cursor page around postId (compatible with all deployed backends)
+  try {
+    const pageRes = await api.get<PostsResponse>(`/api/posts?before=${numericId + 1}&limit=25`);
+    const match = pageRes?.posts?.find((p) => Number(p.id) === numericId);
+    if (match) {
+      return match;
+    }
+  } catch (err) {
+    if (__DEV__) {
+      console.log('[getPostById] Tier 2 cursor fallback failed:', err);
+    }
+  }
+
+  // Tier 3: Fetch notices specifically (in case it is categorized as notice)
+  try {
+    const noticeRes = await api.get<{ posts: Post[] } | Post[]>(`/api/posts?type=notice&limit=50`);
+    const list: Post[] = Array.isArray((noticeRes as any)?.posts)
+      ? (noticeRes as any).posts
+      : Array.isArray(noticeRes)
+      ? noticeRes
+      : [];
+    const match = list.find((p) => Number(p.id) === numericId);
+    if (match) {
+      return match;
+    }
+  } catch (err) {
+    if (__DEV__) {
+      console.log('[getPostById] Tier 3 notices fallback failed:', err);
+    }
+  }
+
+  throw new ApiError('Post not found', 404);
+}
+
+/**
  * Fetch uploaded library files for merging into the Campus Feed.
  */
 export async function getFeedFiles(): Promise<LibraryFile[]> {

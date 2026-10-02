@@ -9,16 +9,16 @@ import {
   Alert,
   Modal,
   TextInput,
-  KeyboardAvoidingView,
   Platform,
   ScrollView,
   Switch,
   Animated,
   PanResponder,
 } from 'react-native';
+import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import { Image } from 'expo-image';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -30,6 +30,10 @@ import { useTheme } from '@/constants/useTheme';
 import { Text, Heading, Subheading, Caption } from '@/components/ui/Typography';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Avatar } from '@/components/ui/Avatar';
+import { Badge } from '@/components/ui/Badge';
+import { KeyboardAwareForm } from '@/components/ui/KeyboardAwareForm';
+import { formatTimeAgo } from '@/utils/date';
 import {
   getPosts,
   getFeedFiles,
@@ -157,24 +161,8 @@ export type FeedItem =
   | { feedType: 'post'; post: Post; time: number }
   | { feedType: 'file'; file: LibraryFile; time: number };
 
-function formatRelativeTime(dateString: string): string {
-  try {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = Math.max(0, now.getTime() - date.getTime());
-    const diffSec = Math.floor(diffMs / 1000);
-    const diffMin = Math.floor(diffSec / 60);
-    const diffHour = Math.floor(diffMin / 60);
-    const diffDay = Math.floor(diffHour / 24);
-
-    if (diffSec < 60) return 'Just now';
-    if (diffMin < 60) return `${diffMin}m ago`;
-    if (diffHour < 24) return `${diffHour}h ago`;
-    if (diffDay < 7) return `${diffDay}d ago`;
-    return date.toLocaleDateString();
-  } catch {
-    return dateString;
-  }
+function formatRelativeTime(dateString: unknown): string {
+  return formatTimeAgo(dateString);
 }
 
 function formatLastUpdated(date: Date | string | null): string {
@@ -512,6 +500,7 @@ function PostImageItem({
 
 export default function HomeScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { colors, spacing, radii } = useTheme();
   const queryClient = useQueryClient();
@@ -1513,32 +1502,12 @@ export default function HomeScreen() {
             }}
             style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
           >
-            <View
-              style={[
-                styles.authorAvatar,
-                {
-                  backgroundColor: colors.surfaceRaised,
-                  borderColor: colors.border,
-                  borderWidth: 1,
-                  borderRadius: radii.full,
-                  overflow: 'hidden',
-                },
-              ]}
-            >
-              {item.avatarUrl ? (
-                <Image
-                  source={{ uri: getFullImageUrl(item.avatarUrl) || item.avatarUrl }}
-                  style={{ width: '100%', height: '100%' }}
-                  contentFit="cover"
-                  cachePolicy="memory-disk"
-                />
-              ) : (
-                <Text variant="sm" weight="700" color="primary">
-                  {(item.name || 'U').charAt(0).toUpperCase()}
-                </Text>
-              )}
-            </View>
-            <View style={{ flex: 1, marginLeft: spacing.sm }}>
+            <Avatar
+              url={getFullImageUrl(item.avatarUrl) || item.avatarUrl}
+              name={item.name}
+              size="md"
+            />
+            <View style={{ flex: 1, marginLeft: spacing.compact }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <Text variant="sm" weight="700" numberOfLines={1}>
                   {item.name || 'Student'}
@@ -1604,16 +1573,20 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* Post Text Content with See More / See Less */}
-        <View style={{ marginTop: spacing.sm }}>
+        {/* Post Text Content - Tap to open Post Detail */}
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => router.push(`/post/${item.id}`)}
+          style={{ marginTop: spacing.sm }}
+        >
           <Text
             variant="sm"
-            style={[styles.postContent, { color: colors.text }]}
+            style={[styles.postContent, { color: colors.text, lineHeight: 22 }]}
           >
-            {(item.content || '').length > 180 && !expandedPostIds.has(item.id)
-              ? `${(item.content || '').slice(0, 180).trim()}... `
+            {(item.content || '').length > 240 && !expandedPostIds.has(item.id)
+              ? `${(item.content || '').slice(0, 240).trim()}... `
               : item.content}
-            {(item.content || '').length > 180 && (
+            {(item.content || '').length > 240 && (
               <Text
                 variant="sm"
                 weight="700"
@@ -1625,7 +1598,7 @@ export default function HomeScreen() {
               </Text>
             )}
           </Text>
-        </View>
+        </TouchableOpacity>
 
         {/* Attached Image: natural aspect ratio, 4:5 max height cap, Instagram-style pinch-to-zoom & double-tap to like */}
         {imageUrl && (
@@ -1648,10 +1621,10 @@ export default function HomeScreen() {
             onPress={() => handleToggleLike(item.id)}
           />
 
-          {/* Comment Count / Open Replies Sheet */}
+          {/* Comment Count / Open Post Detail Page */}
           <TouchableOpacity
             style={styles.actionButton}
-            onPress={() => handleOpenPostComments(item)}
+            onPress={() => router.push(`/post/${item.id}`)}
             accessibilityLabel="View comments on post"
           >
             <Ionicons name="chatbubble-outline" size={17} color={colors.textMuted} />
@@ -1679,6 +1652,24 @@ export default function HomeScreen() {
             </View>
           )}
         </View>
+
+        {/* Comments Preview */}
+        {item.comment_count > 0 && (
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => router.push(`/post/${item.id}`)}
+            style={{
+              marginTop: spacing.compact,
+              paddingTop: spacing.tight,
+              borderTopWidth: StyleSheet.hairlineWidth,
+              borderTopColor: colors.borderSubtle,
+            }}
+          >
+            <Text variant="xs" color="muted">
+              View all {item.comment_count} {item.comment_count === 1 ? 'comment' : 'comments'}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   };
@@ -1715,32 +1706,12 @@ export default function HomeScreen() {
               }}
               style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
             >
-              <View
-                style={[
-                  styles.authorAvatar,
-                  {
-                    backgroundColor: colors.surfaceRaised,
-                    borderColor: colors.border,
-                    borderWidth: 1,
-                    borderRadius: radii.full,
-                    overflow: 'hidden',
-                  },
-                ]}
-              >
-                {file.uploaderAvatar ? (
-                  <Image
-                    source={{ uri: getFullImageUrl(file.uploaderAvatar) || file.uploaderAvatar }}
-                    style={{ width: '100%', height: '100%' }}
-                    contentFit="cover"
-                    cachePolicy="memory-disk"
-                  />
-                ) : (
-                  <Text variant="sm" weight="700" color="primary">
-                    {(file.uploaderName || 'S').charAt(0).toUpperCase()}
-                  </Text>
-                )}
-              </View>
-              <View style={{ flex: 1, marginLeft: spacing.sm }}>
+              <Avatar
+                url={getFullImageUrl(file.uploaderAvatar || null) || file.uploaderAvatar}
+                name={file.uploaderName}
+                size="md"
+              />
+              <View style={{ flex: 1, marginLeft: spacing.compact }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <Text variant="sm" weight="700" numberOfLines={1}>
                     {file.uploaderName || 'Student'}
@@ -2029,8 +2000,7 @@ export default function HomeScreen() {
           if (!submittingPost) setComposerOpen(false);
         }}
       >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        <View
           style={[styles.modalBackdrop, { backgroundColor: colors.background }]}
         >
           <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
@@ -2039,7 +2009,8 @@ export default function HomeScreen() {
               <TouchableOpacity
                 onPress={() => setComposerOpen(false)}
                 disabled={submittingPost}
-                style={{ padding: 4 }}
+                style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
                 <Text variant="sm" color="secondary">Cancel</Text>
               </TouchableOpacity>
@@ -2057,27 +2028,19 @@ export default function HomeScreen() {
               />
             </View>
 
-            <ScrollView
-              style={{ flex: 1, padding: spacing.md }}
+            <KeyboardAwareForm
+              style={{ flex: 1 }}
+              contentContainerStyle={{ padding: spacing.md }}
               keyboardShouldPersistTaps="handled"
+              clearance={24}
             >
               {/* Author & Post Type Row */}
               <View style={styles.modalAuthorRow}>
-                <View
-                  style={[
-                    styles.authorAvatar,
-                    {
-                      backgroundColor: colors.surfaceRaised,
-                      borderColor: colors.border,
-                      borderWidth: 1,
-                      borderRadius: radii.full,
-                    },
-                  ]}
-                >
-                  <Text variant="sm" weight="700" color="primary">
-                    {(user?.name || 'S').charAt(0).toUpperCase()}
-                  </Text>
-                </View>
+                <Avatar
+                  size="sm"
+                  url={getFullImageUrl(user?.avatarUrl || null)}
+                  name={user?.name}
+                />
 
                 <View style={{ flex: 1, marginLeft: spacing.sm }}>
                   <Text variant="sm" weight="700" color="primary">
@@ -2256,9 +2219,9 @@ export default function HomeScreen() {
                   </TouchableOpacity>
                 )}
               </View>
-            </ScrollView>
+            </KeyboardAwareForm>
           </SafeAreaView>
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
 
       {/* Post Options Bottom Sheet Menu */}
@@ -2398,8 +2361,8 @@ export default function HomeScreen() {
           setActiveCommentPost(null);
         }}
       >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        <KeyboardStickyView
+          offset={{ closed: 0, opened: insets.bottom }}
           style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' }}
         >
           <View
@@ -2627,7 +2590,7 @@ export default function HomeScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        </KeyboardAvoidingView>
+        </KeyboardStickyView>
       </Modal>
 
       {/* Floating Toast Notification */}

@@ -17,6 +17,7 @@ import * as Haptics from 'expo-haptics';
 import { Text } from '@/components/ui/Typography';
 import { ChatMessage, ChatReadReceipt } from '@/services/chat';
 import { parseChatDate } from '@/services/chat-state';
+import { formatMessageTime as safeFormatTime, formatChatDateSeparator as safeFormatSeparator } from '@/utils/date';
 
 const imageDimensionsCache = new Map<string, { width: number; height: number }>();
 
@@ -44,45 +45,11 @@ interface ChatMessageItemProps {
 }
 
 function formatMessageTime(isoString: string): string {
-  try {
-    const date = parseChatDate(isoString);
-    if (isNaN(date.getTime())) return '';
-    return date.toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-    });
-  } catch {
-    return '';
-  }
+  return safeFormatTime(isoString);
 }
 
 function formatDateSeparator(isoString: string): string {
-  try {
-    const d = parseChatDate(isoString);
-    const now = new Date();
-    const isToday =
-      d.getDate() === now.getDate() &&
-      d.getMonth() === now.getMonth() &&
-      d.getFullYear() === now.getFullYear();
-
-    const yesterday = new Date(now);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const isYesterday =
-      d.getDate() === yesterday.getDate() &&
-      d.getMonth() === yesterday.getMonth() &&
-      d.getFullYear() === yesterday.getFullYear();
-
-    if (isToday) return 'Today';
-    if (isYesterday) return 'Yesterday';
-    return d.toLocaleDateString([], {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  } catch {
-    return '';
-  }
+  return safeFormatSeparator(isoString);
 }
 
 function isSameDay(d1Str: string, d2Str: string): boolean {
@@ -183,7 +150,6 @@ function MessageStatusMeta({
   const isPending = status === 'pending';
   const isFailed = status === 'failed';
   const iconColor = overlay ? '#ffffff' : '#8e8e93';
-  const readColor = '#53bdeb';
 
   if (isFailed) {
     return (
@@ -217,20 +183,6 @@ function MessageStatusMeta({
           <Ionicons
             name="time-outline"
             size={11}
-            color={iconColor}
-            style={{ marginLeft: 3 }}
-          />
-        ) : isRead ? (
-          <Ionicons
-            name="checkmark-done"
-            size={13}
-            color={readColor}
-            style={{ marginLeft: 3 }}
-          />
-        ) : isDelivered ? (
-          <Ionicons
-            name="checkmark-done"
-            size={13}
             color={iconColor}
             style={{ marginLeft: 3 }}
           />

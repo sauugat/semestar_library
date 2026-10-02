@@ -6,32 +6,42 @@ import {
   Alert,
   TouchableOpacity,
   Modal,
-  KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
   RefreshControl,
-  Switch,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Linking from 'expo-linking';
 import * as Clipboard from 'expo-clipboard';
-import * as Notifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth, StudentUser } from '@/context/AuthContext';
 import { useTheme } from '@/constants/useTheme';
 import { Text, Heading, Subheading, Caption } from '@/components/ui/Typography';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import { TextField } from '@/components/ui/TextField';
+import { Avatar } from '@/components/ui/Avatar';
+import { UserRow } from '@/components/ui/UserRow';
+import { ResourceCard } from '@/components/ui/ResourceCard';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Chip } from '@/components/ui/Chip';
 import { apiFetch } from '@/services/api';
-import {
-  getNotificationPreferences,
-  updateNotificationPreferences,
-  requestNotificationPermission,
-  NotificationPreferences,
-} from '@/services/notifications';
+import { formatTimeAgo } from '@/utils/date';
+
+const DEPARTMENTS = ['BIT', 'BBA', 'BPharm', 'BTech', 'BLLB'];
+const SEMESTERS = [
+  'Semester 1',
+  'Semester 2',
+  'Semester 3',
+  'Semester 4',
+  'Semester 5',
+  'Semester 6',
+  'Semester 7',
+  'Semester 8',
+];
 
 interface SharedFileItem {
   id: number;
@@ -65,7 +75,8 @@ interface ClassmateItem {
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, token, serverUrl, updateServerUrl, updateProfile, refreshProfile, logout } = useAuth();
+  const insets = useSafeAreaInsets();
+  const { user, token, serverUrl, updateProfile, refreshProfile } = useAuth();
   const { colors, spacing, radii } = useTheme();
 
   // Active Tab: 'uploads' | 'classmates'
@@ -82,104 +93,10 @@ export default function ProfileScreen() {
   // Follow Action In-flight
   const [followingMap, setFollowingMap] = useState<Record<string, boolean>>({});
 
-  // Edit Profile Modal
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editName, setEditName] = useState(user?.name || '');
-  const [editBio, setEditBio] = useState(user?.bio || '');
-  const [editDept, setEditDept] = useState(user?.department || 'BIT');
-  const [editSem, setEditSem] = useState(user?.semester || 'Semester 1');
-  const [editGithub, setEditGithub] = useState(user?.githubUrl || '');
-  const [editLinkedin, setEditLinkedin] = useState(user?.linkedinUrl || '');
-  const [isSavingProfile, setIsSavingProfile] = useState(false);
-
   // Avatar Uploading State
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
-  // Server URL Configuration Card
-  const [editingUrl, setEditingUrl] = useState(serverUrl);
-  const [urlSaved, setUrlSaved] = useState(false);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-
-  // Change Password State
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmNewPassword, setConfirmNewPassword] = useState('');
-  const [isChangingPassword, setIsChangingPassword] = useState(false);
-  const [passwordError, setPasswordError] = useState<string | null>(null);
-  const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
-
-  // Notification Preferences State
-  const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences>({
-    muteChat: false,
-    notifyNotes: true,
-    notifyPosts: true,
-    notifyNotices: true,
-    hideLockscreenPreview: false,
-  });
-  const [loadingPrefs, setLoadingPrefs] = useState(false);
-  const [updatingPrefKey, setUpdatingPrefKey] = useState<string | null>(null);
-  const [systemPermissionGranted, setSystemPermissionGranted] = useState<boolean | null>(null);
-
-  // Load preferences from server
-  useEffect(() => {
-    let isMounted = true;
-    if (!token) return;
-
-    void (async () => {
-      try {
-        setLoadingPrefs(true);
-        const perm = await Notifications.getPermissionsAsync().catch(() => null);
-        if (isMounted) setSystemPermissionGranted(perm?.status === 'granted');
-
-        const serverPrefs = await getNotificationPreferences();
-        if (isMounted && serverPrefs) {
-          setNotifPrefs(serverPrefs);
-        }
-      } catch (err) {
-        console.warn('Failed to load notification settings:', err);
-      } finally {
-        if (isMounted) setLoadingPrefs(false);
-      }
-    })();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [token]);
-
-  const handleTogglePref = async (key: keyof NotificationPreferences, nextValue: boolean) => {
-    // If user enables a category while OS notification permission is missing, prompt to request or open settings
-    if (nextValue && systemPermissionGranted === false && key !== 'muteChat') {
-      const granted = await requestNotificationPermission();
-      setSystemPermissionGranted(granted);
-      if (!granted) {
-        Alert.alert(
-          'Notifications Disabled in OS',
-          'Notifications for Semester Library are disabled in your device settings. Would you like to open Settings to enable them?',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Open Settings', onPress: () => Linking.openSettings().catch(() => {}) },
-          ]
-        );
-      }
-    }
-
-    // Optimistic UI update with rollback on failure
-    const prevPrefs = { ...notifPrefs };
-    const updated = { ...notifPrefs, [key]: nextValue };
-    setNotifPrefs(updated);
-    setUpdatingPrefKey(key);
-
-    const res = await updateNotificationPreferences({ [key]: nextValue });
-    setUpdatingPrefKey(null);
-
-    if (!res.success) {
-      setNotifPrefs(prevPrefs);
-      Alert.alert('Update Failed', res.error || 'Could not save notification preferences. Please try again.');
-    }
-  };
 
   // Helper for full avatar url
   const getFullAvatarUrl = (url?: string | null) => {
@@ -196,35 +113,6 @@ export default function ProfileScreen() {
     const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(b) / Math.log(k));
     return `${(b / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
-  };
-
-  // Helper for time ago
-  const formatTimeAgo = (isoString?: string) => {
-    if (!isoString) return '';
-    const date = new Date(isoString);
-    const now = new Date();
-    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-    if (seconds < 60) return 'just now';
-    const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `${minutes}m ago`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h ago`;
-    const days = Math.floor(hours / 24);
-    if (days < 30) return `${days}d ago`;
-    return date.toLocaleDateString();
-  };
-
-  // Helper for file type icon
-  const getFileIcon = (name: string): { icon: keyof typeof Ionicons.glyphMap; color: string } => {
-    const ext = (name || '').split('.').pop()?.toLowerCase();
-    if (ext === 'pdf') return { icon: 'document-text', color: '#EF4444' };
-    if (['ppt', 'pptx'].includes(ext || '')) return { icon: 'easel', color: '#F97316' };
-    if (['doc', 'docx'].includes(ext || '')) return { icon: 'document', color: '#3B82F6' };
-    if (['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext || '')) return { icon: 'image', color: '#10B981' };
-    if (['zip', 'rar', '7z', 'tar'].includes(ext || '')) return { icon: 'archive', color: '#8B5CF6' };
-    if (['c', 'cpp', 'py', 'java', 'js', 'html', 'css', 'sql'].includes(ext || ''))
-      return { icon: 'code-slash', color: '#06B6D4' };
-    return { icon: 'document-outline', color: '#6B7280' };
   };
 
   // Load Shared Files
@@ -333,43 +221,6 @@ export default function ProfileScreen() {
     }
   };
 
-  // Open Edit Profile Modal
-  const openEditModal = () => {
-    setEditName(user?.name || '');
-    setEditBio(user?.bio || '');
-    setEditDept(user?.department || 'BIT');
-    setEditSem(user?.semester || 'Semester 1');
-    setEditGithub(user?.githubUrl || '');
-    setEditLinkedin(user?.linkedinUrl || '');
-    setShowEditModal(true);
-  };
-
-  // Save Profile Changes
-  const handleSaveProfile = async () => {
-    if (!editName.trim()) {
-      Alert.alert('Validation Error', 'Full Name is required.');
-      return;
-    }
-
-    setIsSavingProfile(true);
-    const result = await updateProfile({
-      name: editName.trim(),
-      bio: editBio.trim(),
-      department: editDept.trim(),
-      semester: editSem.trim(),
-      githubUrl: editGithub.trim(),
-      linkedinUrl: editLinkedin.trim(),
-    });
-    setIsSavingProfile(false);
-
-    if (result.success) {
-      setShowEditModal(false);
-      Alert.alert('Success', 'Profile updated successfully!');
-    } else {
-      Alert.alert('Error', result.error || 'Failed to update profile.');
-    }
-  };
-
   // Toggle Follow Classmate
   const handleToggleFollow = async (classmateId: string, classmateName: string) => {
     const currentFollowing = Boolean(followingMap[classmateId]);
@@ -442,86 +293,18 @@ export default function ProfileScreen() {
     Alert.alert('Profile Link Copied', `Copied to clipboard:\n${profileUrl}`);
   };
 
-  // Change Password Action
-  const handleChangePassword = async () => {
-    setPasswordError(null);
-    setPasswordSuccess(null);
-
-    if (!currentPassword) {
-      setPasswordError('Please enter your current password.');
-      return;
-    }
-    if (!newPassword || newPassword.length < 6) {
-      setPasswordError('New password must be at least 6 characters long.');
-      return;
-    }
-    if (newPassword !== confirmNewPassword) {
-      setPasswordError('New passwords do not match.');
-      return;
-    }
-
-    setIsChangingPassword(true);
-    try {
-      const res = await apiFetch('/api/change-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ currentPassword, newPassword }),
-      });
-      const data = await res.json().catch(() => ({}));
-      setIsChangingPassword(false);
-
-      if (res.ok) {
-        setPasswordSuccess(data.message || 'Password successfully updated!');
-        setCurrentPassword('');
-        setNewPassword('');
-        setConfirmNewPassword('');
-        setTimeout(() => {
-          setShowPasswordModal(false);
-          setPasswordSuccess(null);
-          Alert.alert('Success', 'Your password has been updated successfully.');
-        }, 1200);
-      } else {
-        setPasswordError(data.message || 'Failed to update password.');
-      }
-    } catch (err: any) {
-      setIsChangingPassword(false);
-      setPasswordError(err.message || 'Network error while updating password.');
-    }
-  };
-
-  // Save LAN URL
-  const handleSaveUrl = async () => {
-    await updateServerUrl(editingUrl);
-    setUrlSaved(true);
-    setTimeout(() => setUrlSaved(false), 2000);
-  };
-
-  // Logout
-  const handleLogout = () => {
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out? Your stored authentication session will be cleared.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Sign Out',
-          style: 'destructive',
-          onPress: async () => {
-            setIsLoggingOut(true);
-            await logout();
-            setIsLoggingOut(false);
-          },
-        },
-      ]
-    );
-  };
-
   const initial = user?.name ? user.name.charAt(0).toUpperCase() : 'S';
   const avatarUri = getFullAvatarUrl(user?.avatarUrl);
 
   return (
     <ScrollView
-      contentContainerStyle={[styles.container, { backgroundColor: colors.background }]}
+      contentContainerStyle={[
+        styles.container,
+        {
+          backgroundColor: colors.background,
+          paddingBottom: 64 + insets.bottom + 36,
+        },
+      ]}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
     >
       {/* 1. HERO CARD WITH BANNER & PROFILE IDENTITY */}
@@ -570,12 +353,12 @@ export default function ProfileScreen() {
               style={[
                 styles.avatarEditBadge,
                 {
-                  backgroundColor: colors.primary,
-                  borderColor: colors.surface,
+                  backgroundColor: colors.surfaceRaised,
+                  borderColor: colors.border,
                 },
               ]}
             >
-              <Ionicons name="camera" size={14} color="#FFFFFF" />
+              <Ionicons name="camera-outline" size={13} color={colors.text} />
             </TouchableOpacity>
           </View>
 
@@ -695,7 +478,7 @@ export default function ProfileScreen() {
               title="Edit Profile"
               variant="primary"
               size="sm"
-              onPress={openEditModal}
+              onPress={() => router.push('/edit-profile')}
               leftIcon={<Ionicons name="create-outline" size={15} color={colors.primaryText} />}
               style={{ flex: 1, marginRight: spacing.xs }}
             />
@@ -824,100 +607,29 @@ export default function ProfileScreen() {
               <Caption style={{ marginTop: spacing.xs }}>Loading shared resources…</Caption>
             </View>
           ) : files.length === 0 ? (
-            <Card style={styles.emptyStateCard}>
-              <Ionicons name="cloud-upload-outline" size={38} color={colors.textMuted} />
-              <Text variant="sm" weight="600" style={{ marginTop: spacing.xs }}>
-                No resources uploaded yet
-              </Text>
-              <Caption color="muted" style={{ textAlign: 'center', marginTop: 4 }}>
-                Study notes and assignments you share will appear here for your classmates.
-              </Caption>
-            </Card>
+            <EmptyState
+              icon="cloud-upload-outline"
+              title="No resources uploaded yet"
+              description="Study notes and assignments you share will appear here for your classmates."
+            />
           ) : (
-            files.map((file) => {
-              const fileStyle = getFileIcon(file.originalName);
-              return (
-                <Card
-                  key={file.id}
-                  variant="elevated"
-                  onPress={() => router.push(`/material/${file.id}?preview=1` as any)}
-                  style={[styles.fileCard, { borderColor: colors.border, marginBottom: spacing.sm }]}
-                >
-                  <View style={styles.fileCardHeader}>
-                    <View
-                      style={[
-                        styles.fileIconBadge,
-                        { backgroundColor: `${fileStyle.color}15`, borderColor: `${fileStyle.color}40` },
-                      ]}
-                    >
-                      <Ionicons name={fileStyle.icon} size={22} color={fileStyle.color} />
-                    </View>
-
-                    <View style={{ flex: 1, marginLeft: spacing.sm }}>
-                      <Text variant="sm" weight="700" numberOfLines={1}>
-                        {file.title || file.originalName}
-                      </Text>
-                      <Caption color="muted" numberOfLines={1}>
-                        {formatBytes(file.sizeBytes)} &middot; {formatTimeAgo(file.uploadedAt)}
-                      </Caption>
-                    </View>
-
-                    {file.canDelete && (
-                      <TouchableOpacity
-                        onPress={() => handleDeletePost(file.id, file.title || file.originalName)}
-                        style={styles.deleteButton}
-                      >
-                        <Ionicons name="trash-outline" size={17} color={colors.error} />
-                      </TouchableOpacity>
-                    )}
-                  </View>
-
-                  {(file.subject || file.chapter) && (
-                    <View style={styles.fileTagsRow}>
-                      {file.subject ? (
-                        <View
-                          style={[
-                            styles.fileTagChip,
-                            { backgroundColor: colors.surfaceSubtle, borderColor: colors.border },
-                          ]}
-                        >
-                          <Text variant="xs" color="secondary" weight="500">
-                            {file.subject}
-                          </Text>
-                        </View>
-                      ) : null}
-                      {file.chapter ? (
-                        <View
-                          style={[
-                            styles.fileTagChip,
-                            { backgroundColor: colors.surfaceSubtle, borderColor: colors.border },
-                          ]}
-                        >
-                          <Text variant="xs" color="secondary" weight="500">
-                            {file.chapter}
-                          </Text>
-                        </View>
-                      ) : null}
-                    </View>
-                  )}
-
-                  <View style={[styles.fileCardFooter, { borderTopColor: colors.border }]}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <Ionicons
-                        name={file.liked ? 'heart' : 'heart-outline'}
-                        size={15}
-                        color={file.liked ? colors.error : colors.textMuted}
-                        style={{ marginRight: 4 }}
-                      />
-                      <Text variant="xs" color="muted">
-                        {file.likeCount || 0} likes
-                      </Text>
-                    </View>
-                    <Caption color="muted">Public to Gandaki University</Caption>
-                  </View>
-                </Card>
-              );
-            })
+            files.map((file) => (
+              <ResourceCard
+                key={file.id}
+                id={file.id}
+                title={file.title || file.originalName}
+                originalName={file.originalName}
+                sizeBytes={file.sizeBytes}
+                uploadedAt={file.uploadedAt}
+                subject={file.subject}
+                chapter={file.chapter}
+                liked={file.liked}
+                likeCount={file.likeCount}
+                canDelete={file.canDelete}
+                onPress={() => router.push(`/material/${file.id}?preview=1` as any)}
+                onDelete={() => handleDeletePost(file.id, file.title || file.originalName)}
+              />
+            ))
           )}
         </View>
       )}
@@ -931,139 +643,88 @@ export default function ProfileScreen() {
               <Caption style={{ marginTop: spacing.xs }}>Loading classmates…</Caption>
             </View>
           ) : classmates.length === 0 ? (
-            <Card style={styles.emptyStateCard}>
-              <Ionicons name="people-outline" size={38} color={colors.textMuted} />
-              <Text variant="sm" weight="600" style={{ marginTop: spacing.xs }}>
-                No classmates registered yet
-              </Text>
-              <Caption color="muted" style={{ textAlign: 'center', marginTop: 4 }}>
-                Registered students in your university will appear here.
-              </Caption>
-            </Card>
+            <EmptyState
+              icon="people-outline"
+              title="No classmates registered yet"
+              description="Registered students in your university will appear here."
+            />
           ) : (
             classmates.map((classmate) => {
               const cAvatar = getFullAvatarUrl(classmate.avatarUrl);
-              const cInitial = classmate.name ? classmate.name.charAt(0).toUpperCase() : 'S';
               const isFollowing = Boolean(followingMap[classmate.studentId]);
               const filesShared = Number(classmate.filesCount || classmate.filescount || 0);
 
               return (
-                <Card
+                <UserRow
                   key={classmate.studentId}
-                  variant="elevated"
-                  style={[styles.classmateCard, { borderColor: colors.border, marginBottom: spacing.sm }]}
-                >
-                  <TouchableOpacity
-                    activeOpacity={0.7}
-                    onPress={() => router.push({ pathname: '/user/[id]', params: { id: classmate.studentId } })}
-                    style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: spacing.sm }}
-                  >
-                    <View
-                      style={[
-                        styles.classmateAvatar,
-                        { backgroundColor: colors.primaryLight, borderColor: colors.primary },
-                      ]}
-                    >
-                      {cAvatar ? (
-                        <Image source={{ uri: cAvatar }} style={styles.classmateAvatarImg} contentFit="cover" />
-                      ) : (
-                        <Text style={[styles.avatarInitial, { fontSize: 16 }]}>{cInitial}</Text>
-                      )}
-                    </View>
-
-                    <View style={{ flex: 1, marginLeft: spacing.sm }}>
-                      <Text variant="sm" weight="700">
-                        {classmate.name}
-                      </Text>
-                      <Caption color="muted">
-                        @{classmate.studentId} &middot; {classmate.department || 'BIT'}
-                      </Caption>
-                      <Caption color="secondary" style={{ marginTop: 2 }}>
-                        {filesShared} shared {filesShared === 1 ? 'file' : 'files'}
-                      </Caption>
-                    </View>
-                  </TouchableOpacity>
-
-                  <Button
-                    title={isFollowing ? 'Following' : 'Follow'}
-                    variant={isFollowing ? 'secondary' : 'primary'}
-                    size="sm"
-                    onPress={() => handleToggleFollow(classmate.studentId, classmate.name)}
-                    leftIcon={
-                      <Ionicons
-                        name={isFollowing ? 'checkmark' : 'person-add-outline'}
-                        size={13}
-                        color={isFollowing ? colors.text : '#FFFFFF'}
-                      />
-                    }
-                  />
-                </Card>
+                  id={classmate.studentId}
+                  name={classmate.name}
+                  studentId={classmate.studentId}
+                  avatarUrl={cAvatar}
+                  program={classmate.department || 'BIT'}
+                  sharedFilesCount={filesShared}
+                  isFollowing={isFollowing}
+                  onPress={() => router.push({ pathname: '/user/[id]', params: { id: classmate.studentId } })}
+                  onToggleFollow={() => handleToggleFollow(classmate.studentId, classmate.name)}
+                />
               );
             })
           )}
         </View>
       )}
 
-      {/* 6. ACCOUNT SECURITY & PREFERENCES */}
-      <View style={{ paddingHorizontal: spacing.md, marginTop: spacing.lg }}>
-        <Subheading style={{ marginBottom: spacing.xs }}>Account & Security</Subheading>
+      {/* 6. SETTINGS & PREFERENCES */}
+      <View style={{ paddingHorizontal: spacing.md, marginTop: spacing.lg, marginBottom: 40 }}>
+        <Subheading style={{ marginBottom: spacing.xs }}>Settings & Preferences</Subheading>
         <Card variant="elevated" padding="md" style={{ marginBottom: spacing.md }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 }}>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => router.push('/settings')}
+            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6 }}
+          >
             <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: spacing.sm }}>
               <View
                 style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 18,
+                  width: 38,
+                  height: 38,
+                  borderRadius: 19,
                   backgroundColor: colors.surfaceRaised,
                   alignItems: 'center',
                   justifyContent: 'center',
                   marginRight: spacing.sm,
                 }}
               >
-                <Ionicons name="key-outline" size={18} color={colors.primary} />
+                <Ionicons name="settings-outline" size={20} color={colors.primary} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text variant="sm" weight="700">
-                  Password
+                  Settings
                 </Text>
-                <Caption color="muted">Change your account sign-in password</Caption>
+                <Caption color="muted">Theme appearance, push notifications, security & sign out</Caption>
               </View>
             </View>
-            <Button
-              title="Change"
-              variant="outline"
-              size="sm"
-              onPress={() => {
-                setPasswordError(null);
-                setPasswordSuccess(null);
-                setCurrentPassword('');
-                setNewPassword('');
-                setConfirmNewPassword('');
-                setShowPasswordModal(true);
-              }}
-            />
-          </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </TouchableOpacity>
 
           <View
             style={{
               height: StyleSheet.hairlineWidth,
               backgroundColor: colors.border,
-              marginVertical: spacing.sm,
+              marginVertical: spacing.xs,
             }}
           />
 
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={() => router.push('/modal')}
-            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 }}
+            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6 }}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: spacing.sm }}>
               <View
                 style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 18,
+                  width: 38,
+                  height: 38,
+                  borderRadius: 19,
                   backgroundColor: colors.surfaceRaised,
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -1082,389 +743,7 @@ export default function ProfileScreen() {
             <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
           </TouchableOpacity>
         </Card>
-
-        {/* NOTIFICATION PREFERENCES CARD */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xs }}>
-          <Subheading>Notification Preferences</Subheading>
-          {loadingPrefs && <ActivityIndicator size="small" color={colors.primary} />}
-        </View>
-        <Card variant="elevated" padding="md" style={{ marginBottom: spacing.md }}>
-          {systemPermissionGranted === false && (
-            <TouchableOpacity
-              onPress={() => Linking.openSettings().catch(() => {})}
-              activeOpacity={0.8}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                backgroundColor: colors.surfaceSubtle || '#262626',
-                padding: 10,
-                borderRadius: radii.sm,
-                marginBottom: spacing.sm,
-                borderWidth: 1,
-                borderColor: colors.border,
-              }}
-            >
-              <Ionicons name="notifications-off-outline" size={18} color="#EF4444" style={{ marginRight: 8 }} />
-              <View style={{ flex: 1 }}>
-                <Text variant="xs" weight="600">System Notifications Disabled</Text>
-                <Caption color="muted">Tap to open system settings and enable push alerts.</Caption>
-              </View>
-              <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-            </TouchableOpacity>
-          )}
-
-          {/* Group Chat */}
-          <View style={styles.notifPrefRow}>
-            <View style={{ flex: 1, marginRight: 12 }}>
-              <Text variant="sm" weight="600">Group Chat</Text>
-              <Caption color="muted">Incoming messages from your class group chat</Caption>
-            </View>
-            {updatingPrefKey === 'muteChat' ? (
-              <ActivityIndicator size="small" color={colors.primary} />
-            ) : (
-              <Switch
-                value={!notifPrefs.muteChat}
-                onValueChange={(val) => void handleTogglePref('muteChat', !val)}
-                trackColor={{ false: colors.border, true: colors.primary }}
-              />
-            )}
-          </View>
-
-          <View style={styles.notifDivider} />
-
-          {/* Study Materials */}
-          <View style={styles.notifPrefRow}>
-            <View style={{ flex: 1, marginRight: 12 }}>
-              <Text variant="sm" weight="600">Study Materials</Text>
-              <Caption color="muted">New notes and PDFs uploaded for your semester</Caption>
-            </View>
-            {updatingPrefKey === 'notifyNotes' ? (
-              <ActivityIndicator size="small" color={colors.primary} />
-            ) : (
-              <Switch
-                value={notifPrefs.notifyNotes}
-                onValueChange={(val) => void handleTogglePref('notifyNotes', val)}
-                trackColor={{ false: colors.border, true: colors.primary }}
-              />
-            )}
-          </View>
-
-          <View style={styles.notifDivider} />
-
-          {/* Feed Posts */}
-          <View style={styles.notifPrefRow}>
-            <View style={{ flex: 1, marginRight: 12 }}>
-              <Text variant="sm" weight="600">Feed Posts</Text>
-              <Caption color="muted">New discussions and questions on campus feed</Caption>
-            </View>
-            {updatingPrefKey === 'notifyPosts' ? (
-              <ActivityIndicator size="small" color={colors.primary} />
-            ) : (
-              <Switch
-                value={notifPrefs.notifyPosts}
-                onValueChange={(val) => void handleTogglePref('notifyPosts', val)}
-                trackColor={{ false: colors.border, true: colors.primary }}
-              />
-            )}
-          </View>
-
-          <View style={styles.notifDivider} />
-
-          {/* Official Notices */}
-          <View style={styles.notifPrefRow}>
-            <View style={{ flex: 1, marginRight: 12 }}>
-              <Text variant="sm" weight="600">Official Notices</Text>
-              <Caption color="muted">Urgent announcements from campus administration</Caption>
-            </View>
-            {updatingPrefKey === 'notifyNotices' ? (
-              <ActivityIndicator size="small" color={colors.primary} />
-            ) : (
-              <Switch
-                value={notifPrefs.notifyNotices}
-                onValueChange={(val) => void handleTogglePref('notifyNotices', val)}
-                trackColor={{ false: colors.border, true: colors.primary }}
-              />
-            )}
-          </View>
-
-          <View style={styles.notifDivider} />
-
-          {/* Hide Lock Screen Previews */}
-          <View style={styles.notifPrefRow}>
-            <View style={{ flex: 1, marginRight: 12 }}>
-              <Text variant="sm" weight="600">Hide Lock Screen Previews</Text>
-              <Caption color="muted">Mask notification titles and details on the lock screen for privacy</Caption>
-            </View>
-            {updatingPrefKey === 'hideLockscreenPreview' ? (
-              <ActivityIndicator size="small" color={colors.primary} />
-            ) : (
-              <Switch
-                value={notifPrefs.hideLockscreenPreview}
-                onValueChange={(val) => void handleTogglePref('hideLockscreenPreview', val)}
-                trackColor={{ false: colors.border, true: colors.primary }}
-              />
-            )}
-          </View>
-        </Card>
-
-        {/* SESSION SECURITY CARD */}
-        <Subheading style={{ marginBottom: spacing.xs }}>Session Security</Subheading>
-        <Card variant="elevated" padding="md" style={{ marginBottom: spacing.md }}>
-          <View style={styles.infoRow}>
-            <Text variant="sm" color="secondary">
-              Auth Identity:
-            </Text>
-            <Text variant="sm" weight="600">
-              {user?.role ? user.role.toUpperCase() : 'STUDENT'} ({user?.studentId})
-            </Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text variant="sm" color="secondary">
-              Key Storage:
-            </Text>
-            <Text variant="sm" weight="600" color="success">
-              Hardware SecureStore
-            </Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text variant="sm" color="secondary">
-              Mobile Token:
-            </Text>
-            <Text variant="xs" weight="600" style={{ fontFamily: 'monospace' }}>
-              {token ? `${token.substring(0, 14)}...` : 'None'}
-            </Text>
-          </View>
-        </Card>
-
-        {/* LAN Server Configuration */}
-        <Subheading style={{ marginBottom: spacing.xs }}>Server Connection</Subheading>
-        <Card variant="elevated" padding="md" style={{ marginBottom: spacing.md }}>
-          <Input
-            label="Backend LAN URL"
-            value={editingUrl}
-            onChangeText={setEditingUrl}
-            autoCapitalize="none"
-            autoCorrect={false}
-            helper={urlSaved ? '✅ Saved successfully!' : 'IP and port of your Semester Library server'}
-          />
-          <Button
-            title={urlSaved ? 'Saved!' : 'Update Server URL'}
-            variant="secondary"
-            size="sm"
-            onPress={handleSaveUrl}
-          />
-        </Card>
-
-        {/* Sign Out Button */}
-        <Button
-          title="Sign Out"
-          variant="danger"
-          size="lg"
-          loading={isLoggingOut}
-          onPress={handleLogout}
-          leftIcon={<Ionicons name="log-out-outline" size={20} color="#FFFFFF" />}
-          style={{ marginBottom: 40 }}
-        />
       </View>
-
-      {/* 7. EDIT PROFILE MODAL */}
-      <Modal visible={showEditModal} animationType="slide" transparent onRequestClose={() => setShowEditModal(false)}>
-        <KeyboardAvoidingView
-          style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
-          <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <View style={styles.modalHeader}>
-              <Heading style={{ fontSize: 18 }}>Edit Profile</Heading>
-              <TouchableOpacity onPress={() => setShowEditModal(false)} style={styles.modalCloseButton}>
-                <Ionicons name="close" size={22} color={colors.text} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <Input
-                label="Full Name"
-                placeholder="e.g. Full Name"
-                value={editName}
-                onChangeText={setEditName}
-                autoCapitalize="words"
-              />
-
-              <Input
-                label="Bio / Headline"
-                placeholder="e.g. BIT student, passionate about Cloud & AI…"
-                value={editBio}
-                onChangeText={setEditBio}
-                multiline
-                numberOfLines={3}
-                helper="Max 300 characters"
-              />
-
-              <View style={{ flexDirection: 'row' }}>
-                <View style={{ flex: 1, marginRight: spacing.xs }}>
-                  <Input
-                    label="Department"
-                    placeholder="BIT"
-                    value={editDept}
-                    onChangeText={setEditDept}
-                  />
-                </View>
-                <View style={{ flex: 1, marginLeft: spacing.xs }}>
-                  <Input
-                    label="Semester"
-                    placeholder="Semester 1"
-                    value={editSem}
-                    onChangeText={setEditSem}
-                  />
-                </View>
-              </View>
-
-              <Input
-                label="GitHub Profile URL"
-                placeholder="https://github.com/username"
-                value={editGithub}
-                onChangeText={setEditGithub}
-                autoCapitalize="none"
-                keyboardType="url"
-              />
-
-              <Input
-                label="LinkedIn Profile URL"
-                placeholder="https://linkedin.com/in/username"
-                value={editLinkedin}
-                onChangeText={setEditLinkedin}
-                autoCapitalize="none"
-                keyboardType="url"
-              />
-
-              <View style={styles.modalActionButtons}>
-                <Button
-                  title="Cancel"
-                  variant="outline"
-                  size="md"
-                  onPress={() => setShowEditModal(false)}
-                  style={{ flex: 1, marginRight: spacing.xs }}
-                />
-                <Button
-                  title="Save Changes"
-                  variant="primary"
-                  size="md"
-                  loading={isSavingProfile}
-                  onPress={handleSaveProfile}
-                  style={{ flex: 1, marginLeft: spacing.xs }}
-                />
-              </View>
-            </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* 8. CHANGE PASSWORD MODAL */}
-      <Modal
-        visible={showPasswordModal}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setShowPasswordModal(false)}
-      >
-        <KeyboardAvoidingView
-          style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
-          <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <View style={styles.modalHeader}>
-              <View style={{ flex: 1, marginRight: spacing.sm }}>
-                <Heading style={{ fontSize: 18 }}>Change Password</Heading>
-                <Caption color="muted">Enter your current password and a new secure password</Caption>
-              </View>
-              <TouchableOpacity onPress={() => setShowPasswordModal(false)} style={styles.modalCloseButton}>
-                <Ionicons name="close" size={22} color={colors.text} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {passwordError ? (
-                <View
-                  style={{
-                    backgroundColor: colors.surfaceRaised,
-                    borderColor: colors.error,
-                    borderLeftWidth: 4,
-                    borderRadius: radii.sm,
-                    padding: spacing.sm,
-                    marginBottom: spacing.md,
-                  }}
-                >
-                  <Text variant="xs" color="error" weight="600">
-                    {passwordError}
-                  </Text>
-                </View>
-              ) : null}
-
-              {passwordSuccess ? (
-                <View
-                  style={{
-                    backgroundColor: colors.surfaceRaised,
-                    borderColor: colors.success,
-                    borderLeftWidth: 4,
-                    borderRadius: radii.sm,
-                    padding: spacing.sm,
-                    marginBottom: spacing.md,
-                  }}
-                >
-                  <Text variant="xs" color="success" weight="600">
-                    {passwordSuccess}
-                  </Text>
-                </View>
-              ) : null}
-
-              <Input
-                label="Current Password"
-                placeholder="Enter current password"
-                value={currentPassword}
-                onChangeText={setCurrentPassword}
-                secureTextEntry
-                autoCapitalize="none"
-              />
-
-              <Input
-                label="New Password"
-                placeholder="At least 6 characters"
-                value={newPassword}
-                onChangeText={setNewPassword}
-                secureTextEntry
-                autoCapitalize="none"
-                helper="Minimum 6 characters recommended"
-              />
-
-              <Input
-                label="Confirm New Password"
-                placeholder="Re-enter new password"
-                value={confirmNewPassword}
-                onChangeText={setConfirmNewPassword}
-                secureTextEntry
-                autoCapitalize="none"
-              />
-
-              <View style={styles.modalActionButtons}>
-                <Button
-                  title="Cancel"
-                  variant="outline"
-                  size="md"
-                  onPress={() => setShowPasswordModal(false)}
-                  style={{ flex: 1, marginRight: spacing.xs }}
-                />
-                <Button
-                  title="Update Password"
-                  variant="primary"
-                  size="md"
-                  loading={isChangingPassword}
-                  onPress={handleChangePassword}
-                  style={{ flex: 1, marginLeft: spacing.xs }}
-                />
-              </View>
-            </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
     </ScrollView>
   );
 }
@@ -1703,11 +982,6 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 6,
-  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -1733,16 +1007,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginTop: 16,
     marginBottom: 24,
-  },
-  notifPrefRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-  },
-  notifDivider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    marginVertical: 4,
   },
 });

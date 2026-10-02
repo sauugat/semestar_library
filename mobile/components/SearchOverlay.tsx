@@ -8,7 +8,6 @@ import {
   ScrollView,
   ActivityIndicator,
   Platform,
-  KeyboardAvoidingView,
   StatusBar,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,6 +18,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/constants/useTheme';
 import { Text, Caption } from '@/components/ui/Typography';
+import { SearchSuggestionRow } from '@/components/ui/SearchSuggestionRow';
+import { formatDate } from '@/utils/date';
 import {
   searchGlobal,
   SearchResponse,
@@ -43,8 +44,6 @@ interface CategoryItem {
   description: string;
   query: string;
   icon: keyof typeof Ionicons.glyphMap;
-  iconColor: string;
-  bgColor: string;
 }
 
 const GLOBAL_CATEGORIES: CategoryItem[] = [
@@ -54,8 +53,6 @@ const GLOBAL_CATEGORIES: CategoryItem[] = [
     description: 'Notes, question banks & past papers',
     query: 'Notes',
     icon: 'document-text-outline',
-    iconColor: '#38bdf8',
-    bgColor: 'rgba(56, 189, 248, 0.12)',
   },
   {
     id: 'subjects',
@@ -63,8 +60,6 @@ const GLOBAL_CATEGORIES: CategoryItem[] = [
     description: 'Course curriculum & semester subjects',
     query: 'CIT',
     icon: 'book-outline',
-    iconColor: '#a855f7',
-    bgColor: 'rgba(168, 85, 247, 0.12)',
   },
   {
     id: 'students',
@@ -72,8 +67,6 @@ const GLOBAL_CATEGORIES: CategoryItem[] = [
     description: 'Campus classmates & peer directory',
     query: 'Student',
     icon: 'people-outline',
-    iconColor: '#34d399',
-    bgColor: 'rgba(52, 211, 153, 0.12)',
   },
   {
     id: 'assignments',
@@ -81,8 +74,6 @@ const GLOBAL_CATEGORIES: CategoryItem[] = [
     description: 'Lab submissions & coding tasks',
     query: 'Assignment',
     icon: 'clipboard-outline',
-    iconColor: '#fbbf24',
-    bgColor: 'rgba(251, 191, 36, 0.12)',
   },
 ];
 
@@ -93,8 +84,6 @@ const LIBRARY_CATEGORIES: CategoryItem[] = [
     description: 'Chapter notes and lecture slides',
     query: 'Notes',
     icon: 'document-text-outline',
-    iconColor: '#38bdf8',
-    bgColor: 'rgba(56, 189, 248, 0.12)',
   },
   {
     id: 'pyq',
@@ -102,8 +91,6 @@ const LIBRARY_CATEGORIES: CategoryItem[] = [
     description: 'Past semester and board questions',
     query: 'Question',
     icon: 'reader-outline',
-    iconColor: '#f43f5e',
-    bgColor: 'rgba(244, 63, 94, 0.12)',
   },
   {
     id: 'labs',
@@ -111,8 +98,6 @@ const LIBRARY_CATEGORIES: CategoryItem[] = [
     description: 'Practical guides & code documentation',
     query: 'Lab',
     icon: 'flask-outline',
-    iconColor: '#a855f7',
-    bgColor: 'rgba(168, 85, 247, 0.12)',
   },
   {
     id: 'syllabus',
@@ -120,8 +105,6 @@ const LIBRARY_CATEGORIES: CategoryItem[] = [
     description: 'Curriculum breakdown & chapter units',
     query: 'Syllabus',
     icon: 'list-outline',
-    iconColor: '#34d399',
-    bgColor: 'rgba(52, 211, 153, 0.12)',
   },
 ];
 
@@ -328,9 +311,7 @@ export function SearchOverlay({
               style={[styles.input, { color: colors.text }]}
               placeholder={
                 placeholder ||
-                (filterType === 'files'
-                  ? 'Search notes across subjects & chapters...'
-                  : 'Search notes, subjects, students...')
+                (filterType === 'files' ? 'Search Library Notes' : 'Search Campus')
               }
               placeholderTextColor={colors.textMuted}
               value={query}
@@ -369,11 +350,8 @@ export function SearchOverlay({
           </TouchableOpacity>
         </View>
 
-        {/* Content Body with Dynamic Keyboard Handling */}
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={{ flex: 1 }}
-        >
+        {/* Content Body with Natural Scroll Viewport */}
+        <View style={{ flex: 1 }}>
           {isLoading ? (
             <View style={styles.centerContainer}>
               <ActivityIndicator size="small" color={colors.text} />
@@ -487,36 +465,17 @@ export function SearchOverlay({
 
                 <View style={styles.categoryGrid}>
                   {(filterType === 'files' ? LIBRARY_CATEGORIES : GLOBAL_CATEGORIES).map((cat) => (
-                    <TouchableOpacity
+                    <SearchSuggestionRow
                       key={cat.id}
-                      style={[
-                        styles.categoryCard,
-                        {
-                          backgroundColor: colors.surface,
-                          borderColor: colors.border,
-                        },
-                      ]}
-                      activeOpacity={0.7}
+                      label={cat.label}
+                      description={cat.description}
+                      icon={cat.icon}
                       onPress={() => {
                         setQuery(cat.query);
                         setDebouncedQuery(cat.query);
                         void saveRecentSearch(cat.query);
                       }}
-                      accessibilityLabel={`Search ${cat.label}`}
-                    >
-                      <View style={[styles.categoryIconWrap, { backgroundColor: cat.bgColor }]}>
-                        <Ionicons name={cat.icon} size={20} color={cat.iconColor} />
-                      </View>
-                      <View style={{ flex: 1, marginLeft: 12 }}>
-                        <Text variant="sm" weight="700" style={{ color: colors.text }}>
-                          {cat.label}
-                        </Text>
-                        <Caption color="muted" numberOfLines={1} style={{ marginTop: 2 }}>
-                          {cat.description}
-                        </Caption>
-                      </View>
-                      <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-                    </TouchableOpacity>
+                    />
                   ))}
                 </View>
               </View>
@@ -1026,7 +985,7 @@ export function SearchOverlay({
 
                   {selectedAssignment.dueDate && (
                     <Text variant="xs" color="secondary" style={{ textAlign: 'center', marginTop: 10 }}>
-                      Due: {new Date(selectedAssignment.dueDate).toLocaleDateString()}
+                      Due: {formatDate(selectedAssignment.dueDate)}
                     </Text>
                   )}
 
@@ -1049,7 +1008,7 @@ export function SearchOverlay({
             </TouchableOpacity>
           </TouchableOpacity>
         </Modal>
-        </KeyboardAvoidingView>
+        </View>
       </View>
     </Modal>
   );
@@ -1087,7 +1046,9 @@ const styles = StyleSheet.create({
   },
   cancelBtn: {
     paddingVertical: 6,
-    paddingHorizontal: 4,
+    paddingHorizontal: 6,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   centerContainer: {
     flex: 1,

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, forwardRef, useRef } from 'react';
 import {
   View,
   TextInput,
@@ -10,8 +10,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/constants/useTheme';
+import { useKeyboardAwareForm } from './KeyboardAwareForm';
 
-interface InputProps extends TextInputProps {
+export interface InputProps extends TextInputProps {
   label?: string;
   error?: string;
   helper?: string;
@@ -20,22 +21,31 @@ interface InputProps extends TextInputProps {
   containerStyle?: ViewStyle;
 }
 
-export function Input({
-  label,
-  error,
-  helper,
-  leftIcon,
-  isPassword = false,
-  containerStyle,
-  style,
-  ...props
-}: InputProps) {
+export const Input = forwardRef<TextInput, InputProps>(function Input(
+  {
+    label,
+    error,
+    helper,
+    leftIcon,
+    isPassword = false,
+    containerStyle,
+    style,
+    ...props
+  },
+  ref
+) {
   const { colors, spacing, radii, typography } = useTheme();
+  const { onInputFocus, onInputBlur } = useKeyboardAwareForm();
   const [isFocused, setIsFocused] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const containerRef = useRef<View>(null);
 
   return (
-    <View style={[styles.container, { marginBottom: spacing.md }, containerStyle]}>
+    <View
+      ref={containerRef}
+      collapsable={false}
+      style={[styles.container, { marginBottom: spacing.md }, containerStyle]}
+    >
       {label && (
         <Text style={[styles.label, typography.sm, { color: colors.textSecondary, marginBottom: spacing.xs }]}>
           {label}
@@ -63,16 +73,27 @@ export function Input({
         )}
 
         <TextInput
+          ref={ref}
           placeholderTextColor={colors.textMuted}
           secureTextEntry={isPassword && !showPassword}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
+          {...props}
+          onFocus={(e) => {
+            setIsFocused(true);
+            props.onFocus?.(e);
+            if (containerRef.current) {
+              onInputFocus?.(containerRef.current);
+            }
+          }}
+          onBlur={(e) => {
+            setIsFocused(false);
+            props.onBlur?.(e);
+            onInputBlur?.();
+          }}
           style={[
             styles.input,
             { color: colors.text, fontSize: 15 },
             style,
           ]}
-          {...props}
         />
 
         {isPassword && (
@@ -101,7 +122,7 @@ export function Input({
       ) : null}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

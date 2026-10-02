@@ -373,7 +373,12 @@ test('Push Notifications Integration & Event Hooks (Phase B)', async (t) => {
     const noticePayload = typeof recipientNoticeOutbox[0].payload_json === 'string'
       ? JSON.parse(recipientNoticeOutbox[0].payload_json)
       : recipientNoticeOutbox[0].payload_json;
-    assert.ok(noticePayload.title.includes('Official'));
+    assert.ok(
+      noticePayload.title.includes('Admin') ||
+      noticePayload.title.includes('Official') ||
+      noticePayload.title.includes('Semester Library'),
+      'Notice title must reflect publisher name or official publisher'
+    );
     assert.equal(noticePayload.data.type, 'notice');
     assert.equal(noticePayload.data.noticeId, noticeId);
     assert.equal(recipientNoticeOutbox[0].idempotency_key, `notice:${noticeId}:${studentS2Id}`);

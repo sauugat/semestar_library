@@ -317,7 +317,7 @@ router.get('/assignments', async (req, res) => {
         : `0 AS mySubmissionCount`;
 
     const selectFields = `
-        a.*, s.name AS teacherName,
+        a.*, s.name AS teacherName, s.avatarUrl AS avatarUrl, s.avatarUrl AS teacherAvatar,
         (SELECT COUNT(*) FROM assignment_questions aq WHERE aq.assignmentId = a.id) AS questionCount,
         (SELECT COUNT(DISTINCT studentId) FROM submissions sub WHERE sub.assignmentId = a.id) AS submissionCount,
         ${mySubSql}
@@ -457,7 +457,7 @@ router.get('/assignments/:id', async (req, res) => {
     }
 
     const assignment = await db.get(
-        `SELECT a.*, s.name AS teacherName
+        `SELECT a.*, s.name AS teacherName, s.avatarUrl AS avatarUrl, s.avatarUrl AS teacherAvatar
          FROM assignments a
          JOIN students s ON s.studentId = a.createdBy
          WHERE a.id = ?`,

@@ -169,7 +169,10 @@
   html[data-theme="dark"] body :is(.cl-grade-toast, .modal-status-msg, .cl-modal-error-icon) {
     color: #f5f5f5 !important; background: #242424 !important; border-color: rgba(255, 255, 255, 0.20) !important;
   }
-  html[data-theme="dark"] body :is(.cl-dot, .cl-dot-red, .cl-dot-yellow, .cl-dot-green) { background: #a3a3a3 !important; }
+  html[data-theme="dark"] body .cl-dot-red { background: #ff5f56 !important; }
+  html[data-theme="dark"] body .cl-dot-yellow { background: #ffbd2e !important; }
+  html[data-theme="dark"] body .cl-dot-green { background: #27c93f !important; }
+  html[data-theme="dark"] body :is(.like-btn, .post-action-btn.like-btn) { border: none !important; box-shadow: none !important; background: transparent !important; }
   html[data-theme="dark"] body :is(.im-app, .im-feed, .im-header, .im-composer) { background: #0a0a0a !important; border-color: rgba(255, 255, 255, 0.10) !important; }
   html[data-theme="dark"] body :is(.im-input-capsule, .im-attachment-chip, #replyPreview, .im-typing-indicator) { background: #242424 !important; color: #f5f5f5 !important; border-color: rgba(255, 255, 255, 0.10) !important; }
   html[data-theme="dark"] body .im-row.other .im-bubble { background: #242424 !important; color: #f5f5f5 !important; }

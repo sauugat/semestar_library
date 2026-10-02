@@ -2197,7 +2197,8 @@
 
       return renderPostShell({
         kind: 'assignment', id: a.id, className: 'assignment-post-card',
-        profileUrl: 'profile.html?id=' + encodeURIComponent(a.createdBy), avatar: escapeHtml(initials),
+        profileUrl: 'profile.html?id=' + encodeURIComponent(a.createdBy),
+        avatar: (a.avatarUrl || a.avatar_url || a.teacherAvatar) ? `<img src="${escapeHtml(a.avatarUrl || a.avatar_url || a.teacherAvatar)}" alt="${escapeHtml(a.teacherName || 'Faculty')}" class="post-avatar-img">` : escapeHtml(initials),
         name: a.teacherName || 'Faculty Member', badge: '<span class="post-verified-badge post-admin-badge">Admin</span>',
         meta: `<span class="post-student-handle">@${escapeHtml(a.createdBy || 'faculty')}</span> &middot; <time class="post-timestamp" datetime="${escapeHtml(a.createdAt)}">${timeAgo(a.createdAt)}</time>`,
         controls: deleteBtnHtml,

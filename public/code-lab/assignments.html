@@ -437,6 +437,28 @@
             crumbSubject.textContent = 'All';
         }
 
+        // Populate logged-in user profile picture in header
+        async function initHeaderProfile() {
+            const headerAvatar = document.getElementById('headerAvatar');
+            const headerName = document.getElementById('headerProfileName');
+            try {
+                const res = await fetch('/api/profile');
+                if (res.ok) {
+                    const p = await res.json();
+                    if (p && p.name && headerName) {
+                        headerName.textContent = p.name.split(' ')[0] || p.name;
+                    }
+                    if (p && p.avatarUrl && headerAvatar) {
+                        headerAvatar.innerHTML = `<img src="${escapeHtml(p.avatarUrl)}" alt="${escapeHtml(p.name || 'Avatar')}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+                    } else if (p && p.name && headerAvatar) {
+                        const inits = p.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+                        headerAvatar.textContent = inits || 'GU';
+                    }
+                }
+            } catch (_) {}
+        }
+        initHeaderProfile();
+
         let url = '/api/code-lab/assignments';
         const qp = [];
         if (subject) qp.push('subject=' + encodeURIComponent(subject));

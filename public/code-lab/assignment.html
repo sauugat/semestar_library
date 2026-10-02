@@ -391,17 +391,23 @@
             transition: opacity 0.2s;
         }
 
-        .cl-dot-red {
+        .cl-dot-red,
+        html[data-theme="dark"] .cl-dot-red,
+        body.dark-mode .cl-dot-red {
             background: #ff5f56 !important;
             box-shadow: 0 0 4px rgba(255, 95, 86, 0.4);
         }
 
-        .cl-dot-yellow {
+        .cl-dot-yellow,
+        html[data-theme="dark"] .cl-dot-yellow,
+        body.dark-mode .cl-dot-yellow {
             background: #ffbd2e !important;
             box-shadow: 0 0 4px rgba(255, 189, 46, 0.4);
         }
 
-        .cl-dot-green {
+        .cl-dot-green,
+        html[data-theme="dark"] .cl-dot-green,
+        body.dark-mode .cl-dot-green {
             background: #27c93f !important;
             box-shadow: 0 0 4px rgba(39, 201, 63, 0.4);
         }
@@ -1484,6 +1490,28 @@
         const params = new URLSearchParams(window.location.search);
         const assignmentId = params.get('id');
 
+        // Populate logged-in user profile picture in header
+        async function initHeaderProfile() {
+            const headerAvatar = document.getElementById('headerAvatar');
+            const headerName = document.getElementById('headerProfileName');
+            try {
+                const res = await fetch('/api/profile');
+                if (res.ok) {
+                    const p = await res.json();
+                    if (p && p.name && headerName) {
+                        headerName.textContent = p.name.split(' ')[0] || p.name;
+                    }
+                    if (p && p.avatarUrl && headerAvatar) {
+                        headerAvatar.innerHTML = `<img src="${escapeHtml(p.avatarUrl)}" alt="${escapeHtml(p.name || 'Avatar')}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+                    } else if (p && p.name && headerAvatar) {
+                        const inits = p.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+                        headerAvatar.textContent = inits || 'GU';
+                    }
+                }
+            } catch (_) {}
+        }
+        initHeaderProfile();
+
         // Per-question state
         const questionState = {};
 
@@ -1655,9 +1683,12 @@
         `);
             }
             if (assignment.teacherName) {
+                const teacherPfp = (assignment.avatarUrl || assignment.teacherAvatar)
+                    ? `<img src="${escapeHtml(assignment.avatarUrl || assignment.teacherAvatar)}" alt="${escapeHtml(assignment.teacherName)}" style="width:16px;height:16px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:4px;">`
+                    : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>`;
                 tags.push(`
           <span class="cl-meta-tag">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            ${teacherPfp}
             Faculty: ${escapeHtml(assignment.teacherName)}
           </span>
         `);

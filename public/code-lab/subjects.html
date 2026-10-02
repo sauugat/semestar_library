@@ -1164,6 +1164,50 @@
       color: #000000 !important;
     }
 
+    /* ── Like Button: Clean Ghost Style with No Border ── */
+    .post-engage-bar .like-btn,
+    .post-action-btn.like-btn,
+    .like-btn,
+    [data-theme="dark"] .post-action-btn.like-btn,
+    body.dark-mode .post-action-btn.like-btn,
+    [data-theme="dark"] .like-btn,
+    body.dark-mode .like-btn {
+      border: 0 !important;
+      border-width: 0 !important;
+      border-color: transparent !important;
+      background: transparent !important;
+      background-color: transparent !important;
+      box-shadow: none !important;
+      outline: none !important;
+    }
+
+    .post-engage-bar .like-btn:hover,
+    .post-action-btn.like-btn:hover,
+    .like-btn:hover,
+    [data-theme="dark"] .post-action-btn.like-btn:hover,
+    body.dark-mode .post-action-btn.like-btn:hover {
+      border: 0 !important;
+      border-width: 0 !important;
+      border-color: transparent !important;
+      background: rgba(0, 0, 0, 0.05) !important;
+      box-shadow: none !important;
+      outline: none !important;
+    }
+
+    [data-theme="dark"] .post-engage-bar .like-btn:hover,
+    [data-theme="dark"] .post-action-btn.like-btn:hover,
+    [data-theme="dark"] .like-btn:hover,
+    body.dark-mode .post-engage-bar .like-btn:hover,
+    body.dark-mode .post-action-btn.like-btn:hover,
+    body.dark-mode .like-btn:hover {
+      background: rgba(255, 255, 255, 0.08) !important;
+    }
+
+    .like-btn svg {
+      border: none !important;
+      outline: none !important;
+    }
+
     /* ── Student Assignment Status Button (Submitted vs Remaining) ── */
     .post-action-btn.status-btn {
       text-decoration: none;
@@ -2627,7 +2671,7 @@
         card.innerHTML = `
           <header class="post-header">
             <div class="post-avatar assignment-avatar">
-              <span>${escapeHtml(initials)}</span>
+              ${(a.avatarUrl || a.avatar_url || a.teacherAvatar) ? `<img src="${escapeHtml(a.avatarUrl || a.avatar_url || a.teacherAvatar)}" alt="${escapeHtml(a.teacherName || 'Faculty')}" class="post-avatar-img" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">` : `<span>${escapeHtml(initials)}</span>`}
             </div>
             <div class="post-user-info">
               <div class="post-author-row">

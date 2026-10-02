@@ -561,7 +561,10 @@ app.get(['/api/app/version', '/api/version'], (req, res) => {
     apkUrl: LATEST_APK_CDN_URL,
     cdnUrl: LATEST_APK_CDN_URL,
     releaseNotes: 'Semester Library Android version 1.0.0 (build code 7) private testing release.',
-    forceUpdate: false
+    forceUpdate: false,
+    phase: 'phase2a',
+    postMultiImage: true,
+    postEdit: true
   });
 });
 
@@ -693,15 +696,6 @@ function requireLogin(req, res, next) {
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
-    phase: 'phase2a',
-    postMultiImage: true,
-    postEdit: true,
-    server: 'Semester Library',
-    time: new Date().toISOString()
-  });
-});
-app.get('/api/version', (req, res) => {
-  res.json({
     phase: 'phase2a',
     postMultiImage: true,
     postEdit: true,

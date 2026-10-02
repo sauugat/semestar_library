@@ -173,32 +173,32 @@
   html[data-theme="dark"] body .cl-dot-yellow { background: #ffbd2e !important; }
   html[data-theme="dark"] body .cl-dot-green { background: #27c93f !important; }
   html[data-theme="dark"] body :is(.like-btn, .post-action-btn.like-btn) { border: none !important; box-shadow: none !important; background: transparent !important; }
-  /* Header App Button: border black, icon gray, text black */
+  /* Header App Button: bg gray, icon white, text white */
   html body :is(.dash-get-app-btn, .home-app-link) {
-    background: #ffffff !important;
-    border: 1px solid #000000 !important;
-    color: #000000 !important;
+    background: #404040 !important;
+    border: 1px solid rgba(255, 255, 255, 0.16) !important;
+    color: #ffffff !important;
   }
   html body :is(.dash-get-app-btn, .home-app-link) :is(svg, .dash-app-icon) {
-    fill: #737373 !important;
-    color: #737373 !important;
+    fill: #ffffff !important;
+    color: #ffffff !important;
     stroke: none !important;
   }
   html body :is(.dash-get-app-btn, .home-app-link) :is(span, .dash-app-text) {
-    color: #000000 !important;
+    color: #ffffff !important;
   }
   html[data-theme="dark"] body :is(.dash-get-app-btn, .home-app-link) {
-    background: #ffffff !important;
-    border: 1px solid #000000 !important;
-    color: #000000 !important;
+    background: #404040 !important;
+    border: 1px solid rgba(255, 255, 255, 0.18) !important;
+    color: #ffffff !important;
   }
   html[data-theme="dark"] body :is(.dash-get-app-btn, .home-app-link) :is(svg, .dash-app-icon) {
-    fill: #737373 !important;
-    color: #737373 !important;
+    fill: #ffffff !important;
+    color: #ffffff !important;
     stroke: none !important;
   }
   html[data-theme="dark"] body :is(.dash-get-app-btn, .home-app-link) :is(span, .dash-app-text) {
-    color: #000000 !important;
+    color: #ffffff !important;
   }
   html[data-theme="dark"] body :is(.im-app, .im-feed, .im-header, .im-composer) { background: #0a0a0a !important; border-color: rgba(255, 255, 255, 0.10) !important; }
   html[data-theme="dark"] body :is(.im-input-capsule, .im-attachment-chip, #replyPreview, .im-typing-indicator) { background: #242424 !important; color: #f5f5f5 !important; border-color: rgba(255, 255, 255, 0.10) !important; }

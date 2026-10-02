@@ -32,7 +32,15 @@ import {
 
 type Typer = { name: string; expiresAt: number };
 
-export function useClassChat(studentId: string | undefined, serverUrl: string) {
+export interface UseClassChatOptions {
+  onNewIncomingMessage?: (message: ChatMessage) => void;
+}
+
+export function useClassChat(
+  studentId: string | undefined,
+  serverUrl: string,
+  options?: UseClassChatOptions
+) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loadingInitial, setLoadingInitial] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -43,6 +51,11 @@ export function useClassChat(studentId: string | undefined, serverUrl: string) {
   const [readReceipts, setReadReceipts] = useState<ChatReadReceipt[]>([]);
   const [pinned, setPinned] = useState<ChatPinned | null>(null);
   const [onlineIds, setOnlineIds] = useState<string[]>([]);
+
+  const optionsRef = useRef(options);
+  useEffect(() => {
+    optionsRef.current = options;
+  }, [options]);
 
   const messagesRef = useRef(messages);
   useEffect(() => {
@@ -108,6 +121,13 @@ export function useClassChat(studentId: string | undefined, serverUrl: string) {
           .filter(t => String(t.studentId) !== String(studentId))
           .map(t => [String(t.studentId), { name: t.name, expiresAt: new Date(t.timestamp).getTime() + 3500 }])));
       }
+      if (hydrated.current && !reset && incoming.length > 0) {
+        incoming.forEach((m) => {
+          if (m.id > confirmedId && String(m.studentId) !== String(studentId)) {
+            optionsRef.current?.onNewIncomingMessage?.(m);
+          }
+        });
+      }
       await reconcileCachedChat(incoming, confirmedId, reset, previousSnapshotId);
       if (!active.current || epoch !== generation.current) return;
 
@@ -161,6 +181,7 @@ export function useClassChat(studentId: string | undefined, serverUrl: string) {
       const unsubscribe = subscribeChatRealtime({
         onNewMessage: (newMsg) => {
           if (!active.current) return;
+          let isNew = false;
           setMessages((prev) => {
             const existingIndex = prev.findIndex(
               (m) =>
@@ -177,6 +198,7 @@ export function useClassChat(studentId: string | undefined, serverUrl: string) {
               };
               return next;
             }
+            isNew = true;
             return [newMsg, ...prev];
           });
           setActiveTypers((prev) => {
@@ -184,6 +206,9 @@ export function useClassChat(studentId: string | undefined, serverUrl: string) {
             next.delete(String(newMsg.studentId));
             return next;
           });
+          if (isNew && String(newMsg.studentId) !== String(studentId)) {
+            optionsRef.current?.onNewIncomingMessage?.(newMsg);
+          }
         },
         onDeleteMessage: (deletedId) => {
           if (!active.current) return;

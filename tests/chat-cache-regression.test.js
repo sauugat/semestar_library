@@ -129,6 +129,8 @@ test('native photo/file controls expose long-press actions and visible actions; 
   const React = require('../mobile/node_modules/react');
   const native = {
     View: 'View', TouchableOpacity: 'TouchableOpacity', Pressable: 'Pressable', ActivityIndicator: 'ActivityIndicator', Modal: 'Modal',
+    Text: 'Text',
+    AccessibilityInfo: { isReduceMotionEnabled: async () => false, addEventListener: () => ({ remove: () => {} }) },
     StyleSheet: { create: value => value, absoluteFill: {} },
     useWindowDimensions: () => ({ width: 390, height: 844 }),
     Animated: { View: 'AnimatedView', Value: class { interpolate() { return 0; } } },
@@ -145,10 +147,18 @@ test('native photo/file controls expose long-press actions and visible actions; 
     },
     'react/jsx-runtime': require('../mobile/node_modules/react/jsx-runtime'),
     'react-native': native,
+    'react-native-reanimated': {
+      default: { View: 'ReanimatedView' },
+      useSharedValue: val => ({ value: val }),
+      useAnimatedStyle: cb => cb(),
+      withSequence: (...args) => args[0],
+      withTiming: to => to,
+      withSpring: to => to,
+    },
     'expo-image': { Image: 'Image' },
     '@expo/vector-icons': { Ionicons: 'Icon' },
     'expo-linking': {},
-    'expo-haptics': { impactAsync: async () => {}, ImpactFeedbackStyle: { Light: 'Light' } },
+    'expo-haptics': { impactAsync: async () => {}, ImpactFeedbackStyle: { Light: 'Light', Medium: 'Medium' } },
     '@/components/ui/Typography': { Text: 'Text' },
     '@/services/chat-state': state,
     '@/utils/date': {
@@ -167,7 +177,7 @@ test('native photo/file controls expose long-press actions and visible actions; 
   for (const mime of ['image/jpeg', 'application/pdf']) {
     const item = { ...msg(12), name: 'Classmate', attachmentName: mime.startsWith('image') ? 'photo.jpg' : 'notes.pdf', attachmentMimeType: mime };
     let actions = 0, opened = 0;
-    const tree = ChatMessageItem.type({ item, index: 0, prevMsg: null, nextMsg: null, readReceipts: [], serverUrl: 'https://school', isInitialLoadItem: true, onLongPress: selected => { assert.equal(selected.id, item.id); actions++; }, onOpenImage: () => opened++, onDownloadFile: () => opened++ });
+    const tree = ChatMessageItem.type({ item, index: 0, prevMsg: null, nextMsg: null, readReceipts: [], serverUrl: 'https://school', isInitialLoadItem: true, singleTapDelayMs: 0, onLongPress: selected => { assert.equal(selected.id, item.id); actions++; }, onOpenImage: () => opened++, onDownloadFile: () => opened++ });
     const controls = nodes(tree);
     const media = controls.find(n => n.props?.accessibilityLabel?.startsWith(mime.startsWith('image') ? 'Open photo.' : 'Open attachment.'));
     assert.ok(media);

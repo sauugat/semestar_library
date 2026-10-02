@@ -9,17 +9,57 @@ import {
   useWindowDimensions,
   ActivityIndicator,
   Image as RNImage,
+  Text as RNText,
+  AccessibilityInfo,
 } from 'react-native';
+import Reanimated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSequence,
+  withTiming,
+  withSpring,
+} from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
 import * as Haptics from 'expo-haptics';
 import { Text } from '@/components/ui/Typography';
 import { ChatMessage, ChatReadReceipt } from '@/services/chat';
-import { parseChatDate } from '@/services/chat-state';
+import { parseChatDate, formatFileSubtitle, formatFileExtension } from '@/services/chat-state';
 import { formatMessageTime as safeFormatTime, formatChatDateSeparator as safeFormatSeparator } from '@/utils/date';
 
 const imageDimensionsCache = new Map<string, { width: number; height: number }>();
+
+function getFileIcon(
+  filename?: string | null,
+  mimeType?: string | null
+): keyof typeof Ionicons.glyphMap {
+  const ext = formatFileExtension(filename, mimeType).toLowerCase();
+  switch (ext) {
+    case 'pdf':
+      return 'document-text-outline';
+    case 'doc':
+    case 'docx':
+    case 'txt':
+    case 'rtf':
+      return 'document-outline';
+    case 'zip':
+    case 'rar':
+    case '7z':
+    case 'tar':
+    case 'gz':
+      return 'archive-outline';
+    case 'ppt':
+    case 'pptx':
+      return 'easel-outline';
+    case 'xls':
+    case 'xlsx':
+    case 'csv':
+      return 'grid-outline';
+    default:
+      return 'attach-outline';
+  }
+}
 
 interface ChatMessageItemProps {
   item: ChatMessage;
@@ -34,6 +74,7 @@ interface ChatMessageItemProps {
   isInitialLoadItem: boolean;
   isHighlighted: boolean;
   isDelivered?: boolean;
+  singleTapDelayMs?: number;
   onLongPress: (item: ChatMessage) => void;
   onSwipeReply: (item: ChatMessage) => void;
   onJumpToReply: (replyToId: number) => void;
@@ -208,6 +249,7 @@ function areMessagePropsEqual(
   if (prev.item.status !== next.item.status) return false;
   if (prev.item.text !== next.item.text) return false;
   if (prev.item.attachmentName !== next.item.attachmentName) return false;
+  if (prev.item.attachmentSize !== next.item.attachmentSize) return false;
   if (prev.isHighlighted !== next.isHighlighted) return false;
   if (prev.downloadingFileId !== next.downloadingFileId) return false;
   if (prev.isDelivered !== next.isDelivered) return false;
@@ -266,6 +308,7 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
   isInitialLoadItem,
   isHighlighted,
   isDelivered: isDeliveredProp,
+  singleTapDelayMs,
   onLongPress,
   onSwipeReply,
   onJumpToReply,
@@ -444,7 +487,150 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
     [item, onSwipeReply, translateX]
   );
 
+  // Reduced motion preference
+  const [reduceMotion, setReduceMotion] = useState(false);
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion).catch(() => {});
+    const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
+    return () => sub?.remove?.();
+  }, []);
+
+  // Gesture refs for single tap vs double tap coordination
+  const lastTapRef = useRef<number>(0);
+  const singleTapTimerRef = useRef<NodeJS.Timeout | null>(null);
+  useEffect(() => {
+    return () => {
+      if (singleTapTimerRef.current) {
+        clearTimeout(singleTapTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Heart pop animation shared values
+  const heartScale = useSharedValue(0);
+  const heartOpacity = useSharedValue(0);
+  const heartTranslateY = useSharedValue(0);
+
+  const heartAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scale: heartScale.value },
+      { translateY: heartTranslateY.value },
+    ],
+    opacity: heartOpacity.value,
+  }));
+
+  const triggerHeartReaction = () => {
+    if (item.id <= 0) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+
+    if (reduceMotion) {
+      heartScale.value = 1.0;
+      heartTranslateY.value = 0;
+      heartOpacity.value = withSequence(
+        withTiming(1, { duration: 80 }),
+        withTiming(1, { duration: 400 }),
+        withTiming(0, { duration: 200 })
+      );
+    } else {
+      heartScale.value = 0.6;
+      heartTranslateY.value = 0;
+      heartOpacity.value = 1;
+
+      heartScale.value = withSequence(
+        withSpring(1.15, { damping: 10, stiffness: 220 }),
+        withSpring(1.0, { damping: 12, stiffness: 180 }),
+        withTiming(1.05, { duration: 220 })
+      );
+      heartTranslateY.value = withSequence(
+        withTiming(0, { duration: 180 }),
+        withTiming(-16, { duration: 450 })
+      );
+      heartOpacity.value = withSequence(
+        withTiming(1, { duration: 350 }),
+        withTiming(0, { duration: 250 })
+      );
+    }
+
+    onToggleReaction(item, '❤️');
+  };
+
+  const handleBubblePress = () => {
+    const now = Date.now();
+    if (now - lastTapRef.current < 300) {
+      lastTapRef.current = 0;
+      triggerHeartReaction();
+    } else {
+      lastTapRef.current = now;
+    }
+  };
+
+  const tapDelay = singleTapDelayMs ?? 250;
+  const handleImagePress = () => {
+    const now = Date.now();
+    if (now - lastTapRef.current < 300) {
+      if (singleTapTimerRef.current) {
+        clearTimeout(singleTapTimerRef.current);
+        singleTapTimerRef.current = null;
+      }
+      lastTapRef.current = 0;
+      triggerHeartReaction();
+    } else {
+      lastTapRef.current = now;
+      if (singleTapTimerRef.current) {
+        clearTimeout(singleTapTimerRef.current);
+      }
+      if (tapDelay <= 0) {
+        if (attachmentUrl) {
+          onOpenImage({
+            uri: attachmentUrl,
+            name: item.attachmentOriginalName || item.attachmentName || 'image.jpg',
+          });
+        }
+      } else {
+        singleTapTimerRef.current = setTimeout(() => {
+          singleTapTimerRef.current = null;
+          if (attachmentUrl) {
+            onOpenImage({
+              uri: attachmentUrl,
+              name: item.attachmentOriginalName || item.attachmentName || 'image.jpg',
+            });
+          }
+        }, tapDelay);
+      }
+    }
+  };
+
+  const handleFilePress = () => {
+    const now = Date.now();
+    if (now - lastTapRef.current < 300) {
+      if (singleTapTimerRef.current) {
+        clearTimeout(singleTapTimerRef.current);
+        singleTapTimerRef.current = null;
+      }
+      lastTapRef.current = 0;
+      triggerHeartReaction();
+    } else {
+      lastTapRef.current = now;
+      if (singleTapTimerRef.current) {
+        clearTimeout(singleTapTimerRef.current);
+      }
+      if (tapDelay <= 0) {
+        onDownloadFile(item);
+      } else {
+        singleTapTimerRef.current = setTimeout(() => {
+          singleTapTimerRef.current = null;
+          onDownloadFile(item);
+        }, tapDelay);
+      }
+    }
+  };
+
   const handleLongPress = () => {
+    if (singleTapTimerRef.current) {
+      clearTimeout(singleTapTimerRef.current);
+      singleTapTimerRef.current = null;
+    }
+    lastTapRef.current = 0;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     onLongPress(item);
   };
@@ -554,9 +740,10 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
           {/* Bubble Container & Reactions */}
           <View style={{ maxWidth: maxBubbleWidth }}>
             <Pressable
+              onPress={handleBubblePress}
               onLongPress={handleLongPress}
               delayLongPress={280}
-              accessibilityLabel={`Message from ${item.name || 'someone'}. Long press for actions.`}
+              accessibilityLabel={`Message from ${item.name || 'someone'}. Double tap to react with heart. Long press for actions.`}
               style={[
                 styles.messageBubble,
                 isMe ? styles.bubbleMe : styles.bubbleOther,
@@ -576,6 +763,19 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
                   { opacity: highlightAnim },
                 ]}
               />
+
+              {/* Temporary Heart Pop Animation */}
+              <Reanimated.View
+                pointerEvents="none"
+                style={[
+                  styles.heartPopContainer,
+                  heartAnimatedStyle,
+                ]}
+              >
+                <RNText style={styles.heartPopEmoji} allowFontScaling={false}>
+                  ❤️
+                </RNText>
+              </Reanimated.View>
 
               {/* Sender Name for Others (first message in group only) */}
               {!isMe && isFirstInGroup && (
@@ -610,17 +810,11 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
 
               {/* Image Attachment */}
               {isImg && attachmentUrl && (
-                <TouchableOpacity
-                  activeOpacity={0.9}
+                <Pressable
+                  onPress={handleImagePress}
                   onLongPress={handleLongPress}
                   delayLongPress={280}
-                  accessibilityLabel="Open photo. Long press for message actions."
-                  onPress={() =>
-                    onOpenImage({
-                      uri: attachmentUrl,
-                      name: item.attachmentOriginalName || item.attachmentName || 'image.jpg',
-                    })
-                  }
+                  accessibilityLabel="Open photo. Double tap for heart reaction. Long press for message actions."
                   style={styles.imageContainer}
                 >
                   <Image
@@ -670,39 +864,56 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
                       />
                     </View>
                   )}
-                </TouchableOpacity>
+                </Pressable>
               )}
 
               {/* Non-image File Attachment Row */}
               {!isImg && item.attachmentName && (
-                <TouchableOpacity
-                  activeOpacity={0.7}
+                <Pressable
+                  onPress={handleFilePress}
                   onLongPress={handleLongPress}
                   delayLongPress={280}
-                  accessibilityLabel="Open attachment. Long press for message actions."
-                  onPress={() => onDownloadFile(item)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Open attachment. ${item.attachmentOriginalName || item.attachmentName}. Double tap to react with heart, single tap to download.`}
                   style={[
-                    styles.fileAttachmentRow,
-                    { backgroundColor: isMe ? 'rgba(0, 0, 0, 0.22)' : 'rgba(0, 0, 0, 0.28)' },
+                    styles.fileCard,
+                    isMe ? styles.fileCardMe : styles.fileCardOther,
                   ]}
                 >
-                  <View style={styles.fileBadge}>
-                    {downloadingFileId === String(item.id) ? (
-                      <ActivityIndicator size="small" color="#f5f5f5" />
-                    ) : (
-                      <Ionicons name="document-text-outline" size={18} color="#e4e4e7" />
-                    )}
+                  <View style={styles.fileIconBox}>
+                    <Ionicons
+                      name={getFileIcon(item.attachmentOriginalName || item.attachmentName, item.attachmentMimeType)}
+                      size={22}
+                      color="#e4e4e7"
+                    />
                   </View>
                   <View style={styles.fileInfo}>
-                    <Text style={styles.fileNameText} numberOfLines={1}>
+                    <Text
+                      style={styles.fileNameText}
+                      numberOfLines={2}
+                      ellipsizeMode="middle"
+                    >
                       {item.attachmentOriginalName || item.attachmentName}
                     </Text>
-                    <Text style={styles.fileSubText}>
-                      {getFileExtension(item.attachmentOriginalName || item.attachmentName)} • Tap to download
+                    <Text style={styles.fileMetaSubtitle}>
+                      {formatFileSubtitle(
+                        item.attachmentOriginalName || item.attachmentName,
+                        item.attachmentSize || (item.pendingFile as any)?.size,
+                        item.attachmentMimeType
+                      )}
                     </Text>
                   </View>
-                  <Ionicons name="arrow-down-circle-outline" size={18} color="#a1a1aa" />
-                </TouchableOpacity>
+                  {downloadingFileId === String(item.id) ? (
+                    <ActivityIndicator size="small" color="#e4e4e7" style={styles.fileActionIcon} />
+                  ) : (
+                    <Ionicons
+                      name="arrow-down-circle-outline"
+                      size={20}
+                      color="#a1a1aa"
+                      style={styles.fileActionIcon}
+                    />
+                  )}
+                </Pressable>
               )}
 
               {/* Text Body with Inline Bottom-Right Meta */}
@@ -772,7 +983,7 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
                       reactedByMe && styles.reactionPillActive,
                     ]}
                   >
-                    <Text style={styles.reactionPillEmojiText}>{emoji}</Text>
+                    <RNText style={styles.reactionPillEmojiText} allowFontScaling={false}>{emoji}</RNText>
                     {count > 1 && (
                       <Text style={styles.reactionPillCountText}>{count}</Text>
                     )}
@@ -958,35 +1169,71 @@ const styles = StyleSheet.create({
     color: '#d4d4d8',
     marginRight: 4,
   },
-  fileAttachmentRow: {
+  heartPopContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 99,
+  },
+  heartPopEmoji: {
+    fontSize: 48,
+    lineHeight: 56,
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.45)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 6,
+  },
+  fileCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 8,
-    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    minWidth: 210,
+    maxWidth: 290,
     marginBottom: 4,
   },
-  fileBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
+  fileCardMe: {
+    backgroundColor: 'rgba(0, 0, 0, 0.22)',
+    borderColor: '#3f3f46',
+  },
+  fileCardOther: {
+    backgroundColor: 'rgba(0, 0, 0, 0.32)',
+    borderColor: '#2e2e32',
+  },
+  fileIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 9,
     backgroundColor: '#27272a',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 8,
+    marginRight: 10,
   },
   fileInfo: {
     flex: 1,
-    marginRight: 8,
+    marginRight: 6,
+    justifyContent: 'center',
   },
   fileNameText: {
     fontSize: 12.5,
     fontWeight: '600',
     color: '#ffffff',
+    lineHeight: 16,
   },
-  fileSubText: {
-    fontSize: 10.5,
-    color: '#8e8e93',
-    marginTop: 1,
+  fileMetaSubtitle: {
+    fontSize: 11,
+    color: '#a1a1aa',
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  fileActionIcon: {
+    marginLeft: 4,
   },
   fileMetaRow: {
     flexDirection: 'row',
@@ -1069,9 +1316,9 @@ const styles = StyleSheet.create({
     borderColor: '#4b4b50',
   },
   reactionPillEmojiText: {
-    fontSize: 14,
+    fontSize: 13,
+    lineHeight: 18,
     textAlign: 'center',
-    includeFontPadding: false,
   },
   reactionPillCountText: {
     fontSize: 11,

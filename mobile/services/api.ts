@@ -207,7 +207,10 @@ export async function apiFetch(
           resolve(resObj);
         };
 
-        xhr.onerror = () => {
+        xhr.onerror = (e) => {
+          if (__DEV__) {
+            console.warn(`[apiFetch] Upload network/file error to ${url}:`, e);
+          }
           reject(new ApiError(`Upload request failed to ${url}`, 0));
         };
 

@@ -69,18 +69,17 @@ export const ChatComposer = React.memo(function ChatComposer({
     const attachmentToSend = selectedAttachment;
     const replyToSend = replyTo;
 
-    // Clear input immediately before network call (Requirement 1)
+    // Clear text and reply immediately before network call
     setInputText("");
-    onClearAttachment();
     onCancelReply();
 
-    // Trigger optimistic send flow
+    // Trigger optimistic send flow with attachment intact
     onSendMessage({
       text: textToSend,
       file: attachmentToSend,
       replyTo: replyToSend,
     });
-  }, [inputText, selectedAttachment, replyTo, onClearAttachment, onCancelReply, onSendMessage]);
+  }, [inputText, selectedAttachment, replyTo, onCancelReply, onSendMessage]);
 
   const hasContent = Boolean(inputText.trim() || selectedAttachment);
 

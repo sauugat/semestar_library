@@ -23,6 +23,7 @@ import {
   Pressable,
   ScrollView,
   Keyboard,
+  BackHandler,
   useWindowDimensions,
   Dimensions,
 } from "react-native";
@@ -47,6 +48,8 @@ import {
   mergeChatMessages,
   applyChatReaction,
   safeChatFilename,
+  shouldIncrementUnseenCounter,
+  formatUnseenBadge,
 } from "@/services/chat-state";
 import { prepareChatAttachment, removeOutboxFile } from "@/services/chat-attachments";
 import {
@@ -135,6 +138,36 @@ export default function ChatScreen() {
     }, [])
   );
 
+  // Inverted list bottom tracking and unseen new incoming message counter
+  const isNearBottomRef = useRef(true);
+  const seenMessageIdsRef = useRef<Set<number | string>>(new Set());
+  const [newIncomingCount, setNewIncomingCount] = useState(0);
+
+  const handleNewIncomingMessage = useCallback(
+    (newMsg: ChatMessage) => {
+      const currentUserId = user?.studentId;
+      const isNear = isNearBottomRef.current;
+      if (
+        shouldIncrementUnseenCounter(
+          newMsg,
+          currentUserId,
+          isNear,
+          seenMessageIdsRef.current
+        )
+      ) {
+        seenMessageIdsRef.current.add(newMsg.id);
+        if (newMsg.clientId) seenMessageIdsRef.current.add(newMsg.clientId);
+        setNewIncomingCount((prev) => prev + 1);
+      }
+    },
+    [user?.studentId]
+  );
+
+  const chatOptions = useMemo(
+    () => ({ onNewIncomingMessage: handleNewIncomingMessage }),
+    [handleNewIncomingMessage]
+  );
+
   // State
   const {
     messages,
@@ -153,7 +186,7 @@ export default function ChatScreen() {
     refreshPinned,
     loadOlderMessages,
     markRead,
-  } = useClassChat(user?.studentId, serverUrl);
+  } = useClassChat(user?.studentId, serverUrl, chatOptions);
 
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const [actionMessage, setActionMessage] = useState<ChatMessage | null>(null);
@@ -170,23 +203,18 @@ export default function ChatScreen() {
     user?.isAdmin || user?.role === "admin" || user?.role === "cr",
   );
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
-  const [lastVisibleMessageId, setLastVisibleMessageId] = useState(0);
 
-  // Track initially loaded message IDs to disable slide animation on initial load (Requirement 20)
+  // Track initially loaded message IDs to disable slide animation on initial load and initialize seen set
   const initialLoadedIds = useRef(new Set<number>());
   useEffect(() => {
     if (!loadingInitial && messages.length > 0 && initialLoadedIds.current.size === 0) {
-      messages.forEach((m) => initialLoadedIds.current.add(m.id));
+      messages.forEach((m) => {
+        initialLoadedIds.current.add(m.id);
+        if (m.id > 0) seenMessageIdsRef.current.add(m.id);
+        if (m.clientId) seenMessageIdsRef.current.add(m.clientId);
+      });
     }
   }, [loadingInitial, messages]);
-
-  const unreadBelow = showScrollToBottom
-    ? messages.filter(
-        (message) =>
-          message.id > lastVisibleMessageId &&
-          String(message.studentId) !== String(user?.studentId),
-      ).length
-    : 0;
 
   const searchResults = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -228,8 +256,8 @@ export default function ChatScreen() {
 
   // Refs
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
-  const isNearBottomRef = useRef(true);
   const lastTypingSentRef = useRef<number>(0);
+  const isPickerLaunchingRef = useRef<boolean>(false);
   const [typingPulsingAnim] = useState(() => new Animated.Value(0.3));
 
   // Header subtitle: Requirement 14 & 15 (No hardcoded BCA, show online count)
@@ -278,7 +306,7 @@ export default function ChatScreen() {
     useCallback(() => {
       isNearBottomRef.current = true;
       setShowScrollToBottom(false);
-      setLastVisibleMessageId(0);
+      setNewIncomingCount(0);
     }, []),
   );
 
@@ -304,6 +332,16 @@ export default function ChatScreen() {
       }
     },
   }, [scrollToBottomIfNeeded]);
+
+  // Handle Android hardware back press when attachment overlay is open
+  useEffect(() => {
+    if (!showAttachModal) return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      setShowAttachModal(false);
+      return true;
+    });
+    return () => sub.remove();
+  }, [showAttachModal]);
 
   useEffect(() => {
     const newestConfirmed = messages.find(m => m.id > 0);
@@ -516,15 +554,26 @@ export default function ChatScreen() {
 
   // Attachment Selection Handlers (Requirement 9: Camera, Photo Library, Documents)
   const handleTakePhoto = async () => {
-    setShowAttachModal(false);
+    if (isPickerLaunchingRef.current) return;
+    isPickerLaunchingRef.current = true;
+    if (__DEV__) {
+      console.log("[ChatAttachment] handleTakePhoto entered");
+    }
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (__DEV__) {
+        console.log("[ChatAttachment] Camera permission status:", status);
+      }
       if (status !== "granted") {
+        setShowAttachModal(false);
         Alert.alert(
           "Permission Required",
           "Camera access is needed to capture photos.",
         );
         return;
+      }
+      if (__DEV__) {
+        console.log("[ChatAttachment] Launching camera...");
       }
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ["images"],
@@ -532,6 +581,15 @@ export default function ChatScreen() {
         quality: 0.85,
       });
 
+      if (__DEV__) {
+        console.log("[ChatAttachment] Camera result:", {
+          canceled: result.canceled,
+          assetCount: result.assets ? result.assets.length : 0,
+        });
+      }
+
+      setShowAttachModal(false);
+
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
         const attachment = await prepareChatAttachment(asset, true);
@@ -539,19 +597,41 @@ export default function ChatScreen() {
         setSelectedAttachment(attachment);
       }
     } catch (err: any) {
-      Alert.alert("Camera Error", err.message || "Could not capture photo");
+      setShowAttachModal(false);
+      if (__DEV__) {
+        console.error("[ChatAttachment] handleTakePhoto error:", err);
+      }
+      Alert.alert("Camera Error", err.message || "Unable to open camera. Please try again.");
+    } finally {
+      isPickerLaunchingRef.current = false;
     }
   };
 
   const handlePickImage = async () => {
-    setShowAttachModal(false);
+    if (isPickerLaunchingRef.current) return;
+    isPickerLaunchingRef.current = true;
+    if (__DEV__) {
+      console.log("[ChatAttachment] handlePickImage entered");
+    }
     try {
+      if (__DEV__) {
+        console.log("[ChatAttachment] Launching photo library...");
+      }
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["images"],
         allowsEditing: false,
         quality: 0.85,
       });
 
+      if (__DEV__) {
+        console.log("[ChatAttachment] Photo library result:", {
+          canceled: result.canceled,
+          assetCount: result.assets ? result.assets.length : 0,
+        });
+      }
+
+      setShowAttachModal(false);
+
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
         const attachment = await prepareChatAttachment(asset, true);
@@ -559,18 +639,40 @@ export default function ChatScreen() {
         setSelectedAttachment(attachment);
       }
     } catch (err: any) {
-      Alert.alert("Error", err.message || "Could not pick image");
+      setShowAttachModal(false);
+      if (__DEV__) {
+        console.error("[ChatAttachment] handlePickImage error:", err);
+      }
+      Alert.alert("Error", err.message || "Unable to open photo library. Please try again.");
+    } finally {
+      isPickerLaunchingRef.current = false;
     }
   };
 
   const handlePickDocument = async () => {
-    setShowAttachModal(false);
+    if (isPickerLaunchingRef.current) return;
+    isPickerLaunchingRef.current = true;
+    if (__DEV__) {
+      console.log("[ChatAttachment] handlePickDocument entered");
+    }
     try {
+      if (__DEV__) {
+        console.log("[ChatAttachment] Launching document picker...");
+      }
       const res = await DocumentPicker.getDocumentAsync({
         type: "*/*",
         copyToCacheDirectory: true,
         multiple: false,
       });
+
+      if (__DEV__) {
+        console.log("[ChatAttachment] Document picker result:", {
+          canceled: res.canceled,
+          assetCount: res.assets ? res.assets.length : 0,
+        });
+      }
+
+      setShowAttachModal(false);
 
       if (!res.canceled && res.assets && res.assets.length > 0) {
         const asset = res.assets[0];
@@ -579,7 +681,13 @@ export default function ChatScreen() {
         setSelectedAttachment(attachment);
       }
     } catch (err: any) {
-      Alert.alert("Error", err.message || "Could not pick document");
+      setShowAttachModal(false);
+      if (__DEV__) {
+        console.error("[ChatAttachment] handlePickDocument error:", err);
+      }
+      Alert.alert("Error", err.message || "Unable to open file picker. Please try again.");
+    } finally {
+      isPickerLaunchingRef.current = false;
     }
   };
 
@@ -591,12 +699,15 @@ export default function ChatScreen() {
       replyTo: replyTarget,
     }: {
       text: string;
-      file: { uri: string; name: string; mimeType: string; isImage?: boolean } | null;
+      file: { uri: string; name: string; mimeType: string; isImage?: boolean; size?: number } | null;
       replyTo: ChatMessage | null;
     }) => {
       const trimmed = text.trim();
       if (!trimmed && !file) return;
       if (trimmed.length > 2000) return;
+
+      // Clear composer attachment selection immediately so UI updates
+      setSelectedAttachment(null);
 
       // 1. Generate client-side UUID and temporary negative ID
       const clientId =
@@ -613,6 +724,7 @@ export default function ChatScreen() {
               uri: file.uri,
               name: file.name,
               mimeType: file.mimeType,
+              size: file.size,
             }
           : null,
         attachmentName: file
@@ -622,6 +734,7 @@ export default function ChatScreen() {
           : null,
         attachmentOriginalName: file?.name || null,
         attachmentMimeType: file?.mimeType || null,
+        attachmentSize: file?.size || null,
         replyToId: replyTarget?.id || null,
         replyText:
           replyTarget?.text || replyTarget?.attachmentOriginalName || undefined,
@@ -640,10 +753,11 @@ export default function ChatScreen() {
       // 3. Persist to local SQLite asynchronously in background (never blocks JS thread)
       void savePendingMessage(optimisticMessage);
 
-      // 4. Scroll to bottom instantly if near bottom
+      // 4. Scroll to bottom instantly if near bottom and reset unread count
       isNearBottomRef.current = true;
       flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
       setShowScrollToBottom(false);
+      setNewIncomingCount(0);
 
       // 5. Fire async network request in background (independent, non-blocking)
       sendChatMessage({
@@ -655,6 +769,7 @@ export default function ChatScreen() {
               uri: file.uri,
               name: file.name,
               mimeType: file.mimeType,
+              size: file.size,
             }
           : null,
       })
@@ -662,6 +777,7 @@ export default function ChatScreen() {
           if (res && res.data) {
             const confirmedMsg: ChatMessage = {
               ...res.data,
+              attachmentSize: file?.size || res.data.attachmentSize || null,
               clientId,
               status: "sent",
             };
@@ -688,6 +804,12 @@ export default function ChatScreen() {
                 : m
             )
           );
+          if (file) {
+            Alert.alert(
+              "Upload Failed",
+              err?.message || "Could not upload attachment. Tap the alert icon on the message to retry."
+            );
+          }
         });
     },
     [user, setMessages]
@@ -724,6 +846,7 @@ export default function ChatScreen() {
         if (res && res.data) {
           const confirmedMsg: ChatMessage = {
             ...res.data,
+            attachmentSize: failedMsg.attachmentSize || failedMsg.pendingFile?.size || res.data.attachmentSize || null,
             clientId: failedMsg.clientId,
             status: "sent",
           };
@@ -752,17 +875,32 @@ export default function ChatScreen() {
     [setMessages]
   );
 
-  // Scroll tracking in inverted list
+  // Scroll tracking in inverted list: offset 0 is newest messages (bottom)
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset } = event.nativeEvent;
     const distanceToBottom = Math.max(0, contentOffset.y);
-    const isNear = distanceToBottom < 100;
+    const isNear = distanceToBottom <= 60;
     isNearBottomRef.current = isNear;
     setShowScrollToBottom(!isNear);
     if (isNear) {
-      setLastVisibleMessageId(messages[0]?.id || 0);
+      setNewIncomingCount(0);
+      messages.forEach((m) => {
+        if (m.id > 0) seenMessageIdsRef.current.add(m.id);
+        if (m.clientId) seenMessageIdsRef.current.add(m.clientId);
+      });
     }
   };
+
+  const handleJumpToBottom = useCallback(() => {
+    isNearBottomRef.current = true;
+    setShowScrollToBottom(false);
+    setNewIncomingCount(0);
+    flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+    messages.forEach((m) => {
+      if (m.id > 0) seenMessageIdsRef.current.add(m.id);
+      if (m.clientId) seenMessageIdsRef.current.add(m.clientId);
+    });
+  }, [messages]);
 
   // Document Download & Open Handler
   const handleDownloadAttachment = useCallback(async (msg: ChatMessage) => {
@@ -1059,29 +1197,33 @@ export default function ChatScreen() {
 
         {/* Floating Scroll to Bottom Button */}
         {showScrollToBottom && (
-          <TouchableOpacity
+          <View
             style={[
-              styles.floatingScrollBtn,
-              activeTypers.size > 0 && styles.floatingScrollBtnWithTyping,
+              styles.floatingScrollContainer,
+              activeTypers.size > 0 && (styles.floatingScrollContainerWithTyping || styles.floatingScrollBtnWithTyping),
             ]}
-            onPress={() => {
-              isNearBottomRef.current = true;
-              flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
-              setShowScrollToBottom(false);
-              setLastVisibleMessageId(messages[0]?.id || 0);
-            }}
-            activeOpacity={0.8}
-            accessibilityLabel="Scroll to bottom"
+            pointerEvents="box-none"
           >
-            <Ionicons name="chevron-down" size={19} color="#f5f5f5" />
-            {unreadBelow > 0 && (
-              <View style={styles.floatingUnreadBadge}>
-                <Text variant="xs" weight="700" style={styles.floatingUnreadBadgeText}>
-                  {unreadBelow}
+            <TouchableOpacity
+              style={styles.floatingScrollBtn}
+              onPress={handleJumpToBottom}
+              activeOpacity={0.8}
+              accessibilityLabel={
+                newIncomingCount > 0
+                  ? `Scroll to bottom, ${newIncomingCount} new message${newIncomingCount > 1 ? "s" : ""}`
+                  : "Scroll to bottom"
+              }
+            >
+              <Ionicons name="chevron-down" size={19} color="#f5f5f5" />
+            </TouchableOpacity>
+            {newIncomingCount > 0 && (
+              <View style={styles.floatingBadgePill} pointerEvents="none">
+                <Text style={styles.floatingBadgeText}>
+                  {formatUnseenBadge(newIncomingCount)}
                 </Text>
               </View>
             )}
-          </TouchableOpacity>
+          </View>
         )}
 
         {/* Typing Indicator Bar */}
@@ -1111,8 +1253,11 @@ export default function ChatScreen() {
             void removeOutboxFile(selectedAttachment?.uri);
             setSelectedAttachment(null);
           }}
-          onOpenAttachModal={() => setShowAttachModal(true)}
-          onPickCamera={handlePickImage}
+          onOpenAttachModal={() => {
+            Keyboard.dismiss();
+            setShowAttachModal(true);
+          }}
+          onPickCamera={handleTakePhoto}
           onSendMessage={handleSendMessage}
           inputRef={inputRef}
           userAvailable={Boolean(user)}
@@ -1315,18 +1460,20 @@ export default function ChatScreen() {
         onDelete={(msg) => handleDeleteMessage(msg)}
       />
 
-      {/* Attachment Action Sheet Modal (Requirement 9: Camera, Photos, Documents) */}
-      <Modal
-        visible={showAttachModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowAttachModal(false)}
-      >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setShowAttachModal(false)}
-        >
-          <View style={styles.attachSheetContainer}>
+      {/* Attachment Action Sheet (Rendered in-tree to prevent Android native Dialog window conflicts) */}
+      {showAttachModal && (
+        <View style={styles.attachOverlayWrapper}>
+          <Pressable
+            style={styles.modalOverlay}
+            onPress={() => setShowAttachModal(false)}
+            accessibilityLabel="Close attachment options"
+          />
+          <View
+            style={[
+              styles.attachSheetContainer,
+              { paddingBottom: Math.max(insets.bottom, 24) },
+            ]}
+          >
             <Text
               variant="md"
               weight="700"
@@ -1338,7 +1485,8 @@ export default function ChatScreen() {
             {/* Take Photo with Camera */}
             <TouchableOpacity
               style={styles.attachOptionRow}
-              onPress={handleTakePhoto}
+              onPress={() => void handleTakePhoto()}
+              activeOpacity={0.7}
             >
               <View style={styles.attachOptionIcon}>
                 <Ionicons name="camera-outline" size={20} color="#e4e4e7" />
@@ -1356,7 +1504,8 @@ export default function ChatScreen() {
             {/* Photo Library */}
             <TouchableOpacity
               style={styles.attachOptionRow}
-              onPress={handlePickImage}
+              onPress={() => void handlePickImage()}
+              activeOpacity={0.7}
             >
               <View style={styles.attachOptionIcon}>
                 <Ionicons name="image-outline" size={20} color="#e4e4e7" />
@@ -1374,7 +1523,8 @@ export default function ChatScreen() {
             {/* Document & File */}
             <TouchableOpacity
               style={styles.attachOptionRow}
-              onPress={handlePickDocument}
+              onPress={() => void handlePickDocument()}
+              activeOpacity={0.7}
             >
               <View style={styles.attachOptionIcon}>
                 <Ionicons name="document-outline" size={20} color="#e4e4e7" />
@@ -1392,14 +1542,15 @@ export default function ChatScreen() {
             <TouchableOpacity
               style={styles.attachCancelBtn}
               onPress={() => setShowAttachModal(false)}
+              activeOpacity={0.7}
             >
               <Text variant="sm" weight="600" style={{ color: "#a1a1aa" }}>
                 Cancel
               </Text>
             </TouchableOpacity>
           </View>
-        </Pressable>
-      </Modal>
+        </View>
+      )}
 
       {/* Shared Full-Screen Image Viewer (Requirement 4: Same viewer as feed, zoom, swipe-down, tap to close) */}
       <FullScreenImageViewer
@@ -1545,10 +1696,19 @@ const styles = StyleSheet.create({
     color: "#71717a",
     marginLeft: 8,
   },
-  floatingScrollBtn: {
+  floatingScrollContainer: {
     position: "absolute",
     right: 16,
     bottom: 14, // Floating clearly above composer inside boundary
+    zIndex: 99,
+  },
+  floatingScrollContainerWithTyping: {
+    bottom: 44,
+  },
+  floatingScrollBtnWithTyping: {
+    bottom: 44,
+  },
+  floatingScrollBtn: {
     width: 38,
     height: 38,
     borderRadius: 19,
@@ -1562,26 +1722,32 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 5,
     shadowOffset: { width: 0, height: 2 },
-    zIndex: 99,
   },
-  floatingScrollBtnWithTyping: {
-    bottom: 42,
-  },
-  floatingUnreadBadge: {
+  floatingBadgePill: {
     position: "absolute",
-    top: -5,
-    right: -5,
+    top: -6,
+    right: -4,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
     backgroundColor: "#ffffff",
-    borderRadius: 9,
-    minWidth: 18,
-    height: 18,
+    borderWidth: 1.5,
+    borderColor: "#18181b",
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 4,
+    paddingHorizontal: 5,
+    elevation: 6,
+    shadowColor: "#000",
+    shadowOpacity: 0.35,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
   },
-  floatingUnreadBadgeText: {
+  floatingBadgeText: {
     color: "#0a0a0a",
     fontSize: 10,
+    fontWeight: "700",
+    textAlign: "center",
+    includeFontPadding: false,
   },
   typingBar: {
     flexDirection: "row",
@@ -1795,10 +1961,15 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "#a1a1aa",
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.7)",
+  attachOverlayWrapper: {
+    ...StyleSheet.absoluteFill,
     justifyContent: "flex-end",
+    zIndex: 999,
+    elevation: 20,
+  },
+  modalOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: "rgba(0,0,0,0.7)",
   },
   attachSheetContainer: {
     backgroundColor: "#18181a",

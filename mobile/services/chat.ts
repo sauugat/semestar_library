@@ -6,6 +6,7 @@ export interface ChatMessage {
   attachmentName: string | null;
   attachmentOriginalName: string | null;
   attachmentMimeType: string | null;
+  attachmentSize?: number | null;
   replyToId: number | null;
   createdAt: string;
   studentId: string;
@@ -16,7 +17,7 @@ export interface ChatMessage {
   reactions?: { studentId: string; emoji: string }[];
   status?: 'sent' | 'pending' | 'failed';
   localUri?: string;
-  pendingFile?: { uri: string; name: string; mimeType: string } | null;
+  pendingFile?: { uri: string; name: string; mimeType: string; size?: number } | null;
   clientId?: string;
 }
 
@@ -31,6 +32,7 @@ export interface SendMessageParams {
     uri: string;
     name: string;
     mimeType: string;
+    size?: number;
   } | null;
   replyToId?: number | null;
   clientId?: string;
@@ -90,7 +92,9 @@ export async function sendChatMessage(
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || err.error || "Failed to send message");
+    const message = err.message || err.error || `Failed to send message (HTTP ${res.status})`;
+    console.warn(`[Chat] sendChatMessage failed (${res.status}):`, message);
+    throw new Error(message);
   }
 
   return await res.json();

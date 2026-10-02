@@ -6,6 +6,7 @@ import {
   Modal,
   Pressable,
   ActivityIndicator,
+  Text as RNText,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -90,7 +91,7 @@ export function ChatMessageActionsSheet({
                 activeOpacity={0.65}
                 accessibilityLabel={`React with ${emoji}`}
               >
-                <Text style={styles.reactionEmoji}>{emoji}</Text>
+                <RNText style={styles.reactionEmoji} allowFontScaling={false}>{emoji}</RNText>
               </TouchableOpacity>
             ))}
           </View>}
@@ -216,27 +217,27 @@ const styles = StyleSheet.create({
   reactionsBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
     backgroundColor: '#202022',
-    borderRadius: 16,
+    borderRadius: 18,
     paddingVertical: 8,
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     marginBottom: 14,
     borderWidth: 1,
     borderColor: '#2a2a2e',
   },
   reactionButton: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'visible',
   },
   reactionEmoji: {
-    fontSize: 24,
+    fontSize: 26,
+    lineHeight: 34,
     textAlign: 'center',
-    includeFontPadding: false,
   },
   actionsList: {
     backgroundColor: '#202022',

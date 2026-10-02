@@ -625,7 +625,11 @@ body.dark-mode .btn-file-get,
 [data-theme="dark"] a.btn-file-get,
 body.dark-mode a.btn-file-get,
 [data-theme="dark"] .btn-file-action.btn-file-get,
-body.dark-mode .btn-file-action.btn-file-get {
+body.dark-mode .btn-file-action.btn-file-get,
+[data-theme="dark"] .post-card .file-action.primary,
+body.dark-mode .post-card .file-action.primary,
+[data-theme="dark"] .file-action.primary,
+body.dark-mode .file-action.primary {
   background: #3a3a3c !important;
   color: #ffffff !important;
   border: 1px solid #48484a !important;
@@ -642,7 +646,13 @@ body.dark-mode .btn-file-get *,
 [data-theme="dark"] a.btn-file-get *,
 body.dark-mode a.btn-file-get *,
 [data-theme="dark"] .btn-file-action.btn-file-get *,
-body.dark-mode .btn-file-action.btn-file-get * {
+body.dark-mode .btn-file-action.btn-file-get *,
+[data-theme="dark"] .post-card .file-action.primary *,
+body.dark-mode .post-card .file-action.primary *,
+[data-theme="dark"] .file-action.primary *,
+body.dark-mode .file-action.primary *,
+[data-theme="dark"] .file-action.primary :is(span, svg, *),
+body.dark-mode .file-action.primary :is(span, svg, *) {
   color: #ffffff !important;
   stroke: #ffffff !important;
 }

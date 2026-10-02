@@ -33,7 +33,10 @@ import {
   getPostById,
   getComments,
   addComment,
+  editComment,
   deleteComment,
+  toggleCommentReaction,
+  getCommentReplies,
   toggleLike,
   deletePost,
   Post,
@@ -41,6 +44,7 @@ import {
 } from '@/services/posts';
 import { PostMediaGallery } from '@/components/PostMediaGallery';
 import { EditPostModal } from '@/components/EditPostModal';
+import { CommentItem } from '@/components/CommentItem';
 
 export default function PostDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -62,6 +66,15 @@ export default function PostDetailScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<{
+    commentId: number;
+    name: string;
+    studentId?: string;
+  } | null>(null);
+  const [editingComment, setEditingComment] = useState<{
+    id: number;
+    content: string;
+  } | null>(null);
   const [isLiking, setIsLiking] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -173,22 +186,104 @@ export default function PostDetailScreen() {
     }
   };
 
-  const handleAddComment = async () => {
+  const handleReplyPress = (comment: PostComment) => {
+    setEditingComment(null);
+    setReplyingTo({
+      commentId: comment.id,
+      name: comment.name || 'User',
+      studentId: comment.studentId || comment.userId,
+    });
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 50);
+  };
+
+  const handleEditPress = (comment: PostComment) => {
+    setReplyingTo(null);
+    setEditingComment({
+      id: comment.id,
+      content: comment.content,
+    });
+    setCommentText(comment.content);
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 50);
+  };
+
+  const handleCancelInputMode = () => {
+    setReplyingTo(null);
+    setEditingComment(null);
+    setCommentText('');
+  };
+
+  const handleSubmitComment = async () => {
     if (!post || !commentText.trim() || submittingComment) return;
     const text = commentText.trim();
     setSubmittingComment(true);
 
     try {
-      const res = await addComment(post.id, text);
-      setCommentText('');
-      if (res.comment) {
-        setComments((prev) => [...prev, res.comment]);
-        setPost((prev) =>
-          prev ? { ...prev, comment_count: res.comment_count ?? prev.comment_count + 1 } : null
+      if (editingComment) {
+        // Edit mode
+        const res = await editComment(post.id, editingComment.id, text);
+        setComments((prev) =>
+          prev.map((root) => {
+            if (root.id === editingComment.id) {
+              return { ...root, ...res.comment };
+            }
+            if (root.replies && root.replies.length > 0) {
+              return {
+                ...root,
+                replies: root.replies.map((reply) =>
+                  reply.id === editingComment.id ? { ...reply, ...res.comment } : reply
+                ),
+              };
+            }
+            return root;
+          })
         );
-        setTimeout(() => {
-          scrollViewRef.current?.scrollToEnd({ animated: true });
-        }, 100);
+        setEditingComment(null);
+        setCommentText('');
+      } else if (replyingTo) {
+        // Reply mode
+        const res = await addComment(post.id, text, {
+          parentCommentId: replyingTo.commentId,
+          replyToUserId: replyingTo.studentId,
+        });
+        setCommentText('');
+        setReplyingTo(null);
+
+        if (res.comment) {
+          const targetParentId = res.comment.parentCommentId;
+          setComments((prev) =>
+            prev.map((root) => {
+              if (root.id === targetParentId) {
+                const currentReplies = root.replies || [];
+                return {
+                  ...root,
+                  replyCount: (root.replyCount || currentReplies.length) + 1,
+                  replies: [...currentReplies, res.comment],
+                };
+              }
+              return root;
+            })
+          );
+          setPost((prev) =>
+            prev ? { ...prev, comment_count: res.comment_count ?? prev.comment_count + 1 } : null
+          );
+        }
+      } else {
+        // Root comment mode
+        const res = await addComment(post.id, text);
+        setCommentText('');
+        if (res.comment) {
+          setComments((prev) => [...prev, res.comment]);
+          setPost((prev) =>
+            prev ? { ...prev, comment_count: res.comment_count ?? prev.comment_count + 1 } : null
+          );
+          setTimeout(() => {
+            scrollViewRef.current?.scrollToEnd({ animated: true });
+          }, 100);
+        }
       }
     } catch (err: any) {
       Alert.alert('Error', err?.message || 'Could not post comment.');
@@ -197,7 +292,93 @@ export default function PostDetailScreen() {
     }
   };
 
-  const handleDeleteComment = (commentId: number) => {
+  const handleToggleCommentReaction = async (comment: PostComment) => {
+    if (!post) return;
+    const previousReacted = Boolean(comment.reactedByMe);
+    const previousCount = Number(comment.reactionCount || 0);
+    const nextReacted = !previousReacted;
+    const nextCount = previousReacted ? Math.max(0, previousCount - 1) : previousCount + 1;
+
+    // Optimistic UI update
+    setComments((prev) =>
+      prev.map((root) => {
+        if (root.id === comment.id) {
+          return {
+            ...root,
+            reactedByMe: nextReacted,
+            reactionCount: nextCount,
+          };
+        }
+        if (root.replies && root.replies.length > 0) {
+          return {
+            ...root,
+            replies: root.replies.map((reply) =>
+              reply.id === comment.id
+                ? { ...reply, reactedByMe: nextReacted, reactionCount: nextCount }
+                : reply
+            ),
+          };
+        }
+        return root;
+      })
+    );
+
+    try {
+      const res = await toggleCommentReaction(post.id, comment.id);
+      setComments((prev) =>
+        prev.map((root) => {
+          if (root.id === comment.id) {
+            return {
+              ...root,
+              reactedByMe: res.reacted,
+              reactionCount: res.reactionCount ?? res.reaction_count,
+            };
+          }
+          if (root.replies && root.replies.length > 0) {
+            return {
+              ...root,
+              replies: root.replies.map((reply) =>
+                reply.id === comment.id
+                  ? {
+                      ...reply,
+                      reactedByMe: res.reacted,
+                      reactionCount: res.reactionCount ?? res.reaction_count,
+                    }
+                  : reply
+              ),
+            };
+          }
+          return root;
+        })
+      );
+    } catch {
+      // Revert optimistic update on failure
+      setComments((prev) =>
+        prev.map((root) => {
+          if (root.id === comment.id) {
+            return {
+              ...root,
+              reactedByMe: previousReacted,
+              reactionCount: previousCount,
+            };
+          }
+          if (root.replies && root.replies.length > 0) {
+            return {
+              ...root,
+              replies: root.replies.map((reply) =>
+                reply.id === comment.id
+                  ? { ...reply, reactedByMe: previousReacted, reactionCount: previousCount }
+                  : reply
+              ),
+            };
+          }
+          return root;
+        })
+      );
+    }
+  };
+
+  const handleDeleteComment = (comment: PostComment) => {
     Alert.alert('Delete Comment', 'Are you sure you want to delete this comment?', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -205,10 +386,37 @@ export default function PostDetailScreen() {
         style: 'destructive',
         onPress: async () => {
           try {
-            await deleteComment(postId, commentId);
-            setComments((prev) => prev.filter((c) => c.id !== commentId));
+            const res = await deleteComment(postId, comment.id);
+            setComments((prev) =>
+              prev
+                .map((root) => {
+                  if (root.id === comment.id) {
+                    const hasReplies = (root.replies || []).length > 0;
+                    if (hasReplies) {
+                      return {
+                        ...root,
+                        isDeleted: true,
+                        content: '[Comment deleted]',
+                        canDelete: false,
+                        canEdit: false,
+                      };
+                    }
+                    return null;
+                  }
+                  if (root.replies && root.replies.length > 0) {
+                    const updatedReplies = root.replies.filter((r) => r.id !== comment.id);
+                    return {
+                      ...root,
+                      replies: updatedReplies,
+                      replyCount: updatedReplies.length,
+                    };
+                  }
+                  return root;
+                })
+                .filter(Boolean) as PostComment[]
+            );
             setPost((prev) =>
-              prev ? { ...prev, comment_count: Math.max(0, prev.comment_count - 1) } : null
+              prev ? { ...prev, comment_count: res.comment_count ?? Math.max(0, prev.comment_count - 1) } : null
             );
           } catch (err: any) {
             Alert.alert('Error', err?.message || 'Could not delete comment.');
@@ -432,85 +640,68 @@ export default function PostDetailScreen() {
             <Caption color="muted">No comments yet. Start the conversation!</Caption>
           </View>
         ) : (
-          comments.map((comment) => {
-            const commentAvatar = getFullUrl(comment.avatarUrl);
-            const isCommentAuthorAdmin = comment.role === 'admin';
-            const canDeleteComment =
-              comment.canDelete ||
-              comment.userId === user?.studentId ||
-              comment.studentId === user?.studentId ||
-              user?.role === 'admin';
-
-            return (
-              <View
-                key={comment.id}
-                style={[
-                  styles.commentRow,
-                  { backgroundColor: colors.surface, borderColor: colors.border },
-                ]}
-              >
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={() => router.push({ pathname: '/user/[id]', params: { id: comment.studentId } })}
-                >
-                  <Avatar
-                    url={commentAvatar}
-                    name={comment.name}
-                    size="sm"
-                  />
-                </TouchableOpacity>
-
-                <View style={{ flex: 1, marginLeft: 10 }}>
-                  <View style={styles.commentHeader}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', flex: 1 }}>
-                      <Text variant="sm" weight="700" numberOfLines={1}>
-                        {comment.name}
-                      </Text>
-                      {isCommentAuthorAdmin && (
-                        <View
-                          style={[
-                            styles.badge,
-                            { backgroundColor: colors.primaryLight, borderColor: colors.border, marginLeft: 6 },
-                          ]}
-                        >
-                          <Text variant="xs" weight="700" style={{ color: colors.primary, fontSize: 9 }}>
-                            Admin
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                    <Caption color="muted" style={{ fontSize: 11 }}>
-                      {formatTimeAgo(comment.createdAt || (comment as any).created_at || (comment as any).timestamp)}
-                    </Caption>
-                  </View>
-
-                  <Text variant="sm" style={{ color: colors.text, marginTop: 4, lineHeight: 20 }}>
-                    {comment.content}
-                  </Text>
-                </View>
-
-                {canDeleteComment && (
-                  <TouchableOpacity
-                    onPress={() => handleDeleteComment(comment.id)}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    style={{ padding: 4, alignSelf: 'flex-start' }}
-                  >
-                    <Ionicons name="trash-outline" size={15} color={colors.textMuted} />
-                  </TouchableOpacity>
-                )}
-              </View>
-            );
-          })
+          comments.map((comment) => (
+            <CommentItem
+              key={comment.id}
+              comment={comment}
+              onReply={handleReplyPress}
+              onEdit={handleEditPress}
+              onDelete={handleDeleteComment}
+              onToggleReaction={handleToggleCommentReaction}
+              getFullUrl={getFullUrl}
+              currentUserId={user?.studentId || null}
+              isAdmin={user?.role === 'admin'}
+            />
+          ))
         )}
       </ScrollView>
       </KeyboardContentBoundary>
 
       {/* Sticky Comment Composer */}
       <StickyComposer>
+        {(replyingTo || editingComment) && (
+          <View
+            style={[
+              styles.composerContextBar,
+              {
+                backgroundColor: colors.surfaceRaised,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 6 }}>
+              <Ionicons
+                name={editingComment ? 'pencil' : 'arrow-undo'}
+                size={14}
+                color={colors.primary}
+              />
+              <Text variant="xs" weight="600" color="secondary" numberOfLines={1}>
+                {editingComment
+                  ? 'Editing your comment'
+                  : `Replying to ${replyingTo?.name}`}
+              </Text>
+            </View>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={handleCancelInputMode}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={styles.cancelContextBtn}
+            >
+              <Ionicons name="close-circle" size={16} color={colors.textMuted} />
+            </TouchableOpacity>
+          </View>
+        )}
+
         <View style={styles.composerInnerRow}>
           <TextInput
             ref={inputRef}
-            placeholder="Write a comment…"
+            placeholder={
+              editingComment
+                ? 'Edit your comment…'
+                : replyingTo
+                ? `Reply to ${replyingTo.name}…`
+                : 'Write a comment…'
+            }
             placeholderTextColor={colors.textMuted}
             value={commentText}
             onChangeText={setCommentText}
@@ -527,7 +718,7 @@ export default function PostDetailScreen() {
           />
           <TouchableOpacity
             activeOpacity={0.7}
-            onPress={handleAddComment}
+            onPress={handleSubmitComment}
             disabled={!commentText.trim() || submittingComment}
             style={[
               styles.sendButton,
@@ -541,7 +732,7 @@ export default function PostDetailScreen() {
               <ActivityIndicator size="small" color="#ffffff" />
             ) : (
               <Ionicons
-                name="send"
+                name={editingComment ? 'checkmark' : 'send'}
                 size={18}
                 color={commentText.trim() ? colors.primaryText || '#ffffff' : colors.textMuted}
               />
@@ -685,6 +876,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  composerContextBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 8,
+    width: '100%',
+  },
+  cancelContextBtn: {
+    padding: 2,
   },
   composerInnerRow: {
     flexDirection: 'row',

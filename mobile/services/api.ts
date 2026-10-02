@@ -284,6 +284,42 @@ export const api = {
     return res.json();
   },
 
+  put: async <T = any>(endpoint: string, body?: any, options: RequestInit = {}): Promise<T> => {
+    const isFormData =
+      (typeof FormData !== 'undefined' && body instanceof FormData) ||
+      Boolean((body as any)?._parts);
+    const reqBody = isFormData ? body : body !== undefined ? JSON.stringify(body) : undefined;
+
+    const res = await apiFetch(endpoint, {
+      ...options,
+      method: 'PUT',
+      body: reqBody,
+    });
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({}));
+      throw new ApiError(errBody.message || `Request failed with status ${res.status}`, res.status, errBody);
+    }
+    return res.json();
+  },
+
+  patch: async <T = any>(endpoint: string, body?: any, options: RequestInit = {}): Promise<T> => {
+    const isFormData =
+      (typeof FormData !== 'undefined' && body instanceof FormData) ||
+      Boolean((body as any)?._parts);
+    const reqBody = isFormData ? body : body !== undefined ? JSON.stringify(body) : undefined;
+
+    const res = await apiFetch(endpoint, {
+      ...options,
+      method: 'PATCH',
+      body: reqBody,
+    });
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({}));
+      throw new ApiError(errBody.message || `Request failed with status ${res.status}`, res.status, errBody);
+    }
+    return res.json();
+  },
+
   delete: async <T = any>(endpoint: string, options: RequestInit = {}): Promise<T> => {
     const res = await apiFetch(endpoint, { ...options, method: 'DELETE' });
     if (!res.ok) {

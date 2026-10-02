@@ -43,7 +43,9 @@ import {
   deletePost,
   getComments,
   addComment,
+  editComment,
   deleteComment,
+  toggleCommentReaction,
   Post,
   PostComment,
   LibraryFile,
@@ -54,6 +56,7 @@ import { initChatRealtime } from '@/services/chat-realtime';
 import { UploadNoteModal } from '@/components/UploadNoteModal';
 import { PostMediaGallery } from '@/components/PostMediaGallery';
 import { EditPostModal } from '@/components/EditPostModal';
+import { CommentItem } from '@/components/CommentItem';
 import { RawFileAsset } from '@/utils/file-upload';
 
 function FeedSkeletonCard({ colors, radii }: { colors: any; radii: any }) {
@@ -605,9 +608,22 @@ export default function HomeScreen() {
   const [postingComment, setPostingComment] = useState(false);
   const [commentInput, setCommentInput] = useState('');
   const [commentsModalOpen, setCommentsModalOpen] = useState(false);
+  const [commentReplyingTo, setCommentReplyingTo] = useState<{
+    commentId: number;
+    name: string;
+    studentId?: string;
+  } | null>(null);
+  const [commentEditing, setCommentEditing] = useState<{
+    id: number;
+    content: string;
+  } | null>(null);
+  const commentInputRef = useRef<TextInput>(null);
 
   const handleOpenPostComments = async (post: Post) => {
     setActiveCommentPost(post);
+    setCommentReplyingTo(null);
+    setCommentEditing(null);
+    setCommentInput('');
     setCommentsModalOpen(true);
     setLoadingComments(true);
     try {
@@ -652,22 +668,107 @@ export default function HomeScreen() {
     }
   }, [postId, posts, loadingInitial]);
 
-  const handleAddPostComment = async () => {
+  const handleReplyPressModal = (comment: PostComment) => {
+    setCommentEditing(null);
+    setCommentReplyingTo({
+      commentId: comment.id,
+      name: comment.name || 'User',
+      studentId: comment.studentId || comment.userId,
+    });
+    setTimeout(() => {
+      commentInputRef.current?.focus();
+    }, 50);
+  };
+
+  const handleEditPressModal = (comment: PostComment) => {
+    setCommentReplyingTo(null);
+    setCommentEditing({
+      id: comment.id,
+      content: comment.content,
+    });
+    setCommentInput(comment.content);
+    setTimeout(() => {
+      commentInputRef.current?.focus();
+    }, 50);
+  };
+
+  const handleCancelCommentInputMode = () => {
+    setCommentReplyingTo(null);
+    setCommentEditing(null);
+    setCommentInput('');
+  };
+
+  const handleSubmitPostComment = async () => {
     if (!activeCommentPost || !commentInput.trim() || postingComment) return;
     const content = commentInput.trim();
     setPostingComment(true);
     try {
-      const res = await addComment(activeCommentPost.id, content);
-      setCommentInput('');
-      if (res.comment) {
-        setPostComments((prev) => [...prev, res.comment]);
+      if (commentEditing) {
+        // Edit mode
+        const res = await editComment(activeCommentPost.id, commentEditing.id, content);
+        setPostComments((prev) =>
+          prev.map((root) => {
+            if (root.id === commentEditing.id) {
+              return { ...root, ...res.comment };
+            }
+            if (root.replies && root.replies.length > 0) {
+              return {
+                ...root,
+                replies: root.replies.map((reply) =>
+                  reply.id === commentEditing.id ? { ...reply, ...res.comment } : reply
+                ),
+              };
+            }
+            return root;
+          })
+        );
+        setCommentEditing(null);
+        setCommentInput('');
+        showToast('Comment updated');
+      } else if (commentReplyingTo) {
+        // Reply mode
+        const res = await addComment(activeCommentPost.id, content, {
+          parentCommentId: commentReplyingTo.commentId,
+          replyToUserId: commentReplyingTo.studentId,
+        });
+        setCommentInput('');
+        setCommentReplyingTo(null);
+        if (res.comment) {
+          const targetParentId = res.comment.parentCommentId;
+          setPostComments((prev) =>
+            prev.map((root) => {
+              if (root.id === targetParentId) {
+                const currentReplies = root.replies || [];
+                return {
+                  ...root,
+                  replyCount: (root.replyCount || currentReplies.length) + 1,
+                  replies: [...currentReplies, res.comment],
+                };
+              }
+              return root;
+            })
+          );
+        }
+        const updatedCount = res.comment_count ?? (activeCommentPost.comment_count + 1);
+        setActiveCommentPost((prev) => (prev ? { ...prev, comment_count: updatedCount } : null));
+        setPosts((prev) =>
+          prev.map((p) => (p.id === activeCommentPost.id ? { ...p, comment_count: updatedCount } : p))
+        );
+        showToast('Reply posted');
+      } else {
+        // Root comment mode
+        const res = await addComment(activeCommentPost.id, content);
+        setCommentInput('');
+        if (res.comment) {
+          setPostComments((prev) => [...prev, res.comment]);
+        }
+        const updatedCount = res.comment_count ?? (activeCommentPost.comment_count + 1);
+        setActiveCommentPost((prev) => (prev ? { ...prev, comment_count: updatedCount } : null));
+        setPosts((prev) =>
+          prev.map((p) => (p.id === activeCommentPost.id ? { ...p, comment_count: updatedCount } : p))
+        );
+        showToast('Comment posted');
       }
-      const updatedCount = res.comment_count ?? (activeCommentPost.comment_count + 1);
-      setActiveCommentPost((prev) => (prev ? { ...prev, comment_count: updatedCount } : null));
-      setPosts((prev) =>
-        prev.map((p) => (p.id === activeCommentPost.id ? { ...p, comment_count: updatedCount } : p))
-      );
-      showToast('Reply posted');
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Could not post comment.');
     } finally {
@@ -675,25 +776,128 @@ export default function HomeScreen() {
     }
   };
 
-  const handleDeletePostComment = (commentId: number) => {
+  const handleToggleCommentReactionModal = async (comment: PostComment) => {
     if (!activeCommentPost) return;
-    Alert.alert('Delete Reply', 'Are you sure you want to delete this reply?', [
+    const previousReacted = Boolean(comment.reactedByMe);
+    const previousCount = Number(comment.reactionCount || 0);
+    const nextReacted = !previousReacted;
+    const nextCount = previousReacted ? Math.max(0, previousCount - 1) : previousCount + 1;
+
+    setPostComments((prev) =>
+      prev.map((root) => {
+        if (root.id === comment.id) {
+          return { ...root, reactedByMe: nextReacted, reactionCount: nextCount };
+        }
+        if (root.replies && root.replies.length > 0) {
+          return {
+            ...root,
+            replies: root.replies.map((reply) =>
+              reply.id === comment.id
+                ? { ...reply, reactedByMe: nextReacted, reactionCount: nextCount }
+                : reply
+            ),
+          };
+        }
+        return root;
+      })
+    );
+
+    try {
+      const res = await toggleCommentReaction(activeCommentPost.id, comment.id);
+      setPostComments((prev) =>
+        prev.map((root) => {
+          if (root.id === comment.id) {
+            return {
+              ...root,
+              reactedByMe: res.reacted,
+              reactionCount: res.reactionCount ?? res.reaction_count,
+            };
+          }
+          if (root.replies && root.replies.length > 0) {
+            return {
+              ...root,
+              replies: root.replies.map((reply) =>
+                reply.id === comment.id
+                  ? {
+                      ...reply,
+                      reactedByMe: res.reacted,
+                      reactionCount: res.reactionCount ?? res.reaction_count,
+                    }
+                  : reply
+              ),
+            };
+          }
+          return root;
+        })
+      );
+    } catch {
+      setPostComments((prev) =>
+        prev.map((root) => {
+          if (root.id === comment.id) {
+            return { ...root, reactedByMe: previousReacted, reactionCount: previousCount };
+          }
+          if (root.replies && root.replies.length > 0) {
+            return {
+              ...root,
+              replies: root.replies.map((reply) =>
+                reply.id === comment.id
+                  ? { ...reply, reactedByMe: previousReacted, reactionCount: previousCount }
+                  : reply
+              ),
+            };
+          }
+          return root;
+        })
+      );
+    }
+  };
+
+  const handleDeletePostComment = (comment: PostComment) => {
+    if (!activeCommentPost) return;
+    Alert.alert('Delete Comment', 'Are you sure you want to delete this comment?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
         style: 'destructive',
         onPress: async () => {
           try {
-            const res = await deleteComment(activeCommentPost.id, commentId);
-            setPostComments((prev) => prev.filter((c) => c.id !== commentId));
+            const res = await deleteComment(activeCommentPost.id, comment.id);
+            setPostComments((prev) =>
+              prev
+                .map((root) => {
+                  if (root.id === comment.id) {
+                    const hasReplies = (root.replies || []).length > 0;
+                    if (hasReplies) {
+                      return {
+                        ...root,
+                        isDeleted: true,
+                        content: '[Comment deleted]',
+                        canDelete: false,
+                        canEdit: false,
+                      };
+                    }
+                    return null;
+                  }
+                  if (root.replies && root.replies.length > 0) {
+                    const updatedReplies = root.replies.filter((r) => r.id !== comment.id);
+                    return {
+                      ...root,
+                      replies: updatedReplies,
+                      replyCount: updatedReplies.length,
+                    };
+                  }
+                  return root;
+                })
+                .filter(Boolean) as PostComment[]
+            );
             const updatedCount = res.comment_count ?? Math.max(0, activeCommentPost.comment_count - 1);
             setActiveCommentPost((prev) => (prev ? { ...prev, comment_count: updatedCount } : null));
             setPosts((prev) =>
               prev.map((p) => (p.id === activeCommentPost.id ? { ...p, comment_count: updatedCount } : p))
             );
-            showToast('Reply deleted');
+            showToast('Comment deleted');
           } catch (err: any) {
-            Alert.alert('Error', err.message || 'Could not delete reply.');
+            Alert.alert('Error', err.message || 'Could not delete comment.');
           }
         },
       },
@@ -2545,7 +2749,7 @@ export default function HomeScreen() {
                 <View style={{ alignItems: 'center', paddingVertical: 36 }}>
                   <Ionicons name="chatbubbles-outline" size={42} color={colors.textMuted} style={{ marginBottom: 8 }} />
                   <Text variant="sm" weight="600" color="secondary">
-                    No replies yet
+                    No comments yet
                   </Text>
                   <Caption color="muted" style={{ marginTop: 4 }}>
                     Be the first to join the conversation!
@@ -2553,108 +2757,17 @@ export default function HomeScreen() {
                 </View>
               ) : (
                 postComments.map((comment) => (
-                  <View
+                  <CommentItem
                     key={comment.id}
-                    style={{
-                      flexDirection: 'row',
-                      marginBottom: spacing.md,
-                      backgroundColor: colors.surfaceRaised,
-                      padding: spacing.md,
-                      borderRadius: radii.lg,
-                      borderWidth: 1,
-                      borderColor: colors.border,
-                    }}
-                  >
-                    {/* Commenter Avatar (tappable to profile) */}
-                    <TouchableOpacity
-                      activeOpacity={0.7}
-                      onPress={() => {
-                        setCommentsModalOpen(false);
-                        const sid = comment.studentId || comment.userId;
-                        if (sid) {
-                          router.push({
-                            pathname: '/user/[id]',
-                            params: { id: sid },
-                          });
-                        }
-                      }}
-                      style={{
-                        width: 34,
-                        height: 34,
-                        borderRadius: 17,
-                        backgroundColor: colors.surfaceSubtle,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        overflow: 'hidden',
-                        marginRight: spacing.sm,
-                      }}
-                    >
-                      {comment.avatarUrl ? (
-                        <Image
-                          source={{ uri: getFullImageUrl(comment.avatarUrl) || comment.avatarUrl }}
-                          style={{ width: '100%', height: '100%' }}
-                          contentFit="cover"
-                        />
-                      ) : (
-                        <Text variant="xs" weight="700" color="primary">
-                          {(comment.name || 'S').charAt(0).toUpperCase()}
-                        </Text>
-                      )}
-                    </TouchableOpacity>
-
-                    <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <TouchableOpacity
-                          activeOpacity={0.7}
-                          onPress={() => {
-                            setCommentsModalOpen(false);
-                            const sid = comment.studentId || comment.userId;
-                            if (sid) {
-                              router.push({
-                                pathname: '/user/[id]',
-                                params: { id: sid },
-                              });
-                            }
-                          }}
-                          style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
-                        >
-                          <Text variant="xs" weight="700">
-                            {comment.name || 'Classmate'}
-                          </Text>
-                          {comment.role && comment.role !== 'student' && (
-                            <View
-                              style={{
-                                backgroundColor: colors.surfaceSubtle,
-                                paddingHorizontal: 4,
-                                paddingVertical: 1,
-                                borderRadius: 3,
-                              }}
-                            >
-                              <Text variant="xs" weight="700" color="accent" style={{ fontSize: 9 }}>
-                                {comment.role.toUpperCase()}
-                              </Text>
-                            </View>
-                          )}
-                        </TouchableOpacity>
-
-                        {comment.canDelete && (
-                          <TouchableOpacity
-                            onPress={() => handleDeletePostComment(comment.id)}
-                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                          >
-                            <Ionicons name="trash-outline" size={14} color={colors.error} />
-                          </TouchableOpacity>
-                        )}
-                      </View>
-
-                      <Text variant="sm" style={{ marginTop: 4, lineHeight: 20 }}>
-                        {comment.content}
-                      </Text>
-                      <Caption color="muted" style={{ marginTop: 4, fontSize: 10 }}>
-                        {formatRelativeTime(comment.createdAt)}
-                      </Caption>
-                    </View>
-                  </View>
+                    comment={comment}
+                    onReply={handleReplyPressModal}
+                    onEdit={handleEditPressModal}
+                    onDelete={handleDeletePostComment}
+                    onToggleReaction={handleToggleCommentReactionModal}
+                    getFullUrl={getFullImageUrl}
+                    currentUserId={user?.studentId || null}
+                    isAdmin={user?.role === 'admin'}
+                  />
                 ))
               )}
             </ScrollView>
@@ -2662,57 +2775,100 @@ export default function HomeScreen() {
             {/* Comment Composer Input Bar */}
             <View
               style={{
-                flexDirection: 'row',
-                alignItems: 'center',
                 paddingHorizontal: spacing.md,
                 paddingVertical: spacing.sm,
                 borderTopWidth: 1,
                 borderTopColor: colors.border,
                 backgroundColor: colors.surface,
-                gap: spacing.sm,
               }}
             >
-              <TextInput
-                placeholder="Write a reply..."
-                placeholderTextColor={colors.textMuted}
-                value={commentInput}
-                onChangeText={setCommentInput}
-                style={{
-                  flex: 1,
-                  backgroundColor: colors.surfaceRaised,
-                  borderColor: colors.border,
-                  borderWidth: 1,
-                  borderRadius: radii.full,
-                  paddingHorizontal: spacing.md,
-                  paddingVertical: Platform.OS === 'ios' ? 10 : 7,
-                  color: colors.text,
-                  fontSize: 14,
-                  maxHeight: 90,
-                }}
-                multiline
-              />
-              <TouchableOpacity
-                onPress={handleAddPostComment}
-                disabled={!commentInput.trim() || postingComment}
-                style={{
-                  backgroundColor: commentInput.trim() ? colors.primary : colors.surfaceRaised,
-                  width: 40,
-                  height: 40,
-                  borderRadius: 20,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                {postingComment ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <Ionicons
-                    name="send"
-                    size={18}
-                    color={commentInput.trim() ? '#FFFFFF' : colors.textMuted}
-                  />
-                )}
-              </TouchableOpacity>
+              {(commentReplyingTo || commentEditing) && (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    paddingHorizontal: 10,
+                    paddingVertical: 5,
+                    borderRadius: 6,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                    backgroundColor: colors.surfaceRaised,
+                    marginBottom: 6,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 6 }}>
+                    <Ionicons
+                      name={commentEditing ? 'pencil' : 'arrow-undo'}
+                      size={13}
+                      color={colors.primary}
+                    />
+                    <Text variant="xs" weight="600" color="secondary" numberOfLines={1}>
+                      {commentEditing
+                        ? 'Editing your comment'
+                        : `Replying to ${commentReplyingTo?.name}`}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={handleCancelCommentInputMode}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="close-circle" size={15} color={colors.textMuted} />
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                <TextInput
+                  ref={commentInputRef}
+                  placeholder={
+                    commentEditing
+                      ? 'Edit your comment…'
+                      : commentReplyingTo
+                      ? `Reply to ${commentReplyingTo.name}…`
+                      : 'Write a reply...'
+                  }
+                  placeholderTextColor={colors.textMuted}
+                  value={commentInput}
+                  onChangeText={setCommentInput}
+                  style={{
+                    flex: 1,
+                    backgroundColor: colors.surfaceRaised,
+                    borderColor: colors.border,
+                    borderWidth: 1,
+                    borderRadius: radii.full,
+                    paddingHorizontal: spacing.md,
+                    paddingVertical: Platform.OS === 'ios' ? 10 : 7,
+                    color: colors.text,
+                    fontSize: 14,
+                    maxHeight: 90,
+                  }}
+                  multiline
+                />
+                <TouchableOpacity
+                  onPress={handleSubmitPostComment}
+                  disabled={!commentInput.trim() || postingComment}
+                  style={{
+                    backgroundColor: commentInput.trim() ? colors.primary : colors.surfaceRaised,
+                    width: 40,
+                    height: 40,
+                    borderRadius: 20,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {postingComment ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Ionicons
+                      name={commentEditing ? 'checkmark' : 'send'}
+                      size={18}
+                      color={commentInput.trim() ? '#FFFFFF' : colors.textMuted}
+                    />
+                  )}
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </KeyboardStickyView>

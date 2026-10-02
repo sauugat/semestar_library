@@ -3,6 +3,16 @@ const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const {
+  fetchPostComments,
+  fetchCommentReplies,
+  createCommentOrReply,
+  editComment,
+  deleteComment,
+  addCommentReaction,
+  removeCommentReaction,
+  toggleCommentReaction
+} = require('../lib/comments');
 
 const POST_UPLOAD_DIR = process.env.VERCEL
   ? path.join('/tmp', 'uploads', 'posts')
@@ -73,7 +83,7 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
     LEFT JOIN students s ON s.studentId = p.user_id
     LEFT JOIN (SELECT post_id, COUNT(*) AS like_count FROM post_likes GROUP BY post_id) l
       ON l.post_id = p.id
-    LEFT JOIN (SELECT post_id, COUNT(*) AS comment_count FROM post_comments GROUP BY post_id) c
+    LEFT JOIN (SELECT post_id, COUNT(*) AS comment_count FROM post_comments WHERE deleted_at IS NULL GROUP BY post_id) c
       ON c.post_id = p.id
     LEFT JOIN post_likes mine ON mine.post_id = p.id AND mine.user_id = ?
     LEFT JOIN (SELECT post_id, COUNT(*) AS submission_count FROM post_submissions GROUP BY post_id) sub
@@ -378,29 +388,11 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       const post = await db.get('SELECT id FROM posts WHERE id = ?', postId);
       if (!post) return res.status(404).json({ message: 'Post not found.' });
 
-      const comments = await db.all(`
-        SELECT c.id, c.post_id AS "postId", c.user_id AS "userId", c.content, c.created_at AS "createdAt",
-               s.name, s.role, s.avatarUrl AS "avatarUrl", s.studentId AS "studentId"
-        FROM post_comments c
-        JOIN students s ON s.studentId = c.user_id
-        WHERE c.post_id = ?
-        ORDER BY c.id ASC
-      `, postId);
-
+      const comments = await fetchPostComments(db, postId, req);
       res.setHeader('Cache-Control', 'no-store');
-      res.json(comments.map(c => ({
-        id: Number(c.id),
-        postId: Number(c.postId),
-        userId: c.userId,
-        studentId: c.studentId,
-        content: c.content,
-        createdAt: c.createdAt,
-        name: c.name,
-        role: c.role,
-        avatarUrl: c.avatarUrl,
-        canDelete: c.userId === req.postUser?.studentId || req.postUser?.role === 'admin'
-      })));
+      res.json(comments);
     } catch (err) {
+      if (err.status) return res.status(err.status).json({ message: err.message });
       next(err);
     }
   });
@@ -408,66 +400,130 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
   router.post('/:id/comments', async (req, res, next) => {
     try {
       const postId = Number(req.params.id);
-      const post = await db.get('SELECT id FROM posts WHERE id = ?', postId);
-      if (!post) return res.status(404).json({ message: 'Post not found.' });
-      if (!req.postUser) return res.status(403).json({ message: 'Sign in with a student account to comment.' });
-
-      const { content } = req.body || {};
-      if (typeof content !== 'string' || !content.trim() || content.trim().length > 2000) {
-        return res.status(400).json({ message: 'Comment must be between 1 and 2,000 characters.' });
-      }
-
-      const result = await db.run(
-        `INSERT INTO post_comments (post_id, user_id, content, created_at) VALUES (?, ?, ?, ?)`,
-        postId, req.postUser.studentId, content.trim(), new Date().toISOString()
-      );
-
-      const count = await db.get('SELECT COUNT(*) AS c FROM post_comments WHERE post_id = ?', postId);
-      const newComment = await db.get(`
-        SELECT c.id, c.post_id AS "postId", c.user_id AS "userId", c.content, c.created_at AS "createdAt",
-               s.name, s.role, s.avatarUrl AS "avatarUrl", s.studentId AS "studentId"
-        FROM post_comments c
-        JOIN students s ON s.studentId = c.user_id
-        WHERE c.id = ?
-      `, result.lastInsertRowid);
-
-      res.status(201).json({
-        comment: {
-          id: Number(newComment.id),
-          postId: Number(newComment.postId),
-          userId: newComment.userId,
-          studentId: newComment.studentId,
-          content: newComment.content,
-          createdAt: newComment.createdAt,
-          name: newComment.name,
-          role: newComment.role,
-          avatarUrl: newComment.avatarUrl,
-          canDelete: true
-        },
-        comment_count: Number(count.c),
-        commentCount: Number(count.c)
+      const { content, parent_comment_id, parentCommentId, reply_to_user_id, replyToUserId } = req.body || {};
+      const result = await createCommentOrReply(db, {
+        postId,
+        targetParentId: parent_comment_id !== undefined ? parent_comment_id : parentCommentId,
+        replyToUserId: reply_to_user_id || replyToUserId,
+        content,
+        req
       });
+      res.status(201).json(result);
     } catch (err) {
+      if (err.status) return res.status(err.status).json({ message: err.message });
       next(err);
     }
   });
+
+  router.get('/:id/comments/:commentId/replies', async (req, res, next) => {
+    try {
+      const { limit = '50', offset = '0' } = req.query;
+      const replies = await fetchCommentReplies(db, req.params.commentId, req, { limit, offset });
+      res.setHeader('Cache-Control', 'no-store');
+      res.json({ replies, replyCount: replies.length });
+    } catch (err) {
+      if (err.status) return res.status(err.status).json({ message: err.message });
+      next(err);
+    }
+  });
+
+  router.post('/:id/comments/:commentId/replies', async (req, res, next) => {
+    try {
+      const { content, reply_to_user_id, replyToUserId } = req.body || {};
+      const result = await createCommentOrReply(db, {
+        postId: Number(req.params.id),
+        targetParentId: req.params.commentId,
+        replyToUserId: reply_to_user_id || replyToUserId,
+        content,
+        req
+      });
+      res.status(201).json(result);
+    } catch (err) {
+      if (err.status) return res.status(err.status).json({ message: err.message });
+      next(err);
+    }
+  });
+
+  const handleEditCommentRoute = async (req, res, next) => {
+    try {
+      const { content } = req.body || {};
+      const result = await editComment(db, {
+        commentId: req.params.commentId,
+        content,
+        req
+      });
+      res.json(result);
+    } catch (err) {
+      if (err.status) return res.status(err.status).json({ message: err.message });
+      next(err);
+    }
+  };
+
+  router.put('/:id/comments/:commentId', handleEditCommentRoute);
+  router.patch('/:id/comments/:commentId', handleEditCommentRoute);
 
   router.delete('/:id/comments/:commentId', async (req, res, next) => {
     try {
-      const postId = Number(req.params.id);
-      const commentId = Number(req.params.commentId);
-      const comment = await db.get('SELECT user_id FROM post_comments WHERE id = ? AND post_id = ?', commentId, postId);
-      if (!comment) return res.status(404).json({ message: 'Comment not found.' });
-      if (comment.user_id !== req.postUser?.studentId && req.postUser?.role !== 'admin') {
-        return res.status(403).json({ message: 'Only the comment author or an admin can delete this comment.' });
-      }
-      await db.run('DELETE FROM post_comments WHERE id = ?', commentId);
-      const count = await db.get('SELECT COUNT(*) AS c FROM post_comments WHERE post_id = ?', postId);
-      res.json({ message: 'Comment deleted.', comment_count: Number(count.c), commentCount: Number(count.c) });
+      const result = await deleteComment(db, {
+        commentId: req.params.commentId,
+        postId: Number(req.params.id),
+        req
+      });
+      res.json(result);
     } catch (err) {
+      if (err.status) return res.status(err.status).json({ message: err.message });
       next(err);
     }
   });
+
+  router.post('/:id/comments/:commentId/reactions', async (req, res, next) => {
+    try {
+      const reactionType = req.body?.reaction_type || req.body?.reactionType || req.body?.type || 'like';
+      const result = await addCommentReaction(db, {
+        commentId: req.params.commentId,
+        reactionType,
+        req
+      });
+      res.json(result);
+    } catch (err) {
+      if (err.status) return res.status(err.status).json({ message: err.message });
+      next(err);
+    }
+  });
+
+  const handleRemoveCommentReaction = async (req, res, next) => {
+    try {
+      const reactionType = req.params.reactionType || req.body?.reaction_type || req.body?.reactionType || 'like';
+      const result = await removeCommentReaction(db, {
+        commentId: req.params.commentId,
+        reactionType,
+        req
+      });
+      res.json(result);
+    } catch (err) {
+      if (err.status) return res.status(err.status).json({ message: err.message });
+      next(err);
+    }
+  };
+
+  router.delete('/:id/comments/:commentId/reactions', handleRemoveCommentReaction);
+  router.delete('/:id/comments/:commentId/reactions/:reactionType', handleRemoveCommentReaction);
+
+  router.post('/:id/comments/:commentId/like', async (req, res, next) => {
+    try {
+      const result = await toggleCommentReaction(db, {
+        commentId: req.params.commentId,
+        reactionType: 'like',
+        req
+      });
+      res.json(result);
+    } catch (err) {
+      if (err.status) return res.status(err.status).json({ message: err.message });
+      next(err);
+    }
+  });
+
+  router.delete('/:id/comments/:commentId/like', handleRemoveCommentReaction);
 
   const handleEditPost = async (req, res, next) => {
     try {

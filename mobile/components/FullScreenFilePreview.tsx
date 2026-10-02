@@ -27,6 +27,8 @@ export interface FullScreenFilePreviewProps {
   onClose: () => void;
   file: LibraryFile | null;
   localFileUri: string | null;
+  fileUrl?: string | null;
+  mimeType?: string | null;
   onDownloadFile: () => Promise<string | null>;
   onShareFile: () => Promise<void>;
   downloading?: boolean;
@@ -43,9 +45,21 @@ function formatBytes(bytes: number | string): string {
   return `${parseFloat((b / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 }
 
-export type FilePreviewCategory = 'pdf' | 'image' | 'text' | 'office' | 'other';
+export function isPptxFile(filename?: string, mimeType?: string): boolean {
+  const name = (filename || '').toLowerCase().trim();
+  const mime = (mimeType || '').toLowerCase().trim();
+  const hasPptExt = name.endsWith('.pptx') || name.endsWith('.ppt');
+  const hasPptMime =
+    mime.includes('presentation') ||
+    mime.includes('powerpoint') ||
+    mime.includes('vnd.openxmlformats-officedocument.presentationml') ||
+    mime.includes('vnd.ms-powerpoint');
+  return hasPptExt || hasPptMime;
+}
 
-export function getFileCategory(filename: string): FilePreviewCategory {
+export type FilePreviewCategory = 'pdf' | 'image' | 'text' | 'office' | 'pptx' | 'other';
+
+export function getFileCategory(filename: string, mimeType?: string): FilePreviewCategory {
   const lower = (filename || '').toLowerCase();
   if (lower.endsWith('.pdf')) return 'pdf';
   if (
@@ -71,6 +85,11 @@ export function getFileCategory(filename: string): FilePreviewCategory {
   if (
     lower.endsWith('.pptx') ||
     lower.endsWith('.ppt') ||
+    isPptxFile(filename, mimeType)
+  ) {
+    return 'pptx';
+  }
+  if (
     lower.endsWith('.docx') ||
     lower.endsWith('.doc') ||
     lower.endsWith('.xlsx') ||
@@ -299,6 +318,8 @@ export function FullScreenFilePreview({
   onClose,
   file,
   localFileUri,
+  fileUrl,
+  mimeType,
   onDownloadFile,
   onShareFile,
   downloading = false,
@@ -317,6 +338,12 @@ export function FullScreenFilePreview({
   const [officeHtml, setOfficeHtml] = useState<string | null>(null);
   const [copiedText, setCopiedText] = useState(false);
   const [activeUri, setActiveUri] = useState<string | null>(localFileUri);
+
+  // PPTX specific states
+  const [resolvedFileUrl, setResolvedFileUrl] = useState<string | null>(fileUrl || null);
+  const [pptxLoadError, setPptxLoadError] = useState<string | null>(null);
+  const [pptxLoading, setPptxLoading] = useState<boolean>(true);
+  const [downloadingPptx, setDownloadingPptx] = useState<boolean>(false);
 
   // Sync activeUri with incoming localFileUri
   useEffect(() => {
@@ -341,17 +368,105 @@ export function FullScreenFilePreview({
   }, [visible]);
 
   const fileCategory = useMemo(() => {
-    return file ? getFileCategory(file.originalName) : 'other';
-  }, [file]);
+    return file
+      ? getFileCategory(
+          file.originalName,
+          (file as any).mimeType || (file as any).contentType || mimeType || undefined
+        )
+      : 'other';
+  }, [file, mimeType]);
+
+  // Resolve public/signed download URL for PPTX preview
+  useEffect(() => {
+    let isMounted = true;
+    async function resolveUrl() {
+      if (fileUrl) {
+        setResolvedFileUrl(fileUrl);
+        return;
+      }
+      const direct = file?.downloadUrl || file?.fileUrl || (file as any)?.url;
+      if (direct) {
+        setResolvedFileUrl(direct);
+        return;
+      }
+      if (file?.id) {
+        try {
+          const base = await getBaseUrl();
+          if (isMounted) {
+            setResolvedFileUrl(`${base}/api/files/${file.id}/download`);
+          }
+        } catch {
+          if (isMounted) {
+            setResolvedFileUrl(`/api/files/${file.id}/download`);
+          }
+        }
+      }
+    }
+    if (visible && file) {
+      resolveUrl();
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [visible, file, fileUrl]);
+
+  const officeEmbedUrl = useMemo(() => {
+    if (!resolvedFileUrl) return null;
+    return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(resolvedFileUrl)}`;
+  }, [resolvedFileUrl]);
+
+  // Handle downloading file if PPTX preview fails
+  const handleDownloadPptx = async () => {
+    try {
+      setDownloadingPptx(true);
+      const uri = await onDownloadFile();
+      if (uri) {
+        setActiveUri(uri);
+        Alert.alert(
+          'File Downloaded',
+          'The presentation file has been downloaded successfully.',
+          [
+            { text: 'OK', style: 'cancel' },
+            { text: 'Open / Share', onPress: onShareFile },
+          ]
+        );
+      }
+    } catch (err: any) {
+      Alert.alert('Download Failed', err?.message || 'Could not download the presentation.');
+    } finally {
+      setDownloadingPptx(false);
+    }
+  };
 
   // Prepare file for rendering (download if needed, extract base64 for Android PDF or Image, or text UTF-8, or fetch HTML slides)
   const preparePreview = useCallback(async () => {
     if (!file) return;
     setErrorMsg(null);
+    setPptxLoadError(null);
     setPreparing(true);
 
     try {
-      const cat = getFileCategory(file.originalName);
+      const cat = getFileCategory(
+        file.originalName,
+        (file as any).mimeType || (file as any).contentType || mimeType || undefined
+      );
+
+      if (cat === 'pptx') {
+        let targetUrl = fileUrl || file.fileUrl || file.downloadUrl || (file as any).url || null;
+        if (!targetUrl && file.id) {
+          const baseUrl = await getBaseUrl();
+          targetUrl = `${baseUrl}/api/files/${file.id}/download`;
+        }
+        setResolvedFileUrl(targetUrl);
+        setPptxLoading(true);
+        // Pre-fetch localFileUri in background for sharing or download fallback if not present
+        if (!activeUri && !localFileUri) {
+          onDownloadFile().then((uri) => {
+            if (uri) setActiveUri(uri);
+          }).catch(() => {});
+        }
+        return;
+      }
 
       if (cat === 'office') {
         if (file.id) {
@@ -462,7 +577,7 @@ export function FullScreenFilePreview({
     } finally {
       setPreparing(false);
     }
-  }, [file, activeUri, localFileUri, onDownloadFile, isDark]);
+  }, [file, activeUri, localFileUri, onDownloadFile, isDark, fileUrl, mimeType]);
 
   // Trigger preparePreview whenever visible becomes true or activeUri updates
   useEffect(() => {
@@ -475,6 +590,9 @@ export function FullScreenFilePreview({
       setOfficeHtml(null);
       setCopiedText(false);
       setErrorMsg(null);
+      setPptxLoadError(null);
+      setPptxLoading(true);
+      setDownloadingPptx(false);
     }
   }, [visible, file, preparePreview]);
 
@@ -556,6 +674,10 @@ export function FullScreenFilePreview({
       backgroundColor: colors.background,
     },
     webView: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    webViewWrap: {
       flex: 1,
       backgroundColor: colors.background,
     },
@@ -898,6 +1020,100 @@ export function FullScreenFilePreview({
                 )}
               </View>
             </View>
+          )}
+
+          {/* 2.5 PPTX Presentation Viewer (Office Online Embed) */}
+          {!isLoading && !errorMsg && fileCategory === 'pptx' && (
+            pptxLoadError ? (
+              <View style={styles.errorBox}>
+                <View style={styles.errorIconCircle}>
+                  <Ionicons name="alert-circle-outline" size={48} color={isDark ? '#f87171' : '#dc2626'} />
+                </View>
+                <Text style={styles.errorTitle}>Couldn't load presentation</Text>
+                <Text style={styles.errorMessage}>{pptxLoadError}</Text>
+                <View style={styles.errorActions}>
+                  <TouchableOpacity
+                    style={styles.primaryButton}
+                    onPress={handleDownloadPptx}
+                    disabled={downloadingPptx || downloading}
+                    activeOpacity={0.8}
+                  >
+                    {downloadingPptx || downloading ? (
+                      <ActivityIndicator size="small" color={colors.primaryText} style={{ marginRight: 6 }} />
+                    ) : (
+                      <Ionicons name="download-outline" size={18} color={colors.primaryText} style={{ marginRight: 6 }} />
+                    )}
+                    <Text style={styles.primaryButtonText}>
+                      {downloadingPptx || downloading ? 'Downloading...' : 'Download file'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.secondaryButton}
+                    onPress={() => {
+                      setPptxLoadError(null);
+                      setPptxLoading(true);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="refresh-outline" size={18} color={colors.text} style={{ marginRight: 6 }} />
+                    <Text style={styles.secondaryButtonText}>Try Again</Text>
+                  </TouchableOpacity>
+
+                  {activeUri && (
+                    <TouchableOpacity
+                      style={styles.secondaryButton}
+                      onPress={onShareFile}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="share-outline" size={18} color={colors.text} style={{ marginRight: 6 }} />
+                      <Text style={styles.secondaryButtonText}>Open in External App</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            ) : (
+              <View style={styles.webViewWrap}>
+                {officeEmbedUrl ? (
+                  <WebView
+                    key={officeEmbedUrl}
+                    source={{ uri: officeEmbedUrl }}
+                    originWhitelist={['*']}
+                    scalesPageToFit={true}
+                    nestedScrollEnabled={true}
+                    javaScriptEnabled={true}
+                    domStorageEnabled={true}
+                    startInLoadingState={true}
+                    renderLoading={() => (
+                      <View style={styles.centerBox}>
+                        <ActivityIndicator size="large" color={colors.primary} />
+                        <Text style={styles.loadingText}>Loading presentation...</Text>
+                        <Text style={styles.loadingSubtext}>Connecting to Microsoft Office viewer</Text>
+                      </View>
+                    )}
+                    onLoadStart={() => setPptxLoading(true)}
+                    onLoadEnd={() => setPptxLoading(false)}
+                    onError={(e) => {
+                      console.warn('PPTX WebView error:', e.nativeEvent);
+                      setPptxLoading(false);
+                      setPptxLoadError(e.nativeEvent.description || 'Could not load presentation preview.');
+                    }}
+                    onHttpError={(e) => {
+                      if (e.nativeEvent.statusCode >= 400) {
+                        setPptxLoading(false);
+                        setPptxLoadError(`Failed to load presentation (HTTP ${e.nativeEvent.statusCode}).`);
+                      }
+                    }}
+                    style={styles.webView}
+                  />
+                ) : (
+                  <View style={styles.centerBox}>
+                    <ActivityIndicator size="large" color={colors.primary} />
+                    <Text style={styles.loadingText}>Preparing presentation URL...</Text>
+                  </View>
+                )}
+              </View>
+            )
           )}
 
           {/* 3. PDF Viewer */}

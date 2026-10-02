@@ -3102,8 +3102,17 @@
       }
 
       // External & Download links
+      const isPpt = ['PPT'].includes(badge) || /\.(pptx?|ppt)$/i.test(f.originalName || f.title || '');
+      const pptFileUrl = f.publicUrl || f.fileUrl || f.downloadUrl || `${window.location.origin}/api/files/${f.id}/download`;
+
       const extLink = document.getElementById('previewExternalLink');
-      if (extLink) extLink.href = `/api/files/${f.id}/view`;
+      if (extLink) {
+        if (isPpt) {
+          extLink.href = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(pptFileUrl)}`;
+        } else {
+          extLink.href = `/api/files/${f.id}/view`;
+        }
+      }
 
       const dlLink = document.getElementById('previewDownloadLink');
       if (dlLink) {
@@ -3141,6 +3150,24 @@
           };
           img.src = `/api/files/${f.id}/view`;
         }
+      } else if (isPpt) {
+        if (imgWrap) imgWrap.style.display = 'none';
+        if (img) img.src = '';
+        if (iframe) {
+          iframe.style.display = 'block';
+          iframe.onload = () => {
+            if (loadingOverlay) loadingOverlay.classList.add('hidden');
+          };
+          iframe.onerror = () => {
+            if (loadingOverlay) loadingOverlay.classList.add('hidden');
+          };
+          iframe.src = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(pptFileUrl)}`;
+        }
+
+        // Safety fallback spinner timer
+        setTimeout(() => {
+          if (loadingOverlay) loadingOverlay.classList.add('hidden');
+        }, 1500);
       } else {
         if (imgWrap) imgWrap.style.display = 'none';
         if (img) img.src = '';

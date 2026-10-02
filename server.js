@@ -696,14 +696,16 @@ function requireLogin(req, res, next) {
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
-    phase: 'phase2a',
+    phase: 'phase2b',
     postMultiImage: true,
     postEdit: true,
+    modernComments: true,
     server: 'Semester Library',
     time: new Date().toISOString()
   });
 });
 app.use('/api/posts', require('./routes/posts')(db, requireLogin));
+app.use('/api/comments', require('./routes/comments')(db, requireLogin));
 
 // --- Code Lab Rate Limiting ---
 const rateLimit = require('express-rate-limit');

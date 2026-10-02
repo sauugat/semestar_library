@@ -55,7 +55,21 @@ export interface PostComment {
   name: string;
   role: string;
   avatarUrl: string | null;
+  parentCommentId?: number | null;
+  replyToUserId?: string | null;
+  replyToUser?: {
+    studentId: string;
+    name: string;
+  } | null;
+  updatedAt?: string | null;
+  edited?: boolean;
+  isDeleted?: boolean;
+  reactionCount?: number;
+  reactedByMe?: boolean;
+  replyCount?: number;
+  replies?: PostComment[];
   canDelete?: boolean;
+  canEdit?: boolean;
 }
 
 export interface PostsResponse {
@@ -179,19 +193,71 @@ export async function toggleLike(postId: number, currentLiked: boolean = false):
  * Fetch comments for a post.
  */
 export async function getComments(postId: number): Promise<PostComment[]> {
-  return api.get<PostComment[]>(`/api/posts/${postId}/comments`);
+  const res = await api.get<any>(`/api/posts/${postId}/comments`);
+  return Array.isArray(res) ? res : (res?.comments || []);
 }
 
 /**
- * Add a comment to a post.
+ * Add a comment or reply to a post.
  */
 export async function addComment(
   postId: number,
+  content: string,
+  options?: {
+    parentCommentId?: number | null;
+    replyToUserId?: string | null;
+  }
+): Promise<{ comment: PostComment; comment_count: number; commentCount: number }> {
+  return api.post<{ comment: PostComment; comment_count: number; commentCount: number }>(
+    `/api/posts/${postId}/comments`,
+    {
+      content,
+      parent_comment_id: options?.parentCommentId,
+      reply_to_user_id: options?.replyToUserId,
+    }
+  );
+}
+
+/**
+ * Edit an existing comment.
+ */
+export async function editComment(
+  postId: number,
+  commentId: number,
   content: string
-): Promise<{ comment: PostComment; comment_count: number }> {
-  return api.post<{ comment: PostComment; comment_count: number }>(`/api/posts/${postId}/comments`, {
-    content,
-  });
+): Promise<{ comment: PostComment; message: string }> {
+  return api.put<{ comment: PostComment; message: string }>(
+    `/api/posts/${postId}/comments/${commentId}`,
+    { content }
+  );
+}
+
+/**
+ * Toggle like reaction on a comment or reply.
+ */
+export async function toggleCommentReaction(
+  postId: number,
+  commentId: number,
+  reactionType: string = 'like'
+): Promise<{ reacted: boolean; reaction_count: number; reactionCount: number }> {
+  return api.post<{ reacted: boolean; reaction_count: number; reactionCount: number }>(
+    `/api/posts/${postId}/comments/${commentId}/like`,
+    { reaction_type: reactionType }
+  );
+}
+
+/**
+ * Fetch replies for a specific comment.
+ */
+export async function getCommentReplies(
+  postId: number,
+  commentId: number,
+  limit: number = 50,
+  offset: number = 0
+): Promise<{ replies: PostComment[]; replyCount: number }> {
+  return api.get<{ replies: PostComment[]; replyCount: number }>(
+    `/api/posts/${postId}/comments/${commentId}/replies?limit=${limit}&offset=${offset}`
+  );
 }
 
 /**
@@ -200,8 +266,8 @@ export async function addComment(
 export async function deleteComment(
   postId: number,
   commentId: number
-): Promise<{ message: string; comment_count: number }> {
-  return api.delete<{ message: string; comment_count: number }>(
+): Promise<{ message: string; comment_count: number; commentCount: number }> {
+  return api.delete<{ message: string; comment_count: number; commentCount: number }>(
     `/api/posts/${postId}/comments/${commentId}`
   );
 }

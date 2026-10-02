@@ -890,6 +890,7 @@ export default function MaterialDetailScreen() {
         onClose={() => setShowPreview(false)}
         file={file}
         localFileUri={localFileUri}
+        fileUrl={file ? ((file as any).fileUrl || (file as any).downloadUrl || (file as any).url || null) : null}
         onDownloadFile={downloadFile}
         onShareFile={handleShareFile}
         downloading={downloading}

@@ -3069,9 +3069,15 @@
               <a href="${profileUrl}" class="post-comment-author">${escapeHtml(c.name || 'Student')}</a>
               ${roleBadge}
               ${handleHtml}
-              <time class="post-comment-time" datetime="${escapeHtml(c.created_at || '')}">${timeAgo(c.created_at)}</time>
+              <time class="post-comment-time" datetime="${escapeHtml(c.created_at || c.createdAt || '')}">${timeAgo(c.created_at || c.createdAt)}</time>
+              ${c.edited && !c.isDeleted ? '<span style="font-size: 10px; color: var(--text-muted, #86868b); margin-left: 4px;">· edited</span>' : ''}
             </div>
-            <p class="post-comment-text">${escapeHtml(c.content || '')}</p>
+            <p class="post-comment-text" style="${c.isDeleted ? 'font-style: italic; color: var(--text-muted, #86868b);' : ''}">${escapeHtml(c.content || '')}</p>
+            ${Array.isArray(c.replies) && c.replies.length > 0 ? `
+              <div class="post-comment-replies" style="margin-left: 20px; border-left: 2px solid var(--border-color, #2c2c2e); padding-left: 10px; margin-top: 8px;">
+                ${c.replies.map(r => renderPostCommentItem(r)).join('')}
+              </div>
+            ` : ''}
           </div>
         </div>
       `;
@@ -3118,7 +3124,7 @@
             if (!res.ok) throw new Error('Could not load comments');
             const data = await res.json();
             drawer.dataset.loaded = 'true';
-            renderPostCommentsList(listEl, data.comments || []);
+            renderPostCommentsList(listEl, Array.isArray(data) ? data : (data.comments || []));
           } catch (err) {
             listEl.innerHTML = `<p class="post-comments-empty" style="color: var(--accent-red, #ff453a);">${escapeHtml(err.message)}</p>`;
           }

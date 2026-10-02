@@ -35,6 +35,10 @@ export interface LibraryFile {
   commentCount: string | number;
   isOfficial: boolean;
   canDelete?: boolean;
+  fileUrl?: string;
+  downloadUrl?: string;
+  mimeType?: string;
+  contentType?: string;
 }
 
 export interface GetFilesParams {

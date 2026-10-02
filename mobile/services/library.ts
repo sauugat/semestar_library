@@ -172,11 +172,22 @@ export interface UploadNoteParams {
   chapter?: string;
 }
 
+export interface UploadFailedFile {
+  name: string;
+  originalName?: string;
+  error: string;
+}
+
 export interface UploadNoteResponse {
   message: string;
+  batchId?: string;
   fileId?: number;
   files?: any[];
+  successfulFiles?: any[];
+  failedFiles?: UploadFailedFile[];
   count?: number;
+  total?: number;
+  isPartial?: boolean;
 }
 
 /**
@@ -244,7 +255,7 @@ export async function uploadNote(params: UploadNoteParams): Promise<UploadNoteRe
     body: formData,
   });
 
-  if (!res.ok) {
+  if (!res.ok && res.status !== 207) {
     const errBody = await res.json().catch(() => ({}));
     throw new ApiError(errBody.message || `Upload failed (HTTP ${res.status})`, res.status, errBody);
   }

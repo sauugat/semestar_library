@@ -233,4 +233,96 @@ test('Atomic Material Upload & Batch Notification Semantics', async (t) => {
     );
     assert.equal(rows.length, 1, 'Retry with same batchId must not create duplicate notifications');
   });
+
+  // -------------------------------------------------------------
+  // Test 5: Option B Partial Success Verification:
+  // Batch of 3 files: file 1 & 2 succeed, file 3 intentionally fails
+  // -------------------------------------------------------------
+  await t.test('5. Partial success (Option B): 2 files succeed, 1 fails -> notification references ONLY 2 successful files, failed file reported with retry', async () => {
+    const partialBatchId = `batch_partial_${Date.now()}`;
+    const formData = new FormData();
+
+    const blob1 = new Blob(['File 1 content'], { type: 'application/pdf' });
+    const blob2 = new Blob(['File 2 content'], { type: 'application/pdf' });
+    const blob3 = new Blob(['File 3 content with error'], { type: 'application/pdf' });
+
+    formData.append('files', blob1, 'Success_Note_1.pdf');
+    formData.append('files', blob2, 'Success_Note_2.pdf');
+    formData.append('files', blob3, 'Corrupt_File__FAIL__.pdf'); // Triggers intentional failure
+
+    formData.append('fileTitles', JSON.stringify(['Success Note 1', 'Success Note 2', 'Corrupt File']));
+    formData.append('batchId', partialBatchId);
+    formData.append('semester', 'Semester 2');
+    formData.append('subject', 'Database Systems');
+    formData.append('chapter', 'Unit 5: Transactions');
+
+    const res = await fetch(`${baseUrl}/api/files/upload`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${teacherToken}`,
+      },
+      body: formData,
+    });
+
+    try {
+      // Should return HTTP 207 Multi-Status
+      assert.equal(res.status, 207, 'Partial success returns HTTP 207 Multi-Status');
+      const json = await res.json();
+
+      assert.equal(json.isPartial, true);
+      assert.equal(json.batchId, partialBatchId);
+      assert.equal(json.message, '2 of 3 files uploaded successfully');
+      assert.equal(json.count, 2, '2 files succeeded');
+      assert.equal(json.total, 3, '3 files total');
+
+      // Structured per-file results
+      assert.ok(Array.isArray(json.successfulFiles), 'successfulFiles array present');
+      assert.equal(json.successfulFiles.length, 2, '2 files in successfulFiles');
+      assert.equal(json.successfulFiles[0].title, 'Success Note 1');
+      assert.equal(json.successfulFiles[1].title, 'Success Note 2');
+
+      assert.ok(Array.isArray(json.failedFiles), 'failedFiles array present');
+      assert.equal(json.failedFiles.length, 1, '1 file in failedFiles');
+      assert.equal(json.failedFiles[0].name, 'Corrupt_File__FAIL__.pdf');
+      assert.ok(json.failedFiles[0].error, 'Error message present for failed file');
+
+      // Verify DB: files 1 and 2 persist in database
+      const dbFile1 = await db.get('SELECT id, title FROM files WHERE id = ?', json.successfulFiles[0].id);
+      const dbFile2 = await db.get('SELECT id, title FROM files WHERE id = ?', json.successfulFiles[1].id);
+      assert.ok(dbFile1, 'File 1 exists in DB');
+      assert.ok(dbFile2, 'File 2 exists in DB');
+
+      // Verify DB: failed file 3 does NOT exist in files table
+      const dbFile3 = await db.get("SELECT id FROM files WHERE originalName = 'Corrupt_File__FAIL__.pdf'");
+      assert.ok(!dbFile3, 'Failed file 3 must not exist in DB');
+
+      // Verify notification: exactly ONE batch push event enqueued for Semester 2 student
+      const outboxRows = await db.all(
+        "SELECT id, payload_json, idempotency_key FROM push_notification_outbox WHERE recipient_student_id = ? AND event_type = 'material' AND event_id = ?",
+        studentS2Id, partialBatchId
+      );
+      assert.equal(outboxRows.length, 1, 'Exactly 1 batch notification created for partial success');
+
+      const batchPayload = typeof outboxRows[0].payload_json === 'string'
+        ? JSON.parse(outboxRows[0].payload_json)
+        : outboxRows[0].payload_json;
+
+      // Push notification MUST reference ONLY the 2 successful files, NEVER the failed file!
+      assert.equal(batchPayload.data.materialCount, 2, 'Notification must state 2 files, not 3');
+      assert.deepEqual(
+        batchPayload.data.fileIds,
+        [Number(json.successfulFiles[0].id), Number(json.successfulFiles[1].id)],
+        'Notification must reference only the 2 successful file IDs'
+      );
+      assert.ok(
+        batchPayload.body.includes('2 new files') || batchPayload.body.includes('2 new study materials'),
+        'Body must mention 2 new files'
+      );
+      assert.equal(outboxRows[0].idempotency_key, `material-batch:${partialBatchId}:${studentS2Id}`);
+    } catch (test5Err) {
+      console.error('TEST 5 DETAILED ERROR:', test5Err);
+      throw test5Err;
+    }
+  });
 });
+

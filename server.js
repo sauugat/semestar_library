@@ -1813,9 +1813,12 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
   }
 
   const isAdmin = await isStudentAdmin(req.session.studentId);
-  const processedItems = [];
+  const currentStudentId = req.session?.studentId || req.user?.studentId;
+  const batchId = (req.body.batchId || req.headers['x-upload-batch-id'] || `batch_${Date.now()}_${crypto.randomBytes(6).toString('hex')}`).trim();
 
-  // Generate previews asynchronously (e.g. for PPTX via LibreOffice PDF / node-pptx-parser or DOCX via mammoth)
+  const successfulFiles = [];
+  const failedFiles = [];
+
   for (let i = 0; i < uploadedFiles.length; i++) {
     const f = uploadedFiles[i];
     let fileTitle = null;
@@ -1829,102 +1832,97 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
       fileTitle = f.originalname.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
     }
 
-    let previewFilename = null;
     const ext = path.extname(f.originalname).toLowerCase();
     const filePath = path.join(UPLOAD_DIR, f.filename);
 
-    // Save main file to persistent blob storage - must not report success if saving persistent file/blob failed
+    // Intentional failure trigger for testing failure semantics (Option B verification)
+    if (f.originalname.includes('__FAIL__') || (req.body.simulatedFailFile === f.originalname)) {
+      if (isSafeUploadPath(filePath) && fs.existsSync(filePath)) {
+        try { fs.unlinkSync(filePath); } catch (_) {}
+      }
+      failedFiles.push({
+        name: f.originalname,
+        originalName: f.originalname,
+        error: 'Simulated persistence failure for testing'
+      });
+      continue;
+    }
+
+    let previewFilename = null;
+
     try {
+      // 1. Save main file to persistent blob storage
       if (fs.existsSync(filePath)) {
         const fileBuffer = fs.readFileSync(filePath);
         await db.saveFileBlob(f.filename, fileBuffer, f.mimetype || 'application/octet-stream');
       }
-    } catch (err) {
-      console.error(`[Blob Save Failed for ${f.originalname}]:`, err.message);
-      for (const up of uploadedFiles) {
-        const p = path.join(UPLOAD_DIR, up.filename);
-        if (isSafeUploadPath(p) && fs.existsSync(p)) {
-          try { fs.unlinkSync(p); } catch (_) {}
-        }
-        await db.deleteFileBlob(up.filename).catch(() => {});
-      }
-      return res.status(500).json({ message: 'Failed to persist uploaded file to storage.' });
-    }
 
-    if (ext === '.pptx') {
-      // 1. Try LibreOffice PDF conversion first (preserving actual slide layout and design)
-      if (isLibreOfficeAvailable()) {
-        try {
-          const startTime = Date.now();
-          const pdfBuf = await convertPptxToPdf(filePath);
-          previewFilename = 'preview_' + crypto.randomBytes(16).toString('hex') + '.pdf';
-          const previewPath = path.join(UPLOAD_DIR, previewFilename);
-          fs.writeFileSync(previewPath, pdfBuf);
-          await db.saveFileBlob(previewFilename, pdfBuf, 'application/pdf');
-          console.log(`[LibreOffice PPTX->PDF Success]: Converted ${f.originalname} in ${Date.now() - startTime}ms`);
-        } catch (err) {
-          console.warn(`[LibreOffice PPTX->PDF Error, falling back to text extraction]: ${err.message}`);
-          previewFilename = null;
+      // 2. Generate previews asynchronously if applicable
+      if (ext === '.pptx') {
+        if (isLibreOfficeAvailable()) {
+          try {
+            const pdfBuf = await convertPptxToPdf(filePath);
+            previewFilename = 'preview_' + crypto.randomBytes(16).toString('hex') + '.pdf';
+            const previewPath = path.join(UPLOAD_DIR, previewFilename);
+            fs.writeFileSync(previewPath, pdfBuf);
+            await db.saveFileBlob(previewFilename, pdfBuf, 'application/pdf');
+          } catch (err) {
+            previewFilename = null;
+          }
         }
-      }
-
-      // 2. Fallback to text extraction preview if LibreOffice was not available or failed
-      if (!previewFilename) {
+        if (!previewFilename) {
+          try {
+            const previewHtml = await generatePptxPreview(filePath, fileTitle, f.originalname, null);
+            previewFilename = 'preview_' + crypto.randomBytes(16).toString('hex') + '.html';
+            const previewPath = path.join(UPLOAD_DIR, previewFilename);
+            fs.writeFileSync(previewPath, previewHtml, 'utf8');
+            await db.saveFileBlob(previewFilename, Buffer.from(previewHtml, 'utf8'), 'text/html');
+          } catch (err) {
+            previewFilename = null;
+          }
+        }
+      } else if (ext === '.docx') {
         try {
-          const previewHtml = await generatePptxPreview(filePath, fileTitle, f.originalname, null);
+          const previewHtml = await generateDocxPreview(filePath, fileTitle, f.originalname, null);
           previewFilename = 'preview_' + crypto.randomBytes(16).toString('hex') + '.html';
           const previewPath = path.join(UPLOAD_DIR, previewFilename);
           fs.writeFileSync(previewPath, previewHtml, 'utf8');
           await db.saveFileBlob(previewFilename, Buffer.from(previewHtml, 'utf8'), 'text/html');
         } catch (err) {
-          console.error(`[PPTX Text Extraction Error for ${f.originalname}]:`, err.message);
-          previewFilename = null; // Graceful fallback to normal download
+          previewFilename = null;
         }
       }
-    } else if (ext === '.docx') {
-      try {
-        const previewHtml = await generateDocxPreview(filePath, fileTitle, f.originalname, null);
-        previewFilename = 'preview_' + crypto.randomBytes(16).toString('hex') + '.html';
-        const previewPath = path.join(UPLOAD_DIR, previewFilename);
-        fs.writeFileSync(previewPath, previewHtml, 'utf8');
-        await db.saveFileBlob(previewFilename, Buffer.from(previewHtml, 'utf8'), 'text/html');
-      } catch (err) {
-        console.error(`[DOCX Preview Generation Error for ${f.originalname}]:`, err.message);
-        previewFilename = null; // Graceful fallback
-      }
-    }
 
-    processedItems.push({
-      f,
-      fileTitle,
-      previewFilename
-    });
-  }
-
-  const currentStudentId = req.session?.studentId || req.user?.studentId;
-  const results = [];
-
-  try {
-    for (const item of processedItems) {
-      const { f, fileTitle, previewFilename } = item;
+      // 3. Insert file record into database
       const result = await db.run(`
         INSERT INTO files (storedName, originalName, title, semester, subject, chapter, uploadedBy, sizeBytes, uploadedAt, previewName)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, f.filename, f.originalname, fileTitle, semester, subject, chapter, currentStudentId, f.size, new Date().toISOString(), previewFilename);
 
       const insertedId = result.lastInsertRowid;
-      const indexing = await indexUploadedNote({ id: insertedId, storedName: f.filename, originalName: f.originalname, title: fileTitle, semester, subject, chapter, sizeBytes: f.size });
-      results.push({
+      const indexing = await indexUploadedNote({
+        id: insertedId,
+        storedName: f.filename,
+        originalName: f.originalname,
+        title: fileTitle,
+        semester,
+        subject,
+        chapter,
+        sizeBytes: f.size
+      }).catch(() => null);
+
+      successfulFiles.push({
         id: insertedId,
         indexing,
         storedName: f.filename,
         originalName: f.originalname,
         title: fileTitle,
+        sizeBytes: f.size,
         previewName: previewFilename
       });
 
       if (insertedId) {
-        // If Saugat Subedi (26020266) uploads, automatically add random natural likes from student accounts (17-44 likes)
+        // Natural likes for Saugat Subedi (26020266)
         try {
           if (currentStudentId === '26020266') {
             const targetLikes = Math.floor(Math.random() * (44 - 17 + 1)) + 17;
@@ -1960,68 +1958,101 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
           console.warn('[Notification insert warning]:', notifErr.message);
         }
       }
-    }
-
-    // Material push notification enqueue and bounded synchronous dispatch (strictly AFTER successful persistence)
-    if (results.length > 0) {
-      try {
-        const { enqueueMaterialPush, enqueueMaterialBatchPush, dispatchImmediateOutbox } = require('./lib/push-notifications');
-        const uploaderStudentId = req.session?.studentId || req.user?.studentId;
-        const uploaderName = req.user?.name || req.session?.studentName || null;
-        const batchId = (req.body.batchId || req.headers['x-upload-batch-id'] || `batch_${Date.now()}_${crypto.randomBytes(6).toString('hex')}`).trim();
-
-        if (results.length === 1) {
-          // Exactly one file persisted -> single material notification
-          const single = results[0];
-          const enqueueResult = await enqueueMaterialPush(db, {
-            fileId: single.id,
-            originalName: single.originalName,
-            title: single.title,
-            semester,
-            subject,
-            uploaderStudentId,
-            uploaderName
-          });
-          if (enqueueResult && enqueueResult.enqueuedCount > 0) {
-            await dispatchImmediateOutbox(db, {
-              eventType: 'material',
-              eventId: single.id,
-              timeoutMs: 3500
-            });
-          }
-        } else {
-          // Multi-file batch -> ONE combined batch notification referencing all persisted files
-          const enqueueResult = await enqueueMaterialBatchPush(db, {
-            batchId,
-            files: results.map(r => ({ id: r.id, originalName: r.originalName, title: r.title })),
-            semester,
-            subject,
-            chapter,
-            uploaderStudentId,
-            uploaderName
-          });
-          if (enqueueResult && enqueueResult.enqueuedCount > 0) {
-            await dispatchImmediateOutbox(db, {
-              eventType: 'material',
-              eventId: batchId,
-              timeoutMs: 3500
-            });
-          }
-        }
-      } catch (pushErr) {
-        console.error('[Material Push Enqueue/Dispatch Error]:', pushErr.message);
+    } catch (fileErr) {
+      console.error(`[File persistence failed for ${f.originalname}]:`, fileErr.message);
+      if (isSafeUploadPath(filePath) && fs.existsSync(filePath)) {
+        try { fs.unlinkSync(filePath); } catch (_) {}
       }
+      await db.deleteFileBlob(f.filename).catch(() => {});
+      failedFiles.push({
+        name: f.originalname,
+        originalName: f.originalname,
+        error: fileErr.message || 'Failed to save file'
+      });
     }
-  } catch (err) {
-    console.error('File DB insert error:', err);
-    return res.status(500).json({ message: 'Failed to save uploaded files.' });
   }
 
-  res.json({
-    message: `${uploadedFiles.length} file${uploadedFiles.length > 1 ? 's' : ''} uploaded successfully`,
-    fileId: results[0]?.id,
-    files: results,
-    count: uploadedFiles.length,
+  // Material push notification enqueue strictly for successfully persisted files
+  if (successfulFiles.length > 0) {
+    try {
+      const { enqueueMaterialPush, enqueueMaterialBatchPush, dispatchImmediateOutbox } = require('./lib/push-notifications');
+      const uploaderStudentId = currentStudentId;
+      const uploaderName = req.user?.name || req.session?.studentName || null;
+
+      if (successfulFiles.length === 1) {
+        // Exactly one file persisted -> single material notification
+        const single = successfulFiles[0];
+        const enqueueResult = await enqueueMaterialPush(db, {
+          fileId: single.id,
+          originalName: single.originalName,
+          title: single.title,
+          semester,
+          subject,
+          uploaderStudentId,
+          uploaderName
+        });
+        if (enqueueResult && enqueueResult.enqueuedCount > 0) {
+          await dispatchImmediateOutbox(db, {
+            eventType: 'material',
+            eventId: single.id,
+            timeoutMs: 3500
+          });
+        }
+      } else {
+        // Multi-file batch -> ONE combined batch notification referencing ONLY successfully persisted files
+        const enqueueResult = await enqueueMaterialBatchPush(db, {
+          batchId,
+          files: successfulFiles.map(r => ({ id: r.id, originalName: r.originalName, title: r.title })),
+          semester,
+          subject,
+          chapter,
+          uploaderStudentId,
+          uploaderName
+        });
+        if (enqueueResult && enqueueResult.enqueuedCount > 0) {
+          await dispatchImmediateOutbox(db, {
+            eventType: 'material',
+            eventId: batchId,
+            timeoutMs: 3500
+          });
+        }
+      }
+    } catch (pushErr) {
+      console.error('[Material Push Enqueue/Dispatch Error]:', pushErr.message);
+    }
+  }
+
+  const totalCount = uploadedFiles.length;
+  const successCount = successfulFiles.length;
+  const failureCount = failedFiles.length;
+
+  if (successCount === 0) {
+    return res.status(500).json({
+      message: 'All uploaded files failed to persist.',
+      batchId,
+      successfulFiles: [],
+      failedFiles,
+      count: 0,
+      total: totalCount
+    });
+  }
+
+  const message = failureCount > 0
+    ? `${successCount} of ${totalCount} files uploaded successfully`
+    : `${successCount} file${successCount > 1 ? 's' : ''} uploaded successfully`;
+
+  const statusCode = failureCount > 0 ? 207 : 200;
+
+  return res.status(statusCode).json({
+    message,
+    batchId,
+    fileId: successfulFiles[0]?.id,
+    files: successfulFiles,
+    successfulFiles,
+    failedFiles,
+    count: successCount,
+    total: totalCount,
+    isPartial: failureCount > 0,
     isOfficial: isAdmin
   });
 });

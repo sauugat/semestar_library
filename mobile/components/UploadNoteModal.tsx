@@ -89,6 +89,7 @@ interface QueuedFile {
   size?: number;
   mimeType?: string;
   title: string;
+  error?: string;
 }
 
 export function UploadNoteModal({
@@ -398,14 +399,33 @@ export function UploadNoteModal({
         chapter: effectiveChapter || undefined,
       });
 
-      // Reset state and notify parent
-      setSelectedFiles([]);
-      setCommonTitle('');
-      setCustomSubject('');
-      setCustomChapter('');
-      setCurrentStep(1);
-      onSuccess(res.message || 'Notes uploaded successfully!');
-      onClose();
+      // Handle Partial Success (Option B):
+      if (res.failedFiles && res.failedFiles.length > 0) {
+        // Find which files failed by name/originalName
+        const failedNameSet = new Set(res.failedFiles.map((ff) => ff.name || ff.originalName));
+        const failedMap = new Map(res.failedFiles.map((ff) => [ff.name || ff.originalName, ff.error]));
+
+        // Keep only failed files in the queue with error annotations
+        const remainingQueue = selectedFiles
+          .filter((f) => failedNameSet.has(f.name))
+          .map((f) => ({
+            ...f,
+            error: failedMap.get(f.name) || 'Upload failed',
+          }));
+
+        setSelectedFiles(remainingQueue);
+        setCurrentStep(1); // Jump back to files step so teacher can inspect and retry
+        setErrorMsg(`${res.message || 'Some files failed to upload.'} Tap Retry to re-upload.`);
+      } else {
+        // Complete success: clear queue and close modal
+        setSelectedFiles([]);
+        setCommonTitle('');
+        setCustomSubject('');
+        setCustomChapter('');
+        setCurrentStep(1);
+        onSuccess(res.message || 'Notes uploaded successfully!');
+        onClose();
+      }
     } catch (err: any) {
       console.error('Upload failed:', err);
       setErrorMsg(err.message || 'Failed to upload notes. Please check your connection and try again.');
@@ -610,9 +630,18 @@ export function UploadNoteModal({
                               <Text variant="sm" weight="700" numberOfLines={1}>
                                 {file.name}
                               </Text>
-                              <Caption color="muted" style={{ marginTop: 2 }}>
-                                {formatBytes(file.size || 0)}
-                              </Caption>
+                              {file.error ? (
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 3 }}>
+                                  <Ionicons name="alert-circle" size={13} color={colors.error || '#ef4444'} style={{ marginRight: 4 }} />
+                                  <Text variant="xs" weight="600" style={{ color: colors.error || '#ef4444' }}>
+                                    Failed: {file.error}
+                                  </Text>
+                                </View>
+                              ) : (
+                                <Caption color="muted" style={{ marginTop: 2 }}>
+                                  {formatBytes(file.size || 0)}
+                                </Caption>
+                              )}
                             </View>
 
                             <TouchableOpacity
@@ -726,13 +755,23 @@ export function UploadNoteModal({
                 )}
 
                 <Button
-                  title={selectedFiles.length > 0 ? `Continue with ${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''} →` : 'Choose Files Above'}
+                  title={
+                    selectedFiles.some((f) => Boolean(f.error))
+                      ? `Retry ${selectedFiles.filter((f) => Boolean(f.error)).length} Failed File${selectedFiles.filter((f) => Boolean(f.error)).length > 1 ? 's' : ''}`
+                      : selectedFiles.length > 0
+                      ? `Continue with ${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''} →`
+                      : 'Choose Files Above'
+                  }
                   variant="primary"
                   size="lg"
-                  disabled={selectedFiles.length === 0}
+                  disabled={selectedFiles.length === 0 || submitting}
                   onPress={() => {
-                    setErrorMsg(null);
-                    setCurrentStep(2);
+                    if (selectedFiles.some((f) => Boolean(f.error))) {
+                      void handleSubmit();
+                    } else {
+                      setErrorMsg(null);
+                      setCurrentStep(2);
+                    }
                   }}
                   style={{ marginTop: spacing.compact }}
                 />

@@ -38,7 +38,7 @@ import * as Sharing from "expo-sharing";
 import * as MediaLibrary from "expo-media-library/legacy";
 import * as Clipboard from "expo-clipboard";
 import { ChatComposer } from "@/components/chat/ChatComposer";
-import { StickyComposer } from "@/components/ui/StickyComposer";
+import { StickyComposer, KeyboardContentBoundary } from "@/components/ui/StickyComposer";
 import { ChatMessageItem } from "@/components/chat/ChatMessageItem";
 import { ChatMessageActionsSheet } from "@/components/chat/ChatMessageActionsSheet";
 import { FullScreenImageViewer } from "@/components/FullScreenImageViewer";
@@ -229,7 +229,6 @@ export default function ChatScreen() {
   // Refs
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
   const isNearBottomRef = useRef(true);
-  const listLayoutHeightRef = useRef(0);
   const lastTypingSentRef = useRef<number>(0);
   const [typingPulsingAnim] = useState(() => new Animated.Value(0.3));
 
@@ -967,152 +966,140 @@ export default function ChatScreen() {
         </TouchableOpacity>
       )}
 
-      {/* Main Message List */}
-      {loadingInitial ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#f5f5f5" />
-          <Text variant="sm" style={styles.loadingInitialText}>
-            Loading group messages...
-          </Text>
-        </View>
-      ) : error && messages.length === 0 ? (
-        <View style={styles.centerContainer}>
-          <Ionicons name="cloud-offline-outline" size={36} color="#71717a" />
-          <Text style={styles.panelTitle}>Could not load messages</Text>
-          <TouchableOpacity
-            style={styles.sheetAction}
-            onPress={() => void sync()}
-          >
-            <Text style={{ color: "#f5f5f5" }}>Try again</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <FlatList
-          ref={flatListRef}
-          data={messages}
-          keyExtractor={(item) => item.clientId || String(item.id)}
-          renderItem={renderMessageItem}
-          style={styles.messagesList}
-          contentContainerStyle={styles.messagesFeed}
-          onScroll={handleScroll}
-          scrollEventThrottle={16}
-          keyboardDismissMode="on-drag"
-          keyboardShouldPersistTaps="handled"
-          automaticallyAdjustContentInsets={false}
-          maintainVisibleContentPosition={{
-            minIndexForVisible: 0,
-            autoscrollToTopThreshold: 80,
-          }}
-          onLayout={(e) => {
-            const nextHeight = e.nativeEvent.layout.height;
-            const prev = listLayoutHeightRef.current;
-            listLayoutHeightRef.current = nextHeight;
-            // When the layout shrinks (keyboard opened) and user is near
-            // bottom, nudge the list back to offset 0 so newest messages
-            // remain visible.  This covers the resize-driven viewport
-            // change that onContentSizeChange does not detect.
-            if (prev > 0 && nextHeight < prev && isNearBottomRef.current) {
-              requestAnimationFrame(() => {
+      {/* Main Message List & Viewport Boundary */}
+      <KeyboardContentBoundary style={styles.messagesBoundary}>
+        {loadingInitial ? (
+          <View style={styles.centerContainer}>
+            <ActivityIndicator size="large" color="#f5f5f5" />
+            <Text variant="sm" style={styles.loadingInitialText}>
+              Loading group messages...
+            </Text>
+          </View>
+        ) : error && messages.length === 0 ? (
+          <View style={styles.centerContainer}>
+            <Ionicons name="cloud-offline-outline" size={36} color="#71717a" />
+            <Text style={styles.panelTitle}>Could not load messages</Text>
+            <TouchableOpacity
+              style={styles.sheetAction}
+              onPress={() => void sync()}
+            >
+              <Text style={{ color: "#f5f5f5" }}>Try again</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <FlatList
+            ref={flatListRef}
+            data={messages}
+            keyExtractor={(item) => item.clientId || String(item.id)}
+            renderItem={renderMessageItem}
+            style={styles.messagesList}
+            contentContainerStyle={styles.messagesFeed}
+            onScroll={handleScroll}
+            scrollEventThrottle={16}
+            keyboardDismissMode="on-drag"
+            keyboardShouldPersistTaps="handled"
+            automaticallyAdjustContentInsets={false}
+            maintainVisibleContentPosition={{
+              minIndexForVisible: 0,
+              autoscrollToTopThreshold: 80,
+            }}
+            onContentSizeChange={() => {
+              if (isNearBottomRef.current)
                 flatListRef.current?.scrollToOffset({
                   offset: 0,
-                  animated: true,
+                  animated: false,
                 });
-              });
-            }
-          }}
-          onContentSizeChange={() => {
-            if (isNearBottomRef.current)
+            }}
+            onScrollToIndexFailed={({ index, averageItemLength }) => {
               flatListRef.current?.scrollToOffset({
-                offset: 0,
-                animated: false,
+                offset: index * averageItemLength,
+                animated: true,
               });
-          }}
-          onScrollToIndexFailed={({ index, averageItemLength }) => {
-            flatListRef.current?.scrollToOffset({
-              offset: index * averageItemLength,
-              animated: true,
-            });
-          }}
-          onEndReached={loadOlderMessages}
-          onEndReachedThreshold={0.3}
-          inverted
-          initialNumToRender={15}
-          maxToRenderPerBatch={15}
-          windowSize={9}
-          removeClippedSubviews={Platform.OS === "android"}
-          ListFooterComponent={
-            loadingMore ? (
-              <View style={styles.loadingMoreContainer}>
-                <ActivityIndicator size="small" color="#71717a" />
-                <Text variant="xs" style={styles.loadingMoreText}>
-                  Loading older messages...
+            }}
+            onEndReached={loadOlderMessages}
+            onEndReachedThreshold={0.3}
+            inverted
+            initialNumToRender={15}
+            maxToRenderPerBatch={15}
+            windowSize={9}
+            removeClippedSubviews={Platform.OS === "android"}
+            ListFooterComponent={
+              loadingMore ? (
+                <View style={styles.loadingMoreContainer}>
+                  <ActivityIndicator size="small" color="#71717a" />
+                  <Text variant="xs" style={styles.loadingMoreText}>
+                    Loading older messages...
+                  </Text>
+                </View>
+              ) : hasMore && messages.length > 0 ? (
+                <TouchableOpacity
+                  accessibilityLabel="Load earlier messages"
+                  style={styles.loadingMoreContainer}
+                  onPress={() => void loadOlderMessages()}
+                >
+                  <Text style={styles.panelSecondary}>Load earlier messages</Text>
+                </TouchableOpacity>
+              ) : null
+            }
+            ListEmptyComponent={
+              <View style={[styles.emptyContainer, { transform: [{ scaleY: -1 }] }]}>
+                <View style={styles.emptyIconBox}>
+                  <Ionicons name="chatbubbles-outline" size={30} color="#71717a" />
+                </View>
+                <Text variant="md" weight="700" style={styles.emptyTitle}>
+                  Welcome to Class Chat
+                </Text>
+                <Text variant="sm" style={styles.emptyDesc}>
+                  Ask questions, share study notes, and collaborate with your class.
                 </Text>
               </View>
-            ) : hasMore && messages.length > 0 ? (
-              <TouchableOpacity
-                accessibilityLabel="Load earlier messages"
-                style={styles.loadingMoreContainer}
-                onPress={() => void loadOlderMessages()}
-              >
-                <Text style={styles.panelSecondary}>Load earlier messages</Text>
-              </TouchableOpacity>
-            ) : null
-          }
-          ListEmptyComponent={
-            <View style={[styles.emptyContainer, { transform: [{ scaleY: -1 }] }]}>
-              <View style={styles.emptyIconBox}>
-                <Ionicons name="chatbubbles-outline" size={30} color="#71717a" />
+            }
+          />
+        )}
+
+        {/* Floating Scroll to Bottom Button */}
+        {showScrollToBottom && (
+          <TouchableOpacity
+            style={[
+              styles.floatingScrollBtn,
+              activeTypers.size > 0 && styles.floatingScrollBtnWithTyping,
+            ]}
+            onPress={() => {
+              isNearBottomRef.current = true;
+              flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+              setShowScrollToBottom(false);
+              setLastVisibleMessageId(messages[0]?.id || 0);
+            }}
+            activeOpacity={0.8}
+            accessibilityLabel="Scroll to bottom"
+          >
+            <Ionicons name="chevron-down" size={19} color="#f5f5f5" />
+            {unreadBelow > 0 && (
+              <View style={styles.floatingUnreadBadge}>
+                <Text variant="xs" weight="700" style={styles.floatingUnreadBadgeText}>
+                  {unreadBelow}
+                </Text>
               </View>
-              <Text variant="md" weight="700" style={styles.emptyTitle}>
-                Welcome to Class Chat
-              </Text>
-              <Text variant="sm" style={styles.emptyDesc}>
-                Ask questions, share study notes, and collaborate with your class.
-              </Text>
-            </View>
-          }
-        />
-      )}
+            )}
+          </TouchableOpacity>
+        )}
 
-      {/* Floating Scroll to Bottom Button (Requirement 17: floats clearly above composer with margin) */}
-      {showScrollToBottom && (
-        <TouchableOpacity
-          style={styles.floatingScrollBtn}
-          onPress={() => {
-            isNearBottomRef.current = true;
-            flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
-            setShowScrollToBottom(false);
-            setLastVisibleMessageId(messages[0]?.id || 0);
-          }}
-          activeOpacity={0.8}
-          accessibilityLabel="Scroll to bottom"
-        >
-          <Ionicons name="chevron-down" size={19} color="#f5f5f5" />
-          {unreadBelow > 0 && (
-            <View style={styles.floatingUnreadBadge}>
-              <Text variant="xs" weight="700" style={styles.floatingUnreadBadgeText}>
-                {unreadBelow}
-              </Text>
+        {/* Typing Indicator Bar */}
+        {activeTypers.size > 0 && (
+          <View style={styles.typingBar}>
+            <View style={styles.typingDotsContainer}>
+              <Animated.View style={[styles.typingDot, { opacity: typingPulsingAnim }]} />
+              <Animated.View style={[styles.typingDot, { opacity: typingPulsingAnim }]} />
+              <Animated.View style={[styles.typingDot, { opacity: typingPulsingAnim }]} />
             </View>
-          )}
-        </TouchableOpacity>
-      )}
-
-      {/* Typing Indicator Bar */}
-      {activeTypers.size > 0 && (
-        <View style={styles.typingBar}>
-          <View style={styles.typingDotsContainer}>
-            <Animated.View style={[styles.typingDot, { opacity: typingPulsingAnim }]} />
-            <Animated.View style={[styles.typingDot, { opacity: typingPulsingAnim }]} />
-            <Animated.View style={[styles.typingDot, { opacity: typingPulsingAnim }]} />
+            <Text variant="xs" style={styles.typingText}>
+              {typingNames.length === 1
+                ? `${typingNames[0]} is typing...`
+                : `${typingNames[0]} and ${typingNames.length - 1} others are typing...`}
+            </Text>
           </View>
-          <Text variant="xs" style={styles.typingText}>
-            {typingNames.length === 1
-              ? `${typingNames[0]} is typing...`
-              : `${typingNames[0]} and ${typingNames.length - 1} others are typing...`}
-          </Text>
-        </View>
-      )}
+        )}
+      </KeyboardContentBoundary>
 
       {/* Replying banner, Attachment Preview, and Message Composer */}
       <StickyComposer bordered>
@@ -1503,6 +1490,10 @@ const styles = StyleSheet.create({
     color: "#f5f5f5",
     fontSize: 12,
   },
+  messagesBoundary: {
+    flex: 1,
+    position: "relative",
+  },
   messagesList: {
     flex: 1,
   },
@@ -1557,7 +1548,7 @@ const styles = StyleSheet.create({
   floatingScrollBtn: {
     position: "absolute",
     right: 16,
-    bottom: 74, // Floating clearly above composer (not clipped)
+    bottom: 14, // Floating clearly above composer inside boundary
     width: 38,
     height: 38,
     borderRadius: 19,
@@ -1572,6 +1563,9 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     shadowOffset: { width: 0, height: 2 },
     zIndex: 99,
+  },
+  floatingScrollBtnWithTyping: {
+    bottom: 42,
   },
   floatingUnreadBadge: {
     position: "absolute",

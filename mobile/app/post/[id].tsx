@@ -25,7 +25,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
-import { StickyComposer } from '@/components/ui/StickyComposer';
+import { StickyComposer, KeyboardContentBoundary } from '@/components/ui/StickyComposer';
 import { COMPOSER_GEOMETRY } from '@/constants/composerGeometry';
 import { formatTimeAgo } from '@/utils/date';
 import { queryClient } from '@/services/query-client';
@@ -276,8 +276,9 @@ export default function PostDetailScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <ScrollView
-        ref={scrollViewRef}
+      <KeyboardContentBoundary style={{ flex: 1 }}>
+        <ScrollView
+          ref={scrollViewRef}
         style={{ flex: 1 }}
         contentContainerStyle={[
           styles.scrollContent,
@@ -487,6 +488,7 @@ export default function PostDetailScreen() {
           })
         )}
       </ScrollView>
+      </KeyboardContentBoundary>
 
       {/* Sticky Comment Composer */}
       <StickyComposer>
@@ -497,11 +499,6 @@ export default function PostDetailScreen() {
             placeholderTextColor={colors.textMuted}
             value={commentText}
             onChangeText={setCommentText}
-            onFocus={() => {
-              setTimeout(() => {
-                scrollViewRef.current?.scrollToEnd({ animated: true });
-              }, 200);
-            }}
             multiline
             maxLength={1000}
             style={[

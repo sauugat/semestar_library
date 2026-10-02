@@ -48,7 +48,7 @@ import {
   PostComment,
   LibraryFile,
 } from '@/services/posts';
-import { getBaseUrl, getAutoDetectedServerUrl } from '@/services/api';
+import { getBaseUrl, getAutoDetectedServerUrl, DEFAULT_SERVER_URL } from '@/services/api';
 import { SearchOverlay } from '@/components/SearchOverlay';
 import { initChatRealtime } from '@/services/chat-realtime';
 import { UploadNoteModal } from '@/components/UploadNoteModal';
@@ -1055,11 +1055,18 @@ export default function HomeScreen() {
 
   const getFullImageUrl = (attachmentUrl: string | null): string | null => {
     if (!attachmentUrl) return null;
-    if (attachmentUrl.startsWith('http://') || attachmentUrl.startsWith('https://')) {
+    if (
+      attachmentUrl.startsWith('http://') ||
+      attachmentUrl.startsWith('https://') ||
+      attachmentUrl.startsWith('file://') ||
+      attachmentUrl.startsWith('blob:') ||
+      attachmentUrl.startsWith('data:')
+    ) {
       return attachmentUrl;
     }
-    const host = baseUrl || getAutoDetectedServerUrl();
-    return `${host}${attachmentUrl.startsWith('/') ? '' : '/'}${attachmentUrl}`;
+    const host = (baseUrl || getAutoDetectedServerUrl() || DEFAULT_SERVER_URL).replace(/\/+$/, '');
+    const clean = attachmentUrl.replace(/^\/+/, '');
+    return `${host}/${clean}`;
   };
 
   // Post options menu actions

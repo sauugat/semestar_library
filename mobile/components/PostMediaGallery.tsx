@@ -39,7 +39,10 @@ export function PostMediaGallery({
   const resolveUrl = useCallback(
     (path?: string | null): string | null => {
       if (!path) return null;
-      if (getFullUrl) return getFullUrl(path);
+      if (getFullUrl) {
+        const resolved = getFullUrl(path);
+        if (resolved) return resolved;
+      }
       return path;
     },
     [getFullUrl]

@@ -88,6 +88,7 @@ async function setupServer(t) {
   });
 
   app.use('/api/posts', createPostsRouter(db, requireLogin, { uploadDir }));
+  app.use('/uploads/posts', require('../routes/post-images')(db));
 
   // Exact 404 handler from server.js
   app.use((req, res) => {
@@ -116,11 +117,13 @@ async function setupServer(t) {
       },
       body: isForm ? body : body === undefined ? undefined : JSON.stringify(body),
     });
-    const json = await response.json().catch(() => ({}));
-    return { status: response.status, body: json };
+    const cType = response.headers.get('content-type') || '';
+    const isJson = cType.includes('application/json');
+    const json = isJson ? await response.json().catch(() => ({})) : {};
+    return { status: response.status, body: json, headers: response.headers };
   }
 
-  return { api };
+  return { api, db };
 }
 
 test('Integration: GET /api/version and /api/health report phase2a capabilities', async (t) => {
@@ -241,3 +244,58 @@ test('Integration: 404 handler returns Resource not found on non-existent api ro
   assert.equal(notFoundRes.status, 404);
   assert.equal(notFoundRes.body.message, 'Resource not found');
 });
+
+test('Integration: Multi-image post with 5 images stores distinct blobs and serves HTTP 200 for EVERY media item', async (t) => {
+  const { api, db } = await setupServer(t);
+
+  // 1. Create post with 5 distinct images
+  const form = new FormData();
+  form.append('content', 'Testing multi-image post with 5 distinct photos');
+  form.append('type', 'status');
+  for (let i = 0; i < 5; i++) {
+    const uniquePng = Buffer.concat([testPng, Buffer.from(`unique-img-padding-${i}`)]);
+    form.append('images', new Blob([uniquePng], { type: 'image/png' }), `test_photo_${i}.png`);
+  }
+
+  const createRes = await api('POST', '/api/posts', form, 'author1');
+  assert.equal(createRes.status, 201);
+  const postId = createRes.body.id;
+  assert.ok(postId > 0);
+
+  // 2. GET /api/posts/:id
+  const getRes = await api('GET', `/api/posts/${postId}`, undefined, 'author1');
+  assert.equal(getRes.status, 200);
+  assert.equal(getRes.body.id, postId);
+  assert.equal(Array.isArray(getRes.body.media), true);
+  assert.equal(getRes.body.media.length, 5);
+
+  const seenUrls = new Set();
+  for (let i = 0; i < getRes.body.media.length; i++) {
+    const item = getRes.body.media[i];
+    // Assert URL is non-empty string
+    assert.ok(typeof item.url === 'string' && item.url.length > 0, `media[${i}].url is non-empty`);
+
+    // Assert URLs are unique
+    assert.equal(seenUrls.has(item.url), false, `media[${i}].url must be unique`);
+    seenUrls.add(item.url);
+
+    // Extract filename and assert corresponding stored blob exists in db
+    const filename = path.basename(item.url);
+    const blob = await db.getFileBlob(filename);
+    assert.ok(blob, `db.getFileBlob("${filename}") must exist for media[${i}]`);
+    assert.ok(blob.fileData.length > 0, `blob.fileData must have non-zero length for media[${i}]`);
+
+    // Request every generated media URL via HTTP GET and verify HTTP 200 (NOT 404 or 500)
+    const mediaRes = await api('GET', item.url, undefined, null);
+    assert.equal(
+      mediaRes.status,
+      200,
+      `GET ${item.url} for media[${i}] must return 200 OK (received status ${mediaRes.status})`
+    );
+    assert.ok(
+      mediaRes.headers.get('content-type')?.includes('image'),
+      `GET ${item.url} Content-Type must be an image type`
+    );
+  }
+});
+

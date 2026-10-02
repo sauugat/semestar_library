@@ -1318,12 +1318,26 @@ app.all(['/api/account/delete', '/api/account'], requireLogin, async (req, res) 
     await db.run('DELETE FROM push_notification_outbox WHERE recipient_student_id = ?', studentId);
     await db.run('DELETE FROM notifications WHERE recipientStudentId = ?', studentId);
 
-    // 3. Remove personal social interactions
+    // 3. Remove personal social interactions & feed posts
     await db.run('DELETE FROM file_likes WHERE studentId = ?', studentId);
     await db.run('DELETE FROM file_comments WHERE studentId = ?', studentId);
     await db.run('DELETE FROM post_likes WHERE user_id = ?', studentId);
     await db.run('DELETE FROM post_comments WHERE user_id = ?', studentId);
     await db.run('DELETE FROM follows WHERE followerId = ? OR followingId = ?', studentId, studentId);
+
+    // Clean up student's personal feed posts and delete attached post image blobs
+    try {
+      const userPosts = await db.all('SELECT id, attachment_url FROM posts WHERE user_id = ?', studentId);
+      for (const p of userPosts) {
+        if (p.attachment_url && /^\/uploads\/posts\/[a-f0-9-]+\.[a-z]+$/.test(p.attachment_url)) {
+          const filename = path.basename(p.attachment_url);
+          await db.deleteFileBlob(filename).catch(() => {});
+        }
+      }
+      await db.run('DELETE FROM posts WHERE user_id = ?', studentId);
+    } catch (postErr) {
+      console.warn('[Account Deletion Post Cleanup Notice]:', postErr.message);
+    }
 
     // 4. Invalidate all active web sessions for this student
     if (db.isPostgres) {
@@ -1387,6 +1401,20 @@ app.post('/api/account/delete-request', async (req, res) => {
     await db.run('DELETE FROM post_likes WHERE user_id = ?', sid);
     await db.run('DELETE FROM post_comments WHERE user_id = ?', sid);
     await db.run('DELETE FROM follows WHERE followerId = ? OR followingId = ?', sid, sid);
+
+    // Clean up student's personal feed posts and delete attached post image blobs
+    try {
+      const userPosts = await db.all('SELECT id, attachment_url FROM posts WHERE user_id = ?', sid);
+      for (const p of userPosts) {
+        if (p.attachment_url && /^\/uploads\/posts\/[a-f0-9-]+\.[a-z]+$/.test(p.attachment_url)) {
+          const filename = path.basename(p.attachment_url);
+          await db.deleteFileBlob(filename).catch(() => {});
+        }
+      }
+      await db.run('DELETE FROM posts WHERE user_id = ?', sid);
+    } catch (postErr) {
+      console.warn('[Account Deletion Post Cleanup Notice]:', postErr.message);
+    }
 
     if (db.isPostgres) {
       await db.run(`DELETE FROM session WHERE sess->>'studentId' = $1 OR sess::text LIKE '%' || $1 || '%'`, sid);

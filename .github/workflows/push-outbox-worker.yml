@@ -1,0 +1,29 @@
+name: Durable Push Outbox Worker
+
+on:
+  schedule:
+    # Run every 5 minutes around the clock
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  process-push-retries:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Trigger Push Outbox & Receipt Worker
+        run: |
+          echo "Triggering durable push retry sweep at $(date -u --iso-8601=seconds)..."
+          HTTP_STATUS=$(curl -s -o response.json -w "%{http_code}" -X POST \
+            "https://semestar-library.vercel.app/api/internal/push/process" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            -d '{"limit": 100, "includeReceipts": true}')
+          
+          echo "Worker Response HTTP Status: $HTTP_STATUS"
+          cat response.json
+          
+          if [ "$HTTP_STATUS" -ne 200 ]; then
+            echo "::error::Push worker execution failed with HTTP status $HTTP_STATUS"
+            exit 1
+          fi

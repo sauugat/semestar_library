@@ -227,7 +227,7 @@
 
     <h2>1. Identification & Institutional Scope</h2>
     <p>
-      This Privacy Policy governs the collection, processing, and protection of information by <strong>Semester Library</strong>, an academic portal developed for Gandaki University students, faculty, and administrative staff ("we", "us", or "the Platform"). This policy applies to the Semester Library mobile application for Android and iOS as well as the affiliated web portal hosted at <code>https://semester-library.vercel.app</code>.
+      This Privacy Policy governs the collection, processing, and protection of information by <strong>Semester Library</strong>, an academic portal developed for Gandaki University students, faculty, and administrative staff ("we", "us", or "the Platform"). This policy applies to the Semester Library mobile application for Android and iOS as well as the affiliated web portal hosted at <code>https://semestar-library.vercel.app</code>.
     </p>
 
     <h2>2. Categories of Information We Collect</h2>
@@ -315,7 +315,7 @@
     <h3>How to Request Account Deletion:</h3>
     <ol>
       <li><strong>In-App Self-Service:</strong> Open <em>Settings</em> → Navigate to <em>Account</em> → Tap <strong>Delete Account</strong> → Enter your current password to confirm permanent erasure.</li>
-      <li><strong>Public Web Deletion Portal (No App Required):</strong> If you have uninstalled the application or cannot access your mobile device, visit our public web portal at <a href="https://semester-library.vercel.app/delete-account">https://semester-library.vercel.app/delete-account</a> to securely authenticate and delete your account.</li>
+      <li><strong>Public Web Deletion Portal (No App Required):</strong> If you have uninstalled the application or cannot access your mobile device, visit our public web portal at <a href="https://semestar-library.vercel.app/delete-account">https://semestar-library.vercel.app/delete-account</a> to securely authenticate and delete your account.</li>
       <li><strong>Direct Privacy Officer Assistance:</strong> Send an email from your registered address to <code>privacy@gandakiuniversity.edu.np</code> requesting account deletion.</li>
     </ol>
 
@@ -324,8 +324,66 @@
       Upon deletion, your student credentials (name, email, password hash, bio, avatar), mobile bearer authentication tokens, registered device push tokens, notification preferences, personal likes, comments, and private social relationships are immediately and permanently purged from active databases and session stores.
     </div>
 
+    <h3>Data Retention & Deletion Schedule</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Data Category</th>
+          <th>Post-Deletion Treatment</th>
+          <th>Legal & Operational Rationale</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Account Credentials & Profile</strong> (Name, Email, Student ID, Password Hash, Bio, Avatar)</td>
+          <td><span style="color: #ef4444; font-weight: 700;">DELETED</span></td>
+          <td>Immediate, irreversible cryptographic purge from active databases.</td>
+        </tr>
+        <tr>
+          <td><strong>Active Sessions & Bearer Tokens</strong></td>
+          <td><span style="color: #ef4444; font-weight: 700;">DELETED</span></td>
+          <td>All mobile authentication tokens and server session cookies are revoked instantly.</td>
+        </tr>
+        <tr>
+          <td><strong>Push Tokens & Hardware Attributes</strong></td>
+          <td><span style="color: #ef4444; font-weight: 700;">DELETED</span></td>
+          <td>Device tokens unregistered from Expo & FCM; outbox queue purged.</td>
+        </tr>
+        <tr>
+          <td><strong>Notification Preferences</strong></td>
+          <td><span style="color: #ef4444; font-weight: 700;">DELETED</span></td>
+          <td>Granular preference records wiped immediately.</td>
+        </tr>
+        <tr>
+          <td><strong>Feed Posts & Post Images</strong></td>
+          <td><span style="color: #ef4444; font-weight: 700;">DELETED</span></td>
+          <td>Personal status updates and attached photos are purged from database and file storage.</td>
+        </tr>
+        <tr>
+          <td><strong>Comments</strong> (Feed Comments & Material Comments)</td>
+          <td><span style="color: #ef4444; font-weight: 700;">DELETED</span></td>
+          <td>All personal comments authored by the student are purged permanently.</td>
+        </tr>
+        <tr>
+          <td><strong>Social Interactions</strong> (Likes & Follows)</td>
+          <td><span style="color: #ef4444; font-weight: 700;">DELETED</span></td>
+          <td>Personal likes and social graph relationships are removed entirely.</td>
+        </tr>
+        <tr>
+          <td><strong>Realtime Group Chat Messages</strong></td>
+          <td><span style="color: #3b82f6; font-weight: 700;">ANONYMIZED / DECOUPLED</span></td>
+          <td>Classroom discussion messages remain in group history to prevent disruption of ongoing student conversations, but the sender record is purged so messages cannot be linked to user identity.</td>
+        </tr>
+        <tr>
+          <td><strong>Uploaded Academic Course Materials</strong> (PDF Notes, Past Papers)</td>
+          <td><span style="color: #3b82f6; font-weight: 700;">ANONYMIZED / DECOUPLED</span></td>
+          <td>Publicly contributed educational materials in departmental folders are retained under the <em>Academic Continuity Exception</em> for enrolled students, with author association severed.</td>
+        </tr>
+      </tbody>
+    </table>
+
     <p>
-      <em>Academic Continuity Exception:</em> Publicly shared academic course materials (e.g. past question papers or syllabus notes) contributed to departmental folders may be decoupled from your personal identity and retained as anonymous academic records to preserve educational access for enrolled university students.
+      <em>Academic Continuity Exception:</em> Publicly shared academic course materials (e.g. past question papers or syllabus notes) contributed to departmental folders are decoupled from your personal identity and retained as anonymous academic records to preserve educational access for enrolled university students.
     </p>
 
     <h2>5. Notification Controls & User Preferences</h2>

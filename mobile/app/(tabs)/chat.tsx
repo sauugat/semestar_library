@@ -29,7 +29,7 @@ import {
 } from "react-native";
 import { KeyboardStickyView, useKeyboardHandler } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRouter, useFocusEffect } from "expo-router";
+import { useRouter, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
@@ -58,6 +58,7 @@ import {
   markPendingMessageFailed,
   updateCachedReaction,
   deleteCachedMessage,
+  upsertChatMessages,
 } from "@/services/chat-db";
 
 import { useAuth } from "@/context/AuthContext";
@@ -67,6 +68,7 @@ import {
   ChatMessage,
   ChatMember,
   fetchChatMembers,
+  fetchChatMessages,
   pinChatMessage,
   unpinChatMessage,
   deleteChatMessage,
@@ -188,6 +190,7 @@ export default function ChatScreen() {
     markRead,
   } = useClassChat(user?.studentId, serverUrl, chatOptions);
 
+  const { targetMessageId } = useLocalSearchParams<{ targetMessageId?: string }>();
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const [actionMessage, setActionMessage] = useState<ChatMessage | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
@@ -203,6 +206,22 @@ export default function ChatScreen() {
     user?.isAdmin || user?.role === "admin" || user?.role === "cr",
   );
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+
+  // Preload group members on mount for instant zero-latency @mention suggestions
+  useEffect(() => {
+    let mounted = true;
+    void (async () => {
+      try {
+        const data = await fetchChatMembers();
+        if (mounted && data.members) {
+          setMembers(data.members);
+        }
+      } catch {}
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Track initially loaded message IDs to disable slide animation on initial load and initialize seen set
   const initialLoadedIds = useRef(new Set<number>());
@@ -384,6 +403,71 @@ export default function ChatScreen() {
       setHighlightedMessageId((cur) => (cur === id ? null : cur));
     }, 1500);
   }, [messages]);
+
+  // Deep Link: automatically jump and highlight exact message from push notification
+  const handledTargetRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!targetMessageId || handledTargetRef.current === targetMessageId) return;
+    const tid = Number(targetMessageId);
+    if (!Number.isFinite(tid) || tid <= 0) return;
+
+    const foundIndex = messages.findIndex((m) => m.id === tid);
+    if (foundIndex >= 0) {
+      handledTargetRef.current = targetMessageId;
+      jumpToMessage(tid);
+      return;
+    }
+
+    // Message is outside currently loaded first page: load chunk before targetId + 1
+    void (async () => {
+      try {
+        const res = await fetchChatMessages({ before: tid + 1, limit: 30 });
+        if (res.messages && res.messages.length > 0) {
+          await upsertChatMessages(res.messages);
+          setMessages((prev) => mergeChatMessages(res.messages, prev));
+          handledTargetRef.current = targetMessageId;
+          setTimeout(() => {
+            jumpToMessage(tid);
+          }, 350);
+        }
+      } catch (err) {
+        console.warn("[Chat] Deep link message load failed:", err);
+      }
+    })();
+  }, [targetMessageId, messages, jumpToMessage, setMessages]);
+
+  const handlePressMention = useCallback(
+    (handle: string, item?: ChatMessage) => {
+      const lower = handle.toLowerCase();
+      // 1. Structured mention metadata resolution (stable across username/handle updates)
+      if (item?.mentionsDetail && Array.isArray(item.mentionsDetail)) {
+        const directMatch = item.mentionsDetail.find(
+          (m) =>
+            (m.handle && m.handle.toLowerCase() === lower) ||
+            (m.studentId && m.studentId.toLowerCase() === lower)
+        );
+        if (directMatch?.studentId) {
+          router.push({ pathname: "/user/[id]", params: { id: directMatch.studentId } });
+          return;
+        }
+      }
+      // If single mention on message, route directly to it
+      if (item?.mentions && item.mentions.length === 1) {
+        router.push({ pathname: "/user/[id]", params: { id: item.mentions[0] } });
+        return;
+      }
+      // 2. Fallback: lookup current members list
+      const targetMember = members.find(
+        (m) =>
+          (m.username && m.username.toLowerCase() === lower) ||
+          m.studentId.toLowerCase() === lower ||
+          m.name.toLowerCase().replace(/\s+/g, "_") === lower
+      );
+      const targetId = targetMember ? targetMember.studentId : handle;
+      router.push({ pathname: "/user/[id]", params: { id: targetId } });
+    },
+    [members, router]
+  );
 
   const runAction = async (operation: () => Promise<unknown>) => {
     if (actionBusyRef.current) return;
@@ -697,10 +781,12 @@ export default function ChatScreen() {
       text,
       file,
       replyTo: replyTarget,
+      mentions,
     }: {
       text: string;
       file: { uri: string; name: string; mimeType: string; isImage?: boolean; size?: number } | null;
       replyTo: ChatMessage | null;
+      mentions?: string[];
     }) => {
       const trimmed = text.trim();
       if (!trimmed && !file) return;
@@ -744,6 +830,7 @@ export default function ChatScreen() {
         name: user?.name || "Me",
         avatarUrl: user?.avatarUrl || null,
         reactions: [],
+        mentions: mentions || [],
         status: "pending",
       };
 
@@ -764,6 +851,7 @@ export default function ChatScreen() {
         text: trimmed,
         replyToId: replyTarget?.id,
         clientId,
+        mentions: mentions || [],
         file: file
           ? {
               uri: file.uri,
@@ -974,6 +1062,7 @@ export default function ChatScreen() {
           onToggleReaction={handleToggleReaction}
           onRetry={handleRetryMessage}
           onPressAuthor={handlePressAuthor}
+          onPressMention={handlePressMention}
         />
       );
     },
@@ -993,6 +1082,7 @@ export default function ChatScreen() {
       handleToggleReaction,
       handleRetryMessage,
       handlePressAuthor,
+      handlePressMention,
     ]
   );
 
@@ -1261,6 +1351,9 @@ export default function ChatScreen() {
           onSendMessage={handleSendMessage}
           inputRef={inputRef}
           userAvailable={Boolean(user)}
+          members={members}
+          serverUrl={serverUrl}
+          currentUserId={user?.studentId}
         />
       </StickyComposer>
 

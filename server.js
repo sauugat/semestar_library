@@ -3467,12 +3467,31 @@ app.get('/api/chat/messages', requireLogin, async (req, res) => {
   const messageIds = [...new Set(allMessages.map(m => m.id))];
   if (messageIds.length) {
     const placeholders = messageIds.map(() => '?').join(',');
-    const reactions = await db.all(`SELECT messageId, studentId, emoji FROM chat_reactions WHERE messageId IN (${placeholders})`, ...messageIds);
+    const [reactions, mentions] = await Promise.all([
+      db.all(`SELECT messageId, studentId, emoji FROM chat_reactions WHERE messageId IN (${placeholders})`, ...messageIds),
+      db.all(`SELECT cm.message_id, cm.mentioned_student_id, cm.handle, s.username, s.name
+        FROM chat_message_mentions cm
+        LEFT JOIN students s ON s.studentId = cm.mentioned_student_id
+        WHERE cm.message_id IN (${placeholders})`, ...messageIds)
+    ]);
     const reactionMap = {};
     reactions.forEach(r => {
       (reactionMap[r.messageId] ||= []).push({ studentId: r.studentId, emoji: r.emoji });
     });
-    allMessages.forEach(m => { m.reactions = reactionMap[m.id] || []; });
+    const mentionMap = {};
+    const mentionDetailMap = {};
+    mentions.forEach(m => {
+      const mid = m.messageId || m.message_id;
+      const sid = m.mentionedStudentId || m.mentioned_student_id;
+      const h = m.handle || m.username || m.name || sid;
+      (mentionMap[mid] ||= []).push(sid);
+      (mentionDetailMap[mid] ||= []).push({ studentId: sid, handle: h });
+    });
+    allMessages.forEach(m => {
+      m.reactions = reactionMap[m.id] || [];
+      m.mentions = mentionMap[m.id] || [];
+      m.mentionsDetail = mentionDetailMap[m.id] || [];
+    });
   }
   const typing = await db.all(`SELECT t.studentId, s.name, t.lastTypedAt AS timestamp
     FROM chat_typing t JOIN students s ON s.studentId = t.studentId WHERE t.lastTypedAt > ?`,
@@ -3481,14 +3500,19 @@ app.get('/api/chat/messages', requireLogin, async (req, res) => {
   res.json({ messages, readReceipts, typing, ...(recentLimit ? { recentMessages } : {}) });
 });
 
+// Single reusable eligibility predicate for BIT group chat (BIT and B.Sc. CSIT students, excluding non-IT departments like BBA)
+const CHAT_ELIGIBILITY_SQL = "(COALESCE(department, 'BIT') IN ('BIT', 'B.Sc. CSIT', 'CSIT') AND (role IS NULL OR role NOT IN ('blocked', 'banned', 'suspended')))";
+const CHAT_ELIGIBILITY_S_SQL = "(COALESCE(s.department, 'BIT') IN ('BIT', 'B.Sc. CSIT', 'CSIT') AND (s.role IS NULL OR s.role NOT IN ('blocked', 'banned', 'suspended')))";
+
 app.get('/api/chat/members', requireLogin, async (req, res) => {
   try {
     const [members, lastMessages] = await Promise.all([
       db.all(`
-        SELECT s.studentId, s.name, s.avatarUrl, s.semester, s.department, s.role,
+        SELECT s.studentId, s.name, s.username, s.avatarUrl, s.semester, s.department, s.role,
           r.lastReadMessageId
         FROM students s
         LEFT JOIN chat_read_receipts r ON r.studentId = s.studentId
+        WHERE ${CHAT_ELIGIBILITY_S_SQL}
         ORDER BY s.name ASC
       `),
       db.all(`
@@ -3507,6 +3531,35 @@ app.get('/api/chat/members', requireLogin, async (req, res) => {
     res.json({ total: combined.length, members: combined });
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch members' });
+  }
+});
+
+// @mention autocomplete: search students by name or username (strictly filtered by chat eligibility)
+app.get('/api/chat/mentions/students', requireLogin, async (req, res) => {
+  try {
+    const query = (req.query.q || '').trim().toLowerCase();
+    const currentStudentId = req.session?.studentId || req.user?.studentId;
+    if (!query || query.length < 1) {
+      return res.json({ students: [] });
+    }
+
+    // Sanitize LIKE pattern (escape % and _ in user input)
+    const safeLike = `%${query.replace(/%/g, '\\%').replace(/_/g, '\\_')}%`;
+
+    const students = await db.all(`
+      SELECT studentId, name, username, avatarUrl
+      FROM students
+      WHERE studentId != ?
+        AND ${CHAT_ELIGIBILITY_SQL}
+        AND (LOWER(name) LIKE ? ESCAPE '\\' OR LOWER(username) LIKE ? ESCAPE '\\')
+      ORDER BY name ASC
+      LIMIT 10
+    `, currentStudentId, safeLike, safeLike);
+
+    res.json({ students: students || [] });
+  } catch (err) {
+    console.error('[Mention Autocomplete Error]:', err.message);
+    res.status(500).json({ error: 'Failed to search students' });
   }
 });
 
@@ -3714,6 +3767,17 @@ app.post('/api/chat/messages', requireLogin, chatRateLimiter, handleChatUpload, 
   const replyToId = req.body.replyToId ? parseInt(req.body.replyToId, 10) : null;
   const clientId = (req.body && req.body.clientId ? String(req.body.clientId) : '').trim() || null;
 
+  // Parse mentions: client sends JSON array of studentIds
+  let rawMentions = [];
+  try {
+    const mentionsInput = req.body.mentions || req.body.mentionedStudentIds;
+    if (typeof mentionsInput === 'string') {
+      rawMentions = JSON.parse(mentionsInput);
+    } else if (Array.isArray(mentionsInput)) {
+      rawMentions = mentionsInput;
+    }
+  } catch (_) { rawMentions = []; }
+
   // Idempotency: if client retries with the same clientId within 60s, return cached response
   if (clientId && recentClientMessages.has(clientId)) {
     const cached = recentClientMessages.get(clientId);
@@ -3763,14 +3827,124 @@ app.post('/api/chat/messages', requireLogin, chatRateLimiter, handleChatUpload, 
     const currentSenderId = req.session?.studentId || req.user?.studentId;
     console.log('[PUSH-DIAG-CHAT] 1. Sender Student ID:', currentSenderId);
 
-    const result = await db.run(`
-      INSERT INTO chat_messages (studentId, text, attachmentName, attachmentOriginalName, attachmentMimeType, replyToId, createdAt)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `, currentSenderId, text, attachmentName, attachmentOriginalName, attachmentMimeType, replyToId, new Date().toISOString());
+    const senderRow = await db.get(
+      'SELECT studentId, name, username, department, role FROM students WHERE studentId = ?',
+      currentSenderId
+    );
+    if (!senderRow) {
+      if (file) fs.unlink(file.path, () => {});
+      return res.status(401).json({ error: 'Unauthorized: Sender does not exist' });
+    }
+    const isSenderEligible = (
+      (senderRow.department === null || senderRow.department === undefined || ['BIT', 'B.SC. CSIT', 'CSIT'].includes(senderRow.department.toUpperCase())) &&
+      (!senderRow.role || !['blocked', 'banned', 'suspended'].includes(senderRow.role))
+    );
+    if (!isSenderEligible) {
+      if (file) fs.unlink(file.path, () => {});
+      return res.status(403).json({ error: 'Forbidden: Sender is not eligible for this chat' });
+    }
 
-    const messageId = result.lastInsertRowid;
+    // ── Parse and validate @mentions ──
+    let rawMentions = [];
+    try {
+      const mentionsInput = req.body.mentions || req.body.mentionedStudentIds;
+      if (typeof mentionsInput === 'string') {
+        rawMentions = JSON.parse(mentionsInput);
+      } else if (Array.isArray(mentionsInput)) {
+        rawMentions = mentionsInput;
+      }
+    } catch (_) { rawMentions = []; }
 
-    // Fetch the newly inserted message with all joins to broadcast it exactly as GET /api/chat/messages would
+    const extractedIds = (Array.isArray(rawMentions) ? rawMentions : []).map(item => {
+      if (item && typeof item === 'object' && item.studentId) return String(item.studentId).trim();
+      return String(item || '').trim();
+    }).filter(Boolean);
+
+    // Deduplicate
+    const uniqueMentionIds = Array.from(new Set(extractedIds)).slice(0, 50);
+
+    // Sender's own ID is safely ignored for notification purposes without failing
+    const recipientCandidateIds = uniqueMentionIds.filter(id => id !== String(currentSenderId));
+
+    let validatedMentions = []; // array of { studentId, handle }
+    if (recipientCandidateIds.length > 0) {
+      const placeholders = recipientCandidateIds.map(() => '?').join(',');
+      const eligibleStudents = await db.all(
+        `SELECT studentId, username FROM students WHERE studentId IN (${placeholders}) AND ${CHAT_ELIGIBILITY_SQL}`,
+        ...recipientCandidateIds
+      );
+
+      const eligibleMap = new Map((eligibleStudents || []).map(s => [s.studentId, s.username]));
+      const invalidIds = recipientCandidateIds.filter(id => !eligibleMap.has(id));
+
+      // Strict rejection: if client submits nonexistent or ineligible mention IDs, reject with 400
+      if (invalidIds.length > 0) {
+        if (file) fs.unlink(file.path, () => {});
+        return res.status(400).json({
+          error: 'One or more mentioned students are invalid or ineligible for this chat',
+          invalidStudentIds: invalidIds
+        });
+      }
+
+      validatedMentions = recipientCandidateIds.map(id => ({
+        studentId: id,
+        handle: eligibleMap.get(id) || id
+      }));
+    }
+
+    // ── Atomically execute message creation, mentions, and outbox enqueue in one transaction ──
+    let messageId;
+    let enqueueResult;
+
+    await db.withTransaction(async (tx) => {
+      // 1. insert chat_messages
+      const result = await tx.run(`
+        INSERT INTO chat_messages (studentId, text, attachmentName, attachmentOriginalName, attachmentMimeType, replyToId, createdAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `, currentSenderId, text, attachmentName, attachmentOriginalName, attachmentMimeType, replyToId, new Date().toISOString());
+
+      messageId = result.lastInsertRowid;
+
+      // 2. insert chat_message_mentions
+      for (const m of validatedMentions) {
+        if (tx.isPostgres) {
+          await tx.run(
+            `INSERT INTO chat_message_mentions (message_id, mentioned_student_id, handle) VALUES (?, ?, ?)
+             ON CONFLICT (message_id, mentioned_student_id) DO NOTHING`,
+            messageId, m.studentId, m.handle
+          );
+        } else {
+          await tx.run(
+            `INSERT OR IGNORE INTO chat_message_mentions (message_id, mentioned_student_id, handle) VALUES (?, ?, ?)`,
+            messageId, m.studentId, m.handle
+          );
+        }
+      }
+
+      // Injected failure regression test point 1 (before outbox insertion)
+      if (process.env.TEST_INJECT_CHAT_FAIL === 'before_outbox') {
+        throw new Error('Injected failure: before outbox enqueue');
+      }
+
+      // 3. enqueue logical push/outbox records
+      const { enqueueChatPushWithThrottle } = require('./lib/push-notifications');
+      enqueueResult = await enqueueChatPushWithThrottle(tx, {
+        messageId,
+        senderStudentId: currentSenderId,
+        senderName: senderRow.name || null,
+        text: text ? text.trim() : null,
+        attachmentMimeType: attachmentMimeType || (file ? file.mimetype : null),
+        attachmentOriginalName: attachmentOriginalName || (file ? file.originalname : null),
+        mentionedStudentIds: validatedMentions.map(m => m.studentId)
+      });
+
+      // Injected failure regression test point 2 (after outbox insertion, before commit)
+      if (process.env.TEST_INJECT_CHAT_FAIL === 'after_outbox') {
+        throw new Error('Injected failure: after outbox enqueue');
+      }
+    });
+
+    // ── Transaction committed: fetch message for broadcast and dispatch push ──
     const newMsg = await db.get(`
       SELECT chat_messages.id, chat_messages.text, chat_messages.attachmentName, chat_messages.attachmentOriginalName, chat_messages.attachmentMimeType, chat_messages.replyToId, chat_messages.createdAt,
         students.studentId, students.name, students.avatarUrl,
@@ -3782,19 +3956,16 @@ app.post('/api/chat/messages', requireLogin, chatRateLimiter, handleChatUpload, 
       WHERE chat_messages.id = ?
     `, messageId);
 
-    // Push notification outbox enqueue and bounded synchronous dispatch (isolated failure)
-    try {
-      const { enqueueChatPushWithThrottle, dispatchImmediateOutbox } = require('./lib/push-notifications');
-      const enqueueResult = await enqueueChatPushWithThrottle(db, {
-        messageId,
-        senderStudentId: currentSenderId,
-        senderName: newMsg ? newMsg.name : null,
-        text: text ? text.trim() : null,
-        attachmentMimeType: attachmentMimeType || (file ? file.mimetype : null),
-        attachmentOriginalName: attachmentOriginalName || (file ? file.originalname : null)
-      });
+    // Attach validated mentions to the message object for broadcast
+    if (newMsg) {
+      newMsg.mentions = validatedMentions.map(m => m.studentId);
+      newMsg.mentionsDetail = validatedMentions;
+    }
 
+    // Push notification immediate dispatch (bounded synchronous dispatch)
+    try {
       if (enqueueResult && enqueueResult.enqueuedCount > 0) {
+        const { dispatchImmediateOutbox } = require('./lib/push-notifications');
         await dispatchImmediateOutbox(db, {
           eventType: 'chat',
           eventId: messageId,
@@ -3803,7 +3974,7 @@ app.post('/api/chat/messages', requireLogin, chatRateLimiter, handleChatUpload, 
         });
       }
     } catch (pushErr) {
-      console.warn('[PUSH-CHAT] Push Enqueue/Dispatch Error:', pushErr.message);
+      console.warn('[PUSH-CHAT] Push Dispatch Error:', pushErr.message);
     }
 
     if (newMsg) {
@@ -3823,6 +3994,7 @@ app.post('/api/chat/messages', requireLogin, chatRateLimiter, handleChatUpload, 
 
     res.json({ message: 'Sent', messageId, data: newMsg, clientId });
   } catch (error) {
+    if (file) fs.unlink(file.path, () => {});
     console.error('Chat message insert error:', error.message);
     res.status(500).json({ message: 'Failed to send message.' });
   }
@@ -4103,20 +4275,29 @@ const uploadCover = multer({
 
 // Helper function to fetch profile with stats and privacy boundary
 async function getStudentProfile(targetStudentId, viewerStudentId) {
-  const student = await db.get(`
+  let student = await db.get(`
     SELECT studentId, username, name, avatarUrl, coverUrl, coverPosition, bio, department, semester, githubUrl, linkedinUrl, role, verification_status, email
     FROM students
     WHERE studentId = ?
   `, targetStudentId);
 
+  if (!student && targetStudentId) {
+    student = await db.get(`
+      SELECT studentId, username, name, avatarUrl, coverUrl, coverPosition, bio, department, semester, githubUrl, linkedinUrl, role, verification_status, email
+      FROM students
+      WHERE LOWER(username) = LOWER(?)
+    `, String(targetStudentId));
+  }
+
   if (!student) return null;
 
-  const isSelf = String(targetStudentId) === String(viewerStudentId);
+  const actualStudentId = student.studentId;
+  const isSelf = String(actualStudentId) === String(viewerStudentId);
 
-  const filesCountRow = await db.get('SELECT COUNT(*) AS c FROM files WHERE uploadedBy = ?', targetStudentId);
+  const filesCountRow = await db.get('SELECT COUNT(*) AS c FROM files WHERE uploadedBy = ?', actualStudentId);
   const filesCount = Number(filesCountRow?.c || filesCountRow?.count || 0);
 
-  const postsCountRow = await db.get('SELECT COUNT(*) AS c FROM posts WHERE user_id = ?', targetStudentId);
+  const postsCountRow = await db.get('SELECT COUNT(*) AS c FROM posts WHERE user_id = ?', actualStudentId);
   const postsCount = Number(postsCountRow?.c || postsCountRow?.count || 0);
 
   let photosCount = 0;

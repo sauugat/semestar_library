@@ -29,6 +29,7 @@ export interface BaseNotificationData {
 
 export interface ChatNotificationData extends BaseNotificationData {
   type: 'chat';
+  subType?: 'message' | 'mention' | string;
   messageId?: number;
   groupId?: string;
   groupName?: string;
@@ -459,6 +460,7 @@ export function parseNotificationData(raw: unknown): NotificationPayload | null 
     const messageId = Number(data.messageId);
     return {
       type: 'chat',
+      subType: data.subType ? String(data.subType) : undefined,
       eventId: data.eventId ? String(data.eventId) : undefined,
       entityId: data.entityId ? String(data.entityId) : undefined,
       messageId: Number.isFinite(messageId) ? messageId : undefined,
@@ -653,7 +655,14 @@ export function navigateFromNotification(
   try {
     switch (payload.type) {
       case 'chat':
-        router.replace('/(tabs)/chat');
+        if (payload.messageId) {
+          router.replace({
+            pathname: '/(tabs)/chat',
+            params: { targetMessageId: String(payload.messageId) },
+          });
+        } else {
+          router.replace('/(tabs)/chat');
+        }
         break;
 
       case 'material':

@@ -51,7 +51,7 @@ if (isPostgres) {
     console.log('[DB Engine]: Connected to Turso/LibSQL Database');
   } else {
     const dbPath = process.env.DB_PATH || (process.env.VERCEL ? path.join('/tmp', 'database.db') : path.join(__dirname, 'database.db'));
-    dbUrl = dbPath === ':memory:' ? ':memory:' : `file:${dbPath}`;
+    dbUrl = dbPath === ':memory:' ? 'file::memory:?cache=shared' : `file:${dbPath}`;
     console.log(`[DB Engine]: Connected to local SQLite database at ${dbUrl}`);
   }
 
@@ -106,7 +106,9 @@ const camelMap = {
   ischecked: 'isChecked', isreleased: 'isReleased', feedbacktext: 'feedbackText',
   pinnedby: 'pinnedBy', pinnedat: 'pinnedAt', is_official: 'is_official',
   verificationstatus: 'verificationStatus', verification_status: 'verificationStatus',
-  coverurl: 'coverUrl', coverposition: 'coverPosition'
+  coverurl: 'coverUrl', coverposition: 'coverPosition',
+  mentionedstudentid: 'mentionedStudentId', message_id: 'messageId',
+  mentioned_student_id: 'mentionedStudentId'
 };
 
 function formatRow(row) {

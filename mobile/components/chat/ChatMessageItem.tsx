@@ -83,6 +83,7 @@ interface ChatMessageItemProps {
   onToggleReaction: (item: ChatMessage, emoji: string) => void;
   onRetry?: (item: ChatMessage) => void;
   onPressAuthor?: (studentId: string) => void;
+  onPressMention?: (handle: string, item: ChatMessage) => void;
 }
 
 function formatMessageTime(isoString: string): string {
@@ -136,19 +137,39 @@ function getFileExtension(filename?: string | null): string {
 function renderMessageTextWithLinks(
   text: string,
   isMe: boolean,
-  baseStyle: any
+  baseStyle: any,
+  onPressMention?: (handle: string, item: ChatMessage) => void,
+  item?: ChatMessage
 ) {
-  const urlRegex = /(https?:\/\/[^\s<]+[^<.,:;"')\]\s])/gi;
-  const parts = text.split(urlRegex);
+  const regex = /(https?:\/\/[^\s<]+[^<.,:;"')\]\s])|(\B@[a-zA-Z0-9_.]{1,30})/gi;
+  const tokens: { type: 'text' | 'url' | 'mention'; value: string }[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
 
-  if (parts.length <= 1) {
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      tokens.push({ type: 'text', value: text.substring(lastIndex, match.index) });
+    }
+    if (match[1]) {
+      tokens.push({ type: 'url', value: match[1] });
+    } else if (match[2]) {
+      tokens.push({ type: 'mention', value: match[2] });
+    }
+    lastIndex = regex.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    tokens.push({ type: 'text', value: text.substring(lastIndex) });
+  }
+
+  if (tokens.length <= 1 && tokens[0]?.type === 'text') {
     return <Text style={baseStyle}>{text}</Text>;
   }
 
   return (
     <Text style={baseStyle}>
-      {parts.map((part, i) => {
-        if (urlRegex.test(part)) {
+      {tokens.map((token, i) => {
+        if (token.type === 'url') {
           return (
             <Text
               key={i}
@@ -157,13 +178,29 @@ function renderMessageTextWithLinks(
                 styles.urlLink,
                 { color: isMe ? '#ffffff' : '#f5f5f5' },
               ]}
-              onPress={() => Linking.openURL(part).catch(() => {})}
+              onPress={() => Linking.openURL(token.value).catch(() => {})}
             >
-              {part}
+              {token.value}
             </Text>
           );
         }
-        return <Text key={i} style={baseStyle}>{part}</Text>;
+        if (token.type === 'mention') {
+          const handle = token.value.slice(1);
+          return (
+            <Text
+              key={i}
+              style={[
+                baseStyle,
+                styles.mentionText,
+                isMe ? styles.mentionTextMe : styles.mentionTextOther,
+              ]}
+              onPress={() => item && onPressMention?.(handle, item)}
+            >
+              {token.value}
+            </Text>
+          );
+        }
+        return <Text key={i} style={baseStyle}>{token.value}</Text>;
       })}
     </Text>
   );
@@ -317,6 +354,7 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
   onToggleReaction,
   onRetry,
   onPressAuthor,
+  onPressMention,
 }: ChatMessageItemProps) {
   const { width: screenWidth } = useWindowDimensions();
   const maxBubbleWidth = Math.round(screenWidth * 0.8);
@@ -923,7 +961,9 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
                     {renderMessageTextWithLinks(
                       item.text,
                       isMe,
-                      isMe ? styles.bubbleTextMe : styles.bubbleTextOther
+                      isMe ? styles.bubbleTextMe : styles.bubbleTextOther,
+                      onPressMention,
+                      item
                     )}
 
                     {/* Invisible spacer to reserve width for inline timestamp */}
@@ -1326,5 +1366,16 @@ const styles = StyleSheet.create({
     color: '#d4d4d8',
     marginLeft: 4,
     includeFontPadding: false,
+  },
+  mentionText: {
+    fontWeight: '700',
+  },
+  mentionTextMe: {
+    color: '#ffffff',
+    textDecorationLine: 'underline',
+  },
+  mentionTextOther: {
+    color: '#f4f4f5',
+    textDecorationLine: 'underline',
   },
 });

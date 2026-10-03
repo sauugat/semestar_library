@@ -15,6 +15,8 @@ export interface ChatMessage {
   replyText?: string;
   replySender?: string;
   reactions?: { studentId: string; emoji: string }[];
+  mentions?: string[];
+  mentionsDetail?: { studentId: string; handle?: string | null }[];
   status?: 'sent' | 'pending' | 'failed';
   localUri?: string;
   pendingFile?: { uri: string; name: string; mimeType: string; size?: number } | null;
@@ -36,6 +38,7 @@ export interface SendMessageParams {
   } | null;
   replyToId?: number | null;
   clientId?: string;
+  mentions?: string[];
 }
 
 export async function fetchChatConfig(): Promise<ChatConfig> {
@@ -77,6 +80,9 @@ export async function sendChatMessage(
   if (params.clientId) {
     formData.append("clientId", params.clientId);
   }
+  if (params.mentions && params.mentions.length > 0) {
+    formData.append("mentions", JSON.stringify(params.mentions));
+  }
   if (params.file) {
     formData.append("attachment", {
       uri: params.file.uri,
@@ -98,6 +104,21 @@ export async function sendChatMessage(
   }
 
   return await res.json();
+}
+
+export interface MentionCandidate {
+  studentId: string;
+  name: string;
+  username: string | null;
+  avatarUrl: string | null;
+}
+
+export async function searchMentionCandidates(query: string): Promise<MentionCandidate[]> {
+  if (!query.trim()) return [];
+  const res = await api.get<{ students: MentionCandidate[] }>(
+    `/api/chat/mentions/students?q=${encodeURIComponent(query.trim())}`
+  );
+  return res.students || [];
 }
 
 export async function sendChatTyping(): Promise<void> {
@@ -123,6 +144,7 @@ export interface ChatReadReceipt {
 export interface ChatMember {
   studentId: string;
   name: string;
+  username?: string | null;
   avatarUrl?: string;
   semester?: string;
   role?: string;

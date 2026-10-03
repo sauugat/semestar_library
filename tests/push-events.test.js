@@ -72,6 +72,12 @@ test('Push Notifications Integration & Event Hooks (Phase B)', async (t) => {
     deviceName: 'Pixel 8'
   });
   await push.registerDeviceToken(db, {
+    studentId: studentS4Id,
+    expoPushToken: `ExponentPushToken[s4_${ts}]`,
+    platform: 'android',
+    deviceName: 'Pixel 8'
+  });
+  await push.registerDeviceToken(db, {
     studentId: mutedStudentId,
     expoPushToken: `ExponentPushToken[muted_${ts}]`,
     platform: 'ios',
@@ -90,6 +96,9 @@ test('Push Notifications Integration & Event Hooks (Phase B)', async (t) => {
     await db.run(`DELETE FROM posts WHERE user_id IN (${p})`, ...allTestStudentIds).catch(() => {});
     await db.run(`DELETE FROM students WHERE studentId IN (${p})`, ...allTestStudentIds).catch(() => {});
     server.close();
+    setTimeout(() => {
+      process.exit(0);
+    }, 500);
   });
 
   // -------------------------------------------------------------

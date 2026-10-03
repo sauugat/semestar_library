@@ -9,8 +9,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { Text } from "@/components/ui/Typography";
 import { COMPOSER_GEOMETRY } from "@/constants/composerGeometry";
-import { ChatMessage, sendChatTyping } from "@/services/chat";
+import { ChatMember, ChatMessage, sendChatTyping } from "@/services/chat";
 import { ChatSendButton } from "./ChatSendButton";
+import { MentionSuggestions } from "./MentionSuggestions";
 
 export interface ChatComposerProps {
   replyTo: ChatMessage | null;
@@ -29,10 +30,14 @@ export interface ChatComposerProps {
     text: string;
     file: { uri: string; name: string; mimeType: string; isImage?: boolean } | null;
     replyTo: ChatMessage | null;
+    mentions?: string[];
   }) => void;
   inputRef: React.RefObject<TextInput | null>;
   paddingBottom?: number;
   userAvailable: boolean;
+  members?: ChatMember[];
+  serverUrl?: string;
+  currentUserId?: string;
 }
 
 export const ChatComposer = React.memo(function ChatComposer({
@@ -46,45 +51,143 @@ export const ChatComposer = React.memo(function ChatComposer({
   inputRef,
   paddingBottom = 0,
   userAvailable,
+  members = [],
+  serverUrl = "",
+  currentUserId,
 }: ChatComposerProps) {
   const [inputText, setInputText] = useState("");
   const [inputFocused, setInputFocused] = useState(false);
+  const [selection, setSelection] = useState<{ start: number; end: number }>({ start: 0, end: 0 });
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const selectedMentionsRef = useRef<Map<string, string>>(new Map());
   const lastTypingSentRef = useRef<number>(0);
+
+  const checkMentionTrigger = useCallback((text: string, cursorIndex: number) => {
+    const textBefore = text.slice(0, cursorIndex);
+    const match = textBefore.match(/(?:^|\s)@([a-zA-Z0-9_.]*)$/);
+    if (match) {
+      setMentionQuery(match[1]);
+    } else {
+      setMentionQuery(null);
+    }
+  }, []);
 
   const handleTextChange = useCallback((text: string) => {
     setInputText(text);
+    checkMentionTrigger(text, text.length);
+
     const now = Date.now();
     if (text.trim() && now - lastTypingSentRef.current > 2500) {
       lastTypingSentRef.current = now;
       void sendChatTyping();
     }
-  }, []);
+  }, [checkMentionTrigger]);
+
+  const handleSelectionChange = useCallback((e: any) => {
+    const sel = e.nativeEvent.selection;
+    setSelection(sel);
+    checkMentionTrigger(inputText, sel.start);
+  }, [inputText, checkMentionTrigger]);
+
+  const handleSelectCandidate = useCallback((candidate: {
+    studentId: string;
+    name: string;
+    username: string | null;
+  }) => {
+    const cursorPos = selection.start || inputText.length;
+    const textBefore = inputText.slice(0, cursorPos);
+    const textAfter = inputText.slice(cursorPos);
+    const atPos = textBefore.lastIndexOf("@");
+    if (atPos < 0) return;
+
+    const handle = candidate.username || candidate.name.replace(/\s+/g, "_");
+    const replacement = `@${handle} `;
+    const newText = textBefore.slice(0, atPos) + replacement + textAfter;
+    const newCursor = atPos + replacement.length;
+
+    selectedMentionsRef.current.set(handle.toLowerCase(), candidate.studentId);
+    setInputText(newText);
+    setMentionQuery(null);
+
+    setTimeout(() => {
+      inputRef.current?.setNativeProps?.({
+        selection: { start: newCursor, end: newCursor },
+      });
+    }, 50);
+  }, [inputText, selection, inputRef]);
 
   const handleSend = useCallback(() => {
     const trimmed = inputText.trim();
     if (!trimmed && !selectedAttachment) return;
     if (trimmed.length > 2000) return;
 
+    // Extract all @mentions present in the trimmed text
+    const mentionRegex = /\B@([a-zA-Z0-9_.]{1,30})/gi;
+    const mentionIds: string[] = [];
+    let match: RegExpExecArray | null;
+
+    while ((match = mentionRegex.exec(trimmed)) !== null) {
+      const handleLower = match[1].toLowerCase();
+      // 1. Check directly selected mentions
+      let sid = selectedMentionsRef.current.get(handleLower);
+      // 2. Fallback: match against members list if typed manually
+      if (!sid && members && members.length > 0) {
+        const found = members.find(
+          (m) =>
+            (m.username && m.username.toLowerCase() === handleLower) ||
+            m.name.toLowerCase().replace(/\s+/g, "_") === handleLower ||
+            m.studentId.toLowerCase() === handleLower
+        );
+        if (found) sid = found.studentId;
+      }
+      if (sid && sid !== currentUserId && !mentionIds.includes(sid)) {
+        mentionIds.push(sid);
+      }
+    }
+
     const textToSend = trimmed;
     const attachmentToSend = selectedAttachment;
     const replyToSend = replyTo;
 
-    // Clear text and reply immediately before network call
+    // Clear state before sending
     setInputText("");
+    setMentionQuery(null);
+    selectedMentionsRef.current.clear();
     onCancelReply();
 
-    // Trigger optimistic send flow with attachment intact
+    // Trigger send flow with verified mentions attached
     onSendMessage({
       text: textToSend,
       file: attachmentToSend,
       replyTo: replyToSend,
+      mentions: mentionIds,
     });
-  }, [inputText, selectedAttachment, replyTo, onCancelReply, onSendMessage]);
+  }, [
+    inputText,
+    selectedAttachment,
+    replyTo,
+    members,
+    currentUserId,
+    onCancelReply,
+    onSendMessage,
+  ]);
 
   const hasContent = Boolean(inputText.trim() || selectedAttachment);
 
   return (
     <View style={styles.outerContainer}>
+      {/* Mention Autocomplete Suggestions */}
+      {mentionQuery !== null && (
+        <MentionSuggestions
+          query={mentionQuery}
+          members={members}
+          serverUrl={serverUrl}
+          currentUserId={currentUserId}
+          onSelect={handleSelectCandidate}
+          onClose={() => setMentionQuery(null)}
+        />
+      )}
+
       {/* Replying-to Preview Bar */}
       {replyTo && (
         <View style={styles.replyBanner}>
@@ -172,8 +275,11 @@ export const ChatComposer = React.memo(function ChatComposer({
           maxLength={2000}
           value={inputText}
           onChangeText={handleTextChange}
+          onSelectionChange={handleSelectionChange}
           onFocus={() => setInputFocused(true)}
-          onBlur={() => setInputFocused(false)}
+          onBlur={() => {
+            setInputFocused(false);
+          }}
           editable={userAvailable}
         />
 

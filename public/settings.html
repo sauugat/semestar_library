@@ -108,18 +108,22 @@
       btn.disabled = true;
       
       try {
-        const supabase = await SemesterAuth.getSupabase();
-        const { error } = await supabase.auth.updateUser({ password: newPass });
-        if (!error) {
+        const res = await fetch('/api/change-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ currentPassword: current, newPassword: newPass, confirmPassword: confirmPass })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok) {
           succEl.textContent = 'Password successfully updated!';
           succEl.style.display = 'block';
           document.getElementById('changePasswordForm').reset();
         } else {
-          errEl.textContent = error.message || 'An error occurred';
+          errEl.textContent = data.message || 'Failed to update password.';
           errEl.style.display = 'block';
         }
       } catch (err) {
-        errEl.textContent = 'Failed to update password.';
+        errEl.textContent = 'Failed to update password. Please check your connection.';
         errEl.style.display = 'block';
       } finally {
         btn.innerHTML = 'Update Password';

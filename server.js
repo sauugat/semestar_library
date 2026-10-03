@@ -27,6 +27,7 @@ const crypto = require('crypto');
 const db = require('./db');
 const noteSearch = require('./lib/note-search');
 const pushNotifications = require('./lib/push-notifications');
+const officePreview = require('./lib/office-preview');
 
 async function indexUploadedNote(file) {
   try {
@@ -1239,14 +1240,30 @@ app.get('/api/me', requireLogin, async (req, res) => {
 });
 
 app.post('/api/change-password', requireLogin, async (req, res) => {
-  const { currentPassword, newPassword } = req.body;
+  const { currentPassword, newPassword, confirmPassword } = req.body || {};
 
-  if (!currentPassword || !newPassword) {
-    return res.status(400).json({ message: 'Current and new password are required' });
+  if (!currentPassword || typeof currentPassword !== 'string') {
+    return res.status(400).json({ message: 'Current password is required.' });
+  }
+
+  if (!newPassword || typeof newPassword !== 'string') {
+    return res.status(400).json({ message: 'New password is required.' });
   }
 
   if (newPassword.length < 8) {
-    return res.status(400).json({ message: 'New password must be at least 8 characters long' });
+    return res.status(400).json({ message: 'New password must be at least 8 characters long.' });
+  }
+
+  if (newPassword.length > 100) {
+    return res.status(400).json({ message: 'New password cannot exceed 100 characters.' });
+  }
+
+  if (confirmPassword !== undefined && newPassword !== confirmPassword) {
+    return res.status(400).json({ message: 'New passwords do not match.' });
+  }
+
+  if (currentPassword === newPassword) {
+    return res.status(400).json({ message: 'New password must be different from current password.' });
   }
 
   const studentId = req.user?.studentId || req.student?.studentId || req.session?.studentId;
@@ -1259,49 +1276,91 @@ app.post('/api/change-password', requireLogin, async (req, res) => {
     studentId
   );
   if (!student) {
-    return res.status(404).json({ message: 'User not found' });
+    return res.status(404).json({ message: 'User not found.' });
   }
 
-  // Validate current password:
-  // Check 1: local bcrypt passwordHash (if present and not a dummy placeholder)
+  // Transitional Authentication Audit:
+  // Account types:
+  // 1. Supabase-authenticated (passwordHash === 'supabase_auth' or supabase_uid set)
+  // 2. Legacy Semester Library credentials (bcrypt passwordHash)
+  // 3. Linked/migrated accounts (both present)
   let passwordMatches = false;
+  let supabaseSession = null;
+  let supabaseUser = null;
+
+  // Check 1: Verify against local bcrypt passwordHash if valid bcrypt hash
   if (student.passwordHash && student.passwordHash !== 'supabase_auth') {
     try {
       passwordMatches = bcrypt.compareSync(currentPassword, student.passwordHash);
     } catch (_) {}
   }
 
-  // Check 2: If not matched via local bcrypt and student has an email, verify via Supabase Auth
-  if (!passwordMatches && student.email) {
+  // Check 2: Verify against Supabase Auth if user has an email and Supabase credentials exist
+  if (student.email) {
     try {
       const { authenticateWithPassword } = require('./lib/supabase');
       const { data, error } = await authenticateWithPassword({
-        email: student.email.toLowerCase(),
+        email: student.email.toLowerCase().trim(),
         password: currentPassword,
       });
       if (!error && data && data.user) {
         passwordMatches = true;
+        supabaseUser = data.user;
+        supabaseSession = data.session;
       }
     } catch (_) {}
   }
 
   if (!passwordMatches) {
-    return res.status(401).json({ message: 'Incorrect current password' });
+    return res.status(401).json({ message: 'Incorrect current password.' });
   }
 
   // Hash and persist new password locally
   const newHash = bcrypt.hashSync(newPassword, 10);
   await db.run('UPDATE students SET passwordHash = ? WHERE studentId = ?', newHash, studentId);
 
-  // If student has a linked Supabase Auth UID, update password in Supabase Auth as well
-  if (student.supabase_uid) {
+  // Synchronize new password to Supabase Auth if applicable
+  const targetSupabaseUid = student.supabase_uid || supabaseUser?.id || null;
+  let supabaseUpdated = false;
+
+  // Method A: Update via authenticated Supabase user session (doesn't require master service role key)
+  if (supabaseSession?.access_token) {
+    try {
+      const { getSupabaseConfig } = require('./lib/supabase');
+      const { url, key } = getSupabaseConfig();
+      if (url && key) {
+        const { createClient } = require('@supabase/supabase-js');
+        const userClient = createClient(url, key, {
+          auth: { persistSession: false, autoRefreshToken: false },
+          global: { headers: { Authorization: `Bearer ${supabaseSession.access_token}` } }
+        });
+        const { error: userUpdErr } = await userClient.auth.updateUser({ password: newPassword });
+        if (!userUpdErr) {
+          supabaseUpdated = true;
+        }
+      }
+    } catch (sbUserErr) {
+      console.warn('[Supabase User Session Password Update Warning]:', sbUserErr.message);
+    }
+  }
+
+  // Method B: If not updated via user session and targetSupabaseUid exists, try Supabase Admin API
+  if (!supabaseUpdated && targetSupabaseUid) {
     try {
       const { getSupabaseAdminClient } = require('./lib/supabase');
       const admin = getSupabaseAdminClient();
-      await admin.auth.admin.updateUserById(student.supabase_uid, { password: newPassword });
+      const adminRes = await admin.auth.admin.updateUserById(targetSupabaseUid, { password: newPassword });
+      if (!adminRes.error) {
+        supabaseUpdated = true;
+      }
     } catch (supErr) {
-      console.warn('[Supabase Password Sync Warning]:', supErr.message);
+      // Handled below if required for Supabase-only accounts
     }
+  }
+
+  // If student was missing supabase_uid in local DB but has one from Supabase, link it now
+  if (!student.supabase_uid && targetSupabaseUid) {
+    await db.run('UPDATE students SET supabase_uid = ? WHERE studentId = ?', targetSupabaseUid, studentId).catch(() => {});
   }
 
   // Revoke other active web sessions for this student upon password change
@@ -2819,6 +2878,102 @@ app.get(['/api/files/:id/download', '/api/files/download/:id'], requireLogin, as
       res.status(500).json({ message: 'Error downloading file' });
     }
   });
+});
+
+// Generate a short-lived signed URL for Office file preview (requires student authentication)
+app.get(['/api/files/:id/office-preview-url', '/api/files/:id/office-preview'], requireLogin, async (req, res) => {
+  const fileId = parseInt(req.params.id, 10);
+  if (!fileId || isNaN(fileId)) {
+    return res.status(400).json({ message: 'Invalid file ID' });
+  }
+
+  const file = await db.get('SELECT id, originalName, storedName FROM files WHERE id = ?', fileId);
+  if (!file) {
+    return res.status(404).json({ message: 'File not found' });
+  }
+
+  if (!officePreview.isOfficePreviewSupported(file.originalName)) {
+    return res.status(400).json({ message: 'File format not supported for Office preview.' });
+  }
+
+  const previewData = officePreview.createOfficePreviewUrl(file.id, req);
+  res.json(previewData);
+});
+
+app.post('/api/files/:id/office-preview', requireLogin, async (req, res) => {
+  const fileId = parseInt(req.params.id, 10);
+  if (!fileId || isNaN(fileId)) {
+    return res.status(400).json({ message: 'Invalid file ID' });
+  }
+
+  const file = await db.get('SELECT id, originalName, storedName FROM files WHERE id = ?', fileId);
+  if (!file) {
+    return res.status(404).json({ message: 'File not found' });
+  }
+
+  if (!officePreview.isOfficePreviewSupported(file.originalName)) {
+    return res.status(400).json({ message: 'File format not supported for Office preview.' });
+  }
+
+  const previewData = officePreview.createOfficePreviewUrl(file.id, req);
+  res.json(previewData);
+});
+
+// Serve the actual binary file for Office Online preview via token validation (NO session cookie required)
+app.get('/api/files/:id/office-public', async (req, res) => {
+  const fileId = parseInt(req.params.id, 10);
+  if (!fileId || isNaN(fileId)) {
+    return res.status(400).json({ message: 'Invalid file ID' });
+  }
+
+  const { expires, signature } = req.query;
+  if (!expires || !signature) {
+    return res.status(403).json({ message: 'Missing expiry or signature parameters.' });
+  }
+
+  const expiresNum = parseInt(expires, 10);
+  if (isNaN(expiresNum)) {
+    return res.status(403).json({ message: 'Invalid expiry parameter.' });
+  }
+
+  const expiresMs = expiresNum < 1e11 ? expiresNum * 1000 : expiresNum;
+  if (Date.now() > expiresMs + officePreview.CLOCK_TOLERANCE_MS) {
+    return res.status(403).json({ message: 'Office preview link has expired.' });
+  }
+
+  if (!officePreview.verifyOfficePreviewSignature(fileId, expires, signature)) {
+    return res.status(403).json({ message: 'Invalid signature.' });
+  }
+
+  const file = await db.get('SELECT * FROM files WHERE id = ?', fileId);
+  if (!file) {
+    return res.status(404).json({ message: 'File not found' });
+  }
+
+  if (!officePreview.isOfficePreviewSupported(file.originalName)) {
+    return res.status(400).json({ message: 'Unsupported file format for Office preview.' });
+  }
+
+  if (file.storedName && (file.storedName.startsWith('http://') || file.storedName.startsWith('https://'))) {
+    return res.redirect(file.storedName);
+  }
+
+  const filePath = await ensureLocalFile(file.storedName);
+
+  if (!filePath || !fs.existsSync(filePath)) {
+    if (supabaseUrl && file.storedName) {
+      const publicUrl = `${supabaseUrl}/storage/v1/object/public/library_files/${encodeURIComponent(file.storedName)}?download=${encodeURIComponent(file.originalName)}`;
+      return res.redirect(publicUrl);
+    }
+    return res.status(404).json({ message: 'File missing from server' });
+  }
+
+  const mimeType = officePreview.getOfficeMimeType(file.originalName);
+  res.setHeader('Content-Type', mimeType);
+  res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(file.originalName)}"`);
+  res.setHeader('Cache-Control', 'private, max-age=300');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  return res.sendFile(path.resolve(filePath));
 });
 
 // View a file in-browser (requires login) — displays preview/inline instead of downloading

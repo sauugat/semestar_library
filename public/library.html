@@ -3103,15 +3103,10 @@
 
       // External & Download links
       const isPpt = ['PPT'].includes(badge) || /\.(pptx?|ppt)$/i.test(f.originalName || f.title || '');
-      const pptFileUrl = f.publicUrl || f.fileUrl || f.downloadUrl || `${window.location.origin}/api/files/${f.id}/download`;
 
       const extLink = document.getElementById('previewExternalLink');
       if (extLink) {
-        if (isPpt) {
-          extLink.href = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(pptFileUrl)}`;
-        } else {
-          extLink.href = `/api/files/${f.id}/view`;
-        }
+        extLink.href = `/api/files/${f.id}/view`;
       }
 
       const dlLink = document.getElementById('previewDownloadLink');
@@ -3155,19 +3150,41 @@
         if (img) img.src = '';
         if (iframe) {
           iframe.style.display = 'block';
-          iframe.onload = () => {
-            if (loadingOverlay) loadingOverlay.classList.add('hidden');
-          };
-          iframe.onerror = () => {
-            if (loadingOverlay) loadingOverlay.classList.add('hidden');
-          };
-          iframe.src = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(pptFileUrl)}`;
+          // Request authenticated preview URL from backend
+          fetch(`/api/files/${f.id}/office-preview-url`, {
+            headers: { 'Accept': 'application/json' }
+          })
+            .then(res => {
+              if (!res.ok) throw new Error('Failed to generate preview URL: ' + res.status);
+              return res.json();
+            })
+            .then(data => {
+              if (data && data.previewFileUrl) {
+                iframe.onload = () => {
+                  if (loadingOverlay) loadingOverlay.classList.add('hidden');
+                };
+                iframe.onerror = () => {
+                  if (loadingOverlay) loadingOverlay.classList.add('hidden');
+                };
+                iframe.src = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(data.previewFileUrl)}`;
+                if (extLink) {
+                  extLink.href = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(data.previewFileUrl)}`;
+                }
+              } else {
+                throw new Error('No previewFileUrl in response');
+              }
+            })
+            .catch(err => {
+              console.warn('[Office Preview URL Error]:', err);
+              if (loadingOverlay) loadingOverlay.classList.add('hidden');
+              iframe.src = `/api/files/${f.id}/view#toolbar=1&navpanes=0`;
+            });
         }
 
         // Safety fallback spinner timer
         setTimeout(() => {
           if (loadingOverlay) loadingOverlay.classList.add('hidden');
-        }, 1500);
+        }, 3000);
       } else {
         if (imgWrap) imgWrap.style.display = 'none';
         if (img) img.src = '';

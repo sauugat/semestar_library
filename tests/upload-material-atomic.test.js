@@ -5,7 +5,7 @@ const app = require('../server');
 const db = require('../db');
 const push = require('../lib/push-notifications');
 
-test('Atomic Material Upload & Batch Notification Semantics', async (t) => {
+test('Atomic Material Upload & Batch Notification Semantics', { timeout: 120000 }, async (t) => {
   // Disable immediate synchronous dispatch to verify raw enqueued outbox states
   process.env.DISABLE_IMMEDIATE_PUSH_DISPATCH = '1';
   t.after(() => { delete process.env.DISABLE_IMMEDIATE_PUSH_DISPATCH; });

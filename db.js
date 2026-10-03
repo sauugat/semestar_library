@@ -63,7 +63,9 @@ if (isPostgres) {
 
 function toPostgresSql(sql) {
   let idx = 1;
-  return sql.replace(/\?/g, () => `$${idx++}`);
+  return sql
+    .replace(/datetime\('now'\)/gi, 'CURRENT_TIMESTAMP')
+    .replace(/\?/g, () => `$${idx++}`);
 }
 
 function normalizeParams(params) {

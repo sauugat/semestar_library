@@ -18,7 +18,7 @@ import * as Sharing from 'expo-sharing';
 import * as Clipboard from 'expo-clipboard';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
-import { LibraryFile } from '@/services/library';
+import { LibraryFile, getOfficePreviewUrl } from '@/services/library';
 import { useTheme } from '@/constants/useTheme';
 import { getBaseUrl, getAuthToken } from '@/services/api';
 
@@ -57,11 +57,32 @@ export function isPptxFile(filename?: string, mimeType?: string): boolean {
   return hasPptExt || hasPptMime;
 }
 
+export function isOfficeFile(filename?: string, mimeType?: string): boolean {
+  const name = (filename || '').toLowerCase().trim();
+  const mime = (mimeType || '').toLowerCase().trim();
+  const hasOfficeExt =
+    name.endsWith('.pptx') ||
+    name.endsWith('.ppt') ||
+    name.endsWith('.docx') ||
+    name.endsWith('.doc') ||
+    name.endsWith('.xlsx') ||
+    name.endsWith('.xls');
+  const hasOfficeMime =
+    mime.includes('officedocument') ||
+    mime.includes('wordprocessingml') ||
+    mime.includes('msword') ||
+    mime.includes('presentation') ||
+    mime.includes('powerpoint') ||
+    mime.includes('spreadsheet') ||
+    mime.includes('ms-excel');
+  return hasOfficeExt || hasOfficeMime;
+}
+
 export type FilePreviewCategory = 'pdf' | 'image' | 'text' | 'office' | 'pptx' | 'other';
 
 export function getFileCategory(filename: string, mimeType?: string): FilePreviewCategory {
   const lower = (filename || '').toLowerCase();
-  if (lower.endsWith('.pdf')) return 'pdf';
+  if (lower.endsWith('.pdf') || (mimeType && mimeType.includes('application/pdf'))) return 'pdf';
   if (
     lower.endsWith('.png') ||
     lower.endsWith('.jpg') ||
@@ -69,7 +90,8 @@ export function getFileCategory(filename: string, mimeType?: string): FilePrevie
     lower.endsWith('.webp') ||
     lower.endsWith('.gif') ||
     lower.endsWith('.svg') ||
-    lower.endsWith('.bmp')
+    lower.endsWith('.bmp') ||
+    (mimeType && mimeType.startsWith('image/'))
   ) {
     return 'image';
   }
@@ -78,7 +100,8 @@ export function getFileCategory(filename: string, mimeType?: string): FilePrevie
     lower.endsWith('.md') ||
     lower.endsWith('.csv') ||
     lower.endsWith('.json') ||
-    lower.endsWith('.log')
+    lower.endsWith('.log') ||
+    (mimeType && (mimeType.includes('text/plain') || mimeType.includes('text/csv') || mimeType.includes('application/json')))
   ) {
     return 'text';
   }
@@ -94,7 +117,8 @@ export function getFileCategory(filename: string, mimeType?: string): FilePrevie
     lower.endsWith('.doc') ||
     lower.endsWith('.xlsx') ||
     lower.endsWith('.xls') ||
-    lower.endsWith('.html')
+    lower.endsWith('.html') ||
+    isOfficeFile(filename, mimeType)
   ) {
     return 'office';
   }
@@ -376,39 +400,12 @@ export function FullScreenFilePreview({
       : 'other';
   }, [file, mimeType]);
 
-  // Resolve public/signed download URL for PPTX preview
+  // Sync incoming fileUrl prop if provided
   useEffect(() => {
-    let isMounted = true;
-    async function resolveUrl() {
-      if (fileUrl) {
-        setResolvedFileUrl(fileUrl);
-        return;
-      }
-      const direct = file?.downloadUrl || file?.fileUrl || (file as any)?.url;
-      if (direct) {
-        setResolvedFileUrl(direct);
-        return;
-      }
-      if (file?.id) {
-        try {
-          const base = await getBaseUrl();
-          if (isMounted) {
-            setResolvedFileUrl(`${base}/api/files/${file.id}/download`);
-          }
-        } catch {
-          if (isMounted) {
-            setResolvedFileUrl(`/api/files/${file.id}/download`);
-          }
-        }
-      }
+    if (fileUrl) {
+      setResolvedFileUrl(fileUrl);
     }
-    if (visible && file) {
-      resolveUrl();
-    }
-    return () => {
-      isMounted = false;
-    };
-  }, [visible, file, fileUrl]);
+  }, [fileUrl]);
 
   const officeEmbedUrl = useMemo(() => {
     if (!resolvedFileUrl) return null;
@@ -438,6 +435,23 @@ export function FullScreenFilePreview({
     }
   };
 
+  // Retry handler for PPTX: requests a fresh signed preview URL before reloading Office Online
+  const handleRetryPptx = async () => {
+    if (!file?.id) return;
+    setPptxLoadError(null);
+    setPptxLoading(true);
+    try {
+      const freshUrl = await getOfficePreviewUrl(file.id);
+      setResolvedFileUrl(freshUrl);
+    } catch (err: any) {
+      if (__DEV__) {
+        console.warn('[FullScreenFilePreview] Retry error fetching preview URL:', err);
+      }
+      setPptxLoading(false);
+      setPptxLoadError('The presentation preview could not be loaded. Please try again or download the file.');
+    }
+  };
+
   // Prepare file for rendering (download if needed, extract base64 for Android PDF or Image, or text UTF-8, or fetch HTML slides)
   const preparePreview = useCallback(async () => {
     if (!file) return;
@@ -451,24 +465,20 @@ export function FullScreenFilePreview({
         (file as any).mimeType || (file as any).contentType || mimeType || undefined
       );
 
-      if (cat === 'pptx') {
-        let targetUrl = fileUrl || file.fileUrl || file.downloadUrl || (file as any).url || null;
+      if (cat === 'pptx' || cat === 'office') {
+        let targetUrl = fileUrl || file.fileUrl || null;
         if (!targetUrl && file.id) {
-          const baseUrl = await getBaseUrl();
-          targetUrl = `${baseUrl}/api/files/${file.id}/download`;
+          try {
+            targetUrl = await getOfficePreviewUrl(file.id);
+          } catch (urlErr: any) {
+            if (__DEV__) {
+              console.warn('[FullScreenFilePreview] Failed to get office preview URL:', urlErr);
+            }
+          }
         }
         setResolvedFileUrl(targetUrl);
         setPptxLoading(true);
-        // Pre-fetch localFileUri in background for sharing or download fallback if not present
-        if (!activeUri && !localFileUri) {
-          onDownloadFile().then((uri) => {
-            if (uri) setActiveUri(uri);
-          }).catch(() => {});
-        }
-        return;
-      }
 
-      if (cat === 'office') {
         if (file.id) {
           try {
             const baseUrl = await getBaseUrl();
@@ -479,18 +489,7 @@ export function FullScreenFilePreview({
             });
             if (res.ok) {
               const contentType = res.headers.get('content-type') || '';
-              if (contentType.includes('application/pdf')) {
-                const blob = await res.blob();
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                  const result = reader.result as string;
-                  if (result) {
-                    const base64data = result.includes(',') ? result.split(',')[1] : result;
-                    setPdfBase64(base64data);
-                  }
-                };
-                reader.readAsDataURL(blob);
-              } else if (contentType.includes('text/html')) {
+              if (contentType.includes('text/html')) {
                 let html = await res.text();
                 const themeCss = `
                   <style>
@@ -532,10 +531,12 @@ export function FullScreenFilePreview({
               }
             }
           } catch (viewErr) {
-            console.warn('[FullScreenFilePreview] Failed to fetch in-app office preview HTML:', viewErr);
+            if (__DEV__) {
+              console.warn('[FullScreenFilePreview] Failed to fetch in-app office preview HTML:', viewErr);
+            }
           }
         }
-        // Also ensure localFileUri is downloaded for sharing/saving if not yet present
+        // Pre-fetch localFileUri in background for sharing or download fallback if not present
         if (!activeUri && !localFileUri) {
           onDownloadFile().then((uri) => {
             if (uri) setActiveUri(uri);
@@ -1022,59 +1023,96 @@ export function FullScreenFilePreview({
             </View>
           )}
 
-          {/* 2.5 PPTX Presentation Viewer (Office Online Embed) */}
-          {!isLoading && !errorMsg && fileCategory === 'pptx' && (
-            pptxLoadError ? (
-              <View style={styles.errorBox}>
-                <View style={styles.errorIconCircle}>
-                  <Ionicons name="alert-circle-outline" size={48} color={isDark ? '#f87171' : '#dc2626'} />
+          {/* 2.5 Office Documents & Presentations Viewer (Word, Excel, PowerPoint) */}
+          {!isLoading && !errorMsg && (fileCategory === 'pptx' || fileCategory === 'office') && (() => {
+            const officeMeta = getOfficeDocMeta(file?.originalName || '');
+            const showFallbackCard = (
+              <View style={styles.docBox}>
+                <View style={[styles.docIconCircle, { borderColor: officeMeta.color + '40', backgroundColor: officeMeta.color + '15' }]}>
+                  <Ionicons name={officeMeta.icon as any} size={48} color={officeMeta.color} />
                 </View>
-                <Text style={styles.errorTitle}>Couldn't load presentation</Text>
-                <Text style={styles.errorMessage}>{pptxLoadError}</Text>
-                <View style={styles.errorActions}>
+                <View style={[styles.officeBadge, { backgroundColor: officeMeta.color }]}>
+                  <Text style={styles.officeBadgeText}>{officeMeta.label}</Text>
+                </View>
+                <Text style={styles.docTitle}>{file?.title || file?.originalName}</Text>
+                <Text style={styles.docSubtitle}>
+                  {ext} • {formatBytes(file?.sizeBytes || 0)}
+                </Text>
+                {pptxLoadError ? (
+                  <Text style={[styles.docDescription, { color: isDark ? '#f87171' : '#dc2626' }]}>
+                    {pptxLoadError}
+                  </Text>
+                ) : (
+                  <Text style={styles.docDescription}>
+                    {`Ready to view in your device's document reader (${officeMeta.appHint}).`}
+                  </Text>
+                )}
+                <View style={{ width: '100%', maxWidth: 280, gap: 10 }}>
                   <TouchableOpacity
-                    style={styles.primaryButton}
+                    style={[styles.primaryButton, { backgroundColor: officeMeta.color }]}
+                    onPress={onShareFile}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="open-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+                    <Text style={[styles.primaryButtonText, { color: '#FFFFFF' }]}>Open in Document Reader</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.secondaryButton}
                     onPress={handleDownloadPptx}
                     disabled={downloadingPptx || downloading}
                     activeOpacity={0.8}
                   >
                     {downloadingPptx || downloading ? (
-                      <ActivityIndicator size="small" color={colors.primaryText} style={{ marginRight: 6 }} />
+                      <ActivityIndicator size="small" color={colors.text} style={{ marginRight: 6 }} />
                     ) : (
-                      <Ionicons name="download-outline" size={18} color={colors.primaryText} style={{ marginRight: 6 }} />
+                      <Ionicons name="download-outline" size={18} color={colors.text} style={{ marginRight: 6 }} />
                     )}
-                    <Text style={styles.primaryButtonText}>
-                      {downloadingPptx || downloading ? 'Downloading...' : 'Download file'}
+                    <Text style={styles.secondaryButtonText}>
+                      {downloadingPptx || downloading ? 'Downloading...' : 'Download File'}
                     </Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
                     style={styles.secondaryButton}
-                    onPress={() => {
-                      setPptxLoadError(null);
-                      setPptxLoading(true);
-                    }}
+                    onPress={handleRetryPptx}
                     activeOpacity={0.8}
                   >
                     <Ionicons name="refresh-outline" size={18} color={colors.text} style={{ marginRight: 6 }} />
-                    <Text style={styles.secondaryButtonText}>Try Again</Text>
+                    <Text style={styles.secondaryButtonText}>Try Online Preview Again</Text>
                   </TouchableOpacity>
-
-                  {activeUri && (
-                    <TouchableOpacity
-                      style={styles.secondaryButton}
-                      onPress={onShareFile}
-                      activeOpacity={0.8}
-                    >
-                      <Ionicons name="share-outline" size={18} color={colors.text} style={{ marginRight: 6 }} />
-                      <Text style={styles.secondaryButtonText}>Open in External App</Text>
-                    </TouchableOpacity>
-                  )}
                 </View>
               </View>
-            ) : (
-              <View style={styles.webViewWrap}>
-                {officeEmbedUrl ? (
+            );
+
+            if (pptxLoadError) {
+              if (officeHtml) {
+                return (
+                  <WebView
+                    source={{ html: officeHtml }}
+                    originWhitelist={['*']}
+                    scalesPageToFit={true}
+                    nestedScrollEnabled={true}
+                    javaScriptEnabled={true}
+                    domStorageEnabled={true}
+                    startInLoadingState={true}
+                    renderLoading={() => (
+                      <View style={styles.centerBox}>
+                        <ActivityIndicator size="small" color={colors.primary} />
+                        <Text style={styles.loadingText}>Loading document content...</Text>
+                      </View>
+                    )}
+                    onError={() => setOfficeHtml(null)}
+                    style={styles.webView}
+                  />
+                );
+              }
+              return showFallbackCard;
+            }
+
+            if (officeEmbedUrl) {
+              return (
+                <View style={styles.webViewWrap}>
                   <WebView
                     key={officeEmbedUrl}
                     source={{ uri: officeEmbedUrl }}
@@ -1087,40 +1125,64 @@ export function FullScreenFilePreview({
                     renderLoading={() => (
                       <View style={styles.centerBox}>
                         <ActivityIndicator size="large" color={colors.primary} />
-                        <Text style={styles.loadingText}>Loading presentation...</Text>
+                        <Text style={styles.loadingText}>Loading {officeMeta.label}...</Text>
                         <Text style={styles.loadingSubtext}>Connecting to Microsoft Office viewer</Text>
                       </View>
                     )}
                     onLoadStart={() => setPptxLoading(true)}
                     onLoadEnd={() => setPptxLoading(false)}
                     onError={(e) => {
-                      console.warn('PPTX WebView error:', e.nativeEvent);
+                      if (__DEV__) {
+                        console.warn('Office WebView error:', e.nativeEvent);
+                      }
                       setPptxLoading(false);
-                      setPptxLoadError(e.nativeEvent.description || 'Could not load presentation preview.');
+                      setPptxLoadError('The online preview could not be loaded. Please open in your external reader or download.');
                     }}
                     onHttpError={(e) => {
+                      if (__DEV__) {
+                        console.warn('Office WebView HTTP error:', e.nativeEvent);
+                      }
                       if (e.nativeEvent.statusCode >= 400) {
                         setPptxLoading(false);
-                        setPptxLoadError(`Failed to load presentation (HTTP ${e.nativeEvent.statusCode}).`);
+                        setPptxLoadError('The online preview could not be loaded. Please open in your external reader or download.');
                       }
                     }}
                     style={styles.webView}
                   />
-                ) : (
-                  <View style={styles.centerBox}>
-                    <ActivityIndicator size="large" color={colors.primary} />
-                    <Text style={styles.loadingText}>Preparing presentation URL...</Text>
-                  </View>
-                )}
-              </View>
-            )
-          )}
+                </View>
+              );
+            }
+
+            if (officeHtml) {
+              return (
+                <WebView
+                  source={{ html: officeHtml }}
+                  originWhitelist={['*']}
+                  scalesPageToFit={true}
+                  nestedScrollEnabled={true}
+                  javaScriptEnabled={true}
+                  domStorageEnabled={true}
+                  startInLoadingState={true}
+                  renderLoading={() => (
+                    <View style={styles.centerBox}>
+                      <ActivityIndicator size="small" color={colors.primary} />
+                      <Text style={styles.loadingText}>Loading document content...</Text>
+                    </View>
+                  )}
+                  onError={() => setOfficeHtml(null)}
+                  style={styles.webView}
+                />
+              );
+            }
+
+            return showFallbackCard;
+          })()}
 
           {/* 3. PDF Viewer */}
-          {!isLoading && !errorMsg && ((fileCategory === 'pdf' && activeUri) || (fileCategory === 'office' && Boolean(pdfBase64))) && (
+          {!isLoading && !errorMsg && fileCategory === 'pdf' && activeUri && (
             <WebView
               source={
-                Platform.OS === 'ios' && activeUri && fileCategory === 'pdf'
+                Platform.OS === 'ios'
                   ? { uri: activeUri }
                   : { html: getPdfJsHtml(pdfBase64 || '', file?.title || '', isDark) }
               }
@@ -1212,69 +1274,6 @@ export function FullScreenFilePreview({
             </View>
           )}
 
-          {/* 6. In-App Office Document / Presentation Viewer (PowerPoint, Word) */}
-          {!isLoading && !errorMsg && fileCategory === 'office' && !pdfBase64 && (
-            officeHtml ? (
-              <WebView
-                source={{ html: officeHtml }}
-                originWhitelist={['*']}
-                scalesPageToFit={true}
-                nestedScrollEnabled={true}
-                javaScriptEnabled={true}
-                domStorageEnabled={true}
-                startInLoadingState={true}
-                renderLoading={() => (
-                  <View style={styles.centerBox}>
-                    <ActivityIndicator size="small" color={colors.primary} />
-                    <Text style={styles.loadingText}>Loading presentation slides...</Text>
-                  </View>
-                )}
-                onError={(e) => {
-                  console.warn('WebView error displaying office preview:', e.nativeEvent.description);
-                  setOfficeHtml(null);
-                }}
-                style={styles.webView}
-              />
-            ) : (() => {
-              const officeMeta = getOfficeDocMeta(file?.originalName || '');
-              return (
-                <View style={styles.docBox}>
-                  <View style={[styles.docIconCircle, { borderColor: officeMeta.color + '40', backgroundColor: officeMeta.color + '15' }]}>
-                    <Ionicons name={officeMeta.icon as any} size={48} color={officeMeta.color} />
-                  </View>
-                  <View style={[styles.officeBadge, { backgroundColor: officeMeta.color }]}>
-                    <Text style={styles.officeBadgeText}>{officeMeta.label}</Text>
-                  </View>
-                  <Text style={styles.docTitle}>{file?.title || file?.originalName}</Text>
-                  <Text style={styles.docSubtitle}>
-                    {ext} • {formatBytes(file?.sizeBytes || 0)}
-                  </Text>
-                  <Text style={styles.docDescription}>
-                    {`Ready to view in your device's document reader (${officeMeta.appHint}).`}
-                  </Text>
-                  <View style={{ width: '100%', maxWidth: 280, gap: 10 }}>
-                    <TouchableOpacity
-                      style={[styles.primaryButton, { backgroundColor: officeMeta.color }]}
-                      onPress={onShareFile}
-                      activeOpacity={0.8}
-                    >
-                      <Ionicons name="open-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
-                      <Text style={[styles.primaryButtonText, { color: '#FFFFFF' }]}>Open in Document Reader</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={styles.secondaryButton}
-                      onPress={onShareFile}
-                      activeOpacity={0.8}
-                    >
-                      <Ionicons name="share-outline" size={18} color={colors.text} style={{ marginRight: 6 }} />
-                      <Text style={styles.secondaryButtonText}>Share / Export File</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              );
-            })()
-          )}
 
           {/* 7. Other / Unsupported Formats */}
           {!isLoading && !errorMsg && fileCategory === 'other' && (

@@ -133,6 +133,20 @@ export async function getFileDownloadUrl(id: number | string): Promise<string> {
   return `${baseUrl}/api/files/${id}/download`;
 }
 
+export interface OfficePreviewUrlResponse {
+  previewFileUrl: string;
+  expiresAt: string;
+  expires: number;
+}
+
+/**
+ * Fetch authenticated short-lived public signed preview URL for Office files
+ */
+export async function getOfficePreviewUrl(id: number | string): Promise<string> {
+  const res = await api.get<OfficePreviewUrlResponse>(`/api/files/${id}/office-preview-url`);
+  return res.previewFileUrl;
+}
+
 export interface ToggleFileLikeResult {
   liked: boolean;
   likeCount: number;

@@ -82,6 +82,8 @@ function cleanFilenameTitle(filename: string): string {
 
 type UploadStep = 1 | 2 | 3;
 
+export type UploadFileStatus = 'pending' | 'uploading' | 'success' | 'failed';
+
 interface QueuedFile {
   id: string;
   uri: string;
@@ -90,6 +92,7 @@ interface QueuedFile {
   mimeType?: string;
   title: string;
   error?: string;
+  status: UploadFileStatus;
 }
 
 export function UploadNoteModal({
@@ -100,7 +103,7 @@ export function UploadNoteModal({
   initialSubjectTitle,
   initialChapterTitle,
 }: UploadNoteModalProps) {
-  const { colors, spacing, radii, touchTarget } = useTheme();
+  const { colors, spacing, radii, touchTarget, isDark } = useTheme();
   const { user } = useAuth();
 
   // Role permissions: Teachers and Admins can upload multiple files in a batch
@@ -293,6 +296,7 @@ export function UploadNoteModal({
             size: normalized.size,
             mimeType: normalized.type,
             title: cleanFilenameTitle(normalized.name),
+            status: 'pending',
           });
         }
 
@@ -331,6 +335,7 @@ export function UploadNoteModal({
             size: normalized.size,
             mimeType: normalized.type,
             title: cleanFilenameTitle(normalized.name),
+            status: 'pending',
           });
         }
 
@@ -356,11 +361,23 @@ export function UploadNoteModal({
     );
   };
 
-  // Submit batch flow
-  const handleSubmit = async () => {
+  // Submit batch flow (preserves succeeded files, supports retrying failed files)
+  const handleSubmit = async (retryOnlyFailed: boolean = false) => {
     if (submitting) return;
 
-    if (selectedFiles.length === 0) {
+    const candidates = selectedFiles.filter((f) => (retryOnlyFailed ? f.status === 'failed' : f.status !== 'success'));
+
+    if (candidates.length === 0) {
+      if (selectedFiles.some((f) => f.status === 'success')) {
+        setSelectedFiles([]);
+        setCommonTitle('');
+        setCustomSubject('');
+        setCustomChapter('');
+        setCurrentStep(1);
+        onSuccess('Notes uploaded successfully!');
+        onClose();
+        return;
+      }
       setErrorMsg('Please select at least one file to upload.');
       setCurrentStep(1);
       return;
@@ -377,12 +394,17 @@ export function UploadNoteModal({
 
     setErrorMsg(null);
     setSubmitting(true);
-    setUploadProgressText(`Uploading ${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''}...`);
+    setUploadProgressText(`Uploading ${candidates.length} file${candidates.length > 1 ? 's' : ''}...`);
+
+    const candidateIds = new Set(candidates.map((c) => c.id));
+    setSelectedFiles((prev) =>
+      prev.map((f) => (candidateIds.has(f.id) ? { ...f, status: 'uploading', error: undefined } : f))
+    );
 
     try {
       const batchId = `batch_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
-      const filesPayload: UploadFileItem[] = selectedFiles.map((f) => ({
+      const filesPayload: UploadFileItem[] = candidates.map((f) => ({
         uri: f.uri,
         name: f.name,
         type: f.mimeType,
@@ -399,35 +421,40 @@ export function UploadNoteModal({
         chapter: effectiveChapter || undefined,
       });
 
-      // Handle Partial Success (Option B):
+      const failedMap = new Map((res.failedFiles || []).map((ff) => [ff.name || ff.originalName, ff.error]));
+
+      setSelectedFiles((prev) =>
+        prev.map((f) => {
+          if (f.status === 'success') return f;
+          if (candidateIds.has(f.id)) {
+            if (failedMap.has(f.name)) {
+              return { ...f, status: 'failed', error: failedMap.get(f.name) || 'Upload failed' };
+            }
+            return { ...f, status: 'success', error: undefined };
+          }
+          return f;
+        })
+      );
+
       if (res.failedFiles && res.failedFiles.length > 0) {
-        // Find which files failed by name/originalName
-        const failedNameSet = new Set(res.failedFiles.map((ff) => ff.name || ff.originalName));
-        const failedMap = new Map(res.failedFiles.map((ff) => [ff.name || ff.originalName, ff.error]));
-
-        // Keep only failed files in the queue with error annotations
-        const remainingQueue = selectedFiles
-          .filter((f) => failedNameSet.has(f.name))
-          .map((f) => ({
-            ...f,
-            error: failedMap.get(f.name) || 'Upload failed',
-          }));
-
-        setSelectedFiles(remainingQueue);
-        setCurrentStep(1); // Jump back to files step so teacher can inspect and retry
-        setErrorMsg(`${res.message || 'Some files failed to upload.'} Tap Retry to re-upload.`);
-      } else {
-        // Complete success: clear queue and close modal
-        setSelectedFiles([]);
-        setCommonTitle('');
-        setCustomSubject('');
-        setCustomChapter('');
         setCurrentStep(1);
-        onSuccess(res.message || 'Notes uploaded successfully!');
-        onClose();
+        setErrorMsg(`${res.message || 'Some files failed to upload.'} Successful files stay uploaded. Tap "Retry Failed" to retry.`);
+      } else {
+        setTimeout(() => {
+          setSelectedFiles([]);
+          setCommonTitle('');
+          setCustomSubject('');
+          setCustomChapter('');
+          setCurrentStep(1);
+          onSuccess(res.message || 'Notes uploaded successfully!');
+          onClose();
+        }, 600);
       }
     } catch (err: any) {
       console.error('Upload failed:', err);
+      setSelectedFiles((prev) =>
+        prev.map((f) => (candidateIds.has(f.id) ? { ...f, status: 'failed', error: err.message || 'Upload failed' } : f))
+      );
       setErrorMsg(err.message || 'Failed to upload notes. Please check your connection and try again.');
     } finally {
       setSubmitting(false);
@@ -502,7 +529,7 @@ export function UploadNoteModal({
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
-                onPress={handleSubmit}
+                onPress={() => handleSubmit(false)}
                 disabled={submitting || selectedFiles.length === 0}
                 style={[
                   styles.publishBtn,
@@ -521,7 +548,9 @@ export function UploadNoteModal({
                     weight="700"
                     style={{ color: selectedFiles.length === 0 ? colors.textMuted : colors.primaryText }}
                   >
-                    Upload {selectedFiles.length}
+                    {selectedFiles.some((f) => f.status === 'failed')
+                      ? 'Retry Failed'
+                      : `Upload ${selectedFiles.filter((f) => f.status !== 'success').length || selectedFiles.length}`}
                   </Text>
                 )}
               </TouchableOpacity>
@@ -630,18 +659,44 @@ export function UploadNoteModal({
                               <Text variant="sm" weight="700" numberOfLines={1}>
                                 {file.name}
                               </Text>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 3 }}>
+                                <Caption color="muted">
+                                  {formatBytes(file.size || 0)}
+                                </Caption>
+                                {/* Status Indicator Badge */}
+                                {file.status === 'pending' && (
+                                  <View style={[styles.statusPill, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+                                    <Ionicons name="time-outline" size={11} color={colors.textMuted} style={{ marginRight: 3 }} />
+                                    <Text variant="xs" weight="600" color="muted">Pending</Text>
+                                  </View>
+                                )}
+                                {file.status === 'uploading' && (
+                                  <View style={[styles.statusPill, { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.15)' : 'rgba(59, 130, 246, 0.1)', borderColor: colors.primary }]}>
+                                    <ActivityIndicator size="small" color={colors.primary} style={{ marginRight: 3, transform: [{ scale: 0.6 }] }} />
+                                    <Text variant="xs" weight="700" style={{ color: colors.primary }}>Uploading</Text>
+                                  </View>
+                                )}
+                                {file.status === 'success' && (
+                                  <View style={[styles.statusPill, { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : 'rgba(16, 185, 129, 0.1)', borderColor: '#10B981' }]}>
+                                    <Ionicons name="checkmark-circle" size={12} color="#10B981" style={{ marginRight: 3 }} />
+                                    <Text variant="xs" weight="700" style={{ color: '#10B981' }}>Uploaded</Text>
+                                  </View>
+                                )}
+                                {file.status === 'failed' && (
+                                  <View style={[styles.statusPill, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : 'rgba(239, 68, 68, 0.1)', borderColor: colors.error || '#ef4444' }]}>
+                                    <Ionicons name="alert-circle" size={12} color={colors.error || '#ef4444'} style={{ marginRight: 3 }} />
+                                    <Text variant="xs" weight="700" style={{ color: colors.error || '#ef4444' }}>Failed</Text>
+                                  </View>
+                                )}
+                              </View>
                               {file.error ? (
                                 <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 3 }}>
                                   <Ionicons name="alert-circle" size={13} color={colors.error || '#ef4444'} style={{ marginRight: 4 }} />
                                   <Text variant="xs" weight="600" style={{ color: colors.error || '#ef4444' }}>
-                                    Failed: {file.error}
+                                    {file.error}
                                   </Text>
                                 </View>
-                              ) : (
-                                <Caption color="muted" style={{ marginTop: 2 }}>
-                                  {formatBytes(file.size || 0)}
-                                </Caption>
-                              )}
+                              ) : null}
                             </View>
 
                             <TouchableOpacity
@@ -656,6 +711,31 @@ export function UploadNoteModal({
                         </Card>
                       );
                     })}
+
+                    {/* Retry Failed Files Button */}
+                    {selectedFiles.some((f) => f.status === 'failed') && (
+                      <TouchableOpacity
+                        onPress={() => handleSubmit(true)}
+                        disabled={submitting}
+                        style={[
+                          styles.retryFailedBtn,
+                          {
+                            backgroundColor: colors.surfaceRaised,
+                            borderColor: colors.error || '#ef4444',
+                          },
+                        ]}
+                        activeOpacity={0.8}
+                      >
+                        {submitting ? (
+                          <ActivityIndicator size="small" color={colors.primary} style={{ marginRight: 8 }} />
+                        ) : (
+                          <Ionicons name="refresh-outline" size={16} color={colors.error || '#ef4444'} style={{ marginRight: 6 }} />
+                        )}
+                        <Text variant="xs" weight="700" style={{ color: colors.error || '#ef4444' }}>
+                          Retry Failed Files ({selectedFiles.filter((f) => f.status === 'failed').length})
+                        </Text>
+                      </TouchableOpacity>
+                    )}
 
                     {/* Add More Files Button (for teachers/admins or single file replacement) */}
                     <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
@@ -1028,7 +1108,7 @@ export function UploadNoteModal({
                     variant="primary"
                     size="lg"
                     disabled={submitting || selectedFiles.length === 0}
-                    onPress={handleSubmit}
+                    onPress={() => handleSubmit(false)}
                     style={{ flex: 1 }}
                   />
                 </View>
@@ -1169,6 +1249,24 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 4,
+    borderWidth: 1,
+  },
+  retryFailedBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 10,
   },
   addMoreBtn: {
     flex: 1,

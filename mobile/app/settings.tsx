@@ -117,7 +117,11 @@ export default function SettingsScreen() {
       const res = await apiFetch('/api/change-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ currentPassword, newPassword }),
+        body: JSON.stringify({
+          currentPassword,
+          newPassword,
+          confirmPassword: confirmNewPassword,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {

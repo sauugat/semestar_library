@@ -1,3 +1,10 @@
+const os = require('os');
+const path = require('path');
+const fs = require('fs');
+const testDbPath = path.join(os.tmpdir(), `mobile_auth_test_${Date.now()}_${Math.random().toString(36).slice(2)}.db`);
+process.env.NODE_ENV = 'test';
+process.env.DB_PATH = testDbPath;
+
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('http');
@@ -34,6 +41,7 @@ test.after(async () => {
   if (server) {
     await new Promise((resolve) => server.close(resolve));
   }
+  await db.close();
 });
 
 test('Mobile Auth: /api/mobile/login rejects missing or wrong credentials', async () => {

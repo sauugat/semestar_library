@@ -705,7 +705,13 @@ app.get('/api/health', (req, res) => {
     time: new Date().toISOString()
   });
 });
-app.use('/api/posts', require('./routes/posts')(db, requireLogin));
+const postsRouterInstance = require('./routes/posts')(db, requireLogin);
+app.use('/api/posts', postsRouterInstance);
+app.get('/api/profile/:studentId/posts', requireLogin, (req, res, next) => {
+  req.query.studentId = req.params.studentId;
+  req.url = '/';
+  postsRouterInstance(req, res, next);
+});
 app.use('/api/comments', require('./routes/comments')(db, requireLogin));
 
 // --- Code Lab Rate Limiting ---
@@ -4056,7 +4062,8 @@ const avatarStorage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOAD_DIR),
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
-    cb(null, `avatar_${req.session.studentId}_${Date.now()}${ext}`);
+    const studentId = req.session?.studentId || req.user?.studentId || req.student?.studentId || 'unknown';
+    cb(null, `avatar_${studentId}_${Date.now()}${ext}`);
   }
 });
 
@@ -4072,18 +4079,62 @@ const uploadAvatar = multer({
   }
 });
 
-// Helper function to fetch profile with stats
+// Multer storage for student profile cover photos
+const coverStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
+    const studentId = req.session?.studentId || req.user?.studentId || req.student?.studentId || 'unknown';
+    cb(null, `cover_${studentId}_${Date.now()}${ext}`);
+  }
+});
+
+const uploadCover = multer({
+  storage: coverStorage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed as cover photos.'));
+    }
+  }
+});
+
+// Helper function to fetch profile with stats and privacy boundary
 async function getStudentProfile(targetStudentId, viewerStudentId) {
   const student = await db.get(`
-    SELECT studentId, username, name, avatarUrl, bio, department, semester, githubUrl, linkedinUrl, role, verification_status, email
+    SELECT studentId, username, name, avatarUrl, coverUrl, coverPosition, bio, department, semester, githubUrl, linkedinUrl, role, verification_status, email
     FROM students
     WHERE studentId = ?
   `, targetStudentId);
 
   if (!student) return null;
 
+  const isSelf = String(targetStudentId) === String(viewerStudentId);
+
   const filesCountRow = await db.get('SELECT COUNT(*) AS c FROM files WHERE uploadedBy = ?', targetStudentId);
-  const filesCount = Number(filesCountRow?.c || 0);
+  const filesCount = Number(filesCountRow?.c || filesCountRow?.count || 0);
+
+  const postsCountRow = await db.get('SELECT COUNT(*) AS c FROM posts WHERE user_id = ?', targetStudentId);
+  const postsCount = Number(postsCountRow?.c || postsCountRow?.count || 0);
+
+  let photosCount = 0;
+  try {
+    const photosCountRow = await db.get(`
+      SELECT COUNT(*) AS c
+      FROM post_media pm
+      JOIN posts p ON p.id = pm.post_id
+      WHERE p.user_id = ? AND (pm.media_type = 'image' OR pm.mime_type LIKE 'image/%')
+    `, targetStudentId);
+    photosCount = Number(photosCountRow?.c || photosCountRow?.count || 0);
+  } catch (_) {}
+
+  let assignmentsCount = 0;
+  try {
+    const assignmentsCountRow = await db.get('SELECT COUNT(*) AS c FROM assignments WHERE createdBy = ?', targetStudentId);
+    assignmentsCount = Number(assignmentsCountRow?.c || assignmentsCountRow?.count || 0);
+  } catch (_) {}
 
   const likesReceivedRow = await db.get(`
     SELECT COUNT(*) AS c
@@ -4091,24 +4142,27 @@ async function getStudentProfile(targetStudentId, viewerStudentId) {
     JOIN files ON files.id = file_likes.fileId
     WHERE files.uploadedBy = ?
   `, targetStudentId);
-  const likesReceived = Number(likesReceivedRow?.c || 0);
+  const likesReceived = Number(likesReceivedRow?.c || likesReceivedRow?.count || 0);
 
   const followersCountRow = await db.get('SELECT COUNT(*) AS c FROM follows WHERE followingId = ?', targetStudentId);
-  const followersCount = Number(followersCountRow?.c || 0);
+  const followersCount = Number(followersCountRow?.c || followersCountRow?.count || 0);
 
   const followingCountRow = await db.get('SELECT COUNT(*) AS c FROM follows WHERE followerId = ?', targetStudentId);
-  const followingCount = Number(followingCountRow?.c || 0);
+  const followingCount = Number(followingCountRow?.c || followingCountRow?.count || 0);
 
-  const isSelf = targetStudentId === viewerStudentId;
   const followCheck = !isSelf && !!(await db.get('SELECT 1 FROM follows WHERE followerId = ? AND followingId = ?', viewerStudentId, targetStudentId));
   const role = student.role || 'student';
+  const canCreateAssignments = role === 'admin' || role === 'teacher' || role === 'cr' || role === 'class_rep';
 
   return {
     studentId: student.studentId,
     username: student.username || null,
     name: student.name,
-    email: student.email || null,
+    // PRIVACY BOUNDARY: never expose email, auth, or private fields to other users
+    email: isSelf ? (student.email || null) : undefined,
     avatarUrl: student.avatarUrl || null,
+    coverUrl: student.coverUrl || null,
+    coverPosition: student.coverPosition || null,
     bio: student.bio || '',
     department: student.department || 'BIT',
     semester: student.semester || 'Semester 1',
@@ -4117,9 +4171,13 @@ async function getStudentProfile(targetStudentId, viewerStudentId) {
     role,
     isAdmin: role === 'admin',
     isCR: role === 'cr' || role === 'class_rep',
+    canCreateAssignments,
     verificationStatus: student.verification_status || student.verificationStatus || 'unverified',
     stats: {
       filesCount,
+      postsCount,
+      photosCount,
+      assignmentsCount,
       likesReceived,
       followersCount,
       followingCount
@@ -4238,11 +4296,22 @@ app.post('/api/profile/avatar', requireLogin, uploadAvatar.single('avatar'), asy
     return res.status(500).json({ message: 'Failed to securely store avatar. Please try again.' });
   }
 
-  // Clean up previous avatar file and blob if replacing an existing custom avatar
+  const current = await db.get('SELECT avatarUrl FROM students WHERE studentId = ?', studentId);
+  const oldAvatarUrl = current?.avatarUrl;
+
   try {
-    const current = await db.get('SELECT avatarUrl FROM students WHERE studentId = ?', studentId);
-    if (current && current.avatarUrl && current.avatarUrl.startsWith('/api/avatar/')) {
-      const oldFilename = path.basename(current.avatarUrl);
+    await db.run('UPDATE students SET avatarUrl = ? WHERE studentId = ?', avatarUrl, studentId);
+  } catch (dbErr) {
+    console.error('[Avatar DB Update Error]:', dbErr.message);
+    try { fs.unlinkSync(filePath); } catch (_) {}
+    await db.deleteFileBlob(req.file.filename).catch(() => {});
+    return res.status(500).json({ message: 'Failed to update profile picture record.' });
+  }
+
+  // DB update succeeded — clean up previous avatar file and blob if replacing an existing custom avatar
+  try {
+    if (oldAvatarUrl && oldAvatarUrl.startsWith('/api/avatar/')) {
+      const oldFilename = path.basename(oldAvatarUrl);
       if (oldFilename && oldFilename !== req.file.filename) {
         const oldPath = path.join(UPLOAD_DIR, oldFilename);
         if (isSafeUploadPath(oldPath) && fs.existsSync(oldPath)) {
@@ -4254,8 +4323,6 @@ app.post('/api/profile/avatar', requireLogin, uploadAvatar.single('avatar'), asy
   } catch (cleanupErr) {
     console.warn('[Avatar Cleanup Warning]:', cleanupErr.message);
   }
-
-  await db.run('UPDATE students SET avatarUrl = ? WHERE studentId = ?', avatarUrl, studentId);
 
   res.json({ message: 'Profile picture updated successfully', avatarUrl });
 });
@@ -4289,6 +4356,235 @@ app.get('/api/avatar/:filename', async (req, res) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'; style-src 'unsafe-inline'");
   res.sendFile(filePath);
+});
+
+// Remove profile avatar picture
+app.delete('/api/profile/avatar', requireLogin, async (req, res) => {
+  const studentId = req.session?.studentId || req.user?.studentId || req.student?.studentId;
+  if (!studentId) return res.status(401).json({ message: 'Authentication required' });
+
+  try {
+    const current = await db.get('SELECT avatarUrl FROM students WHERE studentId = ?', studentId);
+    if (current && current.avatarUrl && current.avatarUrl.startsWith('/api/avatar/')) {
+      const oldFilename = path.basename(current.avatarUrl);
+      if (oldFilename) {
+        const oldPath = path.join(UPLOAD_DIR, oldFilename);
+        if (isSafeUploadPath(oldPath) && fs.existsSync(oldPath)) {
+          try { fs.unlinkSync(oldPath); } catch (_) {}
+        }
+        await db.deleteFileBlob(oldFilename).catch(() => {});
+      }
+    }
+  } catch (err) {
+    console.warn('[Avatar Remove Warning]:', err.message);
+  }
+
+  await db.run('UPDATE students SET avatarUrl = NULL WHERE studentId = ?', studentId);
+  res.json({ message: 'Profile picture removed successfully', avatarUrl: null });
+});
+
+// Upload profile cover photo
+app.post('/api/profile/cover', requireLogin, uploadCover.single('cover'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ message: 'No image file uploaded.' });
+  }
+
+  const studentId = req.session?.studentId || req.user?.studentId || req.student?.studentId;
+  if (!studentId) return res.status(401).json({ message: 'Authentication required' });
+
+  const filePath = req.file.path;
+
+  let fileBuf;
+  try {
+    fileBuf = fs.readFileSync(filePath);
+  } catch (err) {
+    return res.status(400).json({ message: 'Could not read uploaded cover file.' });
+  }
+
+  if (!isValidImageBuffer(fileBuf)) {
+    try { fs.unlinkSync(filePath); } catch (_) {}
+    return res.status(400).json({ message: 'Invalid image format. Only real JPEG, PNG, GIF, or WebP images are allowed.' });
+  }
+
+  const coverUrl = `/api/cover/${req.file.filename}`;
+
+  try {
+    await db.saveFileBlob(req.file.filename, fileBuf, req.file.mimetype || 'image/jpeg');
+  } catch (err) {
+    console.error('[Cover Blob Save Error]:', err.message);
+    try { fs.unlinkSync(filePath); } catch (_) {}
+    return res.status(500).json({ message: 'Failed to securely store cover photo. Please try again.' });
+  }
+
+  const current = await db.get('SELECT coverUrl AS cu FROM students WHERE studentId = ?', studentId);
+  const oldCoverUrl = current?.cu;
+  const coverPosition = req.body.coverPosition || (req.body.position ? JSON.stringify(req.body.position) : null);
+
+  try {
+    await db.run('UPDATE students SET coverUrl = ?, coverPosition = ? WHERE studentId = ?', coverUrl, coverPosition, studentId);
+  } catch (dbErr) {
+    console.error('[Cover DB Update Error]:', dbErr.message);
+    try { fs.unlinkSync(filePath); } catch (_) {}
+    await db.deleteFileBlob(req.file.filename).catch(() => {});
+    return res.status(500).json({ message: 'Failed to update cover photo record.' });
+  }
+
+  // DB update succeeded — clean up previous cover photo file and blob if replacing
+  try {
+    if (oldCoverUrl && oldCoverUrl.startsWith('/api/cover/')) {
+      const oldFilename = path.basename(oldCoverUrl);
+      if (oldFilename && oldFilename !== req.file.filename) {
+        const oldPath = path.join(UPLOAD_DIR, oldFilename);
+        if (isSafeUploadPath(oldPath) && fs.existsSync(oldPath)) {
+          try { fs.unlinkSync(oldPath); } catch (_) {}
+        }
+        await db.deleteFileBlob(oldFilename).catch(() => {});
+      }
+    }
+  } catch (cleanupErr) {
+    console.warn('[Cover Cleanup Warning]:', cleanupErr.message);
+  }
+
+  res.json({ message: 'Cover photo updated successfully', coverUrl, coverPosition });
+});
+
+// Update cover photo reposition
+app.post('/api/profile/cover/position', requireLogin, async (req, res) => {
+  const studentId = req.session?.studentId || req.user?.studentId || req.student?.studentId;
+  if (!studentId) return res.status(401).json({ message: 'Authentication required' });
+
+  const pos = req.body.coverPosition || (req.body.position ? JSON.stringify(req.body.position) : null);
+  await db.run('UPDATE students SET coverPosition = ? WHERE studentId = ?', pos, studentId);
+  res.json({ message: 'Cover position updated successfully', coverPosition: pos });
+});
+
+// Remove profile cover photo
+app.delete('/api/profile/cover', requireLogin, async (req, res) => {
+  const studentId = req.session?.studentId || req.user?.studentId || req.student?.studentId;
+  if (!studentId) return res.status(401).json({ message: 'Authentication required' });
+
+  try {
+    const current = await db.get('SELECT coverUrl AS cu FROM students WHERE studentId = ?', studentId);
+    if (current && current.cu && current.cu.startsWith('/api/cover/')) {
+      const oldFilename = path.basename(current.cu);
+      if (oldFilename) {
+        const oldPath = path.join(UPLOAD_DIR, oldFilename);
+        if (isSafeUploadPath(oldPath) && fs.existsSync(oldPath)) {
+          try { fs.unlinkSync(oldPath); } catch (_) {}
+        }
+        await db.deleteFileBlob(oldFilename).catch(() => {});
+      }
+    }
+  } catch (err) {
+    console.warn('[Cover Remove Warning]:', err.message);
+  }
+
+  await db.run('UPDATE students SET coverUrl = NULL, coverPosition = NULL WHERE studentId = ?', studentId);
+  res.json({ message: 'Cover photo removed successfully', coverUrl: null });
+});
+
+// Serve cover image safely — only serve files that actually belong to a coverUrl in students
+app.get('/api/cover/:filename', async (req, res) => {
+  const filename = path.basename(req.params.filename);
+  if (!/^[a-zA-Z0-9_\-\.]+\.[a-zA-Z0-9]+$/.test(filename)) {
+    return res.status(404).json({ message: 'Cover image not found' });
+  }
+
+  const student = await db.get(
+    'SELECT studentId FROM students WHERE coverUrl = ? OR coverUrl = ? OR coverUrl LIKE ? LIMIT 1',
+    `/api/cover/${filename}`,
+    filename,
+    `%/${filename}`
+  );
+
+  if (!student) {
+    return res.status(404).json({ message: 'Cover image not found' });
+  }
+
+  const filePath = await ensureLocalFile(filename);
+  if (!filePath || !fs.existsSync(filePath)) {
+    return res.status(404).json({ message: 'Cover image not found' });
+  }
+
+  res.setHeader('Cache-Control', 'public, max-age=86400'); // 1 day cache
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'; style-src 'unsafe-inline'");
+  res.sendFile(filePath);
+});
+
+// Get photos uploaded by a student through posts
+app.get('/api/profile/:studentId/photos', requireLogin, async (req, res) => {
+  const targetStudentId = req.params.studentId;
+
+  let mediaPhotos = [];
+  try {
+    mediaPhotos = await db.all(`
+      SELECT pm.id, pm.post_id AS "postId", pm.url, pm.file_name AS "fileName", pm.file_size AS "fileSize",
+        pm.created_at AS "createdAt", p.content AS "postContent"
+      FROM post_media pm
+      JOIN posts p ON p.id = pm.post_id
+      WHERE p.user_id = ? AND (pm.media_type = 'image' OR pm.mime_type LIKE 'image/%')
+      ORDER BY pm.id DESC
+      LIMIT 100
+    `, targetStudentId);
+  } catch (err) {
+    console.warn('[Profile Photos post_media query error]:', err.message);
+  }
+
+  let legacyPhotos = [];
+  try {
+    legacyPhotos = await db.all(`
+      SELECT p.id AS "postId", p.attachment_url AS "url", p.created_at AS "createdAt", p.content AS "postContent"
+      FROM posts p
+      WHERE p.user_id = ? AND p.attachment_url IS NOT NULL AND (
+        p.attachment_url LIKE '%.png' OR p.attachment_url LIKE '%.jpg' OR
+        p.attachment_url LIKE '%.jpeg' OR p.attachment_url LIKE '%.webp' OR
+        p.attachment_url LIKE '%.gif'
+      )
+      ORDER BY p.id DESC
+      LIMIT 100
+    `, targetStudentId);
+  } catch (err) {
+    console.warn('[Profile Photos legacy query error]:', err.message);
+  }
+
+  const seen = new Set();
+  const photos = [];
+  for (const item of [...mediaPhotos, ...legacyPhotos]) {
+    if (item && item.url && !seen.has(item.url)) {
+      seen.add(item.url);
+      photos.push({
+        id: item.id || `legacy_${item.postId}`,
+        postId: item.postId,
+        url: item.url,
+        fileName: item.fileName || path.basename(item.url),
+        fileSize: Number(item.fileSize || 0),
+        createdAt: item.createdAt,
+        postContent: item.postContent
+      });
+    }
+  }
+
+  res.json(photos);
+});
+
+// Get assignments created by a student (if authorized role)
+app.get('/api/profile/:studentId/assignments', requireLogin, async (req, res) => {
+  const targetStudentId = req.params.studentId;
+  try {
+    const assignments = await db.all(`
+      SELECT a.id, a.title, a.description, a.language, a.subject, a.semester, a.deadline,
+        a.pdfUrl, a.pdfName, a.createdBy, a.createdAt,
+        (SELECT COUNT(*) FROM submissions sub WHERE sub.assignmentId = a.id) AS "submissionCount"
+      FROM assignments a
+      WHERE a.createdBy = ?
+      ORDER BY a.createdAt DESC
+    `, targetStudentId);
+    res.json(assignments);
+  } catch (err) {
+    console.warn('[Profile Assignments error]:', err.message);
+    res.json([]);
+  }
 });
 
 // Toggle/set follow/unfollow a student (retry-safe)

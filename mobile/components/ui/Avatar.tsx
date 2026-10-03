@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
 import { Image } from 'expo-image';
 import { useTheme } from '@/constants/useTheme';
+import { FullScreenImageViewer } from '@/components/FullScreenImageViewer';
 
 export type AvatarSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'xxl';
 
@@ -10,6 +11,8 @@ export interface AvatarProps {
   name?: string | null;
   size?: AvatarSize;
   onPress?: () => void;
+  enableViewer?: boolean;
+  viewerTitle?: string;
   style?: ViewStyle;
 }
 
@@ -27,10 +30,13 @@ export function Avatar({
   name,
   size = 'md',
   onPress,
+  enableViewer = false,
+  viewerTitle,
   style,
 }: AvatarProps) {
   const { colors } = useTheme();
   const [loadError, setLoadError] = useState(false);
+  const [viewerVisible, setViewerVisible] = useState(false);
 
   const { dimension, fontSize } = SIZE_MAP[size];
 
@@ -80,19 +86,40 @@ export function Avatar({
     )
   );
 
-  if (onPress) {
-    return (
-      <TouchableOpacity
-        activeOpacity={0.7}
-        onPress={onPress}
-        style={containerStyle}
-      >
-        {content}
-      </TouchableOpacity>
-    );
-  }
+  const handlePress = () => {
+    if (onPress) {
+      onPress();
+    } else if (enableViewer && url && !loadError) {
+      setViewerVisible(true);
+    }
+  };
 
-  return <View style={containerStyle}>{content}</View>;
+  const isClickable = Boolean(onPress || (enableViewer && url && !loadError));
+
+  return (
+    <>
+      {isClickable ? (
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={handlePress}
+          style={containerStyle}
+        >
+          {content}
+        </TouchableOpacity>
+      ) : (
+        <View style={containerStyle}>{content}</View>
+      )}
+
+      {enableViewer && Boolean(url && !loadError) && (
+        <FullScreenImageViewer
+          visible={viewerVisible}
+          imageUri={url || null}
+          imageTitle={viewerTitle || name || 'Profile Photo'}
+          onClose={() => setViewerVisible(false)}
+        />
+      )}
+    </>
+  );
 }
 
 const styles = StyleSheet.create({

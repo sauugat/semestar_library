@@ -356,15 +356,21 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
 
   router.get('/', async (req, res, next) => {
     try {
-      const { limit = '20', before, type, official } = req.query;
+      const { limit = '20', before, type, official, studentId, authorStudentId } = req.query;
       if (!positiveId(limit) || Number(limit) > 100 || (before !== undefined && !positiveId(before))) {
         return res.status(400).json({ message: 'Use a limit from 1 to 100 and a positive before ID.' });
       }
       if (type !== undefined && !['status', 'assignment', 'notice'].includes(type)) {
         return res.status(400).json({ message: 'Invalid post type filter.' });
       }
-      const params = [req.session.studentId];
+      const viewerStudentId = req.session?.studentId || req.user?.studentId || req.postUser?.studentId || null;
+      const params = [viewerStudentId];
       const whereConditions = [];
+      const targetAuthor = studentId || authorStudentId;
+      if (targetAuthor) {
+        whereConditions.push('p.user_id = ?');
+        params.push(String(targetAuthor));
+      }
       if (before !== undefined) {
         whereConditions.push('p.id < ?');
         params.push(Number(before));

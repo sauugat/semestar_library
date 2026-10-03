@@ -65,6 +65,7 @@ import { PostMediaGallery } from '@/components/PostMediaGallery';
 import { EditPostModal } from '@/components/EditPostModal';
 import { PostFileAttachments } from '@/components/PostFileAttachments';
 import { CommentItem } from '@/components/CommentItem';
+import { PostCard } from '@/components/PostCard';
 import { RawFileAsset } from '@/utils/file-upload';
 import * as DocumentPicker from 'expo-document-picker';
 
@@ -1910,220 +1911,24 @@ export default function HomeScreen() {
 };
 
   const renderPostItem = ({ item }: { item: Post }) => {
-    const badge = getTypeBadgeProps(item.type, item.is_official, colors);
-    const imageUrl = getFullImageUrl(item.attachment_url);
-
-    const openDetail = () => {
-      if (item.type === 'notice') {
-        router.push(`/notice/${item.id}`);
-      } else {
-        router.push(`/post/${item.id}`);
-      }
-    };
-
     return (
-      <View
-        style={[
-          styles.postItem,
-          {
-            borderBottomColor: colors.border,
-            zIndex: zoomingPostId === item.id ? 9999 : 1,
-            elevation: zoomingPostId === item.id ? 30 : 0,
-          },
-        ]}
-      >
-        {/* Post Author & Header */}
-        <View style={styles.postAuthorRow}>
-          <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={() => {
-              const sid = item.studentId || item.user_id;
-              if (sid) {
-                router.push({
-                  pathname: '/user/[id]',
-                  params: { id: sid },
-                });
-              }
-            }}
-            style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
-          >
-            <Avatar
-              url={getFullImageUrl(item.avatarUrl) || item.avatarUrl}
-              name={item.name}
-              size="md"
-            />
-            <View style={{ flex: 1, marginLeft: spacing.compact }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text variant="sm" weight="700" numberOfLines={1}>
-                  {item.name || 'Student'}
-                </Text>
-                {item.role && item.role !== 'student' && (
-                  <View
-                    style={[
-                      styles.rolePill,
-                      {
-                        backgroundColor: colors.surfaceRaised,
-                        borderColor: colors.border,
-                        borderWidth: 1,
-                        borderRadius: radii.sm,
-                      },
-                    ]}
-                  >
-                    <Text variant="xs" weight="700" color="secondary">
-                      {item.role.toUpperCase()}
-                    </Text>
-                  </View>
-                )}
-              </View>
-              <Caption color="muted">
-                {formatRelativeTime(item.created_at)}
-                {(item.edited_at || item.edited) ? ' • Edited' : ''}
-              </Caption>
-            </View>
-          </TouchableOpacity>
-
-          {/* Right Header: Badge (if notice/assignment) + Three-Dot Options Button (⋮) */}
-          <View style={styles.authorRightActions}>
-            {badge && (
-              <View
-                style={[
-                  styles.typeBadge,
-                  {
-                    backgroundColor: badge.bgColor,
-                    borderColor: badge.borderColor,
-                    borderRadius: radii.full,
-                  },
-                ]}
-              >
-                <Ionicons name={badge.icon} size={11} color={badge.textColor} style={{ marginRight: 3 }} />
-                <Text
-                  variant="xs"
-                  weight="700"
-                  style={{ color: badge.textColor, fontSize: 10 }}
-                >
-                  {badge.label}
-                </Text>
-              </View>
-            )}
-
-            <TouchableOpacity
-              onPress={() => setSelectedMenuPost(item)}
-              style={styles.optionsMenuBtn}
-              accessibilityLabel="Post options"
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <Text style={[styles.optionsMenuIcon, { color: colors.textSecondary }]}>
-                {'\u22EE'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Post Text Content - Tap to open Post or Notice Detail */}
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={openDetail}
-          style={{ marginTop: spacing.sm }}
-        >
-          <Text
-            variant="sm"
-            style={[styles.postContent, { color: colors.text, lineHeight: 22 }]}
-          >
-            {(item.content || '').length > 240 && !expandedPostIds.has(item.id)
-              ? `${(item.content || '').slice(0, 240).trim()}... `
-              : item.content}
-            {(item.content || '').length > 240 && (
-              <Text
-                variant="sm"
-                weight="700"
-                color="secondary"
-                onPress={() => toggleExpandPost(item.id)}
-                suppressHighlighting
-              >
-                {expandedPostIds.has(item.id) ? '  See less' : '  See more'}
-              </Text>
-            )}
-          </Text>
-        </TouchableOpacity>
-
-        {/* Attached Images: responsive grid (1, 2, 3, 4+) with swipeable fullscreen gallery */}
-        {((Array.isArray(item.media) && item.media.some((m) => (m.media_type || 'image') === 'image')) || item.attachment_url) && (
-          <PostMediaGallery
-            media={item.media ? item.media.filter((m) => (m.media_type || 'image') === 'image') : null}
-            imageUrl={item.attachment_url}
-            getFullUrl={getFullImageUrl}
-            onDoubleTap={() => handleDoubleTapLike(item.id)}
-          />
-        )}
-
-        {/* Attached Documents & Files */}
-        {Array.isArray(item.media) && item.media.some((m) => m.media_type === 'file') && (
-          <PostFileAttachments
-            files={item.media.filter((m) => m.media_type === 'file')}
-            onOpenFile={handleOpenAttachedFile}
-          />
-        )}
-
-        {/* Post Engagement Actions */}
-        <View style={styles.postActionRow}>
-          {/* Animated Like Button with scale bounce and red state */}
-          <LikeButton
-            liked={item.liked_by_me}
-            count={item.like_count}
-            colors={colors}
-            onPress={() => handleToggleLike(item.id)}
-          />
-
-          {/* Comment Count / Open Post or Notice Detail Page */}
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={openDetail}
-            accessibilityLabel="View comments on post"
-          >
-            <Ionicons name="chatbubble-outline" size={17} color={colors.textMuted} />
-            <Text variant="xs" weight="600" color="secondary" style={{ marginLeft: 5 }}>
-              {item.comment_count}
-            </Text>
-          </TouchableOpacity>
-
-          {/* Share / Copy Post Button */}
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => handleSharePost(item)}
-            accessibilityLabel="Share post"
-          >
-            <Ionicons name="share-outline" size={17} color={colors.textMuted} />
-          </TouchableOpacity>
-
-          {/* Assignment Submissions indicator (if assignment) */}
-          {item.type === 'assignment' && (
-            <View style={styles.actionButton}>
-              <Ionicons name="document-text-outline" size={17} color={colors.textMuted} />
-              <Text variant="xs" weight="600" color="secondary" style={{ marginLeft: 5 }}>
-                {item.submission_count} submissions
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* Comments Preview */}
-        {item.comment_count > 0 && (
-          <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={openDetail}
-            style={{
-              marginTop: spacing.compact,
-              paddingTop: spacing.tight,
-              borderTopWidth: StyleSheet.hairlineWidth,
-              borderTopColor: colors.borderSubtle,
-            }}
-          >
-            <Text variant="xs" color="muted">
-              View all {item.comment_count} {item.comment_count === 1 ? 'comment' : 'comments'}
-            </Text>
-          </TouchableOpacity>
-        )}
-      </View>
+      <PostCard
+        post={item}
+        currentUserId={user?.studentId}
+        onLike={handleToggleLike}
+        onDoubleTapLike={handleDoubleTapLike}
+        onShare={handleSharePost}
+        onOpenDetail={(p) => {
+          if (p.type === 'notice') {
+            router.push(`/notice/${p.id}`);
+          } else {
+            router.push(`/post/${p.id}`);
+          }
+        }}
+        onOpenMenu={(p) => setSelectedMenuPost(p)}
+        onOpenFile={handleOpenAttachedFile}
+        getFullImageUrl={getFullImageUrl}
+      />
     );
   };
 

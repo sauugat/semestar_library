@@ -86,17 +86,13 @@ export function CommentItem({
           },
         ]}
       >
-        <TouchableOpacity
-          activeOpacity={comment.isDeleted ? 1 : 0.7}
-          onPress={() => !comment.isDeleted && navigateToProfile(comment.studentId)}
-          disabled={Boolean(comment.isDeleted)}
-        >
-          <Avatar
-            url={comment.isDeleted ? null : avatarUrl}
-            name={comment.isDeleted ? '?' : comment.name}
-            size="sm"
-          />
-        </TouchableOpacity>
+        <Avatar
+          url={comment.isDeleted ? null : avatarUrl}
+          name={comment.isDeleted ? '?' : comment.name}
+          size="sm"
+          enableViewer={!comment.isDeleted && Boolean(avatarUrl)}
+          onPress={!avatarUrl && !comment.isDeleted ? () => navigateToProfile(comment.studentId) : undefined}
+        />
 
         <View style={styles.commentContent}>
           {/* Header: Name, badges, time, options */}
@@ -292,17 +288,13 @@ export function CommentItem({
                     },
                   ]}
                 >
-                  <TouchableOpacity
-                    activeOpacity={reply.isDeleted ? 1 : 0.7}
-                    onPress={() => !reply.isDeleted && navigateToProfile(reply.studentId)}
-                    disabled={Boolean(reply.isDeleted)}
-                  >
                     <Avatar
                       url={reply.isDeleted ? null : replyAvatar}
                       name={reply.isDeleted ? '?' : reply.name}
                       size="xs"
+                      enableViewer={!reply.isDeleted && Boolean(replyAvatar)}
+                      onPress={!replyAvatar && !reply.isDeleted ? () => navigateToProfile(reply.studentId) : undefined}
                     />
-                  </TouchableOpacity>
 
                   <View style={styles.commentContent}>
                     {/* Header */}

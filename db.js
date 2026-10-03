@@ -105,7 +105,8 @@ const camelMap = {
   submissioncount: 'submissionCount', mysubmissioncount: 'mySubmissionCount',
   ischecked: 'isChecked', isreleased: 'isReleased', feedbacktext: 'feedbackText',
   pinnedby: 'pinnedBy', pinnedat: 'pinnedAt', is_official: 'is_official',
-  verificationstatus: 'verificationStatus', verification_status: 'verificationStatus'
+  verificationstatus: 'verificationStatus', verification_status: 'verificationStatus',
+  coverurl: 'coverUrl', coverposition: 'coverPosition'
 };
 
 function formatRow(row) {
@@ -326,6 +327,8 @@ async function initSchema() {
             username TEXT,
             gender TEXT,
             avatarUrl TEXT,
+            coverUrl TEXT,
+            coverPosition TEXT,
             bio TEXT,
             department TEXT DEFAULT 'BIT',
             semester TEXT DEFAULT 'Semester 1',
@@ -538,6 +541,8 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
             username TEXT,
             gender TEXT,
             avatarUrl TEXT,
+            coverUrl TEXT,
+            coverPosition TEXT,
             bio TEXT,
             department TEXT DEFAULT 'BIT',
             semester TEXT DEFAULT 'Semester 1',
@@ -772,6 +777,8 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
           await exec(`ALTER TABLE students ADD COLUMN IF NOT EXISTS username TEXT;`);
           await exec(`ALTER TABLE students ADD COLUMN IF NOT EXISTS gender TEXT;`);
           await exec(`ALTER TABLE students ADD COLUMN IF NOT EXISTS verification_status TEXT DEFAULT 'unverified';`);
+          await exec(`ALTER TABLE students ADD COLUMN IF NOT EXISTS coverUrl TEXT;`);
+          await exec(`ALTER TABLE students ADD COLUMN IF NOT EXISTS coverPosition TEXT;`);
           await exec(`ALTER TABLE students ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;`);
           await exec(`ALTER TABLE students ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;`);
           try { await exec(`ALTER TABLE students ALTER COLUMN passwordHash DROP NOT NULL;`); } catch (pErr) {}
@@ -836,6 +843,8 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
           if (!studentColNames.includes('username')) await exec(`ALTER TABLE students ADD COLUMN username TEXT;`);
           if (!studentColNames.includes('gender')) await exec(`ALTER TABLE students ADD COLUMN gender TEXT;`);
           if (!studentColNames.includes('verification_status')) await exec(`ALTER TABLE students ADD COLUMN verification_status TEXT DEFAULT 'unverified';`);
+          if (!studentColNames.includes('coverUrl')) await exec(`ALTER TABLE students ADD COLUMN coverUrl TEXT;`);
+          if (!studentColNames.includes('coverPosition')) await exec(`ALTER TABLE students ADD COLUMN coverPosition TEXT;`);
           if (!studentColNames.includes('created_at')) await exec(`ALTER TABLE students ADD COLUMN created_at TEXT;`);
           if (!studentColNames.includes('updated_at')) await exec(`ALTER TABLE students ADD COLUMN updated_at TEXT;`);
           await exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_students_email_lower ON students (LOWER(email));`);

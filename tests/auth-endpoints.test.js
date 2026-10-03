@@ -1,3 +1,10 @@
+const os = require('os');
+const path = require('path');
+const testDbPath = path.join(os.tmpdir(), `auth_test_${Date.now()}_${Math.random().toString(36).slice(2)}.db`);
+process.env.NODE_ENV = 'test';
+process.env.DB_PATH = testDbPath;
+process.env.SEMESTER_DB_SKIP_INIT = '1';
+
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('http');
@@ -7,8 +14,6 @@ let server;
 let baseUrl;
 
 test.before(async () => {
-  process.env.NODE_ENV = 'test';
-  process.env.SEMESTER_DB_SKIP_INIT = '1';
   await db.initSchema();
 
   const app = require('../server');
@@ -22,6 +27,7 @@ test.after(async () => {
   if (server) {
     await new Promise(resolve => server.close(resolve));
   }
+  await db.close();
 });
 
 test('POST /api/auth/register: Rejects missing required fields', async () => {

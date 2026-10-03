@@ -25,6 +25,8 @@ export interface StudentUser {
   isAdmin?: boolean;
   isCR?: boolean;
   avatarUrl?: string | null;
+  coverUrl?: string | null;
+  coverPosition?: string | null;
   bio?: string;
   department?: string;
   semester?: string;
@@ -33,8 +35,12 @@ export interface StudentUser {
   githubUrl?: string;
   linkedinUrl?: string;
   verificationStatus?: string;
+  canCreateAssignments?: boolean;
   stats?: {
     filesCount: number;
+    postsCount?: number;
+    photosCount?: number;
+    assignmentsCount?: number;
     likesReceived: number;
     followersCount: number;
     followingCount: number;

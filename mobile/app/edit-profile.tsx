@@ -9,6 +9,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useQueryClient } from '@tanstack/react-query';
 import { useTheme } from '@/constants/useTheme';
 import { useAuth } from '@/context/AuthContext';
 import { Text, Heading, Caption } from '@/components/ui/Typography';
@@ -32,6 +33,7 @@ const SEMESTERS = [
 export default function EditProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const queryClient = useQueryClient();
   const { colors, spacing, radii } = useTheme();
   const { user, updateProfile, refreshProfile } = useAuth();
 
@@ -62,6 +64,8 @@ export default function EditProfileScreen() {
 
     if (result.success) {
       void refreshProfile();
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
       if (router.canGoBack()) {
         router.back();
       } else {

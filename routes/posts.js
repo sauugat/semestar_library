@@ -13,6 +13,10 @@ const {
   removeCommentReaction,
   toggleCommentReaction
 } = require('../lib/comments');
+const {
+  ensurePostsSchema,
+  cleanupAbandonedStagedAttachments
+} = require('../lib/posts');
 
 const POST_UPLOAD_DIR = process.env.VERCEL
   ? path.join('/tmp', 'uploads', 'posts')
@@ -23,6 +27,31 @@ const imageExtensions = {
   'image/svg+xml': '.svg', 'image/bmp': '.bmp', 'image/tiff': '.tiff',
   'image/heic': '.heic', 'image/heif': '.heif', 'image/x-icon': '.ico'
 };
+
+const MAX_ATTACHMENT_BYTES_PER_FILE = 4 * 1024 * 1024; // 4.0 MB per attachment (individual request limit)
+
+const documentExtensions = {
+  'application/pdf': '.pdf',
+  'application/msword': '.doc',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+  'application/vnd.ms-powerpoint': '.ppt',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': '.pptx',
+  'application/vnd.ms-excel': '.xls',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
+  'text/plain': '.txt',
+  'application/zip': '.zip',
+  'application/x-zip-compressed': '.zip'
+};
+
+function getSafeFileExtension(file) {
+  if (file.mimetype && imageExtensions[file.mimetype]) return imageExtensions[file.mimetype];
+  if (file.mimetype && documentExtensions[file.mimetype]) return documentExtensions[file.mimetype];
+  const origExt = path.extname(file.originalname || '').toLowerCase();
+  if (['.pdf', '.docx', '.doc', '.pptx', '.ppt', '.xlsx', '.xls', '.txt', '.zip', '.jpg', '.jpeg', '.png', '.webp'].includes(origExt)) {
+    return origExt;
+  }
+  return file.mimetype?.startsWith('image/') ? '.jpg' : '.bin';
+}
 
 async function removeUploadedImage(filename) {
   try {
@@ -47,14 +76,24 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
           cb(err);
         }
       },
-      // Use a server-generated name and image extension, never the supplied filename.
-      filename: (req, file, cb) => cb(null, crypto.randomUUID() + (imageExtensions[file.mimetype] || '.img'))
+      // Use a server-generated name and safe extension, never arbitrary unsanitized filenames.
+      filename: (req, file, cb) => cb(null, crypto.randomUUID() + getSafeFileExtension(file))
     }),
-    limits: { fileSize: 5 * 1024 * 1024, files: 10, fields: 20, fieldSize: 64 * 1024 },
+    limits: { fileSize: 5 * 1024 * 1024, files: 15, fields: 30, fieldSize: 64 * 1024 },
     fileFilter: (req, file, cb) => {
-      if (file.mimetype.startsWith('image/')) return cb(null, true);
-      const err = new Error('Please choose an image file.');
-      err.code = 'INVALID_IMAGE_TYPE';
+      const isImg = file.mimetype && file.mimetype.startsWith('image/');
+      if (file.fieldname === 'image' || file.fieldname === 'images') {
+        if (isImg) return cb(null, true);
+        const err = new Error('Please choose an image file.');
+        err.code = 'INVALID_IMAGE_TYPE';
+        return cb(err);
+      }
+      const origExt = path.extname(file.originalname || '').toLowerCase();
+      const isDoc = (file.mimetype && Boolean(documentExtensions[file.mimetype])) ||
+        ['.pdf', '.docx', '.doc', '.pptx', '.ppt', '.xlsx', '.xls', '.txt', '.zip'].includes(origExt);
+      if (isImg || isDoc) return cb(null, true);
+      const err = new Error('Please choose an image or document (PDF, Word, PPTX, Excel, TXT, ZIP).');
+      err.code = 'INVALID_FILE_TYPE';
       cb(err);
     }
   });
@@ -89,6 +128,136 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
     LEFT JOIN (SELECT post_id, COUNT(*) AS submission_count FROM post_submissions GROUP BY post_id) sub
       ON sub.post_id = p.id AND p.type = 'assignment'`;
 
+  const runTransaction = typeof db.withTransaction === 'function'
+    ? (fn) => db.withTransaction(fn)
+    : async (fn) => {
+        if (typeof db.run === 'function') {
+          try {
+            await db.run('BEGIN');
+            const res = await fn(db);
+            await db.run('COMMIT');
+            return res;
+          } catch (err) {
+            try { await db.run('ROLLBACK'); } catch (_) {}
+            throw err;
+          }
+        }
+        return await fn(db);
+      };
+
+  async function cleanupUnattachedBlobs(blobsToCheck) {
+    if (!Array.isArray(blobsToCheck) || blobsToCheck.length === 0) return;
+    for (const item of blobsToCheck) {
+      const url = typeof item === 'string' ? item : (item?.url || '');
+      let filename = item?.filename || '';
+      if (!filename && url && typeof url === 'string') {
+        const cleanUrl = url.split('?')[0].split('#')[0];
+        filename = path.basename(cleanUrl);
+      }
+      if (!filename || !/^[a-f0-9-]+\.[a-z0-9]+$/i.test(filename)) continue;
+
+      const fullUrl = `/uploads/posts/${filename}`;
+      const altUrl = `uploads/posts/${filename}`;
+
+      try {
+        const inPosts = await db.get('SELECT COUNT(*) AS c FROM posts WHERE attachment_url = ? OR attachment_url = ?', fullUrl, altUrl);
+        const inMedia = await db.get('SELECT COUNT(*) AS c FROM post_media WHERE url = ? OR url = ?', fullUrl, altUrl);
+        if ((Number(inPosts?.c || 0) + Number(inMedia?.c || 0)) === 0) {
+          await db.deleteFileBlob(filename);
+          await removeUploadedImage(path.join(uploadDir, filename));
+          try {
+            await db.run('DELETE FROM post_attachment_staging WHERE filename = ? AND is_committed = 0', filename);
+          } catch (_) {}
+        }
+      } catch (err) {
+        console.error('[Unattached Blob Cleanup Error]:', err.message);
+      }
+    }
+  }
+
+  async function resolveAndValidateAttachments(rawList, studentId, { allowCommittedForPostId = null } = {}) {
+    if (!Array.isArray(rawList) || rawList.length === 0) return [];
+
+    // Deduplicate by key (id, filename, or clean URL basename)
+    const seenKeys = new Set();
+    const dedupedRaw = [];
+    for (const item of rawList) {
+      if (!item) continue;
+      let key = null;
+      if (typeof item === 'string') {
+        const clean = item.split('?')[0].split('#')[0];
+        key = path.basename(clean);
+      } else {
+        key = item.id || item.filename || (item.url ? path.basename(String(item.url).split('?')[0].split('#')[0]) : null);
+      }
+      if (!key || seenKeys.has(key)) continue;
+      seenKeys.add(key);
+      dedupedRaw.push(item);
+    }
+
+    const validated = [];
+    for (const item of dedupedRaw) {
+      let key = null;
+      let urlStr = null;
+      if (typeof item === 'string') {
+        urlStr = item;
+        key = path.basename(item.split('?')[0].split('#')[0]);
+      } else {
+        urlStr = item.url ? String(item.url) : null;
+        key = item.id || item.filename || (item.url ? path.basename(String(item.url).split('?')[0].split('#')[0]) : null);
+      }
+
+      if (!key) {
+        const err = new Error('Invalid attachment reference.');
+        err.status = 400;
+        throw err;
+      }
+
+      const cleanUrl = urlStr ? urlStr.split('?')[0].split('#')[0] : null;
+      const staging = await db.get(
+        `SELECT * FROM post_attachment_staging 
+         WHERE id = ? OR filename = ? OR url = ?`,
+        key, key, (cleanUrl || key)
+      );
+
+      if (!staging) {
+        const err = new Error('Invalid or expired attachment reference.');
+        err.status = 400;
+        throw err;
+      }
+
+      if (staging.uploader_student_id !== studentId) {
+        const err = new Error('You do not own this attachment.');
+        err.status = 403;
+        throw err;
+      }
+
+      if (Number(staging.is_committed) === 1) {
+        if (allowCommittedForPostId && Number(staging.post_id) === Number(allowCommittedForPostId)) {
+          // Allowed: already belongs to this post being edited
+        } else {
+          const err = new Error('Attachment has already been committed to another post.');
+          err.status = 409;
+          throw err;
+        }
+      }
+
+      // Authoritative metadata loaded from server storage, NOT trusting client JSON!
+      validated.push({
+        stagingId: staging.id,
+        filename: staging.filename,
+        url: staging.url,
+        media_type: staging.media_type || 'image',
+        mime_type: staging.mime_type || null,
+        file_name: staging.file_name || null,
+        file_size: staging.file_size ? Number(staging.file_size) : null
+      });
+    }
+
+    return validated;
+  }
+
+
   async function attachMediaToPosts(posts) {
     if (!Array.isArray(posts) || posts.length === 0) return posts;
     const postIds = posts.map(p => Number(p.id)).filter(id => Number.isInteger(id) && id > 0);
@@ -98,7 +267,7 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
     let mediaRows = [];
     try {
       mediaRows = await db.all(
-        `SELECT id, post_id, media_type, url, mime_type, sort_order, created_at
+        `SELECT id, post_id, media_type, url, mime_type, file_name, file_size, sort_order, created_at
          FROM post_media
          WHERE post_id IN (${placeholders})
          ORDER BY sort_order ASC, id ASC`,
@@ -117,8 +286,11 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
         id: Number(row.id),
         post_id: pid,
         media_type: row.media_type || 'image',
+        type: row.media_type || 'image',
         url: row.url,
         mime_type: row.mime_type || null,
+        file_name: row.file_name || (row.media_type === 'image' ? path.basename(row.url) : null),
+        file_size: row.file_size ? Number(row.file_size) : null,
         sort_order: Number(row.sort_order || 0),
         created_at: row.created_at
       });
@@ -130,15 +302,23 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       if (mediaList.length > 0) {
         post.media = mediaList;
         if (!post.attachment_url) {
-          post.attachment_url = mediaList[0].url;
+          const firstImg = mediaList.find(m => m.media_type === 'image') || mediaList[0];
+          post.attachment_url = firstImg?.url || null;
         }
       } else if (post.attachment_url) {
+        const cleanUrl = String(post.attachment_url).split('?')[0].split('#')[0];
+        const ext = path.extname(cleanUrl).toLowerCase();
+        const isDoc = ['.pdf', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx', '.txt', '.zip'].includes(ext);
+        const mediaType = isDoc ? 'file' : 'image';
         post.media = [{
           id: 0,
           post_id: pid,
-          media_type: 'image',
+          media_type: mediaType,
+          type: mediaType,
           url: post.attachment_url,
-          mime_type: null,
+          mime_type: isDoc ? (documentExtensions[ext] || 'application/octet-stream') : (imageExtensions[ext] || 'image/jpeg'),
+          file_name: path.basename(cleanUrl),
+          file_size: null,
           sort_order: 0,
           created_at: post.created_at
         }];
@@ -156,6 +336,8 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
     return {
       ...post,
       id: Number(post.id),
+      edited_at: post.edited_at || null,
+      edited: Boolean(post.edited_at),
       like_count: Number(post.like_count),
       comment_count: Number(post.comment_count || 0),
       submission_count: Number(post.submission_count),
@@ -211,34 +393,251 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
     }
   });
 
+  // Single Attachment Upload Endpoint: independent upload stays safely below Vercel's request ceiling
+  router.post('/attachments', upload.any(), async (req, res, next) => {
+    try {
+      const studentId = req.postUser?.studentId;
+      if (!studentId) {
+        return res.status(403).json({ message: 'Sign in with a student account to upload attachments.' });
+      }
+
+      const file = req.files && req.files.length > 0 ? req.files[0] : req.file;
+      if (!file) {
+        return res.status(400).json({ message: 'Please select a file to upload.' });
+      }
+
+      if (file.size > MAX_ATTACHMENT_BYTES_PER_FILE) {
+        await removeUploadedImage(file.path);
+        return res.status(413).json({
+          message: 'Files must be 4 MB or smaller. For larger study materials, upload them to Semester Library.'
+        });
+      }
+
+      const isImg = file.mimetype && file.mimetype.startsWith('image/');
+      const mediaType = isImg ? 'image' : 'file';
+
+      const fileBuffer = await fs.promises.readFile(file.path);
+      const saved = await db.saveFileBlob(file.filename, fileBuffer, file.mimetype);
+      if (!saved) {
+        await removeUploadedImage(file.path);
+        return res.status(500).json({ message: 'Could not persist attachment.' });
+      }
+
+      const attachmentId = crypto.randomUUID();
+      const relativeUrl = `/uploads/posts/${file.filename}`;
+      const nowIso = new Date().toISOString();
+
+      await db.run(
+        `INSERT INTO post_attachment_staging 
+         (id, filename, url, uploader_student_id, media_type, mime_type, file_name, file_size, is_committed, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
+        attachmentId,
+        file.filename,
+        relativeUrl,
+        studentId,
+        mediaType,
+        file.mimetype || null,
+        file.originalname || null,
+        file.size || null,
+        nowIso
+      );
+
+      res.status(201).json({
+        id: attachmentId,
+        url: relativeUrl,
+        filename: file.filename,
+        media_type: mediaType,
+        mime_type: file.mimetype,
+        file_name: file.originalname || null,
+        file_size: file.size || null
+      });
+    } catch (err) {
+      if (req.files) {
+        for (const f of req.files) await removeUploadedImage(f.path);
+      } else if (req.file) {
+        await removeUploadedImage(req.file.path);
+      }
+      next(err);
+    }
+  });
+
+  // Safe Unattached Blob Cleanup Endpoint
+  router.delete('/attachments/:filename', async (req, res, next) => {
+    try {
+      const studentId = req.postUser?.studentId;
+      if (!studentId) {
+        return res.status(403).json({ message: 'Authentication required.' });
+      }
+
+      const filename = req.params.filename;
+      if (!/^[a-f0-9-]+\.[a-z0-9]+$/i.test(filename)) {
+        return res.status(400).json({ message: 'Invalid attachment filename.' });
+      }
+
+      const fileUrl = `/uploads/posts/${filename}`;
+      const altUrl = `uploads/posts/${filename}`;
+
+      // Only delete if NOT referenced by any post or post_media
+      const inPosts = await db.get('SELECT COUNT(*) AS c FROM posts WHERE attachment_url = ? OR attachment_url = ?', fileUrl, altUrl);
+      const inMedia = await db.get('SELECT COUNT(*) AS c FROM post_media WHERE url = ? OR url = ?', fileUrl, altUrl);
+
+      if ((Number(inPosts?.c || 0) + Number(inMedia?.c || 0)) > 0) {
+        return res.status(409).json({ message: 'Cannot delete attachment that is in use by an active post.' });
+      }
+
+      const staging = await db.get(
+        'SELECT * FROM post_attachment_staging WHERE filename = ?',
+        filename
+      );
+
+      if (staging) {
+        // Enforce ownership: only the uploader (or admin) may delete their uncommitted staged blob
+        if (staging.uploader_student_id !== studentId && req.postUser?.role !== 'admin') {
+          return res.status(403).json({ message: 'You do not have permission to delete this attachment.' });
+        }
+        if (Number(staging.is_committed) === 1) {
+          return res.status(409).json({ message: 'Cannot delete attachment that is in use by an active post.' });
+        }
+      } else {
+        const blobExists = typeof db.getFileBlob === 'function' ? await db.getFileBlob(filename) : null;
+        if (!blobExists) {
+          return res.status(404).json({ message: 'Attachment not found.' });
+        }
+        if (req.postUser?.role !== 'admin') {
+          return res.status(403).json({ message: 'You do not have permission to delete this attachment.' });
+        }
+      }
+
+      await db.deleteFileBlob(filename);
+      await removeUploadedImage(path.join(uploadDir, filename));
+      await db.run('DELETE FROM post_attachment_staging WHERE filename = ?', filename);
+
+      res.json({ ok: true, deleted: filename, message: 'Attachment deleted successfully.' });
+    } catch (err) {
+      next(err);
+    }
+  });
+
   router.post('/', requireLogin, upload.any(), async (req, res, next) => {
+    const uploadedFiles = Array.isArray(req.files) ? req.files : (req.file ? [req.file] : []);
+
+    async function rejectPost(message, status = 400) {
+      for (const f of uploadedFiles) await removeUploadedImage(f.path);
+      if (Array.isArray(req.savedBlobs) && req.savedBlobs.length > 0) {
+        await cleanupUnattachedBlobs(req.savedBlobs);
+      }
+      return res.status(status).json({ message });
+    }
+
+    let allAttachments = [];
+
     try {
       const { content, type = 'status' } = req.body || {};
       let attachment_url = req.body?.attachment_url ?? null;
-      const uploadedFiles = Array.isArray(req.files) ? req.files : (req.file ? [req.file] : []);
 
-      async function rejectPost(message) {
-        for (const f of uploadedFiles) await removeUploadedImage(f.path);
-        return res.status(400).json({ message });
+      // 1. Collect pre-uploaded attachments from JSON body
+      let incomingAttachments = [];
+      if (Array.isArray(req.body?.attachments)) {
+        incomingAttachments = [...req.body.attachments];
+      } else if (typeof req.body?.attachments === 'string') {
+        try {
+          const parsed = JSON.parse(req.body.attachments);
+          if (Array.isArray(parsed)) incomingAttachments = [...parsed];
+        } catch (_) {}
       }
 
-      if (uploadedFiles.length > 10) {
+      // 2. Validate individual uploaded files (if sent via direct multipart)
+      for (const f of uploadedFiles) {
+        if (f.size > MAX_ATTACHMENT_BYTES_PER_FILE) {
+          return rejectPost('Files must be 4 MB or smaller. For larger study materials, upload them to Semester Library.', 413);
+        }
+      }
+
+      // Validate pre-uploaded staged attachments against server database
+      // Loads authoritative metadata; rejects cross-user hijacking, forged URLs, and replay
+      let validatedStaged = [];
+      if (incomingAttachments.length > 0) {
+        try {
+          validatedStaged = await resolveAndValidateAttachments(incomingAttachments, req.postUser.studentId);
+        } catch (valErr) {
+          return rejectPost(valErr.message, valErr.status || 400);
+        }
+      }
+
+      // Handle legacy attachment_url if passed as local post upload
+      if (typeof attachment_url === 'string' && /^\/?uploads\/posts\/[a-f0-9-]+\.[a-z0-9]+$/i.test(attachment_url)) {
+        try {
+          const legacyValidated = await resolveAndValidateAttachments([attachment_url], req.postUser.studentId);
+          validatedStaged.push(...legacyValidated);
+        } catch (valErr) {
+          return rejectPost(valErr.message, valErr.status || 400);
+        }
+      }
+
+      // Persist any direct multipart files, register into post_attachment_staging, and add to allAttachments
+      const newlySavedBlobs = [];
+      req.savedBlobs = newlySavedBlobs;
+      const directAttachments = [];
+
+      for (let i = 0; i < uploadedFiles.length; i++) {
+        const file = uploadedFiles[i];
+        const isImg = file.mimetype && file.mimetype.startsWith('image/');
+        const mediaType = isImg ? 'image' : 'file';
+        const fileBuffer = await fs.promises.readFile(file.path);
+        const saved = await db.saveFileBlob(file.filename, fileBuffer, file.mimetype);
+        if (!saved) throw new Error('Could not persist post attachment.');
+        newlySavedBlobs.push(file.filename);
+
+        const attachmentId = crypto.randomUUID();
+        const relativeUrl = `/uploads/posts/${file.filename}`;
+        const nowIso = new Date().toISOString();
+
+        await db.run(
+          `INSERT INTO post_attachment_staging 
+           (id, filename, url, uploader_student_id, media_type, mime_type, file_name, file_size, is_committed, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
+          attachmentId,
+          file.filename,
+          relativeUrl,
+          req.postUser.studentId,
+          mediaType,
+          file.mimetype || null,
+          file.originalname || null,
+          file.size || null,
+          nowIso
+        );
+
+        directAttachments.push({
+          stagingId: attachmentId,
+          filename: file.filename,
+          url: relativeUrl,
+          media_type: mediaType,
+          mime_type: file.mimetype || null,
+          file_name: file.originalname || null,
+          file_size: file.size || null
+        });
+      }
+
+      allAttachments = [...validatedStaged, ...directAttachments];
+
+      // 3. Validate image/document count limits
+      const totalImages = allAttachments.filter(a => a.media_type === 'image');
+      if (totalImages.length > 10) {
         return rejectPost('Maximum 10 images allowed per post.');
       }
 
-      for (const f of uploadedFiles) {
-        if (!f.mimetype || !f.mimetype.startsWith('image/')) {
-          return rejectPost('Please choose an image file.');
-        }
+      const totalDocs = allAttachments.filter(a => a.media_type === 'file');
+      if (totalDocs.length > 5) {
+        return rejectPost('Maximum 5 files allowed per post.');
       }
 
       const rawContent = typeof content === 'string' ? content : '';
       const trimmedContent = rawContent.trim();
       const hasText = trimmedContent.length > 0;
-      const hasImages = uploadedFiles.length > 0 || Boolean(attachment_url);
+      const hasAttachments = allAttachments.length > 0 || Boolean(attachment_url);
 
-      if (!hasText && !hasImages) {
-        return rejectPost('Post must contain either text content or at least one photo.');
+      if (!hasText && !hasAttachments) {
+        return rejectPost('Post must contain either text content or at least one photo or file.');
       }
       if (trimmedContent.length > 5000) {
         return rejectPost('Post content cannot exceed 5,000 characters.');
@@ -249,37 +648,20 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       if (type === 'notice') {
         const canPostNotice = ['admin', 'cr', 'teacher'].includes(req.postUser?.role);
         if (!canPostNotice) {
-          for (const f of uploadedFiles) await removeUploadedImage(f.path);
-          return res.status(403).json({ message: 'Only authorized roles (admin, CR, teacher) can publish notices.' });
+          return rejectPost('Only authorized roles (admin, CR, teacher) can publish notices.', 403);
         }
       }
       if (type === 'assignment') {
         const canPostAssignment = ['admin', 'teacher'].includes(req.postUser?.role);
         if (!canPostAssignment) {
-          for (const f of uploadedFiles) await removeUploadedImage(f.path);
-          return res.status(403).json({ message: 'Only teachers and administrators can create assignments.' });
+          return rejectPost('Only teachers and administrators can create assignments.', 403);
         }
       }
       const isOfficial = type === 'notice' || (['admin', 'cr', 'teacher'].includes(req.postUser?.role) && Boolean(req.body?.official === true || req.body?.official === 'true' || req.body?.is_official === true));
 
-      const savedBlobs = [];
-      const mediaRecords = [];
-      req.savedBlobs = savedBlobs;
-
-      for (let i = 0; i < uploadedFiles.length; i++) {
-        const file = uploadedFiles[i];
-        const saved = await db.saveFileBlob(file.filename, await fs.promises.readFile(file.path), file.mimetype);
-        if (!saved) throw new Error('Could not persist post image.');
-        savedBlobs.push(file.filename);
-        mediaRecords.push({
-          url: `/uploads/posts/${file.filename}`,
-          mimeType: file.mimetype,
-          sortOrder: i
-        });
-      }
-
-      if (mediaRecords.length > 0) {
-        attachment_url = mediaRecords[0].url;
+      if (allAttachments.length > 0) {
+        const firstImg = allAttachments.find(m => m.media_type === 'image') || allAttachments[0];
+        attachment_url = firstImg.url;
       } else if (attachment_url !== null) {
         let url;
         try { url = typeof attachment_url === 'string' && new URL(attachment_url); } catch (_) { }
@@ -288,21 +670,45 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
         }
       }
 
-      const result = await db.run(`INSERT INTO posts (user_id, content, type, attachment_url, created_at)
-        VALUES (?, ?, ?, ?, ?)`, req.postUser.studentId, trimmedContent, type, attachment_url, new Date().toISOString());
-      req.postCreated = true;
-      const newPostId = result.lastInsertRowid;
+      let newPostId = null;
+      let postRow = null;
 
-      for (const media of mediaRecords) {
-        await db.run(
-          `INSERT INTO post_media (post_id, media_type, url, mime_type, sort_order, created_at)
-           VALUES (?, ?, ?, ?, ?, ?)`,
-          newPostId, 'image', media.url, media.mimeType, media.sortOrder, new Date().toISOString()
+      // Atomic DB Transaction for post creation, attachment insertion, and staging commitment
+      await runTransaction(async (tx) => {
+        const result = await tx.run(
+          `INSERT INTO posts (user_id, content, type, attachment_url, created_at)
+           VALUES (?, ?, ?, ?, ?)`,
+          req.postUser.studentId, trimmedContent, type, attachment_url, new Date().toISOString()
         );
-      }
+        newPostId = result.lastInsertRowid;
 
-      const post = await db.get(`${selectPosts} WHERE p.id = ?`, req.postUser.studentId, newPostId);
-      const formatted = formatPost(post, req);
+        for (let i = 0; i < allAttachments.length; i++) {
+          const media = allAttachments[i];
+          await tx.run(
+            `INSERT INTO post_media (post_id, media_type, url, mime_type, file_name, file_size, sort_order, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            newPostId, media.media_type, media.url, media.mime_type, media.file_name, media.file_size, i, new Date().toISOString()
+          );
+
+          if (media.stagingId) {
+            const updateResult = await tx.run(
+              'UPDATE post_attachment_staging SET is_committed = 1, post_id = ? WHERE id = ? AND is_committed = 0',
+              newPostId, media.stagingId
+            );
+            const changes = updateResult ? (updateResult.changes ?? updateResult.rowCount ?? 1) : 1;
+            if (changes === 0) {
+              const err = new Error('Attachment has already been committed to another post.');
+              err.status = 409;
+              throw err;
+            }
+          }
+        }
+
+        postRow = await tx.get(`${selectPosts} WHERE p.id = ?`, req.postUser.studentId, newPostId);
+      });
+      req.postCreated = true;
+
+      const formatted = formatPost(postRow, req);
       await attachMediaToPosts([formatted]);
 
       // Push notification outbox enqueue and bounded synchronous dispatch (isolated failure)
@@ -310,7 +716,7 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
         const { enqueuePostOrNoticePush, dispatchImmediateOutbox } = require('../lib/push-notifications');
         const passedTitle = (req.body?.title || req.body?.heading || '').trim();
         const enqueueResult = await enqueuePostOrNoticePush(db, {
-          postId: result.lastInsertRowid,
+          postId: newPostId,
           authorStudentId: req.postUser.studentId,
           authorName: req.postUser.name,
           type,
@@ -324,7 +730,7 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
           const isOfficialNotice = type === 'notice' && (Boolean(isOfficial) || ['admin', 'cr', 'teacher'].includes(req.postUser.role));
           await dispatchImmediateOutbox(db, {
             eventType: isOfficialNotice ? 'notice' : 'post',
-            eventId: result.lastInsertRowid,
+            eventId: newPostId,
             timeoutMs: 3500
           });
         }
@@ -334,6 +740,14 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
 
       res.status(201).json(formatted);
     } catch (err) {
+      // If final post creation fails, clean up newly uploaded unattached blobs safely (Requirement 8)
+      try {
+        await cleanupUnattachedBlobs(allAttachments);
+      } catch (cleanErr) {
+        console.error('[Post Failure Blob Cleanup Error]:', cleanErr.message);
+      }
+      for (const f of uploadedFiles) await removeUploadedImage(f.path);
+      if (err.status) return res.status(err.status).json({ message: err.message });
       next(err);
     }
   });
@@ -558,7 +972,7 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
         newContent = content.trim();
       }
 
-      // Parse keepMediaUrls
+      // Parse keepMediaUrls and keepMediaIds
       let keepUrls = null;
       if (req.body?.keepMediaUrls !== undefined) {
         if (Array.isArray(req.body.keepMediaUrls)) {
@@ -574,10 +988,18 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
         }
       }
 
-      for (const f of uploadedFiles) {
-        if (!f.mimetype || !f.mimetype.startsWith('image/')) {
-          for (const file of uploadedFiles) await removeUploadedImage(file.path);
-          return res.status(400).json({ message: 'Please choose an image file.' });
+      let keepIds = null;
+      if (req.body?.keepMediaIds !== undefined) {
+        if (Array.isArray(req.body.keepMediaIds)) {
+          keepIds = req.body.keepMediaIds.map(Number);
+        } else if (typeof req.body.keepMediaIds === 'string') {
+          try {
+            const parsed = JSON.parse(req.body.keepMediaIds);
+            if (Array.isArray(parsed)) keepIds = parsed.map(Number);
+            else keepIds = req.body.keepMediaIds.split(',').map(s => Number(s.trim())).filter(Number.isFinite);
+          } catch (_) {
+            keepIds = req.body.keepMediaIds.split(',').map(s => Number(s.trim())).filter(Number.isFinite);
+          }
         }
       }
 
@@ -586,100 +1008,206 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
         postId
       );
 
-      // Kept count
-      let keptCount = 0;
-      if (keepUrls !== null) {
-        keptCount = keepUrls.length;
-      } else {
-        keptCount = existingMedia.length > 0 ? existingMedia.length : (post.attachment_url ? 1 : 0);
+      let keptExistingMedia = existingMedia;
+      let removedMedia = [];
+
+      if (keepUrls !== null || keepIds !== null) {
+        keptExistingMedia = existingMedia.filter(row => {
+          if (keepUrls !== null && !keepUrls.includes(row.url)) return false;
+          if (keepIds !== null && !keepIds.includes(Number(row.id))) return false;
+          return true;
+        });
+        removedMedia = existingMedia.filter(row => !keptExistingMedia.some(k => k.id === row.id));
       }
 
-      if (keptCount + uploadedFiles.length > 10) {
+      // Parse newAttachments from JSON body or parse string
+      let incomingNewAttachments = [];
+      if (Array.isArray(req.body?.newAttachments)) {
+        incomingNewAttachments = [...req.body.newAttachments];
+      } else if (typeof req.body?.newAttachments === 'string') {
+        try {
+          const parsed = JSON.parse(req.body.newAttachments);
+          if (Array.isArray(parsed)) incomingNewAttachments = [...parsed];
+        } catch (_) {}
+      }
+
+      // Check each uploaded file if multipart files are sent
+      for (const f of uploadedFiles) {
+        if (f.size > MAX_ATTACHMENT_BYTES_PER_FILE) {
+          for (const file of uploadedFiles) await removeUploadedImage(file.path);
+          return res.status(413).json({ message: 'Files must be 4 MB or smaller. For larger study materials, upload them to Semester Library.' });
+        }
+      }
+
+      // Validate staged new attachments against server database
+      let validatedStagedNew = [];
+      if (incomingNewAttachments.length > 0) {
+        try {
+          validatedStagedNew = await resolveAndValidateAttachments(incomingNewAttachments, req.postUser.studentId);
+        } catch (valErr) {
+          for (const f of uploadedFiles) await removeUploadedImage(f.path);
+          return res.status(valErr.status || 400).json({ message: valErr.message });
+        }
+      }
+
+      // Persist newly uploaded multipart files and stage them
+      const savedBlobs = [];
+      req.savedBlobs = savedBlobs;
+      const directNewAttachments = [];
+
+      for (let i = 0; i < uploadedFiles.length; i++) {
+        const file = uploadedFiles[i];
+        const isImg = file.mimetype && file.mimetype.startsWith('image/');
+        const mediaType = isImg ? 'image' : 'file';
+        const saved = await db.saveFileBlob(file.filename, await fs.promises.readFile(file.path), file.mimetype);
+        if (!saved) throw new Error('Could not persist post attachment.');
+        savedBlobs.push(file.filename);
+
+        const attachmentId = crypto.randomUUID();
+        const relativeUrl = `/uploads/posts/${file.filename}`;
+        const nowIso = new Date().toISOString();
+
+        await db.run(
+          `INSERT INTO post_attachment_staging 
+           (id, filename, url, uploader_student_id, media_type, mime_type, file_name, file_size, is_committed, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
+          attachmentId,
+          file.filename,
+          relativeUrl,
+          req.postUser.studentId,
+          mediaType,
+          file.mimetype || null,
+          file.originalname || null,
+          file.size || null,
+          nowIso
+        );
+
+        directNewAttachments.push({
+          stagingId: attachmentId,
+          filename: file.filename,
+          url: relativeUrl,
+          media_type: mediaType,
+          mime_type: file.mimetype || null,
+          file_name: file.originalname || null,
+          file_size: file.size || null
+        });
+      }
+
+      const allNewAttachments = [...validatedStagedNew, ...directNewAttachments];
+
+      // Validate structural counts BEFORE database transaction
+      const preNewImages = allNewAttachments.filter(a => a.media_type === 'image');
+      const directNewImages = [];
+      const keptImages = keptExistingMedia.filter(m => (m.media_type || 'image') === 'image');
+
+      if (keptImages.length + preNewImages.length > 10) {
         for (const f of uploadedFiles) await removeUploadedImage(f.path);
         return res.status(400).json({ message: 'Maximum 10 images allowed per post.' });
       }
 
-      const finalImageCount = keptCount + uploadedFiles.length;
-      if (!newContent && finalImageCount === 0) {
+      const preNewDocs = allNewAttachments.filter(a => a.media_type === 'file');
+      const keptDocs = keptExistingMedia.filter(m => m.media_type === 'file');
+
+      if (keptDocs.length + preNewDocs.length > 5) {
         for (const f of uploadedFiles) await removeUploadedImage(f.path);
-        return res.status(400).json({ message: 'Post must contain either text content or at least one photo.' });
+        return res.status(400).json({ message: 'Maximum 5 files allowed per post.' });
       }
 
-      // Handle removed media and safe cleanup
-      if (keepUrls !== null) {
-        for (const row of existingMedia) {
-          if (!keepUrls.includes(row.url)) {
-            await db.run('DELETE FROM post_media WHERE id = ?', row.id);
-            // Safe cleanup: delete blob only if no other post or post_media uses it
-            const refCount1 = await db.get('SELECT COUNT(*) AS c FROM post_media WHERE url = ? AND id != ?', row.url, row.id);
-            const refCount2 = await db.get('SELECT COUNT(*) AS c FROM posts WHERE attachment_url = ? AND id != ?', row.url, postId);
-            if ((Number(refCount1?.c || 0) + Number(refCount2?.c || 0)) === 0) {
-              if (/^\/uploads\/posts\/[a-f0-9-]+\.[a-z0-9]+$/i.test(row.url)) {
-                const filename = path.basename(row.url);
-                await db.deleteFileBlob(filename);
-                await removeUploadedImage(path.join(uploadDir, filename));
+      const totalAttachments = keptExistingMedia.length + allNewAttachments.length;
+      if (!newContent && totalAttachments === 0) {
+        for (const f of uploadedFiles) await removeUploadedImage(f.path);
+        return res.status(400).json({ message: 'Post must contain either text content or at least one photo or file.' });
+      }
+
+      const baseSortOrder = keptExistingMedia.length;
+      const newMediaRecords = allNewAttachments.map((att, i) => ({
+        stagingId: att.stagingId,
+        mediaType: att.media_type || 'image',
+        url: att.url,
+        mimeType: att.mime_type || null,
+        fileName: att.file_name || null,
+        fileSize: att.file_size || null,
+        sortOrder: baseSortOrder + i
+      }));
+
+      let updatedAttachmentUrl = null;
+
+      try {
+        await runTransaction(async (tx) => {
+          // 1. Remove unkept post_media
+          for (const row of removedMedia) {
+            await tx.run('DELETE FROM post_media WHERE id = ?', row.id);
+          }
+
+          // 2. Reorder retained media
+          if (keepUrls !== null) {
+            for (let i = 0; i < keepUrls.length; i++) {
+              const u = keepUrls[i];
+              await tx.run('UPDATE post_media SET sort_order = ? WHERE post_id = ? AND url = ?', i, postId, u);
+            }
+          }
+
+          // 3. Insert newly uploaded media and atomically commit staging records
+          for (const media of newMediaRecords) {
+            await tx.run(
+              `INSERT INTO post_media (post_id, media_type, url, mime_type, file_name, file_size, sort_order, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+              postId, media.mediaType, media.url, media.mimeType, media.fileName, media.fileSize, media.sortOrder, new Date().toISOString()
+            );
+
+            if (media.stagingId) {
+              const updateResult = await tx.run(
+                'UPDATE post_attachment_staging SET is_committed = 1, post_id = ? WHERE id = ? AND is_committed = 0',
+                postId, media.stagingId
+              );
+              const changes = updateResult ? (updateResult.changes ?? updateResult.rowCount ?? 1) : 1;
+              if (changes === 0) {
+                const err = new Error('Attachment has already been committed to another post.');
+                err.status = 409;
+                throw err;
               }
             }
           }
-        }
 
-        // Also check if legacy post.attachment_url was removed
-        if (post.attachment_url && !keepUrls.includes(post.attachment_url) && existingMedia.length === 0) {
-          const refCount1 = await db.get('SELECT COUNT(*) AS c FROM post_media WHERE url = ?', post.attachment_url);
-          const refCount2 = await db.get('SELECT COUNT(*) AS c FROM posts WHERE attachment_url = ? AND id != ?', post.attachment_url, postId);
-          if ((Number(refCount1?.c || 0) + Number(refCount2?.c || 0)) === 0) {
-            if (/^\/uploads\/posts\/[a-f0-9-]+\.[a-z0-9]+$/i.test(post.attachment_url)) {
-              const filename = path.basename(post.attachment_url);
-              await db.deleteFileBlob(filename);
-              await removeUploadedImage(path.join(uploadDir, filename));
-            }
+          // 4. Determine updated primary attachment_url
+          const allCurrentMedia = await tx.all(
+            'SELECT url, media_type FROM post_media WHERE post_id = ? ORDER BY sort_order ASC, id ASC',
+            postId
+          );
+          if (allCurrentMedia && allCurrentMedia.length > 0) {
+            const firstImg = allCurrentMedia.find(m => m.media_type === 'image') || allCurrentMedia[0];
+            updatedAttachmentUrl = firstImg.url;
+          } else if (keepUrls === null && keepIds === null) {
+            updatedAttachmentUrl = post.attachment_url;
+          } else if (keepUrls && keepUrls.includes(post.attachment_url)) {
+            updatedAttachmentUrl = post.attachment_url;
           }
+
+          // 5. Update post in place with edited_at timestamp
+          await tx.run(
+            'UPDATE posts SET content = ?, attachment_url = ?, edited_at = CURRENT_TIMESTAMP WHERE id = ?',
+            newContent, updatedAttachmentUrl, postId
+          );
+        });
+      } catch (txErr) {
+        // If final update fails, clean up newly uploaded unattached blobs safely (Requirement 8)
+        try {
+          await cleanupUnattachedBlobs(newMediaRecords);
+        } catch (cleanErr) {
+          console.error('[Post Edit Failure Blob Cleanup Error]:', cleanErr.message);
         }
-
-        // Reorder kept media if requested
-        for (let i = 0; i < keepUrls.length; i++) {
-          const u = keepUrls[i];
-          await db.run('UPDATE post_media SET sort_order = ? WHERE post_id = ? AND url = ?', i, postId, u);
-        }
+        if (txErr.status) return res.status(txErr.status).json({ message: txErr.message });
+        throw txErr;
       }
-
-      // Persist newly uploaded files
-      const savedBlobs = [];
-      req.savedBlobs = savedBlobs;
-      const baseSortOrder = keepUrls !== null ? keepUrls.length : existingMedia.length;
-      for (let i = 0; i < uploadedFiles.length; i++) {
-        const file = uploadedFiles[i];
-        const saved = await db.saveFileBlob(file.filename, await fs.promises.readFile(file.path), file.mimetype);
-        if (!saved) throw new Error('Could not persist post image.');
-        savedBlobs.push(file.filename);
-        const fileUrl = `/uploads/posts/${file.filename}`;
-        await db.run(
-          `INSERT INTO post_media (post_id, media_type, url, mime_type, sort_order, created_at)
-           VALUES (?, ?, ?, ?, ?, ?)`,
-          postId, 'image', fileUrl, file.mimetype, baseSortOrder + i, new Date().toISOString()
-        );
-      }
-
-      // Determine updated primary attachment_url
-      const allCurrentMedia = await db.all(
-        'SELECT url FROM post_media WHERE post_id = ? ORDER BY sort_order ASC, id ASC',
-        postId
-      );
-      let updatedAttachmentUrl = null;
-      if (allCurrentMedia.length > 0) {
-        updatedAttachmentUrl = allCurrentMedia[0].url;
-      } else if (keepUrls === null) {
-        updatedAttachmentUrl = post.attachment_url;
-      } else if (keepUrls.includes(post.attachment_url)) {
-        updatedAttachmentUrl = post.attachment_url;
-      }
-
-      // Update post in place (preserves comments, likes, submissions, created_at, user_id)
-      await db.run(
-        'UPDATE posts SET content = ?, attachment_url = ? WHERE id = ?',
-        newContent, updatedAttachmentUrl, postId
-      );
       req.postEdited = true;
+
+      // Safe cleanup of removed blobs AFTER database update succeeds
+      const removedBlobsToClean = removedMedia.map(m => m.url);
+      if (post.attachment_url && keepUrls && !keepUrls.includes(post.attachment_url) && existingMedia.length === 0) {
+        removedBlobsToClean.push(post.attachment_url);
+      }
+
+      await cleanupUnattachedBlobs(removedBlobsToClean);
 
       const updatedRow = await db.get(`${selectPosts} WHERE p.id = ?`, req.postUser.studentId, postId);
       const formatted = formatPost(updatedRow, req);
@@ -750,10 +1278,10 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
     }
     if (err instanceof multer.MulterError) {
       return res.status(err.code === 'LIMIT_FILE_SIZE' ? 413 : 400).json({
-        message: err.code === 'LIMIT_FILE_SIZE' ? 'Images must be 5 MB or smaller.' : err.code === 'LIMIT_FILE_COUNT' ? 'Maximum 10 images allowed per post.' : 'Upload valid images and text fields only.'
+        message: err.code === 'LIMIT_FILE_SIZE' ? 'Files must be 4 MB or smaller. For larger study materials, upload them to Semester Library.' : err.code === 'LIMIT_FILE_COUNT' ? 'Maximum allowed files exceeded.' : 'Upload valid files and text fields only.'
       });
     }
-    if (err.code === 'INVALID_IMAGE_TYPE') return res.status(400).json({ message: err.message });
+    if (err.code === 'INVALID_FILE_TYPE' || err.code === 'INVALID_IMAGE_TYPE') return res.status(400).json({ message: err.message });
     console.error('[Posts API Error]:', err.message);
     res.status(500).json({ message: 'Could not update or load posts. Please try again.' });
   });

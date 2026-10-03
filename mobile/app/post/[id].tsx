@@ -13,6 +13,7 @@ import {
   Modal,
   Keyboard,
   BackHandler,
+  Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -43,6 +44,7 @@ import {
   PostComment,
 } from '@/services/posts';
 import { PostMediaGallery } from '@/components/PostMediaGallery';
+import { PostFileAttachments } from '@/components/PostFileAttachments';
 import { EditPostModal } from '@/components/EditPostModal';
 import { CommentItem } from '@/components/CommentItem';
 
@@ -532,7 +534,10 @@ export default function PostDetailScreen() {
                     />
                   )}
                 </View>
-                <Caption color="muted">{formatTimeAgo(post.created_at || (post as any).createdAt || (post as any).timestamp)}</Caption>
+                <Caption color="muted">
+                  {formatTimeAgo(post.created_at || (post as any).createdAt || (post as any).timestamp)}
+                  {(post.edited_at || post.edited) ? ' • Edited' : ''}
+                </Caption>
               </View>
             </TouchableOpacity>
 
@@ -578,12 +583,27 @@ export default function PostDetailScreen() {
           </Text>
 
           {/* Attached Images: responsive grid with swipeable fullscreen gallery */}
-          {((Array.isArray(post.media) && post.media.length > 0) || post.attachment_url) && (
+          {((Array.isArray(post.media) && post.media.some((m) => (m.media_type || 'image') === 'image')) || post.attachment_url) && (
             <PostMediaGallery
-              media={post.media}
+              media={post.media ? post.media.filter((m) => (m.media_type || 'image') === 'image') : null}
               imageUrl={post.attachment_url}
               getFullUrl={getFullUrl}
               onDoubleTap={handleToggleLike}
+            />
+          )}
+
+          {/* Attached Documents & Files */}
+          {Array.isArray(post.media) && post.media.some((m) => m.media_type === 'file') && (
+            <PostFileAttachments
+              files={post.media.filter((m) => m.media_type === 'file')}
+              onOpenFile={async (file) => {
+                try {
+                  const resolved = getFullUrl(file.url);
+                  if (resolved) await Linking.openURL(resolved);
+                } catch {
+                  Alert.alert('Error', 'Could not open attached file.');
+                }
+              }}
             />
           )}
 

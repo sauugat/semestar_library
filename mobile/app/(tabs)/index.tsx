@@ -14,6 +14,7 @@ import {
   Switch,
   Animated,
   PanResponder,
+  Linking,
 } from 'react-native';
 import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import { Image } from 'expo-image';
@@ -49,6 +50,12 @@ import {
   Post,
   PostComment,
   LibraryFile,
+  MAX_ATTACHMENT_BYTES_PER_FILE,
+  MAX_POST_ATTACHMENT_BYTES,
+  formatAttachmentBytes,
+  uploadPostAttachment,
+  deletePostAttachment,
+  UploadedAttachment,
 } from '@/services/posts';
 import { getBaseUrl, getAutoDetectedServerUrl, DEFAULT_SERVER_URL } from '@/services/api';
 import { SearchOverlay } from '@/components/SearchOverlay';
@@ -56,8 +63,10 @@ import { initChatRealtime } from '@/services/chat-realtime';
 import { UploadNoteModal } from '@/components/UploadNoteModal';
 import { PostMediaGallery } from '@/components/PostMediaGallery';
 import { EditPostModal } from '@/components/EditPostModal';
+import { PostFileAttachments } from '@/components/PostFileAttachments';
 import { CommentItem } from '@/components/CommentItem';
 import { RawFileAsset } from '@/utils/file-upload';
+import * as DocumentPicker from 'expo-document-picker';
 
 function FeedSkeletonCard({ colors, radii }: { colors: any; radii: any }) {
   return (
@@ -933,7 +942,20 @@ export default function HomeScreen() {
   const [postContent, setPostContent] = useState('');
   const [postType, setPostType] = useState<'status' | 'notice' | 'assignment'>('status');
   const [isOfficialNotice, setIsOfficialNotice] = useState(false);
-  const [selectedImages, setSelectedImages] = useState<RawFileAsset[]>([]);
+  const [composerAttachments, setComposerAttachments] = useState<{
+    id: string;
+    uri: string;
+    name: string;
+    size?: number;
+    type?: string;
+    mediaType: 'image' | 'file';
+    status: 'idle' | 'uploading' | 'uploaded' | 'error';
+    progress: number;
+    uploaded?: UploadedAttachment;
+    error?: string;
+  }[]>([]);
+  const composerImages = useMemo(() => composerAttachments.filter((a) => a.mediaType === 'image'), [composerAttachments]);
+  const composerFiles = useMemo(() => composerAttachments.filter((a) => a.mediaType === 'file'), [composerAttachments]);
   const [editingPost, setEditingPost] = useState<Post | null>(null);
   const [submittingPost, setSubmittingPost] = useState(false);
   const [composerError, setComposerError] = useState<string | null>(null);
@@ -1173,9 +1195,50 @@ export default function HomeScreen() {
     }
   };
 
+  const uploadItem = useCallback(async (item: {
+    id: string;
+    uri: string;
+    name: string;
+    size?: number;
+    type?: string;
+    mediaType: 'image' | 'file';
+  }) => {
+    setComposerAttachments((prev) =>
+      prev.map((a) => (a.id === item.id ? { ...a, status: 'uploading', progress: 0, error: undefined } : a))
+    );
+
+    try {
+      const res = await uploadPostAttachment(
+        {
+          uri: item.uri,
+          name: item.name,
+          type: item.type || (item.mediaType === 'image' ? 'image/jpeg' : 'application/octet-stream'),
+          size: item.size,
+        },
+        (pct) => {
+          setComposerAttachments((prev) =>
+            prev.map((a) => (a.id === item.id ? { ...a, progress: pct } : a))
+          );
+        }
+      );
+
+      setComposerAttachments((prev) =>
+        prev.map((a) =>
+          a.id === item.id ? { ...a, status: 'uploaded', progress: 100, uploaded: res } : a
+        )
+      );
+    } catch (err: any) {
+      setComposerAttachments((prev) =>
+        prev.map((a) =>
+          a.id === item.id ? { ...a, status: 'error', error: err.message || 'Upload failed' } : a
+        )
+      );
+    }
+  }, []);
+
   const handlePickImage = async () => {
     try {
-      const remainingSlots = 10 - selectedImages.length;
+      const remainingSlots = 10 - composerImages.length;
       if (remainingSlots <= 0) {
         Alert.alert('Limit Reached', 'You can attach up to 10 photos per post.');
         return;
@@ -1194,37 +1257,172 @@ export default function HomeScreen() {
         mediaTypes: ['images'],
         allowsMultipleSelection: true,
         selectionLimit: remainingSlots,
-        quality: 0.8,
+        quality: 0.7,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setSelectedImages((prev) => {
-          const existingUris = new Set(prev.map((a) => a.uri));
-          const newAssets: RawFileAsset[] = result.assets
-            .filter((a) => !existingUris.has(a.uri))
-            .map((a, idx) => ({
-              uri: a.uri,
-              name: a.fileName || `post_photo_${Date.now()}_${idx}.jpg`,
-              type: a.mimeType || 'image/jpeg',
-              size: a.fileSize,
-            }));
-          return [...prev, ...newAssets].slice(0, 10);
-        });
+        const existingUris = new Set(composerAttachments.map((a) => a.uri));
+        const oversized = result.assets.filter((a) => a.fileSize && a.fileSize > MAX_ATTACHMENT_BYTES_PER_FILE);
+        if (oversized.length > 0) {
+          Alert.alert(
+            'Photo Too Large',
+            'Photos must be 4 MB or smaller each. For larger study materials, upload them to the Library.'
+          );
+        }
+
+        const validAssets = result.assets.filter(
+          (a) => !existingUris.has(a.uri) && (!a.fileSize || a.fileSize <= MAX_ATTACHMENT_BYTES_PER_FILE)
+        );
+
+        const newItems = validAssets.slice(0, remainingSlots).map((a, idx) => ({
+          id: `img_${Date.now()}_${idx}_${Math.random().toString(36).slice(2, 7)}`,
+          uri: a.uri,
+          name: a.fileName || `post_photo_${Date.now()}_${idx}.jpg`,
+          size: a.fileSize,
+          type: a.mimeType || 'image/jpeg',
+          mediaType: 'image' as const,
+          status: 'idle' as const,
+          progress: 0,
+        }));
+
+        if (newItems.length > 0) {
+          setComposerAttachments((prev) => [...prev, ...newItems]);
+          newItems.forEach((item) => void uploadItem(item));
+        }
       }
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Could not select images.');
     }
   };
 
-  const handleRemoveComposerImage = (indexToRemove: number) => {
-    setSelectedImages((prev) => prev.filter((_, idx) => idx !== indexToRemove));
+  const handleRemoveComposerImage = (idToRemove: string) => {
+    const target = composerAttachments.find((a) => a.id === idToRemove);
+    if (target?.uploaded?.filename) {
+      void deletePostAttachment(target.uploaded.filename);
+    }
+    setComposerAttachments((prev) => prev.filter((a) => a.id !== idToRemove));
+  };
+
+  const handleMoveComposerImage = (fromIdx: number, toIdx: number) => {
+    const images = composerAttachments.filter((a) => a.mediaType === 'image');
+    if (toIdx < 0 || toIdx >= images.length) return;
+    const fromItem = images[fromIdx];
+    const toItem = images[toIdx];
+    setComposerAttachments((prev) => {
+      const next = [...prev];
+      const actualFrom = next.findIndex((a) => a.id === fromItem.id);
+      const actualTo = next.findIndex((a) => a.id === toItem.id);
+      if (actualFrom === -1 || actualTo === -1) return prev;
+      const temp = next[actualFrom];
+      next[actualFrom] = next[actualTo];
+      next[actualTo] = temp;
+      return next;
+    });
+  };
+
+  const handlePickDocument = async () => {
+    try {
+      const remainingSlots = 5 - composerFiles.length;
+      if (remainingSlots <= 0) {
+        Alert.alert('Limit Reached', 'You can attach up to 5 files per post.');
+        return;
+      }
+
+      const result = await DocumentPicker.getDocumentAsync({
+        type: [
+          'application/pdf',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'application/vnd.ms-powerpoint',
+          'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+          'application/vnd.ms-excel',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'text/plain',
+          'application/zip',
+          '*/*',
+        ],
+        multiple: true,
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const oversized = result.assets.filter((a) => a.size && a.size > MAX_ATTACHMENT_BYTES_PER_FILE);
+        if (oversized.length > 0) {
+          Alert.alert(
+            'File Too Large',
+            'Documents must be 4 MB or smaller each. For larger notes, slides, or books, please upload directly to the Semester Library.'
+          );
+        }
+
+        const existingUris = new Set(composerAttachments.map((a) => a.uri));
+        const validAssets = result.assets.filter(
+          (a) => !existingUris.has(a.uri) && (!a.size || a.size <= MAX_ATTACHMENT_BYTES_PER_FILE)
+        );
+
+        const newItems = validAssets.slice(0, remainingSlots).map((a, idx) => ({
+          id: `doc_${Date.now()}_${idx}_${Math.random().toString(36).slice(2, 7)}`,
+          uri: a.uri,
+          name: a.name,
+          size: a.size,
+          type: a.mimeType || 'application/octet-stream',
+          mediaType: 'file' as const,
+          status: 'idle' as const,
+          progress: 0,
+        }));
+
+        if (newItems.length > 0) {
+          setComposerAttachments((prev) => [...prev, ...newItems]);
+          newItems.forEach((item) => void uploadItem(item));
+        }
+      }
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Could not select document.');
+    }
+  };
+
+  const handleRemoveComposerFile = (idToRemove: string) => {
+    const target = composerAttachments.find((a) => a.id === idToRemove);
+    if (target?.uploaded?.filename) {
+      void deletePostAttachment(target.uploaded.filename);
+    }
+    setComposerAttachments((prev) => prev.filter((a) => a.id !== idToRemove));
+  };
+
+  const handleRetryUpload = (idToRetry: string) => {
+    const target = composerAttachments.find((a) => a.id === idToRetry);
+    if (target) {
+      void uploadItem(target);
+    }
+  };
+
+  const handleOpenAttachedFile = async (file: any) => {
+    try {
+      const fileUrl = getFullImageUrl(file.url);
+      if (fileUrl) {
+        await Linking.openURL(fileUrl);
+      }
+    } catch {
+      Alert.alert('Error', 'Could not open attached file.');
+    }
   };
 
   const handlePublishPost = async () => {
     const hasText = Boolean(postContent.trim());
-    const hasImages = selectedImages.length > 0;
-    if (!hasText && !hasImages) {
-      setComposerError('Please write some content or attach at least one photo.');
+    const hasAttachments = composerAttachments.length > 0;
+    if (!hasText && !hasAttachments) {
+      setComposerError('Please write some content or attach at least one photo or file.');
+      return;
+    }
+
+    const hasFailed = composerAttachments.some((a) => a.status === 'error');
+    if (hasFailed) {
+      setComposerError('Some attachments failed to upload. Please tap Retry on the failed files or remove them before posting.');
+      return;
+    }
+
+    const isUploading = composerAttachments.some((a) => a.status === 'uploading' || a.status === 'idle');
+    if (isUploading) {
+      setComposerError('Attachments are still uploading. Please wait a moment.');
       return;
     }
 
@@ -1232,11 +1430,15 @@ export default function HomeScreen() {
     setComposerError(null);
 
     try {
+      const attachments = composerAttachments
+        .map((a) => a.uploaded!)
+        .filter(Boolean);
+
       const newPost = await createPost({
         content: postContent,
         type: isPrivileged ? postType : 'status',
         official: isPrivileged && postType === 'notice' && isOfficialNotice,
-        images: selectedImages,
+        attachments,
       });
 
       setPosts((prev) => [newPost, ...prev]);
@@ -1246,7 +1448,7 @@ export default function HomeScreen() {
       );
 
       setPostContent('');
-      setSelectedImages([]);
+      setComposerAttachments([]);
       setPostType('status');
       setIsOfficialNotice(false);
       setComposerOpen(false);
@@ -1775,6 +1977,7 @@ export default function HomeScreen() {
               </View>
               <Caption color="muted">
                 {formatRelativeTime(item.created_at)}
+                {(item.edited_at || item.edited) ? ' • Edited' : ''}
               </Caption>
             </View>
           </TouchableOpacity>
@@ -1844,12 +2047,20 @@ export default function HomeScreen() {
         </TouchableOpacity>
 
         {/* Attached Images: responsive grid (1, 2, 3, 4+) with swipeable fullscreen gallery */}
-        {((Array.isArray(item.media) && item.media.length > 0) || item.attachment_url) && (
+        {((Array.isArray(item.media) && item.media.some((m) => (m.media_type || 'image') === 'image')) || item.attachment_url) && (
           <PostMediaGallery
-            media={item.media}
+            media={item.media ? item.media.filter((m) => (m.media_type || 'image') === 'image') : null}
             imageUrl={item.attachment_url}
             getFullUrl={getFullImageUrl}
             onDoubleTap={() => handleDoubleTapLike(item.id)}
+          />
+        )}
+
+        {/* Attached Documents & Files */}
+        {Array.isArray(item.media) && item.media.some((m) => m.media_type === 'file') && (
+          <PostFileAttachments
+            files={item.media.filter((m) => m.media_type === 'file')}
+            onOpenFile={handleOpenAttachedFile}
           />
         )}
 
@@ -2264,11 +2475,67 @@ export default function HomeScreen() {
                 size="sm"
                 variant="primary"
                 loading={submittingPost}
-                disabled={(!postContent.trim() && selectedImages.length === 0) || submittingPost}
+                disabled={
+                  (!postContent.trim() && composerAttachments.length === 0) ||
+                  composerAttachments.some((a) => a.status === 'uploading' || a.status === 'error') ||
+                  submittingPost
+                }
                 onPress={handlePublishPost}
                 style={{ minWidth: 68 }}
               />
             </View>
+
+            {/* Upload Status Indicator */}
+            {composerAttachments.length > 0 && (() => {
+              const isUploading = composerAttachments.some((a) => a.status === 'uploading' || a.status === 'idle');
+              const hasError = composerAttachments.some((a) => a.status === 'error');
+              const allUploaded = composerAttachments.every((a) => a.status === 'uploaded');
+
+              let text = `${composerAttachments.length} attachment${composerAttachments.length > 1 ? 's' : ''} (${composerImages.length} photo${composerImages.length !== 1 ? 's' : ''}, ${composerFiles.length} file${composerFiles.length !== 1 ? 's' : ''})`;
+              let icon: keyof typeof Ionicons.glyphMap = 'cloud-upload-outline';
+              let color = colors.textSecondary;
+              let bgColor = colors.surfaceSubtle;
+              let borderColor = colors.border;
+
+              if (hasError) {
+                text = 'Some uploads failed. Tap "Retry" on failed items.';
+                icon = 'alert-circle';
+                color = '#DC2626';
+                bgColor = '#FEF2F2';
+                borderColor = '#FCA5A5';
+              } else if (isUploading) {
+                text = 'Uploading attachments independently...';
+                icon = 'sync-outline';
+                color = colors.primary;
+                bgColor = colors.surfaceRaised;
+                borderColor = colors.border;
+              } else if (allUploaded) {
+                text = `All ${composerAttachments.length} attachments ready (each verified <= 4 MB)`;
+                icon = 'checkmark-circle';
+                color = '#10B981';
+                bgColor = '#ECFDF5';
+                borderColor = '#A7F3D0';
+              }
+
+              return (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    paddingHorizontal: spacing.md,
+                    paddingVertical: 8,
+                    backgroundColor: bgColor,
+                    borderBottomWidth: 1,
+                    borderBottomColor: borderColor,
+                  }}
+                >
+                  <Ionicons name={icon} size={15} color={color} style={{ marginRight: 6 }} />
+                  <Text variant="xs" weight="600" style={{ color, flex: 1 }}>
+                    {text}
+                  </Text>
+                </View>
+              );
+            })()}
 
             <KeyboardAwareForm
               style={{ flex: 1 }}
@@ -2400,13 +2667,13 @@ export default function HomeScreen() {
               </View>
 
               {/* Attached Images Preview Strip */}
-              {selectedImages.length > 0 && (
+              {composerImages.length > 0 && (
                 <View style={{ marginTop: spacing.sm }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                     <Caption color="muted">
-                      Attached Photos ({selectedImages.length} / 10)
+                      Attached Photos ({composerImages.length} / 10)
                     </Caption>
-                    {selectedImages.length < 10 && (
+                    {composerImages.length < 10 && (
                       <TouchableOpacity
                         onPress={handlePickImage}
                         disabled={submittingPost}
@@ -2423,16 +2690,16 @@ export default function HomeScreen() {
                     showsHorizontalScrollIndicator={false}
                     contentContainerStyle={{ gap: 8, paddingVertical: 4 }}
                   >
-                    {selectedImages.map((asset, idx) => (
+                    {composerImages.map((asset, idx) => (
                       <View
-                        key={`asset-${asset.uri}-${idx}`}
+                        key={`asset-${asset.id}`}
                         style={{
-                          width: 80,
-                          height: 80,
+                          width: 88,
+                          height: 88,
                           borderRadius: radii.md,
                           overflow: 'hidden',
                           borderWidth: 1,
-                          borderColor: colors.border,
+                          borderColor: asset.status === 'error' ? '#EF4444' : colors.border,
                           backgroundColor: colors.surfaceRaised,
                           position: 'relative',
                         }}
@@ -2442,8 +2709,67 @@ export default function HomeScreen() {
                           style={{ width: '100%', height: '100%' }}
                           contentFit="cover"
                         />
+
+                        {/* Upload Status Overlay */}
+                        {asset.status === 'uploading' && (
+                          <View
+                            style={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              bottom: 0,
+                              backgroundColor: 'rgba(0,0,0,0.5)',
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                            }}
+                          >
+                            <ActivityIndicator size="small" color="#ffffff" />
+                            <Text style={{ color: '#ffffff', fontSize: 10, fontWeight: '700', marginTop: 2 }}>
+                              {asset.progress}%
+                            </Text>
+                          </View>
+                        )}
+
+                        {asset.status === 'uploaded' && (
+                          <View
+                            style={{
+                              position: 'absolute',
+                              bottom: 22,
+                              right: 4,
+                              backgroundColor: 'rgba(16, 185, 129, 0.9)',
+                              borderRadius: 8,
+                              padding: 2,
+                            }}
+                          >
+                            <Ionicons name="checkmark" size={12} color="#ffffff" />
+                          </View>
+                        )}
+
+                        {asset.status === 'error' && (
+                          <TouchableOpacity
+                            onPress={() => handleRetryUpload(asset.id)}
+                            style={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              bottom: 0,
+                              backgroundColor: 'rgba(239, 68, 68, 0.8)',
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                              padding: 4,
+                            }}
+                          >
+                            <Ionicons name="alert-circle" size={20} color="#ffffff" />
+                            <Text style={{ color: '#ffffff', fontSize: 10, fontWeight: '700', marginTop: 2 }}>
+                              Retry
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+
                         <TouchableOpacity
-                          onPress={() => handleRemoveComposerImage(idx)}
+                          onPress={() => handleRemoveComposerImage(asset.id)}
                           disabled={submittingPost}
                           style={{
                             position: 'absolute',
@@ -2458,36 +2784,183 @@ export default function HomeScreen() {
                         >
                           <Ionicons name="close-circle" size={20} color="#EF4444" />
                         </TouchableOpacity>
+
+                        {/* Reorder controls if more than 1 image */}
+                        {composerImages.length > 1 && (
+                          <View
+                            style={{
+                              position: 'absolute',
+                              bottom: 0,
+                              left: 0,
+                              right: 0,
+                              height: 20,
+                              backgroundColor: 'rgba(0,0,0,0.6)',
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              paddingHorizontal: 2,
+                            }}
+                          >
+                            {idx > 0 ? (
+                              <TouchableOpacity onPress={() => handleMoveComposerImage(idx, idx - 1)}>
+                                <Ionicons name="chevron-back" size={13} color="#ffffff" />
+                              </TouchableOpacity>
+                            ) : <View style={{ width: 13 }} />}
+                            <Text style={{ color: '#ffffff', fontSize: 10, fontWeight: '700' }}>{idx + 1}</Text>
+                            {idx < composerImages.length - 1 ? (
+                              <TouchableOpacity onPress={() => handleMoveComposerImage(idx, idx + 1)}>
+                                <Ionicons name="chevron-forward" size={13} color="#ffffff" />
+                              </TouchableOpacity>
+                            ) : <View style={{ width: 13 }} />}
+                          </View>
+                        )}
                       </View>
                     ))}
                   </ScrollView>
                 </View>
               )}
 
+              {/* Attached Files & Documents List */}
+              {composerFiles.length > 0 && (
+                <View style={{ marginTop: spacing.md }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <Caption color="muted">
+                      Attached Files ({composerFiles.length} / 5)
+                    </Caption>
+                    {composerFiles.length < 5 && (
+                      <TouchableOpacity
+                        onPress={handlePickDocument}
+                        disabled={submittingPost}
+                        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                      >
+                        <Text variant="xs" weight="700" style={{ color: colors.primary }}>
+                          + Add More
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                  <View style={{ gap: 6 }}>
+                    {composerFiles.map((file) => (
+                      <View
+                        key={`composer-file-${file.id}`}
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          padding: 8,
+                          borderRadius: radii.md,
+                          borderWidth: 1,
+                          borderColor: file.status === 'error' ? '#EF4444' : colors.border,
+                          backgroundColor: colors.surfaceRaised,
+                        }}
+                      >
+                        <Ionicons name="document-text-outline" size={20} color={colors.text} style={{ marginRight: 8 }} />
+                        <View style={{ flex: 1, marginRight: 6 }}>
+                          <Text variant="xs" weight="600" numberOfLines={1}>
+                            {file.name}
+                          </Text>
+                          {Boolean(file.size) && (
+                            <Caption color="muted">
+                              {(Number(file.size) / (1024 * 1024)).toFixed(1)} MB
+                            </Caption>
+                          )}
+                        </View>
+
+                        {/* Upload Status / Retry Button */}
+                        {file.status === 'uploading' && (
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginRight: 8 }}>
+                            <ActivityIndicator size="small" color={colors.primary} />
+                            <Text variant="xs" style={{ color: colors.primary }}>{file.progress}%</Text>
+                          </View>
+                        )}
+
+                        {file.status === 'uploaded' && (
+                          <View style={{ marginRight: 8 }}>
+                            <Ionicons name="checkmark-circle" size={18} color="#10B981" />
+                          </View>
+                        )}
+
+                        {file.status === 'error' && (
+                          <TouchableOpacity
+                            onPress={() => handleRetryUpload(file.id)}
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              gap: 3,
+                              backgroundColor: '#FEE2E2',
+                              paddingHorizontal: 8,
+                              paddingVertical: 3,
+                              borderRadius: radii.sm,
+                              marginRight: 8,
+                            }}
+                          >
+                            <Ionicons name="refresh" size={12} color="#DC2626" />
+                            <Text style={{ color: '#DC2626', fontSize: 10, fontWeight: '700' }}>Retry</Text>
+                          </TouchableOpacity>
+                        )}
+
+                        <TouchableOpacity
+                          onPress={() => handleRemoveComposerFile(file.id)}
+                          disabled={submittingPost}
+                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                        >
+                          <Ionicons name="close-circle" size={18} color="#EF4444" />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
+
               {/* Attachments Toolbar */}
               <View style={[styles.modalToolbar, { borderTopColor: colors.border, marginTop: spacing.lg }]}>
-                <TouchableOpacity
-                  onPress={handlePickImage}
-                  disabled={submittingPost || selectedImages.length >= 10}
-                  style={[
-                    styles.attachPhotoBtn,
-                    {
-                      backgroundColor: colors.surfaceRaised,
-                      borderColor: colors.border,
-                      borderRadius: radii.md,
-                      opacity: selectedImages.length >= 10 ? 0.5 : 1,
-                    },
-                  ]}
-                >
-                  <Ionicons name="image-outline" size={18} color={colors.text} style={{ marginRight: 6 }} />
-                  <Text variant="xs" weight="600" color="primary">
-                    {selectedImages.length > 0 ? '+ Add More Photos' : 'Add Photos'}
-                  </Text>
-                </TouchableOpacity>
-
-                {selectedImages.length > 0 && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <TouchableOpacity
-                    onPress={() => setSelectedImages([])}
+                    onPress={handlePickImage}
+                    disabled={submittingPost || composerImages.length >= 10}
+                    style={[
+                      styles.attachPhotoBtn,
+                      {
+                        backgroundColor: colors.surfaceRaised,
+                        borderColor: colors.border,
+                        borderRadius: radii.md,
+                        opacity: composerImages.length >= 10 ? 0.5 : 1,
+                      },
+                    ]}
+                  >
+                    <Ionicons name="image-outline" size={18} color={colors.text} style={{ marginRight: 6 }} />
+                    <Text variant="xs" weight="600" color="primary">
+                      {composerImages.length > 0 ? '+ Photos' : 'Add Photos'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={handlePickDocument}
+                    disabled={submittingPost || composerFiles.length >= 5}
+                    style={[
+                      styles.attachPhotoBtn,
+                      {
+                        backgroundColor: colors.surfaceRaised,
+                        borderColor: colors.border,
+                        borderRadius: radii.md,
+                        opacity: composerFiles.length >= 5 ? 0.5 : 1,
+                      },
+                    ]}
+                  >
+                    <Ionicons name="attach-outline" size={18} color={colors.text} style={{ marginRight: 6 }} />
+                    <Text variant="xs" weight="600" color="primary">
+                      {composerFiles.length > 0 ? '+ Files' : 'Add Files'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {composerAttachments.length > 0 && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      composerAttachments.forEach((a) => {
+                        if (a.uploaded?.filename) void deletePostAttachment(a.uploaded.filename);
+                      });
+                      setComposerAttachments([]);
+                    }}
                     disabled={submittingPost}
                     style={{ padding: 8 }}
                   >

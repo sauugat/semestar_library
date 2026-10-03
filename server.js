@@ -4031,6 +4031,22 @@ app.all('/api/internal/push/receipts', verifyInternalCron, async (req, res) => {
   }
 });
 
+app.all('/api/internal/posts/cleanup-staging', verifyInternalCron, async (req, res) => {
+  try {
+    const ttlHours = req.query?.ttlHours !== undefined ? Number(req.query.ttlHours) : (req.body?.ttlHours !== undefined ? Number(req.body.ttlHours) : 24);
+    const { cleanupAbandonedStagedAttachments } = require('./lib/posts');
+    const POST_UPLOAD_DIR = process.env.VERCEL
+      ? path.join('/tmp', 'uploads', 'posts')
+      : path.join(__dirname, 'public', 'uploads', 'posts');
+    const result = await cleanupAbandonedStagedAttachments(db, { ttlHours, uploadDir: POST_UPLOAD_DIR });
+    return res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('[Cleanup Staging Worker Error]:', err.message);
+    return res.status(500).json({ message: 'Staging cleanup failed.', error: err.message });
+  }
+});
+
+
 // ============================================================
 // PROFILE & SOCIAL GRAPH SYSTEM
 // ============================================================

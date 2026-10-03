@@ -13,7 +13,7 @@
     },
     {
       "path": "/api/internal/posts/cleanup-staging",
-      "schedule": "0 * * * *"
+      "schedule": "0 2 * * *"
     }
   ]
 }

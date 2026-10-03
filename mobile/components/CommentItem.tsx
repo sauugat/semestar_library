@@ -22,6 +22,7 @@ interface CommentItemProps {
   getFullUrl: (path?: any) => string | null;
   currentUserId?: string | null;
   isAdmin?: boolean;
+  highlightCommentId?: number | null;
 }
 
 export function CommentItem({
@@ -33,10 +34,28 @@ export function CommentItem({
   getFullUrl,
   currentUserId,
   isAdmin,
+  highlightCommentId,
 }: CommentItemProps) {
   const router = useRouter();
   const { colors, spacing, radii } = useTheme();
-  const [repliesExpanded, setRepliesExpanded] = useState(false);
+
+  const replies = comment.replies || [];
+  const replyCount = comment.replyCount ?? replies.length;
+  const hasReplies = replyCount > 0;
+
+  // Auto-expand replies if the highlighted comment is one of the replies
+  const containsHighlightedReply = Boolean(
+    highlightCommentId && replies.some((r) => r.id === highlightCommentId)
+  );
+  const [repliesExpanded, setRepliesExpanded] = useState(containsHighlightedReply);
+
+  React.useEffect(() => {
+    if (containsHighlightedReply) {
+      setRepliesExpanded(true);
+    }
+  }, [containsHighlightedReply]);
+
+  const isHighlighted = highlightCommentId != null && comment.id === highlightCommentId;
 
   const isAuthor = Boolean(
     currentUserId && (comment.userId === currentUserId || comment.studentId === currentUserId)
@@ -47,11 +66,6 @@ export function CommentItem({
   const avatarUrl = getFullUrl(comment.avatarUrl);
   const isCommentAuthorAdmin = comment.role === 'admin';
   const isCR = comment.role === 'cr';
-
-  const replies = comment.replies || [];
-  const replyCount = comment.replyCount ?? replies.length;
-  const hasReplies = replyCount > 0;
-
   const navigateToProfile = (studentId?: string | null) => {
     if (studentId) {
       router.push({ pathname: '/user/[id]', params: { id: studentId } });
@@ -66,7 +80,8 @@ export function CommentItem({
           styles.commentCard,
           {
             backgroundColor: colors.surface,
-            borderColor: colors.border,
+            borderColor: isHighlighted ? colors.primary : colors.border,
+            borderWidth: isHighlighted ? 1.5 : 1,
             opacity: comment.isDeleted ? 0.7 : 1,
           },
         ]}
@@ -258,6 +273,8 @@ export function CommentItem({
             const canEditReply = !reply.isDeleted && (reply.canEdit || isReplyAuthor);
             const isReplyAdmin = reply.role === 'admin';
 
+            const isReplyHighlighted = highlightCommentId != null && reply.id === highlightCommentId;
+
             return (
               <View key={reply.id} style={styles.replyRow}>
                 {/* Visual Thread Guide Line */}
@@ -269,7 +286,8 @@ export function CommentItem({
                     styles.replyCard,
                     {
                       backgroundColor: colors.surfaceRaised,
-                      borderColor: colors.border,
+                      borderColor: isReplyHighlighted ? colors.primary : colors.border,
+                      borderWidth: isReplyHighlighted ? 1.5 : 1,
                       opacity: reply.isDeleted ? 0.7 : 1,
                     },
                   ]}

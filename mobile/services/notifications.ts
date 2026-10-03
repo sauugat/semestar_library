@@ -66,12 +66,36 @@ export interface NoticeNotificationData extends BaseNotificationData {
   postId?: number;
 }
 
+export interface PostCommentNotificationData extends BaseNotificationData {
+  type: 'post_comment';
+  postId: number;
+  commentId?: number;
+}
+
+export interface CommentReplyNotificationData extends BaseNotificationData {
+  type: 'comment_reply';
+  postId: number;
+  commentId?: number;
+  replyId?: number;
+}
+
+export interface CommentReactionNotificationData extends BaseNotificationData {
+  type: 'comment_reaction';
+  postId: number;
+  commentId?: number;
+  replyId?: number;
+  reactionType?: string;
+}
+
 export type NotificationPayload =
   | ChatNotificationData
   | MaterialNotificationData
   | MaterialBatchNotificationData
   | PostNotificationData
-  | NoticeNotificationData;
+  | NoticeNotificationData
+  | PostCommentNotificationData
+  | CommentReplyNotificationData
+  | CommentReactionNotificationData;
 
 export interface NotificationPreferences {
   muteChat: boolean;
@@ -516,6 +540,59 @@ export function parseNotificationData(raw: unknown): NotificationPayload | null 
     }
   }
 
+  if (type === 'post_comment') {
+    const postId = Number(data.postId);
+    if (Number.isFinite(postId) && postId > 0) {
+      const commentId = Number(data.commentId);
+      return {
+        type: 'post_comment',
+        postId,
+        commentId: Number.isFinite(commentId) && commentId > 0 ? commentId : undefined,
+        actorId: data.actorId ? String(data.actorId) : undefined,
+        actorName: data.actorName ? String(data.actorName) : undefined,
+        groupKey: data.groupKey,
+        collapseId: data.collapseId,
+      };
+    }
+  }
+
+  if (type === 'comment_reply') {
+    const postId = Number(data.postId);
+    if (Number.isFinite(postId) && postId > 0) {
+      const commentId = Number(data.commentId);
+      const replyId = Number(data.replyId);
+      return {
+        type: 'comment_reply',
+        postId,
+        commentId: Number.isFinite(commentId) && commentId > 0 ? commentId : undefined,
+        replyId: Number.isFinite(replyId) && replyId > 0 ? replyId : undefined,
+        actorId: data.actorId ? String(data.actorId) : undefined,
+        actorName: data.actorName ? String(data.actorName) : undefined,
+        groupKey: data.groupKey,
+        collapseId: data.collapseId,
+      };
+    }
+  }
+
+  if (type === 'comment_reaction') {
+    const postId = Number(data.postId);
+    if (Number.isFinite(postId) && postId > 0) {
+      const commentId = Number(data.commentId);
+      const replyId = Number(data.replyId);
+      return {
+        type: 'comment_reaction',
+        postId,
+        commentId: Number.isFinite(commentId) && commentId > 0 ? commentId : undefined,
+        replyId: Number.isFinite(replyId) && replyId > 0 ? replyId : undefined,
+        reactionType: data.reactionType ? String(data.reactionType) : 'like',
+        actorId: data.actorId ? String(data.actorId) : undefined,
+        actorName: data.actorName ? String(data.actorName) : undefined,
+        groupKey: data.groupKey,
+        collapseId: data.collapseId,
+      };
+    }
+  }
+
   return null;
 }
 
@@ -600,6 +677,19 @@ export function navigateFromNotification(
         // Navigate to dedicated notice detail page
         router.replace(`/notice/${payload.noticeId}`);
         break;
+
+      case 'post_comment':
+      case 'comment_reply':
+      case 'comment_reaction': {
+        const params: { id: number; commentId?: string; replyId?: string } = { id: payload.postId };
+        if (payload.commentId) params.commentId = String(payload.commentId);
+        if ('replyId' in payload && payload.replyId) params.replyId = String(payload.replyId);
+        router.replace({
+          pathname: '/post/[id]',
+          params,
+        });
+        break;
+      }
 
       default:
         router.replace('/(tabs)');

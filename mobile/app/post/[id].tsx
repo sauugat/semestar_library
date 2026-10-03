@@ -47,8 +47,9 @@ import { EditPostModal } from '@/components/EditPostModal';
 import { CommentItem } from '@/components/CommentItem';
 
 export default function PostDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, commentId, replyId } = useLocalSearchParams<{ id: string; commentId?: string; replyId?: string }>();
   const postId = Number(id);
+  const targetHighlightId = replyId ? Number(replyId) : (commentId ? Number(commentId) : null);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colors, spacing, radii } = useTheme();
@@ -651,6 +652,7 @@ export default function PostDetailScreen() {
               getFullUrl={getFullUrl}
               currentUserId={user?.studentId || null}
               isAdmin={user?.role === 'admin'}
+              highlightCommentId={targetHighlightId}
             />
           ))
         )}

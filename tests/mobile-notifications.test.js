@@ -37,6 +37,47 @@ function parseNotificationData(raw) {
     }
   }
 
+  if (type === 'post_comment') {
+    const postId = Number(data.postId);
+    if (Number.isFinite(postId) && postId > 0) {
+      const commentId = Number(data.commentId);
+      return {
+        type: 'post_comment',
+        postId,
+        commentId: Number.isFinite(commentId) && commentId > 0 ? commentId : undefined,
+      };
+    }
+  }
+
+  if (type === 'comment_reply') {
+    const postId = Number(data.postId);
+    if (Number.isFinite(postId) && postId > 0) {
+      const commentId = Number(data.commentId);
+      const replyId = Number(data.replyId);
+      return {
+        type: 'comment_reply',
+        postId,
+        commentId: Number.isFinite(commentId) && commentId > 0 ? commentId : undefined,
+        replyId: Number.isFinite(replyId) && replyId > 0 ? replyId : undefined,
+      };
+    }
+  }
+
+  if (type === 'comment_reaction') {
+    const postId = Number(data.postId);
+    if (Number.isFinite(postId) && postId > 0) {
+      const commentId = Number(data.commentId);
+      const replyId = Number(data.replyId);
+      return {
+        type: 'comment_reaction',
+        postId,
+        commentId: Number.isFinite(commentId) && commentId > 0 ? commentId : undefined,
+        replyId: Number.isFinite(replyId) && replyId > 0 ? replyId : undefined,
+        reactionType: data.reactionType || 'like',
+      };
+    }
+  }
+
   return null;
 }
 
@@ -74,6 +115,17 @@ test('Mobile Push Notification Integration (Phase C Client Contracts)', async (t
 
     const parsedMissing = parseNotificationData({ type: 'notice' });
     assert.equal(parsedMissing, null);
+  });
+
+  await t.test('4b. parseNotificationData validates comment, reply, and reaction payloads', () => {
+    const parsedComment = parseNotificationData({ type: 'post_comment', postId: 10, commentId: 20 });
+    assert.deepEqual(parsedComment, { type: 'post_comment', postId: 10, commentId: 20 });
+
+    const parsedReply = parseNotificationData({ type: 'comment_reply', postId: 10, commentId: 20, replyId: 30 });
+    assert.deepEqual(parsedReply, { type: 'comment_reply', postId: 10, commentId: 20, replyId: 30 });
+
+    const parsedReaction = parseNotificationData({ type: 'comment_reaction', postId: 10, commentId: 20, reactionType: 'like' });
+    assert.deepEqual(parsedReaction, { type: 'comment_reaction', postId: 10, commentId: 20, replyId: undefined, reactionType: 'like' });
   });
 
   await t.test('5. parseNotificationData rejects malformed / unknown types safely', () => {
@@ -188,6 +240,15 @@ test('Mobile Push Notification Integration (Phase C Client Contracts)', async (t
         case 'notice':
           mockRouter.replace({ pathname: '/notices', params: { id: String(payload.noticeId) } });
           break;
+        case 'post_comment':
+        case 'comment_reply':
+        case 'comment_reaction': {
+          const params = { id: payload.postId };
+          if (payload.commentId) params.commentId = String(payload.commentId);
+          if (payload.replyId) params.replyId = String(payload.replyId);
+          mockRouter.replace({ pathname: '/post/[id]', params });
+          break;
+        }
       }
     };
 
@@ -195,12 +256,16 @@ test('Mobile Push Notification Integration (Phase C Client Contracts)', async (t
     dispatchNotification({ type: 'material', fileId: 88 });
     dispatchNotification({ type: 'post', postId: 77 });
     dispatchNotification({ type: 'notice', noticeId: 66 });
+    dispatchNotification({ type: 'post_comment', postId: 55, commentId: 44 });
+    dispatchNotification({ type: 'comment_reply', postId: 55, commentId: 44, replyId: 33 });
 
     assert.deepEqual(routesDispatched, [
       '/(tabs)/chat',
       '/material/88',
       { pathname: '/(tabs)', params: { postId: '77' } },
       { pathname: '/notices', params: { id: '66' } },
+      { pathname: '/post/[id]', params: { id: 55, commentId: '44' } },
+      { pathname: '/post/[id]', params: { id: 55, commentId: '44', replyId: '33' } },
     ]);
   });
 

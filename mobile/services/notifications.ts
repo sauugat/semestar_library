@@ -650,59 +650,95 @@ export function navigateFromNotification(
     return;
   }
 
-  // Centralized route dispatcher using verified screen routes and router.replace
-  // to ensure previous/splash route does not compete or trigger delayed redirects
+  // Centralized route dispatcher.
+  // Use router.push (not router.replace) so the user always has back navigation.
+  // For cold-start / killed-app scenarios, we first ensure tabs are in the stack,
+  // then push the deep-linked destination on top.
   try {
-    switch (payload.type) {
-      case 'chat':
-        if (payload.messageId) {
-          router.replace({
-            pathname: '/(tabs)/chat',
-            params: { targetMessageId: String(payload.messageId) },
+    const pushDestination = () => {
+      switch (payload.type) {
+        case 'chat':
+          if (payload.messageId) {
+            router.push({
+              pathname: '/(tabs)/chat',
+              params: { targetMessageId: String(payload.messageId) },
+            });
+          } else {
+            router.push('/(tabs)/chat');
+          }
+          break;
+
+        case 'material':
+          router.push(`/material/${payload.fileId}`);
+          break;
+
+        case 'material_batch':
+          if (payload.fileIds && payload.fileIds.length > 0) {
+            router.push(`/material/${payload.fileIds[0]}`);
+          } else {
+            router.push('/(tabs)/library');
+          }
+          break;
+
+        case 'post':
+          // Navigate to dedicated post detail page
+          router.push(`/post/${payload.postId}`);
+          break;
+
+        case 'notice':
+          // Navigate to dedicated notice detail page
+          router.push(`/notice/${payload.noticeId}`);
+          break;
+
+        case 'post_comment':
+        case 'comment_reply':
+        case 'comment_reaction': {
+          const params: { id: number; commentId?: string; replyId?: string } = { id: payload.postId };
+          if (payload.commentId) params.commentId = String(payload.commentId);
+          if ('replyId' in payload && payload.replyId) params.replyId = String(payload.replyId);
+          router.push({
+            pathname: '/post/[id]',
+            params,
           });
-        } else {
-          router.replace('/(tabs)/chat');
+          break;
         }
-        break;
 
-      case 'material':
-        router.replace(`/material/${payload.fileId}`);
-        break;
-
-      case 'material_batch':
-        if (payload.fileIds && payload.fileIds.length > 0) {
-          router.replace(`/material/${payload.fileIds[0]}`);
-        } else {
-          router.replace('/(tabs)/library');
-        }
-        break;
-
-      case 'post':
-        // Navigate to dedicated post detail page
-        router.replace(`/post/${payload.postId}`);
-        break;
-
-      case 'notice':
-        // Navigate to dedicated notice detail page
-        router.replace(`/notice/${payload.noticeId}`);
-        break;
-
-      case 'post_comment':
-      case 'comment_reply':
-      case 'comment_reaction': {
-        const params: { id: number; commentId?: string; replyId?: string } = { id: payload.postId };
-        if (payload.commentId) params.commentId = String(payload.commentId);
-        if ('replyId' in payload && payload.replyId) params.replyId = String(payload.replyId);
-        router.replace({
-          pathname: '/post/[id]',
-          params,
-        });
-        break;
+        default:
+          router.push('/(tabs)');
+          break;
       }
+    };
 
-      default:
-        router.replace('/(tabs)');
-        break;
+    // Determine if this is a tab destination (chat, library) or a stack screen
+    const isTabDestination =
+      payload.type === 'chat' ||
+      (payload.type === 'material_batch' && (!payload.fileIds || payload.fileIds.length === 0));
+
+    if (isTabDestination) {
+      // For tab destinations, use replace to land directly on the tab
+      switch (payload.type) {
+        case 'chat':
+          if (payload.messageId) {
+            router.replace({
+              pathname: '/(tabs)/chat',
+              params: { targetMessageId: String(payload.messageId) },
+            });
+          } else {
+            router.replace('/(tabs)/chat');
+          }
+          break;
+        default:
+          router.replace('/(tabs)/library');
+          break;
+      }
+    } else {
+      // For stack screens (post, notice, material, etc.), ensure tabs are in the
+      // back stack first, then push the destination on top.
+      // This guarantees the user can press Back to reach the home/tabs screen.
+      router.replace('/(tabs)');
+      setTimeout(() => {
+        pushDestination();
+      }, 100);
     }
 
     notificationNavigationCompleted = true;

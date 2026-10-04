@@ -33,7 +33,8 @@ import { apiFetch, getBaseUrl } from '@/services/api';
 import { Post, deletePost, toggleLike } from '@/services/posts';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const COVER_HEIGHT = Math.min(200, Math.round(SCREEN_WIDTH * (9 / 16)));
+const COVER_HEIGHT = Math.min(220, Math.round(SCREEN_WIDTH * 0.56));
+const HERO_BLEND_EXTENSION = 80; // how far below the cover the fade extends
 
 export interface ProfilePhotoItem {
   id: string | number;
@@ -642,52 +643,69 @@ export function ProfileView({ targetStudentId, isTab = false }: ProfileViewProps
         }
       >
         {/* ============================================================ */}
-        {/* 1. COVER PHOTO HEADER                                        */}
+        {/* 1. COMPOSED HERO — cover + fade + avatar + actions as ONE unit */}
         {/* ============================================================ */}
-        <View style={styles.coverContainer}>
-          {coverFullUrl ? (
-            <TouchableOpacity
-              activeOpacity={0.9}
-              onPress={() => {
-                setViewerUri(coverFullUrl);
-                setViewerTitle(`${profile?.name || 'Student'}'s Cover Photo`);
-                setViewerVisible(true);
-              }}
-              style={styles.coverTouchArea}
-            >
-              <Image
-                source={{ uri: coverFullUrl }}
-                style={styles.coverImage}
-                contentFit="cover"
-                contentPosition={{ top: `${repositionY * 100}%` }}
-                transition={200}
-              />
-              {/* Subtle bottom vignette gradient overlay */}
-              <View style={styles.coverVignette} />
-            </TouchableOpacity>
-          ) : (
-            <View style={[styles.coverFallback, { backgroundColor: colors.surfaceRaised }]}>
-              <View style={styles.coverFallbackInner}>
-                <Ionicons name="images-outline" size={32} color={colors.textMuted} />
-                {isSelf && (
-                  <Text variant="xs" color="muted" style={{ marginTop: 4 }}>
-                    Add a cover photo to personalize your profile
-                  </Text>
-                )}
+        <View style={styles.heroContainer}>
+          {/* Cover Image Area */}
+          <View style={styles.coverContainer}>
+            {coverFullUrl ? (
+              <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={() => {
+                  setViewerUri(coverFullUrl);
+                  setViewerTitle(`${profile?.name || 'Student'}'s Cover Photo`);
+                  setViewerVisible(true);
+                }}
+                style={styles.coverTouchArea}
+              >
+                <Image
+                  source={{ uri: coverFullUrl }}
+                  style={styles.coverImage}
+                  contentFit="cover"
+                  contentPosition={{ top: `${repositionY * 100}%` }}
+                  transition={200}
+                />
+              </TouchableOpacity>
+            ) : (
+              <View style={[styles.coverFallback, { backgroundColor: colors.surfaceRaised }]}>
+                <View style={styles.coverFallbackInner}>
+                  <Ionicons name="images-outline" size={32} color={colors.textMuted} />
+                  {isSelf && (
+                    <Text variant="xs" color="muted" style={{ marginTop: 4 }}>
+                      Add a cover photo to personalize your profile
+                    </Text>
+                  )}
+                </View>
               </View>
+            )}
+          </View>
+
+          {/* Continuous Fade Overlay — extends from mid-cover through avatar area */}
+          {/* This is positioned relative to heroContainer, NOT coverContainer */}
+          {/* So it visually spans across the cover bottom and into the profile area */}
+          {coverFullUrl && (
+            <View style={styles.heroFadeOverlay} pointerEvents="none">
+              {/* 12 layers for smooth imperceptible transition */}
+              {/* Each layer stretches from its 'top' to the bottom of the overlay */}
+              <View style={[styles.heroFadeLayer, { top: 0,       opacity: 0.02 }]} />
+              <View style={[styles.heroFadeLayer, { top: '8%',    opacity: 0.04 }]} />
+              <View style={[styles.heroFadeLayer, { top: '16%',   opacity: 0.07 }]} />
+              <View style={[styles.heroFadeLayer, { top: '24%',   opacity: 0.11 }]} />
+              <View style={[styles.heroFadeLayer, { top: '32%',   opacity: 0.17 }]} />
+              <View style={[styles.heroFadeLayer, { top: '40%',   opacity: 0.24 }]} />
+              <View style={[styles.heroFadeLayer, { top: '48%',   opacity: 0.34 }]} />
+              <View style={[styles.heroFadeLayer, { top: '56%',   opacity: 0.46 }]} />
+              <View style={[styles.heroFadeLayer, { top: '64%',   opacity: 0.58 }]} />
+              <View style={[styles.heroFadeLayer, { top: '72%',   opacity: 0.72 }]} />
+              <View style={[styles.heroFadeLayer, { top: '80%',   opacity: 0.85 }]} />
+              <View style={[styles.heroFadeLayer, { top: '90%',   opacity: 0.96 }]} />
             </View>
           )}
 
-          {/* Cover Action Button (Owner only) */}
+          {/* Edit Cover — subtle pill, sits within the cover area above the deepest fade */}
           {isSelf && (
             <TouchableOpacity
-              style={[
-                styles.coverEditButton,
-                {
-                  backgroundColor: 'rgba(0,0,0,0.65)',
-                  borderColor: 'rgba(255,255,255,0.2)',
-                },
-              ]}
+              style={styles.coverEditButton}
               onPress={() => setCoverActionVisible(true)}
               activeOpacity={0.8}
             >
@@ -695,8 +713,8 @@ export function ProfileView({ targetStudentId, isTab = false }: ProfileViewProps
                 <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
                 <>
-                  <Ionicons name="camera-outline" size={15} color="#FFFFFF" />
-                  <Text variant="xs" weight="700" style={{ color: '#FFFFFF', marginLeft: 5 }}>
+                  <Ionicons name="camera-outline" size={13} color="rgba(255,255,255,0.9)" />
+                  <Text variant="xs" weight="600" style={{ color: 'rgba(255,255,255,0.9)', marginLeft: 4, fontSize: 11 }}>
                     {coverFullUrl ? 'Edit Cover' : 'Add Cover'}
                   </Text>
                 </>
@@ -1595,10 +1613,16 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
   },
+  heroContainer: {
+    width: '100%',
+    position: 'relative',
+    // Total height = COVER_HEIGHT + HERO_BLEND_EXTENSION, but the
+    // blend extension is layered over the profileHeaderContent below,
+    // so we don't set a fixed height on the container — it wraps content.
+  },
   coverContainer: {
     width: '100%',
     height: COVER_HEIGHT,
-    position: 'relative',
     overflow: 'hidden',
   },
   coverTouchArea: {
@@ -1609,9 +1633,23 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  coverVignette: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0,0,0,0.18)',
+  // The fade overlay extends from ~40% of the cover down through
+  // HERO_BLEND_EXTENSION below the cover. This creates the continuous
+  // cover → surface blend with no visible bottom edge.
+  heroFadeOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: Math.round(COVER_HEIGHT * 0.38),
+    height: Math.round(COVER_HEIGHT * 0.62) + HERO_BLEND_EXTENSION,
+    zIndex: 1,
+  },
+  heroFadeLayer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#0a0a0a',
   },
   coverFallback: {
     width: '100%',
@@ -1626,25 +1664,29 @@ const styles = StyleSheet.create({
   },
   coverEditButton: {
     position: 'absolute',
-    bottom: 12,
-    right: 12,
+    bottom: HERO_BLEND_EXTENSION + 18,
+    right: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 16,
+    borderWidth: 0.5,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    borderColor: 'rgba(255,255,255,0.15)',
+    zIndex: 3,
   },
   profileHeaderContent: {
     paddingHorizontal: 16,
     paddingBottom: 12,
+    zIndex: 2,
+    marginTop: -HERO_BLEND_EXTENSION,
   },
   avatarRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
-    marginTop: -44,
-    marginBottom: 8,
+    marginBottom: 10,
   },
   avatarWrapper: {
     position: 'relative',

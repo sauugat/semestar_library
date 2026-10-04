@@ -1,0 +1,261 @@
+{
+  "versions": {
+    "node": "v24.18.0",
+    "supabaseJs": "2.117.2"
+  },
+  "checks": [
+    "Disposable Realtime tenant is configured private-only",
+    "Clean disposable policy set; no permissive policies can mask the proof",
+    "Student configuration excludes service credential",
+    "A and B receive-only private joins succeed",
+    "C cannot join another room at epoch 1",
+    "Public-channel bypass is denied",
+    "Outsider receives no trusted epoch 1 event",
+    "before-revocation: Presence track explicitly rejects publication",
+    "before-revocation: no client Broadcast reaches any observing member",
+    "before-revocation: no client Presence reaches any observing member",
+    "Rotation waits for the in-flight publisher lock",
+    "Revocation increments epoch exactly once",
+    "Stale queued epoch 1 publication is fenced",
+    "Revoked B cannot obtain refreshed configuration",
+    "Revoked credential cannot rejoin the old epoch",
+    "Remaining A joins epoch 2",
+    "Even remaining A must refresh an epoch 1 credential for epoch 2",
+    "Hostile B new epoch attempt 1 denied",
+    "Hostile B new epoch attempt 2 denied",
+    "Hostile B new epoch attempt 3 denied",
+    "C cannot join epoch 2",
+    "Hostile B keeps its old WebSocket and subscription alive",
+    "after-rotation: Presence track explicitly rejects publication",
+    "after-rotation: no client Broadcast reaches any observing member",
+    "after-rotation: no client Presence reaches any observing member",
+    "Retired epoch 1 receives zero post-rotation events",
+    "Short-lived credential works before expiry",
+    "Expired credential cannot authorize a new join",
+    "Isolation was achieved while hostile B still held an unexpired old connection",
+    "Closure waits for the in-flight publisher lock",
+    "Closed room blocks server publication",
+    "Closed room blocks server publication",
+    "Closed room blocks token/topic configuration",
+    "Closed room rejects new join with otherwise unexpired credential",
+    "after-closure-old-epoch: Presence track explicitly rejects publication",
+    "after-closure-old-epoch: no client Broadcast reaches any observing member",
+    "after-closure-old-epoch: no client Presence reaches any observing member",
+    "after-closure-latest-epoch: Presence track explicitly rejects publication",
+    "after-closure-latest-epoch: no client Broadcast reaches any observing member",
+    "after-closure-latest-epoch: no client Presence reaches any observing member",
+    "Closure creates no further epoch",
+    "Reused MARS code receives a different immutable room UUID",
+    "New MARS starts on its own epoch 1 topic",
+    "Old MARS member cannot join replacement MARS",
+    "after-code-reuse: Presence track explicitly rejects publication",
+    "after-code-reuse: no client Broadcast reaches any observing member",
+    "after-code-reuse: no client Presence reaches any observing member",
+    "Old clients receive zero replacement-cohort events",
+    "No client-originated Broadcast was delivered anywhere in the probe",
+    "No attempted post-close server event was delivered",
+    "Trusted publisher permanently retires old epoch topic",
+    "Trusted publisher permanently retires all closed-room topics",
+    "Hostile old socket remained connected through code reuse",
+    "Hostile credential is still unexpired at the end of the isolation proof"
+  ],
+  "attacks": [
+    {
+      "phase": "before-revocation",
+      "action": "new_message",
+      "ack": "timed out"
+    },
+    {
+      "phase": "before-revocation",
+      "action": "typing",
+      "ack": "timed out"
+    },
+    {
+      "phase": "before-revocation",
+      "action": "reaction_update",
+      "ack": "timed out"
+    },
+    {
+      "phase": "before-revocation",
+      "action": "presence",
+      "ack": "error"
+    },
+    {
+      "phase": "before-revocation",
+      "action": "REST broadcast",
+      "status": 202
+    },
+    {
+      "phase": "after-rotation",
+      "action": "new_message",
+      "ack": "timed out"
+    },
+    {
+      "phase": "after-rotation",
+      "action": "typing",
+      "ack": "timed out"
+    },
+    {
+      "phase": "after-rotation",
+      "action": "reaction_update",
+      "ack": "timed out"
+    },
+    {
+      "phase": "after-rotation",
+      "action": "presence",
+      "ack": "error"
+    },
+    {
+      "phase": "after-rotation",
+      "action": "REST broadcast",
+      "status": 202
+    },
+    {
+      "phase": "after-closure-old-epoch",
+      "action": "new_message",
+      "ack": "timed out"
+    },
+    {
+      "phase": "after-closure-old-epoch",
+      "action": "typing",
+      "ack": "timed out"
+    },
+    {
+      "phase": "after-closure-old-epoch",
+      "action": "reaction_update",
+      "ack": "timed out"
+    },
+    {
+      "phase": "after-closure-old-epoch",
+      "action": "presence",
+      "ack": "error"
+    },
+    {
+      "phase": "after-closure-old-epoch",
+      "action": "REST broadcast",
+      "status": 202
+    },
+    {
+      "phase": "after-closure-latest-epoch",
+      "action": "new_message",
+      "ack": "timed out"
+    },
+    {
+      "phase": "after-closure-latest-epoch",
+      "action": "typing",
+      "ack": "timed out"
+    },
+    {
+      "phase": "after-closure-latest-epoch",
+      "action": "reaction_update",
+      "ack": "timed out"
+    },
+    {
+      "phase": "after-closure-latest-epoch",
+      "action": "presence",
+      "ack": "error"
+    },
+    {
+      "phase": "after-closure-latest-epoch",
+      "action": "REST broadcast",
+      "status": 202
+    },
+    {
+      "phase": "after-code-reuse",
+      "action": "new_message",
+      "ack": "timed out"
+    },
+    {
+      "phase": "after-code-reuse",
+      "action": "typing",
+      "ack": "timed out"
+    },
+    {
+      "phase": "after-code-reuse",
+      "action": "reaction_update",
+      "ack": "timed out"
+    },
+    {
+      "phase": "after-code-reuse",
+      "action": "presence",
+      "ack": "error"
+    },
+    {
+      "phase": "after-code-reuse",
+      "action": "REST broadcast",
+      "status": 202
+    }
+  ],
+  "joinDenials": [
+    {
+      "label": "C cannot join another room at epoch 1",
+      "status": "CHANNEL_ERROR"
+    },
+    {
+      "label": "Revoked credential cannot rejoin the old epoch",
+      "status": "CHANNEL_ERROR"
+    },
+    {
+      "label": "Even remaining A must refresh an epoch 1 credential for epoch 2",
+      "status": "CHANNEL_ERROR"
+    },
+    {
+      "label": "Hostile B new epoch attempt 1 denied",
+      "status": "CHANNEL_ERROR"
+    },
+    {
+      "label": "Hostile B new epoch attempt 2 denied",
+      "status": "CHANNEL_ERROR"
+    },
+    {
+      "label": "Hostile B new epoch attempt 3 denied",
+      "status": "CHANNEL_ERROR"
+    },
+    {
+      "label": "C cannot join epoch 2",
+      "status": "CHANNEL_ERROR"
+    },
+    {
+      "label": "Expired credential cannot authorize a new join",
+      "status": "CHANNEL_ERROR"
+    },
+    {
+      "label": "Closed room rejects new join with otherwise unexpired credential",
+      "status": "CHANNEL_ERROR"
+    },
+    {
+      "label": "Old MARS member cannot join replacement MARS",
+      "status": "CHANNEL_ERROR"
+    }
+  ],
+  "durationMs": 75008,
+  "counts": {
+    "revokedOldTopicNewEvents": 0,
+    "oldMembersReplacementEvents": 0,
+    "clientOriginatedEvents": 0,
+    "trustedEventsPublished": 11
+  },
+  "gate": {
+    "AUTHORIZED_RECEIVE": "PASS",
+    "OUTSIDER_JOIN": "DENIED",
+    "CLIENT_BROADCAST_WRITE": "DENIED",
+    "CLIENT_PRESENCE_WRITE": "DENIED",
+    "SERVER_PRIVATE_BROADCAST": "PASS",
+    "EPOCH_ROTATION": "PASS",
+    "REVOKED_OLD_TOPIC_RECEIVES_NEW_EVENTS": 0,
+    "REVOKED_NEW_EPOCH_JOIN": "DENIED",
+    "ROOM_CLOSE_FENCING": "PASS",
+    "GROUP_CODE_REUSE_ISOLATION": "PASS",
+    "HOSTILE_CONNECTED_CLIENT": "CONTAINED",
+    "REALTIME_SECURITY_MODEL": "PROVEN",
+    "SAFE_TO_RESUME_COHORT_IMPLEMENTATION": "YES"
+  },
+  "environment": {
+    "scope": "disposable local Supabase; synthetic identities only",
+    "supabaseCli": "2.119.0",
+    "realtimeImage": "public.ecr.aws/supabase/realtime:v2.140.3",
+    "postgresImage": "public.ecr.aws/supabase/postgres:17.11.0.002",
+    "authority": "isolated local PostgreSQL stand-in, not Neon",
+    "projection": "isolated PostgreSQL projection tables; separately committed transactions"
+  }
+}

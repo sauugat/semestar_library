@@ -1,4 +1,7 @@
 const express = require('express');
+if (process.env.COHORT_CHAT_LOCAL === '1' && process.env.NODE_ENV !== 'test') {
+  throw new Error('COHORT_CHAT_LOCAL requires NODE_ENV=test');
+}
 
 // Express 4 Async Error Handling: forward unhandled rejected promises in async route handlers to next(err)
 const Layer = require('express/lib/router/layer');
@@ -3403,6 +3406,13 @@ app.get('/api/search', requireLogin, async (req, res) => {
 // ============================================================
 // GROUP CHAT SYSTEM
 // ============================================================
+
+// Deliberately no automatic migration or production provider installation.
+// The router owns every /api/chat path when enabled; it never falls through.
+if (process.env.COHORT_CHAT_LOCAL === '1') {
+  const cohortChat = require('./lib/cohort-chat').createCohortChat(db);
+  app.use('/api/chat', requireLogin, require('./routes/cohort-chat')(cohortChat));
+}
 
 app.get('/api/chat/config', requireLogin, (req, res) => {
   const { url, key } = require('./lib/supabase').getSupabaseConfig();

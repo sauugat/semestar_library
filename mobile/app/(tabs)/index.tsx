@@ -2290,56 +2290,53 @@ export default function HomeScreen() {
               />
             </View>
 
-            {/* Upload Status Indicator */}
+            {/* Upload Status Indicator — only show during upload or on error */}
             {composerAttachments.length > 0 && (() => {
               const isUploading = composerAttachments.some((a) => a.status === 'uploading' || a.status === 'idle');
               const hasError = composerAttachments.some((a) => a.status === 'error');
-              const allUploaded = composerAttachments.every((a) => a.status === 'uploaded');
 
-              let text = `${composerAttachments.length} attachment${composerAttachments.length > 1 ? 's' : ''} (${composerImages.length} photo${composerImages.length !== 1 ? 's' : ''}, ${composerFiles.length} file${composerFiles.length !== 1 ? 's' : ''})`;
-              let icon: keyof typeof Ionicons.glyphMap = 'cloud-upload-outline';
-              let color = colors.textSecondary;
-              let bgColor = colors.surfaceSubtle;
-              let borderColor = colors.border;
-
-              if (hasError) {
-                text = 'Some uploads failed. Tap "Retry" on failed items.';
-                icon = 'alert-circle';
-                color = '#DC2626';
-                bgColor = '#FEF2F2';
-                borderColor = '#FCA5A5';
-              } else if (isUploading) {
-                text = 'Uploading attachments independently...';
-                icon = 'sync-outline';
-                color = colors.primary;
-                bgColor = colors.surfaceRaised;
-                borderColor = colors.border;
-              } else if (allUploaded) {
-                text = `All ${composerAttachments.length} attachments ready (each verified <= 4 MB)`;
-                icon = 'checkmark-circle';
-                color = '#10B981';
-                bgColor = '#ECFDF5';
-                borderColor = '#A7F3D0';
+              if (isUploading) {
+                return (
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      paddingHorizontal: spacing.md,
+                      paddingVertical: 8,
+                      backgroundColor: colors.surfaceRaised,
+                      borderBottomWidth: 1,
+                      borderBottomColor: colors.border,
+                    }}
+                  >
+                    <ActivityIndicator size="small" color={colors.primary} style={{ marginRight: 6 }} />
+                    <Text variant="xs" weight="600" style={{ color: colors.primary, flex: 1 }}>
+                      Uploading…
+                    </Text>
+                  </View>
+                );
               }
-
-              return (
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    paddingHorizontal: spacing.md,
-                    paddingVertical: 8,
-                    backgroundColor: bgColor,
-                    borderBottomWidth: 1,
-                    borderBottomColor: borderColor,
-                  }}
-                >
-                  <Ionicons name={icon} size={15} color={color} style={{ marginRight: 6 }} />
-                  <Text variant="xs" weight="600" style={{ color, flex: 1 }}>
-                    {text}
-                  </Text>
-                </View>
-              );
+              if (hasError) {
+                return (
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      paddingHorizontal: spacing.md,
+                      paddingVertical: 8,
+                      backgroundColor: '#FEF2F2',
+                      borderBottomWidth: 1,
+                      borderBottomColor: '#FCA5A5',
+                    }}
+                  >
+                    <Ionicons name="alert-circle" size={15} color="#DC2626" style={{ marginRight: 6 }} />
+                    <Text variant="xs" weight="600" style={{ color: '#DC2626', flex: 1 }}>
+                      Some uploads failed. Tap "Retry" on failed items.
+                    </Text>
+                  </View>
+                );
+              }
+              // All uploaded successfully — no banner, UI returns to normal
+              return null;
             })()}
 
             <KeyboardAwareForm

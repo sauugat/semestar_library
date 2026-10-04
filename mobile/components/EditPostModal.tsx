@@ -489,59 +489,59 @@ export function EditPostModal({
             ]}
           >
             {saving ? (
-              <ActivityIndicator size="small" color="#ffffff" />
+              <ActivityIndicator size="small" color={colors.primaryText} />
             ) : (
-              <Text variant="sm" weight="700" style={{ color: hasValidContent && isDirty && !isUploading && !hasFailed ? '#ffffff' : colors.textMuted }}>
+              <Text variant="sm" weight="700" style={{ color: hasValidContent && isDirty && !isUploading && !hasFailed ? colors.primaryText : colors.textMuted }}>
                 Save
               </Text>
             )}
           </TouchableOpacity>
         </View>
 
-        {/* Upload Status Banner */}
+        {/* Upload Status Banner — only show during upload or on error */}
         {newAttachments.length > 0 && (() => {
-          let bannerText = `${newAttachments.length} new attachment${newAttachments.length > 1 ? 's' : ''}`;
-          let bannerColor = colors.primary;
-          let bannerBg = colors.surfaceSubtle;
-          let iconName: keyof typeof Ionicons.glyphMap = 'cloud-upload-outline';
-
           if (isUploading) {
-            bannerText = `Uploading ${newAttachments.filter((a) => a.status === 'uploaded').length}/${newAttachments.length} attachments...`;
-            bannerColor = colors.primary;
-          } else if (hasFailed) {
-            bannerText = 'Some uploads failed. Tap Retry on failed files.';
-            bannerColor = '#DC2626';
-            bannerBg = '#FEF2F2';
-            iconName = 'alert-circle';
-          } else {
-            bannerText = `All ${newAttachments.length} new attachment${newAttachments.length > 1 ? 's' : ''} ready (each <= 4 MB)`;
-            bannerColor = '#16A34A';
-            bannerBg = '#F0FDF4';
-            iconName = 'checkmark-circle';
+            return (
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingHorizontal: spacing.md,
+                  paddingVertical: 8,
+                  backgroundColor: colors.surfaceSubtle,
+                  borderBottomWidth: 1,
+                  borderBottomColor: colors.border,
+                }}
+              >
+                <ActivityIndicator size="small" color={colors.primary} style={{ marginRight: 6 }} />
+                <Text variant="xs" weight="600" style={{ color: colors.primary, flex: 1 }}>
+                  Uploading…
+                </Text>
+              </View>
+            );
           }
-
-          return (
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                paddingHorizontal: spacing.md,
-                paddingVertical: 8,
-                backgroundColor: bannerBg,
-                borderBottomWidth: 1,
-                borderBottomColor: hasFailed ? '#FCA5A5' : colors.border,
-              }}
-            >
-              {isUploading ? (
-                <ActivityIndicator size="small" color={bannerColor} style={{ marginRight: 6 }} />
-              ) : (
-                <Ionicons name={iconName} size={15} color={bannerColor} style={{ marginRight: 6 }} />
-              )}
-              <Text variant="xs" weight="600" style={{ color: bannerColor, flex: 1 }}>
-                {bannerText}
-              </Text>
-            </View>
-          );
+          if (hasFailed) {
+            return (
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingHorizontal: spacing.md,
+                  paddingVertical: 8,
+                  backgroundColor: '#FEF2F2',
+                  borderBottomWidth: 1,
+                  borderBottomColor: '#FCA5A5',
+                }}
+              >
+                <Ionicons name="alert-circle" size={15} color="#DC2626" style={{ marginRight: 6 }} />
+                <Text variant="xs" weight="600" style={{ color: '#DC2626', flex: 1 }}>
+                  Some uploads failed. Tap Retry on failed files.
+                </Text>
+              </View>
+            );
+          }
+          // All uploaded successfully — no banner, UI returns to normal
+          return null;
         })()}
 
         {/* Error Banner */}

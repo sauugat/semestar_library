@@ -2,7 +2,8 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { router } from 'expo-router';
 import { clearChatDb } from '@/services/chat-db';
-import { initChatRealtime, disconnectChatRealtime } from '@/services/chat-realtime';
+import { disconnectChatRealtime } from '@/services/chat-realtime';
+import { invalidateChatSession } from '@/services/chat-session';
 import { clearAppQueryCache } from '@/services/query-client';
 import { getAutoDetectedServerUrl, getBaseUrl, DEFAULT_SERVER_URL } from '@/services/api';
 import {
@@ -141,12 +142,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 }
                 await SecureStore.setItemAsync(USER_KEY, JSON.stringify(freshUser));
                 // Pre-warm realtime connection in background
-                void initChatRealtime(freshUser.studentId);
               } else if (res.status === 401) {
                 // Token invalid or revoked - unregister push token first
                 await unregisterPushToken().catch(() => {});
                 await SecureStore.deleteItemAsync(TOKEN_KEY);
                 await SecureStore.deleteItemAsync(USER_KEY);
+                invalidateChatSession();
                 if (isMounted) {
                   setToken(null);
                   setUser(null);
@@ -155,9 +156,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               }
             } catch {
               // Network error: maintain cached session
-              if (cachedUser) {
-                void initChatRealtime(cachedUser.studentId);
-              }
             }
           })();
           return;
@@ -194,6 +192,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data = await res.json().catch(() => ({}));
 
       if (res.status === 200 && data.token) {
+        invalidateChatSession();
         await SecureStore.setItemAsync(TOKEN_KEY, data.token);
         if (data.user) {
           await SecureStore.setItemAsync(USER_KEY, JSON.stringify(data.user));
@@ -204,10 +203,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setToken(data.token);
         setUser(data.user);
 
-        // Pre-warm realtime in background right after login
-        if (data.user?.studentId) {
-          void initChatRealtime(data.user.studentId);
-        }
 
         // Register push token with backend under this newly authenticated student
         void registerPushToken();
@@ -389,6 +384,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
+    invalidateChatSession();
+    resetNotificationNavigationState();
+    void disconnectChatRealtime();
     try {
       // 1. Unregister Expo Push Token with backend while Supabase authentication is STILL valid
       await unregisterPushToken().catch((pushErr) => {
@@ -408,6 +406,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await SecureStore.deleteItemAsync(TOKEN_KEY);
       await SecureStore.deleteItemAsync(USER_KEY);
       // Clean up local chat database and query caches so next user sees fresh data
+      invalidateChatSession();
       await disconnectChatRealtime();
       await clearChatDb();
       await clearAppQueryCache();
@@ -427,6 +426,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     const sanitized = newUrl.trim().replace(/\/+$/, '');
+    invalidateChatSession();
     await SecureStore.setItemAsync(SERVER_URL_KEY, sanitized);
     setServerUrl(sanitized);
   };

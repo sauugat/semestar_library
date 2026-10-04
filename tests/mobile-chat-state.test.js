@@ -42,11 +42,13 @@ test('attachment names cannot escape cache directories', () => {
 });
 test('service sends PostgreSQL-safe latest cursor and preserves explicit since=0', async () => {
   const calls = [];
-  const chat = loadTs('chat.ts', { './api': { api: { get: async url => { calls.push(url); return { messages: [], readReceipts: [] }; } } } });
+  const session=loadTs('chat-session.ts');
+  session.acceptChatContext(session.beginChatSession('http://localhost','a'),{studentId:'a',chatGroupId:'mercury',cohortId:'cohort',groupCode:'MERCURY',currentSemester:1,roomStatus:'active',cohortStatus:'active',realtimeEpoch:1});
+  const chat = loadTs('chat.ts', { './chat-session':session, './api': { apiFetch: async url => { calls.push(url); return {ok:true,status:200,json:async()=>({messages:[],readReceipts:[]})}; } } });
   await chat.fetchChatMessages({ before: chat.CHAT_LATEST_CURSOR, limit: chat.CHAT_PAGE_SIZE });
   await chat.fetchChatMessages({ since: 0 });
-  assert.equal(calls[0], '/api/chat/messages?before=2147483647&limit=40');
-  assert.equal(calls[1], '/api/chat/messages?since=0');
+  assert.equal(calls[0], 'http://localhost/api/chat/messages?before=2147483647&limit=40&chatGroupId=mercury');
+  assert.equal(calls[1], 'http://localhost/api/chat/messages?since=0&chatGroupId=mercury');
   assert.ok(chat.CHAT_LATEST_CURSOR <= 2147483647);
 });
 
@@ -239,6 +241,5 @@ test('double tap heart toggle and reaction dedupe semantics', () => {
     { studentId: 'student_bob', emoji: '❤️' },
   ]);
 });
-
 
 

@@ -69,6 +69,7 @@ import {
   ChatMember,
   fetchChatMembers,
   fetchChatMessages,
+  fetchExactChatMessage,
   pinChatMessage,
   unpinChatMessage,
   deleteChatMessage,
@@ -77,6 +78,7 @@ import {
   sendChatTyping,
 } from "@/services/chat";
 import { setChatScreenActive, clearAppBadge } from "@/services/notifications";
+import { captureChatSession, getChatSession, isCurrentChatSession, subscribeChatSession } from '@/services/chat-session';
 
 function MemberAvatarItem({
   member,
@@ -166,8 +168,8 @@ export default function ChatScreen() {
   );
 
   const chatOptions = useMemo(
-    () => ({ onNewIncomingMessage: handleNewIncomingMessage }),
-    [handleNewIncomingMessage]
+    () => ({ onNewIncomingMessage: handleNewIncomingMessage, authToken: token }),
+    [handleNewIncomingMessage, token]
   );
 
   // State
@@ -188,9 +190,11 @@ export default function ChatScreen() {
     refreshPinned,
     loadOlderMessages,
     markRead,
+    context,
+    roomGeneration,
   } = useClassChat(user?.studentId, serverUrl, chatOptions);
 
-  const { targetMessageId } = useLocalSearchParams<{ targetMessageId?: string }>();
+  const { targetMessageId, targetChatGroupId } = useLocalSearchParams<{ targetMessageId?: string; targetChatGroupId?: string }>();
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const [actionMessage, setActionMessage] = useState<ChatMessage | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
@@ -209,6 +213,7 @@ export default function ChatScreen() {
 
   // Preload group members on mount for instant zero-latency @mention suggestions
   useEffect(() => {
+    if (!context?.chatGroupId) return;
     let mounted = true;
     void (async () => {
       try {
@@ -221,7 +226,7 @@ export default function ChatScreen() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [roomGeneration, context?.chatGroupId]);
 
   // Track initially loaded message IDs to disable slide animation on initial load and initialize seen set
   const initialLoadedIds = useRef(new Set<number>());
@@ -235,16 +240,25 @@ export default function ChatScreen() {
     }
   }, [loadingInitial, messages]);
 
+  const [remoteSearch, setRemoteSearch] = useState<{query:string;generation:number;messages:ChatMessage[]}>({query:'',generation:0,messages:[]});
+  useEffect(() => {
+    let cancelled = false;
+    if (!context?.chatGroupId || panel !== 'search' || !query.trim()) return;
+    const timer = setTimeout(() => { void fetchChatMessages({q:query,limit:100}).then(data=>{
+      if (!cancelled) setRemoteSearch({query,generation:roomGeneration,messages:data.messages});
+    }).catch(()=>{}); },250);
+    return ()=>{cancelled=true;clearTimeout(timer);};
+  },[query,panel,roomGeneration,context?.chatGroupId]);
   const searchResults = useMemo(() => {
     const term = query.trim().toLowerCase();
     return term
-      ? messages.filter((message) =>
+      ? mergeChatMessages(messages,remoteSearch.query===query && remoteSearch.generation===roomGeneration ? remoteSearch.messages : []).filter((message) =>
           `${message.text} ${message.name} ${message.attachmentOriginalName || ""}`
             .toLowerCase()
             .includes(term),
         )
       : [];
-  }, [messages, query]);
+  }, [messages, remoteSearch, query, roomGeneration]);
 
   const filteredMembers = useMemo(
     () =>
@@ -269,6 +283,17 @@ export default function ChatScreen() {
     uri: string;
     name: string;
   } | null>(null);
+
+  useEffect(() => {
+    let generation=getChatSession().generation;
+    return subscribeChatSession(()=>{
+      if(generation===getChatSession().generation)return;
+      generation=getChatSession().generation;
+      setReplyTo(null);setActionMessage(null);setSelectedAttachment(null);setPanel(null);setQuery('');
+      setMembers([]);setHighlightedMessageId(null);setNewIncomingCount(0);
+      initialLoadedIds.current.clear();seenMessageIdsRef.current.clear();setShowAttachModal(false);setViewerImage(null);
+    });
+  }, []);
 
   // Downloading document state
   const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
@@ -368,19 +393,31 @@ export default function ChatScreen() {
   }, [messages, showScrollToBottom, markRead]);
 
   const openMembers = async () => {
+    const start = getChatSession();
+    if (!isCurrentChatSession(start)) return;
     setQuery("");
     setPanel("members");
     setMembersLoading(true);
     setMembersError(false);
     try {
       const data = await fetchChatMembers();
+      if (!isCurrentChatSession(start)) return;
       setMembers(data.members || []);
     } catch {
+      if (!isCurrentChatSession(start)) return;
       setMembersError(true);
     } finally {
-      setMembersLoading(false);
+      if (isCurrentChatSession(start)) setMembersLoading(false);
     }
   };
+
+  useFocusEffect(useCallback(() => {
+    const back = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (showAttachModal || viewerImage || Keyboard.isVisible()) return false;
+      router.navigate('/(tabs)'); return true;
+    });
+    return () => back.remove();
+  }, [router, showAttachModal, viewerImage]));
 
   const jumpToMessage = useCallback((id: number) => {
     const index = messages.findIndex((m) => m.id === id);
@@ -407,34 +444,34 @@ export default function ChatScreen() {
   // Deep Link: automatically jump and highlight exact message from push notification
   const handledTargetRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!targetMessageId || handledTargetRef.current === targetMessageId) return;
+    if (!targetMessageId || !context?.chatGroupId || handledTargetRef.current === `${targetChatGroupId}:${targetMessageId}`) return;
     const tid = Number(targetMessageId);
     if (!Number.isFinite(tid) || tid <= 0) return;
 
-    const foundIndex = messages.findIndex((m) => m.id === tid);
-    if (foundIndex >= 0) {
-      handledTargetRef.current = targetMessageId;
-      jumpToMessage(tid);
-      return;
-    }
-
-    // Message is outside currently loaded first page: load chunk before targetId + 1
+    handledTargetRef.current = `${targetChatGroupId}:${targetMessageId}`;
+    let cancelled = false;
+    const start = captureChatSession();
     void (async () => {
       try {
-        const res = await fetchChatMessages({ before: tid + 1, limit: 30 });
-        if (res.messages && res.messages.length > 0) {
-          await upsertChatMessages(res.messages);
-          setMessages((prev) => mergeChatMessages(res.messages, prev));
-          handledTargetRef.current = targetMessageId;
-          setTimeout(() => {
-            jumpToMessage(tid);
-          }, 350);
-        }
-      } catch (err) {
-        console.warn("[Chat] Deep link message load failed:", err);
+        const message = await fetchExactChatMessage(targetChatGroupId || '',tid);
+        if (cancelled || !isCurrentChatSession(start)) return;
+        await upsertChatMessages([message]);
+        if (cancelled || !isCurrentChatSession(start)) return;
+        setMessages(prev => mergeChatMessages(prev,[message]));
+        setHighlightedMessageId(tid);
+        router.setParams({ targetMessageId: '', targetChatGroupId: '' });
+      } catch {
+        if (!cancelled && isCurrentChatSession(start)) Alert.alert('Conversation unavailable','This conversation is no longer available.');
       }
     })();
-  }, [targetMessageId, messages, jumpToMessage, setMessages]);
+    return () => { cancelled = true; };
+  }, [targetMessageId, targetChatGroupId, roomGeneration, context?.chatGroupId, router, setMessages]);
+  useEffect(() => {
+    if (highlightedMessageId && messages.some(m=>m.id === highlightedMessageId)) {
+      const timer = setTimeout(()=>jumpToMessage(highlightedMessageId),150);
+      return ()=>clearTimeout(timer);
+    }
+  }, [highlightedMessageId, messages, jumpToMessage]);
 
   const handlePressMention = useCallback(
     (handle: string, item?: ChatMessage) => {
@@ -489,6 +526,8 @@ export default function ChatScreen() {
 
   // Instant Reactions (Requirement 7: optimistic state & cache, background network, rollback on error)
   const handleToggleReaction = async (message: ChatMessage, emoji: string) => {
+    const start = getChatSession();
+    if (!isCurrentChatSession(start) || message.chatGroupId !== start.context?.chatGroupId) return;
     const currentUserId = String(user?.studentId || "");
     if (!currentUserId || message.id <= 0) return;
 
@@ -510,6 +549,7 @@ export default function ChatScreen() {
 
     try {
       const result = await reactToChatMessage(message.id, emoji);
+      if (!isCurrentChatSession(start)) return;
       if (result.action !== optimisticAction) {
         setMessages((prev) =>
           applyChatReaction(prev, message.id, currentUserId, emoji, result.action),
@@ -517,6 +557,7 @@ export default function ChatScreen() {
         void updateCachedReaction(message.id, currentUserId, emoji, result.action);
       }
     } catch (err: any) {
+      if (!isCurrentChatSession(start)) return;
       setMessages(previousMessages);
       void updateCachedReaction(
         message.id,
@@ -537,6 +578,8 @@ export default function ChatScreen() {
 
   // Instant Pin / Unpin (Requirement 7: optimistic state, background network, rollback on error)
   const handleTogglePin = async (message: ChatMessage) => {
+    const start = getChatSession();
+    if (!isCurrentChatSession(start) || message.chatGroupId !== start.context?.chatGroupId) return;
     const isCurrentlyPinned = pinned?.messageId === message.id;
     setActionMessage(null);
     const previousPinned = pinned;
@@ -545,8 +588,10 @@ export default function ChatScreen() {
       setPinned(null);
       try {
         await unpinChatMessage();
+        if (!isCurrentChatSession(start)) return;
         void refreshPinned();
       } catch (err: any) {
+        if (!isCurrentChatSession(start)) return;
         setPinned(previousPinned);
         Alert.alert("Unpin Failed", err.message || "Could not unpin announcement.");
       }
@@ -559,8 +604,10 @@ export default function ChatScreen() {
       setPinned(optimisticPinned);
       try {
         await pinChatMessage(message.id);
+        if (!isCurrentChatSession(start)) return;
         void refreshPinned();
       } catch (err: any) {
+        if (!isCurrentChatSession(start)) return;
         setPinned(previousPinned);
         Alert.alert("Pin Failed", err.message || "Could not pin announcement.");
       }
@@ -580,6 +627,8 @@ export default function ChatScreen() {
           text: "Delete",
           style: "destructive",
           onPress: async () => {
+            const start = getChatSession();
+            if (!isCurrentChatSession(start) || msg.chatGroupId !== start.context?.chatGroupId) return;
             setActionMessage(null);
             const id = msg.id;
             const previousMessages = messages;
@@ -596,8 +645,10 @@ export default function ChatScreen() {
             if (id > 0) {
               try {
                 await deleteChatMessage(id);
+                if (!isCurrentChatSession(start)) return;
                 void refreshPinned();
               } catch (err: any) {
+                if (!isCurrentChatSession(start)) return;
                 setMessages(previousMessages);
                 setPinned(previousPinned);
                 Alert.alert(
@@ -638,6 +689,8 @@ export default function ChatScreen() {
 
   // Attachment Selection Handlers (Requirement 9: Camera, Photo Library, Documents)
   const handleTakePhoto = async () => {
+    const start = getChatSession();
+    if (!isCurrentChatSession(start)) return;
     if (isPickerLaunchingRef.current) return;
     isPickerLaunchingRef.current = true;
     if (__DEV__) {
@@ -678,6 +731,7 @@ export default function ChatScreen() {
         const asset = result.assets[0];
         const attachment = await prepareChatAttachment(asset, true);
         await removeOutboxFile(selectedAttachment?.uri);
+        if (!isCurrentChatSession(start)) { await removeOutboxFile(attachment.uri); return; }
         setSelectedAttachment(attachment);
       }
     } catch (err: any) {
@@ -692,6 +746,8 @@ export default function ChatScreen() {
   };
 
   const handlePickImage = async () => {
+    const start = getChatSession();
+    if (!isCurrentChatSession(start)) return;
     if (isPickerLaunchingRef.current) return;
     isPickerLaunchingRef.current = true;
     if (__DEV__) {
@@ -720,6 +776,7 @@ export default function ChatScreen() {
         const asset = result.assets[0];
         const attachment = await prepareChatAttachment(asset, true);
         await removeOutboxFile(selectedAttachment?.uri);
+        if (!isCurrentChatSession(start)) { await removeOutboxFile(attachment.uri); return; }
         setSelectedAttachment(attachment);
       }
     } catch (err: any) {
@@ -734,6 +791,8 @@ export default function ChatScreen() {
   };
 
   const handlePickDocument = async () => {
+    const start = getChatSession();
+    if (!isCurrentChatSession(start)) return;
     if (isPickerLaunchingRef.current) return;
     isPickerLaunchingRef.current = true;
     if (__DEV__) {
@@ -762,6 +821,7 @@ export default function ChatScreen() {
         const asset = res.assets[0];
         const attachment = await prepareChatAttachment(asset);
         await removeOutboxFile(selectedAttachment?.uri);
+        if (!isCurrentChatSession(start)) { await removeOutboxFile(attachment.uri); return; }
         setSelectedAttachment(attachment);
       }
     } catch (err: any) {
@@ -788,6 +848,8 @@ export default function ChatScreen() {
       replyTo: ChatMessage | null;
       mentions?: string[];
     }) => {
+      const start = getChatSession();
+      if (!isCurrentChatSession(start) || !start.context) return;
       const trimmed = text.trim();
       if (!trimmed && !file) return;
       if (trimmed.length > 2000) return;
@@ -801,6 +863,7 @@ export default function ChatScreen() {
       const tempId = -Date.now();
 
       const optimisticMessage: ChatMessage = {
+        chatGroupId: start.context.chatGroupId,
         id: tempId,
         clientId,
         text: trimmed,
@@ -848,6 +911,7 @@ export default function ChatScreen() {
 
       // 5. Fire async network request in background (independent, non-blocking)
       sendChatMessage({
+        chatGroupId: start.context.chatGroupId,
         text: trimmed,
         replyToId: replyTarget?.id,
         clientId,
@@ -862,6 +926,7 @@ export default function ChatScreen() {
           : null,
       })
         .then(async (res) => {
+          if (!isCurrentChatSession(start)) return;
           if (res && res.data) {
             const confirmedMsg: ChatMessage = {
               ...res.data,
@@ -871,6 +936,7 @@ export default function ChatScreen() {
             };
             await resolvePendingMessage(tempId, confirmedMsg);
             await removeOutboxFile(file?.uri);
+            if (!isCurrentChatSession(start)) return;
 
             // In-place replacement: updates the temp message directly without removal & re-insertion (zero flicker/jump)
             setMessages((prev) =>
@@ -883,8 +949,10 @@ export default function ChatScreen() {
           }
         })
         .catch(async (err: any) => {
+          if (!isCurrentChatSession(start)) return;
           console.warn("Send message error:", err?.message || err);
           await markPendingMessageFailed(tempId);
+          if (!isCurrentChatSession(start)) return;
           setMessages((prev) =>
             prev.map((m) =>
               m.id === tempId || (m.clientId && m.clientId === clientId)
@@ -905,6 +973,10 @@ export default function ChatScreen() {
 
   const handleRetryMessage = useCallback(
     async (failedMsg: ChatMessage) => {
+      const start = getChatSession();
+      if (!isCurrentChatSession(start) || failedMsg.chatGroupId !== start.context?.chatGroupId || !failedMsg.clientId) {
+        Alert.alert('Conversation unavailable','This conversation is no longer available.'); return;
+      }
       // 1. Reset status to pending in state & SQLite
       setMessages((prev) =>
         prev.map((m) =>
@@ -917,9 +989,11 @@ export default function ChatScreen() {
 
       try {
         const res = await sendChatMessage({
+          chatGroupId: failedMsg.chatGroupId,
           text: failedMsg.text,
           replyToId: failedMsg.replyToId,
           clientId: failedMsg.clientId,
+          mentions: failedMsg.mentions,
           file:
             failedMsg.pendingFile ||
             (failedMsg.localUri
@@ -931,6 +1005,7 @@ export default function ChatScreen() {
               : null),
         });
 
+        if (!isCurrentChatSession(start)) return;
         if (res && res.data) {
           const confirmedMsg: ChatMessage = {
             ...res.data,
@@ -940,6 +1015,7 @@ export default function ChatScreen() {
           };
           await resolvePendingMessage(failedMsg.id, confirmedMsg);
           await removeOutboxFile(failedMsg.localUri);
+          if (!isCurrentChatSession(start)) return;
           setMessages((prev) =>
             prev.map((m) =>
               m.id === failedMsg.id || (failedMsg.clientId && m.clientId === failedMsg.clientId)
@@ -949,8 +1025,10 @@ export default function ChatScreen() {
           );
         }
       } catch (err: any) {
+        if (!isCurrentChatSession(start)) return;
         console.warn("Retry failed:", err?.message || err);
         await markPendingMessageFailed(failedMsg.id);
+        if (!isCurrentChatSession(start)) return;
         setMessages((prev) =>
           prev.map((m) =>
             m.id === failedMsg.id || (failedMsg.clientId && m.clientId === failedMsg.clientId)
@@ -1121,7 +1199,7 @@ export default function ChatScreen() {
 
           <View style={styles.headerTextGroup}>
             <Text variant="md" weight="700" style={styles.headerGroupName} numberOfLines={1}>
-              Class Group
+              {context ? `${context.groupCode.charAt(0)}${context.groupCode.slice(1).toLowerCase()} Group` : 'Group Chat'}
             </Text>
             <Text variant="xs" style={styles.headerSubtitle} numberOfLines={1}>
               {headerSubtitle}
@@ -1218,7 +1296,7 @@ export default function ChatScreen() {
           <FlatList
             ref={flatListRef}
             data={messages}
-            keyExtractor={(item) => item.clientId || String(item.id)}
+            keyExtractor={(item) => item.clientId ? `${item.studentId}:${item.clientId}` : String(item.id)}
             renderItem={renderMessageItem}
             style={styles.messagesList}
             contentContainerStyle={styles.messagesFeed}
@@ -1336,6 +1414,7 @@ export default function ChatScreen() {
       {/* Replying banner, Attachment Preview, and Message Composer */}
       <StickyComposer bordered>
         <ChatComposer
+          key={`${user?.studentId}:${roomGeneration}`}
           replyTo={replyTo}
           onCancelReply={() => setReplyTo(null)}
           selectedAttachment={selectedAttachment}
@@ -1350,7 +1429,7 @@ export default function ChatScreen() {
           onPickCamera={handleTakePhoto}
           onSendMessage={handleSendMessage}
           inputRef={inputRef}
-          userAvailable={Boolean(user)}
+          userAvailable={Boolean(user && context)}
           members={members}
           serverUrl={serverUrl}
           currentUserId={user?.studentId}

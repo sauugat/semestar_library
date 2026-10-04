@@ -59,7 +59,6 @@ import {
 } from '@/services/posts';
 import { getBaseUrl, getAutoDetectedServerUrl, DEFAULT_SERVER_URL } from '@/services/api';
 import { SearchOverlay } from '@/components/SearchOverlay';
-import { initChatRealtime } from '@/services/chat-realtime';
 import { UploadNoteModal } from '@/components/UploadNoteModal';
 import { PostMediaGallery } from '@/components/PostMediaGallery';
 import { EditPostModal } from '@/components/EditPostModal';
@@ -964,13 +963,6 @@ export default function HomeScreen() {
   // Track which post image is currently being pinched/zoomed
   const [zoomingPostId, setZoomingPostId] = useState<number | null>(null);
 
-  // Prefetch and pre-warm chat realtime connection and delta in background while user views Home
-  useEffect(() => {
-    if (user?.studentId) {
-      void initChatRealtime(user.studentId);
-
-    }
-  }, [user?.studentId]);
 
   // Post options menu & Toast states
   const [selectedMenuPost, setSelectedMenuPost] = useState<Post | null>(null);

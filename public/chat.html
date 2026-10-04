@@ -106,7 +106,7 @@
           <circle cx="11" cy="11" r="8"></circle>
           <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
         </svg>
-        <input type="text" id="chatSearchInput" placeholder="Search loaded messages and files..." oninput="handleChatSearch(this.value)" onkeydown="handleSearchKeydown(event)">
+        <input type="text" id="chatSearchInput" placeholder="Search this conversation..." oninput="searchRoom(this.value)" onkeydown="handleSearchKeydown(event)">
         <span id="searchMatchesCount" class="im-search-count"></span>
       </div>
       <div class="im-search-nav">
@@ -226,7 +226,7 @@
           </div>
           <input type="file" id="hiddenFileInput" style="display:none" onchange="handleFileSelected(event)">
 
-          <div class="im-input-capsule">
+          <div class="im-input-capsule" style="position:relative">
             <!-- Emoji Picker Toggle Button -->
             <div class="im-emoji-menu-wrap">
               <button type="button" class="im-emoji-toggle-btn" id="emojiToggleBtn" onclick="toggleEmojiDrawer(event)" title="Choose emoji" aria-label="Choose emoji">
@@ -246,6 +246,7 @@
             <textarea class="im-textarea" id="chatTextarea" aria-label="Message your class" placeholder="Message your class…" disabled rows="1" maxlength="2000"
               oninput="handleInputState()" onkeydown="handleKeyAction(event)"></textarea>
 
+            <div id="mentionCandidates" aria-label="Mention classmates" style="position:absolute;z-index:50;bottom:100%;left:0;right:0;background:#171717;max-height:200px;overflow:auto;border-radius:12px"></div>
             <!-- Send Arrow Button (Always Visible in Capsule) -->
             <button class="im-send-btn" id="sendBtn" disabled onclick="sendMessage()" title="Send message" aria-label="Send message">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
@@ -370,9 +371,15 @@
   </div>
 
   <script src="/chat-cache.js"></script>
+  <script src="/cohort-chat-client.js"></script>
   <script>
     let currentStudent = null;
     let messageCache = null;
+    var roomClient = null;
+    window.roomClient = null;
+    let pendingSend = null;
+    let mentionSelections = new Map();
+    let mentionTimer = null;
     let isSending = false;
     const onlineMemberIds = new Set();
     let lastMessageId = 0;
@@ -393,6 +400,28 @@
 
     const textarea = document.getElementById('chatTextarea');
     const sendBtn = document.getElementById('sendBtn');
+    textarea.addEventListener('input',()=>{
+      clearTimeout(mentionTimer);
+      const list=document.getElementById('mentionCandidates');list.replaceChildren();
+      const match=textarea.value.slice(0,textarea.selectionStart).match(/(?:^|\s)@([a-zA-Z0-9_.]*)$/);
+      if(!match||!roomClient?.context())return;
+      const generation=roomClient.generation(), original=textarea.value, cursor=textarea.selectionStart;
+      mentionTimer=setTimeout(async()=>{
+        try{
+          const candidates=await(await roomClient.fetch('/api/chat/mentions/students?q='+encodeURIComponent(match[1]))).json();
+          if(!roomClient.current(generation)||textarea.value!==original)return;
+          for(const candidate of candidates){
+            const button=document.createElement('button');button.type='button';button.style.cssText='display:flex;gap:8px;align-items:center;width:100%;padding:10px;color:white;background:none;border:0;text-align:left';
+            if(candidate.avatarUrl){const avatar=document.createElement('img');avatar.src=candidate.avatarUrl;avatar.width=28;avatar.height=28;avatar.style.borderRadius='50%';button.append(avatar);}
+            button.append(document.createTextNode(candidate.name+(candidate.username?' @'+candidate.username:'')));
+            button.onclick=()=>{if(!roomClient.current(generation))return;const handle=candidate.username||candidate.name.replace(/\s+/g,'_');
+              const at=original.slice(0,cursor).lastIndexOf('@');textarea.value=original.slice(0,at)+'@'+handle+' '+original.slice(cursor);
+              mentionSelections.set(handle,candidate.studentId);list.replaceChildren();textarea.focus();handleInputState();};
+            list.append(button);
+          }
+        }catch{}
+      },200);
+    });
 
     // Keep sender labels consistent with the monochrome website palette.
     function getSenderColor() { return '#d4d4d4'; }
@@ -508,7 +537,7 @@
       const hasText = textarea.value.trim().length > 0;
       const hasFile = document.getElementById('attachmentChip').classList.contains('active');
 
-      sendBtn.disabled = isSending || !currentStudent || !(hasText || hasFile);
+      sendBtn.disabled = isSending || !currentStudent || !roomClient?.context() || !(hasText || hasFile);
       if (hasText || hasFile) {
         sendBtn.classList.add('ready');
       } else {
@@ -520,7 +549,7 @@
         const now = Date.now();
         if (now - lastTypingSent > 2000) {
           lastTypingSent = now;
-          fetch('/api/chat/typing', { method: 'POST' }).catch(() => {});
+          roomClient.fetch('/api/chat/typing', { method: 'POST' }).catch(() => {});
         }
       }
     }
@@ -544,19 +573,35 @@
       .then(data => {
         if (!data) return;
         currentStudent = data;
-        try { messageCache = createChatCache(localStorage, data.studentId); } catch {}
-        const cached = messageCache?.get().slice(-40) || [];
-        if (cached.length) {
-          renderMessages(cached);
-          oldestMessageId = cached[0].id;
-          // Keep the confirmed cursor separate from optimistic/live cache writes.
-          lastMessageId = cached[cached.length - 1].id;
-          scrollToBottom(true, false);
-          initialMessagesPositioned = true;
-        }
-        textarea.disabled = false;
-        handleInputState();
-        loadMembers();
+        window.roomClient = roomClient = createCohortClient({
+          fetch: window.fetch.bind(window), server: location.origin, account: data.studentId,
+          storage: localStorage, createCache: createChatCache,
+          createClient: (...args) => supabase.createClient(...args),
+          onInvalidate: clearRoomUI,
+          onContext: (context, cache, changed) => {
+            messageCache = cache;
+            document.querySelector('.im-contact-name').textContent = context.groupCode[0] + context.groupCode.slice(1).toLowerCase() + ' Group';
+            textarea.disabled = false;
+            if (changed) { renderMessages(cache.get().slice(-40)); void loadMembers(); }
+            handleInputState();
+          },
+          onReconcile: () => fetchNewMessages(),
+          onOnline: ids => {
+            onlineMemberIds.clear(); ids.forEach(id => onlineMemberIds.add(String(id)));
+            document.getElementById('onlineCountText').textContent = ids.length + ' online';
+            document.getElementById('modalOnlineCount').textContent = ids.length + ' Online';
+            filterMembersList(document.getElementById('memberFilterInput').value);
+          },
+          onEvent: (type, p) => {
+            if (type === 'new_message') { const isNew = !document.getElementById('msg-row-'+p.id); const near=isNearBottom(); renderMessages([p]); if(near)scrollToBottom(true,false);else if(isNew&&p.studentId!==currentStudent.studentId){unreadCount++;updateUnreadBadge();} }
+            if (type === 'delete_message') removeMessageElement(p.messageId);
+            if (type === 'reaction_update') updateReactionUI(p.messageId,p.studentId,p.emoji,p.action);
+            if (type === 'typing') handleTypingEvent(p);
+            if (type === 'pin_message') void loadPinnedMessage();
+            if (type === 'read_receipt') { readReceiptsMap[p.studentId]=Math.max(readReceiptsMap[p.studentId]||0,p.lastReadMessageId);updateReadReceiptsUI(); }
+          },
+          onError: error => showError(error.message),
+        });
         const charEl = document.getElementById('headerAvatarChar');
         if (charEl) charEl.textContent = (data.name || 'S').charAt(0).toUpperCase();
 
@@ -573,8 +618,7 @@
           .catch(() => { });
 
         initEmojiDrawer();
-        loadPinnedMessage();
-        startPolling();
+        void roomClient.start().then(handleNotificationTarget);
       })
       .catch(() => {
         showAuthToast();
@@ -610,7 +654,8 @@
 
     // Send Message
     async function sendMessage() {
-      if (isSending || !currentStudent) return;
+      if (isSending || !currentStudent || !roomClient?.context()) return;
+      const generation=roomClient.generation();
       const text = textarea.value.trim();
       const fileInput = document.getElementById('hiddenFileInput');
       const file = fileInput.files[0];
@@ -618,6 +663,9 @@
       if (!text && !file) return;
       if (text.length > 2000) return showError('Message exceeds 2,000 character limit.');
 
+      const signature=JSON.stringify([text,file?.name,file?.size,file?.lastModified,currentReplyToId]);
+      if (!pendingSend || pendingSend.signature!==signature) pendingSend={signature,clientId:crypto.randomUUID(),chatGroupId:roomClient.context().chatGroupId};
+      if(pendingSend.chatGroupId!==roomClient.context().chatGroupId)return showError('This conversation is no longer available.');
       isSending = true;
       sendBtn.disabled = true;
 
@@ -689,6 +737,8 @@
       scrollToBottom(true, false);
 
       const payload = new FormData();
+      payload.append('clientId',pendingSend.clientId);
+      payload.append('mentions',JSON.stringify([...new Set([...mentionSelections].filter(([handle])=>text.includes('@'+handle)).map(([,id])=>id))]));
       if (text) payload.append('text', text);
       if (file) payload.append('attachment', file);
       if (currentReplyToId) payload.append('replyToId', currentReplyToId);
@@ -698,7 +748,7 @@
       document.getElementById('emojiToggleBtn').disabled = true;
 
       try {
-        const res = await fetch('/api/chat/messages', {
+        const res = await roomClient.fetch('/api/chat/messages', {
           method: 'POST',
           body: payload
         });
@@ -708,6 +758,8 @@
           showError(data.message || data.error || 'Unable to send. Your draft is saved; try again.');
           document.getElementById(tempId)?.remove();
         } else {
+          if(!roomClient.current(generation))return;
+          pendingSend=null;mentionSelections.clear();
           textarea.value = '';
           cancelReply();
           removeAttachedFile();
@@ -724,6 +776,7 @@
         showError('Network error. Check connection.');
         document.getElementById(tempId)?.remove();
       } finally {
+        if(!roomClient.current(generation))return;
         row.querySelectorAll('img, video').forEach(media => URL.revokeObjectURL(media.src));
         isSending = false;
         textarea.disabled = false;
@@ -756,7 +809,7 @@
       closeDeleteConfirm();
 
       try {
-        const res = await fetch(`/api/chat/messages/${msgId}`, { method: 'DELETE' });
+        const res = await roomClient.fetch(`/api/chat/messages/${msgId}`, { method: 'DELETE' });
         const data = await res.json();
         if (!res.ok) {
           showError(data.error || 'Failed to delete message');
@@ -808,7 +861,7 @@
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 15000);
       try {
-        const response = await fetch(url, { cache: 'no-store', signal: controller.signal });
+        const response = await roomClient.fetch(url, { cache: 'no-store', signal: controller.signal });
         if (!response.ok) throw new Error(`Chat request failed (${response.status})`);
         return await response.json();
       } finally { clearTimeout(timeout); }
@@ -964,7 +1017,7 @@
       const timer = setTimeout(() => {
         activeTypers.delete(data.studentId);
         updateTypingUI();
-      }, 3500);
+      }, Math.max(0, Math.min(4000, data.expiresAt ? Date.parse(data.expiresAt)-Date.now() : new Date(data.timestamp).getTime()+4000-Date.now())));
 
       activeTypers.set(data.studentId, { name: data.name || 'Someone', timer });
       updateTypingUI();
@@ -997,96 +1050,26 @@
       }
     }
 
-    // Supabase Realtime Setup with Presence Tracking
-    async function initRealtime() {
-      try {
-        const res = await fetch('/api/chat/config');
-        if (!res.ok) throw new Error('Could not get config');
-        const { url, key } = await res.json();
-        if (!url || !key) { document.getElementById('onlineCountText').textContent = 'Class conversation'; return; }
-
-        const supabaseClient = supabase.createClient(url, key);
-        const channel = supabaseClient.channel('public:chat_messages', {
-          config: {
-            presence: { key: currentStudent ? String(currentStudent.studentId) : 'guest' }
-          }
-        });
-
-        channel
-          .on('broadcast', { event: 'new_message' }, (payload) => {
-            const msg = payload.payload;
-            if (msg.studentId && activeTypers.has(msg.studentId)) {
-              clearTimeout(activeTypers.get(msg.studentId).timer);
-              activeTypers.delete(msg.studentId);
-              updateTypingUI();
-            }
-            // Fetch from the confirmed cursor so concurrent sends cannot skip messages.
-            if (Number.isSafeInteger(msg.id) && msg.id > 0) {
-              const isNear = isNearBottom();
-              const isNew = !document.getElementById(`msg-row-${msg.id}`);
-              renderMessages([msg]);
-              if (isNear) scrollToBottom(true, false);
-              else if (isNew && String(msg.studentId) !== String(currentStudent?.studentId)) { unreadCount++; updateUnreadBadge(); }
-              fetchNewMessages();
-            }
-          })
-          .on('broadcast', { event: 'delete_message' }, (payload) => {
-            removeMessageElement(payload.payload.messageId);
-          })
-          .on('broadcast', { event: 'reaction_update' }, (payload) => {
-            const p = payload.payload;
-            updateReactionUI(p.messageId, p.studentId, p.emoji, p.action);
-          })
-          .on('broadcast', { event: 'typing' }, (payload) => {
-            handleTypingEvent(payload.payload);
-          })
-          .on('broadcast', { event: 'read_receipt' }, (payload) => {
-            const p = payload.payload;
-            if (p.studentId !== currentStudent?.studentId) {
-              readReceiptsMap[p.studentId] = p.lastReadMessageId;
-              updateReadReceiptsUI();
-            }
-          })
-          .on('broadcast', { event: 'pin_message' }, () => {
-            loadPinnedMessage();
-          })
-          .on('presence', { event: 'sync' }, () => {
-            const state = channel.presenceState();
-            onlineMemberIds.clear();
-            Object.keys(state).forEach(id => onlineMemberIds.add(String(id)));
-            const count = onlineMemberIds.size;
-            filterMembersList(document.getElementById('memberFilterInput').value);
-            const onlineEl = document.getElementById('onlineCountText');
-            if (onlineEl) onlineEl.textContent = `${count} online`;
-            const modalCountEl = document.getElementById('modalOnlineCount');
-            if (modalCountEl) modalCountEl.textContent = `${count} Online`;
-          })
-          .subscribe(async (status) => {
-            if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-              onlineMemberIds.clear();
-              document.getElementById('onlineCountText').textContent = 'Reconnecting…';
-              document.getElementById('modalOnlineCount').textContent = 'Presence unavailable';
-              filterMembersList(document.getElementById('memberFilterInput').value);
-            }
-            if (status === 'SUBSCRIBED' && currentStudent) {
-              await channel.track({
-                studentId: currentStudent.studentId,
-                name: currentStudent.name,
-                onlineAt: new Date().toISOString()
-              });
-            }
-          });
-      } catch (e) {
-        document.getElementById('onlineCountText').textContent = 'Class conversation';
-        console.warn('Realtime unavailable; continuing with polling.');
-      }
+    function clearRoomUI() {
+      messageCache=null; pendingSend=null; mentionSelections.clear(); clearTimeout(mentionTimer);
+      document.getElementById('mentionCandidates')?.replaceChildren();
+      document.querySelectorAll('#feedInner .im-row, #feedInner .im-date-stamp').forEach(row=>row.remove());
+      lastMessageId=0;oldestMessageId=null;hasMoreOlder=true;isFetching=false;isFetchingOlder=false;
+      initialMessagesPositioned=false;lastDateString=null;unreadCount=0;myLastReadId=0;readReceiptsMap={};pinnedMessage=null;allMembers=[];
+      activeTypers.forEach(t=>clearTimeout(t.timer));activeTypers.clear();onlineMemberIds.clear();
+      cancelReply();removeAttachedFile();textarea.value='';textarea.disabled=true;sendBtn.disabled=true;
+      closeChatSearch();closeLightbox();updateTypingUI();updateUnreadBadge();
+      document.getElementById('pinnedBanner').style.display='none';
+      document.getElementById('groupMembersList').replaceChildren();
     }
-
-    function startPolling() {
-      fetchInitialMessages().then(() => {
-        initRealtime();
-        setInterval(fetchNewMessages, 2500);
-      });
+    async function handleNotificationTarget() {
+      const params=new URLSearchParams(location.search), id=Number(params.get('messageId')||params.get('targetMessageId'));
+      if(!id)return;
+      try {
+        const msg=await roomClient.exact(params.get('chatGroupId')||'',id);
+        renderMessages([msg]);scrollToQuotedMessage(msg.id);
+      } catch { showError('This conversation is no longer available.'); }
+      history.replaceState(null,'',location.pathname);
     }
 
     function parseChatDate(value) {
@@ -1126,8 +1109,10 @@
       return div.innerHTML;
     }
 
-    function formatMessageBody(rawText) {
-      return String(rawText || '').split(/(https?:\/\/[^\s]+)/g).map(part => {
+    function formatMessageBody(rawText, mentions=[]) {
+      return String(rawText || '').split(/(https?:\/\/[^\s]+|@[a-zA-Z0-9_.]+)/g).map(part => {
+        const mentioned=mentions.find(m=>m.handle && part.toLowerCase()==='@'+m.handle.toLowerCase());
+        if(mentioned){const a=document.createElement('a');a.href='profile.html?studentId='+encodeURIComponent(mentioned.studentId);a.textContent=part;return a.outerHTML;}
         if (!/^https?:\/\//.test(part)) return escapeHtml(part);
         const anchor = document.createElement('a');
         anchor.href = part;
@@ -1150,6 +1135,7 @@
 
     // Render Messages with Grouping, Asymmetric Radii & Document Cards
     function renderMessages(messages, prepend = false) {
+      messages=messages.filter(m=>m.chatGroupId===roomClient?.context()?.chatGroupId);
       messageCache?.merge(messages);
       const container = document.getElementById('feedInner');
       const typingEl = document.getElementById('typingIndicator');
@@ -1162,7 +1148,7 @@
       const fragment = document.createDocumentFragment();
 
       messages.forEach((msg, idx) => {
-        const version = JSON.stringify([msg.text, msg.attachmentName, msg.attachmentMimeType, msg.attachmentOriginalName, msg.replyToId, msg.replyText, msg.replySender, msg.name]);
+        const version = JSON.stringify([msg.reactions, msg.text, msg.attachmentName, msg.attachmentMimeType, msg.attachmentOriginalName, msg.replyToId, msg.replyText, msg.replySender, msg.name]);
         const existing = document.getElementById(`msg-row-${msg.id}`);
         if (existing?.dataset.version === version) return;
         existing?.remove();
@@ -1265,7 +1251,7 @@
         if (hasText) {
           const textSpan = document.createElement('div');
           textSpan.className = 'im-bubble-text';
-          textSpan.innerHTML = formatMessageBody(msg.text);
+          textSpan.innerHTML = formatMessageBody(msg.text,msg.mentionsDetail||[]);
           bubbleElem.appendChild(textSpan);
         }
 
@@ -1466,7 +1452,7 @@
     async function sendReaction(messageId, emoji) {
       document.querySelectorAll('.emoji-picker-popup').forEach(p => p.style.display = 'none');
       try {
-        const response = await fetch('/api/chat/reactions', {
+        const response = await roomClient.fetch('/api/chat/reactions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ messageId, emoji })
@@ -1517,7 +1503,7 @@
     async function markAsRead(messageId) {
       if (!document.hidden && isNearBottom() && messageId > myLastReadId) {
         try {
-          const response = await fetch('/api/chat/read', {
+          const response = await roomClient.fetch('/api/chat/read', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ lastReadMessageId: messageId })
@@ -1618,7 +1604,7 @@
     // Pinned Announcement Banner Logic
     async function loadPinnedMessage() {
       try {
-        const res = await fetch('/api/chat/pinned');
+        const res = await roomClient.fetch('/api/chat/pinned');
         if (res.ok) {
           const data = await res.json();
           const p = data && data.pinned;
@@ -1659,7 +1645,7 @@
     async function unpinChatMessage(e) {
       if (e) e.stopPropagation();
       try {
-        const res = await fetch('/api/chat/pinned', { method: 'DELETE' });
+        const res = await roomClient.fetch('/api/chat/pinned', { method: 'DELETE' });
         if (res.ok) {
           pinnedMessage = null;
           const banner = document.getElementById('pinnedBanner');
@@ -1676,7 +1662,7 @@
 
     async function pinChatMessage(msgId) {
       try {
-        const res = await fetch(`/api/chat/pinned/${msgId}`, { method: 'POST' });
+        const res = await roomClient.fetch(`/api/chat/pinned/${msgId}`, { method: 'POST' });
         const data = await res.json();
         if (res.ok) {
           showError('Message pinned as announcement');
@@ -1741,6 +1727,18 @@
       }
     }
 
+    let searchTimer;
+    function searchRoom(term) {
+      clearTimeout(searchTimer);handleChatSearch(term);
+      if(!term.trim()||!roomClient?.context())return;
+      const generation=roomClient.generation();
+      searchTimer=setTimeout(async()=>{
+        try {const data=await fetchChatHistory('/api/chat/messages?q='+encodeURIComponent(term)+'&limit=100');
+          if(!roomClient.current(generation)||document.getElementById('chatSearchInput').value!==term)return;
+          renderMessages(data.messages);handleChatSearch(term);
+        }catch{}
+      },250);
+    }
     function handleChatSearch(term) {
       clearSearchHighlights();
       const cleanTerm = (term || '').trim().toLowerCase();
@@ -1836,7 +1834,7 @@
     async function loadMembers() {
 
       try {
-        const res = await fetch('/api/chat/members');
+        const res = await roomClient.fetch('/api/chat/members');
         if (!res.ok) throw new Error('Members unavailable');
         {
           const data = await res.json();
@@ -2124,7 +2122,9 @@
     }
     enableKeyboardActions();
     new MutationObserver(() => enableKeyboardActions()).observe(document.querySelector('.im-app'), { childList: true, subtree: true });
-    document.addEventListener('visibilitychange', () => { if (!document.hidden && currentStudent) fetchNewMessages(); });
+    document.addEventListener('visibilitychange', () => { void roomClient?.setActive(!document.hidden); });
+    window.addEventListener('pagehide', () => roomClient?.stop());
+    window.addEventListener('storage', event => { if(event.key && /auth|session|logout|user|token/i.test(event.key))roomClient?.invalidate(); });
     // Visual viewport keeps the composer above mobile software keyboards.
     if (window.visualViewport) {
       const resizeChat = () => { document.body.style.height = `${window.visualViewport.height}px`; };

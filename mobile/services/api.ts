@@ -1,6 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 import { router } from 'expo-router';
 import Constants from 'expo-constants';
+import { invalidateChatSession } from './chat-session';
 
 export const DEFAULT_SERVER_URL =
   process.env.EXPO_PUBLIC_API_URL ||
@@ -85,6 +86,7 @@ export async function getAuthToken(): Promise<string | null> {
 }
 
 export async function clearAuthToken(): Promise<void> {
+  invalidateChatSession();
   try {
     await SecureStore.deleteItemAsync(TOKEN_STORAGE_KEY);
   } catch {}
@@ -246,6 +248,8 @@ export async function apiFetch(
 
   // Handle 401 Unauthorized (expired token or invalid session)
   if (response.status === 401) {
+    const sentToken = (Object.entries(headers).find(([key])=>key.toLowerCase()==='authorization')?.[1] || '').replace(/^Bearer /,'');
+    if (sentToken !== await getAuthToken()) throw new ApiError('Expired request session.',401);
     await clearAuthToken();
     try {
       router.replace('/login');

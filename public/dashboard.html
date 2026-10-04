@@ -656,6 +656,218 @@
       opacity: 0.96;
     }
 
+    /* Multi-Photo Grid Layouts */
+    .post-image.post-media-grid {
+      display: grid !important;
+      max-width: min(100%, 540px) !important;
+      max-height: none !important;
+      gap: 6px;
+      padding: 0;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid var(--border-color, rgba(255, 255, 255, 0.12));
+      background: var(--bg-surface-raised, rgba(255, 255, 255, 0.04));
+    }
+
+    .post-image.post-media-grid.grid-2 {
+      grid-template-columns: 1fr 1fr;
+      aspect-ratio: 16/10;
+      max-height: 270px;
+    }
+
+    .post-image.post-media-grid.grid-3 {
+      grid-template-columns: 3fr 2fr;
+      grid-template-rows: 1fr 1fr;
+      aspect-ratio: 16/10;
+      max-height: 290px;
+    }
+
+    .post-image.post-media-grid.grid-3 .cell-main {
+      grid-row: span 2;
+    }
+
+    .post-image.post-media-grid.grid-4 {
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      aspect-ratio: 16/11;
+      max-height: 320px;
+    }
+
+    .post-media-cell {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg-surface-raised, rgba(255, 255, 255, 0.04));
+    }
+
+    .post-media-cell img {
+      width: 100% !important;
+      height: 100% !important;
+      max-width: none !important;
+      max-height: none !important;
+      object-fit: cover !important;
+      display: block !important;
+      border-radius: 0 !important;
+      cursor: pointer;
+      transition: transform 0.25s ease, opacity 0.2s ease;
+    }
+
+    .post-media-cell:hover img {
+      transform: scale(1.025);
+      opacity: 0.95;
+    }
+
+    .post-media-more-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.60);
+      backdrop-filter: blur(3px);
+      -webkit-backdrop-filter: blur(3px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #ffffff;
+      font-size: 22px;
+      font-weight: 700;
+      cursor: pointer;
+      z-index: 2;
+      transition: background 0.2s ease;
+    }
+
+    .post-media-more-overlay:hover {
+      background: rgba(0, 0, 0, 0.74);
+    }
+
+    /* Post File Attachments List */
+    .post-file-attachments {
+      margin-top: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      max-width: min(100%, 540px);
+    }
+
+    .post-attachment-card {
+      background: var(--bg-surface-raised, #fafafa);
+      border: 1px solid var(--border-color, rgba(0, 0, 0, 0.12));
+      border-radius: 10px;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      text-decoration: none;
+      color: inherit;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+      transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+      cursor: pointer;
+    }
+
+    .post-attachment-card:hover {
+      transform: translateY(-1px);
+      border-color: var(--text-secondary, #6b7280);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    .attachment-main {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .attachment-icon-box {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .file-icon-pdf { background: rgba(239, 68, 68, 0.12); color: #dc2626; }
+    .file-icon-doc { background: rgba(59, 130, 246, 0.12); color: #2563eb; }
+    .file-icon-ppt { background: rgba(249, 115, 22, 0.12); color: #ea580c; }
+    .file-icon-xls { background: rgba(16, 185, 129, 0.12); color: #059669; }
+    .file-icon-zip { background: rgba(168, 85, 247, 0.12); color: #9333ea; }
+    .file-icon-generic { background: rgba(107, 114, 128, 0.12); color: #4b5563; }
+
+    .attachment-text {
+      min-width: 0;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .attachment-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary, #111827);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    [data-theme="dark"] .attachment-name,
+    body.dark-mode .attachment-name {
+      color: #f4f4f5 !important;
+    }
+
+    .attachment-meta {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-secondary, #6b7280);
+    }
+
+    .attachment-file-badge {
+      font-size: 9.5px;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 3px;
+      background: rgba(0, 0, 0, 0.06);
+      color: var(--text-secondary, #4b5563);
+      letter-spacing: 0.4px;
+    }
+
+    [data-theme="dark"] .attachment-file-badge,
+    body.dark-mode .attachment-file-badge {
+      background: rgba(255, 255, 255, 0.1) !important;
+      color: #e4e4e7 !important;
+    }
+
+    .attachment-file-size {
+      color: var(--text-secondary, #71717a);
+    }
+
+    .attachment-download-btn {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-secondary, #6b7280);
+      flex-shrink: 0;
+      transition: color 0.15s ease, background 0.15s ease;
+    }
+
+    .post-attachment-card:hover .attachment-download-btn {
+      color: var(--text-primary, #111827);
+      background: rgba(0, 0, 0, 0.05);
+    }
+
+    [data-theme="dark"] .post-attachment-card:hover .attachment-download-btn,
+    body.dark-mode .post-attachment-card:hover .attachment-download-btn {
+      color: #ffffff !important;
+      background: rgba(255, 255, 255, 0.1) !important;
+    }
+
     .lightbox {
       position: fixed;
       inset: 0;
@@ -687,6 +899,50 @@
       font-size: 32px;
       color: white;
       cursor: pointer;
+    }
+
+    .lightbox-nav-btn {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.15s ease, transform 0.15s ease;
+      z-index: 10001;
+      padding: 0;
+    }
+
+    .lightbox-nav-btn:hover {
+      background: rgba(0, 0, 0, 0.85);
+      transform: translateY(-50%) scale(1.08);
+    }
+
+    .lightbox-prev { left: 24px; }
+    .lightbox-next { right: 24px; }
+
+    .lightbox-counter {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.7);
+      color: #ffffff;
+      padding: 5px 14px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      pointer-events: none;
+      z-index: 10001;
     }
 
     .post-image img[hidden] {
@@ -1240,8 +1496,9 @@
       line-height: 1 !important;
     }
 
-    /* Add Media Button: [icon] Add media */
-    .modal-tool-btn.post-photo-button {
+    /* Add Media & Attach Files Buttons */
+    .modal-tool-btn.post-photo-button,
+    .modal-tool-btn.post-file-button {
       display: inline-flex !important;
       align-items: center !important;
       justify-content: center !important;
@@ -1256,34 +1513,233 @@
       transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease !important;
     }
 
-    .modal-tool-btn.post-photo-button:hover {
+    .modal-tool-btn.post-photo-button:hover,
+    .modal-tool-btn.post-file-button:hover {
       background: #ebebeb !important;
       border-color: rgba(0, 0, 0, 0.22) !important;
     }
 
     [data-theme="dark"] .modal-tool-btn.post-photo-button,
-    body.dark-mode .modal-tool-btn.post-photo-button {
+    body.dark-mode .modal-tool-btn.post-photo-button,
+    [data-theme="dark"] .modal-tool-btn.post-file-button,
+    body.dark-mode .modal-tool-btn.post-file-button {
       background: #242427 !important;
       border-color: rgba(255, 255, 255, 0.14) !important;
       color: #f4f4f5 !important;
     }
 
     [data-theme="dark"] .modal-tool-btn.post-photo-button:hover,
-    body.dark-mode .modal-tool-btn.post-photo-button:hover {
+    body.dark-mode .modal-tool-btn.post-photo-button:hover,
+    [data-theme="dark"] .modal-tool-btn.post-file-button:hover,
+    body.dark-mode .modal-tool-btn.post-file-button:hover {
       background: #2e2e32 !important;
       border-color: rgba(255, 255, 255, 0.25) !important;
     }
 
-    .modal-tool-btn.post-photo-button.has-attachment {
+    .modal-tool-btn.post-photo-button.has-attachment,
+    .modal-tool-btn.post-file-button.has-attachment {
       border-color: #525252 !important;
       background: rgba(255, 255, 255, 0.12) !important;
     }
 
-    .modal-tool-btn.post-photo-button svg {
+    .modal-tool-btn.post-photo-button svg,
+    .modal-tool-btn.post-file-button svg {
       width: 17px !important;
       height: 17px !important;
       flex-shrink: 0 !important;
       display: block !important;
+    }
+
+    /* Multi-Photos Preview in Composer */
+    .post-preview-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .post-preview-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary, #71717a);
+      letter-spacing: 0.2px;
+    }
+
+    .post-preview-clear-btn {
+      background: none;
+      border: none;
+      font-size: 12px;
+      font-weight: 600;
+      color: #ef4444;
+      cursor: pointer;
+      padding: 0;
+      transition: opacity 0.15s ease;
+    }
+
+    .post-preview-clear-btn:hover {
+      opacity: 0.8;
+      text-decoration: underline;
+    }
+
+    .post-multi-images-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .composer-thumb-card {
+      position: relative;
+      width: 72px;
+      height: 72px;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid var(--border-color, rgba(0, 0, 0, 0.12));
+      background: #f4f4f5;
+      flex-shrink: 0;
+    }
+
+    [data-theme="dark"] .composer-thumb-card,
+    body.dark-mode .composer-thumb-card {
+      border-color: rgba(255, 255, 255, 0.14) !important;
+      background: #242427 !important;
+    }
+
+    .composer-thumb-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .composer-thumb-idx {
+      position: absolute;
+      bottom: 3px;
+      left: 3px;
+      background: rgba(0, 0, 0, 0.65);
+      color: #ffffff;
+      font-size: 9.5px;
+      font-weight: 700;
+      padding: 1px 4px;
+      border-radius: 4px;
+      line-height: 1.2;
+    }
+
+    .composer-thumb-remove {
+      position: absolute;
+      top: 3px;
+      right: 3px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.75);
+      color: #ffffff;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      transition: background 0.15s ease, transform 0.15s ease;
+      z-index: 2;
+    }
+
+    .composer-thumb-remove:hover {
+      background: #dc2626;
+      transform: scale(1.1);
+    }
+
+    /* Multi-Files Preview in Composer */
+    .post-files-preview-container {
+      width: 100%;
+      box-sizing: border-box;
+      margin-top: 12px;
+    }
+
+    .post-files-preview-container[hidden] {
+      display: none !important;
+    }
+
+    .post-files-preview-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .composer-file-card {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: 9px;
+      background: #f4f4f5;
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      box-sizing: border-box;
+    }
+
+    [data-theme="dark"] .composer-file-card,
+    body.dark-mode .composer-file-card {
+      background: #242427 !important;
+      border-color: rgba(255, 255, 255, 0.12) !important;
+    }
+
+    .composer-file-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .composer-file-info {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .composer-file-name {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text-primary, #18181b);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    [data-theme="dark"] .composer-file-name,
+    body.dark-mode .composer-file-name {
+      color: #f4f4f5 !important;
+    }
+
+    .composer-file-meta {
+      font-size: 11px;
+      color: var(--text-secondary, #71717a);
+    }
+
+    .composer-file-remove {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: transparent;
+      border: none;
+      color: var(--text-secondary, #71717a);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      transition: color 0.15s ease, background 0.15s ease;
+      flex-shrink: 0;
+    }
+
+    .composer-file-remove:hover {
+      color: #dc2626;
+      background: rgba(220, 38, 38, 0.1);
     }
 
     /* Post Type Selector: Compact Status ▾ */
@@ -1879,10 +2335,18 @@
           <textarea id="postContent" name="content" rows="4" maxlength="5000" required placeholder="What's on your mind?"></textarea>
         </div>
 
-        <!-- 3. Media Preview Section -->
-        <input type="file" id="postImageInput" name="image" accept="image/*" hidden>
+        <!-- 3. Media & File Inputs -->
+        <input type="file" id="postImageInput" name="images" accept="image/*" multiple hidden>
+        <input type="file" id="postFileInput" name="files" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip" multiple hidden>
+
+        <!-- 3a. Images Preview Section -->
         <div id="postImagePreview" class="post-image-preview-container" hidden>
-          <div class="post-image-preview-card">
+          <div class="post-preview-header" id="postImagesPreviewHeader" style="display: none;">
+            <span class="post-preview-title" id="postImagesCount">Photos (0/10)</span>
+            <button type="button" class="post-preview-clear-btn" id="clearAllImagesBtn">Clear all</button>
+          </div>
+          <!-- Single Image Preview Card (Preserved for tests & single-image posts) -->
+          <div class="post-image-preview-card" id="postSingleImagePreviewCard">
             <img id="postImagePreviewImg" alt="Selected media preview" style="display: none;">
             <div id="postImageError" class="post-image-error-state" style="display: none;">
               <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -1900,18 +2364,39 @@
               </svg>
             </button>
           </div>
+          <!-- Multi-Image Thumbnails Grid (Visible when 2+ photos) -->
+          <div class="post-multi-images-grid" id="postMultiImagesGrid" style="display: none;"></div>
+        </div>
+
+        <!-- 3b. File Attachments Preview Section -->
+        <div id="postFilesPreview" class="post-files-preview-container" hidden>
+          <div class="post-preview-header">
+            <span class="post-preview-title" id="postFilesCount">Attached Files (0/5)</span>
+            <button type="button" class="post-preview-clear-btn" id="clearAllFilesBtn">Clear all</button>
+          </div>
+          <div class="post-files-preview-list" id="postFilesList"></div>
         </div>
 
         <!-- 4. Footer Actions Row -->
         <div class="modal-composer-footer">
           <div class="modal-footer-tools">
-            <button type="button" id="choosePostImage" class="modal-tool-btn post-photo-button" aria-label="Add media" title="Add photo (up to 5 MB)">
+            <button type="button" id="choosePostImage" class="modal-tool-btn post-photo-button" aria-label="Add photos" title="Add photos (up to 10 images, 5 MB each)">
               <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <rect x="3" y="3" width="18" height="18" rx="3"></rect>
                 <circle cx="8.5" cy="8.5" r="1.5"></circle>
                 <path d="m21 15-5-5L5 21"></path>
               </svg>
-              <span class="post-photo-label">Add media</span>
+              <span class="post-photo-label" id="choosePostImageLabel">Add photos</span>
+            </button>
+            <button type="button" id="choosePostFiles" class="modal-tool-btn post-file-button" aria-label="Attach files" title="Attach files (up to 5 files, 4 MB each)">
+              <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10 9 9 9 8 9"></polyline>
+              </svg>
+              <span class="post-file-label" id="choosePostFilesLabel">Attach files</span>
             </button>
             <div class="modal-type-selector-wrap">
               <select id="postType" name="type" aria-label="Post type">
@@ -2580,11 +3065,51 @@
     function safePostUrl(value) {
       if (typeof value !== 'string' || !value) return '';
       try {
-        const url = new URL(value, window.location.origin);
+        const hasValidOrigin = typeof window !== 'undefined' &&
+          window.location &&
+          window.location.origin &&
+          window.location.origin !== 'null' &&
+          !window.location.origin.startsWith('file:');
+        const base = hasValidOrigin ? window.location.origin : 'https://semester-library.local';
+        const url = new URL(value, base);
         return ['http:', 'https:'].includes(url.protocol) ? escapeHtml(url.href) : '';
       } catch (_) {
         return '';
       }
+    }
+
+    function getFileExt(filename) {
+      return (filename || '').split('.').pop().toLowerCase();
+    }
+
+    function getFileIconSvg(ext) {
+      const e = (ext || '').toLowerCase();
+      if (e === 'pdf') {
+        return `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><path d="M10 12v6M10 15h3a1.5 1.5 0 0 0 0-3h-3z"></path></svg>`;
+      }
+      if (['doc', 'docx'].includes(e)) {
+        return `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>`;
+      }
+      if (['ppt', 'pptx'].includes(e)) {
+        return `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>`;
+      }
+      if (['xls', 'xlsx'].includes(e)) {
+        return `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line></svg>`;
+      }
+      if (['zip', 'rar', '7z'].includes(e)) {
+        return `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>`;
+      }
+      return `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>`;
+    }
+
+    function getFileColorClass(ext) {
+      const e = (ext || '').toLowerCase();
+      if (e === 'pdf') return 'file-icon-pdf';
+      if (['doc', 'docx'].includes(e)) return 'file-icon-doc';
+      if (['ppt', 'pptx'].includes(e)) return 'file-icon-ppt';
+      if (['xls', 'xlsx'].includes(e)) return 'file-icon-xls';
+      if (['zip', 'rar', '7z'].includes(e)) return 'file-icon-zip';
+      return 'file-icon-generic';
     }
 
     const openCommentPosts = new Set();
@@ -2636,6 +3161,122 @@
       const likeCount = post.like_count ?? post.likeCount ?? 0;
       const isCommentsOpen = openCommentPosts.has(post.id);
 
+      // Attached Media & Files handling
+      const postImages = [];
+      const postFiles = [];
+
+      if (Array.isArray(post.media) && post.media.length > 0) {
+        post.media.forEach(m => {
+          const type = (m.media_type || m.type || 'image').toLowerCase();
+          const safeUrl = safePostUrl(m.url);
+          if (!safeUrl) return;
+          if (type === 'image') {
+            postImages.push({
+              url: safeUrl,
+              name: m.file_name || '',
+              size: m.file_size
+            });
+          } else if (type === 'file') {
+            postFiles.push({
+              url: safeUrl,
+              name: m.file_name || m.url.split('/').pop() || 'Attachment',
+              size: m.file_size,
+              mime: m.mime_type
+            });
+          }
+        });
+      }
+
+      // Backward compatibility fallback for single attachment_url
+      if (postImages.length === 0 && attachmentUrl) {
+        postImages.push({ url: attachmentUrl, name: '', size: null });
+      }
+
+      let imageHtml = '';
+      if (postImages.length === 1) {
+        const singleUrl = postImages[0].url;
+        imageHtml = `<div class="post-image"><img src="${singleUrl}" alt="Image attached by ${escapeHtml(post.name)}" loading="lazy" decoding="async" tabindex="0" role="button" aria-label="Open full image" aria-haspopup="dialog" onerror="this.hidden = true; this.nextElementSibling.hidden = false;"><a class="status-post-attachment" href="${singleUrl}" target="_blank" rel="noopener noreferrer" hidden>View attachment ↗</a></div>`;
+      } else if (postImages.length === 2) {
+        imageHtml = `
+          <div class="post-image post-media-grid grid-2">
+            ${postImages.map((img, i) => `
+              <div class="post-media-cell">
+                <img src="${img.url}" alt="Photo ${i + 1} attached by ${escapeHtml(post.name)}" loading="lazy" decoding="async" tabindex="0" role="button" aria-label="Open photo ${i + 1}" aria-haspopup="dialog" data-gallery-index="${i}">
+              </div>
+            `).join('')}
+          </div>
+        `;
+      } else if (postImages.length === 3) {
+        imageHtml = `
+          <div class="post-image post-media-grid grid-3">
+            <div class="post-media-cell cell-main">
+              <img src="${postImages[0].url}" alt="Photo 1 attached by ${escapeHtml(post.name)}" loading="lazy" decoding="async" tabindex="0" role="button" aria-label="Open photo 1" aria-haspopup="dialog" data-gallery-index="0">
+            </div>
+            <div class="post-media-cell cell-sub">
+              <img src="${postImages[1].url}" alt="Photo 2 attached by ${escapeHtml(post.name)}" loading="lazy" decoding="async" tabindex="0" role="button" aria-label="Open photo 2" aria-haspopup="dialog" data-gallery-index="1">
+            </div>
+            <div class="post-media-cell cell-sub">
+              <img src="${postImages[2].url}" alt="Photo 3 attached by ${escapeHtml(post.name)}" loading="lazy" decoding="async" tabindex="0" role="button" aria-label="Open photo 3" aria-haspopup="dialog" data-gallery-index="2">
+            </div>
+          </div>
+        `;
+      } else if (postImages.length >= 4) {
+        const displayImgs = postImages.slice(0, 4);
+        const remaining = postImages.length - 4;
+        imageHtml = `
+          <div class="post-image post-media-grid grid-4">
+            ${displayImgs.map((img, i) => {
+              const isLastWithMore = i === 3 && remaining > 0;
+              return `
+                <div class="post-media-cell${isLastWithMore ? ' cell-more' : ''}">
+                  <img src="${img.url}" alt="Photo ${i + 1} attached by ${escapeHtml(post.name)}" loading="lazy" decoding="async" tabindex="0" role="button" aria-label="Open photo ${i + 1}" aria-haspopup="dialog" data-gallery-index="${i}">
+                  ${isLastWithMore ? `
+                    <div class="post-media-more-overlay" role="button" tabindex="0" aria-label="View all ${postImages.length} photos" data-gallery-index="3">
+                      <span>+${remaining}</span>
+                    </div>
+                  ` : ''}
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `;
+      }
+
+      let filesHtml = '';
+      if (postFiles.length > 0) {
+        filesHtml = `
+          <div class="post-file-attachments">
+            ${postFiles.map(file => {
+              const ext = getFileExt(file.name).toUpperCase();
+              const sizeStr = (typeof formatSize === 'function' && file.size) ? formatSize(file.size) : '';
+              return `
+                <a href="${file.url}" target="_blank" rel="noopener noreferrer" class="post-attachment-card" download="${escapeHtml(file.name)}" title="Download ${escapeHtml(file.name)}">
+                  <div class="attachment-main">
+                    <div class="attachment-icon-box ${getFileColorClass(ext)}">
+                      ${getFileIconSvg(ext)}
+                    </div>
+                    <div class="attachment-text">
+                      <span class="attachment-name">${escapeHtml(file.name)}</span>
+                      <div class="attachment-meta">
+                        <span class="attachment-file-badge">${escapeHtml(ext)}</span>
+                        ${sizeStr ? `<span class="attachment-file-size">&middot; ${sizeStr}</span>` : ''}
+                      </div>
+                    </div>
+                  </div>
+                  <div class="attachment-download-btn" aria-hidden="true" title="Download">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                      <polyline points="7 10 12 15 17 10"></polyline>
+                      <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                  </div>
+                </a>
+              `;
+            }).join('')}
+          </div>
+        `;
+      }
+
       return renderPostShell({
         kind: 'post', id: post.id, className: 'status-post-card' + noticeClass,
         profileUrl, avatar, name: post.name, badge: roleBadgeHtml,
@@ -2654,7 +3295,8 @@
                 </div>
               `}
             </div>
-            ${attachmentUrl ? `<div class="post-image"><img src="${attachmentUrl}" alt="Image attached by ${escapeHtml(post.name)}" loading="lazy" decoding="async" tabindex="0" role="button" aria-label="Open full image" aria-haspopup="dialog" onerror="this.hidden = true; this.nextElementSibling.hidden = false;"><a class="status-post-attachment" href="${attachmentUrl}" target="_blank" rel="noopener noreferrer" hidden>View attachment ↗</a></div>` : ''}
+            ${imageHtml}
+            ${filesHtml}
 `,
         actions: renderPostActions({ liked: post.liked_by_me, likes: likeCount, comments: commentCount,
           likeAction: `toggleStatusLike(${post.id}, this)`, commentAction: `togglePostComments(${post.id}, this.closest('.feed-card'))`, shareAction: `copySharePostLink(${post.id})`,
@@ -2819,77 +3461,349 @@
     }
 
     const postImageInput = document.getElementById('postImageInput');
+    const postFileInput = document.getElementById('postFileInput');
     const postImagePreview = document.getElementById('postImagePreview');
     const postImagePreviewImg = document.getElementById('postImagePreviewImg');
     const postImageError = document.getElementById('postImageError');
     const choosePostImageBtn = document.getElementById('choosePostImage');
+    const choosePostFilesBtn = document.getElementById('choosePostFiles');
     const removePostImageBtn = document.getElementById('removePostImage');
     const retryPostImageBtn = document.getElementById('retryPostImage');
+    const clearAllImagesBtn = document.getElementById('clearAllImagesBtn');
+    const clearAllFilesBtn = document.getElementById('clearAllFilesBtn');
+    const postSingleImagePreviewCard = document.getElementById('postSingleImagePreviewCard');
+    const postMultiImagesGrid = document.getElementById('postMultiImagesGrid');
+    const postImagesPreviewHeader = document.getElementById('postImagesPreviewHeader');
+    const postImagesCount = document.getElementById('postImagesCount');
+    const postFilesPreview = document.getElementById('postFilesPreview');
+    const postFilesList = document.getElementById('postFilesList');
+    const postFilesCount = document.getElementById('postFilesCount');
+    const choosePostImageLabel = document.getElementById('choosePostImageLabel');
+    const choosePostFilesLabel = document.getElementById('choosePostFilesLabel');
+
     let postImagePreviewUrl = null;
+    let composerImages = [];
+    let composerFiles = [];
+    const composerImageUrls = new Map();
+
+    function updateLabelsAndButtons() {
+      if (choosePostImageLabel) {
+        choosePostImageLabel.textContent = composerImages.length > 0 ? `Photos (${composerImages.length})` : 'Add photos';
+      }
+      if (choosePostFilesLabel) {
+        choosePostFilesLabel.textContent = composerFiles.length > 0 ? `Files (${composerFiles.length})` : 'Attach files';
+      }
+      if (choosePostImageBtn && choosePostImageBtn.classList) {
+        if (composerImages.length > 0 || (postImageInput && postImageInput.files && postImageInput.files.length > 0)) {
+          choosePostImageBtn.classList.add('has-attachment');
+        } else {
+          choosePostImageBtn.classList.remove('has-attachment');
+        }
+      }
+      if (choosePostFilesBtn && choosePostFilesBtn.classList) {
+        if (composerFiles.length > 0 || (postFileInput && postFileInput.files && postFileInput.files.length > 0)) {
+          choosePostFilesBtn.classList.add('has-attachment');
+        } else {
+          choosePostFilesBtn.classList.remove('has-attachment');
+        }
+      }
+    }
 
     function updatePostButtonState() {
       const content = document.getElementById('postContent');
       const fileInput = document.getElementById('postImageInput');
+      const docInput = document.getElementById('postFileInput');
       const button = document.getElementById('publishPost');
       if (!content || !button) return;
       const hasText = content.value.trim().length > 0;
-      const hasImage = !!(fileInput && fileInput.files && fileInput.files.length > 0);
-      button.disabled = !hasText && !hasImage;
+      const hasImage = !!((fileInput && fileInput.files && fileInput.files.length > 0) || composerImages.length > 0);
+      const hasFiles = !!((docInput && docInput.files && docInput.files.length > 0) || composerFiles.length > 0);
+      button.disabled = !hasText && !hasImage && !hasFiles;
     }
+
+    function renderComposerImagesPreview() {
+      if (composerImages.length === 0) {
+        clearPostImage();
+        return;
+      }
+
+      if (postImagePreview) {
+        postImagePreview.hidden = false;
+        if (postImagePreview.classList) postImagePreview.classList.add('has-image');
+      }
+
+      if (composerImages.length === 1) {
+        const file = composerImages[0];
+        let url = composerImageUrls.get(file);
+        if (!url) {
+          url = URL.createObjectURL(file);
+          composerImageUrls.set(file, url);
+        }
+        if (postImagePreviewUrl && postImagePreviewUrl !== url) {
+          URL.revokeObjectURL(postImagePreviewUrl);
+        }
+        postImagePreviewUrl = url;
+
+        if (postImagePreviewImg) {
+          postImagePreviewImg.src = postImagePreviewUrl;
+          if (postImagePreviewImg.style) postImagePreviewImg.style.display = 'block';
+        }
+        if (postImageError && postImageError.style) postImageError.style.display = 'none';
+        if (postSingleImagePreviewCard && postSingleImagePreviewCard.style) postSingleImagePreviewCard.style.display = 'flex';
+        if (postMultiImagesGrid && postMultiImagesGrid.style) postMultiImagesGrid.style.display = 'none';
+        if (postImagesPreviewHeader && postImagesPreviewHeader.style) postImagesPreviewHeader.style.display = 'none';
+      } else {
+        if (postSingleImagePreviewCard && postSingleImagePreviewCard.style) postSingleImagePreviewCard.style.display = 'none';
+        if (postImagesPreviewHeader && postImagesPreviewHeader.style) postImagesPreviewHeader.style.display = 'flex';
+        if (postImagesCount) postImagesCount.textContent = `Photos (${composerImages.length}/10)`;
+
+        const firstUrl = composerImageUrls.get(composerImages[0]);
+        if (firstUrl && postImagePreviewImg) postImagePreviewImg.src = firstUrl;
+
+        if (postMultiImagesGrid) {
+          postMultiImagesGrid.style.display = 'flex';
+          postMultiImagesGrid.innerHTML = composerImages.map((f, idx) => {
+            const u = composerImageUrls.get(f) || '';
+            return `
+              <div class="composer-thumb-card">
+                <img src="${u}" alt="Photo ${idx + 1}" class="composer-thumb-img">
+                <span class="composer-thumb-idx">${idx + 1}</span>
+                <button type="button" class="composer-thumb-remove" onclick="removeComposerImageAt(${idx})" aria-label="Remove photo ${idx + 1}" title="Remove photo">
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+              </div>
+            `;
+          }).join('');
+        }
+      }
+
+      updateLabelsAndButtons();
+      if (typeof updatePostButtonState === 'function') updatePostButtonState();
+    }
+
+    function removeComposerImageAt(index) {
+      if (index < 0 || index >= composerImages.length) return;
+      const [removed] = composerImages.splice(index, 1);
+      if (removed) {
+        const u = composerImageUrls.get(removed);
+        if (u) {
+          URL.revokeObjectURL(u);
+          composerImageUrls.delete(removed);
+        }
+      }
+      if (composerImages.length === 0) {
+        clearPostImage();
+      } else {
+        renderComposerImagesPreview();
+      }
+    }
+    if (typeof window !== 'undefined') window.removeComposerImageAt = removeComposerImageAt;
 
     function clearPostImage() {
       if (postImagePreviewUrl) URL.revokeObjectURL(postImagePreviewUrl);
+
+      composerImages.forEach(f => {
+        const u = composerImageUrls.get(f);
+        if (u && u !== postImagePreviewUrl) URL.revokeObjectURL(u);
+      });
       postImagePreviewUrl = null;
+      composerImages = [];
+      composerImageUrls.clear();
+
       if (postImageInput) postImageInput.value = '';
       if (postImagePreviewImg) {
         postImagePreviewImg.removeAttribute('src');
         if (postImagePreviewImg.style) postImagePreviewImg.style.display = 'none';
       }
       if (postImageError && postImageError.style) postImageError.style.display = 'none';
+      if (postSingleImagePreviewCard && postSingleImagePreviewCard.style) postSingleImagePreviewCard.style.display = 'none';
+      if (postMultiImagesGrid) {
+        postMultiImagesGrid.innerHTML = '';
+        if (postMultiImagesGrid.style) postMultiImagesGrid.style.display = 'none';
+      }
+      if (postImagesPreviewHeader && postImagesPreviewHeader.style) postImagesPreviewHeader.style.display = 'none';
       if (postImagePreview) {
         postImagePreview.hidden = true;
         if (postImagePreview.classList) postImagePreview.classList.remove('has-image');
       }
       if (choosePostImageBtn && choosePostImageBtn.classList) choosePostImageBtn.classList.remove('has-attachment');
+      updateLabelsAndButtons();
+      if (typeof updatePostButtonState === 'function') updatePostButtonState();
+    }
+
+    function renderComposerFilesPreview() {
+      if (composerFiles.length === 0) {
+        clearPostFiles();
+        return;
+      }
+
+      if (postFilesPreview) postFilesPreview.hidden = false;
+      if (postFilesCount) postFilesCount.textContent = `Attached Files (${composerFiles.length}/5)`;
+
+      if (postFilesList) {
+        postFilesList.innerHTML = composerFiles.map((f, idx) => {
+          const ext = (f.name || '').split('.').pop().toUpperCase();
+          const sizeStr = (typeof formatSize === 'function' && f.size) ? formatSize(f.size) : '';
+          return `
+            <div class="composer-file-card">
+              <div class="composer-file-icon ${getFileColorClass(ext)}">
+                ${getFileIconSvg(ext)}
+              </div>
+              <div class="composer-file-info">
+                <span class="composer-file-name" title="${escapeHtml(f.name)}">${escapeHtml(f.name)}</span>
+                <span class="composer-file-meta">${escapeHtml(ext)}${sizeStr ? ` &middot; ${sizeStr}` : ''}</span>
+              </div>
+              <button type="button" class="composer-file-remove" onclick="removeComposerFileAt(${idx})" aria-label="Remove ${escapeHtml(f.name)}" title="Remove file">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              </button>
+            </div>
+          `;
+        }).join('');
+      }
+
+      updateLabelsAndButtons();
+      if (typeof updatePostButtonState === 'function') updatePostButtonState();
+    }
+
+    function removeComposerFileAt(index) {
+      if (index < 0 || index >= composerFiles.length) return;
+      composerFiles.splice(index, 1);
+      if (composerFiles.length === 0) {
+        clearPostFiles();
+      } else {
+        renderComposerFilesPreview();
+      }
+    }
+    if (typeof window !== 'undefined') {
+      window.removeComposerFileAt = removeComposerFileAt;
+      window.addComposerImages = function(newFiles) {
+        composerImages = [...composerImages, ...newFiles].slice(0, 10);
+        composerImages.forEach(f => {
+          if (!composerImageUrls.has(f)) {
+            composerImageUrls.set(f, f.previewUrl || (typeof URL !== 'undefined' && URL.createObjectURL ? URL.createObjectURL(f) : ''));
+          }
+        });
+        renderComposerImagesPreview();
+      };
+      window.addComposerFiles = function(newFiles) {
+        composerFiles = [...composerFiles, ...newFiles].slice(0, 5);
+        renderComposerFilesPreview();
+      };
+    }
+
+    function clearPostFiles() {
+      composerFiles = [];
+      if (postFileInput) postFileInput.value = '';
+      if (postFilesPreview) postFilesPreview.hidden = true;
+      if (postFilesList) postFilesList.innerHTML = '';
+      if (choosePostFilesBtn && choosePostFilesBtn.classList) choosePostFilesBtn.classList.remove('has-attachment');
+      updateLabelsAndButtons();
       if (typeof updatePostButtonState === 'function') updatePostButtonState();
     }
 
     if (choosePostImageBtn) choosePostImageBtn.addEventListener('click', () => postImageInput && postImageInput.click());
+    if (choosePostFilesBtn) choosePostFilesBtn.addEventListener('click', () => postFileInput && postFileInput.click());
     if (removePostImageBtn) removePostImageBtn.addEventListener('click', clearPostImage);
+    if (clearAllImagesBtn) clearAllImagesBtn.addEventListener('click', clearPostImage);
+    if (clearAllFilesBtn) clearAllFilesBtn.addEventListener('click', clearPostFiles);
     if (retryPostImageBtn) retryPostImageBtn.addEventListener('click', () => postImageInput && postImageInput.click());
 
     if (postImageInput) {
       postImageInput.addEventListener('change', () => {
-        const file = postImageInput.files[0];
+        const fileList = postImageInput.files;
         const message = document.getElementById('postComposerMessage');
         if (message) message.textContent = '';
-        if (!file) return clearPostImage();
-        if (!file.type.startsWith('image/') || file.size > 5 * 1024 * 1024) {
-          clearPostImage();
-          if (message) {
-            message.textContent = file.size > 5 * 1024 * 1024
-              ? 'Images must be 5 MB or smaller.' : 'Please choose a valid image file.';
-          }
-          return;
-        }
-        if (postImagePreviewUrl) URL.revokeObjectURL(postImagePreviewUrl);
-        postImagePreviewUrl = URL.createObjectURL(file);
+        if (!fileList || fileList.length === 0) return clearPostImage();
 
-        if (postImagePreviewImg) {
-          postImagePreviewImg.src = postImagePreviewUrl;
-          if (postImagePreviewImg.style) postImagePreviewImg.style.display = 'block';
-          postImagePreviewImg.onerror = () => {
-            if (postImagePreviewImg.style) postImagePreviewImg.style.display = 'none';
-            if (postImageError && postImageError.style) postImageError.style.display = 'flex';
-          };
+        const incoming = Array.from(fileList);
+        for (const file of incoming) {
+          if (!file.type || !file.type.startsWith('image/')) {
+            clearPostImage();
+            if (message) message.textContent = 'Please choose a valid image file.';
+            return;
+          }
+          if (file.size > 5 * 1024 * 1024) {
+            clearPostImage();
+            if (message) message.textContent = 'Images must be 5 MB or smaller.';
+            return;
+          }
         }
-        if (postImageError && postImageError.style) postImageError.style.display = 'none';
-        if (postImagePreview) {
-          postImagePreview.hidden = false;
-          if (postImagePreview.classList) postImagePreview.classList.add('has-image');
+
+        // When selecting 1 image, replace single image preview and revoke previous URLs
+        if (incoming.length === 1) {
+          const file = incoming[0];
+          if (postImagePreviewUrl) URL.revokeObjectURL(postImagePreviewUrl);
+          composerImages.forEach(f => {
+            const u = composerImageUrls.get(f);
+            if (u && u !== postImagePreviewUrl) URL.revokeObjectURL(u);
+          });
+          composerImages = [file];
+          composerImageUrls.clear();
+
+          postImagePreviewUrl = URL.createObjectURL(file);
+          composerImageUrls.set(file, postImagePreviewUrl);
+
+          if (postImagePreviewImg) {
+            postImagePreviewImg.src = postImagePreviewUrl;
+            if (postImagePreviewImg.style) postImagePreviewImg.style.display = 'block';
+            postImagePreviewImg.onerror = () => {
+              if (postImagePreviewImg.style) postImagePreviewImg.style.display = 'none';
+              if (postImageError && postImageError.style) postImageError.style.display = 'flex';
+            };
+          }
+          if (postImageError && postImageError.style) postImageError.style.display = 'none';
+          if (postSingleImagePreviewCard && postSingleImagePreviewCard.style) postSingleImagePreviewCard.style.display = 'flex';
+          if (postMultiImagesGrid && postMultiImagesGrid.style) postMultiImagesGrid.style.display = 'none';
+          if (postImagesPreviewHeader && postImagesPreviewHeader.style) postImagesPreviewHeader.style.display = 'none';
+          if (postImagePreview) {
+            postImagePreview.hidden = false;
+            if (postImagePreview.classList) postImagePreview.classList.add('has-image');
+          }
+          if (choosePostImageBtn && choosePostImageBtn.classList) choosePostImageBtn.classList.add('has-attachment');
+        } else {
+          // Multiple images selection
+          const existingKeys = new Set(composerImages.map(f => `${f.name}_${f.size}`));
+          const toAdd = incoming.filter(f => !existingKeys.has(`${f.name}_${f.size}`));
+          if (composerImages.length + toAdd.length > 10) {
+            if (message) message.textContent = 'Maximum 10 images allowed per post.';
+            toAdd.splice(10 - composerImages.length);
+          }
+          toAdd.forEach(f => {
+            const url = URL.createObjectURL(f);
+            composerImageUrls.set(f, url);
+            composerImages.push(f);
+          });
+          renderComposerImagesPreview();
         }
-        if (choosePostImageBtn && choosePostImageBtn.classList) choosePostImageBtn.classList.add('has-attachment');
+
+        updateLabelsAndButtons();
         if (typeof updatePostButtonState === 'function') updatePostButtonState();
+      });
+    }
+
+    if (postFileInput) {
+      postFileInput.addEventListener('change', () => {
+        const fileList = postFileInput.files;
+        const message = document.getElementById('postComposerMessage');
+        if (message) message.textContent = '';
+        if (!fileList || fileList.length === 0) return;
+
+        const incoming = Array.from(fileList);
+        for (const file of incoming) {
+          if (file.size > 4 * 1024 * 1024) {
+            if (message) message.textContent = 'Files must be 4 MB or smaller. For larger study materials, upload to Semester Library.';
+            return;
+          }
+        }
+
+        const existingKeys = new Set(composerFiles.map(f => `${f.name}_${f.size}`));
+        const toAdd = incoming.filter(f => !existingKeys.has(`${f.name}_${f.size}`));
+        if (composerFiles.length + toAdd.length > 5) {
+          if (message) message.textContent = 'Maximum 5 files allowed per post.';
+          toAdd.splice(5 - composerFiles.length);
+        }
+        toAdd.forEach(f => composerFiles.push(f));
+        renderComposerFilesPreview();
       });
     }
 
@@ -2901,15 +3815,24 @@
       const message = document.getElementById('postComposerMessage');
       if (button.disabled) return;
       const hasText = content.value.trim().length > 0;
-      const hasImage = !!(postImageInput && postImageInput.files && postImageInput.files.length > 0);
-      if (!hasText && !hasImage) {
+      const imagesToSend = composerImages.length > 0
+        ? composerImages
+        : (postImageInput && postImageInput.files && postImageInput.files.length > 0 ? Array.from(postImageInput.files) : []);
+      const filesToSend = composerFiles.length > 0
+        ? composerFiles
+        : (postFileInput && postFileInput.files && postFileInput.files.length > 0 ? Array.from(postFileInput.files) : []);
+
+      const hasMedia = imagesToSend.length > 0 || filesToSend.length > 0;
+      if (!hasText && !hasMedia) {
         message.textContent = 'Write something before posting.';
         content.focus();
         return;
       }
       button.disabled = content.disabled = type.disabled = true;
       if (postImageInput) postImageInput.disabled = true;
+      if (postFileInput) postFileInput.disabled = true;
       if (choosePostImageBtn) choosePostImageBtn.disabled = true;
+      if (choosePostFilesBtn) choosePostFilesBtn.disabled = true;
       if (removePostImageBtn) removePostImageBtn.disabled = true;
       button.textContent = 'Posting…';
       message.textContent = '';
@@ -2918,7 +3841,18 @@
         const formData = new FormData();
         formData.append('content', content.value);
         formData.append('type', type.value);
-        if (postImageInput && postImageInput.files[0]) formData.append('image', postImageInput.files[0]);
+
+        // Append images: first image with key 'image' for compatibility, subsequent with 'images'
+        imagesToSend.forEach((file, index) => {
+          if (index === 0) formData.append('image', file);
+          else formData.append('images', file);
+        });
+
+        // Append files
+        filesToSend.forEach(file => {
+          formData.append('files', file);
+        });
+
         const response = await fetch('/api/posts', {
           method: 'POST',
           body: formData
@@ -2929,6 +3863,7 @@
         renderFeed();
         content.value = '';
         clearPostImage();
+        clearPostFiles();
         message.textContent = 'Post shared with your class.';
         if (typeof showToast === 'function') showToast('Post shared with your class.');
         if (typeof closePostModal === 'function') closePostModal();
@@ -2938,7 +3873,9 @@
         button.disabled = false;
         content.disabled = type.disabled = false;
         if (postImageInput) postImageInput.disabled = false;
+        if (postFileInput) postFileInput.disabled = false;
         if (choosePostImageBtn) choosePostImageBtn.disabled = false;
+        if (choosePostFilesBtn) choosePostFilesBtn.disabled = false;
         if (removePostImageBtn) removePostImageBtn.disabled = false;
         button.textContent = 'Post';
       }
@@ -3390,21 +4327,69 @@
 
   <div id="imageLightbox" class="lightbox hidden" role="dialog" aria-modal="true" aria-label="Full image" tabindex="-1">
     <button type="button" class="lightbox-close" aria-label="Close full image">&times;</button>
+    <button type="button" class="lightbox-nav-btn lightbox-prev" id="lightboxPrev" aria-label="Previous image" style="display: none;">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+    </button>
     <img id="lightboxImg" alt="">
+    <div id="lightboxCounter" class="lightbox-counter" style="display: none;">1 / 1</div>
+    <button type="button" class="lightbox-nav-btn lightbox-next" id="lightboxNext" aria-label="Next image" style="display: none;">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+    </button>
   </div>
   <script>
     const imageLightbox = document.getElementById('imageLightbox');
     const lightboxImg = document.getElementById('lightboxImg');
     const lightboxClose = imageLightbox.querySelector('.lightbox-close');
+    const lightboxPrev = document.getElementById('lightboxPrev');
+    const lightboxNext = document.getElementById('lightboxNext');
+    const lightboxCounter = document.getElementById('lightboxCounter');
     let lightboxTrigger = null;
     let lightboxPreviousOverflow = '';
+    let galleryImages = [];
+    let galleryIndex = 0;
+
+    function updateLightboxNav() {
+      if (!lightboxPrev || !lightboxNext || !lightboxCounter) return;
+      if (galleryImages.length > 1) {
+        lightboxPrev.style.display = 'flex';
+        lightboxNext.style.display = 'flex';
+        lightboxCounter.style.display = 'block';
+        lightboxCounter.textContent = `${galleryIndex + 1} / ${galleryImages.length}`;
+      } else {
+        lightboxPrev.style.display = 'none';
+        lightboxNext.style.display = 'none';
+        lightboxCounter.style.display = 'none';
+      }
+    }
+
+    function showLightboxIndex(idx) {
+      if (galleryImages.length === 0) return;
+      if (idx < 0) idx = galleryImages.length - 1;
+      if (idx >= galleryImages.length) idx = 0;
+      galleryIndex = idx;
+      const targetImg = galleryImages[galleryIndex];
+      if (targetImg) {
+        lightboxImg.src = targetImg.currentSrc || targetImg.src;
+        lightboxImg.alt = targetImg.alt || '';
+      }
+      updateLightboxNav();
+    }
 
     function openPostImage(image) {
-      if (image.hidden) return;
+      if (!image || image.hidden) return;
       lightboxTrigger = image;
-      lightboxImg.src = image.currentSrc || image.src;
-      lightboxImg.alt = image.alt;
       lightboxPreviousOverflow = document.body.style.overflow;
+
+      const postMedia = image.closest('.post-image');
+      if (postMedia) {
+        galleryImages = Array.from(postMedia.querySelectorAll('img:not([hidden])'));
+        galleryIndex = Math.max(0, galleryImages.indexOf(image));
+      } else {
+        galleryImages = [image];
+        galleryIndex = 0;
+      }
+
+      showLightboxIndex(galleryIndex);
       document.body.style.overflow = 'hidden';
       imageLightbox.classList.remove('hidden');
       lightboxClose.focus();
@@ -3413,20 +4398,50 @@
     function closePostImage() {
       imageLightbox.classList.add('hidden');
       lightboxImg.removeAttribute('src');
+      galleryImages = [];
+      galleryIndex = 0;
+      updateLightboxNav();
       document.body.style.overflow = lightboxPreviousOverflow;
       if (lightboxTrigger?.isConnected) lightboxTrigger.focus();
       lightboxTrigger = null;
     }
 
     document.getElementById('realFiles').addEventListener('click', (event) => {
+      const moreOverlay = event.target.closest('.post-media-more-overlay');
+      if (moreOverlay) {
+        const postMedia = moreOverlay.closest('.post-image');
+        const imgs = postMedia ? Array.from(postMedia.querySelectorAll('img:not([hidden])')) : [];
+        if (imgs.length >= 4) openPostImage(imgs[3]);
+        return;
+      }
       if (event.target.matches('.post-image img')) openPostImage(event.target);
     });
     document.getElementById('realFiles').addEventListener('keydown', (event) => {
-      if (event.target.matches('.post-image img') && ['Enter', ' '].includes(event.key)) {
+      if (event.target.matches('.post-image img, .post-media-more-overlay') && ['Enter', ' '].includes(event.key)) {
         event.preventDefault();
-        openPostImage(event.target);
+        if (event.target.matches('.post-media-more-overlay')) {
+          const postMedia = event.target.closest('.post-image');
+          const imgs = postMedia ? Array.from(postMedia.querySelectorAll('img:not([hidden])')) : [];
+          if (imgs.length >= 4) openPostImage(imgs[3]);
+        } else {
+          openPostImage(event.target);
+        }
       }
     });
+
+    if (lightboxPrev) {
+      lightboxPrev.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showLightboxIndex(galleryIndex - 1);
+      });
+    }
+    if (lightboxNext) {
+      lightboxNext.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showLightboxIndex(galleryIndex + 1);
+      });
+    }
+
     lightboxClose.addEventListener('click', closePostImage);
     imageLightbox.addEventListener('click', (event) => {
       if (event.target === imageLightbox) closePostImage();
@@ -3434,6 +4449,8 @@
     document.addEventListener('keydown', (event) => {
       if (imageLightbox.classList.contains('hidden')) return;
       if (event.key === 'Escape') closePostImage();
+      if (event.key === 'ArrowLeft' && galleryImages.length > 1) showLightboxIndex(galleryIndex - 1);
+      if (event.key === 'ArrowRight' && galleryImages.length > 1) showLightboxIndex(galleryIndex + 1);
       if (event.key === 'Tab') {
         event.preventDefault();
         lightboxClose.focus();

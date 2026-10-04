@@ -16,32 +16,35 @@ function load(file, dependencies = {}) {
   return module.exports;
 }
 const state = load('services/chat-state.ts');
-const msg = id => ({ id, text: String(id), studentId: 'a', createdAt: '2026-09-28T12:00:00Z' });
+const session = load('services/chat-session.ts');
+function configureCache(server,account) { const start=session.beginChatSession(server,account); session.acceptChatContext(start,{studentId:account,chatGroupId:'mercury',cohortId:'cohort',groupCode:'MERCURY',currentSemester:1,cohortStatus:'active',roomStatus:'active',realtimeEpoch:1}); }
+const msg = id => ({ id, chatGroupId: 'mercury', text: String(id), studentId: 'a', createdAt: '2026-09-28T12:00:00Z' });
 function database() {
   const sql = new DatabaseSync(':memory:');
   const api = {
     execAsync: async query => sql.exec(query),
     runAsync: async (query, values = []) => sql.prepare(query).run(...values),
     getAllAsync: async (query, values = []) => sql.prepare(query).all(...values),
+    getFirstAsync: async (query, values = []) => sql.prepare(query).get(...values),
     withExclusiveTransactionAsync: async callback => {
       sql.exec('BEGIN');
       try { await callback(api); sql.exec('COMMIT'); } catch (e) { sql.exec('ROLLBACK'); throw e; }
     }
   };
-  const deps = { 'expo-sqlite': { openDatabaseAsync: async () => api }, './chat-state': state };
+  const deps = { 'expo-sqlite': { openDatabaseAsync: async () => api }, './chat-state': state, './chat-session': session };
   return { deps, sql };
 }
 test('SQLite persists pending attachments, resolves broadcasts once, isolates accounts and caps history', async () => {
   const { deps, sql } = database();
   const cache = load('services/chat-db.ts', deps);
-  cache.configureChatCache('https://school', 'a');
+  configureCache('https://school', 'a');
   await cache.upsertChatMessages(Array.from({ length: 550 }, (_, i) => msg(i + 1)));
   const pending = { ...msg(-123), status: 'pending', localUri: 'file:///outbox/photo.jpg', pendingFile: { uri: 'file:///outbox/photo.jpg', name: 'photo.jpg', mimeType: 'image/jpeg' } };
   await cache.savePendingMessage(pending);
   assert.equal((await cache.getCachedChatMessages())[0].id, -123);
   assert.equal((await cache.getCachedChatMessages(1000)).length, 501);
   const relaunched = load('services/chat-db.ts', deps);
-  relaunched.configureChatCache('https://school', 'a');
+  configureCache('https://school', 'a');
   const restored = (await relaunched.getCachedChatMessages())[0];
   assert.equal(restored.status, 'failed');
   assert.deepEqual(restored.pendingFile, pending.pendingFile);
@@ -53,11 +56,11 @@ test('SQLite persists pending attachments, resolves broadcasts once, isolates ac
   assert.equal((await cache.getCachedChatMessages())[0].reactions.length, 1);
   await cache.deleteCachedMessage(551);
   assert.equal((await cache.getCachedChatMessages())[0].id, 550);
-  cache.configureChatCache('https://school', 'b');
+  configureCache('https://school', 'b');
   assert.deepEqual(await cache.getCachedChatMessages(), []);
-  cache.configureChatCache('https://other', 'a');
+  configureCache('https://other', 'a');
   assert.deepEqual(await cache.getCachedChatMessages(), []);
-  cache.configureChatCache('https://school', 'a');
+  configureCache('https://school', 'a');
   await cache.reconcileCachedChat([msg(600), msg(599)], 550);
   assert.deepEqual((await cache.getCachedChatMessages()).map(m => m.id), [600, 599]);
   await cache.clearChatDb();
@@ -67,16 +70,16 @@ test('browser cache persists updates, reactions, deletions and handles storage f
   const { createChatCache } = require('../public/chat-cache');
   const data = new Map();
   const storage = { getItem: key => data.get(key), setItem: (key, value) => data.set(key, value) };
-  const cache = createChatCache(storage, 'a');
+  const cache = createChatCache(storage, 'a', 'http://localhost', 'mercury');
   cache.merge([msg(2), msg(1)]);
   cache.react(2, 'a', '👍', 'add');
   cache.react(2, 'a', '❤️', 'update');
   cache.react(2, 'a', '❤️', 'update');
-  assert.deepEqual(createChatCache(storage, 'a').get()[1].reactions, [{ studentId: 'a', emoji: '❤️' }]);
+  assert.deepEqual(createChatCache(storage, 'a', 'http://localhost', 'mercury').get()[1].reactions, [{ studentId: 'a', emoji: '❤️' }]);
   cache.remove(1);
-  assert.equal(createChatCache(storage, 'a').get().length, 1);
-  assert.equal(createChatCache(storage, 'b').get().length, 0);
-  const blocked = createChatCache({ getItem() { throw Error(); }, setItem() { throw Error(); } }, 'a');
+  assert.equal(createChatCache(storage, 'a', 'http://localhost', 'mercury').get().length, 1);
+  assert.equal(createChatCache(storage, 'b', 'http://localhost', 'mercury').get().length, 0);
+  const blocked = createChatCache({ getItem() { throw Error(); }, setItem() { throw Error(); } }, 'a', 'http://localhost', 'mercury');
   blocked.merge([msg(1)]);
   assert.equal(blocked.get().length, 1);
 });
@@ -88,41 +91,17 @@ test('file normalization never pretends HEIC bytes are JPEG or unknown bytes are
   assert.equal(normalizeUploadFile({ uri: 'file:///unknown' }).type, 'application/octet-stream');
 });
 
-test('realtime uses server event contracts and waits for actual subscription readiness', async () => {
-  const handlers = {};
-  let status;
-  const channel = { on(type, { event }, callback) { handlers[event] = callback; return this; }, subscribe(callback) { status = callback; }, track: async () => {}, presenceState: () => ({ a: [] }) };
-  const deleted = [], reactions = [], connections = [], received = [];
-  let scope = '';
-  const realtime = load('services/chat-realtime.ts', {
-    './api': { getBaseUrl: async () => 'https://school' },
-    './chat': { fetchChatConfig: async () => ({ url: 'https://realtime', key: 'fixture' }) },
-    './chat-db': {
-      configureChatCache: (server, user) => { scope = `${server}|${user}`; },
-      getChatCacheScope: () => scope,
-      upsertChatMessages: async () => {},
-      deleteCachedMessage: async id => deleted.push(id),
-      updateCachedReaction: async (...args) => reactions.push(args),
-    },
-    '@supabase/supabase-js': { createClient: () => ({ channel: () => channel, removeChannel: async () => {} }) }
+test('realtime requires a validated room; an account ID alone cannot subscribe', async () => {
+  const { mobile, realtime: transport, load } = require('./helpers/cohort-client-fixture');
+  const f=mobile(), rt=transport();
+  const service=load('services/chat-realtime.ts',{
+    './chat-session':f.session,'./chat-db':f.cache,'./chat-events':f.events,
+    './chat':{fetchRealtimeConfig:async()=>{throw Error('must not request config before room validation');}},
+    '@supabase/supabase-js':rt,
   });
-  await realtime.initChatRealtime('a', 'https://school');
-  const unsubscribe = realtime.subscribeChatRealtime({
-    onConnectionChange: ready => connections.push(ready),
-    onReaction: (...args) => received.push(args),
-  });
-  assert.deepEqual(connections, [false]);
-  status('SUBSCRIBED');
-  assert.deepEqual(connections, [false, true]);
-  handlers.delete_message({ payload: { messageId: 9 } });
-  handlers.reaction_update({ payload: { messageId: 10, studentId: 'b', emoji: '👍', action: 'remove' } });
-  assert.deepEqual(deleted, [9]);
-  assert.deepEqual(reactions, [[10, 'b', '👍', 'remove']]);
-  assert.deepEqual(received, [[10, '👍', 'b', 'remove']]);
-  await realtime.disconnectChatRealtime();
-  handlers.delete_message({ payload: { messageId: 11 } });
-  assert.deepEqual(deleted, [9], 'late callbacks after logout cannot alter another account cache');
-  unsubscribe();
+  await service.initChatRealtime('a','http://localhost');
+  assert.equal(rt.channels.length,0);
+  await service.disconnectChatRealtime();f.sql.close();
 });
 
 test('native photo/file controls expose long-press actions and visible actions; unsent messages cannot react/reply/pin', () => {

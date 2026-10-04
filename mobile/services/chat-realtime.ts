@@ -1,177 +1,86 @@
-import { getBaseUrl } from './api';
-import { createClient, SupabaseClient, RealtimeChannel } from '@supabase/supabase-js';
-import { fetchChatConfig, ChatConfig, ChatMessage, ChatReadReceipt } from './chat';
-import {
-  upsertChatMessages,
-  configureChatCache,
-  getChatCacheScope,
-  deleteCachedMessage,
-  updateCachedReaction,
-} from './chat-db';
+import { createClient, type SupabaseClient, type RealtimeChannel } from '@supabase/supabase-js';
+import { fetchRealtimeConfig, type ChatMessage, type ChatReadReceipt } from './chat';
+import { applyCachedChatEvent } from './chat-db';
+import { CHAT_EVENTS, decodeChatEvent } from './chat-events';
+import { assertLocalChatServer, getChatSession, isCurrentChatSession, subscribeChatSession } from './chat-session';
 
-let connectionReady = false;
-let epoch = 0;
-let presence: Record<string, any> = {};
-let currentServer = '';
-
-let supabaseClient: SupabaseClient | null = null;
-let realtimeChannel: RealtimeChannel | null = null;
-let currentStudentId: string | null = null;
-
-// Callbacks for subscribers (e.g. useClassChat hook)
-type ChatRealtimeSubscriber = {
-  onNewMessage?: (msg: ChatMessage) => void;
-  onDeleteMessage?: (id: number) => void;
-  onTyping?: (name: string, studentId: string) => void;
+type Subscriber = {
+  onNewMessage?: (message: ChatMessage) => void; onDeleteMessage?: (id: number) => void;
+  onTyping?: (name: string, studentId: string, expiresAt: string) => void;
   onReaction?: (messageId: number, emoji: string, studentId: string, action: string) => void;
-  onPin?: () => void;
-  onRead?: (receipt: ChatReadReceipt) => void;
-  onOnlineUsers?: (ids: string[]) => void;
-  onConnectionChange?: (connected: boolean) => void;
+  onPin?: () => void; onRead?: (receipt: ChatReadReceipt) => void;
+  onOnlineUsers?: (members: { studentId: string; expiresAt: string }[]) => void;
+  onConnectionChange?: (connected: boolean) => void; onRefreshNeeded?: () => void;
 };
+const subscribers = new Set<Subscriber>();
+export const subscribeChatRealtime = (sub: Subscriber) => { subscribers.add(sub); return () => { subscribers.delete(sub); }; };
+let client: SupabaseClient | null = null, channel: RealtimeChannel | null = null;
+let attempt = 0, topic = '', expiry = 0;
+let renewal: ReturnType<typeof setTimeout> | undefined;
+let connected = false;
+let pending: Promise<void> | null = null;
+const connection = (value: boolean) => { connected = value; subscribers.forEach(s => s.onConnectionChange?.(value)); };
 
-const subscribers = new Set<ChatRealtimeSubscriber>();
+subscribeChatSession(() => {
+  const session = getChatSession();
+  if (!session.context || (topic && topic !== `chat:${session.context.chatGroupId}:${session.context.realtimeEpoch}`)) void disconnectChatRealtime();
+});
 
-export function subscribeChatRealtime(sub: ChatRealtimeSubscriber): () => void {
-  subscribers.add(sub);
-  if (realtimeChannel && sub.onConnectionChange) {
-    sub.onConnectionChange(connectionReady);
-  }
-  return () => {
-    subscribers.delete(sub);
-  };
-}
-
-/**
- * Retrieves connection configuration for the current server.
- */
-export async function getCachedChatConfig(): Promise<ChatConfig> {
-  return fetchChatConfig();
-}
-
-/**
- * Initializes the singleton Supabase client and channel in the background.
- * Reopening Chat reuses this connection without tearing it down.
- */
-export async function initChatRealtime(studentId: string, serverUrl?: string): Promise<void> {
-  const requestEpoch = epoch;
-  serverUrl = serverUrl || await getBaseUrl();
-  if (requestEpoch !== epoch) return;
-  if (realtimeChannel && currentStudentId === studentId && currentServer === serverUrl) {
-    return; // Already initialized and active
-  }
-
-  await disconnectChatRealtime();
-  const attempt = ++epoch;
-  currentStudentId = studentId;
-  currentServer = serverUrl;
-  configureChatCache(serverUrl, studentId);
-
-  try {
-    const config = await getCachedChatConfig();
-    if (attempt !== epoch || !config?.url || !config?.key) return;
-
-    if (!supabaseClient) {
-      supabaseClient = createClient(config.url, config.key, {
-        auth: { persistSession: false },
-        realtime: {
-          params: { eventsPerSecond: 10 },
-        },
-      });
-    }
-
-    if (realtimeChannel) {
-      try {
-        await supabaseClient.removeChannel(realtimeChannel);
-      } catch {}
-    }
-
-    const cacheKey = `${serverUrl.replace(/\/+$/, '')}|${studentId}`;
-    const isCurrent = () => attempt === epoch && getChatCacheScope() === cacheKey;
-    const channel = supabaseClient.channel('public:chat_messages', {
-      config: { presence: { key: studentId } },
-    });
-
-    channel
-      .on('broadcast', { event: 'new_message' }, (payload) => {
-        if (!isCurrent() || !payload?.payload) return;
-        const msg = payload.payload as ChatMessage;
-        // 1. Immediately persist to SQLite
-        void upsertChatMessages([msg]);
-        // 2. Notify active subscribers
-        subscribers.forEach((s) => s.onNewMessage?.(msg));
-      })
-      .on('broadcast', { event: 'delete_message' }, (payload) => {
-        if (!isCurrent()) return;
-        const id = Number(payload?.payload?.messageId);
-        if (id) {
-          void deleteCachedMessage(id);
-          subscribers.forEach((s) => s.onDeleteMessage?.(id));
-        }
-      })
-      .on('broadcast', { event: 'typing' }, (payload) => {
-        if (!isCurrent()) return;
-        const { name, studentId: senderId } = payload?.payload || {};
-        if (senderId && String(senderId) !== String(studentId)) {
-          subscribers.forEach((s) => s.onTyping?.(name || 'Classmate', String(senderId)));
-        }
-      })
-      .on('broadcast', { event: 'reaction_update' }, (payload) => {
-        if (!isCurrent()) return;
-        const { messageId, emoji, studentId: senderId, action } = payload?.payload || {};
-        if (messageId && emoji && senderId) {
-          void updateCachedReaction(Number(messageId), String(senderId), emoji, action);
-          subscribers.forEach((s) => s.onReaction?.(Number(messageId), emoji, String(senderId), action));
-        }
-      })
-      .on('broadcast', { event: 'pin_message' }, () => { if (isCurrent()) subscribers.forEach(s => s.onPin?.()); })
-      .on('broadcast', { event: 'read_receipt' }, ({ payload }) => { if (isCurrent()) subscribers.forEach(s => s.onRead?.(payload)); })
-      .on('presence', { event: 'sync' }, () => {
-        if (!isCurrent()) return;
-        const state = channel.presenceState();
-        const ids = Object.keys(state);
-        subscribers.forEach((s) => s.onOnlineUsers?.(ids));
-      });
-
-    channel.subscribe((status) => {
-      if (attempt !== epoch) return;
-      const isConnected = status === 'SUBSCRIBED';
-      connectionReady = isConnected;
-      if (isConnected) void channel.track({ studentId, ...presence });
-      subscribers.forEach((s) => s.onConnectionChange?.(isConnected));
-    });
-
-    realtimeChannel = channel;
-  } catch (err) {
-    console.warn('[Chat Realtime] Init error:', err);
-  }
-}
-
-/**
- * Broadcasts presence on the active channel.
- */
-export async function trackChatPresence(meta: Record<string, any>): Promise<void> {
-  presence = meta;
-  if (realtimeChannel && connectionReady) {
+export async function initChatRealtime(_studentId?: string, _serverUrl?: string): Promise<void> {
+  if (pending) return pending;
+  const work = async () => {
+    const start = getChatSession();
+    if (!start.context) return;
+    const expected = `chat:${start.context.chatGroupId}:${start.context.realtimeEpoch}`;
+    if (connected && topic === expected && expiry - Date.now() > 45000) return;
+    await disconnectChatRealtime();
+    const mine = ++attempt;
+    const current = () => mine === attempt && isCurrentChatSession(start) && getChatSession().context?.realtimeEpoch === start.context?.realtimeEpoch;
     try {
-      await realtimeChannel.track(meta);
-    } catch {}
-  }
+      const config = await fetchRealtimeConfig();
+      if (!current()) return;
+      if (config.topic !== expected || config.chatGroupId !== start.context.chatGroupId || config.realtimeEpoch !== start.context.realtimeEpoch || Date.parse(config.expiry) <= Date.now()) throw new Error('Invalid realtime configuration');
+      // The local backend provider supplies public connection settings only.
+      // No fallback to the app's production Supabase singleton/configuration.
+      if (!config.url || !config.key) return;
+      assertLocalChatServer(config.url);
+      const local = createClient(config.url, config.key, { auth: { persistSession: false, autoRefreshToken: false } });
+      client = local;
+      await local.realtime.setAuth(config.token);
+      if (!current()) { await local.removeAllChannels(); return; }
+      const receiving = local.channel(config.topic, { config: { private: true } });
+      channel = receiving; topic = config.topic; expiry = Date.parse(config.expiry);
+      for (const type of CHAT_EVENTS) receiving.on('broadcast',{event:type},async ({payload}) => {
+        if (!current()) return;
+        const event = decodeChatEvent(type,payload,getChatSession());
+        if (!event) return;
+        try {
+          if (!await applyCachedChatEvent(event,start) || !current()) return;
+          subscribers.forEach(s => {
+            switch (event.type) {
+              case 'new_message': s.onNewMessage?.(event.message); break;
+              case 'delete_message': if (event.messageId) s.onDeleteMessage?.(event.messageId); break;
+              case 'reaction_update': s.onReaction?.(event.messageId,event.emoji,event.studentId,event.action); break;
+              case 'typing': s.onTyping?.(event.name,event.studentId,event.expiresAt); break;
+              case 'read_receipt': s.onRead?.(event); break;
+              case 'pin_message': s.onPin?.(); break;
+              case 'online_snapshot': s.onOnlineUsers?.(event.members); break;
+            }
+          });
+        } catch { subscribers.forEach(s => s.onRefreshNeeded?.()); }
+      });
+      receiving.subscribe(status => {
+        if (!current()) return;
+        connection(status === 'SUBSCRIBED');
+        if (['CHANNEL_ERROR','TIMED_OUT','CLOSED'].includes(status)) subscribers.forEach(s => s.onRefreshNeeded?.());
+      });
+      renewal = setTimeout(() => { if (current()) subscribers.forEach(s => s.onRefreshNeeded?.()); },Math.max(1000,expiry-Date.now()-30000));
+    } catch { if (current()) connection(false); }
+  };
+  pending = work().finally(() => { pending = null; }); return pending;
 }
-
-/**
- * Disconnects the realtime singleton and clears cached config (e.g. on logout).
- */
-export async function disconnectChatRealtime(): Promise<void> {
-  epoch++;
-  connectionReady = false;
-  presence = {};
-  const client = supabaseClient;
-  const channel = realtimeChannel;
-  realtimeChannel = null;
-  supabaseClient = null;
-  currentStudentId = null;
-  if (client && channel) {
-    try { await client.removeChannel(channel); } catch {}
-  }
+export async function disconnectChatRealtime() {
+  attempt++; clearTimeout(renewal); topic = ''; expiry = 0; connection(false);
+  const old = client, oldChannel = channel; client = null; channel = null;
+  if (old && oldChannel) { try { await old.removeChannel(oldChannel); } catch {} }
 }

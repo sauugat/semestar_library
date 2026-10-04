@@ -29,6 +29,8 @@ export interface BaseNotificationData {
 
 export interface ChatNotificationData extends BaseNotificationData {
   type: 'chat';
+  chatGroupId?: string;
+  realtimeEpoch?: number;
   subType?: 'message' | 'mention' | string;
   messageId?: number;
   groupId?: string;
@@ -460,6 +462,8 @@ export function parseNotificationData(raw: unknown): NotificationPayload | null 
     const messageId = Number(data.messageId);
     return {
       type: 'chat',
+      chatGroupId: typeof data.chatGroupId === 'string' ? data.chatGroupId : undefined,
+      realtimeEpoch: Number(data.realtimeEpoch) || undefined,
       subType: data.subType ? String(data.subType) : undefined,
       eventId: data.eventId ? String(data.eventId) : undefined,
       entityId: data.entityId ? String(data.entityId) : undefined,
@@ -470,8 +474,8 @@ export function parseNotificationData(raw: unknown): NotificationPayload | null 
       senders: Array.isArray(data.senders) ? data.senders : undefined,
       actorId: data.actorId ? String(data.actorId) : undefined,
       actorName: data.actorName ? String(data.actorName) : undefined,
-      groupKey: data.groupKey || 'chat_group_bit',
-      collapseId: data.collapseId || 'chat_group_bit',
+      groupKey: data.chatGroupId ? `chat:${data.chatGroupId}` : 'unavailable-chat',
+      collapseId: data.chatGroupId ? `chat:${data.chatGroupId}` : 'unavailable-chat',
     };
   }
 
@@ -661,7 +665,7 @@ export function navigateFromNotification(
           if (payload.messageId) {
             router.push({
               pathname: '/(tabs)/chat',
-              params: { targetMessageId: String(payload.messageId) },
+              params: { targetMessageId: String(payload.messageId), targetChatGroupId: payload.chatGroupId || '' },
             });
           } else {
             router.push('/(tabs)/chat');
@@ -721,7 +725,7 @@ export function navigateFromNotification(
           if (payload.messageId) {
             router.replace({
               pathname: '/(tabs)/chat',
-              params: { targetMessageId: String(payload.messageId) },
+              params: { targetMessageId: String(payload.messageId), targetChatGroupId: payload.chatGroupId || '' },
             });
           } else {
             router.replace('/(tabs)/chat');

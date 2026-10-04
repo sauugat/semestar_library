@@ -42,6 +42,7 @@ export const MentionSuggestions = React.memo(function MentionSuggestions({
 
   // Debounced server search for candidates not in initial members list
   useEffect(() => {
+    let cancelled = false;
     const trimmed = query.trim().toLowerCase();
     if (!trimmed) {
       setRemoteCandidates([]);
@@ -57,15 +58,17 @@ export const MentionSuggestions = React.memo(function MentionSuggestions({
       setLoadingRemote(true);
       try {
         const results = await searchMentionCandidates(trimmed);
+        if (cancelled) return;
         setRemoteCandidates(results.filter((c) => c.studentId !== currentUserId));
       } catch {
         // Fall back to local members
       } finally {
-        setLoadingRemote(false);
+        if (!cancelled) setLoadingRemote(false);
       }
     }, 200);
 
     return () => {
+      cancelled = true;
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
       }

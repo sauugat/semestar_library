@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
 import { useFocusEffect } from "expo-router";
 import {
-  CHAT_LATEST_CURSOR,
   CHAT_PAGE_SIZE,
   ChatMessage,
   ChatPinned,
@@ -10,6 +9,8 @@ import {
   fetchChatMessages,
   fetchChatPinned,
   markChatRead,
+  fetchChatConfig,
+  sendChatHeartbeat,
 } from "@/services/chat";
 import {
   applyChatReaction,
@@ -20,19 +21,19 @@ import {
   getCachedChatMessages,
   getNewestCachedMessageId,
   upsertChatMessages,
-  configureChatCache,
-  getMemoryChatMessages,
   reconcileCachedChat,
 } from "@/services/chat-db";
 import {
   initChatRealtime,
   subscribeChatRealtime,
-  trackChatPresence,
+  disconnectChatRealtime,
 } from "@/services/chat-realtime";
+import { beginChatSession, getChatSession, subscribeChatSession, chatScope, type ChatContext } from '@/services/chat-session';
 
 type Typer = { name: string; expiresAt: number };
 
 export interface UseClassChatOptions {
+  authToken?: string | null;
   onNewIncomingMessage?: (message: ChatMessage) => void;
 }
 
@@ -51,6 +52,10 @@ export function useClassChat(
   const [readReceipts, setReadReceipts] = useState<ChatReadReceipt[]>([]);
   const [pinned, setPinned] = useState<ChatPinned | null>(null);
   const [onlineIds, setOnlineIds] = useState<string[]>([]);
+  const [context, setContext] = useState<ChatContext | null>(null);
+  const [roomGeneration, setRoomGeneration] = useState(0);
+  const onlineExpiry = useRef(new Map<string, number>());
+  const lastHeartbeat = useRef(0);
 
   const optionsRef = useRef(options);
   useEffect(() => {
@@ -102,9 +107,9 @@ export function useClassChat(
       // Fetch the newest window directly. If we were offline longer than this
       // window, discard the disconnected history segment; paging fills it back
       // from the server instead of silently skipping a gap with MAX(id).
-      const data = await fetchChatMessages({ before: CHAT_LATEST_CURSOR, limit: CHAT_PAGE_SIZE });
+      const data = await fetchChatMessages({ since: newestCachedId, recent: CHAT_PAGE_SIZE, limit: CHAT_PAGE_SIZE });
       if (!active.current || epoch !== generation.current) return;
-      const incoming = data.messages || [];
+      const incoming = data.recentMessages || data.messages || [];
       const reset = snapshotCursor.current === null;
       const confirmedId = newestCachedId;
       const previousSnapshotId = snapshotCursor.current ?? newestCachedId;
@@ -149,34 +154,66 @@ export function useClassChat(
     useCallback(() => {
       if (!studentId || !serverUrl) return;
 
-      const epoch = ++generation.current;
+      ++generation.current;
       active.current = true;
       syncing.current = false;
       paging.current = false;
 
       hydrated.current = false;
       snapshotCursor.current = null;
-      configureChatCache(serverUrl, studentId);
-      const immediate = getMemoryChatMessages();
-      setMessages(immediate);
-      setLoadingInitial(immediate.length === 0);
+      beginChatSession(serverUrl, studentId, options?.authToken);
+      setMessages([]);
+      setLoadingInitial(true);
       setHasMore(true);
       setError(null);
       setReadReceipts([]);
       setPinned(null);
       setOnlineIds([]);
       setActiveTypers(new Map());
-      void (async () => {
+      let lastScope = '', validating = false, lastRefresh = 0;
+      const reset = () => {
+        const session = getChatSession();
+        const nextScope = chatScope(session);
+        setContext(session.context);
+        if (lastScope !== nextScope) {
+          lastScope = nextScope; generation.current++; setRoomGeneration(session.generation);
+          hydrated.current = false; snapshotCursor.current = null; syncing.current = false; paging.current = false;
+          setMessages([]); setPinned(null); setReadReceipts([]); setActiveTypers(new Map()); setOnlineIds([]);
+          onlineExpiry.current.clear(); setHasMore(true); setLoadingMore(false);
+          lastHeartbeat.current=0;
+          if (!session.context) {setError('This conversation is no longer available.');setLoadingInitial(false);}
+        }
+      };
+      const stopSession = subscribeChatSession(reset); reset();
+      const refresh = async () => {
+        if (!active.current || validating || AppState.currentState === 'background') return;
+        validating = true; lastRefresh = Date.now();
+        try {
+          await fetchChatConfig();
+          if (!active.current) return;
+          const epoch = generation.current;
         const cached = await getCachedChatMessages(50);
         if (!active.current || epoch !== generation.current) return;
         setMessages(previous => mergeChatMessages(cached, previous));
         hydrated.current = true;
         if (cached.length) setLoadingInitial(false);
         void sync();
-        void initChatRealtime(studentId, serverUrl).then(() => {
-          if (active.current && epoch === generation.current) void trackChatPresence({ studentId });
-        });
-      })();
+          void refreshPinned();
+          await initChatRealtime();
+        } catch (err: any) {
+          if (active.current) { setError(err.message || 'Unable to validate conversation.'); setLoadingInitial(false); }
+        } finally { validating = false; }
+      };
+      const heartbeat = async () => {
+        if (!active.current || !getChatSession().context || AppState.currentState !== 'active') return;
+        if(Date.now()-lastHeartbeat.current<25000)return;
+        lastHeartbeat.current=Date.now();
+        const epoch = generation.current;
+        try { const data = await sendChatHeartbeat(); if (active.current && epoch === generation.current) {
+          onlineExpiry.current = new Map(data.members.map(m => [m.studentId,Date.parse(m.expiresAt)])); setOnlineIds(data.onlineIds);
+        } } catch {}
+      };
+      void refresh().then(heartbeat);
 
       const unsubscribe = subscribeChatRealtime({
         onNewMessage: (newMsg) => {
@@ -216,21 +253,17 @@ export function useClassChat(
             ? { ...m, replyToId: null, replyText: undefined, replySender: undefined } : m));
           void refreshPinned();
         },
-        onTyping: (name, senderId) => {
+        onTyping: (name, senderId, expiresAt) => {
           if (!active.current) return;
           setActiveTypers((prev) =>
             new Map(prev).set(senderId, {
               name,
-              expiresAt: Date.now() + 3500,
+              expiresAt: Date.parse(expiresAt),
             })
           );
         },
         onReaction: (messageId, emoji, senderId, action) => {
           if (!active.current) return;
-          if (String(senderId) === String(studentId)) {
-            // Already updated optimistically on local device - ignore realtime echo
-            return;
-          }
           setMessages(previous => applyChatReaction(previous, messageId, senderId, emoji, action));
         },
         onPin: () => { void refreshPinned(); },
@@ -240,9 +273,10 @@ export function useClassChat(
             { ...receipt, lastReadMessageId: Math.max(receipt.lastReadMessageId, previous.find(r => String(r.studentId) === String(receipt.studentId))?.lastReadMessageId || 0) },
           ]);
         },
-        onOnlineUsers: (ids) => {
-          if (active.current) setOnlineIds(ids);
+        onOnlineUsers: (members) => {
+          if (active.current) { onlineExpiry.current = new Map(members.map(m => [m.studentId,Date.parse(m.expiresAt)])); setOnlineIds(members.filter(m => Date.parse(m.expiresAt)>Date.now()).map(m=>m.studentId)); }
         },
+        onRefreshNeeded: () => { if (Date.now()-lastRefresh>5000) void refresh(); },
         onConnectionChange: (connected) => {
           if (active.current) {
             setIsConnected(connected);
@@ -257,6 +291,7 @@ export function useClassChat(
 
       // Prune expired typers
       const pruneInterval = setInterval(() => {
+        setOnlineIds(previous => previous.filter(id => (onlineExpiry.current.get(id) || 0)>Date.now()));
         setActiveTypers((prev) => {
           const now = Date.now();
           let changed = false;
@@ -273,30 +308,26 @@ export function useClassChat(
       }, 1000);
 
       // Low-frequency fallback sync
-      const pollInterval = setInterval(() => {
-        void sync();
-        void refreshPinned();
-      }, 3500);
+      const pollInterval = setInterval(() => { void refresh(); void heartbeat(); }, 30000);
 
       // AppState foreground listener
       const appStateSub = AppState.addEventListener("change", (state) => {
         if (state === "active") {
-          void sync();
-          void refreshPinned();
-        }
+          void refresh().then(heartbeat);
+        } else { void disconnectChatRealtime(); setOnlineIds([]); }
       });
 
       return () => {
         active.current = false;
-        if (generation.current === epoch) generation.current++;
+        generation.current++;
+        stopSession();
         unsubscribe();
         clearInterval(pruneInterval);
         clearInterval(pollInterval);
         appStateSub.remove();
-        // NOTE: We deliberately do NOT destroy the Supabase client here.
-        // It stays alive as a singleton so reopening Chat does not reconnect from scratch.
+        void disconnectChatRealtime();
       };
-    }, [studentId, serverUrl, sync, refreshPinned]),
+    }, [studentId, serverUrl, options?.authToken, sync, refreshPinned]),
   );
 
   // Refresh older pages from the server; fall back to disk when offline.
@@ -331,6 +362,7 @@ export function useClassChat(
       const incoming = netData.messages || [];
       if (incoming.length > 0) {
         await upsertChatMessages(incoming);
+        if (!active.current || epoch !== generation.current) return;
         setMessages((prev) => mergeChatMessages(incoming, prev));
         setHasMore(incoming.length >= 30);
       } else {
@@ -373,6 +405,8 @@ export function useClassChat(
     pinned,
     setPinned,
     onlineIds,
+    context,
+    roomGeneration,
     loadOlderMessages,
     sync,
     refreshPinned,

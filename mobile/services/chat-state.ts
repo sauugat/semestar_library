@@ -9,18 +9,19 @@ export function mergeChatMessages(
   const byClientId = new Map<string, number>();
   existing.forEach((message) => {
     if (message.clientId) {
-      byClientId.set(message.clientId, message.id);
+      byClientId.set(`${message.studentId}:${message.clientId}`, message.id);
     }
   });
 
   incoming.forEach((message) => {
-    if (message.clientId && byClientId.has(message.clientId)) {
-      const oldId = byClientId.get(message.clientId)!;
+    if (message.clientId && byClientId.has(`${message.studentId}:${message.clientId}`)) {
+      const oldId = byClientId.get(`${message.studentId}:${message.clientId}`)!;
       if (oldId !== message.id) {
         byId.delete(oldId);
       }
     }
     byId.set(message.id, { ...byId.get(message.id), ...message });
+    if (message.clientId) byClientId.set(`${message.studentId}:${message.clientId}`, message.id);
   });
 
   return [...byId.values()].sort((a, b) => {
@@ -182,4 +183,3 @@ export function formatFileSubtitle(
   }
   return ext;
 }
-

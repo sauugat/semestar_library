@@ -33,8 +33,16 @@ import { apiFetch, getBaseUrl } from '@/services/api';
 import { Post, deletePost, toggleLike } from '@/services/posts';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const COVER_HEIGHT = Math.min(220, Math.round(SCREEN_WIDTH * 0.56));
-const HERO_BLEND_EXTENSION = 80; // how far below the cover the fade extends
+const COVER_HEIGHT = Math.min(210, Math.round(SCREEN_WIDTH * 0.52));
+
+// 1x256 hardware-interpolated PNG gradient base64 data URIs.
+// Smooth cubic ease-in alpha curve that reaches 100% surface opacity before the bottom edge,
+// ensuring a seamless, continuous blend with zero banding and zero native package dependencies.
+const DARK_SURFACE_GRADIENT =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAEACAYAAAByPhyYAAABVklEQVR42s3EaWTWARwA4LdjHW9327q2da1zW61rtdW0lQ6VlTalLJumpKRJSVKSJJlkMkkmkWQiiSQSE4nEjETMGDEjIkZieb78+LNJ9KHnw5NKp9Op1H/RsL9p+J8bMVQjhypjkEYN0uhkY5KNTZZONi4an2xCNDGaFE2OpkRTo8woK8qOpml6NCOaqVlRjnKVF83WnGiu5ml+lK8FWqhFWhwt0VIVqFBFWqblKtYKrdQqrdYalWit1qlUZVqvDSrXRlWoUpu0WVu0Vdu0XTu0U7tUpd3ao72qVo32ab8O6KBqdUh1qtdhNeiIjuqYjuuETuqUGnVaZ3RW53ReF3RRl3RZV3RV13RdN9Skm7qlZt1Wi+7oru6pVff1QA/1SI/Vpid6qmd6rhd6qVd6rTdq11u903t90Ed1qFOf9Flf1KVu9eiretWnb/quH+rXT/3SwD/sNxuLbfmZw8iwAAAAAElFTkSuQmCC';
+
+const LIGHT_SURFACE_GRADIENT =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAEACAYAAAByPhyYAAABVUlEQVR42s3EW2TWARwA0K9Wba1aW5e17rXu93arVmkrXWxTUymlbEpJSUmZpEmSzCRJkplEkonMSEYiIyORmIhERGJExGcs5+XHn01GD52Hk0qn06nUf9GwoTT872UM1ojBGjlAowYoM1lWstHJspONicYmGxflROOj3CgvmhBNjCZFk6N8TYkKoqmaFk3XDM2MZml2NEdzVRjN03wt0EItihZriZZqmZZrhVZqlVarSMUqUanKtEZrtU7lWq8N2qhNqlClNmuLtmqbtmuHqlStGu3ULtVqt/Zor/Zpvw7ooA7psOpUryM6qmM6rhM6qVM6rTM6q3M6rwtq0EVd0mU16oqu6pqu64aa1KybuqXbuqO7uqf7alGrHuihHumxnqhNT/VM7erQc71Qp17qlV6rS2/Urbd6p/f6oB591Cd91hd91Td91w/16qd+6bfS6lP/P+wP7RI+JoBX9zgAAAAASUVORK5CYII=';
 
 export interface ProfilePhotoItem {
   id: string | number;
@@ -643,7 +651,7 @@ export function ProfileView({ targetStudentId, isTab = false }: ProfileViewProps
         }
       >
         {/* ============================================================ */}
-        {/* 1. COMPOSED HERO — cover + fade + avatar + actions as ONE unit */}
+        {/* 1. COMPOSED HERO — cover + continuous blend + actions        */}
         {/* ============================================================ */}
         <View style={styles.heroContainer}>
           {/* Cover Image Area */}
@@ -667,60 +675,36 @@ export function ProfileView({ targetStudentId, isTab = false }: ProfileViewProps
                 />
               </TouchableOpacity>
             ) : (
-              <View style={[styles.coverFallback, { backgroundColor: colors.surfaceRaised }]}>
+              <TouchableOpacity
+                activeOpacity={isSelf ? 0.7 : 1}
+                onPress={() => {
+                  if (isSelf) {
+                    router.push('/edit-profile');
+                  }
+                }}
+                style={[styles.coverFallback, { backgroundColor: colors.surfaceRaised }]}
+              >
                 <View style={styles.coverFallbackInner}>
                   <Ionicons name="images-outline" size={32} color={colors.textMuted} />
                   {isSelf && (
                     <Text variant="xs" color="muted" style={{ marginTop: 4 }}>
-                      Add a cover photo to personalize your profile
+                      Add a cover photo in Edit Profile
                     </Text>
                   )}
                 </View>
-              </View>
+              </TouchableOpacity>
+            )}
+
+            {/* Continuous Surface Blend Overlay — hardware interpolated PNG with zero banding */}
+            {coverFullUrl && (
+              <Image
+                source={{ uri: colors.background === '#fafafa' ? LIGHT_SURFACE_GRADIENT : DARK_SURFACE_GRADIENT }}
+                style={styles.heroFadeOverlay}
+                contentFit="fill"
+                pointerEvents="none"
+              />
             )}
           </View>
-
-          {/* Continuous Fade Overlay — extends from mid-cover through avatar area */}
-          {/* This is positioned relative to heroContainer, NOT coverContainer */}
-          {/* So it visually spans across the cover bottom and into the profile area */}
-          {coverFullUrl && (
-            <View style={styles.heroFadeOverlay} pointerEvents="none">
-              {/* 12 layers for smooth imperceptible transition */}
-              {/* Each layer stretches from its 'top' to the bottom of the overlay */}
-              <View style={[styles.heroFadeLayer, { top: 0,       opacity: 0.02 }]} />
-              <View style={[styles.heroFadeLayer, { top: '8%',    opacity: 0.04 }]} />
-              <View style={[styles.heroFadeLayer, { top: '16%',   opacity: 0.07 }]} />
-              <View style={[styles.heroFadeLayer, { top: '24%',   opacity: 0.11 }]} />
-              <View style={[styles.heroFadeLayer, { top: '32%',   opacity: 0.17 }]} />
-              <View style={[styles.heroFadeLayer, { top: '40%',   opacity: 0.24 }]} />
-              <View style={[styles.heroFadeLayer, { top: '48%',   opacity: 0.34 }]} />
-              <View style={[styles.heroFadeLayer, { top: '56%',   opacity: 0.46 }]} />
-              <View style={[styles.heroFadeLayer, { top: '64%',   opacity: 0.58 }]} />
-              <View style={[styles.heroFadeLayer, { top: '72%',   opacity: 0.72 }]} />
-              <View style={[styles.heroFadeLayer, { top: '80%',   opacity: 0.85 }]} />
-              <View style={[styles.heroFadeLayer, { top: '90%',   opacity: 0.96 }]} />
-            </View>
-          )}
-
-          {/* Edit Cover — subtle pill, sits within the cover area above the deepest fade */}
-          {isSelf && (
-            <TouchableOpacity
-              style={styles.coverEditButton}
-              onPress={() => setCoverActionVisible(true)}
-              activeOpacity={0.8}
-            >
-              {isUploadingCover ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <>
-                  <Ionicons name="camera-outline" size={13} color="rgba(255,255,255,0.9)" />
-                  <Text variant="xs" weight="600" style={{ color: 'rgba(255,255,255,0.9)', marginLeft: 4, fontSize: 11 }}>
-                    {coverFullUrl ? 'Edit Cover' : 'Add Cover'}
-                  </Text>
-                </>
-              )}
-            </TouchableOpacity>
-          )}
         </View>
 
         {/* ============================================================ */}
@@ -1616,13 +1600,11 @@ const styles = StyleSheet.create({
   heroContainer: {
     width: '100%',
     position: 'relative',
-    // Total height = COVER_HEIGHT + HERO_BLEND_EXTENSION, but the
-    // blend extension is layered over the profileHeaderContent below,
-    // so we don't set a fixed height on the container — it wraps content.
   },
   coverContainer: {
     width: '100%',
     height: COVER_HEIGHT,
+    position: 'relative',
     overflow: 'hidden',
   },
   coverTouchArea: {
@@ -1633,23 +1615,15 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  // The fade overlay extends from ~40% of the cover down through
-  // HERO_BLEND_EXTENSION below the cover. This creates the continuous
-  // cover → surface blend with no visible bottom edge.
+  // Hardware-interpolated smooth fade overlay with zero banding
   heroFadeOverlay: {
     position: 'absolute',
     left: 0,
     right: 0,
-    top: Math.round(COVER_HEIGHT * 0.38),
-    height: Math.round(COVER_HEIGHT * 0.62) + HERO_BLEND_EXTENSION,
-    zIndex: 1,
-  },
-  heroFadeLayer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
     bottom: 0,
-    backgroundColor: '#0a0a0a',
+    top: Math.round(COVER_HEIGHT * 0.32),
+    width: '100%',
+    height: COVER_HEIGHT - Math.round(COVER_HEIGHT * 0.32),
   },
   coverFallback: {
     width: '100%',
@@ -1662,31 +1636,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 20,
   },
-  coverEditButton: {
-    position: 'absolute',
-    bottom: HERO_BLEND_EXTENSION + 18,
-    right: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 16,
-    borderWidth: 0.5,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    borderColor: 'rgba(255,255,255,0.15)',
-    zIndex: 3,
-  },
+
   profileHeaderContent: {
     paddingHorizontal: 16,
     paddingBottom: 12,
     zIndex: 2,
-    marginTop: -HERO_BLEND_EXTENSION,
+    marginTop: -64,
   },
   avatarRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: 6,
   },
   avatarWrapper: {
     position: 'relative',
@@ -1713,7 +1674,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerRightActions: {
-    paddingBottom: 4,
+    paddingBottom: 6,
   },
   identityDetails: {
     marginTop: 4,

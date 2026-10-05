@@ -31,6 +31,7 @@ const db = require('./db');
 const noteSearch = require('./lib/note-search');
 const pushNotifications = require('./lib/push-notifications');
 const officePreview = require('./lib/office-preview');
+const gamesTicket = require('./lib/games-ticket');
 
 async function indexUploadedNote(file) {
   try {
@@ -1317,6 +1318,21 @@ app.get('/api/me', requireLogin, async (req, res) => {
     verificationStatus: req.user.verificationStatus || profile?.verificationStatus || 'unverified',
     stats: profile?.stats || { filesCount: 0, likesReceived: 0, followersCount: 0, followingCount: 0 }
   });
+});
+
+app.post('/api/games/ticket', auth.requireLogin, async (req, res) => {
+  try {
+    const ticket = gamesTicket.createGamesTicket(req.user);
+    res.json({
+      ticket,
+      expiresIn: gamesTicket.TICKET_TTL_SECONDS,
+    });
+  } catch (err) {
+    console.error('[Games Ticket Error]:', err.message);
+    res.status(500).json({
+      message: 'Failed to issue Games ticket. Please try again later.',
+    });
+  }
 });
 
 app.post('/api/change-password', requireLogin, async (req, res) => {

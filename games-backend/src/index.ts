@@ -25,6 +25,33 @@ export default {
       );
     }
 
+    // Match /rooms/:roomId/ws
+    const roomWsMatch = url.pathname.match(/^\/rooms\/([a-zA-Z0-9_-]+)\/ws\/?$/);
+    if (roomWsMatch) {
+      const roomId = roomWsMatch[1];
+      const isWsUpgrade = request.headers.get('Upgrade')?.toLowerCase() === 'websocket';
+      if (!isWsUpgrade) {
+        return new Response(
+          JSON.stringify({
+            error: 'Upgrade Required',
+            message: 'Expected WebSocket connection (Upgrade: websocket)',
+          }),
+          {
+            status: 426,
+            headers: {
+              'Content-Type': 'application/json',
+              'Upgrade': 'websocket',
+            },
+          }
+        );
+      }
+
+      const id = env.GAME_ROOMS.idFromName(roomId);
+      const stub = env.GAME_ROOMS.get(id);
+      return stub.fetch(request);
+    }
+
+    // Match /rooms/:roomId
     const roomMatch = url.pathname.match(/^\/rooms\/([a-zA-Z0-9_-]+)\/?$/);
     if (roomMatch) {
       const roomId = roomMatch[1];

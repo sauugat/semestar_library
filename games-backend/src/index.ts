@@ -2,6 +2,7 @@ import { GameRoom } from './game-room';
 
 export interface Env {
   GAME_ROOMS: DurableObjectNamespace<GameRoom>;
+  GAMES_TICKET_SECRET: string;
 }
 
 export { GameRoom };

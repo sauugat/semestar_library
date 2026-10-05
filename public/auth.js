@@ -180,6 +180,12 @@
     try {
       await rawFetch('/api/logout', { method: 'POST' });
     } catch {}
+    try {
+      sessionStorage.removeItem('sl_academic_context_cache_v1');
+      if (window.AcademicContext && typeof window.AcademicContext.invalidate === 'function') {
+        window.AcademicContext.invalidate();
+      }
+    } catch {}
     window.location.href = '/login.html';
   }
 
@@ -218,18 +224,25 @@
 
     // If 401 Unauthorized, attempt one token refresh before redirecting
     if (response.status === 401 && token) {
+      // An old account's response must not refresh or redirect a newer session.
+      if (await getAccessToken() !== token) return response;
       try {
         const client = await getSupabase();
         const { data, error } = await client.auth.refreshSession();
         if (!error && data && data.session) {
+          if (await getAccessToken() !== data.session.access_token) return response;
           opts.headers['Authorization'] = `Bearer ${data.session.access_token}`;
           response = await rawFetch(url, opts);
         } else {
+          const latestToken = await getAccessToken();
+          if (latestToken && latestToken !== token) return response;
           console.warn('[Auth] Session expired, redirecting to login');
           const currentPath = encodeURIComponent(window.location.pathname + window.location.search);
           window.location.href = `/login.html?redirect=${currentPath}`;
         }
       } catch {
+        const latestToken = await getAccessToken();
+        if (latestToken && latestToken !== token) return response;
         const currentPath = encodeURIComponent(window.location.pathname + window.location.search);
         window.location.href = `/login.html?redirect=${currentPath}`;
       }

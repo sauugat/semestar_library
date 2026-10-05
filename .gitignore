@@ -4,6 +4,9 @@ node_modules/
 uploads/
 public/uploads/posts/
 database.db
+database.db-*
+database.db-shm
+database.db-wal
 .DS_Store
 scratch/
 mobile-test/

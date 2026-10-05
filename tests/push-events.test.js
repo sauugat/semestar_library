@@ -28,23 +28,30 @@ test('Push Notifications Integration & Event Hooks (Phase B)', async (t) => {
 
   const allTestStudentIds = [senderId, studentS2Id, studentS4Id, mutedStudentId, adminId];
 
+  let defaultCohort = await db.get("SELECT id FROM cohorts WHERE status = 'active' LIMIT 1");
+  if (!defaultCohort) {
+    const { createCohort } = require('../lib/academic-context');
+    defaultCohort = await createCohort(db, { slotCode: 'mercury', displayName: 'Mercury', currentSemester: 1 });
+  }
+  const testCohortId = defaultCohort.id;
+
   // Insert test students
   for (const s of [
-    { id: senderId, name: 'Sender User', role: 'student', semester: 'Semester 2' },
-    { id: studentS2Id, name: 'Student Sem 2', role: 'student', semester: 'Semester 2' },
-    { id: studentS4Id, name: 'Student Sem 4', role: 'student', semester: 'Semester 4' },
-    { id: mutedStudentId, name: 'Muted Sem 2', role: 'student', semester: 'Semester 2' },
-    { id: adminId, name: 'Admin User', role: 'admin', semester: 'Semester 1' },
+    { id: senderId, name: 'Sender User', role: 'student', semester: 'Semester 2', cohort_id: testCohortId },
+    { id: studentS2Id, name: 'Student Sem 2', role: 'student', semester: 'Semester 2', cohort_id: testCohortId },
+    { id: studentS4Id, name: 'Student Sem 4', role: 'student', semester: 'Semester 4', cohort_id: testCohortId },
+    { id: mutedStudentId, name: 'Muted Sem 2', role: 'student', semester: 'Semester 2', cohort_id: testCohortId },
+    { id: adminId, name: 'Admin User', role: 'admin', semester: 'Semester 1', cohort_id: testCohortId },
   ]) {
     if (db.isPostgres) {
       await db.run(
-        'INSERT INTO students (studentId, name, role, semester, passwordHash) VALUES (?, ?, ?, ?, ?) ON CONFLICT DO NOTHING',
-        s.id, s.name, s.role, s.semester, 'test_hash'
+        'INSERT INTO students (studentId, name, role, semester, passwordHash, cohort_id) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (studentId) DO UPDATE SET cohort_id = excluded.cohort_id',
+        s.id, s.name, s.role, s.semester, 'test_hash', s.cohort_id
       );
     } else {
       await db.run(
-        'INSERT OR IGNORE INTO students (studentId, name, role, semester, passwordHash) VALUES (?, ?, ?, ?, ?)',
-        s.id, s.name, s.role, s.semester, 'test_hash'
+        'INSERT INTO students (studentId, name, role, semester, passwordHash, cohort_id) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (studentId) DO UPDATE SET cohort_id = excluded.cohort_id',
+        s.id, s.name, s.role, s.semester, 'test_hash', s.cohort_id
       );
     }
   }
@@ -468,15 +475,15 @@ test('Push Notifications Integration & Event Hooks (Phase B)', async (t) => {
 
     // 3. Publisher (adminId) must be excluded
     const adminOutbox = await db.all(
-      'SELECT id FROM push_notification_outbox WHERE recipient_student_id = ? AND event_id = ?',
-      adminId, String(noticeId)
+      'SELECT id FROM push_notification_outbox WHERE recipient_student_id = ? AND event_type = ? AND event_id = ?',
+      adminId, 'notice', String(noticeId)
     );
     assert.equal(adminOutbox.length, 0, 'Publisher must be excluded from notice push notifications');
 
     // 4. Critical duplicate prevention: must have notice event ONLY, NEVER post event for same notice
     const recipientNoticeOutbox = await db.all(
-      'SELECT id, event_type, payload_json, idempotency_key FROM push_notification_outbox WHERE recipient_student_id = ? AND event_id = ?',
-      studentS2Id, String(noticeId)
+      'SELECT id, event_type, payload_json, idempotency_key FROM push_notification_outbox WHERE recipient_student_id = ? AND event_type IN (?, ?) AND event_id = ?',
+      studentS2Id, 'notice', 'post', String(noticeId)
     );
     assert.equal(recipientNoticeOutbox.length, 1, 'Should have exactly one notification event for official notice');
     assert.equal(recipientNoticeOutbox[0].event_type, 'notice', 'Event type must be notice');

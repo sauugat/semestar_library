@@ -63,7 +63,6 @@ import {
 
 import { useAuth } from "@/context/AuthContext";
 import { Text } from "@/components/ui/Typography";
-import { getAuthToken } from "@/services/api";
 import {
   ChatMessage,
   ChatMember,
@@ -284,6 +283,8 @@ export default function ChatScreen() {
     name: string;
   } | null>(null);
 
+  const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
+
   useEffect(() => {
     let generation=getChatSession().generation;
     return subscribeChatSession(()=>{
@@ -291,12 +292,10 @@ export default function ChatScreen() {
       generation=getChatSession().generation;
       setReplyTo(null);setActionMessage(null);setSelectedAttachment(null);setPanel(null);setQuery('');
       setMembers([]);setHighlightedMessageId(null);setNewIncomingCount(0);
+      setDownloadingFileId(null);
       initialLoadedIds.current.clear();seenMessageIdsRef.current.clear();setShowAttachModal(false);setViewerImage(null);
     });
   }, []);
-
-  // Downloading document state
-  const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
 
   // Refs
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
@@ -319,6 +318,14 @@ export default function ChatScreen() {
     }
     return "Class conversation";
   }, [typingNames, isConnected, onlineIds.length, error]);
+
+  const isArchived = Boolean(
+    context && (
+      context.cohortStatus === "graduated" ||
+      context.roomStatus === "closed" ||
+      (context.permissions && context.permissions.canPost === false)
+    )
+  );
 
   // Auth headers for image sources
   const imageAuthHeaders = useMemo(() => {
@@ -939,13 +946,7 @@ export default function ChatScreen() {
             if (!isCurrentChatSession(start)) return;
 
             // In-place replacement: updates the temp message directly without removal & re-insertion (zero flicker/jump)
-            setMessages((prev) =>
-              prev.map((m) =>
-                m.id === tempId || (m.clientId && m.clientId === clientId)
-                  ? confirmedMsg
-                  : m
-              )
-            );
+            setMessages((prev) => mergeChatMessages(prev, [confirmedMsg]));
           }
         })
         .catch(async (err: any) => {
@@ -955,7 +956,7 @@ export default function ChatScreen() {
           if (!isCurrentChatSession(start)) return;
           setMessages((prev) =>
             prev.map((m) =>
-              m.id === tempId || (m.clientId && m.clientId === clientId)
+              m.id === tempId || (m.studentId === start.account && m.clientId === clientId)
                 ? { ...m, status: "failed" }
                 : m
             )
@@ -980,7 +981,7 @@ export default function ChatScreen() {
       // 1. Reset status to pending in state & SQLite
       setMessages((prev) =>
         prev.map((m) =>
-          m.id === failedMsg.id || (failedMsg.clientId && m.clientId === failedMsg.clientId)
+          m.id === failedMsg.id || (m.studentId === failedMsg.studentId && m.clientId === failedMsg.clientId)
             ? { ...m, status: "pending" }
             : m
         )
@@ -1016,13 +1017,7 @@ export default function ChatScreen() {
           await resolvePendingMessage(failedMsg.id, confirmedMsg);
           await removeOutboxFile(failedMsg.localUri);
           if (!isCurrentChatSession(start)) return;
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === failedMsg.id || (failedMsg.clientId && m.clientId === failedMsg.clientId)
-                ? confirmedMsg
-                : m
-            )
-          );
+          setMessages((prev) => mergeChatMessages(prev, [confirmedMsg]));
         }
       } catch (err: any) {
         if (!isCurrentChatSession(start)) return;
@@ -1031,7 +1026,7 @@ export default function ChatScreen() {
         if (!isCurrentChatSession(start)) return;
         setMessages((prev) =>
           prev.map((m) =>
-            m.id === failedMsg.id || (failedMsg.clientId && m.clientId === failedMsg.clientId)
+            m.id === failedMsg.id || (m.studentId === failedMsg.studentId && m.clientId === failedMsg.clientId)
               ? { ...m, status: "failed" }
               : m
           )
@@ -1070,26 +1065,34 @@ export default function ChatScreen() {
 
   // Document Download & Open Handler
   const handleDownloadAttachment = useCallback(async (msg: ChatMessage) => {
-    if (!msg.attachmentName) return;
+    const start = getChatSession();
+    if (!msg.attachmentName || !isCurrentChatSession(start) || msg.chatGroupId !== start.context?.chatGroupId) return;
     const filename = msg.attachmentName;
     const originalName = msg.attachmentOriginalName || filename;
-    const fileUrl = `${serverUrl}/api/chat/attachment/${encodeURIComponent(filename)}`;
+    const fileUrl = `${start.server}/api/chat/attachment/${encodeURIComponent(filename)}?chatGroupId=${encodeURIComponent(msg.chatGroupId)}`;
 
     try {
       setDownloadingFileId(String(msg.id));
       const targetDir = FileSystem.cacheDirectory || "";
       if (!targetDir) throw new Error("File storage is unavailable.");
-      const localUri = `${targetDir}chat-${msg.id}-${safeChatFilename(originalName)}`;
+      const localUri = `${targetDir}chat-${start.generation}-${msg.id}-${safeChatFilename(originalName)}`;
 
-      const authToken = await getAuthToken();
       const downloadHeaders: Record<string, string> = {};
-      if (authToken) downloadHeaders["Authorization"] = `Bearer ${authToken}`;
+      if (start.credential) downloadHeaders["Authorization"] = `Bearer ${start.credential}`;
 
       const res = await FileSystem.downloadAsync(fileUrl, localUri, {
         headers: downloadHeaders,
       });
+      if (!isCurrentChatSession(start)) {
+        await FileSystem.deleteAsync(res.uri, { idempotent: true }).catch(() => {});
+        return;
+      }
       if (res.status === 200) {
         const canShare = await Sharing.isAvailableAsync();
+        if (!isCurrentChatSession(start)) {
+          await FileSystem.deleteAsync(res.uri, { idempotent: true }).catch(() => {});
+          return;
+        }
         if (canShare) {
           await Sharing.shareAsync(res.uri, {
             dialogTitle: `Open ${originalName}`,
@@ -1102,14 +1105,15 @@ export default function ChatScreen() {
         throw new Error(`Server returned status ${res.status}`);
       }
     } catch (err: any) {
+      if (!isCurrentChatSession(start)) return;
       Alert.alert(
         "Download Error",
         err.message || "Failed to download attachment",
       );
     } finally {
-      setDownloadingFileId(null);
+      if (isCurrentChatSession(start)) setDownloadingFileId(null);
     }
-  }, [serverUrl]);
+  }, []);
 
   // Render message using the memoized ChatMessageItem component with stable references
   const renderMessageItem = useCallback(
@@ -1199,7 +1203,9 @@ export default function ChatScreen() {
 
           <View style={styles.headerTextGroup}>
             <Text variant="md" weight="700" style={styles.headerGroupName} numberOfLines={1}>
-              {context ? `${context.groupCode.charAt(0)}${context.groupCode.slice(1).toLowerCase()} Group` : 'Group Chat'}
+              {context
+                ? `${context.cohortDisplayName || (context.groupCode.charAt(0) + context.groupCode.slice(1).toLowerCase())} • ${context.cohortStatus === "graduated" ? "Graduated" : `Semester ${context.currentSemester}`}`
+                : "Class Chat"}
             </Text>
             <Text variant="xs" style={styles.headerSubtitle} numberOfLines={1}>
               {headerSubtitle}
@@ -1219,6 +1225,16 @@ export default function ChatScreen() {
           <Ionicons name="search-outline" size={21} color="#f5f5f5" />
         </TouchableOpacity>
       </View>
+
+      {/* Archived Banner */}
+      {isArchived && (
+        <View style={styles.archivedBanner}>
+          <Ionicons name="archive-outline" size={16} color="#e4e4e7" />
+          <Text style={styles.archivedBannerText}>
+            This cohort has graduated. Conversation is in read-only mode.
+          </Text>
+        </View>
+      )}
 
       {/* Pinned Message Banner */}
       {pinned && (
@@ -1413,27 +1429,36 @@ export default function ChatScreen() {
 
       {/* Replying banner, Attachment Preview, and Message Composer */}
       <StickyComposer bordered>
-        <ChatComposer
-          key={`${user?.studentId}:${roomGeneration}`}
-          replyTo={replyTo}
-          onCancelReply={() => setReplyTo(null)}
-          selectedAttachment={selectedAttachment}
-          onClearAttachment={() => {
-            void removeOutboxFile(selectedAttachment?.uri);
-            setSelectedAttachment(null);
-          }}
-          onOpenAttachModal={() => {
-            Keyboard.dismiss();
-            setShowAttachModal(true);
-          }}
-          onPickCamera={handleTakePhoto}
-          onSendMessage={handleSendMessage}
-          inputRef={inputRef}
-          userAvailable={Boolean(user && context)}
-          members={members}
-          serverUrl={serverUrl}
-          currentUserId={user?.studentId}
-        />
+        {isArchived ? (
+          <View style={styles.archivedComposerNotice}>
+            <Ionicons name="lock-closed-outline" size={18} color="#a1a1aa" style={{ marginRight: 8 }} />
+            <Text variant="sm" style={styles.archivedComposerText}>
+              This cohort has graduated. Conversation is read-only.
+            </Text>
+          </View>
+        ) : (
+          <ChatComposer
+            key={`${user?.studentId}:${roomGeneration}`}
+            replyTo={replyTo}
+            onCancelReply={() => setReplyTo(null)}
+            selectedAttachment={selectedAttachment}
+            onClearAttachment={() => {
+              void removeOutboxFile(selectedAttachment?.uri);
+              setSelectedAttachment(null);
+            }}
+            onOpenAttachModal={() => {
+              Keyboard.dismiss();
+              setShowAttachModal(true);
+            }}
+            onPickCamera={handleTakePhoto}
+            onSendMessage={handleSendMessage}
+            inputRef={inputRef}
+            userAvailable={Boolean(user && context)}
+            members={members}
+            serverUrl={serverUrl}
+            currentUserId={user?.studentId}
+          />
+        )}
       </StickyComposer>
 
       {/* Class Members & Search Modal Panel */}
@@ -2209,5 +2234,33 @@ const styles = StyleSheet.create({
   viewerImage: {
     width: "100%",
     height: "100%",
+  },
+  archivedBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#27272a",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#3f3f46",
+  },
+  archivedBannerText: {
+    color: "#e4e4e7",
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  archivedComposerNotice: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    backgroundColor: "#18181b",
+  },
+  archivedComposerText: {
+    color: "#a1a1aa",
+    fontSize: 13,
+    fontWeight: "500",
   },
 });

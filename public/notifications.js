@@ -1,165 +1,272 @@
+/**
+ * Production-Grade Global Notifications Bell & Realtime Sync for Semester Library
+ * File: public/notifications.js
+ */
 (function() {
-  let unreadCount = 0;
-  let notifications = [];
-  let dropdownOpen = false;
+  let unseenCount = 0;
+  let popoverOpen = false;
+  let cachedNotifications = [];
+  let sseSource = null;
 
-  async function fetchUnreadCount() {
+  async function fetchUnseenCount() {
     try {
       const res = await fetch('/api/notifications/unread-count');
       if (res.ok) {
         const data = await res.json();
-        unreadCount = data.count || 0;
+        unseenCount = data.count || 0;
         updateBadge();
       }
     } catch (e) {
-      console.error('Failed to fetch unread count:', e);
+      // Graceful offline
     }
   }
 
   function updateBadge() {
-    const badge = document.getElementById('notificationBadge');
+    const badge = document.getElementById('slNotificationBadge');
     if (!badge) return;
-    if (unreadCount > 0) {
-      badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+    if (unseenCount > 0) {
+      badge.textContent = unseenCount > 99 ? '99+' : String(unseenCount);
       badge.style.display = 'flex';
     } else {
       badge.style.display = 'none';
     }
   }
 
-  async function fetchNotifications() {
-    try {
-      const res = await fetch('/api/notifications');
-      if (res.ok) {
-        notifications = await res.json();
-        renderDropdown();
-      }
-    } catch (e) {
-      console.error('Failed to fetch notifications:', e);
-    }
-  }
-
-  async function markAsReadAndRedirect(id, fileId) {
-    try {
-      await fetch(`/api/notifications/${id}/read`, { method: 'POST' });
-      // Reduce badge count instantly
-      if (unreadCount > 0) {
-        unreadCount--;
-        updateBadge();
-      }
-    } catch (e) {}
-
-    if (fileId) {
-      window.location.href = `files.html?highlight=${fileId}`; // or to a specific view page if available
-    }
-  }
-
-  function renderDropdown() {
-    const list = document.getElementById('notificationList');
+  async function fetchRecentNotifications() {
+    const list = document.getElementById('slNotifQuickList');
     if (!list) return;
 
-    list.innerHTML = '';
-    
-    if (notifications.length === 0) {
-      list.innerHTML = '<div class="notif-empty">No notifications yet.</div>';
+    try {
+      const res = await fetch('/api/notifications?limit=5');
+      if (res.ok) {
+        const data = await res.json();
+        cachedNotifications = data.items || [];
+        renderQuickList();
+      }
+    } catch (e) {
+      list.innerHTML = '<div style="padding: 16px; text-align: center; color: var(--text-muted, #737373); font-size: 0.8rem;">Could not load recent notifications.</div>';
+    }
+  }
+
+  function renderQuickList() {
+    const list = document.getElementById('slNotifQuickList');
+    if (!list) return;
+
+    if (cachedNotifications.length === 0) {
+      list.innerHTML = '<div style="padding: 24px 16px; text-align: center; color: var(--text-secondary, #b5b5b5); font-size: 0.82rem; font-weight: 500;">You’re all caught up.</div>';
       return;
     }
 
-    notifications.forEach(n => {
-      const item = document.createElement('div');
-      item.className = 'notif-item' + (n.isRead ? ' read' : ' unread');
-      
-      let icon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>';
-      if (n.type === 'like') {
-        icon = '<svg viewBox="0 0 24 24" fill="var(--ap-accent-red)" stroke="var(--ap-accent-red)" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>';
-      } else if (n.type === 'comment') {
-        icon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>';
-      } else if (n.type === 'notice') {
-        icon = '<svg viewBox="0 0 24 24" fill="none" stroke="var(--ap-accent-blue)" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>';
-      }
+    let html = '';
+    cachedNotifications.forEach((n) => {
+      const isUnread = !n.isRead;
+      const initial = n.actor?.name ? n.actor.name.charAt(0).toUpperCase() : 'S';
+      const avatarHtml = n.actor?.avatarUrl
+        ? `<img src="${n.actor.avatarUrl}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;" />`
+        : `<span>${initial}</span>`;
 
-      // SQLite CURRENT_TIMESTAMP is UTC (YYYY-MM-DD HH:MM:SS). Force it to be parsed as UTC.
-      const dateString = n.createdAt.replace(' ', 'T') + 'Z';
-      const dateObj = new Date(dateString);
-
-      item.innerHTML = `
-        <div class="notif-icon">${icon}</div>
-        <div class="notif-content">
-          <div class="notif-text">${n.message}</div>
-          <div class="notif-time">${dateObj.toLocaleDateString()} ${dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+      html += `
+        <div class="sl-notif-row" data-id="${n.id}" data-link="${n.webPath || 'notifications.html'}" style="display: flex; gap: 10px; padding: 10px 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.06); cursor: pointer; transition: background 0.15s ease; ${isUnread ? 'background: rgba(255, 255, 255, 0.04);' : ''}">
+          <div style="width: 32px; height: 32px; border-radius: 50%; background: #262626; display: flex; align-items: center; justify-content: center; font-size: 0.78rem; font-weight: 700; color: #fff; flex-shrink: 0; overflow: hidden;">
+            ${avatarHtml}
+          </div>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-size: 0.82rem; font-weight: 600; color: var(--text-primary, #f5f5f5); line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(n.title)}</div>
+            <div style="font-size: 0.76rem; color: var(--text-secondary, #b5b5b5); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(n.body)}</div>
+          </div>
+          ${isUnread ? '<div style="width: 6px; height: 6px; border-radius: 50%; background: #3b82f6; margin-top: 6px; flex-shrink: 0;"></div>' : ''}
         </div>
-        ${!n.isRead ? '<div class="notif-dot"></div>' : ''}
       `;
+    });
 
-      item.addEventListener('click', () => {
-        markAsReadAndRedirect(n.id, n.relatedFileId);
+    list.innerHTML = html;
+
+    list.querySelectorAll('.sl-notif-row').forEach((row) => {
+      row.addEventListener('click', async () => {
+        const id = row.getAttribute('data-id');
+        const link = row.getAttribute('data-link');
+        try {
+          await fetch(`/api/notifications/${id}/read`, { method: 'POST' });
+        } catch {}
+        if (link) window.location.href = link;
       });
-
-      list.appendChild(item);
+      row.addEventListener('mouseenter', () => { row.style.background = 'rgba(255, 255, 255, 0.08)'; });
+      row.addEventListener('mouseleave', () => { row.style.background = 'transparent'; });
     });
   }
 
-  function toggleDropdown(e) {
+  function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function togglePopover(e) {
     e.stopPropagation();
-    dropdownOpen = !dropdownOpen;
-    const dp = document.getElementById('notificationDropdown');
-    if (dp) {
-      dp.style.display = dropdownOpen ? 'block' : 'none';
-      if (dropdownOpen) {
-        fetchNotifications();
+    // If user is already on notifications.html, no need to open popover
+    if (window.location.pathname.endsWith('notifications.html')) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    popoverOpen = !popoverOpen;
+    const pop = document.getElementById('slNotificationPopover');
+    if (!pop) return;
+
+    pop.style.display = popoverOpen ? 'block' : 'none';
+    if (popoverOpen) {
+      fetchRecentNotifications();
+      if (unseenCount > 0) {
+        fetch('/api/notifications/seen', { method: 'POST' }).then(() => {
+          unseenCount = 0;
+          updateBadge();
+        }).catch(() => {});
       }
     }
   }
 
-  // Inject UI (Notification icon removed from header)
-  document.addEventListener('DOMContentLoaded', () => {
-    // Notification bell icon removed from header per design requirements
-    return;
-    const headerActions = document.querySelector('.dash-header-actions');
-    if (!headerActions) return;
+  function initRealtime() {
+    try {
+      if (sseSource) sseSource.close();
+      sseSource = new EventSource('/api/notifications/realtime');
 
-    const notifWrapper = document.createElement('div');
-    notifWrapper.className = 'dash-notif-wrapper';
-    
-    notifWrapper.innerHTML = `
-      <button class="dash-profile-chip" id="notifBellBtn" title="Notifications" style="width: 34px; height: 34px; justify-content: center; padding: 0; position: relative;">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+      sseSource.onmessage = (e) => {
+        try {
+          const event = JSON.parse(e.data);
+          if (event.type === 'notification') {
+            unseenCount = (unseenCount || 0) + 1;
+            updateBadge();
+            if (popoverOpen) fetchRecentNotifications();
+          } else if (event.type === 'badge_update') {
+            unseenCount = event.unseenCount || 0;
+            updateBadge();
+          }
+        } catch {}
+      };
+
+      sseSource.onerror = () => {
+        // EventSource will auto-reconnect
+      };
+    } catch {}
+  }
+
+  // Inject UI
+  function injectBellUI() {
+    const headerActions = document.querySelector('.dash-header-actions');
+    if (!headerActions || document.getElementById('slNotifBellBtn')) return;
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'sl-notif-bell-wrapper';
+    wrapper.style.position = 'relative';
+    wrapper.style.display = 'inline-flex';
+    wrapper.style.alignItems = 'center';
+
+    wrapper.innerHTML = `
+      <button type="button" id="slNotifBellBtn" title="Notifications" aria-label="Notifications" style="
+        width: 34px; height: 34px;
+        display: inline-flex; align-items: center; justify-content: center;
+        border-radius: 999px;
+        background: transparent;
+        border: 1px solid var(--border, rgba(255, 255, 255, 0.14));
+        color: var(--text-primary, #f5f5f5);
+        cursor: pointer;
+        padding: 0;
+        position: relative;
+        transition: all 0.2s ease;
+      ">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
           <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
         </svg>
-        <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
+        <span id="slNotificationBadge" style="
+          display: none;
+          position: absolute;
+          top: -4px;
+          right: -4px;
+          background: #3b82f6;
+          color: #ffffff;
+          font-size: 0.65rem;
+          font-weight: 700;
+          min-width: 17px;
+          height: 17px;
+          border-radius: 999px;
+          align-items: center;
+          justify-content: center;
+          padding: 0 4px;
+          border: 2px solid var(--bg-base, #0a0a0a);
+          box-sizing: border-box;
+          line-height: 1;
+        ">0</span>
       </button>
-      <div class="notification-dropdown" id="notificationDropdown" style="display: none;">
-        <div class="notif-header">Notifications</div>
-        <div class="notif-list" id="notificationList">
-          <div class="notif-empty" style="display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 24px 12px; color: var(--text-muted, #86868b); font-size: 13px;">
-            <span class="app-spinner spinner-sm"></span>
-            <span>Loading notifications…</span>
-          </div>
+
+      <div id="slNotificationPopover" style="
+        display: none;
+        position: absolute;
+        top: calc(100% + 8px);
+        right: 0;
+        width: 320px;
+        background: #171717;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 12px;
+        box-shadow: 0 14px 30px rgba(0, 0, 0, 0.6);
+        z-index: 1000;
+        overflow: hidden;
+      ">
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.08);">
+          <span style="font-size: 0.86rem; font-weight: 700; color: var(--text-primary, #f5f5f5);">Notifications</span>
+          <a href="notifications.html" style="font-size: 0.74rem; font-weight: 600; color: #3b82f6; text-decoration: none;">View All</a>
         </div>
+        <div id="slNotifQuickList" style="max-height: 280px; overflow-y: auto;">
+          <div style="padding: 24px; text-align: center; color: var(--text-muted, #737373); font-size: 0.78rem;">Loading…</div>
+        </div>
+        <a href="notifications.html" style="display: block; text-align: center; padding: 10px; background: rgba(255, 255, 255, 0.03); border-top: 1px solid rgba(255, 255, 255, 0.08); font-size: 0.78rem; font-weight: 600; color: var(--text-secondary, #b5b5b5); text-decoration: none; transition: background 0.15s ease;">
+          Open Notification Center →
+        </a>
       </div>
     `;
 
-    // Insert just before the profile chip
-    const profileChip = document.querySelector('.dash-header-actions > a[href="profile.html"]');
+    // Insert just before the profile chip if present, or prepend
+    const profileChip = headerActions.querySelector('a[href="profile.html"]');
     if (profileChip) {
-      headerActions.insertBefore(notifWrapper, profileChip);
+      headerActions.insertBefore(wrapper, profileChip);
     } else {
-      headerActions.prepend(notifWrapper);
+      headerActions.appendChild(wrapper);
     }
 
-    document.getElementById('notifBellBtn').addEventListener('click', toggleDropdown);
+    const bellBtn = document.getElementById('slNotifBellBtn');
+    bellBtn.addEventListener('click', togglePopover);
+    bellBtn.addEventListener('mouseenter', () => { bellBtn.style.background = 'var(--bg-surface-raised, #242424)'; });
+    bellBtn.addEventListener('mouseleave', () => { bellBtn.style.background = 'transparent'; });
 
     document.addEventListener('click', (e) => {
-      if (dropdownOpen && !notifWrapper.contains(e.target)) {
-        dropdownOpen = false;
-        document.getElementById('notificationDropdown').style.display = 'none';
+      if (popoverOpen && !wrapper.contains(e.target)) {
+        popoverOpen = false;
+        const pop = document.getElementById('slNotificationPopover');
+        if (pop) pop.style.display = 'none';
       }
     });
 
-    // Start polling
-    fetchUnreadCount();
-    setInterval(fetchUnreadCount, 10000);
-  });
+    fetchUnseenCount();
+    initRealtime();
 
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        fetchUnseenCount();
+        if (popoverOpen) fetchRecentNotifications();
+      }
+    });
+
+    window.addEventListener('focus', () => {
+      fetchUnseenCount();
+      if (popoverOpen) fetchRecentNotifications();
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', injectBellUI);
+  } else {
+    injectBellUI();
+  }
+
+  // Fallback poll every 30s if SSE reconnecting
+  setInterval(fetchUnseenCount, 30000);
 })();

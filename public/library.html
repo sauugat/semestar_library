@@ -33,9 +33,7 @@
     })();
   </script>
 
-  <script>
-    // Library is now publicly accessible for browsing. Authentication is checked before viewing/downloading files.
-  </script>
+  <script src="notifications.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
@@ -46,6 +44,7 @@
   <link rel="stylesheet" href="auth-modal.css">
   <script src="auth-modal.js"></script>
   <script src="syllabus-helper.js"></script>
+  <script src="/academic-context.js"></script>
   <style>
     /* ==========================================================================
        MINIMALIST LUXURY APPLE / LINEAR AESTHETIC — CURRICULUM LIBRARY
@@ -2386,8 +2385,9 @@
 
     <!-- Top Action Bar -->
     <div class="lib-top-bar">
-      <div>
-        <h1 class="lib-page-title" id="libSectionHeader">Semester 1 Courses</h1>
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <h1 class="lib-page-title" id="libSectionHeader">Library</h1>
+        <div id="academicContextBadge" class="academic-context-badge" style="display:none;"></div>
       </div>
       <div style="display:flex; align-items:center; gap:12px; flex:1; justify-content:flex-end; max-width:620px;">
         <div class="lib-search-pill" style="max-width:380px;">
@@ -2918,10 +2918,11 @@
       }
       const startTime = Date.now();
       try {
-        const [sData, statsRes, filesRes] = await Promise.all([
+        const [sData, statsRes, filesRes, academicCtx] = await Promise.all([
           window.SyllabusHelper.loadSyllabusData(),
           safeFetchJson('/api/library/stats', []),
-          safeFetchJson('/api/files', [])
+          safeFetchJson('/api/files', []),
+          window.AcademicContext ? window.AcademicContext.getAcademicContext() : null
         ]);
         const elapsed = Date.now() - startTime;
         if (elapsed < 200) {
@@ -2931,8 +2932,18 @@
         SEMESTER_LIST = window.SyllabusHelper.getFormattedSemesters(sData);
         FILE_STATS = statsRes || [];
         ALL_FILES = filesRes || [];
-        syncCustomCourses();
+        window.ACADEMIC_CONTEXT = academicCtx;
 
+        if (academicCtx) {
+          if (window.AcademicContext) {
+            window.AcademicContext.renderBadge('#academicContextBadge');
+          }
+          if (academicCtx.isStudent && academicCtx.semesterRoman) {
+            ACTIVE_SEM = academicCtx.semesterRoman;
+          }
+        }
+
+        syncCustomCourses();
         setupSemSwitcher();
         setupUploadModalControls();
         renderView();
@@ -2944,13 +2955,24 @@
 
     async function refreshLibraryData() {
       try {
-        const [statsRes, filesRes] = await Promise.all([
+        const [statsRes, filesRes, academicCtx] = await Promise.all([
           safeFetchJson('/api/library/stats', []),
-          safeFetchJson('/api/files', [])
+          safeFetchJson('/api/files', []),
+          window.AcademicContext ? window.AcademicContext.getAcademicContext({ force: true }) : null
         ]);
         FILE_STATS = statsRes || [];
         ALL_FILES = filesRes || [];
+        if (academicCtx) {
+          window.ACADEMIC_CONTEXT = academicCtx;
+          if (window.AcademicContext) {
+            window.AcademicContext.renderBadge('#academicContextBadge');
+          }
+          if (academicCtx.isStudent && academicCtx.semesterRoman) {
+            ACTIVE_SEM = academicCtx.semesterRoman;
+          }
+        }
         syncCustomCourses();
+        setupSemSwitcher();
         setupUploadModalControls();
         renderView();
         if (CURRENT_DRAWER_COURSE && overlay.classList.contains('open')) {
@@ -2973,6 +2995,29 @@
 
     function setupSemSwitcher() {
       const switcher = document.getElementById('semSwitcher');
+      if (!switcher) return;
+      const ctx = window.ACADEMIC_CONTEXT;
+
+      // For students/CRs: hide the semester buttons completely!
+      if (ctx && ctx.isStudent) {
+        switcher.style.display = 'none';
+        return;
+      }
+
+      // For staff (teachers / admins): provide cohort-level filtering
+      if (ctx && ctx.isStaff && Array.isArray(ctx.cohorts) && ctx.cohorts.length > 0) {
+        switcher.innerHTML = `
+          <button class="sem-btn ${ACTIVE_SEM === 'ALL' ? 'active' : ''}" data-sem="ALL">All Cohorts</button>
+          ${ctx.cohorts.map(c => {
+            const roman = window.AcademicContext ? window.AcademicContext.semNumberToRoman(c.currentSemester) : 'I';
+            const isActive = ACTIVE_SEM === roman;
+            return `<button class="sem-btn ${isActive ? 'active' : ''}" data-sem="${roman}" data-cohort-id="${c.id}">${escapeHtml(c.displayName)} — Sem ${c.currentSemester}</button>`;
+          }).join('')}
+          <button class="sem-btn ${ACTIVE_SEM === 'Electives' ? 'active' : ''}" data-sem="Electives">Electives</button>
+        `;
+        switcher.style.display = 'flex';
+      }
+
       switcher.querySelectorAll('.sem-btn').forEach(btn => {
         btn.addEventListener('click', () => {
           switcher.querySelectorAll('.sem-btn').forEach(b => b.classList.remove('active'));
@@ -2996,7 +3041,21 @@
 
     function updateHeaderTitle() {
       const h = document.getElementById('libSectionHeader');
-      h.textContent = `${SEM_MAP[ACTIVE_SEM] || 'Semester'} Courses`;
+      if (!h) return;
+      const ctx = window.ACADEMIC_CONTEXT;
+      if (ctx && ctx.isStudent) {
+        if (ctx.isUnassigned) {
+          h.textContent = 'Academic Library';
+        } else if (ctx.cohort) {
+          h.textContent = `${ctx.cohort.displayName} Courses`;
+        } else {
+          h.textContent = 'Current Semester Courses';
+        }
+      } else if (ctx && ctx.isStaff && ACTIVE_SEM === 'ALL') {
+        h.textContent = 'All Courses';
+      } else {
+        h.textContent = `${SEM_MAP[ACTIVE_SEM] || 'Semester'} Courses`;
+      }
     }
 
     let CURRENT_DRAWER_FILES = [];
@@ -3566,12 +3625,34 @@
       const container = document.getElementById('mainContentContainer');
       const q = document.getElementById('libSearch').value.toLowerCase().trim();
 
-      // IF NOT SEARCHING: Show clean course grid for the active semester
+      // IF NOT SEARCHING: Show clean course grid
       if (!q) {
-        document.getElementById('semSwitcher').style.display = 'flex';
+        const switcher = document.getElementById('semSwitcher');
+        const ctx = window.ACADEMIC_CONTEXT;
+        const isStaff = ctx && ctx.isStaff;
+        if (switcher) {
+          switcher.style.display = isStaff ? 'flex' : 'none';
+        }
         updateHeaderTitle();
 
-        const list = ALL_COURSES.filter(c => c.rawSemester === ACTIVE_SEM);
+        // Handle unassigned students cleanly
+        if (ctx && ctx.isUnassigned) {
+          container.innerHTML = `
+            <div class="unassigned-academic-card">
+              <h3>Class Not Assigned</h3>
+              <p>Your class cohort has not been assigned by university staff yet. You can still access general campus notes and curriculum resources via search or explore available subjects below.</p>
+            </div>
+            <div class="course-grid-clean" id="courseGrid">
+              ${ALL_COURSES.slice(0, 8).map(c => renderCourseCard(c)).join('')}
+            </div>
+          `;
+          return;
+        }
+
+        const list = (isStaff && ACTIVE_SEM === 'ALL')
+          ? ALL_COURSES
+          : ALL_COURSES.filter(c => c.rawSemester === ACTIVE_SEM);
+
         if (!list.length) {
           container.innerHTML = '<p style="color:var(--text-muted); font-size:14px; text-align:center; padding:40px; border:1.5px dashed var(--border); border-radius:16px;">No courses found in this semester.</p>';
           return;

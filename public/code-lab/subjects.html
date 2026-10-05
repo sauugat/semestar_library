@@ -2216,6 +2216,9 @@
     <div class="dash-hero-content">
       <span class="cl-hero-kicker">LAB REPORTS</span>
       <h1 class="cl-hero-title">Assignments</h1>
+      <div style="margin-top: 8px;">
+        <span class="academic-context-badge" id="clHeroAcademicBadge" style="display:none;"></span>
+      </div>
     </div>
 
     <div class="dash-hero-actions">
@@ -2454,8 +2457,10 @@
 
   <script src="/code-lab/utils.js"></script>
   <script src="/auth-modal.js"></script>
+  <script src="/academic-context.js"></script>
   <script src="/syllabus-helper.js"></script>
   <script>
+    let academicContext = null;
     let allAssignments = [];
     let syllabusData = null;
     let currentSemesterFilter = '';
@@ -3114,26 +3119,39 @@
 
       const tabsEl = document.getElementById('semTabs');
       if (tabsEl) {
-        tabsEl.innerHTML = '';
-        semesters.forEach((s, i) => {
-          if (s.rawSemester === 'Electives') return;
+        const isStaff = academicContext && (academicContext.role === 'teacher' || academicContext.role === 'admin');
+        if (!isStaff && academicContext && academicContext.currentSemester) {
+          tabsEl.style.display = 'none';
+          const targetSem = String(academicContext.currentSemester);
+          const studentSem = semesters.find(s => s.rawSemester === targetSem || NUM_MAP[s.rawSemester] === targetSem);
+          if (studentSem) {
+            renderSubjectsGrid(studentSem.rawSemester, studentSem.courses);
+          } else if (semesters.length > 0) {
+            renderSubjectsGrid(semesters[0].rawSemester, semesters[0].courses);
+          }
+        } else {
+          tabsEl.style.display = 'flex';
+          tabsEl.innerHTML = '';
+          semesters.forEach((s, i) => {
+            if (s.rawSemester === 'Electives') return;
 
-          const pill = document.createElement('button');
-          pill.className = 'cl-sem-pill' + (i === 0 ? ' active' : '');
-          pill.textContent = s.displayPill || `Sem ${s.rawSemester}`;
-          pill.dataset.semester = s.rawSemester;
-          pill.setAttribute('role', 'tab');
-          pill.addEventListener('click', () => {
-            document.querySelectorAll('#semTabs .cl-sem-pill').forEach(p => p.classList.remove('active'));
-            pill.classList.add('active');
-            renderSubjectsGrid(s.rawSemester, s.courses);
+            const pill = document.createElement('button');
+            pill.className = 'cl-sem-pill' + (i === 0 ? ' active' : '');
+            pill.textContent = s.displayPill || `Sem ${s.rawSemester}`;
+            pill.dataset.semester = s.rawSemester;
+            pill.setAttribute('role', 'tab');
+            pill.addEventListener('click', () => {
+              document.querySelectorAll('#semTabs .cl-sem-pill').forEach(p => p.classList.remove('active'));
+              pill.classList.add('active');
+              renderSubjectsGrid(s.rawSemester, s.courses);
+            });
+            tabsEl.appendChild(pill);
           });
-          tabsEl.appendChild(pill);
-        });
 
-        if (semesters.length > 0) {
-          const first = semesters[0];
-          renderSubjectsGrid(first.rawSemester, first.courses);
+          if (semesters.length > 0) {
+            const first = semesters[0];
+            renderSubjectsGrid(first.rawSemester, first.courses);
+          }
         }
       }
     }
@@ -3891,7 +3909,23 @@
       const qSubject = params.get('subject');
       const qSemester = params.get('semester');
 
-      if (qSemester) {
+      if (window.AcademicContext) {
+        academicContext = await window.AcademicContext.getAcademicContext();
+        window.AcademicContext.renderBadge('#clHeroAcademicBadge');
+      }
+
+      const isStaff = academicContext && (academicContext.role === 'teacher' || academicContext.role === 'admin');
+      const semWrap = document.getElementById('semDropdownWrap');
+      if (!isStaff) {
+        // Students and CRs: hide the manual semester dropdown!
+        // Their assignments feed is already automatically cohort/current-semester isolated by the backend!
+        if (semWrap) semWrap.style.display = 'none';
+        if (academicContext && academicContext.currentSemester) {
+          currentSemesterFilter = String(academicContext.currentSemester);
+        }
+      }
+
+      if (qSemester && isStaff) {
         currentSemesterFilter = qSemester;
       }
       if (qSubject) {

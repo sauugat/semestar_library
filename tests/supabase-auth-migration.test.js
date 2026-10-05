@@ -8,6 +8,11 @@ test.before(async () => {
   await db.initSchema();
 
   // Clean test tables to ensure isolation
+  await db.run("DELETE FROM notifications WHERE recipientStudentId LIKE 'test_%' OR actor_id LIKE 'test_%'").catch(() => {});
+  await db.run("DELETE FROM notification_recipients WHERE user_id LIKE 'test_%'").catch(() => {});
+  await db.run("DELETE FROM student_device_tokens WHERE student_id LIKE 'test_%'").catch(() => {});
+  await db.run("DELETE FROM student_notification_preferences WHERE student_id LIKE 'test_%'").catch(() => {});
+  await db.run("DELETE FROM push_notification_outbox WHERE recipient_student_id LIKE 'test_%'").catch(() => {});
   await db.run("DELETE FROM students WHERE studentId LIKE 'test_%' OR studentId = '26029999'");
 
   // Create test students with username, gender, verification_status, supabase_uid, and email

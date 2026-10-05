@@ -4,6 +4,7 @@ const express = require('express');
 const { createClient } = require('@libsql/client');
 const { ensurePostsSchema } = require('../lib/posts');
 const pushNotifications = require('../lib/push-notifications');
+const { ensureNotificationCenterSchema } = require('../lib/notifications-service');
 const createPostsRouter = require('../routes/posts');
 const createCommentsRouter = require('../routes/comments');
 
@@ -54,6 +55,7 @@ async function setupTestApp(t) {
 
   await ensurePostsSchema(db);
   await pushNotifications.ensurePushNotificationSchema(db);
+  await ensureNotificationCenterSchema({ exec: db.exec, isPostgres: db.isPostgres });
 
   // Register device tokens
   await pushNotifications.registerDeviceToken(db, {

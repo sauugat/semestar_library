@@ -457,6 +457,7 @@ async function loginRateLimiter(req, res, next) {
 const chatRateLimits = new Map(); // studentId -> { count, lastReset }
 
 function chatRateLimiter(req, res, next) {
+  if (process.env.NODE_ENV === 'test') return next();
   if (!req.session || !req.session.studentId) return next();
   const studentId = req.session.studentId;
   const now = Date.now();
@@ -708,6 +709,24 @@ app.get('/api/health', (req, res) => {
     time: new Date().toISOString()
   });
 });
+
+// Server-Authoritative Academic Context
+const {
+  getAcademicContext,
+  buildAcademicContentFilter,
+  resolvePublishScope,
+  assertContentAccess
+} = require('./lib/academic-context');
+app.get('/api/academic-context', requireLogin, async (req, res) => {
+  try {
+    const context = await getAcademicContext(db, req);
+    res.json(context);
+  } catch (err) {
+    console.error('[Academic Context API Error]:', err);
+    res.status(500).json({ message: 'Could not load academic context.' });
+  }
+});
+
 const postsRouterInstance = require('./routes/posts')(db, requireLogin);
 app.use('/api/posts', postsRouterInstance);
 app.get('/api/profile/:studentId/posts', requireLogin, (req, res, next) => {
@@ -716,6 +735,7 @@ app.get('/api/profile/:studentId/posts', requireLogin, (req, res, next) => {
   postsRouterInstance(req, res, next);
 });
 app.use('/api/comments', require('./routes/comments')(db, requireLogin));
+app.use('/api/admin', require('./routes/admin-cohorts')(db, requireLogin));
 
 // --- Code Lab Rate Limiting ---
 const rateLimit = require('express-rate-limit');
@@ -1443,7 +1463,8 @@ app.all(['/api/account/delete', '/api/account'], requireLogin, async (req, res) 
     await db.run('DELETE FROM student_device_tokens WHERE student_id = ?', studentId);
     await db.run('DELETE FROM student_notification_preferences WHERE student_id = ?', studentId);
     await db.run('DELETE FROM push_notification_outbox WHERE recipient_student_id = ?', studentId);
-    await db.run('DELETE FROM notifications WHERE recipientStudentId = ?', studentId);
+    await db.run('DELETE FROM notification_recipients WHERE user_id = ?', studentId);
+    await db.run('DELETE FROM notifications WHERE actor_id = ? OR recipientStudentId = ?', studentId, studentId);
 
     // 3. Remove personal social interactions & feed posts
     await db.run('DELETE FROM file_likes WHERE studentId = ?', studentId);
@@ -1522,7 +1543,8 @@ app.post('/api/account/delete-request', async (req, res) => {
     await db.run('DELETE FROM student_device_tokens WHERE student_id = ?', sid);
     await db.run('DELETE FROM student_notification_preferences WHERE student_id = ?', sid);
     await db.run('DELETE FROM push_notification_outbox WHERE recipient_student_id = ?', sid);
-    await db.run('DELETE FROM notifications WHERE recipientStudentId = ?', sid);
+    await db.run('DELETE FROM notification_recipients WHERE user_id = ?', sid);
+    await db.run('DELETE FROM notifications WHERE actor_id = ? OR recipientStudentId = ?', sid, sid);
     await db.run('DELETE FROM file_likes WHERE studentId = ?', sid);
     await db.run('DELETE FROM file_comments WHERE studentId = ?', sid);
     await db.run('DELETE FROM post_likes WHERE user_id = ?', sid);
@@ -2113,6 +2135,9 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
   const currentStudentId = req.session?.studentId || req.user?.studentId;
   const batchId = (req.body.batchId || req.headers['x-upload-batch-id'] || `batch_${Date.now()}_${crypto.randomBytes(6).toString('hex')}`).trim();
 
+  const academicCtx = await getAcademicContext(db, req);
+  const publishScope = await resolvePublishScope(db, academicCtx, req.body);
+
   const successfulFiles = [];
   const failedFiles = [];
 
@@ -2192,9 +2217,9 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
 
       // 3. Insert file record into database
       const result = await db.run(`
-        INSERT INTO files (storedName, originalName, title, semester, subject, chapter, uploadedBy, sizeBytes, uploadedAt, previewName)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `, f.filename, f.originalname, fileTitle, semester, subject, chapter, currentStudentId, f.size, new Date().toISOString(), previewFilename);
+        INSERT INTO files (storedName, originalName, title, semester, subject, chapter, uploadedBy, sizeBytes, uploadedAt, previewName, cohort_id, semester_no, audience_scope)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, f.filename, f.originalname, fileTitle, semester || (publishScope.semesterNo ? String(publishScope.semesterNo) : null), subject, chapter, currentStudentId, f.size, new Date().toISOString(), previewFilename, publishScope.cohortId, publishScope.semesterNo, publishScope.audienceScope);
 
       const insertedId = result.lastInsertRowid;
       const indexing = await indexUploadedNote({
@@ -2215,21 +2240,12 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
         originalName: f.originalname,
         title: fileTitle,
         sizeBytes: f.size,
-        previewName: previewFilename
+        previewName: previewFilename,
+        cohortId: publishScope.cohortId,
+        semesterNo: publishScope.semesterNo,
+        audienceScope: publishScope.audienceScope
       });
-
-      if (insertedId) {
-        try {
-          if (isAdmin) {
-            await db.run(`
-              INSERT INTO notifications (recipientStudentId, type, relatedFileId, message)
-              SELECT studentId, 'notice', ?, ? FROM students WHERE studentId != ?
-            `, insertedId, `New Official Notice: ${fileTitle || f.originalname}`, currentStudentId);
-          }
-        } catch (notifErr) {
-          console.warn('[Notification insert warning]:', notifErr.message);
-        }
-      }
+      // In-app & push notifications are dispatched after file persistence via enqueueMaterialPush
     } catch (fileErr) {
       console.error(`[File persistence failed for ${f.originalname}]:`, fileErr.message);
       if (isSafeUploadPath(filePath) && fs.existsSync(filePath)) {
@@ -2263,7 +2279,10 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
           department: uploaderDepartment,
           subject,
           uploaderStudentId,
-          uploaderName
+          uploaderName,
+          cohortId: publishScope.cohortId,
+          semesterNo: publishScope.semesterNo,
+          audienceScope: publishScope.audienceScope
         });
         if (enqueueResult && enqueueResult.enqueuedCount > 0) {
           await dispatchImmediateOutbox(db, {
@@ -2282,7 +2301,10 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
           subject,
           chapter,
           uploaderStudentId,
-          uploaderName
+          uploaderName,
+          cohortId: publishScope.cohortId,
+          semesterNo: publishScope.semesterNo,
+          audienceScope: publishScope.audienceScope
         });
         if (enqueueResult && enqueueResult.enqueuedCount > 0) {
           await dispatchImmediateOutbox(db, {
@@ -2501,6 +2523,8 @@ app.post('/api/files/record-upload', requireLogin, async (req, res) => {
   const currentStudentId = req.session?.studentId || req.user?.studentId;
 
   const isAdmin = await isStudentAdmin(currentStudentId);
+  const academicCtx = await getAcademicContext(db, req);
+  const publishScope = await resolvePublishScope(db, academicCtx, req.body);
   const results = [];
 
   try {
@@ -2517,9 +2541,9 @@ app.post('/api/files/record-upload', requireLogin, async (req, res) => {
       const sizeBytes = parseInt(f.size, 10) || 0;
 
       const result = await db.run(`
-        INSERT INTO files (storedName, originalName, title, semester, subject, chapter, uploadedBy, sizeBytes, uploadedAt, previewName)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `, storedName, originalName, fileTitle, cleanSemester, cleanSubject, cleanChapter, currentStudentId, sizeBytes, new Date().toISOString(), null);
+        INSERT INTO files (storedName, originalName, title, semester, subject, chapter, uploadedBy, sizeBytes, uploadedAt, previewName, cohort_id, semester_no, audience_scope)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, storedName, originalName, fileTitle, cleanSemester || (publishScope.semesterNo ? String(publishScope.semesterNo) : null), cleanSubject, cleanChapter, currentStudentId, sizeBytes, new Date().toISOString(), null, publishScope.cohortId, publishScope.semesterNo, publishScope.audienceScope);
 
       const insertedId = result.lastInsertRowid;
       const indexing = await indexUploadedNote({ id: insertedId, storedName, originalName, title: fileTitle, semester: cleanSemester, subject: cleanSubject, chapter: cleanChapter, sizeBytes });
@@ -2528,7 +2552,10 @@ app.post('/api/files/record-upload', requireLogin, async (req, res) => {
         indexing,
         storedName,
         originalName,
-        title: fileTitle
+        title: fileTitle,
+        cohortId: publishScope.cohortId,
+        semesterNo: publishScope.semesterNo,
+        audienceScope: publishScope.audienceScope
       });
     }
   } catch (err) {
@@ -2539,19 +2566,7 @@ app.post('/api/files/record-upload', requireLogin, async (req, res) => {
   const batchId = (req.body?.batchId || '').trim() || crypto.randomUUID();
   const successfulFiles = results.filter(r => r.id);
 
-  if (isAdmin && successfulFiles.length > 0) {
-    try {
-      const notifMessage = successfulFiles.length === 1
-        ? `New Study Material: ${successfulFiles[0].title}`
-        : `${successfulFiles.length} New Study Materials shared for ${cleanSemester || 'your semester'}`;
-      await db.run(`
-        INSERT INTO notifications (recipientStudentId, type, relatedFileId, message)
-        SELECT studentId, 'notice', ?, ? FROM students WHERE studentId != ?
-      `, successfulFiles[0].id, notifMessage, currentStudentId);
-    } catch (notifErr) {
-      console.warn('[Notification insert warning]:', notifErr.message);
-    }
-  }
+  // In-app & push notifications are handled below via enqueueMaterialPush / enqueueMaterialBatchPush
 
   if (successfulFiles.length > 0) {
     try {
@@ -2570,7 +2585,10 @@ app.post('/api/files/record-upload', requireLogin, async (req, res) => {
           department: uploaderDepartment,
           subject: cleanSubject,
           uploaderStudentId,
-          uploaderName
+          uploaderName,
+          cohortId: publishScope.cohortId,
+          semesterNo: publishScope.semesterNo,
+          audienceScope: publishScope.audienceScope
         });
         if (enqueueResult && enqueueResult.enqueuedCount > 0) {
           await dispatchImmediateOutbox(db, {
@@ -2589,7 +2607,10 @@ app.post('/api/files/record-upload', requireLogin, async (req, res) => {
           subject: cleanSubject,
           chapter: cleanChapter,
           uploaderStudentId,
-          uploaderName
+          uploaderName,
+          cohortId: publishScope.cohortId,
+          semesterNo: publishScope.semesterNo,
+          audienceScope: publishScope.audienceScope
         });
         if (enqueueResult && enqueueResult.enqueuedCount > 0) {
           await dispatchImmediateOutbox(db, {
@@ -2625,6 +2646,7 @@ app.get(['/api/files/:id', '/api/library/files/:id'], requireLogin, async (req, 
 
   const query = `
     SELECT files.id, files.originalName, files.title, files.semester, files.subject, files.chapter, files.sizeBytes, files.uploadedAt, files.uploadedBy,
+      files.cohort_id, files.semester_no, files.audience_scope,
       students.name AS uploaderName, students.avatarUrl AS uploaderAvatar, students.role AS uploaderRole,
       (SELECT COUNT(*) FROM file_likes WHERE file_likes.fileId = files.id) AS likeCount,
       EXISTS(SELECT 1 FROM file_likes WHERE fileId = files.id AND studentId = ?) AS liked,
@@ -2634,17 +2656,24 @@ app.get(['/api/files/:id', '/api/library/files/:id'], requireLogin, async (req, 
     WHERE files.id = ?
   `;
 
-  const [viewerIsAdmin, file] = await Promise.all([
+  const [viewerIsAdmin, file, context] = await Promise.all([
     req.student ? Promise.resolve(req.student.role === 'admin') : isStudentAdmin(currentStudentId),
-    db.get(query, currentStudentId, parseInt(fileId, 10))
+    db.get(query, currentStudentId, parseInt(fileId, 10)),
+    getAcademicContext(db, req)
   ]);
 
-  if (!file) {
+  if (!file || !assertContentAccess(context, file)) {
     return res.status(404).json({ message: 'Material not found' });
   }
 
   const processed = {
     ...file,
+    cohortId: file.cohort_id || file.cohortId || null,
+    cohort_id: file.cohort_id || file.cohortId || null,
+    semesterNo: file.semester_no !== undefined ? file.semester_no : (file.semesterNo !== undefined ? file.semesterNo : null),
+    semester_no: file.semester_no !== undefined ? file.semester_no : (file.semesterNo !== undefined ? file.semesterNo : null),
+    audienceScope: file.audience_scope || file.audienceScope || 'cohort',
+    audience_scope: file.audience_scope || file.audienceScope || 'cohort',
     uploaderRole: file.uploaderRole || 'student',
     isOfficial: file.uploaderRole === 'admin',
     canDelete: viewerIsAdmin || file.uploadedBy === currentStudentId
@@ -2657,14 +2686,23 @@ app.get('/api/files', requireLogin, async (req, res) => {
   const limit = req.query.limit ? Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 200) : null;
   const offset = req.query.offset ? Math.max(parseInt(req.query.offset, 10) || 0, 0) : 0;
 
+  const context = await getAcademicContext(db, req);
+  const filter = buildAcademicContentFilter(context, {
+    tableAlias: 'files',
+    requestedCohortId: req.query.cohortId || req.query.cohort_id,
+    requestedSemester: req.query.semester || req.query.semester_no
+  });
+
   let query = `
     SELECT files.id, files.originalName, files.title, files.semester, files.subject, files.chapter, files.sizeBytes, files.uploadedAt, files.uploadedBy,
+      files.cohort_id, files.semester_no, files.audience_scope,
       students.name AS uploaderName, students.avatarUrl AS uploaderAvatar, students.role AS uploaderRole,
       (SELECT COUNT(*) FROM file_likes WHERE file_likes.fileId = files.id) AS likeCount,
       EXISTS(SELECT 1 FROM file_likes WHERE fileId = files.id AND studentId = ?) AS liked,
       (SELECT COUNT(*) FROM file_comments WHERE file_comments.fileId = files.id) AS commentCount
     FROM files
     JOIN students ON students.studentId = files.uploadedBy
+    WHERE ${filter.sql}
     ORDER BY files.uploadedAt DESC
   `;
 
@@ -2672,14 +2710,22 @@ app.get('/api/files', requireLogin, async (req, res) => {
     query += ` LIMIT ${limit} OFFSET ${offset}`;
   }
 
+  const queryParams = [req.session.studentId, ...filter.params];
+
   // Parallelize admin verification and files database query
   const [viewerIsAdmin, files] = await Promise.all([
     req.student ? Promise.resolve(req.student.role === 'admin') : isStudentAdmin(req.session.studentId),
-    db.all(query, req.session.studentId)
+    db.all(query, ...queryParams)
   ]);
 
   const processed = files.map(f => ({
     ...f,
+    cohortId: f.cohort_id || f.cohortId || null,
+    cohort_id: f.cohort_id || f.cohortId || null,
+    semesterNo: f.semester_no !== undefined ? f.semester_no : (f.semesterNo !== undefined ? f.semesterNo : null),
+    semester_no: f.semester_no !== undefined ? f.semester_no : (f.semesterNo !== undefined ? f.semesterNo : null),
+    audienceScope: f.audience_scope || f.audienceScope || 'cohort',
+    audience_scope: f.audience_scope || f.audienceScope || 'cohort',
     uploaderRole: f.uploaderRole || 'student',
     isOfficial: f.uploaderRole === 'admin',
     canDelete: viewerIsAdmin || f.uploadedBy === req.session.studentId
@@ -2861,9 +2907,12 @@ app.post(['/api/library/chapters/delete-files', '/api/library/chapters/files/del
 
 app.get(['/api/files/:id/download', '/api/files/download/:id'], requireLogin, async (req, res) => {
   const fileId = req.params.id;
-  const file = await db.get('SELECT * FROM files WHERE id = ?', fileId);
+  const [file, context] = await Promise.all([
+    db.get('SELECT * FROM files WHERE id = ?', fileId),
+    getAcademicContext(db, req)
+  ]);
 
-  if (!file) {
+  if (!file || !assertContentAccess(context, file)) {
     return res.status(404).json({ message: 'File not found' });
   }
 
@@ -2896,8 +2945,11 @@ app.get(['/api/files/:id/office-preview-url', '/api/files/:id/office-preview'], 
     return res.status(400).json({ message: 'Invalid file ID' });
   }
 
-  const file = await db.get('SELECT id, originalName, storedName FROM files WHERE id = ?', fileId);
-  if (!file) {
+  const [file, context] = await Promise.all([
+    db.get('SELECT id, originalName, storedName, cohort_id, semester_no, audience_scope FROM files WHERE id = ?', fileId),
+    getAcademicContext(db, req)
+  ]);
+  if (!file || !assertContentAccess(context, file)) {
     return res.status(404).json({ message: 'File not found' });
   }
 
@@ -2915,8 +2967,11 @@ app.post('/api/files/:id/office-preview', requireLogin, async (req, res) => {
     return res.status(400).json({ message: 'Invalid file ID' });
   }
 
-  const file = await db.get('SELECT id, originalName, storedName FROM files WHERE id = ?', fileId);
-  if (!file) {
+  const [file, context] = await Promise.all([
+    db.get('SELECT id, originalName, storedName, cohort_id, semester_no, audience_scope FROM files WHERE id = ?', fileId),
+    getAcademicContext(db, req)
+  ]);
+  if (!file || !assertContentAccess(context, file)) {
     return res.status(404).json({ message: 'File not found' });
   }
 
@@ -2987,9 +3042,12 @@ app.get('/api/files/:id/office-public', async (req, res) => {
 
 // View a file in-browser (requires login) — displays preview/inline instead of downloading
 app.get('/api/files/:id/view', requireLogin, async (req, res) => {
-  const file = await db.get('SELECT * FROM files WHERE id = ?', req.params.id);
+  const [file, context] = await Promise.all([
+    db.get('SELECT * FROM files WHERE id = ?', req.params.id),
+    getAcademicContext(db, req)
+  ]);
 
-  if (!file) {
+  if (!file || !assertContentAccess(context, file)) {
     return res.status(404).json({ message: 'File not found' });
   }
 
@@ -3118,17 +3176,40 @@ app.post('/api/files/:id/like', requireLogin, async (req, res) => {
       } else {
         await db.run('INSERT OR IGNORE INTO file_likes (fileId, studentId) VALUES (?, ?)', fileId, studentId);
       }
-      // Create notification
+      // Create notification via notification center
       const file = await db.get('SELECT uploadedBy, originalName FROM files WHERE id = ?', fileId);
       if (file && file.uploadedBy !== studentId) {
-        await db.run('INSERT INTO notifications (recipientStudentId, type, relatedFileId, message) VALUES (?, ?, ?, ?)',
-          file.uploadedBy, 'like', fileId, `${req.session.studentName || 'Someone'} liked your file: ${file.originalName}`
-        );
+        try {
+          const notifService = require('./lib/notifications-service');
+          const likerName = req.session?.studentName || req.user?.name || 'Someone';
+          await notifService.createNotification(db, {
+            type: 'material_reaction',
+            actorId: studentId,
+            actorName: likerName,
+            title: `${likerName} liked your file`,
+            body: `${likerName} liked your file: ${file.originalName || 'Study Material'}`,
+            entityType: 'material',
+            entityId: String(fileId),
+            deepLink: `/material/${fileId}`,
+            webPath: `files.html?highlight=${fileId}`,
+            groupKey: `material:${fileId}:reactions`,
+            recipientUserIds: [file.uploadedBy],
+          });
+        } catch (notifErr) {
+          console.warn('[File like notification error]:', notifErr.message);
+        }
       }
     }
   } else {
     if (existing) {
       await db.run('DELETE FROM file_likes WHERE fileId = ? AND studentId = ?', fileId, studentId);
+      try {
+        const notifService = require('./lib/notifications-service');
+        await notifService.removeReactionFromGroup(db, {
+          groupKey: `material:${fileId}:reactions`,
+          actorId: studentId,
+        });
+      } catch (_) {}
     }
   }
 
@@ -3181,13 +3262,29 @@ app.post('/api/files/:id/comments', requireLogin, async (req, res) => {
     INSERT INTO file_comments (fileId, studentId, commentText, createdAt) VALUES (?, ?, ?, ?)
   `, req.params.id, currentStudentId, text, new Date().toISOString());
 
-  // Create notification
+  // Create notification via notification center
   const fileId = req.params.id;
   const file = await db.get('SELECT uploadedBy, originalName FROM files WHERE id = ?', fileId);
   if (file && file.uploadedBy !== currentStudentId) {
-    await db.run('INSERT INTO notifications (recipientStudentId, type, relatedFileId, message) VALUES (?, ?, ?, ?)',
-      file.uploadedBy, 'comment', fileId, `${currentName} commented on your file: ${file.originalName}`
-    );
+    try {
+      const notifService = require('./lib/notifications-service');
+      await notifService.createNotification(db, {
+        type: 'material_comment',
+        actorId: currentStudentId,
+        actorName: currentName,
+        title: `${currentName} commented on your file`,
+        body: `${currentName} commented on your file: ${file.originalName || 'Study Material'}`,
+        entityType: 'material',
+        entityId: String(fileId),
+        secondaryEntityId: String(result.lastInsertRowid || ''),
+        deepLink: `/material/${fileId}`,
+        webPath: `files.html?highlight=${fileId}`,
+        groupKey: `material:${fileId}:comments`,
+        recipientUserIds: [file.uploadedBy],
+      });
+    } catch (notifErr) {
+      console.warn('[File comment notification error]:', notifErr.message);
+    }
   }
 
   const newComment = await db.get(`
@@ -3242,41 +3339,63 @@ app.use('/api/routine', require('./routes/routine')(db, requireLogin, {
 
 // List all subjects that have at least one file
 app.get('/api/library/subjects', async (req, res) => {
+  const context = await getAcademicContext(db, req);
+  const filter = buildAcademicContentFilter(context, {
+    tableAlias: 'files',
+    requestedCohortId: req.query.cohortId || req.query.cohort_id,
+    requestedSemester: req.query.semester || req.query.semester_no
+  });
+
   const subjects = await db.all(`
     SELECT subject, COUNT(*) AS fileCount, COUNT(DISTINCT chapter) AS chapterCount
     FROM files
-    WHERE subject IS NOT NULL AND subject != ''
+    WHERE subject IS NOT NULL AND subject != '' AND ${filter.sql}
     GROUP BY subject
     ORDER BY subject ASC
-  `);
+  `, ...filter.params);
 
   res.json(subjects);
 });
 
 // List chapters within a subject
 app.get('/api/library/subjects/:subject/chapters', async (req, res) => {
+  const context = await getAcademicContext(db, req);
+  const filter = buildAcademicContentFilter(context, {
+    tableAlias: 'files',
+    requestedCohortId: req.query.cohortId || req.query.cohort_id,
+    requestedSemester: req.query.semester || req.query.semester_no
+  });
+
   const chapters = await db.all(`
     SELECT chapter, COUNT(*) AS fileCount
     FROM files
-    WHERE subject = ? AND chapter IS NOT NULL AND chapter != ''
+    WHERE subject = ? AND chapter IS NOT NULL AND chapter != '' AND ${filter.sql}
     GROUP BY chapter
     ORDER BY chapter ASC
-  `, req.params.subject);
+  `, req.params.subject, ...filter.params);
 
   const uncategorized = await db.get(`
-    SELECT COUNT(*) AS c FROM files WHERE subject = ? AND (chapter IS NULL OR chapter = '')
-  `, req.params.subject);
+    SELECT COUNT(*) AS c FROM files WHERE subject = ? AND (chapter IS NULL OR chapter = '') AND ${filter.sql}
+  `, req.params.subject, ...filter.params);
 
   res.json({ chapters, uncategorizedCount: Number(uncategorized?.c || 0) });
 });
 
 // Library stats: returns file count grouped by semester, subject, and chapter
 app.get('/api/library/stats', async (req, res) => {
+  const context = await getAcademicContext(db, req);
+  const filter = buildAcademicContentFilter(context, {
+    tableAlias: 'files',
+    requestedCohortId: req.query.cohortId || req.query.cohort_id,
+    requestedSemester: req.query.semester || req.query.semester_no
+  });
+
   const stats = await db.all(`
     SELECT semester, subject, chapter, COUNT(*) AS fileCount
     FROM files
+    WHERE ${filter.sql}
     GROUP BY semester, subject, chapter
-  `);
+  `, ...filter.params);
   res.json(stats);
 });
 
@@ -3286,22 +3405,26 @@ app.get('/api/library/files', async (req, res) => {
   const studentId = req.session ? req.session.studentId : null;
   const viewerIsAdmin = studentId ? await isStudentAdmin(studentId) : false;
 
+  const context = await getAcademicContext(db, req);
+  const filter = buildAcademicContentFilter(context, {
+    tableAlias: 'files',
+    requestedCohortId: req.query.cohortId || req.query.cohort_id,
+    requestedSemester: semester
+  });
+
   let query = `
     SELECT files.id, files.originalName, files.title, files.semester, files.subject, files.chapter, files.sizeBytes, files.uploadedAt, files.uploadedBy,
+      files.cohort_id, files.semester_no, files.audience_scope,
       students.name AS uploaderName, students.avatarUrl AS uploaderAvatar, students.role AS uploaderRole,
       (SELECT COUNT(*) FROM file_likes WHERE file_likes.fileId = files.id) AS likeCount,
       EXISTS(SELECT 1 FROM file_likes WHERE fileId = files.id AND studentId = ?) AS liked,
       (SELECT COUNT(*) FROM file_comments WHERE file_comments.fileId = files.id) AS commentCount
     FROM files
     JOIN students ON students.studentId = files.uploadedBy
-    WHERE 1=1
+    WHERE ${filter.sql}
   `;
-  const params = [studentId || ''];
+  const params = [studentId || '', ...filter.params];
 
-  if (semester) {
-    query += ' AND files.semester = ?';
-    params.push(semester);
-  }
   if (subject) {
     query += ' AND files.subject = ?';
     params.push(subject);
@@ -3316,6 +3439,12 @@ app.get('/api/library/files', async (req, res) => {
   const files = await db.all(query, ...params);
   const processed = files.map(f => ({
     ...f,
+    cohortId: f.cohort_id || f.cohortId || null,
+    cohort_id: f.cohort_id || f.cohortId || null,
+    semesterNo: f.semester_no !== undefined ? f.semester_no : (f.semesterNo !== undefined ? f.semesterNo : null),
+    semester_no: f.semester_no !== undefined ? f.semester_no : (f.semesterNo !== undefined ? f.semesterNo : null),
+    audienceScope: f.audience_scope || f.audienceScope || 'cohort',
+    audience_scope: f.audience_scope || f.audienceScope || 'cohort',
     uploaderRole: f.uploaderRole || 'student',
     isOfficial: f.uploaderRole === 'admin',
     canDelete: viewerIsAdmin || f.uploadedBy === req.session.studentId
@@ -3337,23 +3466,34 @@ app.get('/api/search', requireLogin, async (req, res) => {
   const cleanLikeQuery = `%${cleanQ}%`;
   const viewerIsAdmin = currentStudentId ? await isStudentAdmin(currentStudentId) : false;
 
+  const context = await getAcademicContext(db, req);
+  const fileFilter = buildAcademicContentFilter(context, { tableAlias: 'files' });
+  const assignmentFilter = buildAcademicContentFilter(context, { tableAlias: 'a' });
+
   // Search files (title, originalName, subject, chapter, uploadedBy studentId, uploader name)
   const filesQuery = `
     SELECT files.id, files.originalName, files.title, files.semester, files.subject, files.chapter, files.sizeBytes, files.uploadedAt, files.uploadedBy,
+      files.cohort_id, files.semester_no, files.audience_scope,
       students.name AS uploaderName, students.avatarUrl AS uploaderAvatar, students.role AS uploaderRole,
       (SELECT COUNT(*) FROM file_likes WHERE file_likes.fileId = files.id) AS likeCount,
       EXISTS(SELECT 1 FROM file_likes WHERE fileId = files.id AND studentId = ?) AS liked,
       (SELECT COUNT(*) FROM file_comments WHERE file_comments.fileId = files.id) AS commentCount
     FROM files
     JOIN students ON students.studentId = files.uploadedBy
-    WHERE LOWER(files.title) LIKE LOWER(?) OR LOWER(files.originalName) LIKE LOWER(?) OR LOWER(files.subject) LIKE LOWER(?) OR LOWER(files.chapter) LIKE LOWER(?) OR LOWER(files.semester) LIKE LOWER(?) OR LOWER(files.uploadedBy) LIKE LOWER(?) OR LOWER(students.name) LIKE LOWER(?)
+    WHERE (${fileFilter.sql}) AND (LOWER(files.title) LIKE LOWER(?) OR LOWER(files.originalName) LIKE LOWER(?) OR LOWER(files.subject) LIKE LOWER(?) OR LOWER(files.chapter) LIKE LOWER(?) OR LOWER(files.semester) LIKE LOWER(?) OR LOWER(files.uploadedBy) LIKE LOWER(?) OR LOWER(students.name) LIKE LOWER(?))
     ORDER BY files.uploadedAt DESC
     LIMIT 50
   `;
-  const files = await db.all(filesQuery, currentStudentId || '', likeQuery, likeQuery, likeQuery, likeQuery, likeQuery, cleanLikeQuery, cleanLikeQuery);
+  const files = await db.all(filesQuery, currentStudentId || '', ...fileFilter.params, likeQuery, likeQuery, likeQuery, likeQuery, likeQuery, cleanLikeQuery, cleanLikeQuery);
 
   const processedFiles = files.map(f => ({
     ...f,
+    cohortId: f.cohort_id || f.cohortId || null,
+    cohort_id: f.cohort_id || f.cohortId || null,
+    semesterNo: f.semester_no !== undefined ? f.semester_no : (f.semesterNo !== undefined ? f.semesterNo : null),
+    semester_no: f.semester_no !== undefined ? f.semester_no : (f.semesterNo !== undefined ? f.semesterNo : null),
+    audienceScope: f.audience_scope || f.audienceScope || 'cohort',
+    audience_scope: f.audience_scope || f.audienceScope || 'cohort',
     uploaderRole: f.uploaderRole || 'student',
     isOfficial: f.uploaderRole === 'admin',
     canDelete: viewerIsAdmin || f.uploadedBy === req.session.studentId
@@ -3363,12 +3503,12 @@ app.get('/api/search', requireLogin, async (req, res) => {
   const subjectsQuery = `
     SELECT subject, COUNT(*) AS fileCount, COUNT(DISTINCT chapter) AS chapterCount
     FROM files
-    WHERE subject IS NOT NULL AND subject != '' AND LOWER(subject) LIKE LOWER(?)
+    WHERE subject IS NOT NULL AND subject != '' AND (${fileFilter.sql}) AND LOWER(subject) LIKE LOWER(?)
     GROUP BY subject
     ORDER BY subject ASC
     LIMIT 20
   `;
-  const subjects = await db.all(subjectsQuery, likeQuery);
+  const subjects = await db.all(subjectsQuery, ...fileFilter.params, likeQuery);
 
   // Search students (by studentId, name, department)
   const studentsQuery = `
@@ -3391,11 +3531,11 @@ app.get('/api/search', requireLogin, async (req, res) => {
         (SELECT COUNT(DISTINCT COALESCE(sub.questionId, sub.id)) FROM submissions sub WHERE sub.assignmentId = a.id AND sub.studentId = ?) AS mySubmissionCount
       FROM assignments a
       JOIN students s ON s.studentId = a.createdBy
-      WHERE LOWER(a.title) LIKE LOWER(?) OR LOWER(a.subject) LIKE LOWER(?) OR LOWER(a.semester) LIKE LOWER(?) OR LOWER(a.createdBy) LIKE LOWER(?) OR LOWER(s.name) LIKE LOWER(?)
+      WHERE (${assignmentFilter.sql}) AND (LOWER(a.title) LIKE LOWER(?) OR LOWER(a.subject) LIKE LOWER(?) OR LOWER(a.semester) LIKE LOWER(?) OR LOWER(a.createdBy) LIKE LOWER(?) OR LOWER(s.name) LIKE LOWER(?))
       ORDER BY a.createdAt DESC
       LIMIT 15
     `;
-    assignments = await db.all(assignmentsQuery, currentStudentId || '', likeQuery, likeQuery, likeQuery, cleanLikeQuery, cleanLikeQuery);
+    assignments = await db.all(assignmentsQuery, currentStudentId || '', ...assignmentFilter.params, likeQuery, likeQuery, likeQuery, cleanLikeQuery, cleanLikeQuery);
   } catch (err) {
     console.error('Assignment search error:', err);
   }
@@ -4085,99 +4225,10 @@ app.get('/api/chat/attachment/:filename', requireLogin, async (req, res) => {
 });
 
 // ============================================================
-// NOTIFICATION SYSTEM
+// NOTIFICATION SYSTEM & CENTER
 // ============================================================
 
-app.get('/api/notifications/unread-count', requireLogin, async (req, res) => {
-  const row = await db.get('SELECT COUNT(*) as count FROM notifications WHERE recipientStudentId = ? AND isRead = 0', req.session.studentId);
-  res.json({ count: Number(row?.count || 0) });
-});
-
-app.get('/api/notifications', requireLogin, async (req, res) => {
-  const notifications = await db.all('SELECT * FROM notifications WHERE recipientStudentId = ? ORDER BY createdAt DESC LIMIT 20', req.session.studentId);
-  res.json(notifications);
-});
-
-app.post('/api/notifications/:id/read', requireLogin, async (req, res) => {
-  const id = parseInt(req.params.id);
-  const result = await db.run('UPDATE notifications SET isRead = 1 WHERE id = ? AND recipientStudentId = ?', id, req.session.studentId);
-  if (result.changes > 0) {
-    res.json({ success: true });
-  } else {
-    res.status(404).json({ message: 'Notification not found' });
-  }
-});
-
-// --- Push Notification Device Token & Preferences Endpoints ---
-
-app.post('/api/notifications/device-token', requireLogin, async (req, res) => {
-  try {
-    const studentId = req.user?.studentId || req.session?.studentId;
-    const { expoPushToken, platform, deviceName } = req.body || {};
-
-    if (!expoPushToken || typeof expoPushToken !== 'string') {
-      return res.status(400).json({ message: 'expoPushToken string is required.' });
-    }
-    if (!pushNotifications.isValidExpoPushToken(expoPushToken)) {
-      return res.status(400).json({ message: 'Invalid Expo push token format.' });
-    }
-
-    await pushNotifications.registerDeviceToken(db, {
-      studentId,
-      expoPushToken,
-      platform,
-      deviceName
-    });
-
-    return res.json({ success: true, message: 'Device token registered successfully.' });
-  } catch (err) {
-    console.error('[Device Token Register Error]:', err.message);
-    return res.status(500).json({ message: 'Failed to register device token.' });
-  }
-});
-
-app.delete('/api/notifications/device-token', requireLogin, async (req, res) => {
-  try {
-    const studentId = req.user?.studentId || req.session?.studentId;
-    const expoPushToken = req.body?.expoPushToken || req.query?.token;
-
-    if (!expoPushToken || typeof expoPushToken !== 'string') {
-      return res.status(400).json({ message: 'expoPushToken is required.' });
-    }
-
-    const result = await pushNotifications.unregisterDeviceToken(db, {
-      studentId,
-      expoPushToken
-    });
-
-    return res.json({ success: true, changes: result.changes, message: 'Device token unregistered successfully.' });
-  } catch (err) {
-    console.error('[Device Token Unregister Error]:', err.message);
-    return res.status(500).json({ message: 'Failed to unregister device token.' });
-  }
-});
-
-app.get('/api/notifications/preferences', requireLogin, async (req, res) => {
-  try {
-    const studentId = req.user?.studentId || req.session?.studentId;
-    const preferences = await pushNotifications.getNotificationPreferences(db, studentId);
-    return res.json({ success: true, preferences });
-  } catch (err) {
-    console.error('[Preferences Get Error]:', err.message);
-    return res.status(500).json({ message: 'Failed to load notification preferences.' });
-  }
-});
-
-app.put('/api/notifications/preferences', requireLogin, async (req, res) => {
-  try {
-    const studentId = req.user?.studentId || req.session?.studentId;
-    const updated = await pushNotifications.updateNotificationPreferences(db, studentId, req.body || {});
-    return res.json({ success: true, preferences: updated });
-  } catch (err) {
-    console.error('[Preferences Update Error]:', err.message);
-    return res.status(500).json({ message: 'Failed to update notification preferences.' });
-  }
-});
+app.use('/api/notifications', require('./routes/notifications')(db, requireLogin));
 
 function verifyInternalCron(req, res, next) {
   const secret = process.env.CRON_SECRET;
@@ -4435,7 +4486,8 @@ app.post('/api/profile/update', requireLogin, async (req, res) => {
   const updatedName = (name && name.trim()) ? name.trim().slice(0, 100) : current.name;
   const updatedBio = typeof bio === 'string' ? bio.trim().slice(0, 300) : (current.bio || '');
   const updatedDept = (department && department.trim()) ? department.trim().slice(0, 50) : (current.department || 'BIT');
-  const updatedSem = (semester && semester.trim()) ? semester.trim().slice(0, 30) : (current.semester || 'Semester 1');
+  const isAdmin = (req.user && req.user.role === 'admin') || (req.session && req.session.role === 'admin');
+  const updatedSem = (isAdmin && semester && semester.trim()) ? semester.trim().slice(0, 30) : (current.semester || 'Semester 1');
   const updatedGithub = typeof githubUrl === 'string' ? githubUrl.trim().slice(0, 150) : (current.githubUrl || '');
   const updatedLinkedin = typeof linkedinUrl === 'string' ? linkedinUrl.trim().slice(0, 150) : (current.linkedinUrl || '');
 

@@ -66,6 +66,9 @@ test('mobile: delayed HTTP ignored, DTO room checked, stable send ID, stale atta
   const posts=calls.filter(c=>Array.isArray(c)&&c[1].method==='POST');assert.ok(posts.every(c=>c[1].body.get('clientId')==='stable'));
   const merged=f.state.mergeChatMessages([message(-1,'mercury',{clientId:'stable'})],[a.data,b.data]);assert.equal(merged.length,1);
   const different=f.state.mergeChatMessages(merged,[message(8,'mercury',{studentId:'b',clientId:'stable'})]);assert.equal(different.length,2);
+  await f.cache.upsertChatMessages([message(-1,'mercury',{clientId:'stable'}),different[0],different[1]]);
+  await f.cache.resolvePendingMessage(-1,a.data);
+  assert.deepEqual((await f.cache.getCachedChatMessages()).map(m=>m.id),[8,7]);
   calls.length=0;assert.equal((await chat.fetchExactChatMessage('mercury',7)).id,7);
   assert.ok(calls[0].endsWith('/api/chat/config'));assert.ok(calls[1][0].includes('/groups/mercury/messages/7'));
   calls.length=0;await assert.rejects(chat.fetchExactChatMessage('recycled-room',7),/available/);assert.equal(calls.length,1);
@@ -87,7 +90,7 @@ test('mobile: private auth before subscribe, epoch recovery, duplicate/late call
 });
 
 function webFixture() {
-  const store=storage(),rt=realtime(),calls=[],events=[],contexts=[],timers=new Map();let clock=Date.now(),sequence=0;
+  const store=storage(),rt=realtime(),calls=[],events=[],contexts=[],online=[],timers=new Map();let clock=Date.now(),sequence=0;
   let config=context(),deny=false,hold=null;
   const client=createCohortClient({account:'a',server:'http://127.0.0.1:3000',storage:store,createCache:createChatCache,createClient:rt.createClient,
     now:()=>clock,setTimeout:fn=>{timers.set(++sequence,fn);return sequence;},clearTimeout:id=>timers.delete(id),
@@ -97,8 +100,8 @@ function webFixture() {
       if(path.includes('/heartbeat'))return response({onlineIds:['a'],members:[{studentId:'a',expiresAt:new Date(clock+75000).toISOString()}],total:1});
       if(path.includes('/groups/'))return response(message(1,config.chatGroupId));
       return response({chatGroupId:config.chatGroupId,messages:[message(1,config.chatGroupId)]});},
-    onContext:c=>contexts.push(c),onEvent:(type,e)=>events.push([type,e]),onReconcile:()=>{},onInvalidate:()=>contexts.push(null)});
-  return {client,store,rt,calls,events,contexts,timers,rotate:()=>{config={...config,realtimeEpoch:2};},switchRoom:()=>{config=context('venus');},revoke:()=>{deny=true;},hold:d=>{hold=d;},tick:ms=>{clock+=ms;}};
+    onContext:c=>contexts.push(c),onEvent:(type,e)=>events.push([type,e]),onOnline:ids=>online.push(ids),onReconcile:()=>{},onInvalidate:()=>contexts.push(null)});
+  return {client,store,rt,calls,events,contexts,online,timers,rotate:()=>{config={...config,realtimeEpoch:2};},switchRoom:()=>{config=context('venus');},revoke:()=>{deny=true;},hold:d=>{hold=d;},tick:ms=>{clock+=ms;}};
 }
 test('web: atomic cache blob, restart dedupe, wrong room/epoch, active periodic rotation recovery and background heartbeat',async()=>{
   const f=webFixture();await f.client.start();
@@ -125,6 +128,43 @@ test('web: late response ignored, room switch clears, exact link verifies config
   await f.client.exact('venus',1);assert.ok(f.calls.findIndex(c=>c[0]==='/api/chat/config')<f.calls.findIndex(c=>c[0].includes('/groups/')));f.client.stop();
   let loaded=false;const offline=createCohortClient({server:'http://127.0.0.1:3000',account:'a',storage:f.store,createCache:()=>{loaded=true;},fetch:async()=>{throw Error('offline');},setTimeout:()=>1,clearTimeout:()=>{}});
   await offline.start();assert.equal(offline.context(),null);assert.equal(loaded,false);offline.stop();
+});
+
+test('web: quota failure retains in-session event receipts instead of reloading stale disk state',()=>{
+  const store=storage();
+  createChatCache(store,'a','http://127.0.0.1','mercury').merge([message(1)]);
+  store.setItem=()=>{throw Error('quota exceeded');};
+  const cache=createChatCache(store,'a','http://127.0.0.1','mercury');
+  const event={...message(2),eventId:'quota-event',realtimeEpoch:1};
+  assert.equal(cache.apply('new_message',event),true);
+  assert.equal(cache.apply('new_message',event),false);
+  assert.deepEqual(cache.get().map(m=>m.id),[1,2]);
+});
+
+test('web: room-scoped receipt IDs and expired receipt replay preserve logical message identity',()=>{
+  const store=storage(),a=createChatCache(store,'a','http://127.0.0.1','mercury'),b=createChatCache(store,'a','http://127.0.0.1','venus');
+  const event={...message(1),eventId:'same-event-id',realtimeEpoch:1};
+  assert.equal(a.apply('new_message',event),true);
+  assert.equal(b.apply('new_message',{...event,chatGroupId:'venus'}),true);
+  const persisted=JSON.parse(store.getItem(a.key));persisted.events[0].at=Date.now()-8*86400000;
+  store.setItem(a.key,JSON.stringify(persisted));
+  a.merge([]);assert.equal(JSON.parse(store.getItem(a.key)).events.length,0);
+  assert.equal(a.apply('new_message',event),true);assert.equal(a.get().length,1);
+  // Simulate a stale sibling tab overwriting the blob, then canonical repair.
+  store.setItem(a.key,JSON.stringify({...persisted,messages:[message(1,'mercury',{text:'stale',reactions:[{studentId:'b',emoji:'❤️'}]})]}));
+  a.merge([message(1,'mercury',{text:'canonical',reactions:[]})]);
+  assert.equal(a.get()[0].text,'canonical');assert.deepEqual(a.get()[0].reactions,[]);
+});
+
+test('web: online snapshot deduplicates devices and expires locally without a heartbeat',async()=>{
+  const f=webFixture();await f.client.start();
+  const member={studentId:'a',expiresAt:new Date(Date.now()+1000).toISOString()};
+  f.client.receive('online_snapshot',{eventId:'online',chatGroupId:'mercury',realtimeEpoch:1,members:[member,member]});
+  assert.deepEqual(f.online.at(-1),['a']);
+  const expire=[...f.timers.values()].at(-1), before=f.calls.length;
+  f.tick(2000);expire();
+  assert.deepEqual(f.online.at(-1),[]);assert.equal(f.calls.length,before);
+  f.client.stop();
 });
 
 test('mobile hook: periodic/foreground epoch recovery, heartbeat cadence/background stop and revoked state clears',async t=>{

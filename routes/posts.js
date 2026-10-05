@@ -17,6 +17,12 @@ const {
   ensurePostsSchema,
   cleanupAbandonedStagedAttachments
 } = require('../lib/posts');
+const {
+  getAcademicContext,
+  buildAcademicContentFilter,
+  resolvePublishScope,
+  assertContentAccess
+} = require('../lib/academic-context');
 
 const POST_UPLOAD_DIR = process.env.VERCEL
   ? path.join('/tmp', 'uploads', 'posts')
@@ -347,6 +353,12 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       commentCount: Number(post.comment_count || 0),
       submittedCount: Number(post.submission_count),
       liked: Boolean(post.liked_by_me),
+      cohortId: post.cohort_id || post.cohortId || null,
+      cohort_id: post.cohort_id || post.cohortId || null,
+      semesterNo: post.semester_no !== undefined ? post.semester_no : (post.semesterNo !== undefined ? post.semesterNo : null),
+      semester_no: post.semester_no !== undefined ? post.semester_no : (post.semesterNo !== undefined ? post.semesterNo : null),
+      audienceScope: post.audience_scope || post.audienceScope || 'cohort',
+      audience_scope: post.audience_scope || post.audienceScope || 'cohort',
       is_official: isOfficialNotice,
       canDelete: isAuthor || isAdmin,
       canEdit: isAuthor || isAdmin,
@@ -366,6 +378,17 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       const viewerStudentId = req.session?.studentId || req.user?.studentId || req.postUser?.studentId || null;
       const params = [viewerStudentId];
       const whereConditions = [];
+
+      // Server-authoritative academic & cohort filtering
+      const context = await getAcademicContext(db, req);
+      const academicFilter = buildAcademicContentFilter(context, {
+        tableAlias: 'p',
+        requestedCohortId: req.query.cohortId || req.query.cohort_id,
+        requestedSemester: req.query.semester || req.query.semester_no
+      });
+      whereConditions.push(academicFilter.sql);
+      params.push(...academicFilter.params);
+
       const targetAuthor = studentId || authorStudentId;
       if (targetAuthor) {
         whereConditions.push('p.user_id = ?');
@@ -679,12 +702,16 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       let newPostId = null;
       let postRow = null;
 
+      const academicCtx = await getAcademicContext(db, req);
+      const isNotice = type === 'notice';
+      const publishScope = await resolvePublishScope(db, academicCtx, req.body, { isNotice });
+
       // Atomic DB Transaction for post creation, attachment insertion, and staging commitment
       await runTransaction(async (tx) => {
         const result = await tx.run(
-          `INSERT INTO posts (user_id, content, type, attachment_url, created_at)
-           VALUES (?, ?, ?, ?, ?)`,
-          req.postUser.studentId, trimmedContent, type, attachment_url, new Date().toISOString()
+          `INSERT INTO posts (user_id, content, type, attachment_url, cohort_id, semester_no, audience_scope, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          req.postUser.studentId, trimmedContent, type, attachment_url, publishScope.cohortId, publishScope.semesterNo, publishScope.audienceScope, new Date().toISOString()
         );
         newPostId = result.lastInsertRowid;
 
@@ -730,7 +757,10 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
           role: req.postUser.role,
           title: passedTitle || null,
           content: trimmedContent,
-          semester: req.postUser.semester
+          semester: req.postUser.semester,
+          cohortId: publishScope.cohortId,
+          semesterNo: publishScope.semesterNo,
+          audienceScope: publishScope.audienceScope
         });
         if (enqueueResult && enqueueResult.enqueuedCount > 0) {
           const isOfficialNotice = type === 'notice' && (Boolean(isOfficial) || ['admin', 'cr', 'teacher'].includes(req.postUser.role));
@@ -772,6 +802,12 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       const currentUserId = req.student?.studentId || req.user?.studentId || req.session?.studentId || null;
       const row = await db.get(`${selectPosts} WHERE p.id = ?`, currentUserId, postId);
       if (!row) return res.status(404).json({ message: 'Post not found.' });
+
+      const context = await getAcademicContext(db, req);
+      if (!assertContentAccess(context, row)) {
+        return res.status(404).json({ message: 'Post not found.' });
+      }
+
       const formatted = formatPost(row, req);
       await attachMediaToPosts([formatted]);
       res.setHeader('Cache-Control', 'no-store');
@@ -783,14 +819,54 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
 
   async function setLike(req, res, next) {
     try {
-      const post = await db.get('SELECT id FROM posts WHERE id = ?', Number(req.params.id));
+      const post = await db.get('SELECT id, user_id, content, cohort_id, semester_no, audience_scope FROM posts WHERE id = ?', Number(req.params.id));
       if (!post) return res.status(404).json({ message: 'Post not found.' });
+
+      const context = await getAcademicContext(db, req);
+      if (!assertContentAccess(context, post)) {
+        return res.status(404).json({ message: 'Post not found.' });
+      }
+
       const liked = req.method === 'POST';
       if (liked) {
         await db.run(`INSERT INTO post_likes (post_id, user_id) VALUES (?, ?)
           ON CONFLICT (post_id, user_id) DO NOTHING`, post.id, req.postUser.studentId);
+
+        if (post.user_id && post.user_id !== req.postUser.studentId) {
+          try {
+            const notifService = require('../lib/notifications-service');
+            const actorName = req.postUser.name || 'A classmate';
+            const postPreview = (post.content || 'your post').slice(0, 60);
+            await notifService.createNotification(db, {
+              type: 'post_reaction',
+              actorId: req.postUser.studentId,
+              actorName,
+              actorAvatar: req.postUser.avatarUrl || null,
+              title: `${actorName} reacted to your post`,
+              body: `liked "${postPreview}"`,
+              entityType: 'post',
+              entityId: String(post.id),
+              deepLink: `/post/${post.id}`,
+              webPath: `dashboard.html?post=${post.id}`,
+              groupKey: `post:${post.id}:reactions`,
+              recipientUserIds: [post.user_id],
+              metadata: { preview: postPreview },
+            });
+          } catch (notifErr) {
+            console.warn('[Post Like Notification Error]:', notifErr.message);
+          }
+        }
       } else {
         await db.run('DELETE FROM post_likes WHERE post_id = ? AND user_id = ?', post.id, req.postUser.studentId);
+        try {
+          const notifService = require('../lib/notifications-service');
+          await notifService.removeReactionFromGroup(db, {
+            groupKey: `post:${post.id}:reactions`,
+            actorId: req.postUser.studentId,
+          });
+        } catch (unreactErr) {
+          console.warn('[Post Unlike Notification Error]:', unreactErr.message);
+        }
       }
       const count = await db.get('SELECT COUNT(*) AS c FROM post_likes WHERE post_id = ?', post.id);
       res.json({ liked_by_me: liked, like_count: Number(count.c), liked, likeCount: Number(count.c) });
@@ -805,8 +881,13 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
   router.get('/:id/comments', async (req, res, next) => {
     try {
       const postId = Number(req.params.id);
-      const post = await db.get('SELECT id FROM posts WHERE id = ?', postId);
+      const post = await db.get('SELECT id, cohort_id, semester_no, audience_scope FROM posts WHERE id = ?', postId);
       if (!post) return res.status(404).json({ message: 'Post not found.' });
+
+      const context = await getAcademicContext(db, req);
+      if (!assertContentAccess(context, post)) {
+        return res.status(404).json({ message: 'Post not found.' });
+      }
 
       const comments = await fetchPostComments(db, postId, req);
       res.setHeader('Cache-Control', 'no-store');
@@ -820,6 +901,14 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
   router.post('/:id/comments', async (req, res, next) => {
     try {
       const postId = Number(req.params.id);
+      const post = await db.get('SELECT id, user_id, content, cohort_id, semester_no, audience_scope FROM posts WHERE id = ?', postId);
+      if (!post) return res.status(404).json({ message: 'Post not found.' });
+
+      const context = await getAcademicContext(db, req);
+      if (!assertContentAccess(context, post)) {
+        return res.status(404).json({ message: 'Post not found.' });
+      }
+
       const { content, parent_comment_id, parentCommentId, reply_to_user_id, replyToUserId } = req.body || {};
       const result = await createCommentOrReply(db, {
         postId,

@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+  <script src="/theme.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Cohort Management — Semester Library</title>
+  <meta name="description" content="Admin cohort lifecycle, promotion, graduation, and student roster management.">
+  <link rel="icon" type="image/png" sizes="192x192" href="logo.jpg">
+  
+  <script>
+    (function() {
+      try {
+        var t = localStorage.getItem('theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', t);
+        if (t === 'dark') document.documentElement.classList.add('dark');
+        else document.documentElement.classList.remove('dark');
+      } catch (e) {}
+    })();
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.v4.css">
+  <link rel="stylesheet" href="/theme-overrides.css">
+
+  <style>
+    :root {
+      --bg-page: #0f1117;
+      --bg-card: #181b23;
+      --bg-card-hover: #1f232e;
+      --border-color: #272d3d;
+      --text-primary: #f3f4f6;
+      --text-secondary: #9ca3af;
+      --text-muted: #6b7280;
+      --accent-blue: #3b82f6;
+      --accent-green: #10b981;
+      --accent-purple: #8b5cf6;
+      --accent-amber: #f59e0b;
+      --accent-red: #ef4444;
+    }
+    body {
+      background: var(--bg-page);
+      color: var(--text-primary);
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+    }
+    .admin-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px 20px 80px;
+    }
+    .admin-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 32px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border-color);
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .admin-title-group h1 {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 26px;
+      font-weight: 700;
+      margin: 0 0 6px 0;
+      letter-spacing: -0.02em;
+    }
+    .admin-title-group p {
+      margin: 0;
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+    .admin-nav-actions {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    .btn {
+      padding: 9px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.15s ease;
+      border: 1px solid transparent;
+      text-decoration: none;
+    }
+    .btn-primary { background: var(--accent-blue); color: #fff; }
+    .btn-primary:hover { background: #2563eb; }
+    .btn-secondary { background: #222734; color: var(--text-primary); border-color: var(--border-color); }
+    .btn-secondary:hover { background: #2a3142; }
+    .btn-success { background: #059669; color: #fff; }
+    .btn-success:hover { background: #047857; }
+    .btn-warning { background: #d97706; color: #fff; }
+    .btn-warning:hover { background: #b45309; }
+    .btn-danger { background: #dc2626; color: #fff; }
+    .btn-danger:hover { background: #b91c1c; }
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+    .section-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin: 36px 0 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .badge-mercury { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
+    .badge-venus { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .badge-earth { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-mars { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+    .badge-active { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+    .badge-graduated { background: rgba(156, 163, 175, 0.15); color: #9ca3af; }
+    .badge-semester { background: #222734; color: #93c5fd; border: 1px solid #2d3748; }
+
+    .grid-cohorts {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+      gap: 18px;
+    }
+    .cohort-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: transform 0.15s, border-color 0.15s;
+    }
+    .cohort-card:hover {
+      border-color: #3b4252;
+    }
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+    .card-name {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin: 0 0 4px 0;
+    }
+    .card-meta {
+      font-size: 13px;
+      color: var(--text-secondary);
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .card-uuid {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--text-muted);
+      background: #111318;
+      padding: 4px 8px;
+      border-radius: 6px;
+      margin: 12px 0;
+      word-break: break-all;
+    }
+    .card-stats {
+      display: flex;
+      gap: 16px;
+      padding: 10px 0;
+      border-top: 1px solid #212631;
+      border-bottom: 1px solid #212631;
+      margin-bottom: 16px;
+      font-size: 13px;
+    }
+    .card-stat-label {
+      color: var(--text-muted);
+      margin-right: 4px;
+    }
+    .card-stat-val {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .card-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .empty-state {
+      padding: 32px;
+      text-align: center;
+      background: var(--bg-card);
+      border-radius: 12px;
+      border: 1px dashed var(--border-color);
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+
+    /* Modal Styles */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 16px;
+    }
+    .modal-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      max-width: 520px;
+      width: 100%;
+      padding: 24px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+    }
+    .modal-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin: 0 0 8px;
+    }
+    .modal-desc {
+      color: var(--text-secondary);
+      font-size: 13px;
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 24px;
+    }
+    .form-group {
+      margin-bottom: 16px;
+    }
+    .form-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .form-input, .form-select {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 9px 12px;
+      background: #111318;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-size: 14px;
+      font-family: inherit;
+    }
+    .form-input:focus, .form-select:focus {
+      outline: none;
+      border-color: var(--accent-blue);
+    }
+    .history-timeline {
+      max-height: 340px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding-right: 6px;
+    }
+    .history-item {
+      background: #111318;
+      padding: 12px;
+      border-radius: 8px;
+      border-left: 3px solid var(--accent-blue);
+      font-size: 12px;
+    }
+    .history-item-sem {
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+    .history-item-date {
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="admin-container">
+    <header class="admin-header">
+      <div class="admin-title-group">
+        <h1>Permanent Cohort Lifecycle</h1>
+        <p>Admin control panel for student cohort promotion, graduation, slot recycling, and rosters</p>
+      </div>
+      <div class="admin-nav-actions">
+        <a href="/dashboard.html" class="btn btn-secondary">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+          Dashboard
+        </a>
+        <button type="button" class="btn btn-primary" onclick="openRecycleModal()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Allocate Cohort Slot
+        </button>
+      </div>
+    </header>
+
+    <div id="alertBox" style="display: none; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 13px;"></div>
+
+    <!-- Active Cohorts Section -->
+    <div class="section-title">
+      <span>Active Cohorts</span>
+      <span id="activeCountBadge" class="badge badge-active">0 Active</span>
+    </div>
+    <div id="activeCohortsGrid" class="grid-cohorts">
+      <div class="empty-state">Loading active cohorts...</div>
+    </div>
+
+    <!-- Available Slots Section -->
+    <div class="section-title" style="margin-top: 48px;">
+      <span>Available Slots for Recycling</span>
+    </div>
+    <div id="availableSlotsRow" style="display: flex; gap: 12px; flex-wrap: wrap;">
+      <!-- Populated via JS -->
+    </div>
+
+    <!-- Graduated Cohorts Section -->
+    <div class="section-title" style="margin-top: 48px;">
+      <span>Graduated Cohorts Archive</span>
+      <span id="graduatedCountBadge" class="badge badge-graduated">0 Graduated</span>
+    </div>
+    <div id="graduatedCohortsGrid" class="grid-cohorts">
+      <div class="empty-state">No graduated cohorts yet.</div>
+    </div>
+  </div>
+
+  <!-- Promotion Confirmation Modal -->
+  <div id="promoteModal" class="modal-backdrop">
+    <div class="modal-box">
+      <h3 class="modal-title">Promote Cohort</h3>
+      <p class="modal-desc" id="promoteModalDesc">Are you sure you want to promote this cohort to the next semester?</p>
+      <input type="hidden" id="promoteCohortId">
+      <input type="hidden" id="promoteExpectedSem">
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('promoteModal')">Cancel</button>
+        <button type="button" class="btn btn-success" id="confirmPromoteBtn" onclick="submitPromotion()">Confirm Promotion</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Graduation Confirmation Modal -->
+  <div id="graduateModal" class="modal-backdrop">
+    <div class="modal-box">
+      <h3 class="modal-title" style="color: #f87171;">Graduate Cohort</h3>
+      <p class="modal-desc" id="graduateModalDesc">
+        Graduation marks this cohort as permanently graduated, archives its group chat into read-only mode, and frees the slot code for future recycling.
+      </p>
+      <input type="hidden" id="graduateCohortId">
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('graduateModal')">Cancel</button>
+        <button type="button" class="btn btn-danger" id="confirmGraduateBtn" onclick="submitGraduation()">Confirm Graduation</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recycle Slot / Create Cohort Modal -->
+  <div id="recycleModal" class="modal-backdrop">
+    <div class="modal-box">
+      <h3 class="modal-title">Allocate / Recycle Cohort Slot</h3>
+      <p class="modal-desc">Generates a fresh cohort UUID with a brand new chat room identity and empty roster.</p>
+      <form id="recycleForm" onsubmit="submitRecycle(event)">
+        <div class="form-group">
+          <label class="form-label" for="recycleSlotSelect">Slot Code</label>
+          <select id="recycleSlotSelect" class="form-select" required>
+            <option value="mercury">Mercury</option>
+            <option value="venus">Venus</option>
+            <option value="earth">Earth</option>
+            <option value="mars">Mars</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="recycleDisplayName">Display Name</label>
+          <input type="text" id="recycleDisplayName" class="form-input" placeholder="e.g. BCA 2026 Batch A" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="recycleYear">Academic Year</label>
+          <input type="number" id="recycleYear" class="form-input" value="2026" min="2000" max="2100" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="recycleSemester">Starting Semester</label>
+          <select id="recycleSemester" class="form-select" required>
+            <option value="1" selected>Semester 1</option>
+            <option value="2">Semester 2</option>
+            <option value="3">Semester 3</option>
+            <option value="4">Semester 4</option>
+            <option value="5">Semester 5</option>
+            <option value="6">Semester 6</option>
+            <option value="7">Semester 7</option>
+            <option value="8">Semester 8</option>
+          </select>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('recycleModal')">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="submitRecycleBtn">Allocate Cohort</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Assign Student Modal -->
+  <div id="assignModal" class="modal-backdrop">
+    <div class="modal-box">
+      <h3 class="modal-title">Assign Student to Cohort</h3>
+      <p class="modal-desc" id="assignModalDesc">Select an unassigned student to assign to this cohort.</p>
+      <input type="hidden" id="assignCohortId">
+      <div class="form-group">
+        <label class="form-label" for="unassignedSelect">Unassigned Student</label>
+        <select id="unassignedSelect" class="form-select">
+          <option value="">Loading unassigned students...</option>
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('assignModal')">Cancel</button>
+        <button type="button" class="btn btn-primary" id="confirmAssignBtn" onclick="submitStudentAssignment()">Assign Student</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cohort History Modal -->
+  <div id="historyModal" class="modal-backdrop">
+    <div class="modal-box">
+      <h3 class="modal-title" id="historyModalTitle">Cohort Lifecycle History</h3>
+      <p class="modal-desc">Chronological progression of semesters, promotions, and graduations.</p>
+      <div id="historyTimeline" class="history-timeline">
+        <div class="empty-state">Loading history...</div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('historyModal')">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let cohortsData = [];
+    let availableSlots = [];
+
+    async function loadData() {
+      try {
+        const res = await fetch('/api/admin/cohorts');
+        if (!res.ok) {
+          if (res.status === 401 || res.status === 403) {
+            showAlert('Admin access required. Please log in as an administrator.', 'error');
+            return;
+          }
+          throw new Error('Failed to load cohorts: ' + res.statusText);
+        }
+        const data = await res.json();
+        cohortsData = data.cohorts || [];
+        availableSlots = data.availableSlots || [];
+        renderUI();
+      } catch (err) {
+        showAlert(err.message, 'error');
+      }
+    }
+
+    function renderUI() {
+      const activeCohorts = cohortsData.filter(c => c.status === 'active');
+      const graduatedCohorts = cohortsData.filter(c => c.status === 'graduated');
+
+      document.getElementById('activeCountBadge').textContent = activeCohorts.length + ' Active';
+      document.getElementById('graduatedCountBadge').textContent = graduatedCohorts.length + ' Graduated';
+
+      // Render Active
+      const activeGrid = document.getElementById('activeCohortsGrid');
+      if (activeCohorts.length === 0) {
+        activeGrid.innerHTML = '<div class="empty-state">No active cohorts. Allocate one below.</div>';
+      } else {
+        activeGrid.innerHTML = activeCohorts.map(c => renderCohortCard(c, true)).join('');
+      }
+
+      // Render Graduated
+      const gradGrid = document.getElementById('graduatedCohortsGrid');
+      if (graduatedCohorts.length === 0) {
+        gradGrid.innerHTML = '<div class="empty-state">No graduated cohorts in archive.</div>';
+      } else {
+        gradGrid.innerHTML = graduatedCohorts.map(c => renderCohortCard(c, false)).join('');
+      }
+
+      // Render Available Slots
+      const slotRow = document.getElementById('availableSlotsRow');
+      if (availableSlots.length === 0) {
+        slotRow.innerHTML = '<div style="color: var(--text-muted); font-size: 13px;">All 4 slots (Mercury, Venus, Earth, Mars) are currently active.</div>';
+      } else {
+        slotRow.innerHTML = availableSlots.map(slot => `
+          <button type="button" class="btn btn-secondary btn-sm" onclick="openRecycleModalForSlot('${slot}')">
+            <span class="badge badge-${slot}">${slot.toUpperCase()}</span>
+            <span>Allocate Slot</span>
+          </button>
+        `).join('');
+      }
+    }
+
+    function renderCohortCard(c, isActive) {
+      const slot = (c.slotCode || c.groupCode || 'mercury').toLowerCase();
+      const sem = c.currentSemester || c.current_semester || 1;
+      const name = c.displayName || c.display_name || (c.slotCode ? c.slotCode.toUpperCase() : 'Cohort');
+      const year = c.academicYear || c.academic_year || 2026;
+      const id = c.id;
+      const studentCount = c.studentCount || (c.students ? c.students.length : 0);
+
+      return `
+        <div class="cohort-card">
+          <div>
+            <div class="card-top">
+              <div>
+                <h3 class="card-name">${escapeHtml(name)}</h3>
+                <div class="card-meta">
+                  <span class="badge badge-${slot}">${slot.toUpperCase()}</span>
+                  <span>Year ${year}</span>
+                </div>
+              </div>
+              <span class="badge badge-semester">${isActive ? 'Semester ' + sem : 'Graduated (Sem ' + sem + ')'}</span>
+            </div>
+            <div class="card-uuid" title="Permanent Cohort UUID">UUID: ${id}</div>
+            <div class="card-stats">
+              <div><span class="card-stat-label">Students:</span><span class="card-stat-val">${studentCount}</span></div>
+              <div><span class="card-stat-label">Status:</span><span class="card-stat-val" style="color: ${isActive ? 'var(--accent-green)' : 'var(--text-muted)'}">${isActive ? 'Active' : 'Archived'}</span></div>
+            </div>
+          </div>
+          <div class="card-actions">
+            ${isActive ? `
+              ${sem < 8 ? `
+                <button type="button" class="btn btn-success btn-sm" onclick="promptPromote('${id}', '${escapeHtml(name)}', ${sem})">
+                  Promote to Sem ${sem + 1}
+                </button>
+              ` : `
+                <button type="button" class="btn btn-danger btn-sm" onclick="promptGraduate('${id}', '${escapeHtml(name)}')">
+                  Graduate Cohort
+                </button>
+              `}
+              <button type="button" class="btn btn-secondary btn-sm" onclick="openAssignModal('${id}', '${escapeHtml(name)}')">
+                Assign Student
+              </button>
+            ` : ''}
+            <button type="button" class="btn btn-secondary btn-sm" onclick="viewHistory('${id}', '${escapeHtml(name)}')">
+              History
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function promptPromote(cohortId, name, currentSem) {
+      document.getElementById('promoteCohortId').value = cohortId;
+      document.getElementById('promoteExpectedSem').value = currentSem;
+      document.getElementById('promoteModalDesc').textContent = `Promote "${name}" from Semester ${currentSem} to Semester ${currentSem + 1}? This advances the academic context for all enrolled students while preserving the same permanent cohort and chat room.`;
+      openModal('promoteModal');
+    }
+
+    async function submitPromotion() {
+      const cohortId = document.getElementById('promoteCohortId').value;
+      const expectedSem = parseInt(document.getElementById('promoteExpectedSem').value, 10);
+      const btn = document.getElementById('confirmPromoteBtn');
+      btn.disabled = true;
+      btn.textContent = 'Promoting...';
+      try {
+        const res = await fetch(`/api/admin/cohorts/${cohortId}/promote`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ expectedSemester: expectedSem })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Promotion failed');
+        closeModal('promoteModal');
+        showAlert(`Successfully promoted to Semester ${data.currentSemester}!`, 'success');
+        await loadData();
+      } catch (err) {
+        showAlert(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Confirm Promotion';
+      }
+    }
+
+    function promptGraduate(cohortId, name) {
+      document.getElementById('graduateCohortId').value = cohortId;
+      document.getElementById('graduateModalDesc').textContent = `Graduate "${name}"? This permanently closes and archives the cohort chat room (read-only) and frees the slot code for new batches.`;
+      openModal('graduateModal');
+    }
+
+    async function submitGraduation() {
+      const cohortId = document.getElementById('graduateCohortId').value;
+      const btn = document.getElementById('confirmGraduateBtn');
+      btn.disabled = true;
+      btn.textContent = 'Graduating...';
+      try {
+        const res = await fetch(`/api/admin/cohorts/${cohortId}/graduate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Graduation failed');
+        closeModal('graduateModal');
+        showAlert(`Cohort successfully graduated! Slot freed for recycling.`, 'success');
+        await loadData();
+      } catch (err) {
+        showAlert(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Confirm Graduation';
+      }
+    }
+
+    function openRecycleModalForSlot(slot) {
+      document.getElementById('recycleSlotSelect').value = slot;
+      openRecycleModal();
+    }
+
+    function openRecycleModal() {
+      const slotSelect = document.getElementById('recycleSlotSelect');
+      slotSelect.innerHTML = ['mercury', 'venus', 'earth', 'mars'].map(slot => {
+        const isAvail = availableSlots.includes(slot);
+        return `<option value="${slot}" ${isAvail ? '' : 'disabled'}>${slot.toUpperCase()} ${isAvail ? '(Available)' : '(Active)'}</option>`;
+      }).join('');
+      openModal('recycleModal');
+    }
+
+    async function submitRecycle(e) {
+      e.preventDefault();
+      const slotCode = document.getElementById('recycleSlotSelect').value;
+      const displayName = document.getElementById('recycleDisplayName').value.trim();
+      const academicYear = parseInt(document.getElementById('recycleYear').value, 10);
+      const currentSemester = parseInt(document.getElementById('recycleSemester').value, 10);
+      const btn = document.getElementById('submitRecycleBtn');
+      btn.disabled = true;
+      btn.textContent = 'Allocating...';
+      try {
+        const res = await fetch('/api/admin/cohorts/recycle', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ slotCode, displayName, academicYear, currentSemester })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Allocation failed');
+        closeModal('recycleModal');
+        showAlert(`New cohort "${displayName}" allocated with fresh UUID!`, 'success');
+        await loadData();
+      } catch (err) {
+        showAlert(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Allocate Cohort';
+      }
+    }
+
+    async function openAssignModal(cohortId, name) {
+      document.getElementById('assignCohortId').value = cohortId;
+      document.getElementById('assignModalDesc').textContent = `Assign student to ${name}.`;
+      const select = document.getElementById('unassignedSelect');
+      select.innerHTML = '<option value="">Loading students...</option>';
+      openModal('assignModal');
+
+      try {
+        const res = await fetch('/api/admin/unassigned-students');
+        const data = await res.json();
+        const students = data.students || [];
+        if (students.length === 0) {
+          select.innerHTML = '<option value="">No unassigned students found</option>';
+        } else {
+          select.innerHTML = '<option value="">-- Choose a student --</option>' +
+            students.map(s => `<option value="${s.studentId}">${s.name || s.username || s.studentId} (${s.studentId})</option>`).join('');
+        }
+      } catch (err) {
+        select.innerHTML = '<option value="">Failed to load students</option>';
+      }
+    }
+
+    async function submitStudentAssignment() {
+      const cohortId = document.getElementById('assignCohortId').value;
+      const studentId = document.getElementById('unassignedSelect').value;
+      if (!studentId) {
+        alert('Please select a student.');
+        return;
+      }
+      const btn = document.getElementById('confirmAssignBtn');
+      btn.disabled = true;
+      btn.textContent = 'Assigning...';
+      try {
+        const res = await fetch(`/api/admin/cohorts/${cohortId}/assign-student`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ studentId })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Assignment failed');
+        closeModal('assignModal');
+        showAlert(`Student ${studentId} successfully assigned!`, 'success');
+        await loadData();
+      } catch (err) {
+        showAlert(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Assign Student';
+      }
+    }
+
+    async function viewHistory(cohortId, name) {
+      document.getElementById('historyModalTitle').textContent = `History: ${name}`;
+      const container = document.getElementById('historyTimeline');
+      container.innerHTML = '<div class="empty-state">Loading history...</div>';
+      openModal('historyModal');
+
+      try {
+        const res = await fetch(`/api/admin/cohorts/${cohortId}/history`);
+        const data = await res.json();
+        const history = data.history || [];
+        if (history.length === 0) {
+          container.innerHTML = '<div class="empty-state">No historical semester records found.</div>';
+        } else {
+          container.innerHTML = history.map(h => `
+            <div class="history-item">
+              <div class="history-item-sem">Semester ${h.semester} (${h.academicYear})</div>
+              <div class="history-item-date">Started: ${new Date(h.startedAt).toLocaleDateString()}</div>
+              ${h.endedAt ? `<div class="history-item-date">Ended: ${new Date(h.endedAt).toLocaleDateString()}</div>` : '<div style="color: var(--accent-green); font-weight: 600; margin-top: 2px;">Active Semester</div>'}
+            </div>
+          `).join('');
+        }
+      } catch (err) {
+        container.innerHTML = `<div class="empty-state" style="color: var(--accent-red);">${err.message}</div>`;
+      }
+    }
+
+    function openModal(id) {
+      document.getElementById(id).style.display = 'flex';
+    }
+    function closeModal(id) {
+      document.getElementById(id).style.display = 'none';
+    }
+    function showAlert(msg, type) {
+      const box = document.getElementById('alertBox');
+      box.style.display = 'block';
+      box.textContent = msg;
+      if (type === 'error') {
+        box.style.background = 'rgba(239, 68, 68, 0.15)';
+        box.style.color = '#f87171';
+        box.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+      } else {
+        box.style.background = 'rgba(16, 185, 129, 0.15)';
+        box.style.color = '#34d399';
+        box.style.border = '1px solid rgba(16, 185, 129, 0.3)';
+      }
+      setTimeout(() => { box.style.display = 'none'; }, 6000);
+    }
+    function escapeHtml(str) {
+      return String(str || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]);
+    }
+
+    window.addEventListener('DOMContentLoaded', loadData);
+  </script>
+</body>
+</html>

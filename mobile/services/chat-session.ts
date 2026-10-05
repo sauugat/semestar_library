@@ -2,6 +2,8 @@ export interface ChatContext {
   studentId: string; chatGroupId: string; cohortId: string;
   groupCode: 'MERCURY' | 'VENUS' | 'EARTH' | 'MARS'; currentSemester: number;
   cohortStatus: string; roomStatus: string; realtimeEpoch: number;
+  cohortDisplayName?: string; roomId?: string; epoch?: number;
+  permissions?: { canPost: boolean; canPin: boolean };
 }
 export const CHAT_UNAVAILABLE = 'This conversation is no longer available.';
 export type ChatSession = { generation: number; server: string; account: string; credential?: string | null; context: ChatContext | null };

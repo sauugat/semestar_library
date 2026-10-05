@@ -59,6 +59,11 @@ if (isPostgres) {
     url: dbUrl,
     authToken
   });
+
+  if (!isTurso && !dbUrl.includes(':memory:')) {
+    libsqlClient.execute('PRAGMA journal_mode = WAL;').catch(() => {});
+    libsqlClient.execute('PRAGMA busy_timeout = 5000;').catch(() => {});
+  }
 }
 
 function toPostgresSql(sql) {
@@ -108,7 +113,19 @@ const camelMap = {
   verificationstatus: 'verificationStatus', verification_status: 'verificationStatus',
   coverurl: 'coverUrl', coverposition: 'coverPosition',
   mentionedstudentid: 'mentionedStudentId', message_id: 'messageId',
-  mentioned_student_id: 'mentionedStudentId'
+  mentioned_student_id: 'mentionedStudentId',
+  cohort_id: 'cohortId', cohortid: 'cohortId',
+  slot_code: 'slotCode', slotcode: 'slotCode',
+  display_name: 'displayName', displayname: 'displayName',
+  intake_year: 'intakeYear', intakeyear: 'intakeYear',
+  intake_identifier: 'intakeIdentifier', intakeidentifier: 'intakeIdentifier',
+  current_semester: 'currentSemester', currentsemester: 'currentSemester',
+  graduated_at: 'graduatedAt', graduatedat: 'graduatedAt',
+  semester_no: 'semesterNo', semesterno: 'semesterNo',
+  audience_scope: 'audienceScope', audiencescope: 'audienceScope',
+  started_at: 'startedAt', startedat: 'startedAt',
+  ended_at: 'endedAt', endedat: 'endedAt',
+  promoted_by: 'promotedBy', promotedby: 'promotedBy'
 };
 
 function formatRow(row) {
@@ -410,12 +427,26 @@ async function initSchema() {
           );
 
           CREATE TABLE IF NOT EXISTS notifications (
-            id SERIAL PRIMARY KEY,
-            recipientStudentId TEXT NOT NULL REFERENCES students(studentId) ON DELETE CASCADE,
+            id TEXT PRIMARY KEY,
             type TEXT NOT NULL,
-            relatedFileId INTEGER,
-            message TEXT NOT NULL,
+            actor_id TEXT REFERENCES students(studentId) ON DELETE SET NULL,
+            title TEXT,
+            body TEXT,
+            entity_type TEXT,
+            entity_id TEXT,
+            secondary_entity_id TEXT,
+            deep_link TEXT,
+            web_path TEXT,
+            group_key TEXT,
+            priority TEXT DEFAULT 'normal',
+            metadata JSONB DEFAULT '{}'::jsonb,
+            created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+            expires_at TIMESTAMPTZ,
+            recipientStudentId TEXT REFERENCES students(studentId) ON DELETE CASCADE,
+            message TEXT,
             isRead INTEGER DEFAULT 0,
+            relatedFileId INTEGER,
             createdAt TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
           );
 
@@ -632,14 +663,28 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
           );
 
           CREATE TABLE IF NOT EXISTS notifications (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            recipientStudentId TEXT NOT NULL,
+            id TEXT PRIMARY KEY,
             type TEXT NOT NULL,
-            relatedFileId INTEGER,
-            message TEXT NOT NULL,
+            actor_id TEXT,
+            title TEXT,
+            body TEXT,
+            entity_type TEXT,
+            entity_id TEXT,
+            secondary_entity_id TEXT,
+            deep_link TEXT,
+            web_path TEXT,
+            group_key TEXT,
+            priority TEXT DEFAULT 'normal',
+            metadata TEXT DEFAULT '{}',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            expires_at DATETIME,
+            recipientStudentId TEXT,
+            message TEXT,
             isRead INTEGER DEFAULT 0,
+            relatedFileId INTEGER,
             createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (recipientStudentId) REFERENCES students(studentId)
+            FOREIGN KEY (recipientStudentId) REFERENCES students(studentId) ON DELETE CASCADE
           );
 
           CREATE TABLE IF NOT EXISTS file_blobs (
@@ -1034,6 +1079,8 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
 
       await require('./lib/routine').ensureRoutineSchema({ exec, isPostgres });
       await require('./lib/push-notifications').ensurePushNotificationSchema({ exec, isPostgres });
+      await require('./lib/notifications-service').ensureNotificationCenterSchema({ exec, isPostgres });
+      await require('./lib/academic-context').ensureAcademicCohortSchema({ exec, run, all, isPostgres });
 
     } catch (err) {
       console.error('[DB Engine]: Schema initialization error:', err);

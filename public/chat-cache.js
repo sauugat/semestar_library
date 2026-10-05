@@ -6,16 +6,17 @@
     if (!room || !server || !studentId) throw new Error('Validated room required');
     const key = `semester-chat-v3:${JSON.stringify([server.replace(/\/+$/, ''), studentId, room])}`;
     try { storage.removeItem(`semester-chat-v2:${studentId}`); } catch {}
-    let state = { messages: [], events: [], meta: {} };
+    let state = { messages: [], events: [], meta: {} }, persistent=true;
     function read() {
-      try { const saved = JSON.parse(storage.getItem(key)); if (saved && Array.isArray(saved.messages) && Array.isArray(saved.events)) state = saved; } catch {}
+      if(!persistent)return;
+      try { const raw=storage.getItem(key); const saved=raw?JSON.parse(raw):null; if (saved && Array.isArray(saved.messages) && Array.isArray(saved.events)) state = saved; } catch { persistent=false; }
       state.messages = state.messages.filter(m => m.chatGroupId === room);
     }
     read();
     function save() {
       state.messages = state.messages.filter(m=>m.chatGroupId === room).sort((a,b)=>a.id-b.id).slice(-500);
       state.events = state.events.filter(e => e.at > Date.now()-7*86400000).slice(-2000);
-      try { storage.setItem(key,JSON.stringify(state)); } catch { /* Memory-only until canonical API reconciliation; never import other rooms. */ }
+      if(persistent)try { storage.setItem(key,JSON.stringify(state)); } catch { persistent=false; /* Keep this session's memory state instead of reloading a stale disk value. */ }
     }
     function merge(incoming) {
       const map = new Map(state.messages.map(m=>[m.id,m]));

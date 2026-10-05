@@ -20,13 +20,15 @@ import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import { Image } from 'expo-image';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { fetchUnseenCount } from '@/services/notifications';
 import * as ImagePicker from 'expo-image-picker';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Clipboard from 'expo-clipboard';
 import { useAuth } from '@/context/AuthContext';
+import { useAcademicContext } from '@/hooks/useAcademicContext';
 import { useTheme } from '@/constants/useTheme';
 import { Text, Heading, Subheading, Caption } from '@/components/ui/Typography';
 import { Card } from '@/components/ui/Card';
@@ -516,9 +518,26 @@ function PostImageItem({
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const { colors, spacing, radii } = useTheme();
   const queryClient = useQueryClient();
+  const { displayLabel, isUnassigned } = useAcademicContext();
+
+  const [unseenNotifCount, setUnseenNotifCount] = useState(0);
+
+  const refreshUnseenCount = useCallback(() => {
+    if (!token) return;
+    void (async () => {
+      const count = await fetchUnseenCount();
+      setUnseenNotifCount(count);
+    })();
+  }, [token]);
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshUnseenCount();
+    }, [refreshUnseenCount])
+  );
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [files, setFiles] = useState<LibraryFile[]>([]);
@@ -1535,7 +1554,6 @@ export default function HomeScreen() {
   };
 
   const renderBrandHeader = () => {
-    const brandAvatarUri = user?.avatarUrl ? getFullImageUrl(user.avatarUrl) : null;
     return (
       <View
         style={[
@@ -1546,15 +1564,38 @@ export default function HomeScreen() {
           },
         ]}
       >
-        {/* Left: "Semester Library" Wordmark */}
-        <Text
-          style={[
-            styles.headerWordmark,
-            { color: colors.text },
-          ]}
-        >
-          Semester Library
-        </Text>
+        {/* Left: "Semester Library" Wordmark and Academic Context Badge */}
+        <View style={{ flex: 1, marginRight: 12 }}>
+          <Text
+            style={[
+              styles.headerWordmark,
+              { color: colors.text },
+            ]}
+          >
+            Semester Library
+          </Text>
+          {Boolean(displayLabel) && (
+            <View
+              style={[
+                styles.academicBadge,
+                {
+                  backgroundColor: colors.surfaceRaised,
+                  borderColor: colors.border,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.academicBadgeText,
+                  { color: isUnassigned ? colors.textMuted : colors.textSecondary },
+                ]}
+                numberOfLines={1}
+              >
+                {isUnassigned ? 'Unassigned' : displayLabel}
+              </Text>
+            </View>
+          )}
+        </View>
 
         {/* Right: Search, Create (+), and Profile */}
         <View style={styles.headerRightActions}>
@@ -1589,28 +1630,37 @@ export default function HomeScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={() => router.push('/(tabs)/profile')}
+            onPress={() => router.push('/notifications' as any)}
             style={[
-              styles.headerAvatarBtn,
+              styles.headerActionBtn,
               {
                 backgroundColor: colors.surfaceRaised,
                 borderColor: colors.border,
+                position: 'relative',
               },
             ]}
-            accessibilityLabel="Open profile"
+            accessibilityLabel="Notifications"
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            {brandAvatarUri ? (
-              <Image
-                source={{ uri: brandAvatarUri }}
-                style={{ width: '100%', height: '100%', borderRadius: 16 }}
-                contentFit="cover"
-                cachePolicy="memory-disk"
-              />
-            ) : (
-              <Text variant="xs" weight="700" color="primary">
-                {(user?.name || 'S').charAt(0).toUpperCase()}
-              </Text>
+            <Ionicons name="notifications-outline" size={19} color={colors.text} />
+            {unseenNotifCount > 0 && (
+              <View
+                style={[
+                  styles.headerBellBadge,
+                  { backgroundColor: colors.text },
+                ]}
+              >
+                <Text
+                  style={{
+                    color: colors.surface,
+                    fontSize: unseenNotifCount > 9 ? 8 : 9,
+                    fontWeight: '800',
+                    lineHeight: unseenNotifCount > 9 ? 9 : 10,
+                  }}
+                >
+                  {unseenNotifCount > 99 ? '99+' : unseenNotifCount}
+                </Text>
+              </View>
             )}
           </TouchableOpacity>
         </View>
@@ -3196,6 +3246,19 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: -0.4,
   },
+  academicBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+    borderWidth: 1,
+    marginTop: 3,
+    alignSelf: 'flex-start',
+  },
+  academicBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: -0.1,
+  },
   headerRightActions: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -3208,6 +3271,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  headerBellBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    minWidth: 15,
+    height: 15,
+    borderRadius: 7.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 2,
   },
   headerAvatarBtn: {
     width: 36,

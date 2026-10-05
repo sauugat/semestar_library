@@ -222,7 +222,7 @@ export function useClassChat(
           setMessages((prev) => {
             const existingIndex = prev.findIndex(
               (m) =>
-                (newMsg.clientId && m.clientId === newMsg.clientId) ||
+                (newMsg.clientId && m.studentId === newMsg.studentId && m.clientId === newMsg.clientId) ||
                 m.id === newMsg.id
             );
             if (existingIndex >= 0) {

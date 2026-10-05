@@ -356,7 +356,10 @@
 
         <div class="cl-header-row">
             <div>
-                <h1 class="cl-title" id="pageTitle">Assignments</h1>
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 6px; flex-wrap: wrap;">
+                    <h1 class="cl-title" id="pageTitle" style="margin: 0;">Assignments</h1>
+                    <span class="academic-context-badge" id="clPageAcademicBadge" style="display:none;"></span>
+                </div>
                 <p class="cl-subtitle" id="pageSubtitle">Loading assignments…</p>
             </div>
             <div>
@@ -418,6 +421,7 @@
 
     <script src="/code-lab/utils.js"></script>
     <script src="/auth-modal.js"></script>
+    <script src="/academic-context.js"></script>
     <script>
         const params = new URLSearchParams(window.location.search);
         const subject = params.get('subject');
@@ -426,6 +430,10 @@
         const titleEl = document.getElementById('pageTitle');
         const subtitleEl = document.getElementById('pageSubtitle');
         const crumbSubject = document.getElementById('crumbSubject');
+
+        if (window.AcademicContext) {
+            window.AcademicContext.renderBadge('#clPageAcademicBadge');
+        }
 
         if (subject) {
             titleEl.textContent = subject;

@@ -62,6 +62,7 @@ module.exports = function cohortChatRouter(service) {
   router.use((_req, res) => res.status(404).json({ message: 'This conversation is no longer available.' }));
   router.use((error, _req, res, _next) => {
     const status = error instanceof ChatError ? error.status : error instanceof multer.MulterError ? 400 : 500;
+    if (status === 500) console.error('[COHORT-CHAT ROUTE ERROR]:', error);
     res.status(status).json({ message: status === 500 ? 'Chat request failed.' : error.message });
   });
   return router;

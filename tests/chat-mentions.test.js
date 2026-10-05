@@ -392,7 +392,7 @@ test('Chat @Mentions — Full Integration Test Suite', async (t) => {
     const msgId = json.messageId;
 
     const outboxRows = await db.all(
-      "SELECT recipient_student_id, payload_json FROM push_notification_outbox WHERE event_id = ?",
+      "SELECT recipient_student_id, payload_json FROM push_notification_outbox WHERE event_type = 'chat' AND event_id = ?",
       String(msgId)
     );
 

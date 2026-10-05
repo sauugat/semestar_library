@@ -90,6 +90,45 @@ export interface CommentReactionNotificationData extends BaseNotificationData {
   reactionType?: string;
 }
 
+export interface RoutineNotificationData extends BaseNotificationData {
+  type: 'routine' | 'routine_updated';
+  semester?: number | string;
+}
+
+export interface PostReactionNotificationData extends BaseNotificationData {
+  type: 'post_reaction';
+  postId: number;
+}
+
+export interface InAppNotificationActor {
+  studentId: string;
+  name: string;
+  avatarUrl?: string | null;
+  role?: string;
+}
+
+export interface InAppNotification {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  entityType: string;
+  entityId: string;
+  secondaryEntityId?: string | null;
+  deepLink: string;
+  webPath: string;
+  groupKey?: string | null;
+  priority: string;
+  metadata?: Record<string, any>;
+  createdAt: string;
+  updatedAt: string;
+  isRead: boolean;
+  isSeen: boolean;
+  readAt?: string | null;
+  seenAt?: string | null;
+  actor?: InAppNotificationActor | null;
+}
+
 export type NotificationPayload =
   | ChatNotificationData
   | MaterialNotificationData
@@ -98,7 +137,10 @@ export type NotificationPayload =
   | NoticeNotificationData
   | PostCommentNotificationData
   | CommentReplyNotificationData
-  | CommentReactionNotificationData;
+  | CommentReactionNotificationData
+  | RoutineNotificationData
+  | PostReactionNotificationData
+  | (BaseNotificationData & { type: string; [key: string]: any });
 
 export interface NotificationPreferences {
   muteChat: boolean;
@@ -108,6 +150,17 @@ export interface NotificationPreferences {
   hideLockscreenPreview: boolean;
 }
 
+export interface AdvancedNotificationPreferences extends NotificationPreferences {
+  deliveryMessages: 'push_inbox' | 'inbox_only' | 'off';
+  deliveryActivity: 'push_inbox' | 'inbox_only' | 'off';
+  deliveryAcademic: 'push_inbox' | 'inbox_only' | 'off';
+  deliverySystem: 'push_inbox' | 'inbox_only' | 'off';
+  quietHoursEnabled: boolean;
+  quietHoursStart: string;
+  quietHoursEnd: string;
+  timezone: string;
+}
+
 // Centralized notification navigation state machine
 let pendingNotificationDestination: NotificationPayload | null = null;
 let isHandlingNotificationNavigation = false;
@@ -115,6 +168,7 @@ let notificationNavigationCompleted = false;
 let lastHandledNotificationId: string | null = null;
 let lastHandledTimestamp = 0;
 let isChatScreenActive = false;
+let navigationGeneration = 0;
 
 export function setChatScreenActive(active: boolean): void {
   isChatScreenActive = active;
@@ -129,6 +183,7 @@ export function hasNotificationNavigationCompleted(): boolean {
 }
 
 export function resetNotificationNavigationState(): void {
+  navigationGeneration++;
   isHandlingNotificationNavigation = false;
   notificationNavigationCompleted = false;
   pendingNotificationDestination = null;
@@ -467,9 +522,9 @@ export function parseNotificationData(raw: unknown): NotificationPayload | null 
       subType: data.subType ? String(data.subType) : undefined,
       eventId: data.eventId ? String(data.eventId) : undefined,
       entityId: data.entityId ? String(data.entityId) : undefined,
-      messageId: Number.isFinite(messageId) ? messageId : undefined,
-      groupId: data.groupId || 'bit',
-      groupName: data.groupName || 'BIT Group Chat',
+      messageId: Number.isSafeInteger(messageId) && messageId > 0 ? messageId : undefined,
+      groupId: data.chatGroupId || undefined,
+      groupName: data.groupName || 'Class conversation',
       count: Number(data.count) || 1,
       senders: Array.isArray(data.senders) ? data.senders : undefined,
       actorId: data.actorId ? String(data.actorId) : undefined,
@@ -599,6 +654,46 @@ export function parseNotificationData(raw: unknown): NotificationPayload | null 
     }
   }
 
+  if (type === 'post_reaction') {
+    const postId = Number(data.postId || data.entityId);
+    if (Number.isFinite(postId) && postId > 0) {
+      return {
+        type: 'post_reaction',
+        postId,
+        actorId: data.actorId ? String(data.actorId) : undefined,
+        actorName: data.actorName ? String(data.actorName) : undefined,
+        groupKey: data.groupKey,
+        collapseId: data.collapseId,
+      };
+    }
+  }
+
+  if (type === 'routine' || type === 'routine_updated') {
+    return {
+      type: 'routine',
+      semester: data.semester,
+      actorId: data.actorId ? String(data.actorId) : undefined,
+      actorName: data.actorName ? String(data.actorName) : undefined,
+      groupKey: data.groupKey,
+      collapseId: data.collapseId,
+    };
+  }
+
+  if (type === 'official_notice') {
+    const noticeId = Number(data.noticeId || data.postId || data.entityId);
+    if (Number.isFinite(noticeId) && noticeId > 0) {
+      return {
+        type: 'notice',
+        noticeId,
+        postId: noticeId,
+        actorId: data.actorId ? String(data.actorId) : undefined,
+        actorName: data.actorName ? String(data.actorName) : undefined,
+        groupKey: data.groupKey,
+        collapseId: data.collapseId,
+      };
+    }
+  }
+
   return null;
 }
 
@@ -659,7 +754,9 @@ export function navigateFromNotification(
   // For cold-start / killed-app scenarios, we first ensure tabs are in the stack,
   // then push the deep-linked destination on top.
   try {
+    const generation = ++navigationGeneration;
     const pushDestination = () => {
+      if (generation !== navigationGeneration) return;
       switch (payload.type) {
         case 'chat':
           if (payload.messageId) {
@@ -685,6 +782,7 @@ export function navigateFromNotification(
           break;
 
         case 'post':
+        case 'post_reaction':
           // Navigate to dedicated post detail page
           router.push(`/post/${payload.postId}`);
           break;
@@ -692,6 +790,11 @@ export function navigateFromNotification(
         case 'notice':
           // Navigate to dedicated notice detail page
           router.push(`/notice/${payload.noticeId}`);
+          break;
+
+        case 'routine':
+        case 'routine_updated':
+          router.push('/routine' as any);
           break;
 
         case 'post_comment':
@@ -811,5 +914,264 @@ export async function updateNotificationPreferences(
       success: false,
       error: err.message || 'Network error updating notification preferences',
     };
+  }
+}
+
+export interface FetchInAppNotificationsParams {
+  tab?: 'all' | 'unread' | 'mentions';
+  cursor?: string | null;
+  limit?: number;
+}
+
+export interface FetchInAppNotificationsResponse {
+  notifications: InAppNotification[];
+  nextCursor: string | null;
+  unseenCount: number;
+}
+
+/**
+ * Fetch in-app notifications inbox with cursor-based pagination and tab filtering.
+ */
+export async function fetchInAppNotifications(
+  params: FetchInAppNotificationsParams = {}
+): Promise<FetchInAppNotificationsResponse> {
+  const query = new URLSearchParams();
+  if (params.tab) query.set('tab', params.tab);
+  if (params.cursor) query.set('cursor', params.cursor);
+  if (params.limit) query.set('limit', String(params.limit));
+
+  const url = `/api/notifications${query.toString() ? `?${query.toString()}` : ''}`;
+  const res = await apiFetch(url);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch notifications: ${res.status}`);
+  }
+  const data = await res.json();
+  return {
+    notifications: Array.isArray(data.notifications) ? data.notifications : [],
+    nextCursor: data.nextCursor || null,
+    unseenCount: Number(data.unseenCount) || 0,
+  };
+}
+
+/**
+ * Fetch current unseen notification count for badge.
+ */
+export async function fetchUnseenCount(): Promise<number> {
+  try {
+    const res = await apiFetch('/api/notifications/unread-count');
+    if (res.ok) {
+      const data = await res.json();
+      return Number(data.count) || 0;
+    }
+  } catch (err) {
+    if (__DEV__) console.warn('[Notifications] Failed to fetch unseen count:', err);
+  }
+  return 0;
+}
+
+/**
+ * Mark all incoming notifications as seen (clears bell badge count).
+ */
+export async function markNotificationSeen(): Promise<void> {
+  try {
+    await apiFetch('/api/notifications/seen', { method: 'POST' });
+  } catch (err) {
+    if (__DEV__) console.warn('[Notifications] Failed to mark notifications seen:', err);
+  }
+}
+
+/**
+ * Mark a single notification as read.
+ */
+export async function markNotificationRead(id: string): Promise<boolean> {
+  try {
+    const res = await apiFetch(`/api/notifications/${id}/read`, { method: 'POST' });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Mark a single notification as unread.
+ */
+export async function markNotificationUnread(id: string): Promise<boolean> {
+  try {
+    const res = await apiFetch(`/api/notifications/${id}/unread`, { method: 'POST' });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Mark all user notifications as read.
+ */
+export async function markAllNotificationsRead(): Promise<boolean> {
+  try {
+    const res = await apiFetch('/api/notifications/read-all', { method: 'POST' });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Soft-delete / hide a notification from the user's inbox.
+ */
+export async function hideInAppNotification(id: string): Promise<boolean> {
+  try {
+    const res = await apiFetch(`/api/notifications/${id}/hide`, { method: 'POST' });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Fetch advanced notification preferences with delivery channels & quiet hours.
+ */
+export async function getAdvancedPreferences(): Promise<AdvancedNotificationPreferences | null> {
+  try {
+    const res = await apiFetch('/api/notifications/preferences');
+    if (res.ok) {
+      const data = await res.json();
+      if (data.preferences) {
+        return {
+          muteChat: Boolean(data.preferences.muteChat),
+          notifyNotes: data.preferences.notifyNotes !== false,
+          notifyPosts: data.preferences.notifyPosts !== false,
+          notifyNotices: data.preferences.notifyNotices !== false,
+          hideLockscreenPreview: Boolean(data.preferences.hideLockscreenPreview),
+          deliveryMessages: data.preferences.deliveryMessages || 'push_inbox',
+          deliveryActivity: data.preferences.deliveryActivity || 'push_inbox',
+          deliveryAcademic: data.preferences.deliveryAcademic || 'push_inbox',
+          deliverySystem: data.preferences.deliverySystem || 'push_inbox',
+          quietHoursEnabled: Boolean(data.preferences.quietHoursEnabled),
+          quietHoursStart: data.preferences.quietHoursStart || '22:30',
+          quietHoursEnd: data.preferences.quietHoursEnd || '07:00',
+          timezone: data.preferences.timezone || 'Asia/Kathmandu',
+        };
+      }
+    }
+  } catch (err) {
+    if (__DEV__) console.warn('[Notifications] Failed to fetch advanced preferences:', err);
+  }
+  return null;
+}
+
+/**
+ * Update advanced notification preferences.
+ */
+export async function updateAdvancedPreferences(
+  prefs: Partial<AdvancedNotificationPreferences>
+): Promise<{ success: boolean; preferences?: AdvancedNotificationPreferences; error?: string }> {
+  try {
+    const res = await apiFetch('/api/notifications/preferences', {
+      method: 'PUT',
+      body: JSON.stringify(prefs),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return { success: true, preferences: data.preferences };
+    } else {
+      const err = await res.json().catch(() => ({}));
+      return { success: false, error: err.message || 'Failed to update preferences' };
+    }
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Network error' };
+  }
+}
+
+/**
+ * Navigate to target destination from an in-app notification tap.
+ */
+export function navigateToNotificationTarget(notification: InAppNotification): void {
+  // A newer inbox tap supersedes any delayed push-notification navigation.
+  navigationGeneration++;
+  try {
+    const { deepLink, entityType, entityId, secondaryEntityId, type } = notification;
+
+    // 1. If explicit deepLink is provided, attempt deep link mapping
+    if (deepLink) {
+      if (deepLink.startsWith('/post/')) {
+        const parts = deepLink.replace('/post/', '').split('?');
+        const postId = Number(parts[0]);
+        const search = new URLSearchParams(parts[1] || '');
+        const commentId = search.get('commentId') || undefined;
+        const replyId = search.get('replyId') || undefined;
+        if (postId) {
+          router.push({
+            pathname: '/post/[id]',
+            params: { id: postId, ...(commentId ? { commentId } : {}), ...(replyId ? { replyId } : {}) },
+          });
+          return;
+        }
+      } else if (deepLink.startsWith('/notice/')) {
+        const noticeId = deepLink.replace('/notice/', '');
+        router.push(`/notice/${noticeId}` as any);
+        return;
+      } else if (deepLink.startsWith('/material/')) {
+        const materialId = deepLink.replace('/material/', '');
+        router.push(`/material/${materialId}` as any);
+        return;
+      } else if (deepLink.startsWith('/routine')) {
+        router.push('/routine' as any);
+        return;
+      } else if (deepLink.startsWith('/chat')) {
+        const params = new URLSearchParams(deepLink.split('?')[1] || '');
+        navigateFromNotification({
+          type: 'chat',
+          chatGroupId: params.get('chatGroupId') || params.get('targetChatGroupId') || notification.metadata?.chatGroupId,
+          messageId: params.get('messageId') || params.get('targetMessageId') || notification.metadata?.messageId,
+        }, true);
+        return;
+      }
+    }
+
+    // 2. Fallback based on entityType / type
+    if (entityType === 'post' || type.startsWith('post_') || type.startsWith('comment_')) {
+      const postId = Number(entityId);
+      if (postId) {
+        router.push({
+          pathname: '/post/[id]',
+          params: {
+            id: postId,
+            ...(secondaryEntityId ? { commentId: secondaryEntityId } : {}),
+          },
+        });
+        return;
+      }
+    }
+
+    if (entityType === 'notice' || type === 'official_notice' || type === 'notice') {
+      router.push(`/notice/${entityId}` as any);
+      return;
+    }
+
+    if (entityType === 'material' || type === 'material_uploaded' || type === 'material') {
+      router.push(`/material/${entityId}` as any);
+      return;
+    }
+
+    if (entityType === 'routine' || type === 'routine_updated' || type === 'routine') {
+      router.push('/routine' as any);
+      return;
+    }
+
+    if (entityType === 'chat' || type === 'chat_message' || type === 'chat') {
+      navigateFromNotification({
+        type: 'chat',
+        chatGroupId: notification.metadata?.chatGroupId,
+        messageId: notification.metadata?.messageId || secondaryEntityId,
+      }, true);
+      return;
+    }
+
+    // Default: Go to home
+    router.push('/(tabs)');
+  } catch (err) {
+    if (__DEV__) console.warn('[Notifications] Navigation error:', err);
+    router.push('/(tabs)');
   }
 }

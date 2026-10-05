@@ -111,6 +111,40 @@ export async function getFiles(params: GetFilesParams = {}): Promise<LibraryFile
 }
 
 /**
+ * Student Library: authoritatively loads notes/files for the student's active cohort & semester.
+ * Does NOT send or require a manually selected client semester parameter.
+ */
+export async function getMyLibraryFiles(params: {
+  subject?: string;
+  chapter?: string;
+  search?: string;
+} = {}): Promise<LibraryFile[]> {
+  const queryParts: string[] = [];
+
+  if (params.subject) {
+    queryParts.push(`subject=${encodeURIComponent(params.subject)}`);
+  }
+  if (params.chapter) {
+    queryParts.push(`chapter=${encodeURIComponent(params.chapter)}`);
+  }
+
+  const queryString = queryParts.length > 0 ? `?${queryParts.join('&')}` : '';
+  const files = await api.get<LibraryFile[]>(`/api/library/files${queryString}`);
+
+  if (params.search && params.search.trim()) {
+    const q = params.search.trim().toLowerCase();
+    return files.filter((f) =>
+      (f.title && f.title.toLowerCase().includes(q)) ||
+      (f.originalName && f.originalName.toLowerCase().includes(q)) ||
+      (f.subject && f.subject.toLowerCase().includes(q)) ||
+      (f.chapter && f.chapter.toLowerCase().includes(q))
+    );
+  }
+
+  return files;
+}
+
+/**
  * Fetch details of a single file by ID
  */
 export async function getFileById(id: number | string): Promise<LibraryFile | null> {

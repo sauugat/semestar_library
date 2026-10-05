@@ -2,6 +2,12 @@ const express = require('express');
 const router = express.Router();
 const db = require('../../db');
 const syllabusData = require('../../syllabus-data.json');
+const {
+    getAcademicContext,
+    buildAcademicContentFilter,
+    resolvePublishScope,
+    assertContentAccess
+} = require('../../lib/academic-context');
 
 function requireLogin(req, res, next) {
     const studentId = (req.user && req.user.studentId) || (req.session && req.session.studentId);
@@ -197,11 +203,25 @@ router.get('/subjects', (req, res) => {
     res.json({ semesters });
 });
 
-// ── POST /assignments — admin only, accepts nested questions ────────────────
+// ── POST /assignments — staff/CR creation, accepts nested questions ────────────────
 router.post('/assignments', requireLogin, async (req, res) => {
-    const admin = await isAdmin(req.session.studentId);
-    if (!admin) {
-        return res.status(403).json({ message: 'Only admins can create assignments.' });
+    const studentId = (req.user && req.user.studentId) || (req.session && req.session.studentId);
+    const context = await getAcademicContext(db, req);
+    if (!context || !context.authenticated) {
+        return res.status(401).json({ message: 'Authentication required.' });
+    }
+
+    const isStaff = context.role === 'admin' || context.role === 'teacher';
+    const isCR = context.role === 'cr';
+    if (!isStaff && !isCR) {
+        return res.status(403).json({ message: 'Only teachers and admins can create assignments.' });
+    }
+
+    let publishScope;
+    try {
+        publishScope = await resolvePublishScope(db, context, req.body, { isNotice: false });
+    } catch (scopeErr) {
+        return res.status(scopeErr.status || 400).json({ message: scopeErr.message });
     }
 
     const { title, subject, semester, deadline, questions } = req.body;
@@ -238,22 +258,26 @@ router.post('/assignments', requireLogin, async (req, res) => {
 
     const now = new Date().toISOString();
     const effectiveLanguage = finalQuestions[0].language || language || 'c';
+    const finalSemester = publishScope.semesterNo ? `Semester ${publishScope.semesterNo}` : (semester || null);
 
     // Atomically create assignment, questions and test cases in a database transaction
     try {
         const { assignmentId, questionIds } = await db.withTransaction(async (tx) => {
             const result = await tx.run(
-                'INSERT INTO assignments (title, description, language, subject, semester, deadline, pdfUrl, pdfName, createdBy, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                'INSERT INTO assignments (title, description, language, subject, semester, deadline, pdfUrl, pdfName, createdBy, createdAt, cohort_id, semester_no, audience_scope) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                 title,
                 finalQuestions[0].description ? finalQuestions[0].description.trim() : '',
                 effectiveLanguage,
                 subject || null,
-                semester || null,
+                finalSemester,
                 deadline || null,
                 pdfUrl || null,
                 pdfName || null,
-                req.session.studentId,
-                now
+                studentId,
+                now,
+                publishScope.cohortId || null,
+                publishScope.semesterNo || null,
+                publishScope.audienceScope || 'cohort'
             );
 
             const aId = result.lastInsertRowid;
@@ -303,14 +327,25 @@ router.post('/assignments', requireLogin, async (req, res) => {
     }
 });
 
-// ── GET /assignments — list with optional subject/semester filtering ─────────
+// ── GET /assignments — list with server-authoritative cohort filtering ─────────
 router.get('/assignments', async (req, res) => {
-    const { subject, semester } = req.query;
-    const currentStudentId = req.session && req.session.studentId ? req.session.studentId : null;
-    let sql, params = [];
+    const context = await getAcademicContext(db, req);
+    const currentStudentId = (context && context.studentId) || (req.session && req.session.studentId) || null;
+    const { subject, semester, cohortId, cohort_id } = req.query;
 
-    const ROMAN_MAP = { '1': 'I', '2': 'II', '3': 'III', '4': 'IV', '5': 'V', '6': 'VI', '7': 'VII', '8': 'VIII' };
-    const NUM_MAP = { 'I': '1', 'II': '2', 'III': '3', 'IV': '4', 'V': '5', 'VI': '6', 'VII': '7', 'VIII': '8' };
+    const filter = buildAcademicContentFilter(context, {
+        tableAlias: 'a',
+        requestedCohortId: cohortId || cohort_id,
+        requestedSemester: semester
+    });
+
+    const whereClauses = [filter.sql];
+    const whereParams = [...filter.params];
+
+    if (subject) {
+        whereClauses.push('a.subject = ?');
+        whereParams.push(subject);
+    }
 
     const mySubSql = currentStudentId
         ? `(SELECT COUNT(DISTINCT COALESCE(sub.questionId, sub.id)) FROM submissions sub WHERE sub.assignmentId = a.id AND sub.studentId = ?) AS mySubmissionCount`
@@ -323,41 +358,14 @@ router.get('/assignments', async (req, res) => {
         ${mySubSql}
     `;
 
-    if (subject && semester) {
-        const semAlt = ROMAN_MAP[String(semester)] || NUM_MAP[String(semester)] || semester;
-        sql = `
-            SELECT ${selectFields}
-            FROM assignments a
-            JOIN students s ON s.studentId = a.createdBy
-            WHERE a.subject = ? AND (a.semester = ? OR a.semester = ?)
-            ORDER BY a.createdAt DESC`;
-        params = currentStudentId ? [currentStudentId, subject, semester, semAlt] : [subject, semester, semAlt];
-    } else if (subject) {
-        sql = `
-            SELECT ${selectFields}
-            FROM assignments a
-            JOIN students s ON s.studentId = a.createdBy
-            WHERE a.subject = ?
-            ORDER BY a.createdAt DESC`;
-        params = currentStudentId ? [currentStudentId, subject] : [subject];
-    } else if (semester) {
-        const semAlt = ROMAN_MAP[String(semester)] || NUM_MAP[String(semester)] || semester;
-        sql = `
-            SELECT ${selectFields}
-            FROM assignments a
-            JOIN students s ON s.studentId = a.createdBy
-            WHERE (a.semester = ? OR a.semester = ?)
-            ORDER BY a.createdAt DESC`;
-        params = currentStudentId ? [currentStudentId, semester, semAlt] : [semester, semAlt];
-    } else {
-        sql = `
-            SELECT ${selectFields}
-            FROM assignments a
-            JOIN students s ON s.studentId = a.createdBy
-            ORDER BY a.createdAt DESC`;
-        params = currentStudentId ? [currentStudentId] : [];
-    }
+    const sql = `
+        SELECT ${selectFields}
+        FROM assignments a
+        LEFT JOIN students s ON s.studentId = a.createdBy
+        WHERE ${whereClauses.join(' AND ')}
+        ORDER BY a.createdAt DESC`;
 
+    const params = currentStudentId ? [currentStudentId, ...whereParams] : whereParams;
     const assignments = await db.all(sql, ...params);
     let adminUser = false;
     if (currentStudentId) {
@@ -459,11 +467,16 @@ router.get('/assignments/:id', async (req, res) => {
     const assignment = await db.get(
         `SELECT a.*, s.name AS teacherName, s.avatarUrl AS avatarUrl, s.avatarUrl AS teacherAvatar
          FROM assignments a
-         JOIN students s ON s.studentId = a.createdBy
+         LEFT JOIN students s ON s.studentId = a.createdBy
          WHERE a.id = ?`,
         assignmentId
     );
     if (!assignment) return res.status(404).json({ message: 'Assignment not found.' });
+
+    const context = await getAcademicContext(db, req);
+    if (!assertContentAccess(context, assignment)) {
+        return res.status(404).json({ message: 'Assignment not found.' });
+    }
 
     const questions = await db.all(
         `SELECT aq.*,
@@ -547,6 +560,12 @@ router.post('/questions/:questionId/submissions', requireLogin, async (req, res)
             return res.status(404).json({ message: 'Question not found.' });
         }
 
+        const assignment = await db.get('SELECT * FROM assignments WHERE id = ?', question.assignmentId);
+        const context = await getAcademicContext(db, req);
+        if (!assignment || !assertContentAccess(context, assignment)) {
+            return res.status(404).json({ message: 'Assignment not found.' });
+        }
+
         const now = new Date().toISOString();
         const safeTitle = (questionTitle && typeof questionTitle === 'string' && questionTitle.trim()) ? questionTitle.trim() : null;
 
@@ -592,6 +611,11 @@ router.post('/assignments/:id/student-questions', requireLogin, async (req, res)
 
         const assignment = await db.get('SELECT * FROM assignments WHERE id = ?', assignmentId);
         if (!assignment) {
+            return res.status(404).json({ message: 'Assignment not found.' });
+        }
+
+        const context = await getAcademicContext(db, req);
+        if (!assertContentAccess(context, assignment)) {
             return res.status(404).json({ message: 'Assignment not found.' });
         }
 
@@ -647,6 +671,16 @@ router.post('/submissions', requireLogin, async (req, res) => {
         const validAssignmentId = Number(assignmentId);
         if (!Number.isInteger(validAssignmentId) || validAssignmentId <= 0 || typeof code !== 'string' || !code.trim()) {
             return res.status(400).json({ message: 'Assignment ID and code are required.' });
+        }
+
+        const assignment = await db.get('SELECT * FROM assignments WHERE id = ?', validAssignmentId);
+        if (!assignment) {
+            return res.status(404).json({ message: 'Assignment not found.' });
+        }
+
+        const context = await getAcademicContext(db, req);
+        if (!assertContentAccess(context, assignment)) {
+            return res.status(404).json({ message: 'Assignment not found.' });
         }
 
         const now = new Date().toISOString();

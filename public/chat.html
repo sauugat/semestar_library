@@ -68,6 +68,21 @@
       </div>
     </header>
 
+    <!-- Archived Announcement Banner -->
+    <div id="archivedBanner" class="im-pinned-banner" style="display: none; background: #27272a; border-bottom: 1px solid #3f3f46;">
+      <div class="im-pinned-icon" aria-hidden="true" style="color: #e4e4e7;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="21 8 21 21 3 21 3 8"></polyline>
+          <rect x="1" y="3" width="22" height="5"></rect>
+          <line x1="10" y1="12" x2="14" y2="12"></line>
+        </svg>
+      </div>
+      <div class="im-pinned-content">
+        <div class="im-pinned-label" style="color: #e4e4e7;">COHORT GRADUATED</div>
+        <div class="im-pinned-text" style="color: #a1a1aa;">This cohort has graduated. Conversation is preserved in read-only mode.</div>
+      </div>
+    </div>
+
     <!-- Pinned Announcement Banner -->
     <div id="pinnedBanner" class="im-pinned-banner" style="display: none;">
       <div class="im-pinned-icon" aria-hidden="true">
@@ -580,8 +595,20 @@
           onInvalidate: clearRoomUI,
           onContext: (context, cache, changed) => {
             messageCache = cache;
-            document.querySelector('.im-contact-name').textContent = context.groupCode[0] + context.groupCode.slice(1).toLowerCase() + ' Group';
-            textarea.disabled = false;
+            const displayName = context.cohortDisplayName || (context.groupCode[0] + context.groupCode.slice(1).toLowerCase() + ' Group');
+            const semStatus = context.cohortStatus === 'graduated' ? 'Graduated' : ('Semester ' + context.currentSemester);
+            document.querySelector('.im-contact-name').textContent = displayName + ' • ' + semStatus;
+            const isArchived = context.cohortStatus === 'graduated' || context.roomStatus === 'closed' || (context.permissions && context.permissions.canPost === false);
+            textarea.disabled = isArchived;
+            document.getElementById('plusAttachmentBtn').disabled = isArchived;
+            document.getElementById('emojiToggleBtn').disabled = isArchived;
+            const archEl = document.getElementById('archivedBanner');
+            if (archEl) archEl.style.display = isArchived ? 'flex' : 'none';
+            if (isArchived) {
+              textarea.placeholder = 'This cohort has graduated. Conversation is read-only.';
+            } else {
+              textarea.placeholder = 'Message class group…';
+            }
             if (changed) { renderMessages(cache.get().slice(-40)); void loadMembers(); }
             handleInputState();
           },
@@ -602,6 +629,14 @@
           },
           onError: error => showError(error.message),
         });
+        // Same-tab Auth changes do not emit a storage event in this document.
+        // Stop immediately; a fresh page/account must validate before hydration.
+        void SemesterAuth.getSupabase().then(authClient => {
+          const subscription = authClient.auth.onAuthStateChange?.((event, session) => {
+            if (event === 'SIGNED_OUT' || (session?.user?.id && data.supabase_uid && session.user.id !== data.supabase_uid)) roomClient.stop();
+          });
+          window.addEventListener('pagehide', () => subscription?.data?.subscription?.unsubscribe(), {once:true});
+        }).catch(() => {});
         const charEl = document.getElementById('headerAvatarChar');
         if (charEl) charEl.textContent = (data.name || 'S').charAt(0).toUpperCase();
 
@@ -773,11 +808,12 @@
           }
         }
       } catch (err) {
+        if(!roomClient.current(generation))return;
         showError('Network error. Check connection.');
         document.getElementById(tempId)?.remove();
       } finally {
-        if(!roomClient.current(generation))return;
         row.querySelectorAll('img, video').forEach(media => URL.revokeObjectURL(media.src));
+        if(!roomClient.current(generation))return;
         isSending = false;
         textarea.disabled = false;
         document.getElementById('plusAttachmentBtn').disabled = false;
@@ -870,11 +906,13 @@
     // Initial Fetch
     async function fetchInitialMessages() {
       if (isFetching) return;
+      const generation=roomClient.generation();
       isFetching = true;
       try {
         // Explicit newest-page request also works with servers where since=0
         // still means the oldest page. PostgreSQL message IDs use signed 32-bit integers.
         const data = await fetchChatHistory('/api/chat/messages?before=2147483647&limit=40');
+        if(!roomClient.current(generation))return;
         const feed = document.getElementById('chatFeed');
         {
           const messages = Array.isArray(data) ? data : (data.messages || []);
@@ -912,10 +950,12 @@
           }
         }
       } catch (e) {
+        if(!roomClient.current(generation))return;
         console.error('Initial fetch error:', e);
         const loadingEl = document.getElementById('loadingNotice');
         if (loadingEl) loadingEl.innerHTML = '<h3>Could not load messages</h3><p>Check your connection and try again.</p><button class="state-action" onclick="fetchInitialMessages()">Try again</button>';
       } finally {
+        if(!roomClient.current(generation))return;
         isFetching = false;
         const feed = document.getElementById('chatFeed');
         if (feed) feed.style.visibility = 'visible';
@@ -926,11 +966,13 @@
     async function fetchNewMessages() {
       if (!initialMessagesPositioned) return fetchInitialMessages();
       if (isFetching) return;
+      const generation=roomClient.generation();
       isFetching = true;
       const cursor = lastMessageId;
       const knownIds = new Set([...document.querySelectorAll('.im-row[data-message-id]')].map(row => Number(row.dataset.messageId)));
       try {
         const data = await fetchChatHistory(`/api/chat/messages?since=${cursor}&recent=40`);
+        if(!roomClient.current(generation))return;
         const delta = Array.isArray(data) ? data : (data.messages || []);
         const recent = data.recentMessages;
         const isNear = isNearBottom();
@@ -968,18 +1010,20 @@
         void loadPinnedMessage();
       } catch (error) {
         console.warn('Chat sync interrupted; will retry.', error.message);
-      } finally { isFetching = false; }
+      } finally { if(roomClient.current(generation))isFetching = false; }
     }
 
     // Infinite scroll up to fetch older messages
     async function fetchOlderMessages() {
       if (isFetchingOlder || !hasMoreOlder || !oldestMessageId) return;
+      const generation=roomClient.generation();
       isFetchingOlder = true;
       const loader = document.getElementById('topLoadingIndicator');
       if (loader) loader.style.display = 'flex';
 
       try {
         const data = await fetchChatHistory(`/api/chat/messages?before=${oldestMessageId}&limit=30`);
+        if(!roomClient.current(generation))return;
         {
           const older = Array.isArray(data) ? data : (data.messages || []);
           if (older.length < 30) {
@@ -994,6 +1038,7 @@
             oldestMessageId = Math.min(...older.map(m => m.id), oldestMessageId);
 
             requestAnimationFrame(() => {
+              if(!roomClient.current(generation))return;
               feed.scrollTop = prevScrollTop + feed.scrollHeight - prevScrollHeight;
             });
           }
@@ -1001,6 +1046,7 @@
       } catch (err) {
         console.error('Fetch older messages error:', err);
       } finally {
+        if(!roomClient.current(generation))return;
         isFetchingOlder = false;
         if (loader) loader.style.display = 'none';
       }
@@ -1052,11 +1098,21 @@
 
     function clearRoomUI() {
       messageCache=null; pendingSend=null; mentionSelections.clear(); clearTimeout(mentionTimer);
+      isSending=false;
+      document.getElementById('plusAttachmentBtn').disabled=true;
+      document.getElementById('emojiToggleBtn').disabled=true;
+      document.getElementById('topLoadingIndicator').style.display='none';
+      closeDeleteConfirm();closeGroupInfo();
       document.getElementById('mentionCandidates')?.replaceChildren();
       document.querySelectorAll('#feedInner .im-row, #feedInner .im-date-stamp').forEach(row=>row.remove());
       lastMessageId=0;oldestMessageId=null;hasMoreOlder=true;isFetching=false;isFetchingOlder=false;
       initialMessagesPositioned=false;lastDateString=null;unreadCount=0;myLastReadId=0;readReceiptsMap={};pinnedMessage=null;allMembers=[];
       activeTypers.forEach(t=>clearTimeout(t.timer));activeTypers.clear();onlineMemberIds.clear();
+      document.querySelector('.im-contact-name').textContent='Class conversation';
+      document.getElementById('onlineCountText').textContent='0 online';
+      document.getElementById('memberCountText').textContent='0 members';
+      document.getElementById('modalOnlineCount').textContent='0 Online';
+      document.getElementById('modalTotalMembers').textContent='0 Members';
       cancelReply();removeAttachedFile();textarea.value='';textarea.disabled=true;sendBtn.disabled=true;
       closeChatSearch();closeLightbox();updateTypingUI();updateUnreadBadge();
       document.getElementById('pinnedBanner').style.display='none';
@@ -1194,7 +1250,11 @@
 
         // Left Avatar (Incoming Only)
         if (!isSelf) {
-          const avatarElem = document.createElement('div');
+          const avatarElem = document.createElement(sameNext ? 'div' : 'a');
+          if (!sameNext) {
+            avatarElem.href = 'profile.html?studentId=' + encodeURIComponent(msg.studentId);
+            avatarElem.setAttribute('aria-label', 'View ' + msg.name + ' profile');
+          }
           if (sameNext) {
             // Spacer to keep group bubbles aligned while avatar sits on bottom-most message
             avatarElem.className = 'im-msg-avatar spacer';
@@ -1982,32 +2042,31 @@
     }
 
     async function downloadCurrentMedia() {
-      if (!currentLightboxUrl) return;
+      if (!currentLightboxUrl || !roomClient?.context()) return;
+      const generation=roomClient.generation();
+      const mediaUrl=currentLightboxUrl, mediaFilename=currentLightboxFilename;
       const btnText = document.getElementById('saveBtnText');
       if (btnText) btnText.textContent = 'Saving...';
 
       try {
-        const res = await fetch(currentLightboxUrl);
+        const res = await fetch(mediaUrl, {cache:'no-store'});
         if (!res.ok) throw new Error('Download request failed');
         const blob = await res.blob();
+        if(!roomClient.current(generation))return;
         const blobUrl = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = blobUrl;
-        link.download = currentLightboxFilename || 'chat-image.jpg';
+        link.download = mediaFilename || 'chat-image.jpg';
         document.body.appendChild(link);
         link.click();
         link.remove();
         window.URL.revokeObjectURL(blobUrl);
         if (btnText) btnText.textContent = 'Saved!';
       } catch (err) {
-        const link = document.createElement('a');
-        link.href = currentLightboxUrl;
-        link.download = currentLightboxFilename || 'chat-image.jpg';
-        link.target = '_blank';
-        link.click();
-        if (btnText) btnText.textContent = 'Saved!';
+        if(!roomClient.current(generation))return;
+        showError('Unable to save attachment. Please try again.');
       } finally {
-        setTimeout(() => { if (btnText) btnText.textContent = 'Save'; }, 1800);
+        setTimeout(() => { if (roomClient.current(generation)&&btnText) btnText.textContent = 'Save'; }, 1800);
       }
     }
 

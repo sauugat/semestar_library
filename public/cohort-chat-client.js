@@ -6,14 +6,17 @@
     const transport=options.fetch, now=options.now||Date.now;
     let context=null, cache=null, generation=0, active=false, refreshing=null;
     let client=null, channel=null, topic='', expiry=0, timer=null, lastHeartbeat=0, lastRefresh=0;
-    let online=[];
+    let online=[], onlineTimer=null;
     const schedule=options.setTimeout||setTimeout, cancel=options.clearTimeout||clearTimeout;
     const current = stamp => stamp===generation && context!==null;
     function disconnect() { const old=client,c=channel; client=null; channel=null; topic=''; expiry=0; if(old&&c) void old.removeChannel(c); }
-    function invalidate() { generation++; context=null; cache=null; online=[]; lastHeartbeat=0; disconnect(); options.onInvalidate?.(); }
+    function invalidate() { generation++; context=null; cache=null; online=[]; cancel(onlineTimer); lastHeartbeat=0; disconnect(); options.onInvalidate?.(); }
     async function raw(path,init) {
       if(!local(options.server)) throw new Error('Cohort chat is available on the local test server only.');
-      return transport(path,{...init,cache:'no-store'});
+      const controller=new AbortController();
+      const timeout=setTimeout(()=>controller.abort(),init?.method==='POST'?120000:15000);
+      try{return await transport(path,{...init,signal:init?.signal||controller.signal,cache:'no-store'});}
+      finally{clearTimeout(timeout);}
     }
     async function fetchScoped(path,init={}) {
       if(!context) throw new Error(UNAVAILABLE);
@@ -45,7 +48,12 @@
       if(type==='online_snapshot') { online=event.members; emitOnline(); }
       options.onEvent?.(type,event); return true;
     }
-    function emitOnline(){online=online.filter(m=>Date.parse(m.expiresAt)>now());options.onOnline?.(online.map(m=>m.studentId));}
+    function emitOnline(){
+      cancel(onlineTimer);
+      online=online.filter(m=>Date.parse(m.expiresAt)>now());
+      options.onOnline?.([...new Set(online.map(m=>m.studentId))]);
+      if(active&&online.length)onlineTimer=schedule(emitOnline,Math.max(1,Math.min(...online.map(m=>Date.parse(m.expiresAt)))-now()));
+    }
     async function realtime(stamp) {
       const config=await (await fetchScoped('/api/chat/realtime-config')).json();
       if(!active||!current(stamp))return;

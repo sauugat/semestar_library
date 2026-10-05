@@ -39,6 +39,8 @@
   <script src="/auth.js"></script>
   <script>SemesterAuth.protectPage();</script>
   <script src="auth-modal.js"></script>
+  <script src="notifications.js"></script>
+  <script src="/academic-context.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
@@ -2144,14 +2146,20 @@
         <div class="skeleton-box" style="width: 110px; height: 14px; border-radius: 4px; display: block;"></div>
       </div>
       <div id="heroRealText" style="display: none;">
-        <p class="dash-greeting-line" id="greetingLine"></p>
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:4px;">
+          <p class="dash-greeting-line" id="greetingLine" style="margin:0;"></p>
+          <span class="academic-context-badge" id="dashAcademicBadge" style="display:none;"></span>
+        </div>
         <p class="dash-id" id="idLine"></p>
       </div>
     </div>
   </section>
 
   <div class="feed-heading">
-    <h2>Your Feed</h2>
+    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+      <h2 style="margin:0;">Your Feed</h2>
+      <span class="academic-context-badge" id="feedAcademicBadge" style="display:none;"></span>
+    </div>
     <span>Updated just now</span>
   </div>
 
@@ -2442,6 +2450,11 @@
 
         document.getElementById('greetingLine').textContent = `${getGreeting()}, ${data.name}`;
         document.getElementById('idLine').textContent = `Student ID: ${data.studentId}`;
+
+        if (window.AcademicContext) {
+          window.AcademicContext.renderBadge('#dashAcademicBadge');
+          window.AcademicContext.renderBadge('#feedAcademicBadge');
+        }
 
         // Populate top right header profile chip
         const headerAvatar = document.getElementById('headerAvatar');

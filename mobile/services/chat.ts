@@ -45,21 +45,25 @@ export interface SendMessageParams {
 export async function fetchChatConfig(): Promise<ChatConfig> {
   const start = getChatSession();
   assertLocalChatServer(start.server);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
   try {
-    const context = await api.get<ChatConfig>(`${start.server}/api/chat/config`, {headers: {Authorization: `Bearer ${start.credential || ''}`}});
+    const context = await api.get<ChatConfig>(`${start.server}/api/chat/config`, {signal: controller.signal, headers: {Authorization: `Bearer ${start.credential || ''}`}});
     if (!acceptChatContext(start, context)) throw new Error('Stale chat context');
     return context;
   } catch (error: any) {
     if (start.generation === getChatSession().generation && [401,403,404].includes(error.status)) invalidateChatSession();
     throw error;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
-export async function chatRequest<T>(path: string, method = 'GET', body?: any): Promise<T> {
+export async function chatRequest<T>(path: string, method = 'GET', body?: any, signal?: AbortSignal): Promise<T> {
   const start = captureChatSession();
   const url = `${path}${path.includes('?') ? '&' : '?'}chatGroupId=${encodeURIComponent(start.context.chatGroupId)}`;
   try {
-    const response = await apiFetch(`${start.server}${url}`, { method, headers: {Authorization: `Bearer ${start.credential || ''}`}, ...(body !== undefined ? { body: body instanceof FormData ? body : JSON.stringify(body) } : {}) });
+    const response = await apiFetch(`${start.server}${url}`, { method, signal, headers: {Authorization: `Bearer ${start.credential || ''}`}, ...(body !== undefined ? { body: body instanceof FormData ? body : JSON.stringify(body) } : {}) });
     assertCurrentChatSession(start);
     const result = await response.json();
     assertCurrentChatSession(start);
@@ -108,7 +112,7 @@ export async function fetchChatMessages(params?: {
     return await chatRequest<{
       messages: ChatMessage[];
       readReceipts: ChatReadReceipt[];
-    }>(`/api/chat/messages${queryString}`);
+    }>(`/api/chat/messages${queryString}`, 'GET', undefined, controller.signal);
   } finally {
     clearTimeout(timeout);
   }

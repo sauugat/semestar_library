@@ -376,6 +376,23 @@ export default function SettingsScreen() {
                 />
               )}
             </View>
+
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+            {/* Advanced Settings & Quiet Hours Link */}
+            <TouchableOpacity
+              style={styles.prefRow}
+              onPress={() => router.push('/notification-settings' as any)}
+              activeOpacity={0.7}
+            >
+              <View style={{ flex: 1, marginRight: 12 }}>
+                <Text variant="sm" weight="600">
+                  Advanced Delivery & Quiet Hours
+                </Text>
+                <Caption color="muted">Configure Push vs Inbox-only delivery and quiet hour schedules</Caption>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+            </TouchableOpacity>
           </>
         )}
       </Card>

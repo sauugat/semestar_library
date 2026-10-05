@@ -12,6 +12,8 @@
     "index:notes": "node scripts/reindex-notes.js",
     "migrate:routine": "node scripts/migrate-routine.js",
     "test:routine": "node --test tests/routine*.test.js",
+    "test:notifications": "NODE_ENV=test node --test --test-concurrency=1 tests/notification-center.test.js tests/notification-realtime-auth.test.js tests/push-api.test.js tests/push-events.test.js tests/mobile-notifications.test.js",
+    "test:cohorts": "NODE_ENV=test node --test tests/academic-cohorts.test.js",
     "test:group-chat": "node --test tests/group-chat-history.test.js tests/mobile-chat-state.test.js tests/chat-cache-regression.test.js",
     "test:group-chat:browser": "node tests/chat-cross-client.browser.cjs",
     "sync": "node scripts/auto-sync.js --once",

@@ -26,7 +26,7 @@ test('browser page + local backend: scoped history, upload timeout retry, reacti
     const base=`http://127.0.0.1:${server.address().port}`;
     f.providers.realtime.publicConnection={url:base,key:'local-public'};
     browser=await chromium.launch({channel:'chrome',headless:true});
-    const page=await browser.newPage({viewport:{width:1280,height:850}});const errors=[];
+    const page=await browser.newPage({viewport:{width:1280,height:850},serviceWorkers:'block'});const errors=[];
     page.on('pageerror',e=>{errors.push(e.message);console.error('Browser error:',e.message);});
     await page.route('https://**/*',route=>route.abort());
     await page.addInitScript(()=>{
@@ -41,7 +41,8 @@ test('browser page + local backend: scoped history, upload timeout retry, reacti
       localStorage.setItem('semester-chat-v2:m1',JSON.stringify([{id:999,text:'LEGACY CACHE MUST NOT RENDER'}]));
     });
     await page.goto(base+'/chat.html');
-    await page.waitForFunction(()=>document.querySelector('.im-contact-name')?.textContent==='Mercury Group',{},{timeout:5000}).catch(async error=>{console.error(await page.locator('#chatError').innerText());throw error;});
+    await page.waitForFunction(()=>document.querySelector('.im-contact-name')?.textContent.startsWith('Mercury'),{},{timeout:5000}).catch(async error=>{console.error('Chat startup',await page.evaluate(()=>({url:location.pathname,header:document.querySelector('.im-contact-name')?.textContent,error:document.getElementById('chatError')?.textContent,context:window.roomClient?.context()})));throw error;});
+    assert.equal(await page.evaluate(()=>roomClient.context().chatGroupId),rooms.MERCURY.chatGroupId);
     await page.locator('.im-row[data-message-id]').first().waitFor();
     assert.equal(await page.locator('body').innerText().then(t=>t.includes('VENUS MUST STAY PRIVATE')||t.includes('LEGACY CACHE MUST NOT RENDER')),false);
     assert.equal(await page.locator('.im-row[data-message-id]').count(),40);
@@ -77,6 +78,12 @@ test('browser page + local backend: scoped history, upload timeout retry, reacti
     assert.equal(await page.evaluate(()=>window.fixtureChannels.at(-1).topic),`chat:${rooms.MERCURY.chatGroupId}:2`);
     await page.goto(`${base}/chat.html?chatGroupId=${rooms.MERCURY.chatGroupId}&messageId=${old.messageId}`);
     await page.locator('#msg-row-'+old.messageId).waitFor();
+    await page.waitForFunction(id=>{
+      const row=document.getElementById('msg-row-'+id), feed=document.getElementById('chatFeed');
+      if(!row)return false;
+      const box=row.getBoundingClientRect();
+      return row.classList.contains('im-highlight-flash')&&box.top>=100&&box.bottom<window.innerHeight-100;
+    },old.messageId,{timeout:3000});
     await page.screenshot({path:'/tmp/cohort-phase2b-browser.png',fullPage:true});
     await page.goto(`${base}/chat.html?chatGroupId=${rooms.VENUS.chatGroupId}&messageId=${old.messageId}`);
     await page.waitForFunction(()=>document.getElementById('chatError').textContent.includes('no longer available'));

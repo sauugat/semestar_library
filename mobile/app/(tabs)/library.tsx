@@ -20,8 +20,8 @@ import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
-import { Chip } from '@/components/ui/Chip';
-import { getFiles, LibraryFile, getLibraryStats, LibraryStat } from '@/services/library';
+import { getFiles, getMyLibraryFiles, LibraryFile, getLibraryStats, LibraryStat } from '@/services/library';
+import { useAcademicContext } from '@/hooks/useAcademicContext';
 import { getBaseUrl } from '@/services/api';
 import { SearchOverlay } from '@/components/SearchOverlay';
 import { UploadNoteModal } from '@/components/UploadNoteModal';
@@ -131,6 +131,15 @@ export default function LibraryScreen() {
   const { colors, spacing, radii } = useTheme();
   const { user } = useAuth();
   const params = useLocalSearchParams<{ subject?: string; semester?: string; chapter?: string }>();
+  const {
+    cohort,
+    displayLabel,
+    isUnassigned,
+    isStaff,
+    semesterRoman,
+    currentSemesterNumber,
+    refetch: refetchAcademicContext,
+  } = useAcademicContext();
 
   const [baseUrl, setBaseUrl] = useState('');
   useEffect(() => {
@@ -147,7 +156,7 @@ export default function LibraryScreen() {
 
   const brandAvatarUri = user?.avatarUrl ? getFullImageUrl(user.avatarUrl) : null;
 
-  // Navigation state: Semester -> Subject -> Chapter -> Notes
+  // Navigation state: Subject -> Chapter -> Notes (semester selector is strictly staff-only)
   const queryClient = useQueryClient();
   const [selectedSemesterId, setSelectedSemesterId] = useState<string>('Semester II');
   const [selectedSubject, setSelectedSubject] = useState<SubjectItem | null>(null);
@@ -184,17 +193,23 @@ export default function LibraryScreen() {
     }, 2500);
   }, [toastOpacity]);
 
-  // Active semester object from static config
+  // Active semester object from static config.
+  // For students and CRs, this is derived strictly from their server-authoritative cohort currentSemester.
+  // For teachers/admins, it reflects their selected filter.
   const currentSemester: SemesterItem = useMemo(() => {
+    if (!isStaff && currentSemesterNumber) {
+      const match = SEMESTERS.find((s) => s.semester === String(currentSemesterNumber));
+      if (match) return match;
+    }
     return SEMESTERS.find((s) => s.id === selectedSemesterId) || SEMESTERS[1] || SEMESTERS[0];
-  }, [selectedSemesterId]);
+  }, [isStaff, currentSemesterNumber, selectedSemesterId]);
 
   // Handle incoming route params (e.g. from Home search)
   useEffect(() => {
     if (params.subject) {
       const match = findSubjectAcrossSemesters(params.subject);
       if (match) {
-        setSelectedSemesterId(match.semester.id);
+        if (isStaff) setSelectedSemesterId(match.semester.id);
         setSelectedSubject(match.subject);
         if (params.chapter) {
           const ch = match.subject.chapters.find(
@@ -203,7 +218,7 @@ export default function LibraryScreen() {
           if (ch) setSelectedChapter(ch);
         }
       }
-    } else if (params.semester) {
+    } else if (params.semester && isStaff) {
       const sem = SEMESTERS.find(
         (s) =>
           s.id.toLowerCase() === params.semester?.toLowerCase() ||
@@ -212,7 +227,7 @@ export default function LibraryScreen() {
       );
       if (sem) setSelectedSemesterId(sem.id);
     }
-  }, [params.subject, params.semester, params.chapter]);
+  }, [params.subject, params.semester, params.chapter, isStaff]);
 
   // React Query for Notes/Files when a specific chapter is open
   const isNotesLevel = selectedSubject !== null && selectedChapter !== null;
@@ -224,9 +239,15 @@ export default function LibraryScreen() {
     error: filesError,
     refetch: refetchFiles,
   } = useQuery<LibraryFile[]>({
-    queryKey: ['library', 'files', selectedSemesterId, selectedSubject?.title, selectedChapter?.id],
+    queryKey: ['library', 'files', isStaff ? selectedSemesterId : (cohort?.id || 'my-cohort'), selectedSubject?.title, selectedChapter?.id],
     queryFn: async () => {
       if (!selectedSubject) return [];
+      if (!isStaff) {
+        return await getMyLibraryFiles({
+          subject: selectedSubject.title,
+          chapter: chapterFilterParam,
+        });
+      }
       return await getFiles({
         semester: selectedSemesterId,
         subject: selectedSubject.title,
@@ -246,6 +267,7 @@ export default function LibraryScreen() {
 
   const handleRefresh = async () => {
     setRefreshing(true);
+    await refetchAcademicContext();
     await refetchStats();
     if (isNotesLevel) {
       await refetchFiles();
@@ -345,10 +367,33 @@ export default function LibraryScreen() {
         },
       ]}
     >
-      {/* Left: "Semester Library" Wordmark */}
-      <Text style={[styles.headerWordmark, { color: colors.text }]}>
-        Semester Library
-      </Text>
+      {/* Left: Wordmark & Academic Context Badge */}
+      <View style={{ flex: 1, marginRight: 12 }}>
+        <Text style={[styles.headerWordmark, { color: colors.text }]}>
+          Semester Library
+        </Text>
+        {Boolean(displayLabel) && (
+          <View
+            style={[
+              styles.academicBadge,
+              {
+                backgroundColor: colors.surfaceRaised,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.academicBadgeText,
+                { color: isUnassigned ? colors.textMuted : colors.textSecondary },
+              ]}
+              numberOfLines={1}
+            >
+              {isUnassigned ? 'Unassigned' : displayLabel}
+            </Text>
+          </View>
+        )}
+      </View>
 
       {/* Right: Search, Add Note (+), and Profile */}
       <View style={styles.headerRightActions}>
@@ -752,51 +797,79 @@ export default function LibraryScreen() {
       )}
 
       {/* ─────────────────────────────────────────────────────────────
-          LEVEL 1: SEMESTER & SUBJECTS VIEW (Default)
+          LEVEL 1: SUBJECTS VIEW (Directly for Students; Filtered for Staff)
           ───────────────────────────────────────────────────────────── */}
       {!selectedSubject && (
-        <ScrollView contentContainerStyle={[styles.container, { padding: spacing.md }]}>
-          {/* Semester Selector Tabs ("Semester 1", "Semester 2", ...) */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={{ marginHorizontal: -spacing.md, marginBottom: spacing.md }}
-            contentContainerStyle={[styles.semesterTabContainer, { paddingHorizontal: spacing.md }]}
-          >
-            {SEMESTERS.map((sem) => {
-              const isSelected = sem.id === selectedSemesterId;
-              return (
-                <TouchableOpacity
-                  key={sem.id}
-                  activeOpacity={0.7}
-                  onPress={() => handleSelectSemester(sem.id)}
-                  style={[
-                    styles.semesterPill,
-                    {
-                      backgroundColor: isSelected ? colors.primary : colors.surfaceRaised,
-                      borderColor: isSelected ? colors.primary : colors.border,
-                      borderRadius: radii.full,
-                      paddingHorizontal: spacing.md,
-                      paddingVertical: spacing.xs + 3,
-                      marginRight: spacing.xs + 4,
-                    },
-                  ]}
-                >
-                  <Text
-                    variant="sm"
-                    weight="700"
-                    style={{ color: isSelected ? colors.primaryText : colors.text }}
+        <ScrollView
+          contentContainerStyle={[styles.container, { padding: spacing.md }]}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+            />
+          }
+        >
+          {/* Unassigned Student State */}
+          {isUnassigned && (
+            <Card variant="elevated" padding="lg" style={[styles.centerCard, { marginBottom: spacing.md }]}>
+              <Ionicons name="school-outline" size={40} color={colors.textSecondary} style={{ marginBottom: spacing.sm }} />
+              <Heading style={{ marginBottom: spacing.xs, textAlign: 'center' }}>Class Not Assigned</Heading>
+              <Text variant="sm" color="secondary" style={{ textAlign: 'center' }}>
+                Your class has not been assigned yet. Course materials for your cohort will appear once assigned by faculty.
+              </Text>
+            </Card>
+          )}
+
+          {/* Teacher/Admin Semester & Cohort Filter Tabs (Only rendered for staff) */}
+          {isStaff && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ marginHorizontal: -spacing.md, marginBottom: spacing.md }}
+              contentContainerStyle={[styles.semesterTabContainer, { paddingHorizontal: spacing.md }]}
+            >
+              {SEMESTERS.map((sem) => {
+                const isSelected = sem.id === selectedSemesterId;
+                return (
+                  <TouchableOpacity
+                    key={sem.id}
+                    activeOpacity={0.7}
+                    onPress={() => handleSelectSemester(sem.id)}
+                    style={[
+                      styles.semesterPill,
+                      {
+                        backgroundColor: isSelected ? colors.primary : colors.surfaceRaised,
+                        borderColor: isSelected ? colors.primary : colors.border,
+                        borderRadius: radii.full,
+                        paddingHorizontal: spacing.md,
+                        paddingVertical: spacing.xs + 3,
+                        marginRight: spacing.xs + 4,
+                      },
+                    ]}
                   >
-                    {sem.shortLabel}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+                    <Text
+                      variant="sm"
+                      weight="700"
+                      style={{ color: isSelected ? colors.primaryText : colors.text }}
+                    >
+                      {sem.shortLabel}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          )}
 
           {/* Section Header */}
           <View style={[styles.sectionRow, { marginBottom: spacing.sm }]}>
-            <Subheading>Subjects & Curriculum</Subheading>
+            <View>
+              <Subheading>Subjects & Curriculum</Subheading>
+              {Boolean(displayLabel) && (
+                <Caption color="muted">{displayLabel}</Caption>
+              )}
+            </View>
             <Caption color="muted">{subjects.length} Available</Caption>
           </View>
 
@@ -877,7 +950,7 @@ export default function LibraryScreen() {
       <UploadNoteModal
         visible={uploadModalOpen}
         onClose={() => setUploadModalOpen(false)}
-        initialSemesterId={selectedSemesterId}
+        initialSemesterId={isStaff ? selectedSemesterId : (semesterRoman || currentSemester.id)}
         initialSubjectTitle={selectedSubject?.title}
         initialChapterTitle={selectedChapter?.title}
         onSuccess={(msg) => {
@@ -925,6 +998,19 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '800',
     letterSpacing: -0.4,
+  },
+  academicBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+    borderWidth: 1,
+    marginTop: 3,
+    alignSelf: 'flex-start',
+  },
+  academicBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: -0.1,
   },
   headerRightActions: {
     flexDirection: 'row',

@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Notifications — Semester Library</title>
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.v4.css">
+  <link rel="stylesheet" href="theme-overrides.css">
+  <style>
+    :root {
+      --nc-max-width: 680px;
+    }
+    body.dash {
+      min-height: 100vh;
+      background: var(--bg-base, #0a0a0a);
+      color: var(--text-primary, #f5f5f5);
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    .nc-page {
+      max-width: var(--nc-max-width);
+      margin: 0 auto;
+      padding: 24px 16px 80px;
+    }
+    .nc-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      gap: 12px;
+    }
+    .nc-title-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .nc-title {
+      font-size: 1.65rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin: 0;
+      color: var(--text-primary, #f5f5f5);
+    }
+    .nc-badge-pill {
+      font-size: 0.75rem;
+      font-weight: 700;
+      background: var(--text-primary, #f5f5f5);
+      color: var(--bg-base, #0a0a0a);
+      padding: 2px 8px;
+      border-radius: 999px;
+      line-height: 1.4;
+      display: none;
+    }
+    .nc-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .nc-btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: transparent;
+      border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+      color: var(--text-secondary, #b5b5b5);
+      font-size: 0.82rem;
+      font-weight: 600;
+      padding: 7px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-family: inherit;
+    }
+    .nc-btn-secondary:hover {
+      background: var(--bg-surface-raised, #242424);
+      color: var(--text-primary, #f5f5f5);
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+    .nc-icon-btn {
+      width: 36px;
+      height: 36px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      background: transparent;
+      border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+      color: var(--text-secondary, #b5b5b5);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .nc-icon-btn:hover {
+      background: var(--bg-surface-raised, #242424);
+      color: var(--text-primary, #f5f5f5);
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+    /* Tabs */
+    .nc-tabs {
+      display: flex;
+      gap: 6px;
+      padding: 4px;
+      background: var(--bg-surface, #171717);
+      border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+      border-radius: 10px;
+      margin-bottom: 24px;
+    }
+    .nc-tab {
+      flex: 1;
+      text-align: center;
+      padding: 8px 12px;
+      font-size: 0.84rem;
+      font-weight: 600;
+      border-radius: 7px;
+      color: var(--text-secondary, #b5b5b5);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-family: inherit;
+    }
+    .nc-tab.active {
+      background: var(--bg-surface-raised, #262626);
+      color: var(--text-primary, #f5f5f5);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    }
+    /* Section Headers */
+    .nc-section-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-muted, #737373);
+      margin: 20px 0 10px;
+      padding-left: 4px;
+    }
+    .nc-section-title:first-of-type {
+      margin-top: 0;
+    }
+    /* Notification Row */
+    .nc-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .nc-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: var(--bg-surface, #171717);
+      border: 1px solid transparent;
+      text-decoration: none;
+      color: inherit;
+      position: relative;
+      transition: all 0.15s ease;
+      cursor: pointer;
+    }
+    .nc-item:hover {
+      background: var(--bg-surface-raised, #212121);
+      border-color: var(--border, rgba(255, 255, 255, 0.08));
+    }
+    .nc-item.unread {
+      background: #1a1a1a;
+      border-color: rgba(255, 255, 255, 0.12);
+    }
+    .nc-item.unread .nc-unread-indicator {
+      display: block;
+    }
+    .nc-unread-indicator {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: #3b82f6;
+      position: absolute;
+      top: 18px;
+      left: 6px;
+      display: none;
+    }
+    /* Avatar wrapper */
+    .nc-avatar-wrapper {
+      position: relative;
+      width: 40px;
+      height: 40px;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .nc-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #2a2a2a;
+      color: var(--text-primary, #f5f5f5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.95rem;
+      font-weight: 700;
+      overflow: hidden;
+      border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+    }
+    .nc-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .nc-avatar-badge {
+      position: absolute;
+      bottom: -2px;
+      right: -2px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--bg-surface-raised, #242424);
+      border: 2px solid var(--bg-surface, #171717);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-primary, #f5f5f5);
+    }
+    .nc-content {
+      flex: 1;
+      min-width: 0;
+    }
+    .nc-item-title {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--text-primary, #f5f5f5);
+      line-height: 1.35;
+      margin-bottom: 3px;
+    }
+    .nc-item-body {
+      font-size: 0.82rem;
+      color: var(--text-secondary, #b5b5b5);
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      word-break: break-word;
+    }
+    .nc-item-time {
+      font-size: 0.74rem;
+      color: var(--text-muted, #737373);
+      margin-top: 4px;
+    }
+    /* Overflow Menu Button */
+    .nc-menu-btn {
+      width: 28px;
+      height: 28px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      border: none;
+      color: var(--text-muted, #737373);
+      border-radius: 6px;
+      cursor: pointer;
+      padding: 0;
+      flex-shrink: 0;
+      opacity: 0.6;
+      transition: all 0.15s ease;
+    }
+    .nc-item:hover .nc-menu-btn {
+      opacity: 1;
+    }
+    .nc-menu-btn:hover {
+      background: var(--bg-surface-raised, #2a2a2a);
+      color: var(--text-primary, #f5f5f5);
+    }
+    /* Empty & Loading States */
+    .nc-empty {
+      text-align: center;
+      padding: 56px 20px;
+      color: var(--text-secondary, #b5b5b5);
+    }
+    .nc-empty-icon {
+      margin-bottom: 12px;
+      color: var(--text-muted, #737373);
+    }
+    .nc-empty-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-primary, #f5f5f5);
+      margin-bottom: 4px;
+    }
+    .nc-empty-sub {
+      font-size: 0.84rem;
+      color: var(--text-muted, #86868b);
+    }
+    /* Modal */
+    .nc-modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 16px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+    .nc-modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .nc-modal {
+      width: 100%;
+      max-width: 520px;
+      background: #171717;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 16px;
+      padding: 24px;
+      max-height: 85vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+    }
+    .nc-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .nc-modal-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin: 0;
+      color: var(--text-primary, #f5f5f5);
+    }
+    .nc-setting-group {
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .nc-setting-group:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+      margin-bottom: 0;
+    }
+    .nc-setting-title {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--text-primary, #f5f5f5);
+      margin-bottom: 4px;
+    }
+    .nc-setting-desc {
+      font-size: 0.78rem;
+      color: var(--text-muted, #86868b);
+      margin-bottom: 10px;
+    }
+    .nc-mode-select {
+      width: 100%;
+      background: #202020;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: var(--text-primary, #f5f5f5);
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 0.84rem;
+      font-family: inherit;
+    }
+    .nc-time-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 8px;
+    }
+    .nc-time-input {
+      background: #202020;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: var(--text-primary, #f5f5f5);
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 0.82rem;
+    }
+  </style>
+</head>
+<body class="dash">
+  <!-- Minimalist Top Navigation -->
+  <header class="dash-header" style="max-width: var(--nc-max-width); margin: 0 auto; padding: 16px;">
+    <a href="dashboard.html" class="dash-wordmark" style="text-decoration: none; color: inherit; font-size: 1.1rem; font-weight: 800; letter-spacing: -0.02em;">Semester Library</a>
+    <div class="dash-header-actions">
+      <a href="dashboard.html" class="nc-btn-secondary" style="text-decoration: none;">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        <span>Feed</span>
+      </a>
+      <a href="profile.html" class="dash-profile-chip" title="View Profile">
+        <div class="dash-profile-avatar" id="headerAvatar">·</div>
+        <span class="dash-profile-label" id="headerProfileName">Profile</span>
+      </a>
+    </div>
+  </header>
+
+  <main class="nc-page">
+    <div class="nc-header">
+      <div class="nc-title-row">
+        <h1 class="nc-title">Notifications</h1>
+        <span class="nc-badge-pill" id="ncUnseenPill">0</span>
+      </div>
+      <div class="nc-header-actions">
+        <button type="button" class="nc-btn-secondary" id="ncMarkAllReadBtn">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6L9 17l-5-5"/></svg>
+          <span>Mark all read</span>
+        </button>
+        <button type="button" class="nc-icon-btn" id="ncOpenSettingsBtn" title="Notification Settings">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Tabs: All / Unread / Mentions -->
+    <div class="nc-tabs" role="tablist">
+      <button class="nc-tab active" data-tab="all" role="tab" aria-selected="true">All</button>
+      <button class="nc-tab" data-tab="unread" role="tab" aria-selected="false">Unread</button>
+      <button class="nc-tab" data-tab="mentions" role="tab" aria-selected="false">Mentions</button>
+    </div>
+
+    <!-- Notification List Container -->
+    <div id="ncListContainer">
+      <div class="nc-empty" id="ncLoading">
+        <div class="nc-empty-sub">Loading notifications…</div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Notification Settings Modal -->
+  <div class="nc-modal-overlay" id="ncSettingsModal">
+    <div class="nc-modal">
+      <div class="nc-modal-header">
+        <h2 class="nc-modal-title">Notification Settings</h2>
+        <button type="button" class="nc-icon-btn" id="ncCloseSettingsBtn" style="border: none;">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="nc-setting-group">
+        <div class="nc-setting-title">Chat & Mentions</div>
+        <div class="nc-setting-desc">Class group messages and direct @mentions</div>
+        <select class="nc-mode-select" id="prefMessages">
+          <option value="push_inbox">Push + Inbox (Recommended)</option>
+          <option value="inbox_only">Inbox only (No push notifications)</option>
+          <option value="off">Off</option>
+        </select>
+      </div>
+
+      <div class="nc-setting-group">
+        <div class="nc-setting-title">Social Activity</div>
+        <div class="nc-setting-desc">Comments, replies, and reactions on your posts</div>
+        <select class="nc-mode-select" id="prefActivity">
+          <option value="push_inbox">Push + Inbox</option>
+          <option value="inbox_only">Inbox only</option>
+          <option value="off">Off</option>
+        </select>
+      </div>
+
+      <div class="nc-setting-group">
+        <div class="nc-setting-title">Academic & Notices</div>
+        <div class="nc-setting-desc">Official college notices, exam routines, and study notes</div>
+        <select class="nc-mode-select" id="prefAcademic">
+          <option value="push_inbox">Push + Inbox</option>
+          <option value="inbox_only">Inbox only</option>
+          <option value="off">Off</option>
+        </select>
+      </div>
+
+      <div class="nc-setting-group">
+        <div class="nc-setting-title">Quiet Hours</div>
+        <div class="nc-setting-desc">Mute push notifications during sleep or study hours (Inbox remains updated)</div>
+        <label style="display: flex; align-items: center; gap: 8px; font-size: 0.84rem; cursor: pointer; color: var(--text-primary);">
+          <input type="checkbox" id="prefQuietEnabled">
+          <span>Enable Quiet Hours</span>
+        </label>
+        <div class="nc-time-row" id="quietTimeRow" style="display: none; margin-top: 10px;">
+          <span style="font-size: 0.78rem; color: var(--text-muted);">From</span>
+          <input type="time" class="nc-time-input" id="prefQuietStart" value="22:30">
+          <span style="font-size: 0.78rem; color: var(--text-muted);">to</span>
+          <input type="time" class="nc-time-input" id="prefQuietEnd" value="07:00">
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px;">
+        <button type="button" class="nc-btn-secondary" id="ncCancelSettingsBtn">Cancel</button>
+        <button type="button" class="nc-btn-secondary" id="ncSaveSettingsBtn" style="background: var(--text-primary); color: var(--bg-base); border-color: var(--text-primary);">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="auth.js"></script>
+  <script>
+    (function() {
+      let currentTab = 'all';
+      let notifications = [];
+      let unseenCount = 0;
+      let nextCursor = null;
+
+      const container = document.getElementById('ncListContainer');
+      const unseenPill = document.getElementById('ncUnseenPill');
+      const tabs = document.querySelectorAll('.nc-tab');
+
+      // Helper: Format relative time
+      function formatRelativeTime(dateStr) {
+        if (!dateStr) return '';
+        const date = new Date(dateStr);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffSecs = Math.floor(diffMs / 1000);
+        const diffMins = Math.floor(diffSecs / 60);
+        const diffHours = Math.floor(diffMins / 60);
+        const diffDays = Math.floor(diffHours / 24);
+
+        if (diffMins < 1) return 'Just now';
+        if (diffMins < 60) return `${diffMins}m`;
+        if (diffHours < 24) return `${diffHours}h`;
+        if (diffDays === 1) return 'Yesterday';
+        if (diffDays < 7) return `${diffDays}d`;
+        return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+      }
+
+      // Helper: Classify date bucket
+      function getDateBucket(dateStr) {
+        if (!dateStr) return 'EARLIER';
+        const date = new Date(dateStr);
+        const now = new Date();
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        const yesterdayStart = todayStart - 86400000;
+        const itemTime = date.getTime();
+
+        if (itemTime >= todayStart) return 'TODAY';
+        if (itemTime >= yesterdayStart) return 'YESTERDAY';
+        return 'EARLIER';
+      }
+
+      // Fetch notifications
+      async function loadNotifications(tab = 'all', cursor = null) {
+        currentTab = tab;
+        try {
+          const url = `/api/notifications?tab=${tab}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`;
+          const res = await fetch(url);
+          if (!res.ok) throw new Error('Failed to load notifications');
+          const data = await res.json();
+
+          notifications = cursor ? [...notifications, ...data.items] : data.items;
+          unseenCount = data.unseenCount || 0;
+          nextCursor = data.nextCursor;
+
+          updateBadgeUI();
+          renderList();
+
+          // Mark unseen notifications as seen when user visits the center
+          if (unseenCount > 0) {
+            fetch('/api/notifications/seen', { method: 'POST' }).then(() => {
+              unseenCount = 0;
+              updateBadgeUI();
+            }).catch(() => {});
+          }
+        } catch (err) {
+          container.innerHTML = `
+            <div class="nc-empty">
+              <div class="nc-empty-title">Could not load notifications</div>
+              <div class="nc-empty-sub">${err.message || 'Please check your connection and try again.'}</div>
+            </div>
+          `;
+        }
+      }
+
+      function updateBadgeUI() {
+        if (unseenCount > 0) {
+          unseenPill.textContent = unseenCount > 99 ? '99+' : unseenCount;
+          unseenPill.style.display = 'inline-block';
+        } else {
+          unseenPill.style.display = 'none';
+        }
+      }
+
+      // Render Notification List grouped by date
+      function renderList() {
+        if (!notifications || notifications.length === 0) {
+          const emptyText = currentTab === 'unread'
+            ? 'No unread notifications.'
+            : currentTab === 'mentions'
+              ? 'No mentions yet.'
+              : "You're all caught up.";
+          container.innerHTML = `
+            <div class="nc-empty">
+              <div class="nc-empty-icon">
+                <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+              </div>
+              <div class="nc-empty-title">${emptyText}</div>
+              <div class="nc-empty-sub">Activity and updates will appear here.</div>
+            </div>
+          `;
+          return;
+        }
+
+        // Group items
+        const buckets = { TODAY: [], YESTERDAY: [], EARLIER: [] };
+        notifications.forEach((item) => {
+          const bucket = getDateBucket(item.createdAt);
+          buckets[bucket].push(item);
+        });
+
+        let html = '';
+        ['TODAY', 'YESTERDAY', 'EARLIER'].forEach((groupName) => {
+          const items = buckets[groupName];
+          if (items.length === 0) return;
+
+          html += `<div class="nc-section-title">${groupName}</div><div class="nc-list">`;
+          items.forEach((item) => {
+            const isUnread = !item.isRead;
+            const actor = item.actor;
+            const actorInitial = actor?.name ? actor.name.charAt(0).toUpperCase() : 'S';
+            const actorAvatarHtml = actor?.avatarUrl
+              ? `<img src="${actor.avatarUrl}" alt="${actor.name}" />`
+              : `<span>${actorInitial}</span>`;
+
+            // Badge Icon
+            let badgeIcon = 'bell';
+            if (item.type.includes('reaction')) badgeIcon = 'heart';
+            else if (item.type.includes('comment') || item.type.includes('reply')) badgeIcon = 'message';
+            else if (item.type === 'official_notice' || item.type === 'notice') badgeIcon = 'alert';
+            else if (item.type.includes('material')) badgeIcon = 'file';
+            else if (item.type.includes('routine')) badgeIcon = 'calendar';
+
+            html += `
+              <div class="nc-item ${isUnread ? 'unread' : ''}" data-id="${item.id}" data-link="${item.webPath || 'dashboard.html'}">
+                <div class="nc-unread-indicator"></div>
+                <div class="nc-avatar-wrapper">
+                  <div class="nc-avatar">${actorAvatarHtml}</div>
+                </div>
+                <div class="nc-content">
+                  <div class="nc-item-title">${escapeHtml(item.title)}</div>
+                  <div class="nc-item-body">${escapeHtml(item.body)}</div>
+                  <div class="nc-item-time">${formatRelativeTime(item.createdAt)}</div>
+                </div>
+                <button type="button" class="nc-menu-btn" title="Actions" data-id="${item.id}" data-read="${item.isRead ? 'true' : 'false'}">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="12" cy="5" r="2"></circle><circle cx="12" cy="12" r="2"></circle><circle cx="12" cy="19" r="2"></circle></svg>
+                </button>
+              </div>
+            `;
+          });
+          html += '</div>';
+        });
+
+        container.innerHTML = html;
+
+        // Wire item clicks
+        container.querySelectorAll('.nc-item').forEach((row) => {
+          row.addEventListener('click', async (e) => {
+            if (e.target.closest('.nc-menu-btn')) return;
+            const id = row.getAttribute('data-id');
+            const link = row.getAttribute('data-link');
+            try {
+              await fetch(`/api/notifications/${id}/read`, { method: 'POST' });
+            } catch {}
+            if (link) window.location.href = link;
+          });
+        });
+
+        // Wire menu clicks
+        container.querySelectorAll('.nc-menu-btn').forEach((btn) => {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const id = btn.getAttribute('data-id');
+            const isRead = btn.getAttribute('data-read') === 'true';
+            showActionSheet(id, isRead);
+          });
+        });
+      }
+
+      function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      }
+
+      function showActionSheet(id, isRead) {
+        const action = confirm(isRead ? 'Mark notification as unread?' : 'Mark notification as read?');
+        if (action) {
+          const endpoint = isRead ? `/api/notifications/${id}/unread` : `/api/notifications/${id}/read`;
+          fetch(endpoint, { method: 'POST' }).then(() => {
+            loadNotifications(currentTab);
+          });
+        }
+      }
+
+      // Tabs click
+      tabs.forEach((tabBtn) => {
+        tabBtn.addEventListener('click', () => {
+          tabs.forEach((t) => {
+            t.classList.remove('active');
+            t.setAttribute('aria-selected', 'false');
+          });
+          tabBtn.classList.add('active');
+          tabBtn.setAttribute('aria-selected', 'true');
+          loadNotifications(tabBtn.getAttribute('data-tab'));
+        });
+      });
+
+      // Mark All Read
+      document.getElementById('ncMarkAllReadBtn').addEventListener('click', async () => {
+        try {
+          await fetch('/api/notifications/read-all', { method: 'POST' });
+          loadNotifications(currentTab);
+        } catch {}
+      });
+
+      // Settings Modal
+      const modal = document.getElementById('ncSettingsModal');
+      const openSettingsBtn = document.getElementById('ncOpenSettingsBtn');
+      const closeSettingsBtn = document.getElementById('ncCloseSettingsBtn');
+      const cancelSettingsBtn = document.getElementById('ncCancelSettingsBtn');
+      const saveSettingsBtn = document.getElementById('ncSaveSettingsBtn');
+      const quietCheck = document.getElementById('prefQuietEnabled');
+      const quietTimeRow = document.getElementById('quietTimeRow');
+
+      quietCheck.addEventListener('change', () => {
+        quietTimeRow.style.display = quietCheck.checked ? 'flex' : 'none';
+      });
+
+      openSettingsBtn.addEventListener('click', async () => {
+        modal.classList.add('active');
+        try {
+          const res = await fetch('/api/notifications/preferences');
+          if (res.ok) {
+            const data = await res.json();
+            const p = data.preferences || {};
+            document.getElementById('prefMessages').value = p.deliveryMessages || 'push_inbox';
+            document.getElementById('prefActivity').value = p.deliveryActivity || 'push_inbox';
+            document.getElementById('prefAcademic').value = p.deliveryAcademic || 'push_inbox';
+            quietCheck.checked = Boolean(p.quietHoursEnabled);
+            quietTimeRow.style.display = quietCheck.checked ? 'flex' : 'none';
+            if (p.quietHoursStart) document.getElementById('prefQuietStart').value = p.quietHoursStart;
+            if (p.quietHoursEnd) document.getElementById('prefQuietEnd').value = p.quietHoursEnd;
+          }
+        } catch {}
+      });
+
+      const closeModal = () => modal.classList.remove('active');
+      closeSettingsBtn.addEventListener('click', closeModal);
+      cancelSettingsBtn.addEventListener('click', closeModal);
+
+      saveSettingsBtn.addEventListener('click', async () => {
+        const body = {
+          deliveryMessages: document.getElementById('prefMessages').value,
+          deliveryActivity: document.getElementById('prefActivity').value,
+          deliveryAcademic: document.getElementById('prefAcademic').value,
+          quietHoursEnabled: quietCheck.checked,
+          quietHoursStart: document.getElementById('prefQuietStart').value,
+          quietHoursEnd: document.getElementById('prefQuietEnd').value,
+        };
+        try {
+          await fetch('/api/notifications/preferences', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          });
+          closeModal();
+        } catch {}
+      });
+
+      // Realtime Server-Sent Events listener
+      try {
+        const sse = new EventSource('/api/notifications/realtime');
+        sse.onmessage = (e) => {
+          try {
+            const event = JSON.parse(e.data);
+            if (event.type === 'notification' || event.type === 'badge_update') {
+              loadNotifications(currentTab);
+            }
+          } catch {}
+        };
+      } catch {}
+
+      // Initial load
+      loadNotifications('all');
+    })();
+  </script>
+</body>
+</html>

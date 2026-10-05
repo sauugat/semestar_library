@@ -109,7 +109,7 @@ export function resolvePendingMessage(id: number, message: ChatMessage) {
   if (message.chatGroupId !== getChatSession().context?.chatGroupId) return Promise.resolve();
   return mutate(previous =>
     mergeChatMessages(
-      previous.filter(m => m.id !== id && (!message.clientId || m.clientId !== message.clientId)),
+      previous.filter(m => m.id !== id && (!message.clientId || m.clientId !== message.clientId || m.studentId !== message.studentId)),
       [{ ...message, status: 'sent' }]
     )
   );

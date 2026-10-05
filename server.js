@@ -715,7 +715,10 @@ const {
   getAcademicContext,
   buildAcademicContentFilter,
   resolvePublishScope,
-  assertContentAccess
+  assertContentAccess,
+  resolveActiveCohortForSemester,
+  logCohortAudit,
+  parseSemesterNumber
 } = require('./lib/academic-context');
 app.get('/api/academic-context', requireLogin, async (req, res) => {
   try {
@@ -979,6 +982,30 @@ app.post('/api/auth/register', loginRateLimiter, async (req, res) => {
   if (!validSemesters.includes(cleanSem)) {
     return res.status(400).json({ message: 'Please select a valid semester (Semester 1 through 8).' });
   }
+  const semNum = parseSemesterNumber(cleanSem);
+  if (!semNum) {
+    return res.status(400).json({ message: 'Please select a valid semester (Semester 1 through 8).' });
+  }
+
+  // Authoritative cohort resolution (client-provided cohort_id is strictly ignored)
+  const cohortResolution = await resolveActiveCohortForSemester(db, semNum);
+  if (cohortResolution.status === 'NO_MATCH') {
+    return res.status(400).json({
+      message: `No active academic cohort currently matches Semester ${semNum}. Please check your semester selection or contact administration.`
+    });
+  }
+  if (cohortResolution.status === 'AMBIGUOUS') {
+    return res.status(409).json({
+      message: `Multiple active academic cohorts found for Semester ${semNum}. Administrative cohort assignment required.`
+    });
+  }
+  if (!cohortResolution.cohort || !cohortResolution.cohort.id) {
+    return res.status(400).json({ message: 'Unable to resolve academic cohort for selected semester.' });
+  }
+
+  const assignedCohort = cohortResolution.cohort;
+  const assignedCohortId = assignedCohort.id;
+
   if (cleanGender && !['male', 'female', 'other', 'prefer_not_to_say'].includes(cleanGender)) {
     return res.status(400).json({ message: 'Invalid gender selection.' });
   }
@@ -1046,22 +1073,35 @@ app.post('/api/auth/register', loginRateLimiter, async (req, res) => {
         `INSERT INTO students (
           studentId, username, name, email, supabase_uid,
           department, semester, gender, role, verification_status,
-          passwordHash, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'student', 'unverified', 'supabase_auth', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+          passwordHash, cohort_id, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'student', 'unverified', 'supabase_auth', $9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
         cleanStudentId, cleanUsername, cleanName, cleanEmail, supabaseUid,
-        cleanDept, cleanSem, cleanGender
+        cleanDept, cleanSem, cleanGender, assignedCohortId
       );
     } else {
       await db.run(
         `INSERT INTO students (
           studentId, username, name, email, supabase_uid,
           department, semester, gender, role, verification_status,
-          passwordHash, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'student', 'unverified', 'supabase_auth', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+          passwordHash, cohort_id, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'student', 'unverified', 'supabase_auth', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
         cleanStudentId, cleanUsername, cleanName, cleanEmail, supabaseUid,
-        cleanDept, cleanSem, cleanGender
+        cleanDept, cleanSem, cleanGender, assignedCohortId
       );
     }
+
+    await logCohortAudit(db, {
+      action: 'signup_auto_assign',
+      cohortId: assignedCohortId,
+      actorId: cleanStudentId,
+      details: {
+        semester: cleanSem,
+        semesterNo: semNum,
+        slotCode: assignedCohort.slotCode,
+        displayName: assignedCohort.displayName,
+        currentSemester: assignedCohort.currentSemester
+      }
+    });
   } catch (dbInsertErr) {
     console.error('[Registration DB Insert Error]:', dbInsertErr.message);
     // Rollback orphaned Supabase Auth user if DB insertion failed
@@ -1076,7 +1116,18 @@ app.post('/api/auth/register', loginRateLimiter, async (req, res) => {
 
   return res.status(201).json({
     success: true,
-    message: 'Account created! A confirmation email has been sent. Please verify your email before logging in.'
+    message: 'Account created! A confirmation email has been sent. Please verify your email before logging in.',
+    cohortId: assignedCohortId,
+    academicContext: {
+      role: 'student',
+      academicStatus: 'active',
+      cohort: {
+        id: assignedCohort.id,
+        displayName: assignedCohort.displayName,
+        currentSemester: assignedCohort.currentSemester,
+        slotCode: assignedCohort.slotCode
+      }
+    }
   });
 });
 

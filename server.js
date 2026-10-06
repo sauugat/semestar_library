@@ -1335,6 +1335,8 @@ app.post('/api/games/ticket', auth.requireLogin, async (req, res) => {
   }
 });
 
+app.use('/api/games', require('./routes/games')(db, auth.requireLogin));
+
 app.post('/api/change-password', requireLogin, async (req, res) => {
   const { currentPassword, newPassword, confirmPassword } = req.body || {};
 

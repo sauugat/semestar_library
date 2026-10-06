@@ -1081,6 +1081,7 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
       await require('./lib/push-notifications').ensurePushNotificationSchema({ exec, isPostgres });
       await require('./lib/notifications-service').ensureNotificationCenterSchema({ exec, isPostgres });
       await require('./lib/academic-context').ensureAcademicCohortSchema({ exec, run, all, isPostgres });
+      await require('./lib/games-invitations').ensureGameInvitationsSchema({ exec, isPostgres });
 
     } catch (err) {
       console.error('[DB Engine]: Schema initialization error:', err);

@@ -36,10 +36,11 @@ const GAMES_LIST: GameItem[] = [
   {
     id: 'ludo',
     title: 'Ludo',
-    description: 'Classic 4-player board match',
+    description: 'Classic board game for 2–4 players',
     icon: 'dice-outline',
-    isPlayable: false,
-    badgeLabel: 'Coming Soon',
+    isPlayable: true,
+    route: '/games/ludo',
+    badgeLabel: 'PLAYABLE',
   },
   {
     id: 'color-cards',

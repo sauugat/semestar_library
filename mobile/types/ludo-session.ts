@@ -16,6 +16,17 @@ import type {
   BotDifficulty,
 } from '../../packages/ludo-engine/src/index.ts';
 
+export type {
+  PlayerColor,
+  TurnPhase,
+  LudoGameStatus,
+  LegalMove,
+  CanonicalBoardPosition,
+  ExtraTurnReason,
+  LudoState,
+  BotDifficulty,
+};
+
 export type LocalSeatStatus = 'human' | 'bot' | 'closed';
 
 export interface LocalSeatConfig {

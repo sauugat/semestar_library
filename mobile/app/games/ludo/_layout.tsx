@@ -2,7 +2,7 @@ import React from 'react';
 import { Stack } from 'expo-router';
 import { useTheme } from '@/constants/useTheme';
 
-export default function GamesLayout() {
+export default function LudoLayout() {
   const { colors } = useTheme();
 
   return (
@@ -24,21 +24,22 @@ export default function GamesLayout() {
       <Stack.Screen
         name="index"
         options={{
-          title: 'Games',
-          headerBackTitle: 'Back',
+          title: 'Ludo',
+          headerBackTitle: 'Games',
         }}
       />
       <Stack.Screen
-        name="tic-tac-toe"
+        name="setup"
         options={{
-          title: 'Tic Tac Toe',
-          headerBackTitle: 'Back',
+          title: 'New Offline Game',
+          headerBackTitle: 'Ludo',
         }}
       />
       <Stack.Screen
-        name="ludo"
+        name="local"
         options={{
-          headerShown: false,
+          title: 'Offline Match',
+          headerBackTitle: 'Ludo',
         }}
       />
     </Stack>

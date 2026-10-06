@@ -235,7 +235,7 @@ export function crossValidateConfigAndEngine(
 
   // Validate every configured seat against engine player
   for (const seat of config.seats) {
-    const enginePlayer = engineState.players[seat.color];
+    const enginePlayer = engineState.players[seat.color as PlayerColor];
 
     if (seat.status === 'closed') {
       if (enginePlayer !== null) {

@@ -9,16 +9,26 @@ import {
   Share,
   Animated,
   Alert,
+  Modal,
+  ActivityIndicator,
+  Image,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@/constants/useTheme';
+import { useAuth } from '@/context/AuthContext';
 import { Text } from '@/components/ui/Typography';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { searchGlobal, type SearchStudentItem } from '@/services/search';
+import { sendGameInvitation, getGameInvitation } from '@/services/games-api';
 import { GamesSocketClient, type GamesSocketStatus } from '@/services/games-socket';
 import {
   type TicTacToeState,
@@ -122,6 +132,8 @@ export default function TicTacToeScreen() {
   const { colors, spacing, radii } = useTheme();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
+  const { user } = useAuth();
+  const params = useLocalSearchParams<{ invite?: string; room?: string; autoJoin?: string }>();
 
   // Socket client reference (persists across renders)
   const clientRef = useRef<GamesSocketClient | null>(null);
@@ -136,6 +148,22 @@ export default function TicTacToeScreen() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isMovePending, setIsMovePending] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
+
+  // Phase 3: In-App Invitations & Auto-Join State
+  const autoJoinedInviteRef = useRef<string | null>(null);
+  const [isValidatingInvite, setIsValidatingInvite] = useState(false);
+  const [invitationError, setInvitationError] = useState<{
+    type: 'expired' | 'full' | 'error';
+    title: string;
+    message: string;
+  } | null>(null);
+
+  // Phase 3: Invite Classmate Modal State
+  const [isInviteModalVisible, setIsInviteModalVisible] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchStudentItem[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [inviteStatusMap, setInviteStatusMap] = useState<Record<string, 'idle' | 'sending' | 'sent'>>({});
 
   // Animation values for end-game overlay
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -166,7 +194,21 @@ export default function TicTacToeScreen() {
         setErrorMessage(null);
       } else if (event.type === 'ERROR') {
         setIsMovePending(false);
-        setErrorMessage(event.message || 'Game error occurred.');
+        const rawMsg = event.message || 'Game error occurred.';
+        if (
+          rawMsg.toLowerCase().includes('full') ||
+          rawMsg.toLowerCase().includes('already in progress') ||
+          rawMsg.toLowerCase().includes('two players')
+        ) {
+          setInvitationError({
+            type: 'full',
+            title: 'Room Full',
+            message: 'This room is already full.',
+          });
+          setActiveRoomId(null);
+        } else {
+          setErrorMessage(rawMsg);
+        }
       }
     });
 
@@ -304,6 +346,148 @@ export default function TicTacToeScreen() {
       }
     },
     [isConnecting]
+  );
+
+  // Phase 3: Secure Auto-Join via Invitation
+  useEffect(() => {
+    if (params.autoJoin === '1' && params.invite) {
+      const inviteId = params.invite.trim();
+      if (!inviteId || autoJoinedInviteRef.current === inviteId) return;
+      autoJoinedInviteRef.current = inviteId;
+
+      let isCancelled = false;
+      const executeAutoJoin = async () => {
+        setIsValidatingInvite(true);
+        setInvitationError(null);
+        setErrorMessage(null);
+
+        try {
+          const res = await getGameInvitation(inviteId);
+          if (isCancelled) return;
+
+          if (res.error) {
+            if (res.expired || res.status === 410) {
+              setInvitationError({
+                type: 'expired',
+                title: 'Invitation Expired',
+                message: 'This game invitation is no longer active.',
+              });
+            } else {
+              setInvitationError({
+                type: 'error',
+                title: 'Invitation Unavailable',
+                message: res.error,
+              });
+            }
+            return;
+          }
+
+          if (!res.invitation?.roomId) {
+            setInvitationError({
+              type: 'error',
+              title: 'Invitation Unavailable',
+              message: 'Invalid invitation received.',
+            });
+            return;
+          }
+
+          // Authoritative room ID from server
+          const authoritativeRoomId = res.invitation.roomId.toUpperCase();
+          await connectToRoom(authoritativeRoomId);
+        } catch (err: unknown) {
+          if (isCancelled) return;
+          const msg = err instanceof Error ? err.message : 'Could not validate invitation.';
+          setInvitationError({
+            type: 'error',
+            title: 'Connection Error',
+            message: msg,
+          });
+        } finally {
+          if (!isCancelled) {
+            setIsValidatingInvite(false);
+          }
+        }
+      };
+
+      void executeAutoJoin();
+      return () => {
+        isCancelled = true;
+      };
+    }
+  }, [params.autoJoin, params.invite, connectToRoom]);
+
+  // Phase 3: Debounced Student Search for Invitations
+  useEffect(() => {
+    if (!isInviteModalVisible) {
+      setSearchQuery('');
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    const trimmed = searchQuery.trim();
+    if (!trimmed) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    setIsSearching(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await searchGlobal(trimmed);
+        const filtered = (res.students || []).filter((s) => {
+          if (user?.studentId && s.studentId === user.studentId) return false;
+          if (s.role && s.role.toLowerCase() === 'banned') return false;
+          return true;
+        });
+        setSearchResults(filtered);
+      } catch {
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, isInviteModalVisible, user?.studentId]);
+
+  // Phase 3: Send Game Invitation to Selected Classmate
+  const handleSendInvite = useCallback(
+    async (student: SearchStudentItem) => {
+      if (!activeRoomId) return;
+      const sid = student.studentId;
+      if (inviteStatusMap[sid] === 'sending' || inviteStatusMap[sid] === 'sent') return;
+
+      setInviteStatusMap((prev) => ({ ...prev, [sid]: 'sending' }));
+      try {
+        const res = await sendGameInvitation({
+          roomId: activeRoomId,
+          recipientStudentId: sid,
+          gameType: 'tic-tac-toe',
+        });
+
+        if (res.error) {
+          setInviteStatusMap((prev) => ({ ...prev, [sid]: 'idle' }));
+          if (res.status === 429 || res.error.toLowerCase().includes('too quickly')) {
+            Alert.alert(
+              'Sending Too Quickly',
+              "You're sending invitations too quickly. Try again shortly."
+            );
+          } else {
+            Alert.alert('Invitation Failed', res.error);
+          }
+          return;
+        }
+
+        setInviteStatusMap((prev) => ({ ...prev, [sid]: 'sent' }));
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } catch {
+        setInviteStatusMap((prev) => ({ ...prev, [sid]: 'idle' }));
+        Alert.alert('Invitation Failed', 'Could not send invitation. Please try again.');
+      }
+    },
+    [activeRoomId, inviteStatusMap]
   );
 
   const handleCreateRoom = useCallback(() => {
@@ -533,7 +717,8 @@ export default function TicTacToeScreen() {
   const isLoss = localSymbol && gameState?.winner && gameState.winner !== localSymbol && gameState.winner !== 'draw';
 
   return (
-    <ScrollView
+    <>
+      <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={[
         styles.contentContainer,
@@ -997,12 +1182,7 @@ export default function TicTacToeScreen() {
                 title="Invite Classmate"
                 variant="primary"
                 size="md"
-                onPress={() => {
-                  Alert.alert(
-                    'Direct Invites',
-                    'In-app classmate invitations are coming in Phase 2. Use "Share Room Code" below to invite your peer now!'
-                  );
-                }}
+                onPress={() => setIsInviteModalVisible(true)}
                 leftIcon={
                   <Ionicons
                     name="person-add-outline"
@@ -1011,7 +1191,7 @@ export default function TicTacToeScreen() {
                     style={{ marginRight: 6 }}
                   />
                 }
-                accessibilityLabel="Invite classmate (coming soon)"
+                accessibilityLabel="Invite classmate to game room"
               />
               <Button
                 title="Share Room Code"
@@ -1285,7 +1465,239 @@ export default function TicTacToeScreen() {
           </View>
         </Card>
       )}
+      {/* Auto-Join Validating Spinner State */}
+      {isValidatingInvite && (
+        <Card
+          style={[
+            styles.statusCard,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+              borderRadius: radii.card,
+              padding: spacing.xl,
+              alignItems: 'center',
+              marginBottom: spacing.lg,
+            },
+          ]}
+        >
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text variant="md" weight="600" style={{ marginTop: 16, color: colors.text }}>
+            Connecting to invited game...
+          </Text>
+          <Text variant="xs" color="muted" style={{ marginTop: 6, textAlign: 'center' }}>
+            Validating invitation and acquiring ticket
+          </Text>
+        </Card>
+      )}
+
+      {/* Auto-Join / Room Error State (Expired, Full, Not Found) */}
+      {invitationError && (
+        <Card
+          style={[
+            styles.statusCard,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+              borderRadius: radii.card,
+              padding: spacing.xl,
+              alignItems: 'center',
+              marginBottom: spacing.lg,
+            },
+          ]}
+        >
+          <Ionicons
+            name={invitationError.type === 'expired' ? 'time-outline' : 'alert-circle-outline'}
+            size={48}
+            color={invitationError.type === 'expired' ? colors.warning : colors.error}
+            style={{ marginBottom: 12 }}
+          />
+          <Text variant="lg" weight="700" style={{ color: colors.text, marginBottom: 8, textAlign: 'center' }}>
+            {invitationError.title}
+          </Text>
+          <Text variant="sm" color="muted" style={{ textAlign: 'center', marginBottom: 20 }}>
+            {invitationError.message}
+          </Text>
+          <View style={{ width: '100%', gap: 10 }}>
+            {invitationError.type === 'expired' && (
+              <Button
+                title="Enter Room Code"
+                variant="primary"
+                size="md"
+                onPress={() => {
+                  setInvitationError(null);
+                  setActiveRoomId(null);
+                }}
+              />
+            )}
+            <Button
+              title="Back to Games"
+              variant={invitationError.type === 'expired' ? 'secondary' : 'primary'}
+              size="md"
+              onPress={() => router.replace('/games')}
+            />
+          </View>
+        </Card>
+      )}
     </ScrollView>
+
+      {/* Phase 3: Invite Classmate Modal */}
+      <Modal
+        visible={isInviteModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setIsInviteModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.modalBackdrop}
+        >
+          <View
+            style={[
+              styles.modalContent,
+              {
+                backgroundColor: colors.surface,
+                borderTopColor: colors.border,
+              },
+            ]}
+          >
+            {/* Modal Header */}
+            <View style={styles.modalHeader}>
+              <View>
+                <Text variant="md" weight="700" style={{ color: colors.text }}>
+                  Invite a Classmate
+                </Text>
+                <Text variant="xs" color="muted" style={{ marginTop: 2 }}>
+                  Search for peers to join Room {activeRoomId}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setIsInviteModalVisible(false)}
+                style={{ padding: 4 }}
+                accessibilityLabel="Close invite modal"
+              >
+                <Ionicons name="close" size={24} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Search Input Box */}
+            <View
+              style={[
+                styles.searchBox,
+                {
+                  backgroundColor: colors.background,
+                  borderColor: colors.border,
+                },
+              ]}
+            >
+              <Ionicons
+                name="search-outline"
+                size={18}
+                color={colors.textMuted}
+                style={{ marginRight: 8 }}
+              />
+              <TextInput
+                style={[styles.searchInput, { color: colors.text }]}
+                placeholder="Search classmates by name..."
+                placeholderTextColor={colors.textMuted}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery('')} style={{ padding: 4 }}>
+                  <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Results / Empty / Loading State */}
+            {isSearching ? (
+              <View style={{ paddingVertical: 32, alignItems: 'center' }}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text variant="xs" color="muted" style={{ marginTop: 8 }}>
+                  Searching classmates...
+                </Text>
+              </View>
+            ) : searchQuery.trim().length === 0 ? (
+              <View style={{ paddingVertical: 32, alignItems: 'center' }}>
+                <Ionicons name="people-outline" size={36} color={colors.textMuted} style={{ marginBottom: 8 }} />
+                <Text variant="xs" color="muted" style={{ textAlign: 'center' }}>
+                  Type a student's name above to send an instant game invitation.
+                </Text>
+              </View>
+            ) : searchResults.length === 0 ? (
+              <View style={{ paddingVertical: 32, alignItems: 'center' }}>
+                <Ionicons name="search-outline" size={36} color={colors.textMuted} style={{ marginBottom: 8 }} />
+                <Text variant="xs" color="muted" style={{ textAlign: 'center' }}>
+                  No classmates found matching "{searchQuery}".
+                </Text>
+              </View>
+            ) : (
+              <FlatList
+                data={searchResults}
+                keyExtractor={(item) => item.studentId}
+                keyboardShouldPersistTaps="handled"
+                style={{ maxHeight: 320 }}
+                renderItem={({ item }) => {
+                  const status = inviteStatusMap[item.studentId] || 'idle';
+                  const initials = item.name ? item.name.charAt(0).toUpperCase() : '?';
+                  const subtitle = [item.semester, item.department].filter(Boolean).join(' • ') || 'Student';
+
+                  return (
+                    <View
+                      style={[
+                        styles.studentItem,
+                        { borderBottomColor: colors.border },
+                      ]}
+                    >
+                      <View style={styles.studentInfo}>
+                        {item.avatarUrl ? (
+                          <Image source={{ uri: item.avatarUrl }} style={styles.avatarImg} />
+                        ) : (
+                          <View style={[styles.avatarCircle, { backgroundColor: colors.surfaceSubtle }]}>
+                            <Text variant="sm" weight="700" style={{ color: colors.text }}>
+                              {initials}
+                            </Text>
+                          </View>
+                        )}
+                        <View style={{ flex: 1 }}>
+                          <Text variant="sm" weight="600" style={{ color: colors.text }} numberOfLines={1}>
+                            {item.name}
+                          </Text>
+                          <Text variant="xs" color="muted" numberOfLines={1}>
+                            {subtitle}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <Button
+                        title={
+                          status === 'sending'
+                            ? 'Sending...'
+                            : status === 'sent'
+                            ? 'Invited ✓'
+                            : 'Invite'
+                        }
+                        variant={status === 'sent' ? 'secondary' : 'primary'}
+                        size="sm"
+                        disabled={status === 'sending' || status === 'sent'}
+                        onPress={() => void handleSendInvite(item)}
+                        leftIcon={
+                          status === 'sent' ? (
+                            <Ionicons name="checkmark-circle" size={14} color={colors.success} style={{ marginRight: 4 }} />
+                          ) : undefined
+                        }
+                      />
+                    </View>
+                  );
+                }}
+              />
+            )}
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+    </>
   );
 }
 
@@ -1444,5 +1856,66 @@ const styles = StyleSheet.create({
   },
   rematchBanner: {
     borderWidth: 1,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    maxHeight: '85%',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderTopWidth: 1,
+    paddingTop: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 28,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 12,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    paddingVertical: 2,
+  },
+  studentItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  studentInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 10,
+  },
+  avatarCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  avatarImg: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    marginRight: 10,
   },
 });

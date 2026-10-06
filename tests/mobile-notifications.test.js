@@ -78,6 +78,29 @@ function parseNotificationData(raw) {
     }
   }
 
+  if (type === 'game_invite') {
+    const gameType = typeof data.gameType === 'string' ? data.gameType.trim() : '';
+    const invitationId = typeof data.invitationId === 'string' ? data.invitationId.trim() : '';
+    const roomId = typeof data.roomId === 'string' ? data.roomId.trim().toUpperCase() : '';
+    const expiresAt = typeof data.expiresAt === 'string' ? data.expiresAt.trim() : undefined;
+
+    if (gameType === 'tic-tac-toe' && invitationId.length > 0 && /^[A-Z0-9]{4,16}$/.test(roomId)) {
+      if (expiresAt) {
+        const expTime = new Date(expiresAt).getTime();
+        if (Number.isNaN(expTime) || expTime <= Date.now()) {
+          return null;
+        }
+      }
+      return {
+        type: 'game_invite',
+        gameType,
+        invitationId,
+        roomId,
+        expiresAt,
+      };
+    }
+  }
+
   return null;
 }
 
@@ -126,6 +149,58 @@ test('Mobile Push Notification Integration (Phase C Client Contracts)', async (t
 
     const parsedReaction = parseNotificationData({ type: 'comment_reaction', postId: 10, commentId: 20, reactionType: 'like' });
     assert.deepEqual(parsedReaction, { type: 'comment_reaction', postId: 10, commentId: 20, replyId: undefined, reactionType: 'like' });
+  });
+
+  await t.test('4c. parseNotificationData validates game_invite payload', () => {
+    const validFuture = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+    const parsedValid = parseNotificationData({
+      type: 'game_invite',
+      gameType: 'tic-tac-toe',
+      invitationId: 'inv_12345',
+      roomId: 'X5QR5A',
+      expiresAt: validFuture,
+    });
+    assert.deepEqual(parsedValid, {
+      type: 'game_invite',
+      gameType: 'tic-tac-toe',
+      invitationId: 'inv_12345',
+      roomId: 'X5QR5A',
+      expiresAt: validFuture,
+    });
+
+    // missing invitationId
+    assert.equal(parseNotificationData({
+      type: 'game_invite',
+      gameType: 'tic-tac-toe',
+      invitationId: '',
+      roomId: 'X5QR5A',
+    }), null);
+
+    // invalid room
+    assert.equal(parseNotificationData({
+      type: 'game_invite',
+      gameType: 'tic-tac-toe',
+      invitationId: 'inv_12345',
+      roomId: 'AB',
+    }), null);
+
+    // wrong gameType
+    assert.equal(parseNotificationData({
+      type: 'game_invite',
+      gameType: 'chess',
+      invitationId: 'inv_12345',
+      roomId: 'X5QR5A',
+    }), null);
+
+    // expired payload
+    const past = new Date(Date.now() - 5000).toISOString();
+    assert.equal(parseNotificationData({
+      type: 'game_invite',
+      gameType: 'tic-tac-toe',
+      invitationId: 'inv_12345',
+      roomId: 'X5QR5A',
+      expiresAt: past,
+    }), null);
   });
 
   await t.test('5. parseNotificationData rejects malformed / unknown types safely', () => {

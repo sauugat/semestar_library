@@ -100,6 +100,14 @@ export interface PostReactionNotificationData extends BaseNotificationData {
   postId: number;
 }
 
+export interface GameInviteNotificationData extends BaseNotificationData {
+  type: 'game_invite';
+  gameType: string;
+  invitationId: string;
+  roomId: string;
+  expiresAt?: string;
+}
+
 export interface InAppNotificationActor {
   studentId: string;
   name: string;
@@ -140,6 +148,7 @@ export type NotificationPayload =
   | CommentReactionNotificationData
   | RoutineNotificationData
   | PostReactionNotificationData
+  | GameInviteNotificationData
   | (BaseNotificationData & { type: string; [key: string]: any });
 
 export interface NotificationPreferences {
@@ -694,6 +703,37 @@ export function parseNotificationData(raw: unknown): NotificationPayload | null 
     }
   }
 
+  if (type === 'game_invite') {
+    const gameType = typeof data.gameType === 'string' ? data.gameType.trim() : '';
+    const invitationId = typeof data.invitationId === 'string' ? data.invitationId.trim() : '';
+    const roomId = typeof data.roomId === 'string' ? data.roomId.trim().toUpperCase() : '';
+    const expiresAt = typeof data.expiresAt === 'string' ? data.expiresAt.trim() : undefined;
+
+    if (gameType === 'tic-tac-toe' && invitationId.length > 0 && /^[A-Z0-9]{4,16}$/.test(roomId)) {
+      if (expiresAt) {
+        const expTime = new Date(expiresAt).getTime();
+        if (Number.isNaN(expTime) || expTime <= Date.now()) {
+          if (__DEV__) {
+            console.warn('[Push] game_invite payload is expired');
+          }
+          return null;
+        }
+      }
+
+      return {
+        type: 'game_invite',
+        gameType,
+        invitationId,
+        roomId,
+        expiresAt,
+        actorId: data.actorId ? String(data.actorId) : undefined,
+        actorName: data.actorName ? String(data.actorName) : undefined,
+        groupKey: data.groupKey,
+        collapseId: data.collapseId,
+      };
+    }
+  }
+
   return null;
 }
 
@@ -809,6 +849,17 @@ export function navigateFromNotification(
           });
           break;
         }
+
+        case 'game_invite':
+          router.push({
+            pathname: '/games/tic-tac-toe',
+            params: {
+              invite: payload.invitationId,
+              room: payload.roomId,
+              autoJoin: '1',
+            },
+          });
+          break;
 
         default:
           router.push('/(tabs)');

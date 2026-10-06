@@ -82,3 +82,130 @@ export function getGamesRoomWebSocketUrl(roomId: string): string {
   const encodedRoomId = encodeURIComponent(roomId.trim());
   return `${GAMES_WS_BASE_URL}/rooms/${encodedRoomId}/ws`;
 }
+
+export interface GameInvitation {
+  id: string;
+  gameType: string;
+  roomId: string;
+  recipientStudentId?: string;
+  expiresAt: string;
+}
+
+export interface GameInvitationValidationResult {
+  id: string;
+  gameType: string;
+  roomId: string;
+  inviter: {
+    name: string;
+  };
+  expiresAt: string;
+}
+
+export interface GetGameInvitationResponse {
+  invitation?: GameInvitationValidationResult;
+  error?: string;
+  expired?: boolean;
+  status: number;
+}
+
+/**
+ * Sends an in-app game invitation to a classmate for a specified room.
+ * Rate-limited server-side and deduplicated against rapid repetitive taps.
+ */
+export async function sendGameInvitation(params: {
+  roomId: string;
+  recipientStudentId: string;
+  gameType?: string;
+}): Promise<{ invitation?: GameInvitation; error?: string; status: number }> {
+  try {
+    const res = await apiFetch('/api/games/invitations', {
+      method: 'POST',
+      body: JSON.stringify({
+        roomId: params.roomId.trim().toUpperCase(),
+        recipientStudentId: params.recipientStudentId.trim(),
+        gameType: params.gameType || 'tic-tac-toe',
+      }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const msg =
+        data && typeof data === 'object' && typeof (data as { message?: unknown }).message === 'string'
+          ? (data as { message: string }).message
+          : res.status === 429
+          ? "You're sending invitations too quickly. Try again shortly."
+          : 'Failed to send game invitation.';
+      return { error: msg, status: res.status };
+    }
+
+    if (
+      !data ||
+      typeof data !== 'object' ||
+      !('invitation' in data) ||
+      typeof (data as { invitation?: { id?: unknown } }).invitation?.id !== 'string'
+    ) {
+      return { error: 'Invalid response from games service.', status: res.status };
+    }
+
+    return {
+      invitation: (data as { invitation: GameInvitation }).invitation,
+      status: res.status,
+    };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Network error while sending invitation.';
+    return { error: msg, status: 0 };
+  }
+}
+
+/**
+ * Retrieves and validates a game invitation prior to auto-joining.
+ * Ensures the invitation belongs to the current user and has not expired.
+ */
+export async function getGameInvitation(invitationId: string): Promise<GetGameInvitationResponse> {
+  if (!invitationId || typeof invitationId !== 'string' || !invitationId.trim()) {
+    return { error: 'Invitation ID is required.', status: 400 };
+  }
+
+  try {
+    const res = await apiFetch(`/api/games/invitations/${encodeURIComponent(invitationId.trim())}`, {
+      method: 'GET',
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 410 || (data && typeof data === 'object' && (data as { expired?: boolean }).expired)) {
+      return {
+        error:
+          data && typeof data === 'object' && typeof (data as { message?: unknown }).message === 'string'
+            ? (data as { message: string }).message
+            : 'This game invitation is no longer active.',
+        expired: true,
+        status: 410,
+      };
+    }
+
+    if (!res.ok) {
+      const msg =
+        data && typeof data === 'object' && typeof (data as { message?: unknown }).message === 'string'
+          ? (data as { message: string }).message
+          : 'Invitation not found.';
+      return { error: msg, status: res.status };
+    }
+
+    if (
+      !data ||
+      typeof data !== 'object' ||
+      !('invitation' in data) ||
+      typeof (data as { invitation?: { id?: unknown } }).invitation?.id !== 'string'
+    ) {
+      return { error: 'Invalid invitation response.', status: res.status };
+    }
+
+    return {
+      invitation: (data as { invitation: GameInvitationValidationResult }).invitation,
+      status: res.status,
+    };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Network error while validating invitation.';
+    return { error: msg, status: 0 };
+  }
+}

@@ -1,6 +1,11 @@
 import { DurableObject } from 'cloudflare:workers';
 import type { Env } from './index';
-import { PROTOCOL_VERSION, type ClientMessage, type ServerEvent } from './protocol';
+import {
+  PROTOCOL_VERSION,
+  type ClientMessage,
+  type ServerEvent,
+  type TicTacToeState,
+} from './protocol';
 import { TicTacToeEngine } from './games/tic-tac-toe';
 
 interface RoomAttachment {
@@ -10,10 +15,57 @@ interface RoomAttachment {
 
 export class GameRoom extends DurableObject<Env> {
   private game: TicTacToeEngine;
+  private corruptedStateError: string | null = null;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
-    this.game = new TicTacToeEngine();
+    this.ensureSchema();
+    this.game = this.loadState();
+  }
+
+  private ensureSchema(): void {
+    this.ctx.storage.sql.exec(`
+      CREATE TABLE IF NOT EXISTS game_state (
+        key TEXT PRIMARY KEY,
+        game_type TEXT NOT NULL,
+        state_json TEXT NOT NULL,
+        updated_at INTEGER NOT NULL
+      )
+    `);
+  }
+
+  private loadState(): TicTacToeEngine {
+    try {
+      const cursor = this.ctx.storage.sql.exec<{ state_json: string }>(
+        'SELECT state_json FROM game_state WHERE key = ?',
+        'current'
+      );
+      const rows = cursor.toArray();
+      if (rows.length > 0) {
+        const parsed = JSON.parse(rows[0].state_json);
+        return TicTacToeEngine.fromState(parsed);
+      }
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      this.corruptedStateError = errorMsg;
+      return new TicTacToeEngine();
+    }
+    return new TicTacToeEngine();
+  }
+
+  private persistState(state: TicTacToeState): void {
+    this.ctx.storage.sql.exec(
+      `INSERT INTO game_state (key, game_type, state_json, updated_at)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT(key) DO UPDATE SET
+         game_type = excluded.game_type,
+         state_json = excluded.state_json,
+         updated_at = excluded.updated_at`,
+      'current',
+      'tic-tac-toe',
+      JSON.stringify(state),
+      Date.now()
+    );
   }
 
   private resolveRoomId(requestUrl: string): string {
@@ -156,12 +208,28 @@ export class GameRoom extends DurableObject<Env> {
 
     switch (msg.type) {
       case 'JOIN_GAME': {
-        const joinResult = this.game.join(userId);
+        if (this.corruptedStateError) {
+          this.sendError(ws, `Room persistent state is corrupted: ${this.corruptedStateError}`);
+          return;
+        }
+
+        const candidate = this.game.clone();
+        const joinResult = candidate.join(userId);
         if (!joinResult.success) {
           this.sendError(ws, joinResult.error || 'Failed to join game');
           return;
         }
 
+        if (joinResult.isNewJoin) {
+          try {
+            this.persistState(candidate.getState());
+          } catch {
+            this.sendError(ws, 'Failed to persist game state');
+            return;
+          }
+        }
+
+        this.game = candidate;
         this.broadcast({
           type: 'GAME_STATE',
           roomId,
@@ -172,17 +240,31 @@ export class GameRoom extends DurableObject<Env> {
       }
 
       case 'MAKE_MOVE': {
+        if (this.corruptedStateError) {
+          this.sendError(ws, `Room persistent state is corrupted: ${this.corruptedStateError}`);
+          return;
+        }
+
         if (typeof (msg as { cellIndex?: unknown }).cellIndex !== 'number') {
           this.sendError(ws, 'Missing or invalid "cellIndex" in MAKE_MOVE message');
           return;
         }
 
-        const moveResult = this.game.makeMove(userId, msg.cellIndex);
+        const candidate = this.game.clone();
+        const moveResult = candidate.makeMove(userId, msg.cellIndex);
         if (!moveResult.success) {
           this.sendError(ws, moveResult.error || 'Invalid move');
           return;
         }
 
+        try {
+          this.persistState(candidate.getState());
+        } catch {
+          this.sendError(ws, 'Failed to persist game state');
+          return;
+        }
+
+        this.game = candidate;
         this.broadcast({
           type: 'GAME_STATE',
           roomId,
@@ -193,6 +275,11 @@ export class GameRoom extends DurableObject<Env> {
       }
 
       case 'REQUEST_STATE': {
+        if (this.corruptedStateError) {
+          this.sendError(ws, `Room persistent state is corrupted: ${this.corruptedStateError}`);
+          return;
+        }
+
         const stateEvent: ServerEvent = {
           type: 'GAME_STATE',
           roomId,

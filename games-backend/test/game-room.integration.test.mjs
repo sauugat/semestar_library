@@ -1,6 +1,7 @@
 import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -87,46 +88,6 @@ function connectWs(url, headers = {}) {
   });
 }
 
-let wranglerProc = null;
-
-before(async () => {
-  wranglerProc = spawn('npx', ['wrangler', 'dev', '--port', String(PORT), '--ip', '127.0.0.1'], {
-    cwd: backendDir,
-    stdio: ['ignore', 'pipe', 'pipe'],
-    detached: false,
-    env: { ...process.env, GAMES_TICKET_SECRET: TEST_SECRET },
-  });
-
-  // Wait for wrangler dev server to be ready by checking root endpoint
-  const startTime = Date.now();
-  let ready = false;
-  while (Date.now() - startTime < 15000) {
-    try {
-      const res = await fetch(`${BASE_HTTP}/`, { signal: AbortSignal.timeout(1000) });
-      if (res.status === 200) {
-        ready = true;
-        break;
-      }
-    } catch {
-      await new Promise((r) => setTimeout(r, 200));
-    }
-  }
-
-  if (!ready) {
-    wranglerProc.kill('SIGTERM');
-    throw new Error('Local Wrangler server failed to start within 15 seconds');
-  }
-});
-
-after(async () => {
-  if (wranglerProc) {
-    wranglerProc.kill('SIGTERM');
-    await new Promise((r) => setTimeout(r, 500));
-  }
-});
-
-import http from 'node:http';
-
 function testHttpHandshake(pathname, headers = {}) {
   return new Promise((resolve, reject) => {
     const req = http.request(
@@ -157,6 +118,64 @@ function testHttpHandshake(pathname, headers = {}) {
     req.end();
   });
 }
+
+async function startWrangler() {
+  const proc = spawn('npx', ['wrangler', 'dev', '--port', String(PORT), '--ip', '127.0.0.1'], {
+    cwd: backendDir,
+    stdio: ['ignore', 'pipe', 'pipe'],
+    detached: false,
+    env: { ...process.env, GAMES_TICKET_SECRET: TEST_SECRET },
+  });
+
+  const startTime = Date.now();
+  let ready = false;
+  while (Date.now() - startTime < 15000) {
+    try {
+      const res = await fetch(`${BASE_HTTP}/`, { signal: AbortSignal.timeout(1000) });
+      if (res.status === 200) {
+        ready = true;
+        break;
+      }
+    } catch {
+      await new Promise((r) => setTimeout(r, 200));
+    }
+  }
+
+  if (!ready) {
+    proc.kill('SIGTERM');
+    throw new Error('Local Wrangler server failed to start within 15 seconds');
+  }
+
+  return proc;
+}
+
+async function stopWrangler(proc) {
+  if (!proc) return;
+  proc.kill('SIGTERM');
+  const startTime = Date.now();
+  while (Date.now() - startTime < 5000) {
+    try {
+      await fetch(`${BASE_HTTP}/`, { signal: AbortSignal.timeout(300) });
+      await new Promise((r) => setTimeout(r, 100));
+    } catch {
+      break;
+    }
+  }
+  await new Promise((r) => setTimeout(r, 300));
+}
+
+let wranglerProc = null;
+
+before(async () => {
+  wranglerProc = await startWrangler();
+});
+
+after(async () => {
+  if (wranglerProc) {
+    await stopWrangler(wranglerProc);
+    wranglerProc = null;
+  }
+});
 
 test('Integration: Auth verification (no Authorization header and query-parameter only fail with HTTP 401)', async () => {
   const roomId = `room_auth_check_${Date.now()}`;
@@ -309,9 +328,9 @@ test('Integration: Two-player Tic Tac Toe flow against local Wrangler using head
   wsA.send(JSON.stringify({ type: 'REQUEST_STATE' }));
   const verifyStateA = await queueA.next();
   assert.equal(verifyStateA.type, 'GAME_STATE');
-  assert.equal(verifyStateA.state.revision, 4); // Revision remains 4
-  assert.equal(verifyStateA.state.board[1], null); // Cell 1 remains empty
-  assert.equal(verifyStateA.state.currentTurn, 'X'); // Still X's turn
+  assert.equal(verifyStateA.state.revision, 4);
+  assert.equal(verifyStateA.state.board[1], null);
+  assert.equal(verifyStateA.state.currentTurn, 'X');
 
   // 8. Invalid move: User A attempts to move into already occupied cell 4
   wsA.send(JSON.stringify({ type: 'MAKE_MOVE', cellIndex: 4 }));
@@ -364,4 +383,192 @@ test('Integration: Two-player Tic Tac Toe flow against local Wrangler using head
   // Clean up WebSockets
   wsA.close();
   wsB.close();
+});
+
+test('Integration: Durable persistence, restarts, and room isolation', async () => {
+  const roomId = `room_persist_${Date.now()}`;
+  const isolatedRoomId = `room_isolated_${Date.now()}`;
+
+  const ticketA = createGamesTicket(
+    { studentId: 'student_durable_A', username: 'alice', name: 'Alice' },
+    TEST_SECRET
+  );
+  const ticketB = createGamesTicket(
+    { studentId: 'student_durable_B', username: 'bob', name: 'Bob' },
+    TEST_SECRET
+  );
+
+  // Phase A: Connect User A and User B
+  const wsA1 = await connectWs(`${BASE_WS}/rooms/${roomId}/ws`, {
+    Authorization: `Bearer ${ticketA}`,
+  });
+  const queueA1 = new MessageQueue(wsA1);
+  await queueA1.next(); // CONNECTED
+
+  const wsB1 = await connectWs(`${BASE_WS}/rooms/${roomId}/ws`, {
+    Authorization: `Bearer ${ticketB}`,
+  });
+  const queueB1 = new MessageQueue(wsB1);
+  await queueB1.next(); // CONNECTED
+
+  // Phase B: Join Game
+  wsA1.send(JSON.stringify({ type: 'JOIN_GAME' }));
+  await queueA1.next(); // A joined
+  await queueB1.next(); // A joined broadcast to B
+
+  wsB1.send(JSON.stringify({ type: 'JOIN_GAME' }));
+  await queueA1.next(); // B joined
+  await queueB1.next(); // B joined
+
+  // Phase C: Make moves
+  // X -> 0
+  wsA1.send(JSON.stringify({ type: 'MAKE_MOVE', cellIndex: 0 }));
+  await queueA1.next();
+  await queueB1.next();
+
+  // O -> 4
+  wsB1.send(JSON.stringify({ type: 'MAKE_MOVE', cellIndex: 4 }));
+  await queueA1.next();
+  await queueB1.next();
+
+  // X -> 1
+  wsA1.send(JSON.stringify({ type: 'MAKE_MOVE', cellIndex: 1 }));
+  const move3_A = await queueA1.next();
+  await queueB1.next();
+
+  // Record expected state before restart:
+  // board: ['X', 'X', null, null, 'O', null, null, null, null]
+  // players: X = student_durable_A, O = student_durable_B
+  // currentTurn: 'O'
+  // revision: 5
+  assert.equal(move3_A.state.revision, 5);
+  assert.equal(move3_A.state.currentTurn, 'O');
+  assert.equal(move3_A.state.board[0], 'X');
+  assert.equal(move3_A.state.board[1], 'X');
+  assert.equal(move3_A.state.board[4], 'O');
+
+  // Attempt invalid out-of-turn move before restart (User A attempts cell 2 during O's turn)
+  wsA1.send(JSON.stringify({ type: 'MAKE_MOVE', cellIndex: 2 }));
+  const errRejected = await queueA1.next();
+  assert.equal(errRejected.type, 'ERROR');
+  assert.match(errRejected.message, /not your turn/i);
+
+  // Close connections cleanly before restarting server
+  wsA1.close();
+  wsB1.close();
+
+  // Phase D: STOP Wrangler completely
+  await stopWrangler(wranglerProc);
+  wranglerProc = null;
+
+  // Phase E: START Wrangler again (Restart #1)
+  wranglerProc = await startWrangler();
+
+  // Phase F: Reconnect SAME users to SAME room ID
+  const wsA2 = await connectWs(`${BASE_WS}/rooms/${roomId}/ws`, {
+    Authorization: `Bearer ${ticketA}`,
+  });
+  const queueA2 = new MessageQueue(wsA2);
+  await queueA2.next(); // CONNECTED
+
+  const wsB2 = await connectWs(`${BASE_WS}/rooms/${roomId}/ws`, {
+    Authorization: `Bearer ${ticketB}`,
+  });
+  const queueB2 = new MessageQueue(wsB2);
+  await queueB2.next(); // CONNECTED
+
+  // Send REQUEST_STATE from User A
+  wsA2.send(JSON.stringify({ type: 'REQUEST_STATE' }));
+  const restoredStateMsg = await queueA2.next();
+  assert.equal(restoredStateMsg.type, 'GAME_STATE');
+  const restoredState = restoredStateMsg.state;
+
+  // Verify state exactly matches pre-restart state and rejected move was NOT persisted
+  assert.equal(restoredState.players.X, 'student_durable_A');
+  assert.equal(restoredState.players.O, 'student_durable_B');
+  assert.equal(restoredState.status, 'playing');
+  assert.equal(restoredState.currentTurn, 'O');
+  assert.equal(restoredState.revision, 5);
+  assert.equal(restoredState.board[0], 'X');
+  assert.equal(restoredState.board[1], 'X');
+  assert.equal(restoredState.board[4], 'O');
+  assert.equal(restoredState.board[2], null); // Cell 2 remained empty
+
+  // Phase G: Continue the match after restart
+  // O -> 8
+  wsB2.send(JSON.stringify({ type: 'MAKE_MOVE', cellIndex: 8 }));
+  const move4_A = await queueA2.next();
+  await queueB2.next();
+  assert.equal(move4_A.state.board[8], 'O');
+  assert.equal(move4_A.state.currentTurn, 'X');
+  assert.equal(move4_A.state.revision, 6);
+
+  // X -> 2 (Completes row 0, 1, 2: X wins!)
+  wsA2.send(JSON.stringify({ type: 'MAKE_MOVE', cellIndex: 2 }));
+  const winStateMsg = await queueA2.next();
+  await queueB2.next();
+  assert.equal(winStateMsg.state.status, 'finished');
+  assert.equal(winStateMsg.state.winner, 'X');
+  assert.deepEqual(winStateMsg.state.winningLine, [0, 1, 2]);
+  assert.equal(winStateMsg.state.revision, 7);
+
+  // Close connections cleanly
+  wsA2.close();
+  wsB2.close();
+
+  // Phase H: STOP Wrangler again
+  await stopWrangler(wranglerProc);
+  wranglerProc = null;
+
+  // Phase I: START Wrangler a third time (Restart #2)
+  wranglerProc = await startWrangler();
+
+  // Reconnect User A to the SAME room ID
+  const wsA3 = await connectWs(`${BASE_WS}/rooms/${roomId}/ws`, {
+    Authorization: `Bearer ${ticketA}`,
+  });
+  const queueA3 = new MessageQueue(wsA3);
+  await queueA3.next(); // CONNECTED
+
+  // Send REQUEST_STATE and verify final finished state is preserved
+  wsA3.send(JSON.stringify({ type: 'REQUEST_STATE' }));
+  const finalStateMsg = await queueA3.next();
+  assert.equal(finalStateMsg.type, 'GAME_STATE');
+  const finalState = finalStateMsg.state;
+
+  assert.equal(finalState.status, 'finished');
+  assert.equal(finalState.winner, 'X');
+  assert.deepEqual(finalState.winningLine, [0, 1, 2]);
+  assert.equal(finalState.revision, 7);
+  assert.equal(finalState.currentTurn, null);
+  assert.equal(finalState.board[0], 'X');
+  assert.equal(finalState.board[1], 'X');
+  assert.equal(finalState.board[2], 'X');
+  assert.equal(finalState.board[4], 'O');
+  assert.equal(finalState.board[8], 'O');
+
+  wsA3.close();
+
+  // Phase J: Room Storage Isolation Test
+  // Connect to a DIFFERENT room ID and verify it is completely fresh and independent
+  const wsIso = await connectWs(`${BASE_WS}/rooms/${isolatedRoomId}/ws`, {
+    Authorization: `Bearer ${ticketA}`,
+  });
+  const queueIso = new MessageQueue(wsIso);
+  await queueIso.next(); // CONNECTED
+
+  wsIso.send(JSON.stringify({ type: 'REQUEST_STATE' }));
+  const isoStateMsg = await queueIso.next();
+  assert.equal(isoStateMsg.type, 'GAME_STATE');
+  const isoState = isoStateMsg.state;
+
+  assert.equal(isoState.status, 'waiting');
+  assert.equal(isoState.players.X, null);
+  assert.equal(isoState.players.O, null);
+  assert.equal(isoState.currentTurn, null);
+  assert.equal(isoState.winner, null);
+  assert.equal(isoState.revision, 0);
+  assert.equal(isoState.board.every((cell) => cell === null), true);
+
+  wsIso.close();
 });

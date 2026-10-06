@@ -280,3 +280,217 @@ test('TicTacToeEngine: state revision increments correctly', () => {
   engine.makeMove('user_O', 4);
   assert.equal(engine.getState().revision, 4);
 });
+
+test('TicTacToeEngine.fromState: valid waiting state can restore', () => {
+  const rawState = {
+    gameType: 'tic-tac-toe',
+    status: 'waiting',
+    players: { X: 'user_A', O: null },
+    board: Array(9).fill(null),
+    currentTurn: null,
+    winner: null,
+    winningLine: null,
+    revision: 1,
+  };
+
+  const engine = TicTacToeEngine.fromState(rawState);
+  const state = engine.getState();
+  assert.equal(state.gameType, 'tic-tac-toe');
+  assert.equal(state.status, 'waiting');
+  assert.equal(state.players.X, 'user_A');
+  assert.equal(state.players.O, null);
+  assert.equal(state.currentTurn, null);
+  assert.equal(state.revision, 1);
+});
+
+test('TicTacToeEngine.fromState: valid playing state can restore and preserve all fields', () => {
+  const board = ['X', null, null, null, 'O', null, null, null, null];
+  const rawState = {
+    gameType: 'tic-tac-toe',
+    status: 'playing',
+    players: { X: 'user_A', O: 'user_B' },
+    board,
+    currentTurn: 'X',
+    winner: null,
+    winningLine: null,
+    revision: 4,
+  };
+
+  const engine = TicTacToeEngine.fromState(rawState);
+  const state = engine.getState();
+  assert.equal(state.status, 'playing');
+  assert.equal(state.players.X, 'user_A');
+  assert.equal(state.players.O, 'user_B');
+  assert.deepEqual(state.board, board);
+  assert.equal(state.currentTurn, 'X');
+  assert.equal(state.winner, null);
+  assert.equal(state.winningLine, null);
+  assert.equal(state.revision, 4);
+});
+
+test('TicTacToeEngine.fromState: valid finished state with winner and winningLine can restore', () => {
+  const board = ['X', 'X', 'X', 'O', 'O', null, null, null, null];
+  const rawState = {
+    gameType: 'tic-tac-toe',
+    status: 'finished',
+    players: { X: 'user_A', O: 'user_B' },
+    board,
+    currentTurn: null,
+    winner: 'X',
+    winningLine: [0, 1, 2],
+    revision: 7,
+  };
+
+  const engine = TicTacToeEngine.fromState(rawState);
+  const state = engine.getState();
+  assert.equal(state.status, 'finished');
+  assert.equal(state.winner, 'X');
+  assert.deepEqual(state.winningLine, [0, 1, 2]);
+  assert.equal(state.currentTurn, null);
+  assert.equal(state.revision, 7);
+});
+
+test('TicTacToeEngine.fromState: invalid gameType rejected', () => {
+  const rawState = {
+    gameType: 'chess',
+    status: 'waiting',
+    players: { X: null, O: null },
+    board: Array(9).fill(null),
+    currentTurn: null,
+    winner: null,
+    winningLine: null,
+    revision: 0,
+  };
+
+  assert.throws(() => TicTacToeEngine.fromState(rawState), /Invalid gameType/i);
+});
+
+test('TicTacToeEngine.fromState: malformed board rejected', () => {
+  // Not array
+  assert.throws(
+    () =>
+      TicTacToeEngine.fromState({
+        gameType: 'tic-tac-toe',
+        status: 'waiting',
+        players: { X: null, O: null },
+        board: 'invalid-board',
+        currentTurn: null,
+        winner: null,
+        winningLine: null,
+        revision: 0,
+      }),
+    /board must be an array/i
+  );
+
+  // Length !== 9
+  assert.throws(
+    () =>
+      TicTacToeEngine.fromState({
+        gameType: 'tic-tac-toe',
+        status: 'waiting',
+        players: { X: null, O: null },
+        board: ['X', 'O'],
+        currentTurn: null,
+        winner: null,
+        winningLine: null,
+        revision: 0,
+      }),
+    /exactly 9 elements/i
+  );
+
+  // Invalid cell contents
+  assert.throws(
+    () =>
+      TicTacToeEngine.fromState({
+        gameType: 'tic-tac-toe',
+        status: 'waiting',
+        players: { X: null, O: null },
+        board: ['X', 'O', 'Z', null, null, null, null, null, null],
+        currentTurn: null,
+        winner: null,
+        winningLine: null,
+        revision: 0,
+      }),
+    /board\[2\] must be/i
+  );
+});
+
+test('TicTacToeEngine.fromState: invalid revision rejected', () => {
+  const makeState = (rev) => ({
+    gameType: 'tic-tac-toe',
+    status: 'waiting',
+    players: { X: null, O: null },
+    board: Array(9).fill(null),
+    currentTurn: null,
+    winner: null,
+    winningLine: null,
+    revision: rev,
+  });
+
+  assert.throws(() => TicTacToeEngine.fromState(makeState(-1)), /Invalid revision/i);
+  assert.throws(() => TicTacToeEngine.fromState(makeState(2.5)), /Invalid revision/i);
+  assert.throws(() => TicTacToeEngine.fromState(makeState('5')), /Invalid revision/i);
+  assert.throws(() => TicTacToeEngine.fromState(makeState(NaN)), /Invalid revision/i);
+});
+
+test('TicTacToeEngine.fromState: invalid player symbol or state invariants rejected', () => {
+  // Playing without both players
+  assert.throws(
+    () =>
+      TicTacToeEngine.fromState({
+        gameType: 'tic-tac-toe',
+        status: 'playing',
+        players: { X: 'user_A', O: null },
+        board: Array(9).fill(null),
+        currentTurn: 'X',
+        winner: null,
+        winningLine: null,
+        revision: 2,
+      }),
+    /Both players must be assigned/i
+  );
+
+  // Same player for X and O
+  assert.throws(
+    () =>
+      TicTacToeEngine.fromState({
+        gameType: 'tic-tac-toe',
+        status: 'playing',
+        players: { X: 'user_A', O: 'user_A' },
+        board: Array(9).fill(null),
+        currentTurn: 'X',
+        winner: null,
+        winningLine: null,
+        revision: 2,
+      }),
+    /cannot be the same user/i
+  );
+});
+
+test('TicTacToeEngine.fromState: restored state continues gameplay correctly', () => {
+  const board = ['X', null, null, null, 'O', null, null, null, null];
+  const rawState = {
+    gameType: 'tic-tac-toe',
+    status: 'playing',
+    players: { X: 'user_A', O: 'user_B' },
+    board,
+    currentTurn: 'X',
+    winner: null,
+    winningLine: null,
+    revision: 4,
+  };
+
+  const engine = TicTacToeEngine.fromState(rawState);
+
+  // O tries to move when it's X's turn -> rejected
+  const moveO = engine.makeMove('user_B', 1);
+  assert.equal(moveO.success, false);
+  assert.match(moveO.error, /not your turn/i);
+
+  // X makes valid move at cell 1
+  const moveX = engine.makeMove('user_A', 1);
+  assert.equal(moveX.success, true);
+  assert.equal(engine.getState().currentTurn, 'O');
+  assert.equal(engine.getState().board[1], 'X');
+  assert.equal(engine.getState().revision, 5);
+});

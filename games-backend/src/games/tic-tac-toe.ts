@@ -32,6 +32,138 @@ export interface MoveResult {
   error?: string;
 }
 
+export function validateTicTacToeState(
+  data: unknown
+): { valid: true; state: TicTacToeState } | { valid: false; error: string } {
+  if (typeof data !== 'object' || data === null) {
+    return { valid: false, error: 'State must be a non-null object' };
+  }
+
+  const s = data as Record<string, unknown>;
+
+  if (s.gameType !== 'tic-tac-toe') {
+    return {
+      valid: false,
+      error: `Invalid gameType: expected "tic-tac-toe", got "${s.gameType}"`,
+    };
+  }
+
+  if (s.status !== 'waiting' && s.status !== 'playing' && s.status !== 'finished') {
+    return { valid: false, error: `Invalid status: "${s.status}"` };
+  }
+
+  if (typeof s.revision !== 'number' || !Number.isInteger(s.revision) || s.revision < 0) {
+    return {
+      valid: false,
+      error: `Invalid revision: must be a non-negative integer, got ${s.revision}`,
+    };
+  }
+
+  if (typeof s.players !== 'object' || s.players === null) {
+    return { valid: false, error: 'Missing or invalid players object' };
+  }
+  const p = s.players as Record<string, unknown>;
+  if (p.X !== null && typeof p.X !== 'string') {
+    return { valid: false, error: 'players.X must be string or null' };
+  }
+  if (p.O !== null && typeof p.O !== 'string') {
+    return { valid: false, error: 'players.O must be string or null' };
+  }
+
+  if (!Array.isArray(s.board) || s.board.length !== 9) {
+    return { valid: false, error: 'board must be an array of exactly 9 elements' };
+  }
+  for (let i = 0; i < 9; i++) {
+    const cell = s.board[i];
+    if (cell !== null && cell !== 'X' && cell !== 'O') {
+      return {
+        valid: false,
+        error: `board[${i}] must be 'X', 'O', or null, got ${cell}`,
+      };
+    }
+  }
+
+  if (s.currentTurn !== null && s.currentTurn !== 'X' && s.currentTurn !== 'O') {
+    return {
+      valid: false,
+      error: `currentTurn must be 'X', 'O', or null, got ${s.currentTurn}`,
+    };
+  }
+
+  if (
+    s.winner !== null &&
+    s.winner !== 'X' &&
+    s.winner !== 'O' &&
+    s.winner !== 'draw'
+  ) {
+    return {
+      valid: false,
+      error: `winner must be 'X', 'O', 'draw', or null, got ${s.winner}`,
+    };
+  }
+
+  if (s.winningLine !== null) {
+    if (!Array.isArray(s.winningLine) || s.winningLine.length !== 3) {
+      return {
+        valid: false,
+        error: 'winningLine must be null or an array of 3 numbers',
+      };
+    }
+    for (const idx of s.winningLine) {
+      if (!Number.isInteger(idx) || idx < 0 || idx > 8) {
+        return { valid: false, error: `Invalid cell index in winningLine: ${idx}` };
+      }
+    }
+  }
+
+  // Cross-field status invariants
+  if (s.status === 'waiting') {
+    if (s.currentTurn !== null) {
+      return { valid: false, error: 'currentTurn must be null when status is "waiting"' };
+    }
+    if (s.winner !== null) {
+      return { valid: false, error: 'winner must be null when status is "waiting"' };
+    }
+  } else if (s.status === 'playing') {
+    if (p.X === null || p.O === null) {
+      return { valid: false, error: 'Both players must be assigned when status is "playing"' };
+    }
+    if (p.X === p.O) {
+      return { valid: false, error: 'players.X and players.O cannot be the same user' };
+    }
+    if (s.currentTurn !== 'X' && s.currentTurn !== 'O') {
+      return { valid: false, error: 'currentTurn must be "X" or "O" when status is "playing"' };
+    }
+    if (s.winner !== null) {
+      return { valid: false, error: 'winner must be null when status is "playing"' };
+    }
+  } else if (s.status === 'finished') {
+    if (s.winner === null) {
+      return { valid: false, error: 'winner cannot be null when status is "finished"' };
+    }
+    if (s.currentTurn !== null) {
+      return { valid: false, error: 'currentTurn must be null when status is "finished"' };
+    }
+  }
+
+  return {
+    valid: true,
+    state: {
+      gameType: 'tic-tac-toe',
+      status: s.status,
+      players: {
+        X: p.X as string | null,
+        O: p.O as string | null,
+      },
+      board: [...s.board] as (PlayerSymbol | null)[],
+      currentTurn: s.currentTurn as PlayerSymbol | null,
+      winner: s.winner as GameWinner,
+      winningLine: s.winningLine ? ([...s.winningLine] as number[]) : null,
+      revision: s.revision as number,
+    },
+  };
+}
+
 export class TicTacToeEngine {
   private status: GameStatus = 'waiting';
   private playerX: string | null = null;
@@ -54,9 +186,23 @@ export class TicTacToeEngine {
       }
       if (initialState.currentTurn !== undefined) this.currentTurn = initialState.currentTurn;
       if (initialState.winner !== undefined) this.winner = initialState.winner;
-      if (initialState.winningLine !== undefined) this.winningLine = initialState.winningLine ? [...initialState.winningLine] : null;
+      if (initialState.winningLine !== undefined) {
+        this.winningLine = initialState.winningLine ? [...initialState.winningLine] : null;
+      }
       if (typeof initialState.revision === 'number') this.revision = initialState.revision;
     }
+  }
+
+  public static fromState(raw: unknown): TicTacToeEngine {
+    const validated = validateTicTacToeState(raw);
+    if (!validated.valid) {
+      throw new Error(`Failed to restore TicTacToeEngine: ${validated.error}`);
+    }
+    return new TicTacToeEngine(validated.state);
+  }
+
+  public clone(): TicTacToeEngine {
+    return new TicTacToeEngine(this.getState());
   }
 
   public getState(): TicTacToeState {

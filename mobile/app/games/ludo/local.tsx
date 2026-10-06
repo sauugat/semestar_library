@@ -7,21 +7,25 @@ import {
   TouchableOpacity,
   Alert,
   AppState,
+  AccessibilityInfo,
+  useWindowDimensions,
   type AppStateStatus,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/constants/useTheme';
-import { Text, Heading, Subheading, Caption } from '@/components/ui/Typography';
+import { Text, Heading, Caption } from '@/components/ui/Typography';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { Button, PrimaryButton, SecondaryButton } from '@/components/ui/Button';
+import { PrimaryButton, SecondaryButton } from '@/components/ui/Button';
 import {
   AsyncStorageLudoStorageAdapter,
   restoreLocalLudoSession,
   type LocalLudoSession,
   type LocalLudoSessionSnapshot,
+  type LocalLudoRollResult,
+  type LocalLudoMoveResult,
   type PlayerColor,
 } from '@/services/ludo';
 import {
@@ -35,6 +39,12 @@ import {
   formatActionStatusMessage,
   formatTurnStatus,
   getRankingsDisplay,
+  buildTokenTravelPlan,
+  buildCaptureReturnPlan,
+  LUDO_ANIMATION_CONSTANTS,
+  LudoHaptics,
+  type TokenTravelPlan,
+  type CaptureReturnPlan,
 } from '@/components/games/ludo';
 
 const LUDO_COLOR_MAP: Record<string, { name: string; hex: string; bg: string }> = {
@@ -55,6 +65,7 @@ export default function LudoLocalMatchShell() {
   const router = useRouter();
   const { colors, spacing, radii } = useTheme();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
 
   // State
   const [snapshot, setSnapshot] = useState<LocalLudoSessionSnapshot | null>(null);
@@ -66,22 +77,94 @@ export default function LudoLocalMatchShell() {
   const [displayDiceValue, setDisplayDiceValue] = useState<number | null>(null);
   const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState);
 
+  // Animation and motion accessibility states
+  const [isReducedMotion, setIsReducedMotion] = useState(false);
+  const [isDiceRolling, setIsDiceRolling] = useState(false);
+  const [travelPlan, setTravelPlan] = useState<TokenTravelPlan | null>(null);
+  const [capturePlans, setCapturePlans] = useState<CaptureReturnPlan[]>([]);
+  const [hiddenTokenKeys, setHiddenTokenKeys] = useState<string[]>([]);
+  const [celebrationRank, setCelebrationRank] = useState<{
+    color: PlayerColor;
+    rank: number;
+    displayName: string;
+  } | null>(null);
+  const [showWinnerCelebration, setShowWinnerCelebration] = useState(false);
+  const [isMovementAnimating, setIsMovementAnimating] = useState(false);
+
   // References for robust session ownership and async action guards
   const sessionRef = useRef<LocalLudoSession | null>(null);
   const mountedRef = useRef<boolean>(true);
   const actionLockRef = useRef<boolean>(false);
   const generationRef = useRef<number>(0);
   const botTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingAnimationRef = useRef<{
+    result: LocalLudoMoveResult;
+    targetSnapshot: LocalLudoSessionSnapshot;
+    capPlans: CaptureReturnPlan[];
+    isBotTurn: boolean;
+    onComplete?: () => void;
+  } | null>(null);
 
   const storage = React.useMemo(() => new AsyncStorageLudoStorageAdapter(), []);
 
-  // AppState listener to cancel pending presentation bot timer when backgrounded
+  // Check reduced-motion preference on mount
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then((enabled) => setIsReducedMotion(Boolean(enabled)))
+      .catch(() => {});
+
+    const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', (enabled) => {
+      setIsReducedMotion(Boolean(enabled));
+    });
+
+    return () => {
+      sub?.remove?.();
+    };
+  }, []);
+
+  // AppState listener to cancel pending presentation bot timer and ongoing animations when backgrounded
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {
       setAppState(nextAppState);
-      if (nextAppState !== 'active' && botTimerRef.current) {
-        clearTimeout(botTimerRef.current);
-        botTimerRef.current = null;
+      if (nextAppState !== 'active') {
+        if (botTimerRef.current) {
+          clearTimeout(botTimerRef.current);
+          botTimerRef.current = null;
+        }
+
+        // Cancel animations safely, release locks, and snap to authoritative state
+        pendingAnimationRef.current = null;
+        setTravelPlan(null);
+        setCapturePlans([]);
+        setHiddenTokenKeys([]);
+        setCelebrationRank(null);
+        setShowWinnerCelebration(false);
+        setIsMovementAnimating(false);
+        setIsDiceRolling(false);
+        setIsActionPending(false);
+        actionLockRef.current = false;
+        generationRef.current += 1;
+
+        if (sessionRef.current) {
+          const finalSnap = sessionRef.current.getSnapshot();
+          setSnapshot(finalSnap);
+          if (finalSnap.turnPhase === 'move' && finalSnap.currentRoll !== null) {
+            setDisplayDiceValue(finalSnap.currentRoll);
+          } else if (finalSnap.turnPhase === 'roll') {
+            setDisplayDiceValue(null);
+          }
+        }
+      } else {
+        // When returning to active foreground, ensure board state and dice reflect latest authoritative session truth
+        if (sessionRef.current) {
+          const activeSnap = sessionRef.current.getSnapshot();
+          setSnapshot(activeSnap);
+          if (activeSnap.turnPhase === 'move' && activeSnap.currentRoll !== null) {
+            setDisplayDiceValue(activeSnap.currentRoll);
+          } else if (activeSnap.turnPhase === 'roll') {
+            setDisplayDiceValue(null);
+          }
+        }
       }
     });
 
@@ -137,31 +220,31 @@ export default function LudoLocalMatchShell() {
     };
   }, [storage]);
 
-  // 2. Action dispatchers
-  const handleRollDice = useCallback(async () => {
-    const session = sessionRef.current;
-    if (!session || !snapshot || actionLockRef.current || isActionPending) {
-      return;
-    }
+  // Overall interaction locking: roll or movement animation blocks input
+  const isBoardBusy = isActionPending || isDiceRolling || isMovementAnimating;
 
-    const handoffActive = shouldShowHandoff(snapshot);
-    if (!canHumanRoll(snapshot, false, handoffActive)) {
-      return;
-    }
+  // Finalize move state helper
+  const finalizeMoveState = useCallback(
+    (
+      result: LocalLudoMoveResult,
+      targetSnapshot: LocalLudoSessionSnapshot,
+      onComplete?: () => void
+    ) => {
+      pendingAnimationRef.current = null;
+      setTravelPlan(null);
+      setCapturePlans([]);
+      setHiddenTokenKeys([]);
+      setCelebrationRank(null);
+      setShowWinnerCelebration(false);
+      setIsMovementAnimating(false);
+      setSnapshot(targetSnapshot);
 
-    actionLockRef.current = true;
-    setIsActionPending(true);
-    generationRef.current += 1;
-
-    try {
-      const result = await session.rollDice();
-      if (!mountedRef.current) return;
-
-      // Authoritative rolled value visually preserved on dice (including auto-pass & three-sixes)
-      setDisplayDiceValue(result.rolledValue);
-
-      const newSnapshot = session.getSnapshot();
-      setSnapshot(newSnapshot);
+      if (
+        targetSnapshot.turnPhase === 'roll' &&
+        targetSnapshot.currentTurn !== result.player
+      ) {
+        setDisplayDiceValue(null);
+      }
 
       const msg = formatActionStatusMessage(result);
       if (msg) {
@@ -173,22 +256,255 @@ export default function LudoLocalMatchShell() {
       } else {
         setPersistenceWarning(null);
       }
+
+      setIsActionPending(false);
+      actionLockRef.current = false;
+      onComplete?.();
+    },
+    []
+  );
+
+  // Post-movement sequencing (haptic precedence -> rank toast/win celebration check -> finalize)
+  const finishMovementSequence = useCallback(
+    (
+      result: LocalLudoMoveResult,
+      targetSnapshot: LocalLudoSessionSnapshot,
+      isBotTurn: boolean,
+      onComplete?: () => void
+    ) => {
+      // Deterministic haptic precedence: gameWon > playerRanked > finishToken > capture
+      void LudoHaptics.triggerMoveHaptic(result, isBotTurn);
+
+      if (result.gameFinished && !isReducedMotion) {
+        setShowWinnerCelebration(true);
+        // Overlay will animate confetti and call onWinnerCelebrationComplete
+      } else if (result.playerRanked && result.rank !== null && !isReducedMotion) {
+        const rankedColor = result.player;
+        const rankedPlayer = snapshot?.seats.find((s) => s.color === rankedColor);
+        const displayName =
+          rankedPlayer?.displayName ||
+          `${rankedColor.charAt(0).toUpperCase() + rankedColor.slice(1)} Player`;
+
+        setCelebrationRank({
+          color: rankedColor,
+          rank: result.rank,
+          displayName,
+        });
+        // Overlay will animate rank toast and call onCelebrationComplete
+      } else {
+        finalizeMoveState(result, targetSnapshot, onComplete);
+      }
+    },
+    [isReducedMotion, snapshot, finalizeMoveState]
+  );
+
+  // Traveling token arrival callback
+  const handleTravelComplete = useCallback(
+    (outcome: 'completed' | 'cancelled') => {
+      const pending = pendingAnimationRef.current;
+      if (!pending) return;
+
+      const { result, targetSnapshot, capPlans, isBotTurn, onComplete } = pending;
+
+      if (outcome === 'cancelled') {
+        finalizeMoveState(result, targetSnapshot, onComplete);
+        return;
+      }
+
+      if (capPlans && capPlans.length > 0) {
+        setCapturePlans(capPlans);
+      } else {
+        finishMovementSequence(result, targetSnapshot, isBotTurn, onComplete);
+      }
+    },
+    [finishMovementSequence, finalizeMoveState]
+  );
+
+  // Captured token return callback
+  const handleCaptureComplete = useCallback(
+    (outcome: 'completed' | 'cancelled') => {
+      const pending = pendingAnimationRef.current;
+      if (!pending) return;
+
+      const { result, targetSnapshot, isBotTurn, onComplete } = pending;
+      setCapturePlans([]);
+
+      if (outcome === 'cancelled') {
+        finalizeMoveState(result, targetSnapshot, onComplete);
+        return;
+      }
+
+      finishMovementSequence(result, targetSnapshot, isBotTurn, onComplete);
+    },
+    [finishMovementSequence, finalizeMoveState]
+  );
+
+  // Rank celebration complete callback
+  const handleCelebrationComplete = useCallback(
+    (_outcome: 'completed' | 'cancelled') => {
+      const pending = pendingAnimationRef.current;
+      if (!pending) return;
+
+      const { result, targetSnapshot, onComplete } = pending;
+      setCelebrationRank(null);
+      finalizeMoveState(result, targetSnapshot, onComplete);
+    },
+    [finalizeMoveState]
+  );
+
+  // Winner celebration complete callback
+  const handleWinnerCelebrationComplete = useCallback(
+    (_outcome: 'completed' | 'cancelled') => {
+      const pending = pendingAnimationRef.current;
+      if (!pending) return;
+
+      const { result, targetSnapshot, onComplete } = pending;
+      setShowWinnerCelebration(false);
+      finalizeMoveState(result, targetSnapshot, onComplete);
+    },
+    [finalizeMoveState]
+  );
+
+  // Execute token move animation pipeline with robust fail-safe error recovery
+  const executeMoveAnimation = useCallback(
+    (
+      result: LocalLudoMoveResult,
+      targetSnapshot: LocalLudoSessionSnapshot,
+      isBotTurn: boolean = false,
+      onComplete?: () => void
+    ) => {
+      if (result.type !== 'MOVE') {
+        setSnapshot(targetSnapshot);
+        setIsActionPending(false);
+        actionLockRef.current = false;
+        onComplete?.();
+        return;
+      }
+
+      try {
+        const targetWidth = Math.min(width - 20, 430);
+        const boardSize = Math.floor(targetWidth);
+        const cellSize = boardSize / 15;
+
+        const plan = buildTokenTravelPlan(result, cellSize, { isReducedMotion });
+        const capPlans = buildCaptureReturnPlan(result, cellSize, { isReducedMotion });
+
+        if (!plan) {
+          finalizeMoveState(result, targetSnapshot, onComplete);
+          return;
+        }
+
+        const movingKey = `${result.player}-${result.tokenId}`;
+        const capturedKeys = (result.capturedTokens || []).map((c) => `${c.color}-${c.tokenIndex}`);
+
+        setHiddenTokenKeys([movingKey, ...capturedKeys]);
+        setIsMovementAnimating(true);
+        setTravelPlan(plan);
+
+        pendingAnimationRef.current = {
+          result,
+          targetSnapshot,
+          capPlans,
+          isBotTurn,
+          onComplete,
+        };
+      } catch {
+        // Animation setup fail-safe: snap cleanly to authoritative target snapshot
+        finalizeMoveState(result, targetSnapshot, onComplete);
+      }
+    },
+    [width, isReducedMotion, finalizeMoveState]
+  );
+
+  // Dice roll animation settle callback
+  const handleDiceRollComplete = useCallback(
+    (outcome: 'completed' | 'cancelled') => {
+      if (!mountedRef.current || !sessionRef.current) return;
+      setIsDiceRolling(false);
+
+      const session = sessionRef.current;
+      const newSnapshot = session.getSnapshot();
+
+      if (outcome === 'cancelled') {
+        setSnapshot(newSnapshot);
+        setIsActionPending(false);
+        actionLockRef.current = false;
+        return;
+      }
+
+      const lastAction = newSnapshot.lastAction as LocalLudoRollResult | null;
+
+      if (lastAction?.autoPass) {
+        setStatusMessage(`Rolled a ${lastAction.rolledValue} — no legal moves`);
+        setTimeout(() => {
+          if (!mountedRef.current) return;
+          setSnapshot(newSnapshot);
+          setIsActionPending(false);
+          actionLockRef.current = false;
+        }, LUDO_ANIMATION_CONSTANTS.AUTO_PASS_HOLD_MS);
+        return;
+      }
+
+      if (lastAction?.threeSixesForfeit) {
+        setStatusMessage('Three sixes — turn forfeited');
+        setTimeout(() => {
+          if (!mountedRef.current) return;
+          setSnapshot(newSnapshot);
+          setIsActionPending(false);
+          actionLockRef.current = false;
+        }, LUDO_ANIMATION_CONSTANTS.THREE_SIXES_HOLD_MS);
+        return;
+      }
+
+      setSnapshot(newSnapshot);
+      const msg = formatActionStatusMessage(lastAction);
+      if (msg) {
+        setStatusMessage(msg);
+      }
+      setIsActionPending(false);
+      actionLockRef.current = false;
+    },
+    []
+  );
+
+  // 2. Action dispatchers
+  const handleRollDice = useCallback(async () => {
+    const session = sessionRef.current;
+    if (!session || !snapshot || actionLockRef.current || isBoardBusy) {
+      return;
+    }
+
+    const handoffActive = shouldShowHandoff(snapshot);
+    if (!canHumanRoll(snapshot, false, handoffActive)) {
+      return;
+    }
+
+    actionLockRef.current = true;
+    setIsActionPending(true);
+    generationRef.current += 1;
+    const currentGen = generationRef.current;
+
+    try {
+      void LudoHaptics.rollStart();
+      const result = await session.rollDice();
+      if (!mountedRef.current || generationRef.current !== currentGen) return;
+
+      setDisplayDiceValue(result.rolledValue);
+      setIsDiceRolling(true);
+      // Dice will settle and fire handleDiceRollComplete
     } catch (err: any) {
       if (mountedRef.current) {
         Alert.alert('Action Error', err?.message || 'Could not roll dice.');
-      }
-    } finally {
-      if (mountedRef.current) {
         setIsActionPending(false);
+        actionLockRef.current = false;
       }
-      actionLockRef.current = false;
     }
-  }, [snapshot, isActionPending]);
+  }, [snapshot, isBoardBusy]);
 
   const handleTokenPress = useCallback(
     async (tokenIndex: number) => {
       const session = sessionRef.current;
-      if (!session || !snapshot || actionLockRef.current || isActionPending) {
+      if (!session || !snapshot || actionLockRef.current || isBoardBusy) {
         return;
       }
 
@@ -200,41 +516,24 @@ export default function LudoLocalMatchShell() {
       actionLockRef.current = true;
       setIsActionPending(true);
       generationRef.current += 1;
+      const currentGen = generationRef.current;
 
       try {
+        void LudoHaptics.tokenSelected();
         const result = await session.moveToken(tokenIndex);
-        if (!mountedRef.current) return;
+        if (!mountedRef.current || generationRef.current !== currentGen) return;
 
         const newSnapshot = session.getSnapshot();
-        setSnapshot(newSnapshot);
-
-        // If turn passes to another player in roll phase, reset dice to idle
-        if (newSnapshot.turnPhase === 'roll' && newSnapshot.currentTurn !== snapshot.currentTurn) {
-          setDisplayDiceValue(null);
-        }
-
-        const msg = formatActionStatusMessage(result);
-        if (msg) {
-          setStatusMessage(msg);
-        }
-
-        if (result.persistenceWarning) {
-          setPersistenceWarning('Game continued, but this turn couldn\'t be saved.');
-        } else {
-          setPersistenceWarning(null);
-        }
+        executeMoveAnimation(result, newSnapshot, false);
       } catch (err: any) {
         if (mountedRef.current) {
           Alert.alert('Move Error', err?.message || 'Illegal token move.');
-        }
-      } finally {
-        if (mountedRef.current) {
           setIsActionPending(false);
+          actionLockRef.current = false;
         }
-        actionLockRef.current = false;
       }
     },
-    [snapshot, isActionPending]
+    [snapshot, isBoardBusy, executeMoveAnimation]
   );
 
   const handleAcknowledgeHandoff = useCallback(async () => {
@@ -294,7 +593,7 @@ export default function LudoLocalMatchShell() {
     }
 
     const isHandoffActive = shouldShowHandoff(snapshot);
-    const nextBotAction = determineNextBotAction(snapshot, isActionPending, isHandoffActive);
+    const nextBotAction = determineNextBotAction(snapshot, isBoardBusy, isHandoffActive);
 
     if (!nextBotAction) {
       return;
@@ -307,10 +606,12 @@ export default function LudoLocalMatchShell() {
     }
 
     const currentGen = generationRef.current;
-    const delay = nextBotAction === 'BOT_ROLL' ? 650 : 750;
+    const delay =
+      nextBotAction === 'BOT_ROLL'
+        ? LUDO_ANIMATION_CONSTANTS.BOT_THINK_DELAY_MS
+        : LUDO_ANIMATION_CONSTANTS.BOT_ACTION_PAUSE_MS;
 
     botTimerRef.current = setTimeout(async () => {
-      // Guard against stale async execution and background transitions
       if (
         !mountedRef.current ||
         generationRef.current !== currentGen ||
@@ -326,46 +627,22 @@ export default function LudoLocalMatchShell() {
 
       try {
         const session = sessionRef.current;
-        const result =
-          nextBotAction === 'BOT_ROLL'
-            ? await session.performBotRoll()
-            : await session.performBotMove();
+        if (nextBotAction === 'BOT_ROLL') {
+          const result = await session.performBotRoll();
+          if (!mountedRef.current || generationRef.current !== currentGen) return;
 
-        if (!mountedRef.current || generationRef.current !== currentGen) {
-          return;
-        }
-
-        if (result.type === 'ROLL') {
           setDisplayDiceValue(result.rolledValue);
-        }
-
-        const updatedSnapshot = session.getSnapshot();
-        setSnapshot(updatedSnapshot);
-
-        if (
-          nextBotAction === 'BOT_MOVE' &&
-          updatedSnapshot.turnPhase === 'roll' &&
-          updatedSnapshot.currentTurn !== snapshot.currentTurn
-        ) {
-          setDisplayDiceValue(null);
-        }
-
-        const msg = formatActionStatusMessage(result);
-        if (msg) {
-          setStatusMessage(msg);
-        }
-
-        if (result.persistenceWarning) {
-          setPersistenceWarning('Game continued, but this turn couldn\'t be saved.');
+          setIsDiceRolling(true);
+          // Dice will settle and invoke handleDiceRollComplete
         } else {
-          setPersistenceWarning(null);
+          const result = await session.performBotMove();
+          if (!mountedRef.current || generationRef.current !== currentGen) return;
+
+          const updatedSnapshot = session.getSnapshot();
+          executeMoveAnimation(result, updatedSnapshot, true);
         }
       } catch (err: any) {
-        // Safe logging of bot error without crash
-      } finally {
-        if (mountedRef.current) {
-          setIsActionPending(false);
-        }
+        setIsActionPending(false);
         actionLockRef.current = false;
       }
     }, delay);
@@ -376,7 +653,7 @@ export default function LudoLocalMatchShell() {
         botTimerRef.current = null;
       }
     };
-  }, [snapshot, isActionPending, appState]);
+  }, [snapshot, isBoardBusy, appState, executeMoveAnimation]);
 
   // Loading state
   if (isLoading) {
@@ -415,16 +692,17 @@ export default function LudoLocalMatchShell() {
   const isFinished = snapshot.status === 'finished';
   const currentTurnColor = snapshot.currentTurn;
   const activeCount = snapshot.seats.filter((s) => s.status !== 'closed').length;
-  const isHandoffActive = shouldShowHandoff(snapshot);
+  // Handoff overlay appears only after previous action animation has completely finished
+  const isHandoffActive = shouldShowHandoff(snapshot) && !isBoardBusy;
   const handoffData = snapshot.handoff;
 
-  const canRoll = canHumanRoll(snapshot, isActionPending, isHandoffActive);
-  const isBoardInteractiveNow = isBoardInteractive(snapshot, isActionPending, isHandoffActive);
-  const turnPresentation = formatTurnStatus(snapshot, isActionPending);
+  const canRoll = canHumanRoll(snapshot, isBoardBusy, isHandoffActive);
+  const isBoardInteractiveNow = isBoardInteractive(snapshot, isBoardBusy, isHandoffActive);
+  const turnPresentation = formatTurnStatus(snapshot, isBoardBusy);
   const currentTurnMeta = getColorMeta(currentTurnColor);
   const rankings = isFinished ? getRankingsDisplay(snapshot) : [];
 
-  // Visual dice value: uses authoritative currentRoll during move phase, or preserved displayDiceValue
+  // Visual dice value
   const activeDiceValue =
     snapshot.turnPhase === 'move'
       ? (snapshot.currentRoll !== null ? snapshot.currentRoll : displayDiceValue)
@@ -508,12 +786,22 @@ export default function LudoLocalMatchShell() {
           </View>
         </Card>
 
-        {/* 3. Authoritative 15x15 Ludo Board */}
+        {/* 3. Authoritative 15x15 Ludo Board with Animation Layer */}
         <View style={styles.boardWrapper}>
           <LudoBoard
             snapshot={snapshot}
             onTokenPress={handleTokenPress}
             disabled={!isBoardInteractiveNow}
+            hiddenTokenKeys={hiddenTokenKeys}
+            travelPlan={travelPlan}
+            capturePlans={capturePlans}
+            celebrationRank={celebrationRank}
+            showWinnerCelebration={showWinnerCelebration}
+            isReducedMotion={isReducedMotion}
+            onTravelComplete={handleTravelComplete}
+            onCaptureComplete={handleCaptureComplete}
+            onCelebrationComplete={handleCelebrationComplete}
+            onWinnerCelebrationComplete={handleWinnerCelebrationComplete}
           />
         </View>
 
@@ -531,12 +819,16 @@ export default function LudoLocalMatchShell() {
             ]}
           >
             <View style={styles.controlsRow}>
-              {/* Static Dice Component */}
+              {/* Upgraded Animated Dice Component with cancellation and bot silence support */}
               <View style={styles.diceContainer}>
                 <LudoDice
                   value={activeDiceValue}
                   size={50}
-                  disabled={isActionPending}
+                  disabled={isBoardBusy}
+                  isRolling={isDiceRolling}
+                  isBotTurn={snapshot.isBotTurn}
+                  onRollComplete={handleDiceRollComplete}
+                  isReducedMotion={isReducedMotion}
                 />
               </View>
 
@@ -549,15 +841,15 @@ export default function LudoLocalMatchShell() {
                       {
                         backgroundColor: currentTurnMeta.hex,
                         borderRadius: radii.md,
-                        opacity: isActionPending ? 0.7 : 1,
+                        opacity: isBoardBusy ? 0.7 : 1,
                       },
                     ]}
                     onPress={handleRollDice}
                     activeOpacity={0.8}
-                    disabled={isActionPending || !canRoll}
+                    disabled={isBoardBusy || !canRoll}
                     accessibilityRole="button"
                     accessibilityLabel="Roll Dice"
-                    accessibilityState={{ disabled: isActionPending || !canRoll }}
+                    accessibilityState={{ disabled: isBoardBusy || !canRoll }}
                   >
                     <Ionicons name="dice" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
                     <Text variant="sm" weight="800" style={{ color: '#FFFFFF', letterSpacing: 0.5 }}>
@@ -691,7 +983,7 @@ export default function LudoLocalMatchShell() {
         </View>
       </ScrollView>
 
-      {/* 8. Pass-The-Phone Handoff Overlay (Human A -> Human B, strictly absent when game finished) */}
+      {/* 8. Pass-The-Phone Handoff Overlay (Human A -> Human B, strictly absent when game finished or animating) */}
       {isHandoffActive && handoffData && !isFinished && (
         <View style={styles.handoffBackdrop}>
           <Card
@@ -752,7 +1044,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
-    flexGrow: 1,
+    paddingBottom: 24,
   },
   centerContainer: {
     flex: 1,
@@ -786,7 +1078,7 @@ const styles = StyleSheet.create({
     width: 14,
     height: 14,
     borderRadius: 7,
-    marginRight: 10,
+    marginRight: 8,
   },
   boardWrapper: {
     alignItems: 'center',
@@ -853,7 +1145,6 @@ const styles = StyleSheet.create({
   leaveBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     paddingVertical: 6,
     paddingHorizontal: 14,
     borderWidth: 1,

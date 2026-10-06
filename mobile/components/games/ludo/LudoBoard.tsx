@@ -1,17 +1,29 @@
 import React, { useMemo } from 'react';
 import { View, StyleSheet, useWindowDimensions } from 'react-native';
 import { useTheme } from '@/constants/useTheme';
-import { buildLudoBoardViewModel, type LudoBoardViewModel } from './board-view-model';
+import { buildLudoBoardViewModel, type LudoBoardViewModel, type BoardTokenViewModel } from './board-view-model';
 import { LudoHomeYard } from './LudoHomeYard';
 import { LudoCenter } from './LudoCenter';
 import { LudoCell } from './LudoCell';
-import type { LocalLudoSessionSnapshot } from '../../../types/ludo-session';
+import { LudoAnimatedOverlay } from './LudoAnimatedOverlay';
+import type { LocalLudoSessionSnapshot, PlayerColor } from '../../../types/ludo-session';
+import type { TokenTravelPlan, CaptureReturnPlan } from './ludo-animation';
 
 export interface LudoBoardProps {
   snapshot: LocalLudoSessionSnapshot;
   maxBoardSize?: number;
   onTokenPress?: (tokenIndex: number) => void;
   disabled?: boolean;
+  hiddenTokenKeys?: string[];
+  travelPlan?: TokenTravelPlan | null;
+  capturePlans?: CaptureReturnPlan[];
+  celebrationRank?: { color: PlayerColor; rank: number; displayName: string } | null;
+  showWinnerCelebration?: boolean;
+  isReducedMotion?: boolean;
+  onTravelComplete?: (outcome: 'completed' | 'cancelled') => void;
+  onCaptureComplete?: (outcome: 'completed' | 'cancelled') => void;
+  onCelebrationComplete?: (outcome: 'completed' | 'cancelled') => void;
+  onWinnerCelebrationComplete?: (outcome: 'completed' | 'cancelled') => void;
 }
 
 export function LudoBoard({
@@ -19,6 +31,16 @@ export function LudoBoard({
   maxBoardSize = 430,
   onTokenPress,
   disabled = false,
+  hiddenTokenKeys = [],
+  travelPlan = null,
+  capturePlans = [],
+  celebrationRank = null,
+  showWinnerCelebration = false,
+  isReducedMotion = false,
+  onTravelComplete,
+  onCaptureComplete,
+  onCelebrationComplete,
+  onWinnerCelebrationComplete,
 }: LudoBoardProps) {
   const { width } = useWindowDimensions();
   const { colors, isDark } = useTheme();
@@ -30,9 +52,34 @@ export function LudoBoard({
   const cellSize = boardSize / 15;
 
   // Pure presentation view model
-  const viewModel: LudoBoardViewModel = useMemo(() => {
+  const baseViewModel: LudoBoardViewModel = useMemo(() => {
     return buildLudoBoardViewModel(snapshot);
   }, [snapshot]);
+
+  // Ghost/hide any tokens currently active in the animation layer
+  const viewModel: LudoBoardViewModel = useMemo(() => {
+    if (!hiddenTokenKeys || hiddenTokenKeys.length === 0) {
+      return baseViewModel;
+    }
+
+    const hiddenSet = new Set(hiddenTokenKeys);
+    const filteredTokens = baseViewModel.tokens.filter(
+      (t) => !hiddenSet.has(`${t.color}-${t.tokenIndex}`)
+    );
+
+    const filteredTokensByCellKey: Record<string, BoardTokenViewModel[]> = {};
+    for (const [cellKey, tokenList] of Object.entries(baseViewModel.tokensByCellKey)) {
+      filteredTokensByCellKey[cellKey] = tokenList.filter(
+        (t) => !hiddenSet.has(`${t.color}-${t.tokenIndex}`)
+      );
+    }
+
+    return {
+      ...baseViewModel,
+      tokens: filteredTokens,
+      tokensByCellKey: filteredTokensByCellKey,
+    };
+  }, [baseViewModel, hiddenTokenKeys]);
 
   return (
     <View
@@ -109,6 +156,22 @@ export function LudoBoard({
       <LudoCenter
         cellSize={cellSize}
         tokensByCellKey={viewModel.tokensByCellKey}
+      />
+
+      {/* 4. Animation Overlay Layer (Traveling tokens, captured returns, particles, rank toasts) */}
+      <LudoAnimatedOverlay
+        boardSize={boardSize}
+        cellSize={cellSize}
+        travelPlan={travelPlan}
+        capturePlans={capturePlans}
+        celebrationRank={celebrationRank}
+        showWinnerCelebration={showWinnerCelebration}
+        winnerColor={viewModel.winner}
+        isReducedMotion={isReducedMotion}
+        onTravelComplete={onTravelComplete}
+        onCaptureComplete={onCaptureComplete}
+        onCelebrationComplete={onCelebrationComplete}
+        onWinnerCelebrationComplete={onWinnerCelebrationComplete}
       />
     </View>
   );

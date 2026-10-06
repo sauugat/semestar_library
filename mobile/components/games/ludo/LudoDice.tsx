@@ -1,10 +1,15 @@
-import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, StyleSheet, Animated } from 'react-native';
+import { LudoHaptics } from './ludo-haptics';
 
 export interface LudoDiceProps {
   value: number | null; // 1..6, or null for idle
   size?: number;
   disabled?: boolean;
+  isRolling?: boolean;
+  isBotTurn?: boolean;
+  onRollComplete?: (outcome: 'completed' | 'cancelled') => void;
+  isReducedMotion?: boolean;
 }
 
 // 3x3 grid matrix coordinates: [row, col] where row in 0..2, col in 0..2
@@ -42,18 +47,186 @@ const PIP_CONFIGURATIONS: Record<number, [number, number][]> = {
   ],
 };
 
-export function LudoDice({ value, size = 48, disabled = false }: LudoDiceProps) {
+export function LudoDice({
+  value,
+  size = 48,
+  disabled = false,
+  isRolling = false,
+  isBotTurn = false,
+  onRollComplete,
+  isReducedMotion = false,
+}: LudoDiceProps) {
   const pipSize = Math.max(5, Math.round(size * 0.17));
   const borderRadius = Math.max(6, Math.round(size * 0.2));
-  const pips = value && PIP_CONFIGURATIONS[value] ? PIP_CONFIGURATIONS[value] : [];
+
+  // Intermediate presentation-only face while dice is in mid-roll animation
+  const [transientFace, setTransientFace] = useState<number | null>(null);
+
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const rotateAnim = useRef(new Animated.Value(0)).current;
+  const isRollingRef = useRef(false);
+  const activeAnimationRef = useRef<Animated.CompositeAnimation | null>(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (isRolling && !isRollingRef.current) {
+      isRollingRef.current = true;
+
+      if (isReducedMotion) {
+        // Reduced motion: subtle quick scale without rotation or pip cycling
+        const reducedAnim = Animated.sequence([
+          Animated.timing(scaleAnim, {
+            toValue: 1.05,
+            duration: 80,
+            useNativeDriver: true,
+          }),
+          Animated.timing(scaleAnim, {
+            toValue: 1.0,
+            duration: 80,
+            useNativeDriver: true,
+          }),
+        ]);
+        activeAnimationRef.current = reducedAnim;
+
+        reducedAnim.start(({ finished }) => {
+          isRollingRef.current = false;
+          setTransientFace(null);
+          scaleAnim.setValue(1);
+          rotateAnim.setValue(0);
+          activeAnimationRef.current = null;
+          if (finished) {
+            if (!isBotTurn) {
+              void LudoHaptics.rollSettle();
+            }
+            onRollComplete?.('completed');
+          } else {
+            onRollComplete?.('cancelled');
+          }
+        });
+        return;
+      }
+
+      // Standard animation: rapid presentation face cycling
+      let cycleCount = 0;
+      intervalRef.current = setInterval(() => {
+        cycleCount++;
+        const randomFace = (cycleCount % 6) + 1;
+        setTransientFace(randomFace);
+      }, 75);
+
+      const standardAnim = Animated.parallel([
+        Animated.sequence([
+          Animated.timing(scaleAnim, {
+            toValue: 0.88,
+            duration: 120,
+            useNativeDriver: true,
+          }),
+          Animated.timing(scaleAnim, {
+            toValue: 1.10,
+            duration: 250,
+            useNativeDriver: true,
+          }),
+          Animated.timing(scaleAnim, {
+            toValue: 1.0,
+            duration: 180,
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.sequence([
+          Animated.timing(rotateAnim, {
+            toValue: 1,
+            duration: 100,
+            useNativeDriver: true,
+          }),
+          Animated.timing(rotateAnim, {
+            toValue: -1,
+            duration: 150,
+            useNativeDriver: true,
+          }),
+          Animated.timing(rotateAnim, {
+            toValue: 0.6,
+            duration: 150,
+            useNativeDriver: true,
+          }),
+          Animated.timing(rotateAnim, {
+            toValue: 0,
+            duration: 150,
+            useNativeDriver: true,
+          }),
+        ]),
+      ]);
+      activeAnimationRef.current = standardAnim;
+
+      standardAnim.start(({ finished }) => {
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+        setTransientFace(null);
+        isRollingRef.current = false;
+        scaleAnim.setValue(1);
+        rotateAnim.setValue(0);
+        activeAnimationRef.current = null;
+
+        if (finished) {
+          if (!isBotTurn) {
+            void LudoHaptics.rollSettle();
+          }
+          onRollComplete?.('completed');
+        } else {
+          onRollComplete?.('cancelled');
+        }
+      });
+
+      return () => {
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+        if (activeAnimationRef.current) {
+          activeAnimationRef.current.stop();
+          activeAnimationRef.current = null;
+        }
+        isRollingRef.current = false;
+        setTransientFace(null);
+        scaleAnim.setValue(1);
+        rotateAnim.setValue(0);
+      };
+    } else if (!isRolling && isRollingRef.current) {
+      // Force-cancelled from outside
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      if (activeAnimationRef.current) {
+        activeAnimationRef.current.stop();
+        activeAnimationRef.current = null;
+      }
+      isRollingRef.current = false;
+      setTransientFace(null);
+      scaleAnim.setValue(1);
+      rotateAnim.setValue(0);
+    }
+  }, [isRolling, isBotTurn, isReducedMotion, scaleAnim, rotateAnim, onRollComplete]);
+
+  // Active display face: if rolling, transient face; otherwise authoritative value
+  const activeValue = isRolling && transientFace !== null ? transientFace : value;
+  const pips = activeValue && PIP_CONFIGURATIONS[activeValue] ? PIP_CONFIGURATIONS[activeValue] : [];
 
   // Determine accessibility label
-  const accessibilityLabel = value && value >= 1 && value <= 6
+  const accessibilityLabel = isRolling
+    ? 'Rolling dice'
+    : value && value >= 1 && value <= 6
     ? `Rolled ${value}`
     : 'Dice ready';
 
+  const rotateDeg = rotateAnim.interpolate({
+    inputRange: [-1, 0, 1],
+    outputRange: ['-14deg', '0deg', '14deg'],
+  });
+
   return (
-    <View
+    <Animated.View
       style={[
         styles.diceBody,
         {
@@ -61,6 +234,10 @@ export function LudoDice({ value, size = 48, disabled = false }: LudoDiceProps) 
           height: size,
           borderRadius,
           opacity: disabled ? 0.6 : 1,
+          transform: [
+            { scale: scaleAnim },
+            { rotate: rotateDeg },
+          ],
         },
       ]}
       accessibilityRole="image"
@@ -125,7 +302,7 @@ export function LudoDice({ value, size = 48, disabled = false }: LudoDiceProps) 
           </View>
         )}
       </View>
-    </View>
+    </Animated.View>
   );
 }
 

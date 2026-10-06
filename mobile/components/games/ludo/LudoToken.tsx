@@ -1,7 +1,8 @@
-import React from 'react';
-import { View, StyleSheet, Pressable } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, StyleSheet, Pressable, Animated } from 'react-native';
 import type { BoardTokenViewModel } from './board-view-model';
 import type { PlayerColor } from '../../../../packages/ludo-engine/src/index.ts';
+import { LudoHaptics } from './ludo-haptics';
 
 const TOKEN_COLOR_THEME: Record<
   PlayerColor,
@@ -38,12 +39,50 @@ export interface LudoTokenProps {
   cellSize: number;
   onPress?: () => void;
   disabled?: boolean;
+  isReducedMotion?: boolean;
 }
 
-export function LudoToken({ token, cellSize, onPress, disabled = false }: LudoTokenProps) {
+export function LudoToken({
+  token,
+  cellSize,
+  onPress,
+  disabled = false,
+  isReducedMotion = false,
+}: LudoTokenProps) {
   const theme = TOKEN_COLOR_THEME[token.color];
-
   const isInteractive = token.isSelectable && !disabled && Boolean(onPress);
+
+  // Pulse animation for legal tokens
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const pressScaleAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (!token.isSelectable || disabled || isReducedMotion) {
+      pulseAnim.setValue(1);
+      return;
+    }
+
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.07,
+          duration: 650,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1.0,
+          duration: 650,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+
+    return () => {
+      loop.stop();
+      pulseAnim.setValue(1);
+    };
+  }, [token.isSelectable, disabled, isReducedMotion, pulseAnim]);
 
   // Base token diameter when alone in a cell is ~74% of cell size
   const baseDiameter = cellSize * 0.74;
@@ -57,17 +96,43 @@ export function LudoToken({ token, cellSize, onPress, disabled = false }: LudoTo
   const pixelOffsetX = token.offsetXRatio * cellSize;
   const pixelOffsetY = token.offsetYRatio * cellSize;
 
+  const handlePressIn = () => {
+    Animated.timing(pressScaleAnim, {
+      toValue: 0.92,
+      duration: 60,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.timing(pressScaleAnim, {
+      toValue: 1.0,
+      duration: 90,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePress = () => {
+    void LudoHaptics.tokenSelected();
+    onPress?.();
+  };
+
   const content = (
-    <>
-      {/* Selection indicator ring when token is legal to move */}
+    <Animated.View
+      style={{
+        transform: [{ scale: pressScaleAnim }],
+      }}
+    >
+      {/* Selection indicator halo pulsing when token is legal to move */}
       {token.isSelectable && (
-        <View
+        <Animated.View
           style={[
             styles.selectionHalo,
             {
               width: tokenDiameter + 8,
               height: tokenDiameter + 8,
               borderRadius: (tokenDiameter + 8) / 2,
+              transform: [{ scale: pulseAnim }],
             },
           ]}
         />
@@ -127,13 +192,15 @@ export function LudoToken({ token, cellSize, onPress, disabled = false }: LudoTo
           </View>
         </View>
       </View>
-    </>
+    </Animated.View>
   );
 
   if (isInteractive) {
     return (
       <Pressable
-        onPress={onPress}
+        onPress={handlePress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
         hitSlop={6}
         style={[
           styles.tokenWrapper,
@@ -178,28 +245,25 @@ export function LudoToken({ token, cellSize, onPress, disabled = false }: LudoTo
 
 const styles = StyleSheet.create({
   tokenWrapper: {
-    position: 'absolute',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 10,
   },
   outerRimDisc: {
     alignItems: 'center',
     justifyContent: 'center',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.38,
-    shadowRadius: 2.5,
-    elevation: 4,
+    shadowOpacity: 0.45,
+    shadowRadius: 3,
+    elevation: 3,
   },
   mainBodyDisc: {
     alignItems: 'center',
     justifyContent: 'center',
   },
   innerBevelPlate: {
-    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    position: 'relative',
+    borderWidth: 1,
   },
   highlightArc: {
     position: 'absolute',

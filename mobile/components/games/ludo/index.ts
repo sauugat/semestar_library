@@ -11,3 +11,6 @@ export * from './LudoToken';
 export * from './LudoPlayerBar';
 export * from './LudoDice';
 export * from './ludo-orchestration';
+export * from './ludo-animation';
+export * from './ludo-haptics';
+export * from './LudoAnimatedOverlay';

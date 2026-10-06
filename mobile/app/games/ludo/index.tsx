@@ -25,10 +25,10 @@ import {
 } from '@/services/ludo';
 
 const LUDO_COLOR_MAP: Record<string, { name: string; hex: string }> = {
-  red: { name: 'Red', hex: '#EF4444' },
-  green: { name: 'Green', hex: '#10B981' },
-  yellow: { name: 'Yellow', hex: '#F59E0B' },
-  blue: { name: 'Blue', hex: '#3B82F6' },
+  red: { name: 'Red', hex: '#DC2626' },
+  green: { name: 'Green', hex: '#059669' },
+  yellow: { name: 'Yellow', hex: '#D97706' },
+  blue: { name: 'Blue', hex: '#2563EB' },
 };
 
 function getColorMeta(color: string | null | undefined): { name: string; hex: string } {
@@ -460,8 +460,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   savedCard: {
-    padding: 16,
+    padding: 18,
     borderWidth: 1.5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 4,
   },
   savedCardHeader: {
     flexDirection: 'row',
@@ -482,28 +487,37 @@ const styles = StyleSheet.create({
   playerPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(150, 150, 150, 0.1)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 14,
   },
   colorDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
     marginRight: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   colorDotSmall: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
     marginRight: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   turnInfoBox: {
     padding: 10,
+    paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
   },
   turnPlayerRow: {
     flexDirection: 'row',
@@ -528,6 +542,7 @@ const styles = StyleSheet.create({
   disabledModeCard: {
     padding: 16,
     borderWidth: 1,
+    borderStyle: 'dashed',
   },
   cardContent: {
     flexDirection: 'row',

@@ -4,6 +4,7 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
+  TouchableOpacity,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,12 +20,13 @@ import {
   type LocalLudoSessionSnapshot,
   type PlayerColor,
 } from '@/services/ludo';
+import { LudoBoard, LudoPlayerBar } from '@/components/games/ludo';
 
 const LUDO_COLOR_MAP: Record<string, { name: string; hex: string; bg: string }> = {
-  red: { name: 'Red', hex: '#EF4444', bg: 'rgba(239, 68, 68, 0.12)' },
-  green: { name: 'Green', hex: '#10B981', bg: 'rgba(16, 185, 129, 0.12)' },
-  yellow: { name: 'Yellow', hex: '#F59E0B', bg: 'rgba(245, 158, 11, 0.15)' },
-  blue: { name: 'Blue', hex: '#3B82F6', bg: 'rgba(59, 130, 246, 0.12)' },
+  red: { name: 'Red', hex: '#DC2626', bg: 'rgba(220, 38, 38, 0.14)' },
+  green: { name: 'Green', hex: '#059669', bg: 'rgba(5, 150, 105, 0.14)' },
+  yellow: { name: 'Yellow', hex: '#D97706', bg: 'rgba(217, 119, 6, 0.16)' },
+  blue: { name: 'Blue', hex: '#2563EB', bg: 'rgba(37, 99, 235, 0.14)' },
 };
 
 function getColorMeta(color: string | null | undefined): { name: string; hex: string; bg: string } {
@@ -111,6 +113,7 @@ export default function LudoLocalMatchShell() {
   const isFinished = snapshot.status === 'finished';
   const currentTurnColor = snapshot.currentTurn;
   const currentTurnPlayer = snapshot.activePlayer;
+  const activeCount = snapshot.seats.filter((s) => s.status !== 'closed').length;
 
   return (
     <ScrollView
@@ -118,18 +121,22 @@ export default function LudoLocalMatchShell() {
       contentContainerStyle={[
         styles.contentContainer,
         {
-          paddingHorizontal: spacing.md,
-          paddingTop: spacing.md,
-          paddingBottom: Math.max(insets.bottom + spacing.xl, 40),
+          paddingHorizontal: spacing.sm,
+          paddingTop: spacing.xs,
+          paddingBottom: Math.max(insets.bottom + spacing.md, 24),
         },
       ]}
       showsVerticalScrollIndicator={false}
     >
-      {/* Match Header */}
+      {/* 1. Compact Match Header */}
       <View style={styles.headerRow}>
         <View>
-          <Heading style={{ color: colors.text }}>LUDO</Heading>
-          <Subheading style={{ color: colors.textSecondary }}>Offline Match</Subheading>
+          <Text variant="sm" weight="800" style={{ color: colors.text, letterSpacing: 0.5 }}>
+            OFFLINE MATCH
+          </Text>
+          <Text variant="xs" style={{ color: colors.textMuted }}>
+            {activeCount} Players • Pass & Play
+          </Text>
         </View>
         <Badge
           label={isFinished ? 'FINISHED' : 'PLAYING'}
@@ -138,31 +145,31 @@ export default function LudoLocalMatchShell() {
         />
       </View>
 
-      {/* Turn or Results Card */}
+      {/* 2. Compact Status / Turn Strip */}
       <Card
         style={[
           styles.turnCard,
           {
             backgroundColor: colors.surface,
             borderColor: colors.borderStrong,
-            borderRadius: radii.card,
-            marginBottom: spacing.md,
+            borderRadius: radii.md,
+            marginBottom: spacing.xs,
           },
         ]}
       >
         {isFinished ? (
-          <View style={{ alignItems: 'center', paddingVertical: 8 }}>
-            <Ionicons name="trophy" size={32} color="#F59E0B" />
-            <Text variant="lg" weight="800" style={{ color: colors.text, marginTop: 6 }}>
+          <View style={{ alignItems: 'center', paddingVertical: 4 }}>
+            <Ionicons name="trophy" size={26} color="#F59E0B" />
+            <Text variant="sm" weight="800" style={{ color: colors.text, marginTop: 2 }}>
               Game Finished!
             </Text>
             {snapshot.winner && (
-              <Text variant="sm" weight="600" style={{ color: colors.textSecondary, marginTop: 4 }}>
+              <Text variant="xs" weight="600" style={{ color: colors.textSecondary }}>
                 Winner: {getColorMeta(snapshot.winner).name} Player
               </Text>
             )}
             {snapshot.rankings.length > 0 && (
-              <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+              <View style={{ flexDirection: 'row', gap: 6, marginTop: 6 }}>
                 {snapshot.rankings.map((c, idx) => (
                   <Badge
                     key={c}
@@ -175,132 +182,69 @@ export default function LudoLocalMatchShell() {
             )}
           </View>
         ) : (
-          <View>
-            <Caption style={{ color: colors.textMuted }}>Current Turn</Caption>
-            <View style={styles.turnDetailRow}>
-              {currentTurnColor && (
-                <View
-                  style={[
-                    styles.turnColorBox,
-                    { backgroundColor: getColorMeta(currentTurnColor).hex },
-                  ]}
-                />
-              )}
-              <View style={{ flex: 1 }}>
-                <Text variant="md" weight="700" style={{ color: colors.text }}>
-                  {currentTurnPlayer
-                    ? `${getColorMeta(currentTurnPlayer.color).name} — ${currentTurnPlayer.displayName}`
-                    : 'Unknown'}
-                </Text>
-                <Text variant="xs" style={{ color: colors.textMuted }}>
-                  {snapshot.isBotTurn ? 'Bot Thinking' : 'Pass and play on this device'}
-                </Text>
-              </View>
-            </View>
-
-            {snapshot.turnPhase === 'move' && snapshot.currentRoll !== null && (
+          <View style={styles.turnDetailRow}>
+            {currentTurnColor && (
               <View
                 style={[
-                  styles.phaseNoticeBox,
-                  { backgroundColor: colors.surfaceRaised, borderRadius: radii.md },
+                  styles.turnColorBox,
+                  { backgroundColor: getColorMeta(currentTurnColor).hex },
                 ]}
-              >
-                <Ionicons name="dice-outline" size={18} color={colors.primary} />
-                <Text variant="xs" weight="600" style={{ color: colors.text, marginLeft: 6 }}>
-                  Move Phase: Rolled {snapshot.currentRoll} • {snapshot.legalMoves.length} Legal Moves
-                </Text>
-              </View>
+              />
             )}
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Text variant="sm" weight="700" style={{ color: colors.text }} numberOfLines={1}>
+                  {currentTurnPlayer?.displayName || 'Player'}
+                </Text>
+                {snapshot.turnPhase === 'move' && snapshot.currentRoll !== null && (
+                  <Badge
+                    label={`Rolled ${snapshot.currentRoll}`}
+                    variant="neutral"
+                    size="sm"
+                  />
+                )}
+              </View>
+              <Text variant="xs" style={{ color: colors.textMuted, fontSize: 11, marginTop: 1 }}>
+                {snapshot.isBotTurn ? 'Bot Thinking...' : 'Your turn to roll'}
+              </Text>
+            </View>
           </View>
         )}
       </Card>
 
-      {/* Players List Card */}
-      <Card
-        style={[
-          styles.playersCard,
-          {
-            backgroundColor: colors.surface,
-            borderColor: colors.border,
-            borderRadius: radii.card,
-            marginBottom: spacing.md,
-          },
-        ]}
-      >
-        <Text variant="sm" weight="700" style={{ color: colors.text, marginBottom: spacing.sm }}>
-          Players
-        </Text>
-
-        <View style={{ gap: spacing.xs }}>
-          {snapshot.seats.map((seat) => {
-            const meta = getColorMeta(seat.color);
-            const isClosed = seat.status === 'closed';
-            const isCurrentTurn = !isClosed && snapshot.currentTurn === seat.color;
-
-            return (
-              <View
-                key={seat.color}
-                style={[
-                  styles.playerRow,
-                  {
-                    backgroundColor: isCurrentTurn
-                      ? colors.surfaceRaised
-                      : colors.surfaceSubtle,
-                    borderColor: isCurrentTurn ? colors.borderStrong : colors.borderSubtle,
-                    borderRadius: radii.md,
-                    opacity: isClosed ? 0.45 : 1,
-                  },
-                ]}
-              >
-                <View style={styles.playerInfoLeft}>
-                  <View style={[styles.playerColorDot, { backgroundColor: meta.hex }]} />
-                  <View>
-                    <Text
-                      variant="sm"
-                      weight={isCurrentTurn ? '700' : '600'}
-                      style={{ color: colors.text }}
-                    >
-                      {seat.displayName}
-                    </Text>
-                    <Caption style={{ color: colors.textMuted }}>
-                      {meta.name} • {isClosed ? 'Closed' : seat.status === 'bot' ? `Bot (${seat.botDifficulty || 'Normal'})` : 'Human'}
-                    </Caption>
-                  </View>
-                </View>
-
-                {isCurrentTurn && (
-                  <Badge label="TURN" variant="success" size="sm" />
-                )}
-              </View>
-            );
-          })}
-        </View>
-      </Card>
-
-      {/* Neutral Match Status Banner */}
-      <View
-        style={[
-          styles.devNoticeCard,
-          {
-            backgroundColor: colors.surfaceSubtle,
-            borderColor: colors.borderSubtle,
-            borderRadius: radii.md,
-            marginBottom: spacing.lg,
-          },
-        ]}
-      >
-        <Ionicons name="checkmark-circle-outline" size={16} color={colors.textMuted} />
-        <Caption style={{ color: colors.textMuted, marginLeft: 8 }}>
-          Match ready
-        </Caption>
+      {/* 3. Authoritative 15x15 Ludo Board */}
+      <View style={styles.boardWrapper}>
+        <LudoBoard snapshot={snapshot} />
       </View>
 
-      {/* Return to Hub */}
-      <SecondaryButton
-        title="Leave Match"
-        onPress={() => router.replace('/games/ludo' as any)}
-        leftIcon={<Ionicons name="arrow-back" size={18} color={colors.text} />}
+      {/* 4. Compact Player Scoreboard */}
+      <LudoPlayerBar
+        seats={snapshot.seats}
+        currentTurn={snapshot.currentTurn}
+        isGameFinished={isFinished}
       />
+
+      {/* 5. Understated Leave Match Action */}
+      <View style={styles.footerWrapper}>
+        <TouchableOpacity
+          style={[
+            styles.leaveBtn,
+            {
+              borderColor: colors.borderSubtle,
+              borderRadius: radii.sm,
+            },
+          ]}
+          onPress={() => router.replace('/games/ludo' as any)}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Leave Match"
+        >
+          <Ionicons name="arrow-back" size={13} color={colors.textMuted} style={{ marginRight: 5 }} />
+          <Text variant="xs" weight="600" style={{ color: colors.textMuted }}>
+            Leave Match
+          </Text>
+        </TouchableOpacity>
+      </View>
     </ScrollView>
   );
 }
@@ -321,56 +265,39 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 8,
+    paddingHorizontal: 4,
   },
   turnCard: {
-    padding: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderWidth: 1.5,
   },
   turnDetailRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
   },
   turnColorBox: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
     marginRight: 10,
   },
-  phaseNoticeBox: {
-    flexDirection: 'row',
+  boardWrapper: {
     alignItems: 'center',
-    padding: 8,
-    marginTop: 10,
+    justifyContent: 'center',
+    marginVertical: 4,
   },
-  playersCard: {
-    padding: 16,
-    borderWidth: 1,
-  },
-  playerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-  },
-  playerInfoLeft: {
-    flexDirection: 'row',
+  footerWrapper: {
+    marginTop: 8,
     alignItems: 'center',
   },
-  playerColorDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 10,
-  },
-  devNoticeCard: {
+  leaveBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
     borderWidth: 1,
   },
 });

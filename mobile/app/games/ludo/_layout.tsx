@@ -42,6 +42,20 @@ export default function LudoLayout() {
           headerBackTitle: 'Ludo',
         }}
       />
+      <Stack.Screen
+        name="online/index"
+        options={{
+          title: 'Online Ludo',
+          headerBackTitle: 'Ludo',
+        }}
+      />
+      <Stack.Screen
+        name="online/[roomId]"
+        options={{
+          title: 'Ludo Lobby',
+          headerBackTitle: 'Online',
+        }}
+      />
     </Stack>
   );
 }

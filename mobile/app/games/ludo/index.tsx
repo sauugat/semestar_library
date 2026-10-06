@@ -388,45 +388,59 @@ export default function LudoLandingScreen() {
         )}
       </View>
 
-      {/* Online Multiplayer (Coming Soon) */}
+      {/* Online Multiplayer */}
       <View>
-        <Card
-          style={[
-            styles.disabledModeCard,
-            {
-              backgroundColor: colors.surface,
-              borderColor: colors.borderSubtle,
-              borderRadius: radii.card,
-              opacity: 0.65,
-            },
-          ]}
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => router.push('/games/ludo/online' as any)}
+          accessibilityRole="button"
+          accessibilityLabel="Play Online Multiplayer"
         >
-          <View style={styles.cardContent}>
-            <View
-              style={[
-                styles.iconBox,
-                {
-                  backgroundColor: colors.surfaceSubtle,
-                  borderColor: colors.borderSubtle,
-                  borderRadius: radii.md,
-                },
-              ]}
-            >
-              <Ionicons name="globe-outline" size={26} color={colors.textMuted} />
-            </View>
-            <View style={styles.cardTextContainer}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text variant="md" weight="700" style={{ color: colors.textSecondary }}>
-                  Online Multiplayer
+          <Card
+            style={[
+              styles.modeCard,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.borderStrong,
+                borderRadius: radii.card,
+              },
+            ]}
+          >
+            <View style={styles.cardContent}>
+              <View
+                style={[
+                  styles.iconBox,
+                  {
+                    backgroundColor: colors.surfaceRaised,
+                    borderColor: colors.borderStrong,
+                    borderRadius: radii.md,
+                  },
+                ]}
+              >
+                <Ionicons name="globe-outline" size={26} color={colors.primary} />
+              </View>
+              <View style={styles.cardTextContainer}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text variant="md" weight="700" style={{ color: colors.text }}>
+                    Online Multiplayer
+                  </Text>
+                </View>
+                <Text variant="xs" style={{ color: colors.textMuted, marginTop: 2 }}>
+                  Play privately with friends • 2 to 4 players
                 </Text>
               </View>
-              <Text variant="xs" style={{ color: colors.textMuted, marginTop: 2 }}>
-                Play online with classmates across campus
-              </Text>
+              <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
             </View>
-            <Badge label="Coming Soon" variant="neutral" size="sm" />
-          </View>
-        </Card>
+
+            <View style={{ marginTop: spacing.md }}>
+              <PrimaryButton
+                title="Play Online"
+                onPress={() => router.push('/games/ludo/online' as any)}
+                leftIcon={<Ionicons name="people-outline" size={18} color={colors.primaryText} />}
+              />
+            </View>
+          </Card>
+        </TouchableOpacity>
       </View>
     </ScrollView>
   );

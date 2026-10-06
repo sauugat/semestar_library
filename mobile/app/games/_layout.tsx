@@ -25,14 +25,14 @@ export default function GamesLayout() {
         name="index"
         options={{
           title: 'Games',
-          headerBackTitle: 'Home',
+          headerBackTitle: 'Back',
         }}
       />
       <Stack.Screen
         name="tic-tac-toe"
         options={{
           title: 'Tic Tac Toe',
-          headerBackTitle: 'Games',
+          headerBackTitle: 'Back',
         }}
       />
     </Stack>

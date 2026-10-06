@@ -7,11 +7,15 @@ import {
   TouchableOpacity,
   TextInput,
   Share,
+  Animated,
+  Alert,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
+import * as Clipboard from 'expo-clipboard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/constants/useTheme';
-import { Text, Heading, Subheading } from '@/components/ui/Typography';
+import { Text } from '@/components/ui/Typography';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -35,6 +39,85 @@ function generateRoomCode(): string {
   return result;
 }
 
+/**
+ * Pure vector piece component for X and O.
+ * Renders identical geometric shapes across Android and iOS without relying on font glyphs.
+ */
+interface TicTacToePieceProps {
+  symbol: TicTacToeSymbol;
+  size: number;
+  isWinner?: boolean;
+  color?: string;
+}
+
+function TicTacToePiece({ symbol, size, isWinner, color }: TicTacToePieceProps) {
+  const { colors } = useTheme();
+  const effectiveColor = color || (isWinner ? colors.primary : colors.text);
+  const strokeWidth = Math.max(3, Math.round(size * 0.12));
+
+  if (symbol === 'X') {
+    const lineLength = Math.round(size * 0.65);
+    return (
+      <View
+        style={{
+          width: size,
+          height: size,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <View
+          style={{
+            position: 'absolute',
+            width: lineLength,
+            height: strokeWidth,
+            backgroundColor: effectiveColor,
+            borderRadius: strokeWidth / 2,
+            transform: [{ rotate: '45deg' }],
+          }}
+        />
+        <View
+          style={{
+            position: 'absolute',
+            width: lineLength,
+            height: strokeWidth,
+            backgroundColor: effectiveColor,
+            borderRadius: strokeWidth / 2,
+            transform: [{ rotate: '-45deg' }],
+          }}
+        />
+      </View>
+    );
+  }
+
+  if (symbol === 'O') {
+    const circleSize = Math.round(size * 0.58);
+    return (
+      <View
+        style={{
+          width: size,
+          height: size,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <View
+          style={{
+            width: circleSize,
+            height: circleSize,
+            borderRadius: circleSize / 2,
+            borderWidth: strokeWidth,
+            borderColor: effectiveColor,
+            backgroundColor: 'transparent',
+          }}
+        />
+      </View>
+    );
+  }
+
+  return null;
+}
+
 export default function TicTacToeScreen() {
   const { colors, spacing, radii } = useTheme();
   const insets = useSafeAreaInsets();
@@ -52,10 +135,16 @@ export default function TicTacToeScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isMovePending, setIsMovePending] = useState(false);
+  const [codeCopied, setCodeCopied] = useState(false);
+
+  // Animation values for end-game overlay
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.88)).current;
+  const lastHapticRevision = useRef<number | null>(null);
 
   // Responsive board dimensions
-  const maxBoardWidth = Math.min(width - spacing.md * 2, 360);
-  const cellGap = 10;
+  const maxBoardWidth = Math.min(width - spacing.md * 2, 350);
+  const cellGap = 8;
   const cellSize = Math.floor((maxBoardWidth - cellGap * 2) / 3);
   const actualBoardSize = cellSize * 3 + cellGap * 2;
 
@@ -74,7 +163,6 @@ export default function TicTacToeScreen() {
         setErrorMessage(null);
       } else if (event.type === 'ERROR') {
         setIsMovePending(false);
-        // Display safe error message without internal traces
         setErrorMessage(event.message || 'Game error occurred.');
       }
     });
@@ -111,6 +199,42 @@ export default function TicTacToeScreen() {
     return gameState.currentTurn === localSymbol;
   }, [socketStatus, gameState, localSymbol]);
 
+  // Result animation & haptics on game finish
+  useEffect(() => {
+    if (gameState?.status === 'finished') {
+      fadeAnim.setValue(0);
+      scaleAnim.setValue(0.88);
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          friction: 6,
+          tension: 80,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
+      // Trigger haptic ONCE per finished revision
+      if (gameState.revision !== lastHapticRevision.current) {
+        lastHapticRevision.current = gameState.revision;
+        if (gameState.winner === 'draw') {
+          void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        } else if (localSymbol && gameState.winner === localSymbol) {
+          void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } else if (localSymbol && gameState.winner) {
+          void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        }
+      }
+    } else {
+      fadeAnim.setValue(0);
+      scaleAnim.setValue(0.88);
+    }
+  }, [gameState?.status, gameState?.revision, gameState?.winner, localSymbol, fadeAnim, scaleAnim]);
+
   // Connect to room workflow
   const connectToRoom = useCallback(
     async (roomIdToConnect: string) => {
@@ -134,10 +258,8 @@ export default function TicTacToeScreen() {
           throw new Error('Realtime game client is not initialized.');
         }
 
-        // Resolves ONLY after trusted backend CONNECTED handshake event
         await client.connect(normalized);
 
-        // Send JOIN_GAME and initial REQUEST_STATE
         client.send({ type: 'JOIN_GAME' });
         client.send({ type: 'REQUEST_STATE' });
       } catch (err) {
@@ -176,6 +298,7 @@ export default function TicTacToeScreen() {
     setErrorMessage(null);
     setInputRoomCode('');
     setIsMovePending(false);
+    setCodeCopied(false);
   }, []);
 
   const handleReconnect = useCallback(() => {
@@ -192,6 +315,16 @@ export default function TicTacToeScreen() {
     } catch {}
   }, [activeRoomId]);
 
+  const handleCopyCode = useCallback(async () => {
+    if (!activeRoomId) return;
+    try {
+      await Clipboard.setStringAsync(activeRoomId);
+      setCodeCopied(true);
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      setTimeout(() => setCodeCopied(false), 2500);
+    } catch {}
+  }, [activeRoomId]);
+
   const handleCellPress = useCallback(
     (cellIndex: number) => {
       if (!isMyTurn || !gameState || gameState.board[cellIndex] !== null || isMovePending) {
@@ -199,6 +332,7 @@ export default function TicTacToeScreen() {
       }
 
       try {
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setIsMovePending(true);
         setErrorMessage(null);
         clientRef.current?.send({
@@ -262,7 +396,7 @@ export default function TicTacToeScreen() {
       return {
         badge: 'Waiting',
         badgeVariant: 'warning' as const,
-        title: 'Waiting for another player',
+        title: 'Waiting for opponent',
         showReconnect: false,
       };
     }
@@ -346,6 +480,18 @@ export default function TicTacToeScreen() {
   const isXActive = gameState?.status === 'playing' && gameState.currentTurn === 'X';
   const isOActive = gameState?.status === 'playing' && gameState.currentTurn === 'O';
 
+  // Result card content
+  const resultTitle = useMemo(() => {
+    if (gameState?.status !== 'finished') return '';
+    if (gameState.winner === 'draw') return 'DRAW';
+    if (localSymbol && gameState.winner === localSymbol) return 'YOU WON';
+    if (localSymbol && gameState.winner) return 'YOU LOST';
+    return `PLAYER ${gameState.winner} WON`;
+  }, [gameState, localSymbol]);
+
+  const isWin = localSymbol && gameState?.winner === localSymbol;
+  const isLoss = localSymbol && gameState?.winner && gameState.winner !== localSymbol && gameState.winner !== 'draw';
+
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
@@ -353,24 +499,14 @@ export default function TicTacToeScreen() {
         styles.contentContainer,
         {
           paddingHorizontal: spacing.md,
-          paddingTop: spacing.md,
+          paddingTop: spacing.xs,
           paddingBottom: Math.max(insets.bottom + spacing.lg, spacing.xl),
         },
       ]}
       showsVerticalScrollIndicator={false}
     >
-      {/* Title & Subtitle */}
-      <View style={[styles.headerSection, { marginBottom: spacing.md }]}>
-        <Heading style={[styles.mainTitle, { color: colors.text }]}>
-          Tic Tac Toe
-        </Heading>
-        <Subheading style={{ color: colors.textSecondary, marginTop: 2 }}>
-          2 Player Multiplayer
-        </Subheading>
-      </View>
-
-      {/* Active Room Code Bar (when in a room) */}
-      {activeRoomId && (
+      {/* Active Room Code Compact Bar (only when playing or finished) */}
+      {activeRoomId && gameState?.status !== 'waiting' && (
         <View
           style={[
             styles.roomHeaderBar,
@@ -379,32 +515,41 @@ export default function TicTacToeScreen() {
               borderColor: colors.border,
               borderRadius: radii.card,
               paddingHorizontal: spacing.md,
-              paddingVertical: spacing.sm,
-              marginBottom: spacing.md,
+              paddingVertical: 10,
+              marginBottom: spacing.sm,
             },
           ]}
         >
-          <View style={styles.roomCodeInfo}>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={handleCopyCode}
+            style={styles.roomCodeInfo}
+            accessibilityLabel={`Room code: ${activeRoomId}. Tap to copy.`}
+          >
             <Text
               variant="xs"
-              weight="600"
-              style={{ color: colors.textMuted, letterSpacing: 0.5 }}
+              weight="700"
+              style={{ color: colors.textMuted, letterSpacing: 0.5, marginRight: 6 }}
             >
-              ROOM CODE
+              ROOM
             </Text>
             <Text
-              variant="lg"
+              variant="md"
               weight="800"
               style={{
                 color: colors.text,
                 letterSpacing: 2,
-                marginTop: 2,
               }}
-              accessibilityLabel={`Room code: ${activeRoomId}`}
             >
               {activeRoomId}
             </Text>
-          </View>
+            <Ionicons
+              name={codeCopied ? 'checkmark-circle' : 'copy-outline'}
+              size={14}
+              color={codeCopied ? colors.success : colors.textMuted}
+              style={{ marginLeft: 6 }}
+            />
+          </TouchableOpacity>
 
           <View style={styles.roomHeaderActions}>
             <Button
@@ -415,13 +560,13 @@ export default function TicTacToeScreen() {
               leftIcon={
                 <Ionicons
                   name="share-outline"
-                  size={14}
+                  size={13}
                   color={colors.text}
-                  style={{ marginRight: 4 }}
+                  style={{ marginRight: 3 }}
                 />
               }
               accessibilityLabel="Share room code"
-              style={{ marginRight: spacing.xs }}
+              style={{ marginRight: 6 }}
             />
             <Button
               title="Leave"
@@ -434,7 +579,8 @@ export default function TicTacToeScreen() {
         </View>
       )}
 
-      {/* Match status card / players header */}
+      {/* Match Player / Turn Strip (only when playing or finished) */}
+      {activeRoomId && gameState?.status !== 'waiting' && (
       <Card
         style={[
           styles.statusCard,
@@ -448,21 +594,32 @@ export default function TicTacToeScreen() {
       >
         <View style={styles.playersRow}>
           {/* Player X Panel */}
-          <View style={styles.playerColumn}>
+          <View
+            style={[
+              styles.playerColumn,
+              isXActive && {
+                backgroundColor: colors.surfaceRaised,
+                borderRadius: radii.md,
+                paddingVertical: 4,
+              },
+            ]}
+          >
             <View
               style={[
                 styles.playerSymbolBox,
                 {
                   backgroundColor: colors.surfaceRaised,
-                  borderColor: isXActive ? colors.primary : colors.borderStrong,
+                  borderColor: isXActive ? colors.primary : colors.border,
                   borderRadius: radii.md,
                   borderWidth: isXActive ? 2 : 1,
                 },
               ]}
             >
-              <Text variant="lg" weight="800" style={{ color: colors.text }}>
-                X
-              </Text>
+              <TicTacToePiece
+                symbol="X"
+                size={24}
+                isWinner={gameState?.status === 'finished' && gameState?.winner === 'X'}
+              />
             </View>
             <Text
               variant="xs"
@@ -471,6 +628,7 @@ export default function TicTacToeScreen() {
                 color: playerXLabel === 'You' ? colors.text : colors.textMuted,
                 marginTop: 4,
               }}
+              numberOfLines={1}
             >
               {playerXLabel}
             </Text>
@@ -488,7 +646,7 @@ export default function TicTacToeScreen() {
               weight="600"
               style={{
                 color: colors.textSecondary,
-                marginTop: 6,
+                marginTop: 4,
                 textAlign: 'center',
               }}
             >
@@ -504,27 +662,38 @@ export default function TicTacToeScreen() {
                 disabled={isConnecting}
                 loading={isConnecting}
                 accessibilityLabel="Reconnect to game room"
-                style={{ marginTop: 8 }}
+                style={{ marginTop: 6 }}
               />
             )}
           </View>
 
           {/* Player O Panel */}
-          <View style={styles.playerColumn}>
+          <View
+            style={[
+              styles.playerColumn,
+              isOActive && {
+                backgroundColor: colors.surfaceRaised,
+                borderRadius: radii.md,
+                paddingVertical: 4,
+              },
+            ]}
+          >
             <View
               style={[
                 styles.playerSymbolBox,
                 {
                   backgroundColor: colors.surfaceRaised,
-                  borderColor: isOActive ? colors.primary : colors.borderStrong,
+                  borderColor: isOActive ? colors.primary : colors.border,
                   borderRadius: radii.md,
                   borderWidth: isOActive ? 2 : 1,
                 },
               ]}
             >
-              <Text variant="lg" weight="800" style={{ color: colors.text }}>
-                O
-              </Text>
+              <TicTacToePiece
+                symbol="O"
+                size={24}
+                isWinner={gameState?.status === 'finished' && gameState?.winner === 'O'}
+              />
             </View>
             <Text
               variant="xs"
@@ -533,12 +702,14 @@ export default function TicTacToeScreen() {
                 color: playerOLabel === 'You' ? colors.text : colors.textMuted,
                 marginTop: 4,
               }}
+              numberOfLines={1}
             >
               {playerOLabel}
             </Text>
           </View>
         </View>
       </Card>
+      )}
 
       {/* Transient Error Banner */}
       {errorMessage && (
@@ -599,7 +770,7 @@ export default function TicTacToeScreen() {
               variant="xs"
               style={{ color: colors.textSecondary, marginBottom: spacing.md }}
             >
-              Start a new game session and invite a classmate to play.
+              Start a new multiplayer game session.
             </Text>
             <Button
               title="Create Room"
@@ -703,6 +874,134 @@ export default function TicTacToeScreen() {
         </Card>
       )}
 
+      {/* Waiting Room Redesign (when in room but waiting for opponent) */}
+      {activeRoomId && gameState?.status === 'waiting' && (
+        <Card
+          style={[
+            styles.waitingCard,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+              borderRadius: radii.card,
+              padding: spacing.lg,
+              marginBottom: spacing.md,
+            },
+          ]}
+        >
+          <View style={{ alignItems: 'center' }}>
+            <View
+              style={[
+                styles.waitingPulseBadge,
+                { backgroundColor: colors.surfaceRaised, borderColor: colors.border },
+              ]}
+            >
+              <Ionicons name="hourglass-outline" size={20} color={colors.primary} />
+            </View>
+
+            <Text variant="md" weight="700" style={{ color: colors.text, marginTop: 10 }}>
+              Waiting for opponent...
+            </Text>
+            <Text
+              variant="xs"
+              style={{ color: colors.textSecondary, marginTop: 4, textAlign: 'center' }}
+            >
+              Share this room code with a classmate to start playing.
+            </Text>
+
+            {/* Room Code Display Box */}
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={handleCopyCode}
+              style={[
+                styles.bigCodeBox,
+                {
+                  backgroundColor: colors.surfaceSubtle,
+                  borderColor: colors.border,
+                  borderRadius: radii.md,
+                  marginTop: 14,
+                },
+              ]}
+              accessibilityLabel={`Room code: ${activeRoomId}. Tap to copy.`}
+            >
+              <Text
+                variant="xl"
+                weight="800"
+                style={{
+                  color: colors.text,
+                  letterSpacing: 4,
+                  fontSize: 22,
+                }}
+              >
+                {activeRoomId}
+              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                <Ionicons
+                  name={codeCopied ? 'checkmark-circle' : 'copy-outline'}
+                  size={12}
+                  color={codeCopied ? colors.success : colors.textMuted}
+                  style={{ marginRight: 4 }}
+                />
+                <Text
+                  variant="xs"
+                  weight="600"
+                  style={{ color: codeCopied ? colors.success : colors.textMuted }}
+                >
+                  {codeCopied ? 'Copied to clipboard' : 'Tap to copy'}
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* Primary & Secondary Actions */}
+            <View style={{ width: '100%', marginTop: 16, gap: 8 }}>
+              <Button
+                title="Invite Classmate"
+                variant="primary"
+                size="md"
+                onPress={() => {
+                  Alert.alert(
+                    'Direct Invites',
+                    'In-app classmate invitations are coming in Phase 2. Use "Share Room Code" below to invite your peer now!'
+                  );
+                }}
+                leftIcon={
+                  <Ionicons
+                    name="person-add-outline"
+                    size={16}
+                    color={colors.primaryText}
+                    style={{ marginRight: 6 }}
+                  />
+                }
+                accessibilityLabel="Invite classmate (coming soon)"
+              />
+              <Button
+                title="Share Room Code"
+                variant="secondary"
+                size="md"
+                onPress={handleShare}
+                leftIcon={
+                  <Ionicons
+                    name="share-outline"
+                    size={16}
+                    color={colors.text}
+                    style={{ marginRight: 6 }}
+                  />
+                }
+                accessibilityLabel="Share room code via phone"
+              />
+              <TouchableOpacity
+                onPress={handleLeaveRoom}
+                style={{ alignSelf: 'center', marginTop: 6, paddingVertical: 6 }}
+                accessibilityLabel="Leave room"
+              >
+                <Text variant="xs" weight="600" style={{ color: colors.textMuted }}>
+                  Leave Room
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Card>
+      )}
+
       {/* 3 x 3 Tic Tac Toe Board */}
       <View style={styles.boardWrapper}>
         <View
@@ -712,8 +1011,10 @@ export default function TicTacToeScreen() {
               width: actualBoardSize,
               height: actualBoardSize,
               gap: cellGap,
+              opacity: activeRoomId && gameState?.status === 'waiting' ? 0.35 : 1,
             },
           ]}
+          pointerEvents={activeRoomId && gameState?.status === 'waiting' ? 'none' : 'auto'}
         >
           {Array.from({ length: 9 }).map((_, index) => {
             const cellValue = gameState?.board[index] ?? null;
@@ -759,60 +1060,118 @@ export default function TicTacToeScreen() {
                 accessibilityState={{ disabled: !canPress }}
               >
                 {cellValue && (
-                  <Text
-                    style={[
-                      styles.cellSymbol,
-                      {
-                        color: colors.text,
-                        fontSize: Math.floor(cellSize * 0.45),
-                      },
-                    ]}
-                    weight="800"
-                  >
-                    {cellValue}
-                  </Text>
+                  <TicTacToePiece
+                    symbol={cellValue}
+                    size={cellSize}
+                    isWinner={isWinner}
+                  />
                 )}
               </TouchableOpacity>
             );
           })}
         </View>
-      </View>
 
-      {/* Helper Guidance Card */}
-      {activeRoomId && gameState?.status === 'waiting' && (
-        <Card
-          style={[
-            styles.infoCard,
-            {
-              backgroundColor: colors.surfaceSubtle,
-              borderColor: colors.borderSubtle,
-              borderRadius: radii.card,
-              marginTop: spacing.lg,
-            },
-          ]}
-        >
-          <View style={styles.infoContent}>
-            <Ionicons
-              name="information-circle-outline"
-              size={20}
-              color={colors.textSecondary}
-              style={{ marginRight: 10, marginTop: 2 }}
-            />
-            <View style={{ flex: 1 }}>
-              <Text variant="sm" weight="600" style={{ color: colors.text }}>
-                Waiting for Classmate
+        {/* End-Game Animated Overlay (over the board) */}
+        {activeRoomId && gameState?.status === 'finished' && (
+          <Animated.View
+            style={[
+              styles.resultOverlay,
+              {
+                opacity: fadeAnim,
+              },
+            ]}
+            pointerEvents="box-none"
+          >
+            <Animated.View
+              style={[
+                styles.resultCard,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: isWin ? colors.primary : colors.borderStrong,
+                  borderRadius: radii.card,
+                  transform: [{ scale: scaleAnim }],
+                },
+              ]}
+              accessible={true}
+              accessibilityRole="alert"
+              accessibilityLabel={`Game finished. ${resultTitle}.`}
+            >
+              <View
+                style={[
+                  styles.resultIconCircle,
+                  {
+                    backgroundColor: colors.surfaceRaised,
+                    borderColor: isWin ? colors.primary : colors.border,
+                  },
+                ]}
+              >
+                <Ionicons
+                  name={
+                    isWin
+                      ? 'trophy-outline'
+                      : isLoss
+                      ? 'close-circle-outline'
+                      : 'remove-outline'
+                  }
+                  size={24}
+                  color={isWin ? colors.primary : colors.text}
+                />
+              </View>
+
+              <Text
+                variant="lg"
+                weight="800"
+                style={{
+                  color: isWin ? colors.primary : colors.text,
+                  marginTop: 10,
+                  letterSpacing: 1,
+                }}
+              >
+                {resultTitle}
               </Text>
+
               <Text
                 variant="xs"
-                style={{ color: colors.textMuted, marginTop: 3 }}
+                style={{
+                  color: colors.textSecondary,
+                  marginTop: 4,
+                  textAlign: 'center',
+                }}
               >
-                Share code {activeRoomId} with a classmate to begin the match.
+                {gameState.winner === 'draw'
+                  ? 'All cells filled without a winner.'
+                  : isWin
+                  ? 'Three in a row! Great match.'
+                  : 'Better luck next round!'}
               </Text>
-            </View>
-          </View>
-        </Card>
-      )}
 
+              <View style={{ width: '100%', marginTop: 16, gap: 8 }}>
+                <Button
+                  title="Play Again"
+                  variant="primary"
+                  size="md"
+                  onPress={() => {
+                    Alert.alert(
+                      'Rematch Support',
+                      'Server-authoritative rematch is arriving in Phase 2. To play another match now, tap Leave Room and start a new game!'
+                    );
+                  }}
+                  accessibilityLabel="Play again (coming soon)"
+                />
+                <Button
+                  title="Leave Room"
+                  variant="outline"
+                  size="md"
+                  onPress={handleLeaveRoom}
+                  accessibilityLabel="Leave room"
+                />
+              </View>
+            </Animated.View>
+          </Animated.View>
+        )}
+      </View>
+
+      {/* Spectator notice */}
       {activeRoomId && localSymbol === null && gameState?.status === 'playing' && (
         <Card
           style={[
@@ -821,16 +1180,16 @@ export default function TicTacToeScreen() {
               backgroundColor: colors.surfaceSubtle,
               borderColor: colors.borderSubtle,
               borderRadius: radii.card,
-              marginTop: spacing.lg,
+              marginTop: spacing.md,
             },
           ]}
         >
           <View style={styles.infoContent}>
             <Ionicons
               name="eye-outline"
-              size={20}
+              size={18}
               color={colors.textSecondary}
-              style={{ marginRight: 10, marginTop: 2 }}
+              style={{ marginRight: 8, marginTop: 2 }}
             />
             <View style={{ flex: 1 }}>
               <Text variant="sm" weight="600" style={{ color: colors.text }}>
@@ -838,7 +1197,7 @@ export default function TicTacToeScreen() {
               </Text>
               <Text
                 variant="xs"
-                style={{ color: colors.textMuted, marginTop: 3 }}
+                style={{ color: colors.textMuted, marginTop: 2 }}
               >
                 This room is full. You are spectating the current game.
               </Text>
@@ -857,14 +1216,6 @@ const styles = StyleSheet.create({
   contentContainer: {
     flexGrow: 1,
   },
-  headerSection: {
-    paddingTop: 4,
-  },
-  mainTitle: {
-    fontSize: 26,
-    lineHeight: 32,
-    letterSpacing: -0.5,
-  },
   roomHeaderBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -872,6 +1223,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   roomCodeInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
     flex: 1,
   },
   roomHeaderActions: {
@@ -879,8 +1232,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statusCard: {
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     borderWidth: 1,
   },
   playersRow: {
@@ -893,8 +1246,8 @@ const styles = StyleSheet.create({
     width: 64,
   },
   playerSymbolBox: {
-    width: 44,
-    height: 44,
+    width: 40,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -934,13 +1287,32 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingHorizontal: 12,
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '700',
     letterSpacing: 1.5,
+  },
+  waitingCard: {
+    borderWidth: 1,
+  },
+  waitingPulseBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  bigCodeBox: {
+    width: '100%',
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
   },
   boardWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: 8,
+    marginVertical: 4,
+    position: 'relative',
   },
   boardContainer: {
     flexDirection: 'row',
@@ -952,11 +1324,38 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cellSymbol: {
-    textAlign: 'center',
+  resultOverlay: {
+    ...StyleSheet.absoluteFill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    zIndex: 10,
+    borderRadius: 16,
+    padding: 16,
+  },
+  resultCard: {
+    width: '100%',
+    maxWidth: 290,
+    paddingVertical: 20,
+    paddingHorizontal: 18,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  resultIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
   },
   infoCard: {
-    padding: 14,
+    padding: 12,
     borderWidth: 1,
   },
   infoContent: {

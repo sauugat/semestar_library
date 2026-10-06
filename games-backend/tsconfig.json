@@ -5,9 +5,13 @@
     "moduleResolution": "bundler",
     "lib": ["es2022"],
     "types": ["@cloudflare/workers-types"],
+    "allowImportingTsExtensions": true,
     "strict": true,
     "skipLibCheck": true,
-    "noEmit": true
+    "noEmit": true,
+    "paths": {
+      "@semester-library/ludo-engine": ["../packages/ludo-engine/src/index.ts"]
+    }
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*", "../packages/ludo-engine/src/**/*"]
 }

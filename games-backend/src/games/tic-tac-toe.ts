@@ -67,7 +67,8 @@ export function validateTicTacToeState(
 
   const s = data as Record<string, unknown>;
 
-  if (s.gameType !== 'tic-tac-toe') {
+  // Support both explicit gameType: 'tic-tac-toe' and legacy pre-Phase-4A envelopes (where gameType is undefined)
+  if (s.gameType !== undefined && s.gameType !== 'tic-tac-toe') {
     return {
       valid: false,
       error: `Invalid gameType: expected "tic-tac-toe", got "${s.gameType}"`,

@@ -3,6 +3,7 @@ export const PROTOCOL_VERSION = 1;
 export type TicTacToeSymbol = 'X' | 'O';
 export type TicTacToeStatus = 'waiting' | 'playing' | 'finished';
 export type TicTacToeWinner = TicTacToeSymbol | 'draw' | null;
+export type GameFinishReason = 'win' | 'draw' | 'leave' | 'timeout' | null;
 
 export interface TicTacToeState {
   gameType: 'tic-tac-toe';
@@ -15,6 +16,7 @@ export interface TicTacToeState {
   currentTurn: TicTacToeSymbol | null;
   winner: TicTacToeWinner;
   winningLine: number[] | null;
+  finishReason?: GameFinishReason;
   rematchRequestedBy: string | null;
   round: number;
   revision: number;
@@ -38,11 +40,16 @@ export interface GamesRematchMessage {
   type: 'REMATCH';
 }
 
+export interface GamesLeaveRoomMessage {
+  type: 'LEAVE_ROOM';
+}
+
 export type GamesClientMessage =
   | GamesJoinGameMessage
   | GamesMakeMoveMessage
   | GamesRequestStateMessage
-  | GamesRematchMessage;
+  | GamesRematchMessage
+  | GamesLeaveRoomMessage;
 
 // Server Events
 export interface GamesConnectedEvent {
@@ -64,6 +71,10 @@ export interface GamesGameStateEvent {
   type: 'GAME_STATE';
   roomId: string;
   state: TicTacToeState;
+  presence?: {
+    X: boolean;
+    O: boolean;
+  };
   protocolVersion: number;
 }
 
@@ -82,6 +93,7 @@ export interface GamesGameFinishedEvent {
   roomId: string;
   winner: TicTacToeWinner;
   winningLine: number[] | null;
+  finishReason?: GameFinishReason;
   revision: number;
   protocolVersion: number;
 }
@@ -202,9 +214,26 @@ export function validateTicTacToeState(raw: unknown): TicTacToeState | null {
     rematchRequestedBy = s.rematchRequestedBy;
   }
 
+  // Finish reason validation (defaults according to winner for rollout compatibility)
+  let finishReason: GameFinishReason = null;
+  if ('finishReason' in s && s.finishReason !== undefined) {
+    if (
+      s.finishReason !== null &&
+      s.finishReason !== 'win' &&
+      s.finishReason !== 'draw' &&
+      s.finishReason !== 'leave' &&
+      s.finishReason !== 'timeout'
+    ) {
+      return null;
+    }
+    finishReason = s.finishReason as GameFinishReason;
+  } else if (s.status === 'finished') {
+    finishReason = s.winner === 'draw' ? 'draw' : 'win';
+  }
+
   // Cross-field status invariants matching backend engine
   if (s.status === 'waiting') {
-    if (s.currentTurn !== null || s.winner !== null || rematchRequestedBy !== null) {
+    if (s.currentTurn !== null || s.winner !== null || rematchRequestedBy !== null || finishReason !== null) {
       return null;
     }
   } else if (s.status === 'playing') {
@@ -214,11 +243,11 @@ export function validateTicTacToeState(raw: unknown): TicTacToeState | null {
     if (s.currentTurn !== 'X' && s.currentTurn !== 'O') {
       return null;
     }
-    if (s.winner !== null || rematchRequestedBy !== null) {
+    if (s.winner !== null || rematchRequestedBy !== null || finishReason !== null) {
       return null;
     }
   } else if (s.status === 'finished') {
-    if (s.winner === null || s.currentTurn !== null) {
+    if (s.winner === null || s.currentTurn !== null || finishReason === null) {
       return null;
     }
   }
@@ -234,6 +263,7 @@ export function validateTicTacToeState(raw: unknown): TicTacToeState | null {
     currentTurn: s.currentTurn as TicTacToeSymbol | null,
     winner: s.winner as TicTacToeWinner,
     winningLine: s.winningLine ? ([...s.winningLine] as number[]) : null,
+    finishReason,
     rematchRequestedBy,
     round,
     revision: s.revision as number,
@@ -281,10 +311,18 @@ export function parseGamesServerEvent(raw: unknown): GamesServerEvent | null {
       if (!validatedState) {
         return null;
       }
+      let presence: { X: boolean; O: boolean } | undefined = undefined;
+      if (typeof record.presence === 'object' && record.presence !== null) {
+        const pr = record.presence as Record<string, unknown>;
+        if (typeof pr.X === 'boolean' && typeof pr.O === 'boolean') {
+          presence = { X: pr.X, O: pr.O };
+        }
+      }
       return {
         type: 'GAME_STATE',
         roomId: record.roomId.trim(),
         state: validatedState,
+        ...(presence ? { presence } : {}),
         protocolVersion: PROTOCOL_VERSION,
       };
     }
@@ -374,11 +412,22 @@ export function parseGamesServerEvent(raw: unknown): GamesServerEvent | null {
         winningLine = [...record.winningLine];
       }
 
+      let finishReason: GameFinishReason | undefined = undefined;
+      if (
+        record.finishReason === 'win' ||
+        record.finishReason === 'draw' ||
+        record.finishReason === 'leave' ||
+        record.finishReason === 'timeout'
+      ) {
+        finishReason = record.finishReason;
+      }
+
       return {
         type: 'GAME_FINISHED',
         roomId: record.roomId.trim(),
         winner: record.winner,
         winningLine,
+        ...(finishReason ? { finishReason } : {}),
         revision: record.revision,
         protocolVersion: PROTOCOL_VERSION,
       };

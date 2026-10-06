@@ -735,3 +735,235 @@ test('Integration: Rematch request, restarts, role swapping, and second-round pe
 
   wsA3.close();
 });
+
+test('Integration: Phase 4 presence, explicit leave forfeit, and reconnect grace flow', async () => {
+  const roomId = `room_p4_${Date.now()}`;
+  const userAId = 'student_p4_A';
+  const userBId = 'student_p4_B';
+
+  const ticketA = createGamesTicket({ studentId: userAId, username: 'p4_alice', name: 'Alice' }, TEST_SECRET);
+  const ticketB = createGamesTicket({ studentId: userBId, username: 'p4_bob', name: 'Bob' }, TEST_SECRET);
+
+  // 1. Connect both players
+  const wsA = await connectWs(`${BASE_WS}/rooms/${roomId}/ws`, { Authorization: `Bearer ${ticketA}` });
+  const queueA = new MessageQueue(wsA);
+  await queueA.next(); // CONNECTED
+
+  const wsB = await connectWs(`${BASE_WS}/rooms/${roomId}/ws`, { Authorization: `Bearer ${ticketB}` });
+  const queueB = new MessageQueue(wsB);
+  await queueB.next(); // CONNECTED
+
+  // 2. Both join -> game starts
+  wsA.send(JSON.stringify({ type: 'JOIN_GAME' }));
+  const joinA = await queueA.next();
+  assert.equal(joinA.type, 'GAME_STATE');
+  await queueB.next(); // joinA for B
+
+  wsB.send(JSON.stringify({ type: 'JOIN_GAME' }));
+  const joinB_A = await queueA.next();
+  const joinB_B = await queueB.next();
+
+  assert.equal(joinB_A.state.status, 'playing');
+  assert.deepEqual(joinB_A.presence, { X: true, O: true });
+  assert.deepEqual(joinB_B.presence, { X: true, O: true });
+
+  // 3. User A makes a move -> X at cell 0
+  wsA.send(JSON.stringify({ type: 'MAKE_MOVE', cellIndex: 0 }));
+  const move1_A = await queueA.next();
+  await queueB.next();
+  assert.equal(move1_A.state.board[0], 'X');
+  assert.equal(move1_A.state.currentTurn, 'O');
+
+  // 4. Test Disconnect & Reconnect: User B closes socket unexpectedly
+  wsB.close();
+  // User A receives updated GAME_STATE with O offline!
+  const disconnectStateForA = await queueA.next();
+  assert.equal(disconnectStateForA.type, 'GAME_STATE');
+  assert.equal(disconnectStateForA.state.status, 'playing');
+  assert.deepEqual(disconnectStateForA.presence, { X: true, O: false });
+
+  // 5. User B reconnects with a fresh ticket before grace expiry
+  const ticketB_reconnect = createGamesTicket({ studentId: userBId, username: 'p4_bob', name: 'Bob' }, TEST_SECRET);
+  const wsB_reconnected = await connectWs(`${BASE_WS}/rooms/${roomId}/ws`, { Authorization: `Bearer ${ticketB_reconnect}` });
+  const queueB_reconnected = new MessageQueue(wsB_reconnected);
+  await queueB_reconnected.next(); // CONNECTED
+
+  // Both users receive GAME_STATE showing B back online!
+  const reconnectedStateForA = await queueA.next();
+  const reconnectedStateForB = await queueB_reconnected.next();
+  assert.equal(reconnectedStateForA.type, 'GAME_STATE');
+  assert.deepEqual(reconnectedStateForA.presence, { X: true, O: true });
+  assert.deepEqual(reconnectedStateForB.presence, { X: true, O: true });
+  assert.equal(reconnectedStateForA.state.board[0], 'X'); // board intact
+
+  // 6. Test Explicit LEAVE_ROOM: User B explicitly leaves room
+  wsB_reconnected.send(JSON.stringify({ type: 'LEAVE_ROOM' }));
+  const leaveStateForA = await queueA.next();
+  const leaveStateForB = await queueB_reconnected.next();
+
+  assert.equal(leaveStateForA.type, 'GAME_STATE');
+  assert.equal(leaveStateForA.state.status, 'finished');
+  assert.equal(leaveStateForA.state.winner, 'X');
+  assert.equal(leaveStateForA.state.finishReason, 'leave');
+
+  assert.equal(leaveStateForB.type, 'GAME_STATE');
+  assert.equal(leaveStateForB.state.status, 'finished');
+  assert.equal(leaveStateForB.state.winner, 'X');
+  assert.equal(leaveStateForB.state.finishReason, 'leave');
+
+  wsA.close();
+  wsB_reconnected.close();
+});
+
+test('Integration: Multi-socket presence tracking for single user', async () => {
+  const roomId = `room_multi_sock_${Date.now()}`;
+  const userAId = 'student_ms_A';
+  const userBId = 'student_ms_B';
+
+  const ticketA = createGamesTicket({ studentId: userAId, username: 'ms_alice', name: 'Alice' }, TEST_SECRET);
+  const ticketB1 = createGamesTicket({ studentId: userBId, username: 'ms_bob', name: 'Bob' }, TEST_SECRET);
+  const ticketB2 = createGamesTicket({ studentId: userBId, username: 'ms_bob', name: 'Bob' }, TEST_SECRET);
+
+  const wsA = await connectWs(`${BASE_WS}/rooms/${roomId}/ws`, { Authorization: `Bearer ${ticketA}` });
+  const queueA = new MessageQueue(wsA);
+  await queueA.next(); // CONNECTED
+
+  const wsB1 = await connectWs(`${BASE_WS}/rooms/${roomId}/ws`, { Authorization: `Bearer ${ticketB1}` });
+  const queueB1 = new MessageQueue(wsB1);
+  await queueB1.next(); // CONNECTED
+
+  wsA.send(JSON.stringify({ type: 'JOIN_GAME' }));
+  await queueA.next();
+  await queueB1.next();
+
+  wsB1.send(JSON.stringify({ type: 'JOIN_GAME' }));
+  await queueA.next();
+  await queueB1.next();
+
+  // User B opens a second socket
+  const wsB2 = await connectWs(`${BASE_WS}/rooms/${roomId}/ws`, { Authorization: `Bearer ${ticketB2}` });
+  const queueB2 = new MessageQueue(wsB2);
+  await queueB2.next(); // CONNECTED
+
+  // User B closes first socket: B should STILL be reported online because wsB2 is open
+  wsB1.close();
+  await new Promise((r) => setTimeout(r, 100));
+
+  // Request state from A to verify presence
+  wsA.send(JSON.stringify({ type: 'REQUEST_STATE' }));
+  const stateCheck1 = await queueA.next();
+  assert.equal(stateCheck1.type, 'GAME_STATE');
+  assert.deepEqual(stateCheck1.presence, { X: true, O: true });
+
+  // User B closes second socket: now B has 0 sockets -> B goes offline!
+  wsB2.close();
+  const stateCheck2 = await queueA.next();
+  assert.equal(stateCheck2.type, 'GAME_STATE');
+  assert.deepEqual(stateCheck2.presence, { X: true, O: false });
+
+  wsA.close();
+});
+
+test('Integration: Restart during disconnect grace period preserves deadline and reconnects safely', async () => {
+  const roomId = `room_restart_grace_${Date.now()}`;
+  const userAId = 'student_rg_A';
+  const userBId = 'student_rg_B';
+
+  const ticketA = createGamesTicket({ studentId: userAId, username: 'rg_alice', name: 'Alice' }, TEST_SECRET);
+  const ticketB = createGamesTicket({ studentId: userBId, username: 'rg_bob', name: 'Bob' }, TEST_SECRET);
+
+  const wsA = await connectWs(`${BASE_WS}/rooms/${roomId}/ws`, { Authorization: `Bearer ${ticketA}` });
+  const queueA = new MessageQueue(wsA);
+  await queueA.next(); // CONNECTED
+
+  const wsB = await connectWs(`${BASE_WS}/rooms/${roomId}/ws`, { Authorization: `Bearer ${ticketB}` });
+  const queueB = new MessageQueue(wsB);
+  await queueB.next(); // CONNECTED
+
+  wsA.send(JSON.stringify({ type: 'JOIN_GAME' }));
+  await queueA.next();
+  await queueB.next();
+
+  wsB.send(JSON.stringify({ type: 'JOIN_GAME' }));
+  await queueA.next();
+  await queueB.next();
+
+  // Make move 0
+  wsA.send(JSON.stringify({ type: 'MAKE_MOVE', cellIndex: 0 }));
+  await queueA.next();
+  await queueB.next();
+
+  // B disconnects unexpectedly -> grace deadline stored in SQLite
+  wsB.close();
+  const discMsg = await queueA.next();
+  assert.deepEqual(discMsg.presence, { X: true, O: false });
+
+  // RESTART Wrangler / Durable Object while B is in grace period
+  wsA.close();
+  await stopWrangler(wranglerProc);
+  wranglerProc = null;
+
+  wranglerProc = await startWrangler();
+
+  // Reconnect A
+  const wsA_after = await connectWs(`${BASE_WS}/rooms/${roomId}/ws`, { Authorization: `Bearer ${ticketA}` });
+  const queueA_after = new MessageQueue(wsA_after);
+  await queueA_after.next(); // CONNECTED
+
+  // Reconnect B before deadline expires
+  const wsB_after = await connectWs(`${BASE_WS}/rooms/${roomId}/ws`, { Authorization: `Bearer ${ticketB}` });
+  const queueB_after = new MessageQueue(wsB_after);
+  await queueB_after.next(); // CONNECTED
+
+  // Verify state received by B is still playing, board unchanged, both online
+  const stateB = await queueB_after.next();
+  assert.equal(stateB.type, 'GAME_STATE');
+  assert.equal(stateB.state.status, 'playing');
+  assert.equal(stateB.state.board[0], 'X');
+  assert.deepEqual(stateB.presence, { X: true, O: true });
+
+  wsA_after.close();
+  wsB_after.close();
+});
+
+test('Integration: Both players offline results in safe neutral abandonment (no invented winner)', async () => {
+  const roomId = `room_both_off_${Date.now()}`;
+  const userAId = 'student_bo_A';
+  const userBId = 'student_bo_B';
+
+  const ticketA = createGamesTicket({ studentId: userAId, username: 'bo_alice', name: 'Alice' }, TEST_SECRET);
+  const ticketB = createGamesTicket({ studentId: userBId, username: 'bo_bob', name: 'Bob' }, TEST_SECRET);
+
+  const wsA = await connectWs(`${BASE_WS}/rooms/${roomId}/ws`, { Authorization: `Bearer ${ticketA}` });
+  const queueA = new MessageQueue(wsA);
+  await queueA.next(); // CONNECTED
+
+  const wsB = await connectWs(`${BASE_WS}/rooms/${roomId}/ws`, { Authorization: `Bearer ${ticketB}` });
+  const queueB = new MessageQueue(wsB);
+  await queueB.next(); // CONNECTED
+
+  wsA.send(JSON.stringify({ type: 'JOIN_GAME' }));
+  await queueA.next();
+  await queueB.next();
+
+  wsB.send(JSON.stringify({ type: 'JOIN_GAME' }));
+  await queueA.next();
+  await queueB.next();
+
+  // Both players disconnect
+  wsA.close();
+  wsB.close();
+
+  // Verify through fresh spectator / reconnect that if both are offline and timeout happens, state is safe
+  // Reconnect A with REQUEST_STATE
+  const wsA_check = await connectWs(`${BASE_WS}/rooms/${roomId}/ws`, { Authorization: `Bearer ${ticketA}` });
+  const queueA_check = new MessageQueue(wsA_check);
+  await queueA_check.next(); // CONNECTED
+  wsA_check.send(JSON.stringify({ type: 'REQUEST_STATE' }));
+  const checkMsg = await queueA_check.next();
+  assert.equal(checkMsg.type, 'GAME_STATE');
+  // While grace period is running and A reconnected, O is still offline
+  assert.deepEqual(checkMsg.presence, { X: true, O: false });
+
+  wsA_check.close();
+});

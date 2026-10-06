@@ -2,6 +2,7 @@ import type {
   PlayerSymbol,
   GameStatus,
   GameWinner,
+  GameFinishReason,
   TicTacToeState,
 } from '../protocol';
 
@@ -29,6 +30,7 @@ export interface MoveResult {
   cellIndex?: number;
   winner?: GameWinner;
   winningLine?: number[] | null;
+  finishReason?: GameFinishReason;
   error?: string;
 }
 
@@ -37,6 +39,22 @@ export interface RematchResult {
   accepted?: boolean;
   round?: number;
   isIdempotent?: boolean;
+  error?: string;
+}
+
+export interface ForfeitResult {
+  success: boolean;
+  winner?: GameWinner;
+  finishReason?: GameFinishReason;
+  reset?: boolean;
+  rematchCancelled?: boolean;
+  error?: string;
+}
+
+export interface AbandonResult {
+  success: boolean;
+  winner?: 'draw';
+  finishReason?: 'timeout';
   error?: string;
 }
 
@@ -168,6 +186,26 @@ export function validateTicTacToeState(
     rematchRequestedBy = s.rematchRequestedBy;
   }
 
+  // Finish reason validation (defaults according to winner for legacy/omitted state)
+  let finishReason: GameFinishReason = null;
+  if ('finishReason' in s && s.finishReason !== undefined) {
+    if (
+      s.finishReason !== null &&
+      s.finishReason !== 'win' &&
+      s.finishReason !== 'draw' &&
+      s.finishReason !== 'leave' &&
+      s.finishReason !== 'timeout'
+    ) {
+      return {
+        valid: false,
+        error: `Invalid finishReason: got ${s.finishReason}`,
+      };
+    }
+    finishReason = s.finishReason as GameFinishReason;
+  } else if (s.status === 'finished') {
+    finishReason = s.winner === 'draw' ? 'draw' : 'win';
+  }
+
   // Cross-field status invariants
   if (s.status === 'waiting') {
     if (s.currentTurn !== null) {
@@ -178,6 +216,9 @@ export function validateTicTacToeState(
     }
     if (rematchRequestedBy !== null) {
       return { valid: false, error: 'rematchRequestedBy must be null when status is "waiting"' };
+    }
+    if (finishReason !== null) {
+      return { valid: false, error: 'finishReason must be null when status is "waiting"' };
     }
   } else if (s.status === 'playing') {
     if (p.X === null || p.O === null) {
@@ -195,12 +236,18 @@ export function validateTicTacToeState(
     if (rematchRequestedBy !== null) {
       return { valid: false, error: 'rematchRequestedBy must be null when status is "playing"' };
     }
+    if (finishReason !== null) {
+      return { valid: false, error: 'finishReason must be null when status is "playing"' };
+    }
   } else if (s.status === 'finished') {
     if (s.winner === null) {
       return { valid: false, error: 'winner cannot be null when status is "finished"' };
     }
     if (s.currentTurn !== null) {
       return { valid: false, error: 'currentTurn must be null when status is "finished"' };
+    }
+    if (finishReason === null) {
+      return { valid: false, error: 'finishReason cannot be null when status is "finished"' };
     }
   }
 
@@ -217,6 +264,7 @@ export function validateTicTacToeState(
       currentTurn: s.currentTurn as PlayerSymbol | null,
       winner: s.winner as GameWinner,
       winningLine: s.winningLine ? ([...s.winningLine] as number[]) : null,
+      finishReason,
       rematchRequestedBy,
       round,
       revision: s.revision as number,
@@ -232,6 +280,7 @@ export class TicTacToeEngine {
   private currentTurn: PlayerSymbol | null = null;
   private winner: GameWinner = null;
   private winningLine: number[] | null = null;
+  private finishReason: GameFinishReason = null;
   private rematchRequestedBy: string | null = null;
   private round: number = 1;
   private revision: number = 0;
@@ -250,6 +299,9 @@ export class TicTacToeEngine {
       if (initialState.winner !== undefined) this.winner = initialState.winner;
       if (initialState.winningLine !== undefined) {
         this.winningLine = initialState.winningLine ? [...initialState.winningLine] : null;
+      }
+      if (initialState.finishReason !== undefined) {
+        this.finishReason = initialState.finishReason;
       }
       if (initialState.rematchRequestedBy !== undefined) {
         this.rematchRequestedBy = initialState.rematchRequestedBy;
@@ -285,6 +337,7 @@ export class TicTacToeEngine {
       currentTurn: this.currentTurn,
       winner: this.winner,
       winningLine: this.winningLine ? [...this.winningLine] : null,
+      finishReason: this.finishReason,
       rematchRequestedBy: this.rematchRequestedBy,
       round: this.round,
       revision: this.revision,
@@ -373,6 +426,7 @@ export class TicTacToeEngine {
         won = true;
         this.winner = symbol;
         this.winningLine = [...combo];
+        this.finishReason = 'win';
         this.status = 'finished';
         this.currentTurn = null;
         break;
@@ -385,6 +439,7 @@ export class TicTacToeEngine {
       if (!hasEmptyCell) {
         this.winner = 'draw';
         this.winningLine = null;
+        this.finishReason = 'draw';
         this.status = 'finished';
         this.currentTurn = null;
       } else {
@@ -401,7 +456,69 @@ export class TicTacToeEngine {
       cellIndex,
       winner: this.winner,
       winningLine: this.winningLine,
+      finishReason: this.finishReason,
     };
+  }
+
+  public forfeit(userId: string, reason: 'leave' | 'timeout'): ForfeitResult {
+    if (!userId || typeof userId !== 'string') {
+      return { success: false, error: 'Invalid user ID' };
+    }
+
+    if (this.status === 'waiting') {
+      if (this.playerX === userId) {
+        this.playerX = null;
+        this.revision++;
+        return { success: true, reset: true };
+      }
+      return { success: false, error: 'You are not a player in this game.' };
+    }
+
+    if (this.status === 'finished') {
+      if (this.rematchRequestedBy === userId) {
+        this.rematchRequestedBy = null;
+        this.revision++;
+        return { success: true, rematchCancelled: true };
+      }
+      return { success: false, error: 'Game is already finished.' };
+    }
+
+    if (this.status === 'playing') {
+      if (userId === this.playerX) {
+        this.winner = 'O';
+        this.winningLine = null;
+        this.status = 'finished';
+        this.currentTurn = null;
+        this.finishReason = reason;
+        this.revision++;
+        return { success: true, winner: 'O', finishReason: reason };
+      }
+      if (userId === this.playerO) {
+        this.winner = 'X';
+        this.winningLine = null;
+        this.status = 'finished';
+        this.currentTurn = null;
+        this.finishReason = reason;
+        this.revision++;
+        return { success: true, winner: 'X', finishReason: reason };
+      }
+      return { success: false, error: 'You are not a player in this game.' };
+    }
+
+    return { success: false, error: 'Cannot forfeit in current state.' };
+  }
+
+  public abandon(reason: 'timeout' = 'timeout'): AbandonResult {
+    if (this.status !== 'playing') {
+      return { success: false, error: 'Cannot abandon game: game is not playing.' };
+    }
+    this.winner = 'draw';
+    this.winningLine = null;
+    this.status = 'finished';
+    this.currentTurn = null;
+    this.finishReason = reason;
+    this.revision++;
+    return { success: true, winner: 'draw', finishReason: reason };
   }
 
   public requestRematch(userId: string): RematchResult {
@@ -440,6 +557,7 @@ export class TicTacToeEngine {
     this.currentTurn = 'X';
     this.winner = null;
     this.winningLine = null;
+    this.finishReason = null;
     this.rematchRequestedBy = null;
     this.round += 1;
     this.revision += 1;

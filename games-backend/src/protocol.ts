@@ -4,6 +4,8 @@ export type PlayerSymbol = 'X' | 'O';
 export type GameStatus = 'waiting' | 'playing' | 'finished';
 export type GameWinner = PlayerSymbol | 'draw' | null;
 
+export type GameFinishReason = 'win' | 'draw' | 'leave' | 'timeout' | null;
+
 export interface TicTacToeState {
   gameType: 'tic-tac-toe';
   status: GameStatus;
@@ -15,6 +17,7 @@ export interface TicTacToeState {
   currentTurn: PlayerSymbol | null;
   winner: GameWinner;
   winningLine: number[] | null;
+  finishReason?: GameFinishReason;
   rematchRequestedBy: string | null;
   round: number;
   revision: number;
@@ -38,11 +41,16 @@ export interface ClientRematchMessage {
   type: 'REMATCH';
 }
 
+export interface ClientLeaveRoomMessage {
+  type: 'LEAVE_ROOM';
+}
+
 export type ClientMessage =
   | ClientJoinGameMessage
   | ClientMakeMoveMessage
   | ClientRequestStateMessage
-  | ClientRematchMessage;
+  | ClientRematchMessage
+  | ClientLeaveRoomMessage;
 
 // Server Events
 export interface ServerConnectedEvent {
@@ -60,10 +68,22 @@ export interface ServerPlayerJoinedEvent {
   protocolVersion: number;
 }
 
+export interface ServerPlayerPresenceEvent {
+  type: 'PLAYER_PRESENCE';
+  roomId: string;
+  userId: string;
+  online: boolean;
+  protocolVersion: number;
+}
+
 export interface ServerGameStateEvent {
   type: 'GAME_STATE';
   roomId: string;
   state: TicTacToeState;
+  presence?: {
+    X: boolean;
+    O: boolean;
+  };
   protocolVersion: number;
 }
 
@@ -82,6 +102,7 @@ export interface ServerGameFinishedEvent {
   roomId: string;
   winner: GameWinner;
   winningLine: number[] | null;
+  finishReason?: GameFinishReason;
   revision: number;
   protocolVersion: number;
 }
@@ -96,6 +117,7 @@ export interface ServerErrorEvent {
 export type ServerEvent =
   | ServerConnectedEvent
   | ServerPlayerJoinedEvent
+  | ServerPlayerPresenceEvent
   | ServerGameStateEvent
   | ServerMoveAcceptedEvent
   | ServerGameFinishedEvent

@@ -706,3 +706,135 @@ test('TicTacToeEngine.fromState: malformed round or rematchRequestedBy rejected'
   };
   assert.throws(() => TicTacToeEngine.fromState({ ...basePlaying, rematchRequestedBy: 'user_X' }), /rematchRequestedBy must be null/i);
 });
+
+test('TicTacToeEngine: explicit leave during playing causes immediate forfeit win for opponent', () => {
+  const engine = new TicTacToeEngine();
+  engine.join('user_A');
+  engine.join('user_B');
+  assert.equal(engine.getState().status, 'playing');
+
+  const res = engine.forfeit('user_A', 'leave');
+  assert.equal(res.success, true);
+  assert.equal(res.winner, 'O');
+  assert.equal(res.finishReason, 'leave');
+
+  const state = engine.getState();
+  assert.equal(state.status, 'finished');
+  assert.equal(state.winner, 'O');
+  assert.equal(state.finishReason, 'leave');
+  assert.equal(state.winningLine, null);
+  assert.equal(state.currentTurn, null);
+});
+
+test('TicTacToeEngine: disconnect timeout during playing causes timeout forfeit win for opponent', () => {
+  const engine = new TicTacToeEngine();
+  engine.join('user_A');
+  engine.join('user_B');
+
+  const res = engine.forfeit('user_B', 'timeout');
+  assert.equal(res.success, true);
+  assert.equal(res.winner, 'X');
+  assert.equal(res.finishReason, 'timeout');
+
+  const state = engine.getState();
+  assert.equal(state.status, 'finished');
+  assert.equal(state.winner, 'X');
+  assert.equal(state.finishReason, 'timeout');
+});
+
+test('TicTacToeEngine: leave during waiting resets player X slot cleanly', () => {
+  const engine = new TicTacToeEngine();
+  engine.join('user_A');
+  assert.equal(engine.getState().status, 'waiting');
+  assert.equal(engine.getState().players.X, 'user_A');
+
+  const res = engine.forfeit('user_A', 'leave');
+  assert.equal(res.success, true);
+  assert.equal(res.reset, true);
+
+  const state = engine.getState();
+  assert.equal(state.players.X, null);
+  assert.equal(state.status, 'waiting');
+
+  // New player can now join as X
+  const newJoin = engine.join('user_C');
+  assert.equal(newJoin.success, true);
+  assert.equal(newJoin.symbol, 'X');
+  assert.equal(engine.getState().players.X, 'user_C');
+});
+
+test('TicTacToeEngine.fromState: valid finishReason preserved and invalid rejected', () => {
+  const finishedState = {
+    gameType: 'tic-tac-toe',
+    status: 'finished',
+    players: { X: 'user_X', O: 'user_O' },
+    board: ['X', 'X', 'X', 'O', 'O', null, null, null, null],
+    currentTurn: null,
+    winner: 'X',
+    winningLine: [0, 1, 2],
+    finishReason: 'win',
+    round: 1,
+    rematchRequestedBy: null,
+    revision: 6,
+  };
+
+  const engine = TicTacToeEngine.fromState(finishedState);
+  assert.equal(engine.getState().finishReason, 'win');
+
+  // Invalid finishReason rejected
+  assert.throws(
+    () => TicTacToeEngine.fromState({ ...finishedState, finishReason: 'invalid_reason' }),
+    /Invalid finishReason/i
+  );
+});
+
+test('TicTacToeEngine: abandon sets neutral draw with timeout reason when both offline', () => {
+  const engine = new TicTacToeEngine();
+  engine.join('user_A');
+  engine.join('user_B');
+  assert.equal(engine.getState().status, 'playing');
+
+  const res = engine.abandon('timeout');
+  assert.equal(res.success, true);
+  assert.equal(res.winner, 'draw');
+  assert.equal(res.finishReason, 'timeout');
+
+  const state = engine.getState();
+  assert.equal(state.status, 'finished');
+  assert.equal(state.winner, 'draw');
+  assert.equal(state.finishReason, 'timeout');
+  assert.equal(state.winningLine, null);
+  assert.equal(state.currentTurn, null);
+});
+
+test('TicTacToeEngine.fromState: rolling-update compatibility for legacy states without finishReason', () => {
+  const legacyFinishedWin = {
+    gameType: 'tic-tac-toe',
+    status: 'finished',
+    players: { X: 'user_X', O: 'user_O' },
+    board: ['X', 'X', 'X', 'O', 'O', null, null, null, null],
+    currentTurn: null,
+    winner: 'X',
+    winningLine: [0, 1, 2],
+    revision: 6,
+  };
+
+  const engineWin = TicTacToeEngine.fromState(legacyFinishedWin);
+  assert.equal(engineWin.getState().finishReason, 'win');
+  assert.equal(engineWin.getState().round, 1);
+  assert.equal(engineWin.getState().rematchRequestedBy, null);
+
+  const legacyFinishedDraw = {
+    gameType: 'tic-tac-toe',
+    status: 'finished',
+    players: { X: 'user_X', O: 'user_O' },
+    board: ['X', 'O', 'X', 'X', 'O', 'O', 'O', 'X', 'X'],
+    currentTurn: null,
+    winner: 'draw',
+    winningLine: null,
+    revision: 10,
+  };
+
+  const engineDraw = TicTacToeEngine.fromState(legacyFinishedDraw);
+  assert.equal(engineDraw.getState().finishReason, 'draw');
+});

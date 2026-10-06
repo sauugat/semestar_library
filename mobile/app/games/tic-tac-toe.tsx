@@ -49,31 +49,215 @@ function generateRoomCode(): string {
   return result;
 }
 
+interface WinningLineLayout {
+  type: 'row' | 'col' | 'diag-down' | 'diag-up';
+  style: {
+    position: 'absolute';
+    top?: number;
+    bottom?: number;
+    left?: number;
+    right?: number;
+    width: number;
+    height: number;
+  };
+}
+
+function getWinningLineLayout(
+  winningLine: number[] | null,
+  boardSize: number,
+  cellSize: number,
+  cellGap: number
+): WinningLineLayout | null {
+  if (!winningLine || winningLine.length !== 3) return null;
+  const sorted = [...winningLine].sort((a, b) => a - b);
+  const key = sorted.join(',');
+  const strokeWidth = Math.max(4, Math.round(cellSize * 0.08));
+
+  // Row centers
+  const row0Center = cellSize * 0.5;
+  const row1Center = cellSize * 1.5 + cellGap;
+  const row2Center = cellSize * 2.5 + cellGap * 2;
+
+  // Col centers
+  const col0Center = cellSize * 0.5;
+  const col1Center = cellSize * 1.5 + cellGap;
+  const col2Center = cellSize * 2.5 + cellGap * 2;
+
+  const lineSpan = boardSize - cellSize * 0.3;
+
+  if (key === '0,1,2') {
+    return {
+      type: 'row',
+      style: {
+        position: 'absolute',
+        left: (boardSize - lineSpan) / 2,
+        top: row0Center - strokeWidth / 2,
+        width: lineSpan,
+        height: strokeWidth,
+      },
+    };
+  }
+  if (key === '3,4,5') {
+    return {
+      type: 'row',
+      style: {
+        position: 'absolute',
+        left: (boardSize - lineSpan) / 2,
+        top: row1Center - strokeWidth / 2,
+        width: lineSpan,
+        height: strokeWidth,
+      },
+    };
+  }
+  if (key === '6,7,8') {
+    return {
+      type: 'row',
+      style: {
+        position: 'absolute',
+        left: (boardSize - lineSpan) / 2,
+        top: row2Center - strokeWidth / 2,
+        width: lineSpan,
+        height: strokeWidth,
+      },
+    };
+  }
+  if (key === '0,3,6') {
+    return {
+      type: 'col',
+      style: {
+        position: 'absolute',
+        top: (boardSize - lineSpan) / 2,
+        left: col0Center - strokeWidth / 2,
+        width: strokeWidth,
+        height: lineSpan,
+      },
+    };
+  }
+  if (key === '1,4,7') {
+    return {
+      type: 'col',
+      style: {
+        position: 'absolute',
+        top: (boardSize - lineSpan) / 2,
+        left: col1Center - strokeWidth / 2,
+        width: strokeWidth,
+        height: lineSpan,
+      },
+    };
+  }
+  if (key === '2,5,8') {
+    return {
+      type: 'col',
+      style: {
+        position: 'absolute',
+        top: (boardSize - lineSpan) / 2,
+        left: col2Center - strokeWidth / 2,
+        width: strokeWidth,
+        height: lineSpan,
+      },
+    };
+  }
+  if (key === '0,4,8') {
+    const diagSpan = lineSpan * Math.SQRT2;
+    return {
+      type: 'diag-down',
+      style: {
+        position: 'absolute',
+        top: boardSize / 2 - strokeWidth / 2,
+        left: (boardSize - diagSpan) / 2,
+        width: diagSpan,
+        height: strokeWidth,
+      },
+    };
+  }
+  if (key === '2,4,6') {
+    const diagSpan = lineSpan * Math.SQRT2;
+    return {
+      type: 'diag-up',
+      style: {
+        position: 'absolute',
+        top: boardSize / 2 - strokeWidth / 2,
+        left: (boardSize - diagSpan) / 2,
+        width: diagSpan,
+        height: strokeWidth,
+      },
+    };
+  }
+  return null;
+}
+
 /**
  * Pure vector piece component for X and O.
  * Renders identical geometric shapes across Android and iOS without relying on font glyphs.
+ * Supports smooth server-authoritative placement animations and winning pulse effects.
  */
 interface TicTacToePieceProps {
   symbol: TicTacToeSymbol;
   size: number;
   isWinner?: boolean;
   color?: string;
+  shouldAnimate?: boolean;
+  pulse?: boolean;
 }
 
-function TicTacToePiece({ symbol, size, isWinner, color }: TicTacToePieceProps) {
+function TicTacToePiece({ symbol, size, isWinner, color, shouldAnimate, pulse }: TicTacToePieceProps) {
   const { colors } = useTheme();
   const effectiveColor = color || (isWinner ? colors.primary : colors.text);
   const strokeWidth = Math.max(3, Math.round(size * 0.12));
 
+  const scaleAnim = useRef(new Animated.Value(shouldAnimate ? (symbol === 'X' ? 0.3 : 0.7) : 1)).current;
+  const opacityAnim = useRef(new Animated.Value(shouldAnimate ? 0 : 1)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (shouldAnimate) {
+      scaleAnim.setValue(symbol === 'X' ? 0.3 : 0.7);
+      opacityAnim.setValue(0);
+      Animated.parallel([
+        Animated.timing(opacityAnim, {
+          toValue: 1,
+          duration: 180,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          friction: 6,
+          tension: 90,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [shouldAnimate, symbol, scaleAnim, opacityAnim]);
+
+  useEffect(() => {
+    if (pulse) {
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.18,
+          duration: 160,
+          useNativeDriver: true,
+        }),
+        Animated.spring(pulseAnim, {
+          toValue: 1,
+          friction: 5,
+          tension: 100,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [pulse, pulseAnim]);
+
   if (symbol === 'X') {
     const lineLength = Math.round(size * 0.65);
     return (
-      <View
+      <Animated.View
         style={{
           width: size,
           height: size,
           alignItems: 'center',
           justifyContent: 'center',
+          opacity: opacityAnim,
+          transform: [{ scale: Animated.multiply(scaleAnim, pulseAnim) }],
         }}
       >
         <View
@@ -96,19 +280,21 @@ function TicTacToePiece({ symbol, size, isWinner, color }: TicTacToePieceProps) 
             transform: [{ rotate: '-45deg' }],
           }}
         />
-      </View>
+      </Animated.View>
     );
   }
 
   if (symbol === 'O') {
     const circleSize = Math.round(size * 0.58);
     return (
-      <View
+      <Animated.View
         style={{
           width: size,
           height: size,
           alignItems: 'center',
           justifyContent: 'center',
+          opacity: opacityAnim,
+          transform: [{ scale: Animated.multiply(scaleAnim, pulseAnim) }],
         }}
       >
         <View
@@ -121,7 +307,7 @@ function TicTacToePiece({ symbol, size, isWinner, color }: TicTacToePieceProps) 
             backgroundColor: 'transparent',
           }}
         />
-      </View>
+      </Animated.View>
     );
   }
 
@@ -148,15 +334,35 @@ export default function TicTacToeScreen() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isMovePending, setIsMovePending] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
+  const isConnectingRef = useRef(false);
 
-  // Phase 3: In-App Invitations & Auto-Join State
+  // Phase 3 & 4: In-App Invitations & Auto-Join State Machine
+  type InviteAutoJoinPhase = 'idle' | 'validating' | 'connecting' | 'joined' | 'error';
+  const [invitePhase, setInvitePhase] = useState<InviteAutoJoinPhase>('idle');
+  const invitePhaseRef = useRef<InviteAutoJoinPhase>('idle');
+  invitePhaseRef.current = invitePhase;
+  const targetAutoJoinRoomRef = useRef<string | null>(null);
+
   const autoJoinedInviteRef = useRef<string | null>(null);
-  const [isValidatingInvite, setIsValidatingInvite] = useState(false);
   const [invitationError, setInvitationError] = useState<{
     type: 'expired' | 'full' | 'error';
     title: string;
     message: string;
   } | null>(null);
+
+  // Phase 4: Opponent Online / Offline Presence State
+  const [presenceState, setPresenceState] = useState<{ X: boolean; O: boolean }>({ X: true, O: true });
+  const prevOpponentOnlineRef = useRef<boolean>(true);
+  const [showReconnectedToast, setShowReconnectedToast] = useState(false);
+  const reconnectedToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Phase 4: Board Piece & Winning Line Animations
+  const lineAnim = useRef(new Animated.Value(0)).current;
+  const animatedCellsRef = useRef<Set<number>>(new Set());
+  const prevBoardRef = useRef<(TicTacToeSymbol | null)[]>(Array(9).fill(null));
+  const [newlyPlacedCells, setNewlyPlacedCells] = useState<Set<number>>(new Set());
+  const [pulseWinningPieces, setPulseWinningPieces] = useState(false);
+  const [showResultCard, setShowResultCard] = useState(false);
 
   // Phase 3: Invite Classmate Modal State
   const [isInviteModalVisible, setIsInviteModalVisible] = useState(false);
@@ -189,11 +395,30 @@ export default function TicTacToeScreen() {
         setAuthUserId(event.userId);
         setErrorMessage(null);
       } else if (event.type === 'GAME_STATE') {
+        if (event.presence) {
+          setPresenceState(event.presence);
+        }
+        if (
+          invitePhaseRef.current === 'connecting' ||
+          invitePhaseRef.current === 'validating'
+        ) {
+          if (
+            !targetAutoJoinRoomRef.current ||
+            event.roomId.toUpperCase() === targetAutoJoinRoomRef.current.toUpperCase()
+          ) {
+            setInvitePhase('joined');
+          }
+        }
         setGameState(event.state);
         setIsMovePending(false);
         setErrorMessage(null);
+      } else if (event.type === 'MOVE_ACCEPTED') {
+        if (event.userId === authUserId) {
+          void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }
       } else if (event.type === 'ERROR') {
         setIsMovePending(false);
+        setInvitePhase((prev) => (prev === 'connecting' || prev === 'validating' ? 'error' : prev));
         const rawMsg = event.message || 'Game error occurred.';
         if (
           rawMsg.toLowerCase().includes('full') ||
@@ -216,6 +441,7 @@ export default function TicTacToeScreen() {
       setSocketStatus(status);
       if (status === 'error' || status === 'closed') {
         setIsMovePending(false);
+        setInvitePhase((prev) => (prev === 'connecting' || prev === 'validating' ? 'error' : prev));
       }
     });
 
@@ -224,8 +450,11 @@ export default function TicTacToeScreen() {
       unsubStatus();
       client.disconnect();
       clientRef.current = null;
+      if (reconnectedToastTimerRef.current) {
+        clearTimeout(reconnectedToastTimerRef.current);
+      }
     };
-  }, []);
+  }, [authUserId]);
 
   // Determine local player symbol ('X', 'O', or null for spectator/unassigned)
   const localSymbol = useMemo<TicTacToeSymbol | null>(() => {
@@ -234,6 +463,67 @@ export default function TicTacToeScreen() {
     if (gameState.players.O === authUserId) return 'O';
     return null;
   }, [authUserId, gameState]);
+
+  // Determine opponent symbol and presence
+  const opponentSymbol = useMemo<TicTacToeSymbol | null>(() => {
+    if (localSymbol === 'X') return 'O';
+    if (localSymbol === 'O') return 'X';
+    return null;
+  }, [localSymbol]);
+
+  const isOpponentOnline = useMemo(() => {
+    if (!opponentSymbol) return true;
+    return presenceState[opponentSymbol] ?? true;
+  }, [opponentSymbol, presenceState]);
+
+  // Opponent reconnect toast effect
+  useEffect(() => {
+    if (gameState?.status === 'playing') {
+      if (!prevOpponentOnlineRef.current && isOpponentOnline) {
+        setShowReconnectedToast(true);
+        if (reconnectedToastTimerRef.current) clearTimeout(reconnectedToastTimerRef.current);
+        reconnectedToastTimerRef.current = setTimeout(() => {
+          setShowReconnectedToast(false);
+        }, 2000);
+      }
+    }
+    prevOpponentOnlineRef.current = isOpponentOnline;
+  }, [isOpponentOnline, gameState?.status]);
+
+  // Track board mutations to animate newly placed pieces only (never re-animates existing cells)
+  useEffect(() => {
+    if (!gameState) {
+      animatedCellsRef.current.clear();
+      prevBoardRef.current = Array(9).fill(null);
+      setNewlyPlacedCells(new Set());
+      return;
+    }
+
+    // Rematch round reset (clean board)
+    const isCleanBoard = gameState.board.every((cell) => cell === null);
+    if (isCleanBoard) {
+      animatedCellsRef.current.clear();
+      prevBoardRef.current = Array(9).fill(null);
+      setNewlyPlacedCells(new Set());
+      return;
+    }
+
+    const nextNew = new Set<number>();
+    for (let i = 0; i < 9; i++) {
+      const prev = prevBoardRef.current[i];
+      const curr = gameState.board[i];
+      if (prev === null && (curr === 'X' || curr === 'O')) {
+        if (!animatedCellsRef.current.has(i)) {
+          animatedCellsRef.current.add(i);
+          nextNew.add(i);
+        }
+      }
+    }
+    prevBoardRef.current = [...gameState.board];
+    if (nextNew.size > 0) {
+      setNewlyPlacedCells(nextNew);
+    }
+  }, [gameState?.board, gameState?.round]);
 
   // Turn check
   const isMyTurn = useMemo(() => {
@@ -249,21 +539,58 @@ export default function TicTacToeScreen() {
     if (gameState?.status === 'finished') {
       if (lastAnimatedStatusRef.current !== 'finished') {
         lastAnimatedStatusRef.current = 'finished';
-        fadeAnim.setValue(0);
-        scaleAnim.setValue(0.88);
-        Animated.parallel([
-          Animated.timing(fadeAnim, {
+        setPulseWinningPieces(true);
+        lineAnim.setValue(0);
+        setShowResultCard(false);
+
+        if (gameState.winningLine && gameState.winningLine.length === 3) {
+          // Draw winning line across 350ms
+          Animated.timing(lineAnim, {
             toValue: 1,
-            duration: 250,
+            duration: 350,
             useNativeDriver: true,
-          }),
-          Animated.spring(scaleAnim, {
-            toValue: 1,
-            friction: 6,
-            tension: 80,
-            useNativeDriver: true,
-          }),
-        ]).start();
+          }).start();
+
+          // Sequence delay: wait 450ms before displaying result overlay
+          const timer = setTimeout(() => {
+            setShowResultCard(true);
+            fadeAnim.setValue(0);
+            scaleAnim.setValue(0.88);
+            Animated.parallel([
+              Animated.timing(fadeAnim, {
+                toValue: 1,
+                duration: 250,
+                useNativeDriver: true,
+              }),
+              Animated.spring(scaleAnim, {
+                toValue: 1,
+                friction: 6,
+                tension: 80,
+                useNativeDriver: true,
+              }),
+            ]).start();
+          }, 450);
+
+          return () => clearTimeout(timer);
+        } else {
+          // Draw or forfeit/timeout without line: display result card directly
+          setShowResultCard(true);
+          fadeAnim.setValue(0);
+          scaleAnim.setValue(0.88);
+          Animated.parallel([
+            Animated.timing(fadeAnim, {
+              toValue: 1,
+              duration: 250,
+              useNativeDriver: true,
+            }),
+            Animated.spring(scaleAnim, {
+              toValue: 1,
+              friction: 6,
+              tension: 80,
+              useNativeDriver: true,
+            }),
+          ]).start();
+        }
 
         // Trigger finish haptic ONCE
         if (gameState.winner === 'draw') {
@@ -276,10 +603,13 @@ export default function TicTacToeScreen() {
       }
     } else {
       lastAnimatedStatusRef.current = gameState?.status ?? null;
+      setPulseWinningPieces(false);
+      setShowResultCard(false);
+      lineAnim.setValue(0);
       fadeAnim.setValue(0);
       scaleAnim.setValue(0.88);
     }
-  }, [gameState?.status, gameState?.winner, localSymbol, fadeAnim, scaleAnim]);
+  }, [gameState?.status, gameState?.winner, gameState?.winningLine, localSymbol, fadeAnim, scaleAnim, lineAnim]);
 
   // Rematch request & new round haptics
   useEffect(() => {
@@ -316,8 +646,9 @@ export default function TicTacToeScreen() {
         return;
       }
 
-      if (isConnecting) return;
+      if (isConnectingRef.current) return;
 
+      isConnectingRef.current = true;
       setIsConnecting(true);
       setErrorMessage(null);
       setGameState(null);
@@ -342,13 +673,14 @@ export default function TicTacToeScreen() {
             : raw;
         setErrorMessage(safe);
       } finally {
+        isConnectingRef.current = false;
         setIsConnecting(false);
       }
     },
-    [isConnecting]
+    []
   );
 
-  // Phase 3: Secure Auto-Join via Invitation
+  // Phase 3 & 4: Secure Auto-Join via Invitation
   useEffect(() => {
     if (params.autoJoin === '1' && params.invite) {
       const inviteId = params.invite.trim();
@@ -357,7 +689,7 @@ export default function TicTacToeScreen() {
 
       let isCancelled = false;
       const executeAutoJoin = async () => {
-        setIsValidatingInvite(true);
+        setInvitePhase('validating');
         setInvitationError(null);
         setErrorMessage(null);
 
@@ -366,6 +698,7 @@ export default function TicTacToeScreen() {
           if (isCancelled) return;
 
           if (res.error) {
+            setInvitePhase('error');
             if (res.expired || res.status === 410) {
               setInvitationError({
                 type: 'expired',
@@ -383,6 +716,7 @@ export default function TicTacToeScreen() {
           }
 
           if (!res.invitation?.roomId) {
+            setInvitePhase('error');
             setInvitationError({
               type: 'error',
               title: 'Invitation Unavailable',
@@ -393,19 +727,18 @@ export default function TicTacToeScreen() {
 
           // Authoritative room ID from server
           const authoritativeRoomId = res.invitation.roomId.toUpperCase();
+          targetAutoJoinRoomRef.current = authoritativeRoomId;
+          setInvitePhase('connecting');
           await connectToRoom(authoritativeRoomId);
         } catch (err: unknown) {
           if (isCancelled) return;
+          setInvitePhase('error');
           const msg = err instanceof Error ? err.message : 'Could not validate invitation.';
           setInvitationError({
             type: 'error',
             title: 'Connection Error',
             message: msg,
           });
-        } finally {
-          if (!isCancelled) {
-            setIsValidatingInvite(false);
-          }
         }
       };
 
@@ -505,6 +838,9 @@ export default function TicTacToeScreen() {
   }, [inputRoomCode, connectToRoom]);
 
   const handleLeaveRoom = useCallback(() => {
+    try {
+      clientRef.current?.send({ type: 'LEAVE_ROOM' });
+    } catch {}
     clientRef.current?.disconnect();
     setActiveRoomId(null);
     setAuthUserId(null);
@@ -513,6 +849,8 @@ export default function TicTacToeScreen() {
     setInputRoomCode('');
     setIsMovePending(false);
     setCodeCopied(false);
+    setInvitePhase('idle');
+    targetAutoJoinRoomRef.current = null;
     lastRoundHapticRef.current = 1;
     lastRematchPromptRevision.current = null;
     lastAnimatedStatusRef.current = null;
@@ -550,7 +888,13 @@ export default function TicTacToeScreen() {
 
   const handleCellPress = useCallback(
     (cellIndex: number) => {
-      if (!isMyTurn || !gameState || gameState.board[cellIndex] !== null || isMovePending) {
+      if (
+        !isMyTurn ||
+        !gameState ||
+        gameState.board[cellIndex] !== null ||
+        isMovePending ||
+        !isOpponentOnline
+      ) {
         return;
       }
 
@@ -568,7 +912,7 @@ export default function TicTacToeScreen() {
         setErrorMessage(safeMsg);
       }
     },
-    [isMyTurn, gameState, isMovePending]
+    [isMyTurn, gameState, isMovePending, isOpponentOnline]
   );
 
   // Winning cell detector
@@ -625,6 +969,14 @@ export default function TicTacToeScreen() {
     }
 
     if (gameState.status === 'playing') {
+      if (!isOpponentOnline) {
+        return {
+          badge: 'Paused',
+          badgeVariant: 'warning' as const,
+          title: 'Opponent disconnected',
+          showReconnect: false,
+        };
+      }
       if (localSymbol === 'X' || localSymbol === 'O') {
         const turn = gameState.currentTurn === localSymbol;
         return {
@@ -644,6 +996,22 @@ export default function TicTacToeScreen() {
 
     if (gameState.status === 'finished') {
       const roundLabel = `Round ${gameState.round}`;
+      if (gameState.finishReason === 'leave') {
+        return {
+          badge: `${roundLabel} • Forfeit`,
+          badgeVariant: localSymbol && gameState.winner === localSymbol ? ('success' as const) : ('neutral' as const),
+          title: localSymbol && gameState.winner === localSymbol ? 'Opponent left' : 'Match ended',
+          showReconnect: false,
+        };
+      }
+      if (gameState.finishReason === 'timeout') {
+        return {
+          badge: `${roundLabel} • Timeout`,
+          badgeVariant: localSymbol && gameState.winner === localSymbol ? ('success' as const) : ('neutral' as const),
+          title: localSymbol && gameState.winner === localSymbol ? 'Opponent timed out' : 'Match ended',
+          showReconnect: false,
+        };
+      }
       if (gameState.winner === 'draw') {
         return {
           badge: `${roundLabel} • Draw`,
@@ -682,7 +1050,7 @@ export default function TicTacToeScreen() {
       title: 'Create or join a room',
       showReconnect: false,
     };
-  }, [activeRoomId, socketStatus, isConnecting, gameState, localSymbol]);
+  }, [activeRoomId, socketStatus, isConnecting, gameState, localSymbol, isOpponentOnline]);
 
   // Player labels
   const playerXLabel = useMemo(() => {
@@ -707,10 +1075,41 @@ export default function TicTacToeScreen() {
   // Result card content
   const resultTitle = useMemo(() => {
     if (gameState?.status !== 'finished') return '';
+    if (gameState.finishReason === 'leave') {
+      if (localSymbol && gameState.winner === localSymbol) return 'OPPONENT FORFEIT';
+      return 'MATCH FORFEIT';
+    }
+    if (gameState.finishReason === 'timeout') {
+      if (localSymbol && gameState.winner === localSymbol) return 'OPPONENT TIMED OUT';
+      return 'MATCH TIMEOUT';
+    }
     if (gameState.winner === 'draw') return 'DRAW';
     if (localSymbol && gameState.winner === localSymbol) return 'YOU WON';
     if (localSymbol && gameState.winner) return 'YOU LOST';
     return `PLAYER ${gameState.winner} WON`;
+  }, [gameState, localSymbol]);
+
+  const resultSubtitle = useMemo(() => {
+    if (gameState?.status !== 'finished') return '';
+    if (gameState.finishReason === 'leave') {
+      if (localSymbol && gameState.winner === localSymbol) {
+        return 'Opponent left the room. You win by forfeit!';
+      }
+      return 'A player left the match.';
+    }
+    if (gameState.finishReason === 'timeout') {
+      if (localSymbol && gameState.winner === localSymbol) {
+        return 'Opponent did not reconnect in time. You win!';
+      }
+      return 'Opponent disconnected and timed out.';
+    }
+    if (gameState.winner === 'draw') {
+      return 'All cells filled without a winner.';
+    }
+    if (localSymbol && gameState.winner === localSymbol) {
+      return 'Three in a row! Great match.';
+    }
+    return 'Better luck next round!';
   }, [gameState, localSymbol]);
 
   const isWin = localSymbol && gameState?.winner === localSymbol;
@@ -1222,6 +1621,64 @@ export default function TicTacToeScreen() {
         </Card>
       )}
 
+      {/* Opponent Offline Paused Banner */}
+      {activeRoomId && gameState?.status === 'playing' && !isOpponentOnline && (
+        <View
+          style={[
+            styles.pausedBanner,
+            {
+              backgroundColor: colors.surfaceSubtle,
+              borderColor: colors.warning,
+              borderRadius: radii.md,
+              paddingVertical: 8,
+              paddingHorizontal: 12,
+              marginBottom: spacing.sm,
+            },
+          ]}
+          accessible={true}
+          accessibilityRole="alert"
+        >
+          <Ionicons
+            name="cloud-offline-outline"
+            size={16}
+            color={colors.warning}
+            style={{ marginRight: 6 }}
+          />
+          <Text variant="xs" weight="600" style={{ color: colors.warning, flex: 1 }}>
+            Game paused — opponent is offline. Waiting to reconnect... (up to 30s)
+          </Text>
+        </View>
+      )}
+
+      {/* Opponent Reconnected Toast */}
+      {showReconnectedToast && (
+        <View
+          style={[
+            styles.reconnectedToast,
+            {
+              backgroundColor: colors.surfaceRaised,
+              borderColor: colors.success,
+              borderRadius: radii.md,
+              paddingVertical: 6,
+              paddingHorizontal: 12,
+              marginBottom: spacing.sm,
+            },
+          ]}
+          accessible={true}
+          accessibilityRole="alert"
+        >
+          <Ionicons
+            name="checkmark-circle-outline"
+            size={16}
+            color={colors.success}
+            style={{ marginRight: 6 }}
+          />
+          <Text variant="xs" weight="600" style={{ color: colors.success, flex: 1 }}>
+            Opponent reconnected. Resuming match.
+          </Text>
+        </View>
+      )}
+
       {/* 3 x 3 Tic Tac Toe Board */}
       <View style={styles.boardWrapper}>
         <View
@@ -1245,7 +1702,8 @@ export default function TicTacToeScreen() {
               (localSymbol === 'X' || localSymbol === 'O') &&
               gameState.currentTurn === localSymbol &&
               cellValue === null &&
-              !isMovePending;
+              !isMovePending &&
+              isOpponentOnline;
 
             const cellLabel = `Cell ${index + 1}, ${
               cellValue === null ? 'empty' : cellValue
@@ -1284,15 +1742,56 @@ export default function TicTacToeScreen() {
                     symbol={cellValue}
                     size={cellSize}
                     isWinner={isWinner}
+                    shouldAnimate={newlyPlacedCells.has(index)}
+                    pulse={pulseWinningPieces && isWinner}
                   />
                 )}
               </TouchableOpacity>
             );
           })}
+
+          {/* Winning Line Overlay (drawn over the 3 winning cells) */}
+          {gameState?.status === 'finished' &&
+            gameState.winningLine &&
+            gameState.winningLine.length === 3 &&
+            (() => {
+              const layout = getWinningLineLayout(
+                gameState.winningLine,
+                actualBoardSize,
+                cellSize,
+                cellGap
+              );
+              if (!layout) return null;
+              let transformStyles: any[] = [];
+              if (layout.type === 'row') {
+                transformStyles = [{ scaleX: lineAnim }];
+              } else if (layout.type === 'col') {
+                transformStyles = [{ scaleY: lineAnim }];
+              } else if (layout.type === 'diag-down') {
+                transformStyles = [{ rotate: '45deg' }, { scaleX: lineAnim }];
+              } else if (layout.type === 'diag-up') {
+                transformStyles = [{ rotate: '-45deg' }, { scaleX: lineAnim }];
+              }
+              return (
+                <Animated.View
+                  pointerEvents="none"
+                  style={[
+                    layout.style,
+                    {
+                      backgroundColor: colors.primary,
+                      borderRadius: 3,
+                      opacity: lineAnim,
+                      transform: transformStyles,
+                      zIndex: 5,
+                    },
+                  ]}
+                />
+              );
+            })()}
         </View>
 
         {/* End-Game Animated Overlay (over the board) */}
-        {activeRoomId && gameState?.status === 'finished' && (
+        {activeRoomId && gameState?.status === 'finished' && showResultCard && (
           <Animated.View
             style={[
               styles.resultOverlay,
@@ -1358,11 +1857,7 @@ export default function TicTacToeScreen() {
                   textAlign: 'center',
                 }}
               >
-                {gameState.winner === 'draw'
-                  ? 'All cells filled without a winner.'
-                  : isWin
-                  ? 'Three in a row! Great match.'
-                  : 'Better luck next round!'}
+                {resultSubtitle}
               </Text>
 
               {/* Opponent Rematch Banner */}
@@ -1394,15 +1889,16 @@ export default function TicTacToeScreen() {
               <View style={{ width: '100%', marginTop: 14, gap: 8 }}>
                 {gameState.rematchRequestedBy !== null && gameState.rematchRequestedBy !== authUserId ? (
                   <Button
-                    title="Accept Rematch"
+                    title={isOpponentOnline ? "Accept Rematch" : "Opponent Offline"}
                     variant="primary"
                     size="md"
+                    disabled={!isOpponentOnline}
                     onPress={handleRematch}
                     accessibilityLabel="Accept opponent rematch request"
                   />
                 ) : gameState.rematchRequestedBy === authUserId ? (
                   <Button
-                    title="Waiting for opponent..."
+                    title={isOpponentOnline ? "Waiting for opponent..." : "Opponent Offline"}
                     variant="secondary"
                     size="md"
                     disabled={true}
@@ -1410,10 +1906,10 @@ export default function TicTacToeScreen() {
                   />
                 ) : (
                   <Button
-                    title="Play Again"
+                    title={isOpponentOnline ? "Play Again" : "Opponent Offline"}
                     variant="primary"
                     size="md"
-                    disabled={localSymbol === null}
+                    disabled={localSymbol === null || !isOpponentOnline}
                     onPress={handleRematch}
                     accessibilityLabel="Request rematch"
                   />
@@ -1466,7 +1962,7 @@ export default function TicTacToeScreen() {
         </Card>
       )}
       {/* Auto-Join Validating Spinner State */}
-      {isValidatingInvite && (
+      {(invitePhase === 'validating' || invitePhase === 'connecting') && !gameState && (
         <Card
           style={[
             styles.statusCard,
@@ -1750,6 +2246,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  pausedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  reconnectedToast: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,

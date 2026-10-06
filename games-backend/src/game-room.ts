@@ -3,6 +3,7 @@ import type { Env } from './index';
 
 interface RoomAttachment {
   roomId: string;
+  userId: string;
 }
 
 export class GameRoom extends DurableObject<Env> {
@@ -40,17 +41,34 @@ export class GameRoom extends DurableObject<Env> {
         );
       }
 
+      const userId = request.headers.get('X-Games-User-Id');
+      if (!userId) {
+        return new Response(
+          JSON.stringify({
+            error: 'Unauthorized',
+            message: 'Missing trusted identity header',
+          }),
+          {
+            status: 401,
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+      }
+
       const pair = new WebSocketPair();
       const client = pair[0];
       const server = pair[1];
 
-      this.ctx.acceptWebSocket(server, [roomId]);
-      server.serializeAttachment({ roomId } satisfies RoomAttachment);
+      this.ctx.acceptWebSocket(server, [roomId, userId]);
+      server.serializeAttachment({ roomId, userId } satisfies RoomAttachment);
 
       server.send(
         JSON.stringify({
           type: 'CONNECTED',
           roomId,
+          userId,
         })
       );
 

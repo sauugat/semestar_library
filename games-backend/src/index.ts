@@ -1,4 +1,5 @@
 import { GameRoom } from './game-room';
+import { verifyGamesTicket } from './auth/games-ticket';
 
 export interface Env {
   GAME_ROOMS: DurableObjectNamespace<GameRoom>;
@@ -30,6 +31,18 @@ export default {
     const roomWsMatch = url.pathname.match(/^\/rooms\/([a-zA-Z0-9_-]+)\/ws\/?$/);
     if (roomWsMatch) {
       const roomId = roomWsMatch[1];
+      if (request.method !== 'GET') {
+        return new Response(
+          JSON.stringify({ error: 'Method Not Allowed' }),
+          {
+            status: 405,
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+      }
+
       const isWsUpgrade = request.headers.get('Upgrade')?.toLowerCase() === 'websocket';
       if (!isWsUpgrade) {
         return new Response(
@@ -47,9 +60,57 @@ export default {
         );
       }
 
+      const authHeader = request.headers.get('Authorization');
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized' }),
+          {
+            status: 401,
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+      }
+
+      const ticket = authHeader.slice(7).trim();
+      if (!ticket) {
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized' }),
+          {
+            status: 401,
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+      }
+
+      const verifyResult = await verifyGamesTicket(ticket, env.GAMES_TICKET_SECRET);
+      if (!verifyResult.valid) {
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized' }),
+          {
+            status: 401,
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+      }
+
+      const forwardHeaders = new Headers(request.headers);
+      forwardHeaders.delete('Authorization');
+      forwardHeaders.delete('X-Games-User-Id');
+      forwardHeaders.set('X-Games-User-Id', verifyResult.payload.sub);
+
+      const forwardedRequest = new Request(request, {
+        headers: forwardHeaders,
+      });
+
       const id = env.GAME_ROOMS.idFromName(roomId);
       const stub = env.GAME_ROOMS.get(id);
-      return stub.fetch(request);
+      return stub.fetch(forwardedRequest);
     }
 
     // Match /rooms/:roomId

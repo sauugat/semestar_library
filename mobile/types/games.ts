@@ -15,6 +15,8 @@ export interface TicTacToeState {
   currentTurn: TicTacToeSymbol | null;
   winner: TicTacToeWinner;
   winningLine: number[] | null;
+  rematchRequestedBy: string | null;
+  round: number;
   revision: number;
 }
 
@@ -171,9 +173,38 @@ export function validateTicTacToeState(raw: unknown): TicTacToeState | null {
     }
   }
 
+  // Round validation (defaults to 1 if missing for rollout compatibility)
+  let round = 1;
+  if ('round' in s && s.round !== undefined) {
+    if (typeof s.round !== 'number' || !Number.isInteger(s.round) || s.round < 1) {
+      return null;
+    }
+    round = s.round;
+  }
+
+  // Rematch validation (defaults to null if missing for rollout compatibility)
+  let rematchRequestedBy: string | null = null;
+  if ('rematchRequestedBy' in s && s.rematchRequestedBy !== undefined) {
+    if (s.rematchRequestedBy !== null && typeof s.rematchRequestedBy !== 'string') {
+      return null;
+    }
+    if (s.rematchRequestedBy !== null && s.rematchRequestedBy.trim() === '') {
+      return null;
+    }
+    if (s.rematchRequestedBy !== null) {
+      if (s.status !== 'finished') {
+        return null;
+      }
+      if (s.rematchRequestedBy !== p.X && s.rematchRequestedBy !== p.O) {
+        return null;
+      }
+    }
+    rematchRequestedBy = s.rematchRequestedBy;
+  }
+
   // Cross-field status invariants matching backend engine
   if (s.status === 'waiting') {
-    if (s.currentTurn !== null || s.winner !== null) {
+    if (s.currentTurn !== null || s.winner !== null || rematchRequestedBy !== null) {
       return null;
     }
   } else if (s.status === 'playing') {
@@ -183,7 +214,7 @@ export function validateTicTacToeState(raw: unknown): TicTacToeState | null {
     if (s.currentTurn !== 'X' && s.currentTurn !== 'O') {
       return null;
     }
-    if (s.winner !== null) {
+    if (s.winner !== null || rematchRequestedBy !== null) {
       return null;
     }
   } else if (s.status === 'finished') {
@@ -203,6 +234,8 @@ export function validateTicTacToeState(raw: unknown): TicTacToeState | null {
     currentTurn: s.currentTurn as TicTacToeSymbol | null,
     winner: s.winner as TicTacToeWinner,
     winningLine: s.winningLine ? ([...s.winningLine] as number[]) : null,
+    rematchRequestedBy,
+    round,
     revision: s.revision as number,
   };
 }

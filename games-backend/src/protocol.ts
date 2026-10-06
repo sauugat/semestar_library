@@ -15,6 +15,8 @@ export interface TicTacToeState {
   currentTurn: PlayerSymbol | null;
   winner: GameWinner;
   winningLine: number[] | null;
+  rematchRequestedBy: string | null;
+  round: number;
   revision: number;
 }
 

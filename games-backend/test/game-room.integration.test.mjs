@@ -572,3 +572,166 @@ test('Integration: Durable persistence, restarts, and room isolation', async () 
 
   wsIso.close();
 });
+
+test('Integration: Rematch request, restarts, role swapping, and second-round persistence', async () => {
+  const roomId = `room_rematch_${Date.now()}`;
+  const userAId = 'student_rematch_a';
+  const userBId = 'student_rematch_b';
+
+  const ticketA = createGamesTicket({ studentId: userAId, username: 'alice', name: 'Alice' }, TEST_SECRET);
+  const ticketB = createGamesTicket({ studentId: userBId, username: 'bob', name: 'Bob' }, TEST_SECRET);
+
+  // 1. Connect User A & User B
+  const wsA = await connectWs(`${BASE_WS}/rooms/${roomId}/ws`, { Authorization: `Bearer ${ticketA}` });
+  const queueA = new MessageQueue(wsA);
+  await queueA.next(); // CONNECTED A
+
+  const wsB = await connectWs(`${BASE_WS}/rooms/${roomId}/ws`, { Authorization: `Bearer ${ticketB}` });
+  const queueB = new MessageQueue(wsB);
+  await queueB.next(); // CONNECTED B
+
+  // 2. Both join game
+  wsA.send(JSON.stringify({ type: 'JOIN_GAME' }));
+  const joinA_msgA = await queueA.next();
+  const joinA_msgB = await queueB.next();
+  assert.equal(joinA_msgA.state.players.X, userAId);
+  assert.equal(joinA_msgB.state.players.X, userAId);
+
+  wsB.send(JSON.stringify({ type: 'JOIN_GAME' }));
+  const joinB_msgA = await queueA.next();
+  const joinB_msgB = await queueB.next();
+  assert.equal(joinB_msgA.state.status, 'playing');
+  assert.equal(joinB_msgB.state.status, 'playing');
+  assert.equal(joinB_msgA.state.round, 1);
+  assert.equal(joinB_msgA.state.rematchRequestedBy, null);
+
+  // 3. Play Round 1: X (User A) completes row 0, 1, 2
+  // A -> 0
+  wsA.send(JSON.stringify({ type: 'MAKE_MOVE', cellIndex: 0 }));
+  await queueA.next(); await queueB.next();
+  // B -> 3
+  wsB.send(JSON.stringify({ type: 'MAKE_MOVE', cellIndex: 3 }));
+  await queueA.next(); await queueB.next();
+  // A -> 1
+  wsA.send(JSON.stringify({ type: 'MAKE_MOVE', cellIndex: 1 }));
+  await queueA.next(); await queueB.next();
+  // B -> 4
+  wsB.send(JSON.stringify({ type: 'MAKE_MOVE', cellIndex: 4 }));
+  await queueA.next(); await queueB.next();
+  // A -> 2 (Win!)
+  wsA.send(JSON.stringify({ type: 'MAKE_MOVE', cellIndex: 2 }));
+  const finishMsgA = await queueA.next();
+  const finishMsgB = await queueB.next();
+  assert.equal(finishMsgA.state.status, 'finished');
+  assert.equal(finishMsgB.state.status, 'finished');
+  assert.equal(finishMsgA.state.winner, 'X');
+  assert.deepEqual(finishMsgA.state.winningLine, [0, 1, 2]);
+
+  // 4. User A sends REMATCH
+  wsA.send(JSON.stringify({ type: 'REMATCH' }));
+  const rematchReqA = await queueA.next();
+  const rematchReqB = await queueB.next();
+  assert.equal(rematchReqA.state.status, 'finished');
+  assert.equal(rematchReqB.state.status, 'finished');
+  assert.equal(rematchReqA.state.rematchRequestedBy, userAId);
+  assert.equal(rematchReqB.state.rematchRequestedBy, userAId);
+  assert.equal(rematchReqA.state.round, 1);
+
+  // 5. Disconnect both sockets
+  wsA.close();
+  wsB.close();
+
+  // 6. Restart Wrangler (Restart #1)
+  await stopWrangler(wranglerProc);
+  wranglerProc = null;
+  wranglerProc = await startWrangler();
+
+  // 7. Reconnect both users to the same room
+  const wsA2 = await connectWs(`${BASE_WS}/rooms/${roomId}/ws`, { Authorization: `Bearer ${ticketA}` });
+  const queueA2 = new MessageQueue(wsA2);
+  await queueA2.next(); // CONNECTED A
+
+  const wsB2 = await connectWs(`${BASE_WS}/rooms/${roomId}/ws`, { Authorization: `Bearer ${ticketB}` });
+  const queueB2 = new MessageQueue(wsB2);
+  await queueB2.next(); // CONNECTED B
+
+  // Send REQUEST_STATE from A and verify rematchRequestedBy persisted across restart
+  wsA2.send(JSON.stringify({ type: 'REQUEST_STATE' }));
+  const restoredRematchMsg = await queueA2.next();
+  assert.equal(restoredRematchMsg.type, 'GAME_STATE');
+  assert.equal(restoredRematchMsg.state.status, 'finished');
+  assert.equal(restoredRematchMsg.state.rematchRequestedBy, userAId);
+  assert.equal(restoredRematchMsg.state.round, 1);
+  assert.equal(restoredRematchMsg.state.winner, 'X');
+
+  // 8. User B sends REMATCH (Accepts rematch)
+  wsB2.send(JSON.stringify({ type: 'REMATCH' }));
+  const round2A = await queueA2.next();
+  const round2B = await queueB2.next();
+
+  assert.equal(round2A.state.status, 'playing');
+  assert.equal(round2B.state.status, 'playing');
+  assert.equal(round2A.state.round, 2);
+  assert.equal(round2B.state.round, 2);
+  assert.equal(round2A.state.rematchRequestedBy, null);
+  assert.equal(round2A.state.winner, null);
+  assert.equal(round2A.state.winningLine, null);
+  assert.equal(round2A.state.currentTurn, 'X');
+  assert.equal(round2A.state.board.every((c) => c === null), true);
+
+  // Verify roles swapped: User B is now X, User A is now O
+  assert.equal(round2A.state.players.X, userBId);
+  assert.equal(round2A.state.players.O, userAId);
+  assert.equal(round2B.state.players.X, userBId);
+  assert.equal(round2B.state.players.O, userAId);
+
+  // 9. Play at least 2 valid moves in Round 2
+  // Move 1: User B (new X) moves at cell 4
+  wsB2.send(JSON.stringify({ type: 'MAKE_MOVE', cellIndex: 4 }));
+  const r2Move1_A = await queueA2.next();
+  const r2Move1_B = await queueB2.next();
+  assert.equal(r2Move1_A.state.board[4], 'X');
+  assert.equal(r2Move1_A.state.currentTurn, 'O');
+  assert.equal(r2Move1_B.state.board[4], 'X');
+  assert.equal(r2Move1_A.state.round, 2);
+
+  // Move 2: User A (new O) moves at cell 0
+  wsA2.send(JSON.stringify({ type: 'MAKE_MOVE', cellIndex: 0 }));
+  const r2Move2_A = await queueA2.next();
+  const r2Move2_B = await queueB2.next();
+  assert.equal(r2Move2_A.state.board[0], 'O');
+  assert.equal(r2Move2_A.state.currentTurn, 'X');
+  assert.equal(r2Move2_B.state.board[0], 'O');
+  assert.equal(r2Move2_A.state.round, 2);
+  const revAfterMove2 = r2Move2_A.state.revision;
+
+  // 10. Close connections cleanly
+  wsA2.close();
+  wsB2.close();
+
+  // 11. Stop Wrangler again and restart (Restart #2)
+  await stopWrangler(wranglerProc);
+  wranglerProc = null;
+  wranglerProc = await startWrangler();
+
+  // 12. Reconnect User A to verify Round 2 persistence
+  const wsA3 = await connectWs(`${BASE_WS}/rooms/${roomId}/ws`, { Authorization: `Bearer ${ticketA}` });
+  const queueA3 = new MessageQueue(wsA3);
+  await queueA3.next(); // CONNECTED
+
+  wsA3.send(JSON.stringify({ type: 'REQUEST_STATE' }));
+  const r2RestoredMsg = await queueA3.next();
+  assert.equal(r2RestoredMsg.type, 'GAME_STATE');
+  const r2Restored = r2RestoredMsg.state;
+
+  assert.equal(r2Restored.status, 'playing');
+  assert.equal(r2Restored.round, 2);
+  assert.equal(r2Restored.players.X, userBId);
+  assert.equal(r2Restored.players.O, userAId);
+  assert.equal(r2Restored.board[4], 'X');
+  assert.equal(r2Restored.board[0], 'O');
+  assert.equal(r2Restored.currentTurn, 'X');
+  assert.equal(r2Restored.revision, revAfterMove2);
+
+  wsA3.close();
+});

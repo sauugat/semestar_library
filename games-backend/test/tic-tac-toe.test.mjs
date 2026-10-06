@@ -494,3 +494,215 @@ test('TicTacToeEngine.fromState: restored state continues gameplay correctly', (
   assert.equal(engine.getState().board[1], 'X');
   assert.equal(engine.getState().revision, 5);
 });
+
+test('TicTacToeEngine: fresh game round = 1 and rematchRequestedBy = null', () => {
+  const engine = new TicTacToeEngine();
+  const state = engine.getState();
+  assert.equal(state.round, 1);
+  assert.equal(state.rematchRequestedBy, null);
+});
+
+test('TicTacToeEngine: rematch cannot be requested before game is finished', () => {
+  const engine = new TicTacToeEngine();
+  engine.join('user_A');
+  engine.join('user_B');
+
+  // status is playing
+  assert.equal(engine.getState().status, 'playing');
+  const res = engine.requestRematch('user_A');
+  assert.equal(res.success, false);
+  assert.match(res.error, /not finished/i);
+});
+
+test('TicTacToeEngine: non-player cannot request rematch', () => {
+  const engine = new TicTacToeEngine();
+  engine.join('user_A');
+  engine.join('user_B');
+
+  // Complete game with X win: (0, 1, 2)
+  engine.makeMove('user_A', 0);
+  engine.makeMove('user_B', 3);
+  engine.makeMove('user_A', 1);
+  engine.makeMove('user_B', 4);
+  engine.makeMove('user_A', 2);
+  assert.equal(engine.getState().status, 'finished');
+
+  const res = engine.requestRematch('user_Spectator');
+  assert.equal(res.success, false);
+  assert.match(res.error, /not a player/i);
+});
+
+test('TicTacToeEngine: first player rematch request is accepted and increments revision', () => {
+  const engine = new TicTacToeEngine();
+  engine.join('user_A');
+  engine.join('user_B');
+
+  // Complete game with X win: (0, 1, 2)
+  engine.makeMove('user_A', 0);
+  engine.makeMove('user_B', 3);
+  engine.makeMove('user_A', 1);
+  engine.makeMove('user_B', 4);
+  engine.makeMove('user_A', 2);
+  const revBefore = engine.getState().revision;
+
+  const res = engine.requestRematch('user_A');
+  assert.equal(res.success, true);
+  assert.equal(res.accepted, false);
+  assert.equal(res.round, 1);
+
+  const state = engine.getState();
+  assert.equal(state.rematchRequestedBy, 'user_A');
+  assert.equal(state.revision, revBefore + 1);
+});
+
+test('TicTacToeEngine: repeated same-user rematch request is idempotent and does not increment revision', () => {
+  const engine = new TicTacToeEngine();
+  engine.join('user_A');
+  engine.join('user_B');
+
+  engine.makeMove('user_A', 0);
+  engine.makeMove('user_B', 3);
+  engine.makeMove('user_A', 1);
+  engine.makeMove('user_B', 4);
+  engine.makeMove('user_A', 2);
+
+  const firstReq = engine.requestRematch('user_A');
+  assert.equal(firstReq.success, true);
+  const revAfterFirst = engine.getState().revision;
+
+  const secondReq = engine.requestRematch('user_A');
+  assert.equal(secondReq.success, true);
+  assert.equal(secondReq.isIdempotent, true);
+  assert.equal(secondReq.accepted, false);
+  assert.equal(engine.getState().revision, revAfterFirst);
+  assert.equal(engine.getState().rematchRequestedBy, 'user_A');
+});
+
+test('TicTacToeEngine: opponent accepts rematch -> round 2, swapped roles, clean board, X starts', () => {
+  const engine = new TicTacToeEngine();
+  engine.join('user_A');
+  engine.join('user_B');
+
+  // Round 1: user_A is X, user_B is O
+  assert.equal(engine.getState().players.X, 'user_A');
+  assert.equal(engine.getState().players.O, 'user_B');
+
+  engine.makeMove('user_A', 0);
+  engine.makeMove('user_B', 3);
+  engine.makeMove('user_A', 1);
+  engine.makeMove('user_B', 4);
+  engine.makeMove('user_A', 2); // user_A wins
+
+  assert.equal(engine.getState().status, 'finished');
+  assert.equal(engine.getState().winner, 'X');
+  assert.deepEqual(engine.getState().winningLine, [0, 1, 2]);
+
+  // user_A requests rematch
+  const reqA = engine.requestRematch('user_A');
+  assert.equal(reqA.success, true);
+
+  const revBeforeAccept = engine.getState().revision;
+
+  // user_B accepts rematch
+  const reqB = engine.requestRematch('user_B');
+  assert.equal(reqB.success, true);
+  assert.equal(reqB.accepted, true);
+  assert.equal(reqB.round, 2);
+
+  const stateR2 = engine.getState();
+  assert.equal(stateR2.status, 'playing');
+  assert.equal(stateR2.round, 2);
+  assert.equal(stateR2.rematchRequestedBy, null);
+  assert.equal(stateR2.winner, null);
+  assert.equal(stateR2.winningLine, null);
+  assert.equal(stateR2.currentTurn, 'X');
+  assert.deepEqual(stateR2.board, Array(9).fill(null));
+  assert.equal(stateR2.revision, revBeforeAccept + 1);
+
+  // Swapped roles: user_B is now X, user_A is now O
+  assert.equal(stateR2.players.X, 'user_B');
+  assert.equal(stateR2.players.O, 'user_A');
+
+  // Verify user_B (now X) can make the first move of round 2
+  const moveR2 = engine.makeMove('user_B', 4);
+  assert.equal(moveR2.success, true);
+  assert.equal(engine.getState().board[4], 'X');
+  assert.equal(engine.getState().currentTurn, 'O');
+});
+
+test('TicTacToeEngine.fromState: legacy persisted state without round/rematchRequestedBy migrates safely', () => {
+  const legacyPlaying = {
+    gameType: 'tic-tac-toe',
+    status: 'playing',
+    players: { X: 'user_X', O: 'user_O' },
+    board: Array(9).fill(null),
+    currentTurn: 'X',
+    winner: null,
+    winningLine: null,
+    revision: 3,
+  };
+
+  const engine = TicTacToeEngine.fromState(legacyPlaying);
+  const state = engine.getState();
+  assert.equal(state.round, 1);
+  assert.equal(state.rematchRequestedBy, null);
+  assert.equal(state.revision, 3);
+
+  const legacyFinished = {
+    gameType: 'tic-tac-toe',
+    status: 'finished',
+    players: { X: 'user_X', O: 'user_O' },
+    board: ['X', 'X', 'X', 'O', 'O', null, null, null, null],
+    currentTurn: null,
+    winner: 'X',
+    winningLine: [0, 1, 2],
+    revision: 6,
+  };
+
+  const engineFinished = TicTacToeEngine.fromState(legacyFinished);
+  const stateFinished = engineFinished.getState();
+  assert.equal(stateFinished.round, 1);
+  assert.equal(stateFinished.rematchRequestedBy, null);
+
+  // Rematch can be requested from migrated finished state
+  const rematchRes = engineFinished.requestRematch('user_X');
+  assert.equal(rematchRes.success, true);
+  assert.equal(engineFinished.getState().rematchRequestedBy, 'user_X');
+});
+
+test('TicTacToeEngine.fromState: malformed round or rematchRequestedBy rejected', () => {
+  const baseFinished = {
+    gameType: 'tic-tac-toe',
+    status: 'finished',
+    players: { X: 'user_X', O: 'user_O' },
+    board: ['X', 'X', 'X', 'O', 'O', null, null, null, null],
+    currentTurn: null,
+    winner: 'X',
+    winningLine: [0, 1, 2],
+    revision: 6,
+  };
+
+  // Invalid round values
+  assert.throws(() => TicTacToeEngine.fromState({ ...baseFinished, round: 0 }), /Invalid round/i);
+  assert.throws(() => TicTacToeEngine.fromState({ ...baseFinished, round: -1 }), /Invalid round/i);
+  assert.throws(() => TicTacToeEngine.fromState({ ...baseFinished, round: 1.5 }), /Invalid round/i);
+  assert.throws(() => TicTacToeEngine.fromState({ ...baseFinished, round: '2' }), /Invalid round/i);
+
+  // Invalid rematchRequestedBy values
+  assert.throws(() => TicTacToeEngine.fromState({ ...baseFinished, rematchRequestedBy: 123 }), /rematchRequestedBy must be string/i);
+  assert.throws(() => TicTacToeEngine.fromState({ ...baseFinished, rematchRequestedBy: '' }), /empty string/i);
+  assert.throws(() => TicTacToeEngine.fromState({ ...baseFinished, rematchRequestedBy: 'user_Stranger' }), /one of the room players/i);
+
+  // Non-null rematchRequestedBy when not finished
+  const basePlaying = {
+    gameType: 'tic-tac-toe',
+    status: 'playing',
+    players: { X: 'user_X', O: 'user_O' },
+    board: Array(9).fill(null),
+    currentTurn: 'X',
+    winner: null,
+    winningLine: null,
+    revision: 2,
+  };
+  assert.throws(() => TicTacToeEngine.fromState({ ...basePlaying, rematchRequestedBy: 'user_X' }), /rematchRequestedBy must be null/i);
+});

@@ -141,6 +141,9 @@ export default function TicTacToeScreen() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.88)).current;
   const lastHapticRevision = useRef<number | null>(null);
+  const lastAnimatedStatusRef = useRef<string | null>(null);
+  const lastRematchPromptRevision = useRef<number | null>(null);
+  const lastRoundHapticRef = useRef<number>(1);
 
   // Responsive board dimensions
   const maxBoardWidth = Math.min(width - spacing.md * 2, 350);
@@ -199,28 +202,28 @@ export default function TicTacToeScreen() {
     return gameState.currentTurn === localSymbol;
   }, [socketStatus, gameState, localSymbol]);
 
-  // Result animation & haptics on game finish
+  // Result animation on game finish (entrance animation runs once upon entering finished status)
   useEffect(() => {
     if (gameState?.status === 'finished') {
-      fadeAnim.setValue(0);
-      scaleAnim.setValue(0.88);
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          friction: 6,
-          tension: 80,
-          useNativeDriver: true,
-        }),
-      ]).start();
+      if (lastAnimatedStatusRef.current !== 'finished') {
+        lastAnimatedStatusRef.current = 'finished';
+        fadeAnim.setValue(0);
+        scaleAnim.setValue(0.88);
+        Animated.parallel([
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 250,
+            useNativeDriver: true,
+          }),
+          Animated.spring(scaleAnim, {
+            toValue: 1,
+            friction: 6,
+            tension: 80,
+            useNativeDriver: true,
+          }),
+        ]).start();
 
-      // Trigger haptic ONCE per finished revision
-      if (gameState.revision !== lastHapticRevision.current) {
-        lastHapticRevision.current = gameState.revision;
+        // Trigger finish haptic ONCE
         if (gameState.winner === 'draw') {
           void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
         } else if (localSymbol && gameState.winner === localSymbol) {
@@ -230,10 +233,37 @@ export default function TicTacToeScreen() {
         }
       }
     } else {
+      lastAnimatedStatusRef.current = gameState?.status ?? null;
       fadeAnim.setValue(0);
       scaleAnim.setValue(0.88);
     }
-  }, [gameState?.status, gameState?.revision, gameState?.winner, localSymbol, fadeAnim, scaleAnim]);
+  }, [gameState?.status, gameState?.winner, localSymbol, fadeAnim, scaleAnim]);
+
+  // Rematch request & new round haptics
+  useEffect(() => {
+    if (!gameState) return;
+
+    // Subtle notification haptic ONCE when opponent requests a rematch
+    if (
+      gameState.status === 'finished' &&
+      gameState.rematchRequestedBy !== null &&
+      gameState.rematchRequestedBy !== authUserId &&
+      lastRematchPromptRevision.current !== gameState.revision
+    ) {
+      lastRematchPromptRevision.current = gameState.revision;
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    }
+
+    // Light impact ONCE when a new round starts
+    if (
+      gameState.status === 'playing' &&
+      gameState.round > 1 &&
+      lastRoundHapticRef.current < gameState.round
+    ) {
+      lastRoundHapticRef.current = gameState.round;
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  }, [gameState?.status, gameState?.revision, gameState?.round, gameState?.rematchRequestedBy, authUserId]);
 
   // Connect to room workflow
   const connectToRoom = useCallback(
@@ -299,7 +329,16 @@ export default function TicTacToeScreen() {
     setInputRoomCode('');
     setIsMovePending(false);
     setCodeCopied(false);
+    lastRoundHapticRef.current = 1;
+    lastRematchPromptRevision.current = null;
+    lastAnimatedStatusRef.current = null;
   }, []);
+
+  const handleRematch = useCallback(() => {
+    if (!activeRoomId || !clientRef.current) return;
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    clientRef.current.send({ type: 'REMATCH' });
+  }, [activeRoomId]);
 
   const handleReconnect = useCallback(() => {
     if (!activeRoomId || isConnecting) return;
@@ -405,14 +444,14 @@ export default function TicTacToeScreen() {
       if (localSymbol === 'X' || localSymbol === 'O') {
         const turn = gameState.currentTurn === localSymbol;
         return {
-          badge: turn ? 'Your Turn' : "Opponent's Turn",
+          badge: `Round ${gameState.round}`,
           badgeVariant: turn ? ('official' as const) : ('neutral' as const),
-          title: turn ? 'Your turn' : "Opponent's turn",
+          title: turn ? 'Your turn to move' : "Opponent's turn",
           showReconnect: false,
         };
       }
       return {
-        badge: 'Playing',
+        badge: `Round ${gameState.round}`,
         badgeVariant: 'neutral' as const,
         title: `Player ${gameState.currentTurn}'s turn`,
         showReconnect: false,
@@ -420,9 +459,10 @@ export default function TicTacToeScreen() {
     }
 
     if (gameState.status === 'finished') {
+      const roundLabel = `Round ${gameState.round}`;
       if (gameState.winner === 'draw') {
         return {
-          badge: 'Finished',
+          badge: `${roundLabel} • Draw`,
           badgeVariant: 'neutral' as const,
           title: 'Draw',
           showReconnect: false,
@@ -430,7 +470,7 @@ export default function TicTacToeScreen() {
       }
       if (localSymbol && gameState.winner === localSymbol) {
         return {
-          badge: 'Finished',
+          badge: `${roundLabel} • Won`,
           badgeVariant: 'success' as const,
           title: 'You won',
           showReconnect: false,
@@ -438,14 +478,14 @@ export default function TicTacToeScreen() {
       }
       if (localSymbol && gameState.winner) {
         return {
-          badge: 'Finished',
+          badge: `${roundLabel} • Lost`,
           badgeVariant: 'neutral' as const,
           title: 'Opponent won',
           showReconnect: false,
         };
       }
       return {
-        badge: 'Finished',
+        badge: roundLabel,
         badgeVariant: 'neutral' as const,
         title: `Player ${gameState.winner} won`,
         showReconnect: false,
@@ -1145,19 +1185,59 @@ export default function TicTacToeScreen() {
                   : 'Better luck next round!'}
               </Text>
 
-              <View style={{ width: '100%', marginTop: 16, gap: 8 }}>
-                <Button
-                  title="Play Again"
-                  variant="primary"
-                  size="md"
-                  onPress={() => {
-                    Alert.alert(
-                      'Rematch Support',
-                      'Server-authoritative rematch is arriving in Phase 2. To play another match now, tap Leave Room and start a new game!'
-                    );
-                  }}
-                  accessibilityLabel="Play again (coming soon)"
-                />
+              {/* Opponent Rematch Banner */}
+              {gameState.rematchRequestedBy !== null && gameState.rematchRequestedBy !== authUserId && (
+                <View
+                  style={[
+                    styles.rematchBanner,
+                    {
+                      backgroundColor: colors.surfaceRaised,
+                      borderColor: colors.primary,
+                      borderRadius: radii.md,
+                      paddingVertical: 8,
+                      paddingHorizontal: 12,
+                      marginTop: 10,
+                      borderWidth: 1,
+                      width: '100%',
+                      alignItems: 'center',
+                    },
+                  ]}
+                  accessible={true}
+                  accessibilityRole="text"
+                >
+                  <Text variant="xs" weight="700" style={{ color: colors.primary }}>
+                    Opponent wants a rematch!
+                  </Text>
+                </View>
+              )}
+
+              <View style={{ width: '100%', marginTop: 14, gap: 8 }}>
+                {gameState.rematchRequestedBy !== null && gameState.rematchRequestedBy !== authUserId ? (
+                  <Button
+                    title="Accept Rematch"
+                    variant="primary"
+                    size="md"
+                    onPress={handleRematch}
+                    accessibilityLabel="Accept opponent rematch request"
+                  />
+                ) : gameState.rematchRequestedBy === authUserId ? (
+                  <Button
+                    title="Waiting for opponent..."
+                    variant="secondary"
+                    size="md"
+                    disabled={true}
+                    accessibilityLabel="Waiting for opponent to accept rematch"
+                  />
+                ) : (
+                  <Button
+                    title="Play Again"
+                    variant="primary"
+                    size="md"
+                    disabled={localSymbol === null}
+                    onPress={handleRematch}
+                    accessibilityLabel="Request rematch"
+                  />
+                )}
                 <Button
                   title="Leave Room"
                   variant="outline"
@@ -1361,5 +1441,8 @@ const styles = StyleSheet.create({
   infoContent: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+  },
+  rematchBanner: {
+    borderWidth: 1,
   },
 });

@@ -32,6 +32,14 @@ export interface MoveResult {
   error?: string;
 }
 
+export interface RematchResult {
+  success: boolean;
+  accepted?: boolean;
+  round?: number;
+  isIdempotent?: boolean;
+  error?: string;
+}
+
 export function validateTicTacToeState(
   data: unknown
 ): { valid: true; state: TicTacToeState } | { valid: false; error: string } {
@@ -116,6 +124,50 @@ export function validateTicTacToeState(
     }
   }
 
+  // Round validation (defaults to 1 if missing for legacy state migration)
+  let round = 1;
+  if ('round' in s && s.round !== undefined) {
+    if (typeof s.round !== 'number' || !Number.isInteger(s.round) || s.round < 1) {
+      return {
+        valid: false,
+        error: `Invalid round: must be a positive integer, got ${s.round}`,
+      };
+    }
+    round = s.round;
+  }
+
+  // Rematch validation (defaults to null if missing for legacy state migration)
+  let rematchRequestedBy: string | null = null;
+  if ('rematchRequestedBy' in s && s.rematchRequestedBy !== undefined) {
+    if (s.rematchRequestedBy !== null && typeof s.rematchRequestedBy !== 'string') {
+      return {
+        valid: false,
+        error: 'rematchRequestedBy must be string or null',
+      };
+    }
+    if (s.rematchRequestedBy !== null && s.rematchRequestedBy.trim() === '') {
+      return {
+        valid: false,
+        error: 'rematchRequestedBy cannot be empty string',
+      };
+    }
+    if (s.rematchRequestedBy !== null) {
+      if (s.status !== 'finished') {
+        return {
+          valid: false,
+          error: 'rematchRequestedBy must be null unless status is "finished"',
+        };
+      }
+      if (s.rematchRequestedBy !== p.X && s.rematchRequestedBy !== p.O) {
+        return {
+          valid: false,
+          error: 'rematchRequestedBy must be one of the room players',
+        };
+      }
+    }
+    rematchRequestedBy = s.rematchRequestedBy;
+  }
+
   // Cross-field status invariants
   if (s.status === 'waiting') {
     if (s.currentTurn !== null) {
@@ -123,6 +175,9 @@ export function validateTicTacToeState(
     }
     if (s.winner !== null) {
       return { valid: false, error: 'winner must be null when status is "waiting"' };
+    }
+    if (rematchRequestedBy !== null) {
+      return { valid: false, error: 'rematchRequestedBy must be null when status is "waiting"' };
     }
   } else if (s.status === 'playing') {
     if (p.X === null || p.O === null) {
@@ -136,6 +191,9 @@ export function validateTicTacToeState(
     }
     if (s.winner !== null) {
       return { valid: false, error: 'winner must be null when status is "playing"' };
+    }
+    if (rematchRequestedBy !== null) {
+      return { valid: false, error: 'rematchRequestedBy must be null when status is "playing"' };
     }
   } else if (s.status === 'finished') {
     if (s.winner === null) {
@@ -159,6 +217,8 @@ export function validateTicTacToeState(
       currentTurn: s.currentTurn as PlayerSymbol | null,
       winner: s.winner as GameWinner,
       winningLine: s.winningLine ? ([...s.winningLine] as number[]) : null,
+      rematchRequestedBy,
+      round,
       revision: s.revision as number,
     },
   };
@@ -172,6 +232,8 @@ export class TicTacToeEngine {
   private currentTurn: PlayerSymbol | null = null;
   private winner: GameWinner = null;
   private winningLine: number[] | null = null;
+  private rematchRequestedBy: string | null = null;
+  private round: number = 1;
   private revision: number = 0;
 
   constructor(initialState?: Partial<TicTacToeState>) {
@@ -188,6 +250,12 @@ export class TicTacToeEngine {
       if (initialState.winner !== undefined) this.winner = initialState.winner;
       if (initialState.winningLine !== undefined) {
         this.winningLine = initialState.winningLine ? [...initialState.winningLine] : null;
+      }
+      if (initialState.rematchRequestedBy !== undefined) {
+        this.rematchRequestedBy = initialState.rematchRequestedBy;
+      }
+      if (typeof initialState.round === 'number') {
+        this.round = initialState.round;
       }
       if (typeof initialState.revision === 'number') this.revision = initialState.revision;
     }
@@ -217,6 +285,8 @@ export class TicTacToeEngine {
       currentTurn: this.currentTurn,
       winner: this.winner,
       winningLine: this.winningLine ? [...this.winningLine] : null,
+      rematchRequestedBy: this.rematchRequestedBy,
+      round: this.round,
       revision: this.revision,
     };
   }
@@ -332,5 +402,48 @@ export class TicTacToeEngine {
       winner: this.winner,
       winningLine: this.winningLine,
     };
+  }
+
+  public requestRematch(userId: string): RematchResult {
+    if (!userId || typeof userId !== 'string') {
+      return { success: false, error: 'Invalid user ID' };
+    }
+
+    if (this.status !== 'finished') {
+      return { success: false, error: 'Cannot request rematch: game is not finished.' };
+    }
+
+    if (userId !== this.playerX && userId !== this.playerO) {
+      return { success: false, error: 'You are not a player in this game.' };
+    }
+
+    // No request pending: first request
+    if (this.rematchRequestedBy === null) {
+      this.rematchRequestedBy = userId;
+      this.revision++;
+      return { success: true, accepted: false, round: this.round };
+    }
+
+    // Same user pressed again: idempotent
+    if (this.rematchRequestedBy === userId) {
+      return { success: true, accepted: false, isIdempotent: true, round: this.round };
+    }
+
+    // Opponent requests while first request is pending: ACCEPT
+    const prevX = this.playerX;
+    const prevO = this.playerO;
+    this.playerX = prevO;
+    this.playerO = prevX;
+
+    this.board = Array(9).fill(null);
+    this.status = 'playing';
+    this.currentTurn = 'X';
+    this.winner = null;
+    this.winningLine = null;
+    this.rematchRequestedBy = null;
+    this.round += 1;
+    this.revision += 1;
+
+    return { success: true, accepted: true, round: this.round };
   }
 }

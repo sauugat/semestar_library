@@ -292,6 +292,38 @@ export class GameRoom extends DurableObject<Env> {
         break;
       }
 
+      case 'REMATCH': {
+        if (this.corruptedStateError) {
+          this.sendError(ws, `Room persistent state is corrupted: ${this.corruptedStateError}`);
+          return;
+        }
+
+        const candidate = this.game.clone();
+        const rematchResult = candidate.requestRematch(userId);
+        if (!rematchResult.success) {
+          this.sendError(ws, rematchResult.error || 'Failed to request rematch');
+          return;
+        }
+
+        if (!rematchResult.isIdempotent) {
+          try {
+            this.persistState(candidate.getState());
+          } catch {
+            this.sendError(ws, 'Failed to persist game state');
+            return;
+          }
+        }
+
+        this.game = candidate;
+        this.broadcast({
+          type: 'GAME_STATE',
+          roomId,
+          state: this.game.getState(),
+          protocolVersion: PROTOCOL_VERSION,
+        });
+        break;
+      }
+
       default: {
         this.sendError(ws, `Unknown or unsupported message type: ${(msg as { type?: unknown }).type}`);
         break;

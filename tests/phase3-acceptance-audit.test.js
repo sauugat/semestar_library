@@ -238,6 +238,7 @@ test('Gate 7: Live Promotion Chat Continuity (Same Room, History Remains, New Co
 
   assert.equal(ctxA.cohortId, uuidA, 'Cohort UUID MUST remain permanent');
   assert.equal(ctxA.chatGroupId, roomX, 'Room UUID MUST remain permanent');
+  assert.equal(ctxA.realtimeEpoch, roomBefore.realtime_epoch, 'Promotion does not change room membership or epoch');
   assert.equal(ctxA.currentSemester, 2, 'Authoritative context MUST report Semester 2');
   assert.equal(ctxB.currentSemester, 2);
 
@@ -254,6 +255,29 @@ test('Gate 7: Live Promotion Chat Continuity (Same Room, History Remains, New Co
   const histAfter = await service.history('s2');
   assert.equal(histAfter.messages.length, 3);
   assert.equal(histAfter.chatGroupId, roomX);
+});
+
+test('Promotion rolls back semester, history, students and audit on any dependent write failure', async t => {
+  const { db } = await createAuditFixture(t);
+  const cohort = await createCohort(db, { slotCode: 'mercury', currentSemester: 1 });
+  await db.run("INSERT INTO students (studentId, name, cohort_id, semester) VALUES ('rollback-student', 'Student', ?, 'Semester 1')", cohort.id);
+  const tables = ['cohorts', 'cohort_semester_history', 'students', 'cohort_audit_logs', 'chat_groups', 'chat_group_slots'];
+  const snapshot = async () => Object.fromEntries(await Promise.all(tables.map(async table => [table, await db.all(`SELECT * FROM ${table} ORDER BY 1`)])));
+  const before = await snapshot();
+  for (const statement of ['INSERT INTO cohort_semester_history', 'UPDATE students SET semester', 'INSERT INTO cohort_audit_logs']) {
+    let reached = false;
+    const failing = { ...db, withTransaction: fn => db.withTransaction(tx => fn({ ...tx, run: async (sql, ...args) => {
+      if (sql.trim().startsWith(statement)) { reached = true; throw new Error('injected promotion failure'); }
+      return tx.run(sql, ...args);
+    } })) };
+    await assert.rejects(promoteCohort(failing, cohort.id, { expectedSemester: 1 }), /injected promotion failure/);
+    assert.equal(reached, true, statement);
+    assert.deepEqual(await snapshot(), before, statement);
+  }
+  await promoteCohort(db, cohort.id, { expectedSemester: 1 });
+  assert.equal((await db.get('SELECT current_semester FROM cohorts WHERE id = ?', cohort.id)).currentSemester, 2);
+  assert.equal((await db.get("SELECT semester FROM students WHERE studentId = 'rollback-student'")).semester, 'Semester 2');
+  await assert.rejects(promoteCohort(db, cohort.id, { expectedSemester: 1 }), { status: 409 });
 });
 
 test('Gate 8: Graduation Transitions Chat to Read-Only Archive', async (t) => {

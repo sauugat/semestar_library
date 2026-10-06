@@ -89,6 +89,23 @@ test('mobile: private auth before subscribe, epoch recovery, duplicate/late call
   f.session.invalidateChatSession();await rt.channels.at(-1).handlers.new_message({payload:{...event,eventId:'revoked',realtimeEpoch:2}});assert.equal(received.length,1);
 });
 
+test('mobile: academic promotion preserves cache and receipts; recycled display slot isolates the new UUID',async t=>{
+  const f=mobile();t.after(()=>f.sql.close());f.enter();
+  const before=f.session.getChatSession(),scope=f.session.chatScope();
+  const event=f.events.decodeChatEvent('new_message',{...message(42),eventId:'promotion-event',realtimeEpoch:1},before);
+  assert.equal(await f.cache.applyCachedChatEvent(event,before),true);
+  f.session.acceptChatContext(before,{...before.context,currentSemester:2});
+  assert.equal(f.session.chatScope(),scope);
+  assert.equal(f.session.getChatSession().generation,before.generation);
+  assert.equal(await f.cache.applyCachedChatEvent(event,f.session.getChatSession()),false);
+  assert.deepEqual((await f.cache.getCachedChatMessages()).map(m=>m.id),[42]);
+  f.session.acceptChatContext(f.session.getChatSession(),{...before.context,chatGroupId:'new-mercury-uuid',cohortId:'new-cohort-uuid'});
+  assert.equal(f.session.getChatSession().context.groupCode,before.context.groupCode);
+  assert.notEqual(f.session.chatScope(),scope);
+  assert.deepEqual(await f.cache.getCachedChatMessages(),[]);
+  assert.equal(await f.cache.applyCachedChatEvent(event,before),false);
+});
+
 function webFixture() {
   const store=storage(),rt=realtime(),calls=[],events=[],contexts=[],online=[],timers=new Map();let clock=Date.now(),sequence=0;
   let config=context(),deny=false,hold=null;
@@ -101,8 +118,31 @@ function webFixture() {
       if(path.includes('/groups/'))return response(message(1,config.chatGroupId));
       return response({chatGroupId:config.chatGroupId,messages:[message(1,config.chatGroupId)]});},
     onContext:c=>contexts.push(c),onEvent:(type,e)=>events.push([type,e]),onOnline:ids=>online.push(ids),onReconcile:()=>{},onInvalidate:()=>contexts.push(null)});
-  return {client,store,rt,calls,events,contexts,online,timers,rotate:()=>{config={...config,realtimeEpoch:2};},switchRoom:()=>{config=context('venus');},revoke:()=>{deny=true;},hold:d=>{hold=d;},tick:ms=>{clock+=ms;}};
+  return {client,store,rt,calls,events,contexts,online,timers,setConfig:next=>{config=next;},rotate:()=>{config={...config,realtimeEpoch:2};},switchRoom:()=>{config=context('venus');},revoke:()=>{deny=true;},hold:d=>{hold=d;},tick:ms=>{clock+=ms;}};
 }
+
+test('web: academic promotion retains subscription and receipts; recycled display slot changes scope and denies old target',async()=>{
+  const f=webFixture();await f.client.start();
+  try {
+    const generation=f.client.generation(),channel=f.rt.channels[0];
+    const event={...message(42),eventId:'promotion-event',realtimeEpoch:1};
+    assert.equal(f.client.receive('new_message',event),true);
+    f.setConfig({...context(),currentSemester:2});await f.client.refresh();
+    assert.equal(f.client.context().currentSemester,2);
+    assert.equal(f.client.generation(),generation);
+    assert.equal(f.rt.channels.length,1);
+    assert.equal(f.client.receive('new_message',event),false);
+    assert.deepEqual(createChatCache(f.store,'a','http://127.0.0.1:3000','mercury').get().map(m=>m.id),[42]);
+    f.setConfig({...context(),chatGroupId:'new-mercury-uuid',cohortId:'new-cohort-uuid'});await f.client.refresh();
+    assert.notEqual(f.client.generation(),generation);
+    assert.deepEqual(createChatCache(f.store,'a','http://127.0.0.1:3000','new-mercury-uuid').get(),[]);
+    const count=f.events.length;
+    await channel.handlers.new_message({payload:{...event,eventId:'late-old-room'}});
+    assert.equal(f.events.length,count);
+    f.calls.length=0;await assert.rejects(f.client.exact('mercury',42),/available/);
+    assert.ok(!f.calls.some(([url])=>url.includes('/groups/mercury/')));
+  } finally { f.client.stop(); }
+});
 test('web: atomic cache blob, restart dedupe, wrong room/epoch, active periodic rotation recovery and background heartbeat',async()=>{
   const f=webFixture();await f.client.start();
   assert.deepEqual(f.rt.calls[1][2],{config:{private:true}});

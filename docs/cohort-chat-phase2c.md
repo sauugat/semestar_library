@@ -2,6 +2,30 @@
 
 Local automated QA completed on 2026-10-05. **Physical Android and real push-delivery QA remain blocked by the absence of a connected device.** This is not completion of the manual-device gate or approval for a student beta.
 
+## Preserved Phase 2C status for Phase 3
+
+```text
+PHASE2C_AUTOMATED_QA = PASS
+PHASE2C_LIVE_PROVIDER_QA = PASS
+PHASE2C_ANDROID_DEVICE_QA = BLOCKED
+PHASE2C_REAL_PUSH_LIFECYCLE_QA = BLOCKED
+READY_FOR_PRODUCTION_MIGRATION = NO
+READY_FOR_LIMITED_STUDENT_BETA = NO
+```
+
+These statuses preserve the Phase 2C evidence; later automated Phase 3 results cannot clear either device gate. Source-loaded mobile-service and WebSocket tests are not physical Android evidence. Continue local/staging implementation while retaining the Phase 2C architecture, fixes and regressions, and extend those tests for academic identity changes.
+
+A real Android device must verify every item before production migration or student-beta readiness can become YES:
+
+- Open/send/receive chat; keyboard/composer behavior.
+- Image picker; document picker; attachment retry/recovery.
+- Reactions; double-tap heart; mentions/profile navigation.
+- Search/pagination/scroll; account logout/switch.
+- Foreground/background lifecycle; epoch rotation on device; Hardware Back.
+- Foreground push; background push; terminated-app push.
+- Killed-app auth restoration; exact chat target navigation/highlight.
+- Revoked-room notification denial; mixed post/notice/chat notification ordering.
+
 ## Workspace and safety
 
 Read the Phase 2B handoff before editing. Phase 2B modules and concurrent Notification Center work were present. Preserved concurrent Notification Center, academic-cohort, library and UI edits; did not revert them. The workspace continued changing during QA, including the cohort header's display name and semester suffix. The browser assertion now checks the assigned cohort name and exact authoritative room identity without prescribing that unrelated suffix.

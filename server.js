@@ -3619,6 +3619,17 @@ app.get('/api/search', requireLogin, async (req, res) => {
 if (process.env.COHORT_CHAT_LOCAL === '1') {
   const cohortChat = require('./lib/cohort-chat').createCohortChat(db);
   app.use('/api/chat', requireLogin, require('./routes/cohort-chat')(cohortChat));
+} else if (process.env.COHORT_CHAT_PRODUCTION === '1') {
+  const runtime = require('./lib/cohort-chat-runtime').createProductionCohortRuntime(db);
+  app.use('/api/chat', requireLogin, async (req, res, next) => {
+    // Lifecycle changes require the separately reviewed academic admin rollout.
+    if (req.path.startsWith('/admin/')) return res.status(503).json({ message: 'Cohort administration is temporarily unavailable.' });
+    try {
+      const ctx = await runtime.prepare(req.student.studentId, { ...req.query, ...req.body });
+      if (req.method === 'GET') await runtime.drain(ctx.chatGroupId).catch(() => {});
+      next();
+    } catch (error) { res.status(error.status || 503).json({ message: error.status === 404 ? 'This conversation is no longer available.' : 'Chat is temporarily unavailable.' }); }
+  }, require('./routes/cohort-chat')(runtime.service));
 }
 
 app.get('/api/chat/config', requireLogin, (req, res) => {

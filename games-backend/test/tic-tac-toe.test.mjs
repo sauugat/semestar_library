@@ -838,3 +838,31 @@ test('TicTacToeEngine.fromState: rolling-update compatibility for legacy states 
   const engineDraw = TicTacToeEngine.fromState(legacyFinishedDraw);
   assert.equal(engineDraw.getState().finishReason, 'draw');
 });
+
+test('TicTacToeEngine.fromState: restores legacy pre-Phase-4A shape without gameType', () => {
+  const prePhase4AEnvelope = {
+    status: 'playing',
+    players: { X: 'user_X', O: 'user_O' },
+    board: ['X', null, null, null, 'O', null, null, null, null],
+    currentTurn: 'X',
+    winner: null,
+    winningLine: null,
+    revision: 3,
+  };
+
+  const engine = TicTacToeEngine.fromState(prePhase4AEnvelope);
+  assert.equal(engine.getState().gameType, 'tic-tac-toe');
+  assert.equal(engine.getState().status, 'playing');
+  assert.equal(engine.getState().revision, 3);
+  assert.equal(engine.getState().board[0], 'X');
+  assert.equal(engine.getState().board[4], 'O');
+});
+
+test('TicTacToeEngine.fromState: arbitrary unknown JSON is rejected safely', () => {
+  const unknownShape = {
+    foo: 'bar',
+    baz: 123,
+  };
+  assert.throws(() => TicTacToeEngine.fromState(unknownShape), /corrupted|invalid|board|players/i);
+});
+

@@ -1,7 +1,11 @@
 (function(root) {
   const EVENTS=['new_message','delete_message','reaction_update','typing','read_receipt','pin_message','online_snapshot'];
   const UNAVAILABLE='This conversation is no longer available.';
-  const local = url => /^(localhost|127\.0\.0\.1|\[::1\]|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)$/.test(new URL(url).hostname);
+  const local = value => {
+    const url=new URL(value);
+    if(url.username||url.password||url.search||url.hash||url.pathname!=='/')return false;
+    return ['https://semestar-library.vercel.app','https://ahcccqsyvpxacnsttzeh.supabase.co'].includes(url.origin)||/^(localhost|127\.0\.0\.1|\[::1\]|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)$/.test(url.hostname);
+  };
   function createCohortClient(options) {
     const transport=options.fetch, now=options.now||Date.now;
     let context=null, cache=null, generation=0, active=false, refreshing=null;
@@ -12,7 +16,7 @@
     function disconnect() { const old=client,c=channel; client=null; channel=null; topic=''; expiry=0; if(old&&c) void old.removeChannel(c); }
     function invalidate() { generation++; context=null; cache=null; online=[]; cancel(onlineTimer); lastHeartbeat=0; disconnect(); options.onInvalidate?.(); }
     async function raw(path,init) {
-      if(!local(options.server)) throw new Error('Cohort chat is available on the local test server only.');
+      if(!local(options.server)) throw new Error('This chat server is not trusted.');
       const controller=new AbortController();
       const timeout=setTimeout(()=>controller.abort(),init?.method==='POST'?120000:15000);
       try{return await transport(path,{...init,signal:init?.signal||controller.signal,cache:'no-store'});}
@@ -61,7 +65,7 @@
       if(topic===config.topic&&expiry-now()>45000)return;
       disconnect();
       if(!config.url||!config.key||!options.createClient)return;
-      if(!local(config.url))throw new Error('Only local realtime providers are enabled');
+      if(!local(config.url))throw new Error('This realtime provider is not trusted');
       const c=options.createClient(config.url,config.key,{auth:{persistSession:false,autoRefreshToken:false}});
       client=c; await c.realtime.setAuth(config.token);
       if(!active||!current(stamp)){await c.removeAllChannels();return;}

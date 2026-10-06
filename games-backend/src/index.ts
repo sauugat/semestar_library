@@ -101,8 +101,25 @@ export default {
 
       const forwardHeaders = new Headers(request.headers);
       forwardHeaders.delete('Authorization');
-      forwardHeaders.delete('X-Games-User-Id');
+
+      // Strip any client-supplied identity headers to prevent spoofing
+      for (const headerKey of Array.from(forwardHeaders.keys())) {
+        if (headerKey.toLowerCase().startsWith('x-games-')) {
+          forwardHeaders.delete(headerKey);
+        }
+      }
+
+      // Inject identity strictly from verified ticket claims
       forwardHeaders.set('X-Games-User-Id', verifyResult.payload.sub);
+      if (verifyResult.payload.username) {
+        forwardHeaders.set('X-Games-Username', verifyResult.payload.username);
+      }
+      if (verifyResult.payload.name) {
+        forwardHeaders.set('X-Games-Name', verifyResult.payload.name);
+      }
+      if (verifyResult.payload.avatarUrl) {
+        forwardHeaders.set('X-Games-Avatar-Url', verifyResult.payload.avatarUrl);
+      }
 
       const forwardedRequest = new Request(request, {
         headers: forwardHeaders,

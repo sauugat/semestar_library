@@ -7,6 +7,7 @@ const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const { Pool } = require('pg');
 const { createTransactionAdapter } = require('../lib/db-transaction');
+const { migrateProductionCohortChat } = require('../migrations/003-cohort-chat-production');
 const {
   ensureAcademicCohortSchema,
   getAcademicContext,
@@ -114,10 +115,75 @@ async function setupPostgresFixture(t) {
   setupClient.release();
 
   const db = createTransactionAdapter(pool, true, formatRow, formatRows);
+  db.withTransaction = async fn => {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await fn(createTransactionAdapter(client, true, formatRow, formatRows));
+      await client.query('COMMIT');
+      return result;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  };
   await ensureAcademicCohortSchema(db);
 
   return { pool, db, schema };
 }
+
+test('Postgres: production chat migration preserves permanent rooms, roster and legacy messages; failures roll back', async t => {
+  const fixture = await setupPostgresFixture(t);
+  if (!fixture) return;
+  const { db } = fixture;
+  await db.exec(`CREATE TABLE chat_messages(id SERIAL PRIMARY KEY, studentId TEXT REFERENCES students(studentId), text TEXT);
+    CREATE TABLE push_notification_outbox(id TEXT PRIMARY KEY);`);
+  const cohort = await createCohort(db, { slotCode: 'mercury', currentSemester: 1 });
+  await db.run("INSERT INTO students(studentId,name,role) VALUES ('PG_MIGRATION','Migration','student')");
+  await assignStudentToCohort(db, 'PG_MIGRATION', cohort.id);
+  await db.run("INSERT INTO chat_messages(studentId,text) VALUES ('PG_MIGRATION','Unclassified legacy message')");
+  const tables = ['cohorts', 'chat_groups', 'chat_group_slots', 'students'];
+  const before = Object.fromEntries(await Promise.all(tables.map(async table => [table, await db.all(`SELECT * FROM ${table} ORDER BY 1`)])));
+  const failing = { ...db, withTransaction: fn => db.withTransaction(tx => fn({ ...tx, run: async (sql, ...args) => {
+    if (sql.startsWith('INSERT INTO schema_migrations')) throw new Error('migration commit failure');
+    return tx.run(sql, ...args);
+  } })) };
+  await assert.rejects(migrateProductionCohortChat(failing), /migration commit failure/);
+  assert.equal((await db.get("SELECT to_regclass('chat_realtime_outbox') AS name")).name, null);
+  assert.equal((await db.all('SELECT * FROM chat_groups')).length, 1);
+  assert.equal((await migrateProductionCohortChat(db)).applied, true);
+  assert.deepEqual(await migrateProductionCohortChat(db), { applied: false });
+  for (const table of tables) {
+    const where = table === 'chat_groups' ? " WHERE kind='cohort'" : '';
+    assert.deepEqual(await db.all(`SELECT * FROM ${table}${where} ORDER BY 1`), before[table], table);
+  }
+  const legacy = await db.get('SELECT * FROM chat_messages');
+  assert.equal(legacy.text, 'Unclassified legacy message');
+  assert.equal(legacy.chatGroupId ?? legacy.chat_group_id, null);
+  assert.equal((await db.get("SELECT COUNT(*)::int AS n FROM chat_groups WHERE kind='legacy' AND status='quarantined'")).n, 1);
+});
+
+test('Postgres: promotion failure rolls back all academic and chat state', async t => {
+  const fixture = await setupPostgresFixture(t);
+  if (!fixture) return;
+  const { db } = fixture;
+  const cohort = await createCohort(db, { slotCode: 'mercury', currentSemester: 1 });
+  await db.run("INSERT INTO students (studentId, name, role) VALUES ('PG_ROLLBACK', 'Rollback', 'student')");
+  await assignStudentToCohort(db, 'PG_ROLLBACK', cohort.id);
+  const tables = ['cohorts', 'cohort_semester_history', 'students', 'cohort_audit_logs', 'chat_groups', 'chat_group_slots'];
+  const snapshot = async () => Object.fromEntries(await Promise.all(tables.map(async table => [table, await db.all(`SELECT * FROM ${table} ORDER BY 1`)])));
+  const before = await snapshot();
+  for (const statement of ['INSERT INTO cohort_semester_history', 'UPDATE students SET semester', 'INSERT INTO cohort_audit_logs']) {
+    const failing = { ...db, withTransaction: fn => db.withTransaction(tx => fn({ ...tx, run: async (sql, ...args) => {
+      if (sql.trim().startsWith(statement)) throw new Error('injected promotion failure');
+      return tx.run(sql, ...args);
+    } })) };
+    await assert.rejects(promoteCohort(failing, cohort.id, { expectedSemester: 1 }), /injected promotion failure/);
+    assert.deepEqual(await snapshot(), before, statement);
+  }
+});
 
 test('Postgres Gate 1: Actual PostgreSQL Phase 3 Lifecycle Execution', async (t) => {
   const fixture = await setupPostgresFixture(t);

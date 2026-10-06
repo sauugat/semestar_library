@@ -22,6 +22,12 @@ function adminCohortsRouter(arg1, arg2) {
     requireLogin = arg2 || ((req, res, next) => next());
   }
   const router = express.Router();
+  router.use((req, res, next) => {
+    if (process.env.COHORT_CHAT_PRODUCTION === '1' && !['GET','HEAD','OPTIONS'].includes(req.method)) {
+      return res.status(503).json({ message: 'Cohort administration is temporarily unavailable.' });
+    }
+    next();
+  });
 
   // Guard: require authenticated session and admin role
   const requireAdminRole = async (req, res, next) => {
@@ -251,4 +257,3 @@ function adminCohortsRouter(arg1, arg2) {
 module.exports = adminCohortsRouter;
 module.exports.adminCohortsRouter = adminCohortsRouter;
 module.exports.createAdminCohortsRouter = adminCohortsRouter;
-

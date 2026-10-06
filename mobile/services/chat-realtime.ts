@@ -40,8 +40,8 @@ export async function initChatRealtime(_studentId?: string, _serverUrl?: string)
       const config = await fetchRealtimeConfig();
       if (!current()) return;
       if (config.topic !== expected || config.chatGroupId !== start.context.chatGroupId || config.realtimeEpoch !== start.context.realtimeEpoch || Date.parse(config.expiry) <= Date.now()) throw new Error('Invalid realtime configuration');
-      // The local backend provider supplies public connection settings only.
-      // No fallback to the app's production Supabase singleton/configuration.
+      // The authenticated backend supplies the pinned provider's public settings.
+      // Room credentials remain short-lived and private; no singleton fallback.
       if (!config.url || !config.key) return;
       assertLocalChatServer(config.url);
       const local = createClient(config.url, config.key, { auth: { persistSession: false, autoRefreshToken: false } });

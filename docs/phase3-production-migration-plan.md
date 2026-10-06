@@ -2,9 +2,51 @@
 
 > **SAFETY NOTICE: DOCUMENTATION ONLY — NO PRODUCTION MUTATIONS PERFORMED**  
 > Status: Prepared & Validated under Local PostgreSQL & Live Supabase Provider.  
-> Execution Status: **STRICTLY PENDING PRODUCTION SIGN-OFF**.
+> Execution Status: **BLOCKED ON PHYSICAL ANDROID AND REAL PUSH LIFECYCLE QA, THEN PRODUCTION SIGN-OFF**.
+
+The [preserved Phase 2C status and device checklist](cohort-chat-phase2c.md#preserved-phase-2c-status-for-phase-3) govern this plan. Automated Phase 3 results cannot satisfy that checklist. `READY_FOR_PRODUCTION_MIGRATION = NO` and `READY_FOR_LIMITED_STUDENT_BETA = NO`. This plan authorizes no deployment or migration.
 
 This document details the production migration strategy for transitioning Semester Library from semester-based filtering to server-authoritative academic cohort lifecycle architecture.
+
+## Production release request — preflight, 2026-10-05
+
+The user subsequently explicitly requested a production release for existing accounts, including backend/provider work and an OTA. This authorizes release preparation; it does not turn the preserved Android or push evidence into PASS or change readiness to YES.
+
+Read-only preflight found four active academic cohorts and four active chat rooms, all with `projection_status = pending`. Eight required support tables are absent: `chat_room_revocations`, `chat_realtime_memberships`, `chat_realtime_outbox`, `chat_send_keys`, `chat_room_read_receipts`, `chat_room_typing`, `chat_online_sessions`, and `chat_attachment_ownership`. Of 22 accounts, four are assigned; one assigned account lacks `supabase_uid`. No membership was inferred or modified.
+
+The current server mounts the cohort router only in local test mode; otherwise `/api/chat/config` uses the legacy contract. Mobile and web clients also retain their local-host restrictions. Production requires the reviewed additive schema migration, actual provider credentials and private receive-only policies, subject reconciliation, durable event delivery, and explicitly configured trusted production endpoints. Do not bypass these protections or publish the current bundle as a functional chat fix.
+
+Production deployment is currently blocked on access: Vercel and Supabase CLI sessions are logged out, and the local configuration has no Supabase administrative/signing credentials. The user is signing in locally. No production mutation or OTA was performed during preflight. Android export and TypeScript passed; lint on the inspected chat/navigation files reported zero errors and six existing warnings. Expo Go was started separately on port 8082; the existing development-build server on port 8081 was preserved.
+
+Follow-up: Vercel authentication and project linking now succeed. Its sensitive environment values are redacted on download; that file is not a usable source of database or signing credentials. Supabase authentication remains pending. Prepared `migrations/003-cohort-chat-production.js` to add the shared Phase 2C support schema explicitly, preserving the existing roster, cohort/room IDs, slot links and unclassified legacy messages. It refuses incorrectly linked active rooms, uses a PostgreSQL transaction and records its migration ID. It is not invoked by application startup and has not been applied to production.
+
+The disposable PostgreSQL test verifies failed-migration rollback, successful application, repeat invocation and unchanged academic records. The broader release-preparation run passed **88/88 tests, zero skipped** (Phase 2C regressions plus academic, lifecycle, acceptance and PostgreSQL suites). Testing exposed a PostgreSQL slot-upsert issue: the adapter otherwise appends `RETURNING id` to a table keyed by `group_code`; cohort creation now explicitly returns `group_code`. This is a preparation result, not a declaration that production provider integration or device QA is complete.
+
+## Local continuation evidence — 2026-10-05
+
+Normal semester promotion now uses the existing database transaction boundary. Cohort semester/version, semester history, enrolled students' semester and the required promotion audit commit together; failures roll them all back. Permanent cohort/room UUIDs, realtime epoch, message history and the hardened Phase 2C cache/session mechanisms remain intact. This change does not certify the other lifecycle operations or the full rollout plan.
+
+Extended existing tests rather than replacing Phase 2C coverage:
+
+- Academic/lifecycle/acceptance and client tests: **40/40 pass**, no skips.
+- Disposable PostgreSQL lifecycle tests: **5/5 pass**, no skips; includes competing promotions and injected history/student/audit failures. Fixtures use temporary schemas and remove them after testing.
+- Phase 2C regression command in its handoff, with two additional client cases: **54/54 pass**, no skips. Promotion retains cache receipts and subscription identity; a recycled display slot with new UUIDs clears scope and rejects old callbacks/targets.
+- Phase 2C Notification Center/push regression command: **36/36 pass**, no skips.
+- Mobile `tsc --noEmit`, edited JavaScript syntax checks and scoped `git diff --check`: pass.
+
+Focused commands (run from repository root):
+
+```sh
+NODE_ENV=test COHORT_CHAT_LOCAL=1 DB_PATH=:memory: node \
+  --require ./tests/helpers/cohort-local-network.cjs --test --test-concurrency=1 \
+  tests/phase3-acceptance-audit.test.js tests/phase3-cohort-lifecycle.test.js \
+  tests/academic-cohorts.test.js tests/cohort-chat-clients.test.js
+NODE_ENV=test COHORT_CHAT_LOCAL=1 DB_PATH=:memory: node \
+  --require ./tests/helpers/cohort-local-network.cjs --test --test-concurrency=1 \
+  tests/postgres-phase3-lifecycle.test.js
+```
+
+These suites overlap; do not sum their counts as distinct tests. PostgreSQL used the disposable local endpoint on port 54322. No new live-provider run or physical-device test was performed in this continuation; the original Phase 2C live-provider PASS and both device BLOCKED statuses are preserved. No production migration, deployment, commit, push, OTA or build was performed by this continuation.
 
 ---
 
@@ -156,7 +198,7 @@ Immediate rollback will be initiated if any of the following occur within 60 min
 
 ## 16. Rollback Procedure
 1. **Backend Revert**: Revert backend container image to previous release tag.
-2. **Fallback Mode**: Set `COHORT_STRICT_ENFORCEMENT = false` environment variable to restore legacy semester-matching fallback.
+2. **Authorization Preservation**: Keep immutable cohort/room authorization enforced during rollback. Do not restore semester-based room matching; recycled display slots must never grant access to an earlier cohort. Disable affected cohort operations if a compatible rollback build is unavailable. No `COHORT_STRICT_ENFORCEMENT` runtime switch is implemented.
 3. **Database State**: If data corruption occurred, restore database from the pre-migration snapshot taken in Step 1 using PITR to the pre-migration timestamp.
 4. **Client Invalidation**: Trigger global cache generation bump to clear client SQLite/memory caches.
 5. **Post-Mortem**: Document root cause in incident log before attempting re-run.

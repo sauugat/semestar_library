@@ -2,34 +2,39 @@ import { DurableObject } from 'cloudflare:workers';
 import type { Env } from './index';
 import {
   PROTOCOL_VERSION,
-  type ClientMessage,
   type ServerEvent,
   type TicTacToeState,
 } from './protocol';
+import {
+  TicTacToeController,
+  type TicTacToeRoomCallbacks,
+} from './games/tic-tac-toe-controller';
 import { TicTacToeEngine } from './games/tic-tac-toe';
+import {
+  LudoOnlineController,
+  type LudoRoomCallbacks,
+  type LudoControllerOptions,
+} from './games/ludo/index';
+import type { LudoRoomState, LudoServerEvent, LudoUserSession } from './games/ludo/types';
 
 interface RoomAttachment {
   roomId: string;
   userId: string;
-}
-
-interface PendingDisconnect {
-  roomId: string;
-  userId: string;
-  deadline: number;
+  username?: string;
+  name?: string;
+  avatarUrl?: string;
 }
 
 export class GameRoom extends DurableObject<Env> {
-  private game: TicTacToeEngine;
+  private ticTacToeController: TicTacToeController | null = null;
+  private ludoController: LudoOnlineController | null = null;
+  private roomGameType: 'tic-tac-toe' | 'ludo' | null = null;
   private corruptedStateError: string | null = null;
-  private pendingDisconnect: PendingDisconnect | null = null;
-  private disconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     this.ensureSchema();
-    this.game = this.loadState();
-    this.loadPendingDisconnectGrace();
+    this.loadState();
   }
 
   private ensureSchema(): void {
@@ -48,69 +53,79 @@ export class GameRoom extends DurableObject<Env> {
     `);
   }
 
-  private loadPendingDisconnectGrace(): void {
-    try {
-      const cursor = this.ctx.storage.sql.exec<{ user_id: string; room_id: string; deadline: number }>(
-        'SELECT user_id, room_id, deadline FROM disconnect_grace ORDER BY deadline ASC'
-      );
-      const rows = cursor.toArray();
-      if (rows.length > 0) {
-        const earliest = rows[0];
-        const remaining = earliest.deadline - Date.now();
-        this.pendingDisconnect = { roomId: earliest.room_id, userId: earliest.user_id, deadline: earliest.deadline };
-        if (remaining <= 0) {
-          void this.handleDisconnectTimeout(earliest.room_id, earliest.user_id);
-        } else {
-          if (this.disconnectTimer) clearTimeout(this.disconnectTimer);
-          this.disconnectTimer = setTimeout(() => {
-            void this.handleDisconnectTimeout(earliest.room_id, earliest.user_id);
-          }, remaining);
-          try {
-            void this.ctx.storage.setAlarm(earliest.deadline);
-          } catch {}
-        }
-      }
-    } catch {}
+  private isHistoricalTicTacToe(data: unknown): boolean {
+    if (typeof data !== 'object' || data === null) return false;
+    const s = data as Record<string, unknown>;
+    return (
+      Array.isArray(s.board) &&
+      s.board.length === 9 &&
+      typeof s.currentTurn === 'string' &&
+      typeof s.status === 'string' &&
+      typeof s.players === 'object' &&
+      s.players !== null &&
+      'X' in s.players &&
+      'O' in s.players &&
+      typeof s.revision === 'number'
+    );
   }
 
-  private loadState(): TicTacToeEngine {
+  private loadState(): void {
     try {
-      const cursor = this.ctx.storage.sql.exec<{ state_json: string }>(
-        'SELECT state_json FROM game_state WHERE key = ?',
+      const cursor = this.ctx.storage.sql.exec<{ game_type: string; state_json: string }>(
+        'SELECT game_type, state_json FROM game_state WHERE key = ?',
         'current'
       );
       const rows = cursor.toArray();
       if (rows.length > 0) {
-        const parsed = JSON.parse(rows[0].state_json);
-        return TicTacToeEngine.fromState(parsed);
+        const row = rows[0];
+        const parsed = JSON.parse(row.state_json);
+        if (row.game_type === 'ludo' || parsed.gameType === 'ludo') {
+          this.roomGameType = 'ludo';
+          this.ludoController = LudoOnlineController.fromState(
+            this.resolveRoomId(),
+            this.createLudoCallbacks() as any,
+            parsed
+          );
+          if (this.ludoController.isCorrupted()) {
+            this.corruptedStateError = this.ludoController.getCorruptedError();
+          }
+        } else if (
+          row.game_type === 'tic-tac-toe' ||
+          parsed.gameType === 'tic-tac-toe' ||
+          this.isHistoricalTicTacToe(parsed)
+        ) {
+          this.roomGameType = 'tic-tac-toe';
+          this.ticTacToeController = new TicTacToeController(
+            this.resolveRoomId(),
+            this.createTicTacToeCallbacks() as any,
+            parsed
+          );
+          if (this.ticTacToeController.isCorrupted()) {
+            this.corruptedStateError = this.ticTacToeController.getCorruptedError();
+          }
+        } else {
+          this.corruptedStateError = 'Unrecognized persisted game state schema';
+        }
       }
     } catch (err: unknown) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
-      this.corruptedStateError = errorMsg;
-      return new TicTacToeEngine();
+      this.corruptedStateError = err instanceof Error ? err.message : String(err);
     }
-    return new TicTacToeEngine();
   }
 
-  private persistState(state: TicTacToeState): void {
-    this.ctx.storage.sql.exec(
-      `INSERT INTO game_state (key, game_type, state_json, updated_at)
-       VALUES (?, ?, ?, ?)
-       ON CONFLICT(key) DO UPDATE SET
-         game_type = excluded.game_type,
-         state_json = excluded.state_json,
-         updated_at = excluded.updated_at`,
-      'current',
-      'tic-tac-toe',
-      JSON.stringify(state),
-      Date.now()
-    );
-  }
-
-  private resolveRoomId(requestUrl: string): string {
-    const url = new URL(requestUrl);
-    const match = url.pathname.match(/^\/rooms\/([a-zA-Z0-9_-]+)/);
-    return match ? match[1] : 'unknown';
+  private resolveRoomId(requestUrl?: string): string {
+    if (requestUrl) {
+      const url = new URL(requestUrl);
+      const match = url.pathname.match(/^\/rooms\/([a-zA-Z0-9_-]+)/);
+      if (match) return match[1];
+    }
+    // Attempt to extract from first WebSocket attachment if available
+    for (const ws of this.ctx.getWebSockets()) {
+      try {
+        const attachment = ws.deserializeAttachment() as RoomAttachment | null;
+        if (attachment?.roomId) return attachment.roomId;
+      } catch {}
+    }
+    return 'unknown';
   }
 
   private getUserSockets(userId: string, excludingWs?: WebSocket): WebSocket[] {
@@ -118,7 +133,6 @@ export class GameRoom extends DurableObject<Env> {
     for (const socket of this.ctx.getWebSockets()) {
       if (excludingWs && socket === excludingWs) continue;
       if ('readyState' in socket && typeof (socket as { readyState?: unknown }).readyState === 'number') {
-        // 1 is WebSocket.OPEN
         if ((socket as unknown as { readyState: number }).readyState !== 1) {
           continue;
         }
@@ -133,17 +147,7 @@ export class GameRoom extends DurableObject<Env> {
     return matching;
   }
 
-  private getPresence(closingWs?: WebSocket): { X: boolean; O: boolean } {
-    const state = this.game.getState();
-    const xOnline = state.players.X ? this.getUserSockets(state.players.X, closingWs).length > 0 : false;
-    const oOnline = state.players.O ? this.getUserSockets(state.players.O, closingWs).length > 0 : false;
-    return {
-      X: xOnline,
-      O: oOnline,
-    };
-  }
-
-  private broadcast(event: ServerEvent): void {
+  private broadcast(event: unknown): void {
     const message = JSON.stringify(event);
     for (const socket of this.ctx.getWebSockets()) {
       try {
@@ -152,14 +156,10 @@ export class GameRoom extends DurableObject<Env> {
     }
   }
 
-  private broadcastGameState(roomId: string, closingWs?: WebSocket): void {
-    this.broadcast({
-      type: 'GAME_STATE',
-      roomId,
-      state: this.game.getState(),
-      presence: this.getPresence(closingWs),
-      protocolVersion: PROTOCOL_VERSION,
-    });
+  private sendToSocket(ws: WebSocket, event: unknown): void {
+    try {
+      ws.send(JSON.stringify(event));
+    } catch {}
   }
 
   private sendError(ws: WebSocket, message: string, code?: string): void {
@@ -174,110 +174,93 @@ export class GameRoom extends DurableObject<Env> {
     } catch {}
   }
 
-  private scheduleDisconnectGrace(roomId: string, userId: string, timeoutMs: number = 30_000): void {
-    this.clearDisconnectGrace(userId);
-    const deadline = Date.now() + timeoutMs;
-    this.pendingDisconnect = { roomId, userId, deadline };
-    try {
-      this.ctx.storage.sql.exec(
-        'INSERT OR REPLACE INTO disconnect_grace (user_id, room_id, deadline) VALUES (?, ?, ?)',
-        userId,
-        roomId,
-        deadline
+  private createTicTacToeCallbacks(): TicTacToeRoomCallbacks {
+    return {
+      broadcast: (event) => this.broadcast(event),
+      sendToSocket: (ws, event) => this.sendToSocket(ws, event),
+      getUserSockets: (userId, excluding) => this.getUserSockets(userId, excluding),
+      persist: (state: TicTacToeState) => {
+        this.ctx.storage.sql.exec(
+          `INSERT INTO game_state (key, game_type, state_json, updated_at)
+           VALUES (?, ?, ?, ?)
+           ON CONFLICT(key) DO UPDATE SET
+             game_type = excluded.game_type,
+             state_json = excluded.state_json,
+             updated_at = excluded.updated_at`,
+          'current',
+          'tic-tac-toe',
+          JSON.stringify(state),
+          Date.now()
+        );
+      },
+      scheduleAlarm: (deadline: number) => {
+        try {
+          void this.ctx.storage.setAlarm(deadline);
+        } catch {}
+      },
+      deleteAlarm: () => {
+        try {
+          void this.ctx.storage.deleteAlarm();
+        } catch {}
+      },
+      execSql: <T extends Record<string, any>>(query: string, ...params: any[]) => {
+        return this.ctx.storage.sql.exec<T>(query, ...params);
+      },
+    };
+  }
+
+  private createLudoCallbacks(): LudoRoomCallbacks {
+    return {
+      broadcast: (event: LudoServerEvent) => this.broadcast(event),
+      sendToSocket: (ws: WebSocket, event: LudoServerEvent) => this.sendToSocket(ws, event),
+      getUserSockets: (userId: string) => this.getUserSockets(userId),
+      persist: (state: LudoRoomState) => {
+        this.ctx.storage.sql.exec(
+          `INSERT INTO game_state (key, game_type, state_json, updated_at)
+           VALUES (?, ?, ?, ?)
+           ON CONFLICT(key) DO UPDATE SET
+             game_type = excluded.game_type,
+             state_json = excluded.state_json,
+             updated_at = excluded.updated_at`,
+          'current',
+          'ludo',
+          JSON.stringify(state),
+          Date.now()
+        );
+      },
+    };
+  }
+
+  public getLudoController(options?: LudoControllerOptions): LudoOnlineController {
+    if (!this.ludoController) {
+      this.roomGameType = 'ludo';
+      this.ludoController = new LudoOnlineController(
+        this.resolveRoomId(),
+        this.createLudoCallbacks(),
+        undefined,
+        options
       );
-      void this.ctx.storage.setAlarm(deadline);
-    } catch {}
-
-    if (this.disconnectTimer) clearTimeout(this.disconnectTimer);
-    this.disconnectTimer = setTimeout(() => {
-      void this.handleDisconnectTimeout(roomId, userId);
-    }, timeoutMs);
+    } else if (options?.diceRoller) {
+      this.ludoController.setDiceRoller(options.diceRoller);
+    }
+    return this.ludoController;
   }
 
-  private clearDisconnectGrace(userId: string): boolean {
-    let cleared = false;
-    if (this.pendingDisconnect?.userId === userId) {
-      if (this.disconnectTimer) {
-        clearTimeout(this.disconnectTimer);
-        this.disconnectTimer = null;
-      }
-      this.pendingDisconnect = null;
-      cleared = true;
+  public getTicTacToeController(): TicTacToeController {
+    if (!this.ticTacToeController) {
+      this.roomGameType = 'tic-tac-toe';
+      this.ticTacToeController = new TicTacToeController(
+        this.resolveRoomId(),
+        this.createTicTacToeCallbacks()
+      );
     }
-    try {
-      this.ctx.storage.sql.exec('DELETE FROM disconnect_grace WHERE user_id = ?', userId);
-      const remainingRows = this.ctx.storage.sql.exec<{ deadline: number }>(
-        'SELECT deadline FROM disconnect_grace ORDER BY deadline ASC'
-      ).toArray();
-      if (remainingRows.length > 0) {
-        void this.ctx.storage.setAlarm(remainingRows[0].deadline);
-      } else {
-        void this.ctx.storage.deleteAlarm();
-      }
-    } catch {}
-    return cleared;
-  }
-
-  public async handleDisconnectTimeout(roomId: string, userId: string): Promise<void> {
-    this.clearDisconnectGrace(userId);
-
-    const activeSockets = this.getUserSockets(userId);
-    if (activeSockets.length > 0) {
-      return;
-    }
-
-    const state = this.game.getState();
-    if (state.status !== 'playing') {
-      return;
-    }
-
-    const xOnline = state.players.X ? this.getUserSockets(state.players.X).length > 0 : false;
-    const oOnline = state.players.O ? this.getUserSockets(state.players.O).length > 0 : false;
-
-    const candidate = this.game.clone();
-    if (!xOnline && !oOnline) {
-      // Both players are offline: neutral abandonment / draw, do not invent a winner!
-      const abandonResult = candidate.abandon('timeout');
-      if (!abandonResult.success) {
-        return;
-      }
-    } else {
-      // One player is offline, the other is online: forfeit win for online player
-      const forfeitResult = candidate.forfeit(userId, 'timeout');
-      if (!forfeitResult.success) {
-        return;
-      }
-    }
-
-    try {
-      this.persistState(candidate.getState());
-    } catch {
-      return;
-    }
-
-    this.game = candidate;
-    this.broadcastGameState(roomId);
+    return this.ticTacToeController;
   }
 
   async alarm(): Promise<void> {
-    try {
-      const cursor = this.ctx.storage.sql.exec<{ user_id: string; room_id: string; deadline: number }>(
-        'SELECT user_id, room_id, deadline FROM disconnect_grace ORDER BY deadline ASC'
-      );
-      const rows = cursor.toArray();
-      const now = Date.now();
-      for (const row of rows) {
-        if (row.deadline <= now + 1000) {
-          await this.handleDisconnectTimeout(row.room_id, row.user_id);
-        }
-      }
-      const nextRows = this.ctx.storage.sql.exec<{ deadline: number }>(
-        'SELECT deadline FROM disconnect_grace ORDER BY deadline ASC'
-      ).toArray();
-      if (nextRows.length > 0) {
-        await this.ctx.storage.setAlarm(nextRows[0].deadline);
-      }
-    } catch {}
+    if (this.ticTacToeController) {
+      await this.ticTacToeController.handleAlarm();
+    }
   }
 
   async fetch(request: Request): Promise<Response> {
@@ -320,12 +303,22 @@ export class GameRoom extends DurableObject<Env> {
         );
       }
 
+      const username = request.headers.get('X-Games-Username') || undefined;
+      const name = request.headers.get('X-Games-Name') || undefined;
+      const avatarUrl = request.headers.get('X-Games-Avatar-Url') || undefined;
+
       const pair = new WebSocketPair();
       const client = pair[0];
       const server = pair[1];
 
       this.ctx.acceptWebSocket(server, [roomId, userId]);
-      server.serializeAttachment({ roomId, userId } satisfies RoomAttachment);
+      server.serializeAttachment({
+        roomId,
+        userId,
+        username,
+        name,
+        avatarUrl,
+      } satisfies RoomAttachment);
 
       server.send(
         JSON.stringify({
@@ -336,10 +329,11 @@ export class GameRoom extends DurableObject<Env> {
         })
       );
 
-      // If user had an active disconnect grace period and reconnected:
-      const hadPendingDisconnect = this.clearDisconnectGrace(userId);
-      if (hadPendingDisconnect) {
-        this.broadcastGameState(roomId);
+      // Notify controller if already initialized
+      if (this.roomGameType === 'tic-tac-toe' && this.ticTacToeController) {
+        this.ticTacToeController.handleConnect(server, userId);
+      } else if (this.roomGameType === 'ludo' && this.ludoController) {
+        this.ludoController.handleConnect(server, userId);
       }
 
       return new Response(null, {
@@ -348,13 +342,20 @@ export class GameRoom extends DurableObject<Env> {
       });
     }
 
+    const revision =
+      this.roomGameType === 'tic-tac-toe' && this.ticTacToeController
+        ? this.ticTacToeController.getRevision()
+        : this.roomGameType === 'ludo' && this.ludoController
+        ? this.ludoController.getRevision()
+        : 0;
+
     return new Response(
       JSON.stringify({
         status: 'ok',
         roomId,
         service: 'semester-library-games-room',
-        gameType: 'tic-tac-toe',
-        revision: this.game.getState().revision,
+        gameType: this.roomGameType || 'tic-tac-toe',
+        revision,
       }),
       {
         status: 200,
@@ -395,198 +396,80 @@ export class GameRoom extends DurableObject<Env> {
       return;
     }
 
-    const msg = parsed as ClientMessage;
+    const session: LudoUserSession = {
+      userId,
+      username: attachment?.username,
+      name: attachment?.name,
+      avatarUrl: attachment?.avatarUrl,
+    };
 
-    switch (msg.type) {
-      case 'JOIN_GAME': {
-        if (this.corruptedStateError) {
-          this.sendError(ws, `Room persistent state is corrupted: ${this.corruptedStateError}`);
-          return;
-        }
+    const msgType = String((parsed as { type: string }).type);
+    const isLudoMessage = msgType.startsWith('LUDO_');
 
-        const candidate = this.game.clone();
-        const joinResult = candidate.join(userId);
-        if (!joinResult.success) {
-          this.sendError(ws, joinResult.error || 'Failed to join game');
-          return;
-        }
-
-        if (joinResult.isNewJoin) {
-          try {
-            this.persistState(candidate.getState());
-          } catch {
-            this.sendError(ws, 'Failed to persist game state');
-            return;
-          }
-        }
-
-        this.game = candidate;
-        this.broadcastGameState(roomId);
-        break;
-      }
-
-      case 'MAKE_MOVE': {
-        if (this.corruptedStateError) {
-          this.sendError(ws, `Room persistent state is corrupted: ${this.corruptedStateError}`);
-          return;
-        }
-
-        if (typeof (msg as { cellIndex?: unknown }).cellIndex !== 'number') {
-          this.sendError(ws, 'Missing or invalid "cellIndex" in MAKE_MOVE message');
-          return;
-        }
-
-        const candidate = this.game.clone();
-        const moveResult = candidate.makeMove(userId, msg.cellIndex);
-        if (!moveResult.success) {
-          this.sendError(ws, moveResult.error || 'Invalid move');
-          return;
-        }
-
-        try {
-          this.persistState(candidate.getState());
-        } catch {
-          this.sendError(ws, 'Failed to persist game state');
-          return;
-        }
-
-        this.game = candidate;
-        this.broadcastGameState(roomId);
-        break;
-      }
-
-      case 'REQUEST_STATE': {
-        if (this.corruptedStateError) {
-          this.sendError(ws, `Room persistent state is corrupted: ${this.corruptedStateError}`);
-          return;
-        }
-
-        const stateEvent: ServerEvent = {
-          type: 'GAME_STATE',
-          roomId,
-          state: this.game.getState(),
-          presence: this.getPresence(),
-          protocolVersion: PROTOCOL_VERSION,
-        };
-        try {
-          ws.send(JSON.stringify(stateEvent));
-        } catch {}
-        break;
-      }
-
-      case 'REMATCH': {
-        if (this.corruptedStateError) {
-          this.sendError(ws, `Room persistent state is corrupted: ${this.corruptedStateError}`);
-          return;
-        }
-
-        const state = this.game.getState();
-        const opponentId = userId === state.players.X ? state.players.O : state.players.X;
-        const isOpponentOnline = opponentId ? this.getUserSockets(opponentId).length > 0 : false;
-
-        // Block rematch acceptance if opponent is currently offline
-        if (
-          state.rematchRequestedBy !== null &&
-          state.rematchRequestedBy !== userId &&
-          !isOpponentOnline
-        ) {
-          this.sendError(ws, 'Cannot start rematch while opponent is offline.');
-          return;
-        }
-
-        const candidate = this.game.clone();
-        const rematchResult = candidate.requestRematch(userId);
-        if (!rematchResult.success) {
-          this.sendError(ws, rematchResult.error || 'Failed to request rematch');
-          return;
-        }
-
-        if (!rematchResult.isIdempotent) {
-          try {
-            this.persistState(candidate.getState());
-          } catch {
-            this.sendError(ws, 'Failed to persist game state');
-            return;
-          }
-        }
-
-        this.game = candidate;
-        this.broadcastGameState(roomId);
-        break;
-      }
-
-      case 'LEAVE_ROOM': {
-        if (this.corruptedStateError) {
-          this.sendError(ws, `Room persistent state is corrupted: ${this.corruptedStateError}`);
-          return;
-        }
-
-        const candidate = this.game.clone();
-        const forfeitResult = candidate.forfeit(userId, 'leave');
-        if (!forfeitResult.success) {
-          this.sendError(ws, forfeitResult.error || 'Failed to leave game');
-          return;
-        }
-
-        try {
-          this.persistState(candidate.getState());
-        } catch {
-          this.sendError(ws, 'Failed to persist game state');
-          return;
-        }
-
-        this.game = candidate;
-        this.broadcastGameState(roomId);
-        break;
-      }
-
-      default: {
-        this.sendError(ws, `Unknown or unsupported message type: ${(msg as { type?: unknown }).type}`);
-        break;
-      }
-    }
-  }
-
-  private handleSocketDisconnect(roomId: string, userId: string, closingWs?: WebSocket): void {
-    const remainingSockets = this.getUserSockets(userId, closingWs);
-    if (remainingSockets.length > 0) {
+    // 1. Check room type immutability
+    if (this.roomGameType === 'tic-tac-toe' && isLudoMessage) {
+      this.sendError(
+        ws,
+        'Room is a tic-tac-toe match, not ludo',
+        'ROOM_GAME_TYPE_MISMATCH'
+      );
       return;
     }
 
-    const state = this.game.getState();
-    if (state.players.X === userId || state.players.O === userId) {
-      if (state.status === 'playing') {
-        const opponentId = userId === state.players.X ? state.players.O : state.players.X;
-        const opponentOnline = opponentId ? this.getUserSockets(opponentId, closingWs).length > 0 : false;
-        if (opponentOnline) {
-          this.scheduleDisconnectGrace(roomId, userId);
-          this.broadcastGameState(roomId, closingWs);
-        }
+    if (this.roomGameType === 'ludo' && !isLudoMessage) {
+      this.sendError(
+        ws,
+        'Room is a ludo match, not tic-tac-toe',
+        'ROOM_GAME_TYPE_MISMATCH'
+      );
+      return;
+    }
+
+    // 2. Initialize controller if room was previously uninitialized
+    if (isLudoMessage) {
+      if (!this.ludoController) {
+        this.roomGameType = 'ludo';
+        this.ludoController = new LudoOnlineController(roomId, this.createLudoCallbacks());
       }
+      await this.ludoController.handleMessage(ws, session, parsed);
+    } else {
+      if (!this.ticTacToeController) {
+        this.roomGameType = 'tic-tac-toe';
+        this.ticTacToeController = new TicTacToeController(roomId, this.createTicTacToeCallbacks());
+      }
+      await this.ticTacToeController.handleMessage(ws, userId, parsed);
     }
   }
 
-  async webSocketClose(ws: WebSocket, code: number, reason: string, wasClean: boolean): Promise<void> {
+  async webSocketClose(ws: WebSocket, code: number, reason: string, _wasClean: boolean): Promise<void> {
     const attachment = ws.deserializeAttachment() as RoomAttachment | null;
-    const roomId = attachment?.roomId || 'unknown';
     const userId = attachment?.userId;
     try {
       ws.close(code, reason);
     } catch {}
+
     if (userId) {
-      this.handleSocketDisconnect(roomId, userId, ws);
+      if (this.roomGameType === 'tic-tac-toe' && this.ticTacToeController) {
+        this.ticTacToeController.handleDisconnect(userId, ws);
+      } else if (this.roomGameType === 'ludo' && this.ludoController) {
+        this.ludoController.handleDisconnect(userId);
+      }
     }
   }
 
-  async webSocketError(ws: WebSocket, error: unknown): Promise<void> {
+  async webSocketError(ws: WebSocket, _error: unknown): Promise<void> {
     const attachment = ws.deserializeAttachment() as RoomAttachment | null;
-    const roomId = attachment?.roomId || 'unknown';
     const userId = attachment?.userId;
     try {
       ws.close(1011, 'WebSocket error occurred');
     } catch {}
+
     if (userId) {
-      this.handleSocketDisconnect(roomId, userId, ws);
+      if (this.roomGameType === 'tic-tac-toe' && this.ticTacToeController) {
+        this.ticTacToeController.handleDisconnect(userId, ws);
+      } else if (this.roomGameType === 'ludo' && this.ludoController) {
+        this.ludoController.handleDisconnect(userId);
+      }
     }
   }
 }

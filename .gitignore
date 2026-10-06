@@ -15,3 +15,5 @@ mobile-test/
 *credentials*.json
 fcm*.json
 
+.vercel
+.env*

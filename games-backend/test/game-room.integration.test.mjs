@@ -479,7 +479,10 @@ test('Integration: Durable persistence, restarts, and room isolation', async () 
 
   // Send REQUEST_STATE from User A
   wsA2.send(JSON.stringify({ type: 'REQUEST_STATE' }));
-  const restoredStateMsg = await queueA2.next();
+  let restoredStateMsg = await queueA2.next();
+  if (queueA2.queue.length > 0 && queueA2.queue[0].type === 'GAME_STATE') {
+    restoredStateMsg = await queueA2.next();
+  }
   assert.equal(restoredStateMsg.type, 'GAME_STATE');
   const restoredState = restoredStateMsg.state;
 
@@ -967,3 +970,105 @@ test('Integration: Both players offline results in safe neutral abandonment (no 
 
   wsA_check.close();
 });
+
+test('Integration: Ludo online room flow and room gameType immutability', async () => {
+  const ludoRoomId = `room_ludo_integ_${Date.now()}`;
+  const tttRoomId = `room_ttt_integ_${Date.now()}`;
+
+  const ticketA = createGamesTicket({ studentId: 'student_ludo_A', username: 'ludo_alice', name: 'Alice' }, TEST_SECRET);
+  const ticketB = createGamesTicket({ studentId: 'student_ludo_B', username: 'ludo_bob', name: 'Bob' }, TEST_SECRET);
+
+  // 1. Connect User A to Ludo room
+  const wsLudoA = await connectWs(`${BASE_WS}/rooms/${ludoRoomId}/ws`, { Authorization: `Bearer ${ticketA}` });
+  const queueLudoA = new MessageQueue(wsLudoA);
+  const connA = await queueLudoA.next();
+  assert.equal(connA.type, 'CONNECTED');
+
+  // User A joins Ludo lobby
+  wsLudoA.send(JSON.stringify({ type: 'LUDO_JOIN', displayName: 'Alice' }));
+  const lobbyA = await queueLudoA.next();
+  assert.equal(lobbyA.type, 'LUDO_LOBBY_STATE');
+  assert.equal(lobbyA.lobby.hostUserId, 'student_ludo_A');
+  assert.equal(lobbyA.lobby.seats.red.userId, 'student_ludo_A');
+
+  // 2. Sending Tic-Tac-Toe message to Ludo room is rejected with ROOM_GAME_TYPE_MISMATCH
+  wsLudoA.send(JSON.stringify({ type: 'JOIN_GAME' }));
+  const tttMismatchErr = await queueLudoA.next();
+  assert.equal(tttMismatchErr.type, 'ERROR');
+  assert.equal(tttMismatchErr.code, 'ROOM_GAME_TYPE_MISMATCH');
+
+  // 3. Connect User B and join Ludo lobby
+  const wsLudoB = await connectWs(`${BASE_WS}/rooms/${ludoRoomId}/ws`, { Authorization: `Bearer ${ticketB}` });
+  const queueLudoB = new MessageQueue(wsLudoB);
+  await queueLudoB.next(); // CONNECTED for B
+  const presenceB_on_A = await queueLudoA.next(); // User A receives User B's presence online
+  assert.equal(presenceB_on_A.type, 'LUDO_PRESENCE');
+  assert.equal(presenceB_on_A.userId, 'student_ludo_B');
+  assert.equal(presenceB_on_A.online, true);
+
+  const initialLobbyB = await queueLudoB.next(); // Initial lobby state received on connect
+  assert.equal(initialLobbyB.type, 'LUDO_LOBBY_STATE');
+  assert.equal(initialLobbyB.lobby.seats.yellow.userId, null);
+  const presenceB_on_B = await queueLudoB.next(); // Presence broadcast
+  assert.equal(presenceB_on_B.type, 'LUDO_PRESENCE');
+
+  wsLudoB.send(JSON.stringify({ type: 'LUDO_JOIN', displayName: 'Bob' }));
+  const lobbyB_on_A = await queueLudoA.next();
+  const lobbyB_on_B = await queueLudoB.next();
+  assert.equal(lobbyB_on_A.type, 'LUDO_LOBBY_STATE');
+  assert.equal(lobbyB_on_B.type, 'LUDO_LOBBY_STATE');
+  assert.equal(lobbyB_on_B.lobby.seats.yellow.userId, 'student_ludo_B');
+
+  // 4. Test Tic-Tac-Toe room rejects Ludo message
+  const wsTttA = await connectWs(`${BASE_WS}/rooms/${tttRoomId}/ws`, { Authorization: `Bearer ${ticketA}` });
+  const queueTttA = new MessageQueue(wsTttA);
+  await queueTttA.next(); // CONNECTED
+
+  wsTttA.send(JSON.stringify({ type: 'JOIN_GAME' }));
+  const tttJoined = await queueTttA.next();
+  assert.equal(tttJoined.type, 'GAME_STATE');
+
+  // Send LUDO_JOIN to Tic-Tac-Toe room
+  wsTttA.send(JSON.stringify({ type: 'LUDO_JOIN' }));
+  const ludoMismatchErr = await queueTttA.next();
+  assert.equal(ludoMismatchErr.type, 'ERROR');
+  assert.equal(ludoMismatchErr.code, 'ROOM_GAME_TYPE_MISMATCH');
+
+  // Close all sockets
+  wsLudoA.close();
+  wsLudoB.close();
+  wsTttA.close();
+});
+
+test('Integration: Spoofed identity headers are stripped by Worker and cannot override verified ticket claims', async () => {
+  const roomId = `room_spoof_test_${Date.now()}`;
+  const validTicket = createGamesTicket(
+    { studentId: 'student_legit_user', username: 'legit_student', name: 'Legit Student' },
+    TEST_SECRET
+  );
+
+  // Client connects with legitimate ticket BUT attempts to spoof X-Games-* headers
+  const wsSpoof = await connectWs(`${BASE_WS}/rooms/${roomId}/ws`, {
+    Authorization: `Bearer ${validTicket}`,
+    'X-Games-User-Id': 'evil_imposter_999',
+    'X-Games-Username': 'hacker_elite',
+    'X-Games-Name': 'Imposter Name',
+  });
+  const queue = new MessageQueue(wsSpoof);
+  const connMsg = await queue.next();
+
+  assert.equal(connMsg.type, 'CONNECTED');
+  // Must use verified claim from ticket, NOT the spoofed header
+  assert.equal(connMsg.userId, 'student_legit_user');
+
+  // When joining Ludo, verified ticket name is used, not imposter name
+  wsSpoof.send(JSON.stringify({ type: 'LUDO_JOIN', displayName: 'Client Self Asserted Name' }));
+  const lobbyMsg = await queue.next();
+  assert.equal(lobbyMsg.type, 'LUDO_LOBBY_STATE');
+  assert.equal(lobbyMsg.lobby.hostUserId, 'student_legit_user');
+  assert.equal(lobbyMsg.lobby.seats.red.userId, 'student_legit_user');
+  assert.equal(lobbyMsg.lobby.seats.red.displayName, 'Legit Student');
+
+  wsSpoof.close();
+});
+

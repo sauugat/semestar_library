@@ -122,3 +122,5 @@ export type ServerEvent =
   | ServerMoveAcceptedEvent
   | ServerGameFinishedEvent
   | ServerErrorEvent;
+
+export * from './games/ludo/types.ts';

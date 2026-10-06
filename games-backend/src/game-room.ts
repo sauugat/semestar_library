@@ -1,5 +1,7 @@
 import { DurableObject } from 'cloudflare:workers';
 import type { Env } from './index';
+import { PROTOCOL_VERSION, type ClientMessage, type ServerEvent } from './protocol';
+import { TicTacToeEngine } from './games/tic-tac-toe';
 
 interface RoomAttachment {
   roomId: string;
@@ -7,14 +9,38 @@ interface RoomAttachment {
 }
 
 export class GameRoom extends DurableObject<Env> {
+  private game: TicTacToeEngine;
+
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
+    this.game = new TicTacToeEngine();
   }
 
   private resolveRoomId(requestUrl: string): string {
     const url = new URL(requestUrl);
     const match = url.pathname.match(/^\/rooms\/([a-zA-Z0-9_-]+)/);
     return match ? match[1] : 'unknown';
+  }
+
+  private broadcast(event: ServerEvent): void {
+    const message = JSON.stringify(event);
+    for (const socket of this.ctx.getWebSockets()) {
+      try {
+        socket.send(message);
+      } catch {}
+    }
+  }
+
+  private sendError(ws: WebSocket, message: string, code?: string): void {
+    const errorEvent: ServerEvent = {
+      type: 'ERROR',
+      message,
+      ...(code ? { code } : {}),
+      protocolVersion: PROTOCOL_VERSION,
+    };
+    try {
+      ws.send(JSON.stringify(errorEvent));
+    } catch {}
   }
 
   async fetch(request: Request): Promise<Response> {
@@ -69,6 +95,7 @@ export class GameRoom extends DurableObject<Env> {
           type: 'CONNECTED',
           roomId,
           userId,
+          protocolVersion: PROTOCOL_VERSION,
         })
       );
 
@@ -83,6 +110,8 @@ export class GameRoom extends DurableObject<Env> {
         status: 'ok',
         roomId,
         service: 'semester-library-games-room',
+        gameType: 'tic-tac-toe',
+        revision: this.game.getState().revision,
       }),
       {
         status: 200,
@@ -105,28 +134,81 @@ export class GameRoom extends DurableObject<Env> {
     try {
       parsed = JSON.parse(rawText);
     } catch {
-      ws.send(
-        JSON.stringify({
-          type: 'ERROR',
-          message: 'Invalid JSON',
-        })
-      );
+      this.sendError(ws, 'Invalid JSON format');
+      return;
+    }
+
+    if (typeof parsed !== 'object' || parsed === null || !('type' in parsed)) {
+      this.sendError(ws, 'Message must be an object with a "type" field');
       return;
     }
 
     const attachment = ws.deserializeAttachment() as RoomAttachment | null;
-    const roomId = attachment?.roomId || this.ctx.getTags(ws)[0] || 'unknown';
+    const roomId = attachment?.roomId || 'unknown';
+    const userId = attachment?.userId;
 
-    const broadcast = JSON.stringify({
-      type: 'MESSAGE',
-      roomId,
-      payload: parsed,
-    });
+    if (!userId) {
+      this.sendError(ws, 'Unauthorized: session has no attached user identity');
+      return;
+    }
 
-    for (const socket of this.ctx.getWebSockets()) {
-      try {
-        socket.send(broadcast);
-      } catch {}
+    const msg = parsed as ClientMessage;
+
+    switch (msg.type) {
+      case 'JOIN_GAME': {
+        const joinResult = this.game.join(userId);
+        if (!joinResult.success) {
+          this.sendError(ws, joinResult.error || 'Failed to join game');
+          return;
+        }
+
+        this.broadcast({
+          type: 'GAME_STATE',
+          roomId,
+          state: this.game.getState(),
+          protocolVersion: PROTOCOL_VERSION,
+        });
+        break;
+      }
+
+      case 'MAKE_MOVE': {
+        if (typeof (msg as { cellIndex?: unknown }).cellIndex !== 'number') {
+          this.sendError(ws, 'Missing or invalid "cellIndex" in MAKE_MOVE message');
+          return;
+        }
+
+        const moveResult = this.game.makeMove(userId, msg.cellIndex);
+        if (!moveResult.success) {
+          this.sendError(ws, moveResult.error || 'Invalid move');
+          return;
+        }
+
+        this.broadcast({
+          type: 'GAME_STATE',
+          roomId,
+          state: this.game.getState(),
+          protocolVersion: PROTOCOL_VERSION,
+        });
+        break;
+      }
+
+      case 'REQUEST_STATE': {
+        const stateEvent: ServerEvent = {
+          type: 'GAME_STATE',
+          roomId,
+          state: this.game.getState(),
+          protocolVersion: PROTOCOL_VERSION,
+        };
+        try {
+          ws.send(JSON.stringify(stateEvent));
+        } catch {}
+        break;
+      }
+
+      default: {
+        this.sendError(ws, `Unknown or unsupported message type: ${(msg as { type?: unknown }).type}`);
+        break;
+      }
     }
   }
 

@@ -120,6 +120,7 @@ export interface LocalLudoSessionSnapshot {
   engineState: LudoState;
   handoff: DeviceHandoffMetadata | null;
   lastAction: LocalLudoActionResult | null;
+  deviceHolderColor?: PlayerColor | null;
 }
 
 export interface LocalLudoSavedEnvelope {
@@ -128,6 +129,7 @@ export interface LocalLudoSavedEnvelope {
   savedAt: number;
   config: LocalLudoMatchConfig;
   engineState: LudoState;
+  deviceHolderColor?: PlayerColor | null;
 }
 
 export interface LocalLudoRestoreResult {

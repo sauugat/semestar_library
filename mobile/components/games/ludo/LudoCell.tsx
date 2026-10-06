@@ -17,9 +17,18 @@ export interface LudoCellProps {
   cellSize: number;
   tokens: BoardTokenViewModel[];
   isDarkTheme?: boolean;
+  onTokenPress?: (tokenIndex: number) => void;
+  disabled?: boolean;
 }
 
-export function LudoCell({ cell, cellSize, tokens, isDarkTheme }: LudoCellProps) {
+export function LudoCell({
+  cell,
+  cellSize,
+  tokens,
+  isDarkTheme,
+  onTokenPress,
+  disabled = false,
+}: LudoCellProps) {
   // If cell is inside a 6x6 yard or 3x3 center, LudoHomeYard or LudoCenter renders it
   if (cell.type === 'yard' || cell.type === 'center' || cell.type === 'empty') {
     return null;
@@ -121,6 +130,8 @@ export function LudoCell({ cell, cellSize, tokens, isDarkTheme }: LudoCellProps)
           key={`${token.color}-${token.tokenIndex}`}
           token={token}
           cellSize={cellSize}
+          onPress={onTokenPress ? () => onTokenPress(token.tokenIndex) : undefined}
+          disabled={disabled}
         />
       ))}
     </View>

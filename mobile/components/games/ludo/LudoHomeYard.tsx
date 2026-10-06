@@ -35,9 +35,18 @@ export interface LudoHomeYardProps {
   cellSize: number;
   tokens: BoardTokenViewModel[];
   isDarkTheme?: boolean;
+  onTokenPress?: (tokenIndex: number) => void;
+  disabled?: boolean;
 }
 
-export function LudoHomeYard({ yard, cellSize, tokens, isDarkTheme }: LudoHomeYardProps) {
+export function LudoHomeYard({
+  yard,
+  cellSize,
+  tokens,
+  isDarkTheme,
+  onTokenPress,
+  disabled = false,
+}: LudoHomeYardProps) {
   const theme = YARD_THEME[yard.color];
   const yardSize = cellSize * 6;
   const isClosed = yard.status === 'closed';
@@ -142,7 +151,14 @@ export function LudoHomeYard({ yard, cellSize, tokens, isDarkTheme }: LudoHomeYa
                   },
                 ]}
               >
-                {token && <LudoToken token={token} cellSize={cellSize} />}
+                {token && (
+                  <LudoToken
+                    token={token}
+                    cellSize={cellSize}
+                    onPress={onTokenPress ? () => onTokenPress(token.tokenIndex) : undefined}
+                    disabled={disabled}
+                  />
+                )}
               </View>
             </View>
           );

@@ -9,3 +9,5 @@ export * from './LudoCenter';
 export * from './LudoHomeYard';
 export * from './LudoToken';
 export * from './LudoPlayerBar';
+export * from './LudoDice';
+export * from './ludo-orchestration';

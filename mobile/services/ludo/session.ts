@@ -48,6 +48,7 @@ export interface LocalLudoSessionOptions {
   diceRoller?: DiceRoller;
   botRng?: RngFn;
   allowBotOnly?: boolean; // internal/test flag; normal matches require >= 1 human
+  deviceHolderColor?: PlayerColor | null;
 }
 
 function capitalize(s: string): string {
@@ -312,6 +313,7 @@ export class LocalLudoSession {
   private lastAction: LocalLudoActionResult | null = null;
   private lastHandoff: DeviceHandoffMetadata | null = null;
   private lastPersistenceWarning?: string;
+  private deviceHolderColor: PlayerColor | null = null;
 
   constructor(
     config: LocalLudoMatchConfig,
@@ -323,6 +325,19 @@ export class LocalLudoSession {
     this.storage = options.storage || new AsyncStorageLudoStorageAdapter();
     this.diceRoller = options.diceRoller || createStandardDiceRoller();
     this.botRng = options.botRng;
+
+    if (options.deviceHolderColor !== undefined) {
+      this.deviceHolderColor = options.deviceHolderColor;
+    } else {
+      const currentTurn = engine.getState().currentTurn;
+      const currentSeat = this.getSeatForColor(currentTurn);
+      if (currentSeat?.status === 'human') {
+        this.deviceHolderColor = currentTurn;
+      } else {
+        const firstHuman = this.config.seats.find((s) => s.status === 'human');
+        this.deviceHolderColor = firstHuman ? firstHuman.color : null;
+      }
+    }
   }
 
   public getSessionId(): string {
@@ -345,6 +360,10 @@ export class LocalLudoSession {
     if (!color) return null;
     const seat = this.config.seats.find((s) => s.color === color);
     return seat ? JSON.parse(JSON.stringify(seat)) : null;
+  }
+
+  public getDeviceHolder(): PlayerColor | null {
+    return this.deviceHolderColor;
   }
 
   public setDiceRoller(roller: DiceRoller): void {
@@ -375,6 +394,7 @@ export class LocalLudoSession {
       engineState,
       handoff: this.lastHandoff,
       lastAction: this.lastAction,
+      deviceHolderColor: this.deviceHolderColor,
     };
   }
 
@@ -393,34 +413,57 @@ export class LocalLudoSession {
 
   /**
    * Evaluates if a turn transition requires handing the device to another human player.
+   * Tracks deviceHolderColor to ensure transitions via bots to a different human trigger handoff,
+   * while transitions returning to the same human holder do not.
    */
   private evaluateHandoff(
     prevTurn: PlayerColor | null,
     nextTurn: PlayerColor | null
   ): DeviceHandoffMetadata | null {
-    if (!prevTurn || !nextTurn || prevTurn === nextTurn) {
+    // If match is finished, handoff is never needed
+    if (this.engine.getState().status === 'finished') {
       return null;
     }
 
-    const prevSeat = this.getSeatForColor(prevTurn);
+    if (!nextTurn) {
+      return null;
+    }
+
     const nextSeat = this.getSeatForColor(nextTurn);
-
-    if (!prevSeat || !nextSeat) {
+    if (!nextSeat) {
       return null;
     }
 
-    // Handoff is only requested when transferring from human to a DIFFERENT human
-    if (prevSeat.status === 'human' && nextSeat.status === 'human') {
-      const displayName = nextSeat.displayName || `${capitalize(nextSeat.color)} Player`;
-      return {
-        needsHandoff: true,
-        fromPlayer: prevSeat,
-        toPlayer: nextSeat,
-        message: `Pass the device to ${displayName} (${nextSeat.color})`,
-      };
+    // If next player is a bot, the phone remains with the current human holder.
+    if (nextSeat.status !== 'human') {
+      return null;
     }
 
-    return null;
+    // Next player is human!
+    // If no human holder established yet, this human becomes the holder with no handoff.
+    if (this.deviceHolderColor === null) {
+      this.deviceHolderColor = nextTurn;
+      return null;
+    }
+
+    // If the next human is ALREADY holding the device, no handoff needed.
+    if (this.deviceHolderColor === nextTurn) {
+      return null;
+    }
+
+    // Different human than the current holder! Handoff is required.
+    const fromSeat =
+      this.getSeatForColor(this.deviceHolderColor) ||
+      (prevTurn ? this.getSeatForColor(prevTurn) : null) ||
+      nextSeat;
+
+    const displayName = nextSeat.displayName || `${capitalize(nextSeat.color)} Player`;
+    return {
+      needsHandoff: true,
+      fromPlayer: fromSeat,
+      toPlayer: nextSeat,
+      message: `Pass the device to ${displayName} (${nextSeat.color})`,
+    };
   }
 
   /**
@@ -709,6 +752,7 @@ export class LocalLudoSession {
       savedAt: Date.now(),
       config: this.config,
       engineState: this.engine.getState(),
+      deviceHolderColor: this.deviceHolderColor,
     };
     await this.storage.save(envelope);
   }
@@ -718,6 +762,34 @@ export class LocalLudoSession {
    */
   public async clearSavedSession(): Promise<void> {
     await this.storage.remove();
+  }
+
+  /**
+   * Authoritatively acknowledges that the target human now possesses the device.
+   * Updates deviceHolderColor, clears pending handoff, and persists safely.
+   */
+  public async acknowledgeHandoff(): Promise<void> {
+    if (this.lastHandoff?.toPlayer) {
+      this.deviceHolderColor = this.lastHandoff.toPlayer.color;
+    } else {
+      const curTurn = this.engine.getState().currentTurn;
+      const curSeat = this.getSeatForColor(curTurn);
+      if (curSeat?.status === 'human') {
+        this.deviceHolderColor = curSeat.color;
+      }
+    }
+    this.lastHandoff = null;
+    await this.persistSafe();
+  }
+
+  /**
+   * Clears pending device handoff metadata and updates deviceHolderColor.
+   */
+  public clearHandoff(): void {
+    if (this.lastHandoff?.toPlayer) {
+      this.deviceHolderColor = this.lastHandoff.toPlayer.color;
+    }
+    this.lastHandoff = null;
   }
 }
 
@@ -859,6 +931,7 @@ export async function restoreLocalLudoSession(
   const session = new LocalLudoSession(envelope.config, engine, {
     ...options,
     storage,
+    deviceHolderColor: envelope.deviceHolderColor,
   });
 
   return { success: true, session };

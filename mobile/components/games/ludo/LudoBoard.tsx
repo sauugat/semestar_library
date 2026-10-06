@@ -10,9 +10,16 @@ import type { LocalLudoSessionSnapshot } from '../../../types/ludo-session';
 export interface LudoBoardProps {
   snapshot: LocalLudoSessionSnapshot;
   maxBoardSize?: number;
+  onTokenPress?: (tokenIndex: number) => void;
+  disabled?: boolean;
 }
 
-export function LudoBoard({ snapshot, maxBoardSize = 430 }: LudoBoardProps) {
+export function LudoBoard({
+  snapshot,
+  maxBoardSize = 430,
+  onTokenPress,
+  disabled = false,
+}: LudoBoardProps) {
   const { width } = useWindowDimensions();
   const { colors, isDark } = useTheme();
 
@@ -57,6 +64,8 @@ export function LudoBoard({ snapshot, maxBoardSize = 430 }: LudoBoardProps) {
               cellSize={cellSize}
               tokens={tokensOnCell}
               isDarkTheme={isDark}
+              onTokenPress={onTokenPress}
+              disabled={disabled}
             />
           );
         })
@@ -68,24 +77,32 @@ export function LudoBoard({ snapshot, maxBoardSize = 430 }: LudoBoardProps) {
         cellSize={cellSize}
         tokens={viewModel.tokens}
         isDarkTheme={isDark}
+        onTokenPress={onTokenPress}
+        disabled={disabled}
       />
       <LudoHomeYard
         yard={viewModel.yards.green}
         cellSize={cellSize}
         tokens={viewModel.tokens}
         isDarkTheme={isDark}
+        onTokenPress={onTokenPress}
+        disabled={disabled}
       />
       <LudoHomeYard
         yard={viewModel.yards.yellow}
         cellSize={cellSize}
         tokens={viewModel.tokens}
         isDarkTheme={isDark}
+        onTokenPress={onTokenPress}
+        disabled={disabled}
       />
       <LudoHomeYard
         yard={viewModel.yards.blue}
         cellSize={cellSize}
         tokens={viewModel.tokens}
         isDarkTheme={isDark}
+        onTokenPress={onTokenPress}
+        disabled={disabled}
       />
 
       {/* 3. Center 3x3 Finish Area */}

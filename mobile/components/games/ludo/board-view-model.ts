@@ -41,6 +41,7 @@ export interface BoardTokenViewModel {
   logicalPosition: CanonicalBoardPosition;
   gridCoordinate: GridCoordinate;
   accessibilityLabel: string;
+  isSelectable: boolean;
   // Stacking layout within cell
   stackIndex: number;
   stackSize: number;
@@ -332,7 +333,13 @@ export function buildLudoBoardViewModel(
     logicalPosition: CanonicalBoardPosition;
     gridCoordinate: GridCoordinate;
     accessibilityLabel: string;
+    isSelectable: boolean;
   }[] = [];
+
+  const isHumanMovePhase =
+    engineState.status === 'playing' &&
+    !snapshot.isBotTurn &&
+    engineState.turnPhase === 'move';
 
   for (const color of activeColors) {
     const playerTokens = engineState.tokens[color];
@@ -343,13 +350,20 @@ export function buildLudoBoardViewModel(
       const logicalPos = progressToBoardPosition(color, progress, tIndex);
       const gridCoord = getLogicalGridCoordinates(logicalPos);
 
+      const isSelectable =
+        isHumanMovePhase &&
+        engineState.currentTurn === color &&
+        engineState.legalMoves.some((m) => m.tokenIndex === tIndex);
+
       let locDesc = 'home';
       if (progress >= 0 && progress <= 50) locDesc = `track cell ${logicalPos.type === 'track' ? logicalPos.trackIndex : ''}`;
       else if (progress >= 51 && progress <= 55) locDesc = `home stretch ${progress - 50}`;
       else if (progress === 56) locDesc = 'finished';
 
       const capitalizedColor = color.charAt(0).toUpperCase() + color.slice(1);
-      const accessibilityLabel = `${capitalizedColor} token ${tIndex + 1}, ${locDesc}`;
+      const accessibilityLabel = isSelectable
+        ? `${capitalizedColor} token ${tIndex + 1}, ${locDesc}, selectable`
+        : `${capitalizedColor} token ${tIndex + 1}, ${locDesc}`;
 
       rawTokens.push({
         color,
@@ -358,6 +372,7 @@ export function buildLudoBoardViewModel(
         logicalPosition: logicalPos,
         gridCoordinate: gridCoord,
         accessibilityLabel,
+        isSelectable,
       });
     }
   }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Pressable } from 'react-native';
 import type { BoardTokenViewModel } from './board-view-model';
 import type { PlayerColor } from '../../../../packages/ludo-engine/src/index.ts';
 
@@ -36,14 +36,19 @@ const TOKEN_COLOR_THEME: Record<
 export interface LudoTokenProps {
   token: BoardTokenViewModel;
   cellSize: number;
+  onPress?: () => void;
+  disabled?: boolean;
 }
 
-export function LudoToken({ token, cellSize }: LudoTokenProps) {
+export function LudoToken({ token, cellSize, onPress, disabled = false }: LudoTokenProps) {
   const theme = TOKEN_COLOR_THEME[token.color];
+
+  const isInteractive = token.isSelectable && !disabled && Boolean(onPress);
 
   // Base token diameter when alone in a cell is ~74% of cell size
   const baseDiameter = cellSize * 0.74;
-  const tokenDiameter = Math.max(13, Math.round(baseDiameter * token.scaleRatio));
+  const scaleBoost = token.isSelectable ? 1.06 : 1.0;
+  const tokenDiameter = Math.max(13, Math.round(baseDiameter * token.scaleRatio * scaleBoost));
   const innerDiscSize = Math.max(6, Math.round(tokenDiameter * 0.54));
   const highlightWidth = Math.max(3, Math.round(tokenDiameter * 0.24));
   const highlightHeight = Math.max(2, Math.round(tokenDiameter * 0.12));
@@ -52,22 +57,22 @@ export function LudoToken({ token, cellSize }: LudoTokenProps) {
   const pixelOffsetX = token.offsetXRatio * cellSize;
   const pixelOffsetY = token.offsetYRatio * cellSize;
 
-  return (
-    <View
-      style={[
-        styles.tokenWrapper,
-        {
-          width: tokenDiameter,
-          height: tokenDiameter,
-          transform: [
-            { translateX: pixelOffsetX },
-            { translateY: pixelOffsetY },
-          ],
-        },
-      ]}
-      accessibilityRole="text"
-      accessibilityLabel={token.accessibilityLabel}
-    >
+  const content = (
+    <>
+      {/* Selection indicator ring when token is legal to move */}
+      {token.isSelectable && (
+        <View
+          style={[
+            styles.selectionHalo,
+            {
+              width: tokenDiameter + 8,
+              height: tokenDiameter + 8,
+              borderRadius: (tokenDiameter + 8) / 2,
+            },
+          ]}
+        />
+      )}
+
       {/* 1. Base disc with dark contrasting rim and drop shadow */}
       <View
         style={[
@@ -78,6 +83,8 @@ export function LudoToken({ token, cellSize }: LudoTokenProps) {
             borderRadius: tokenDiameter / 2,
             backgroundColor: theme.rim,
             shadowColor: theme.shadow,
+            borderWidth: token.isSelectable ? 2 : 0,
+            borderColor: '#FFFFFF',
           },
         ]}
       >
@@ -120,6 +127,51 @@ export function LudoToken({ token, cellSize }: LudoTokenProps) {
           </View>
         </View>
       </View>
+    </>
+  );
+
+  if (isInteractive) {
+    return (
+      <Pressable
+        onPress={onPress}
+        hitSlop={6}
+        style={[
+          styles.tokenWrapper,
+          {
+            width: tokenDiameter,
+            height: tokenDiameter,
+            transform: [
+              { translateX: pixelOffsetX },
+              { translateY: pixelOffsetY },
+            ],
+            zIndex: 30, // Elevated above non-interactive elements
+          },
+        ]}
+        accessibilityRole="button"
+        accessibilityLabel={token.accessibilityLabel}
+      >
+        {content}
+      </Pressable>
+    );
+  }
+
+  return (
+    <View
+      style={[
+        styles.tokenWrapper,
+        {
+          width: tokenDiameter,
+          height: tokenDiameter,
+          transform: [
+            { translateX: pixelOffsetX },
+            { translateY: pixelOffsetY },
+          ],
+        },
+      ]}
+      accessibilityRole="text"
+      accessibilityLabel={token.accessibilityLabel}
+    >
+      {content}
     </View>
   );
 }
@@ -154,5 +206,16 @@ const styles = StyleSheet.create({
     top: 1,
     left: 2,
     backgroundColor: 'rgba(255, 255, 255, 0.65)',
+  },
+  selectionHalo: {
+    position: 'absolute',
+    borderWidth: 2,
+    borderColor: '#38BDF8',
+    backgroundColor: 'rgba(56, 189, 248, 0.25)',
+    shadowColor: '#38BDF8',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 5,
+    elevation: 4,
   },
 });

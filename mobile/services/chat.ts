@@ -25,6 +25,18 @@ export interface ChatMessage {
   clientId?: string;
 }
 
+export interface AdminChatRoom {
+  chatGroupId: string;
+  cohortId: string;
+  groupCode: 'MERCURY' | 'VENUS' | 'EARTH' | 'MARS';
+  cohortDisplayName: string;
+  currentSemester: number;
+  roomStatus: string;
+  latestMessage: string | null;
+  latestMessageAt: string | null;
+  unreadCount: number;
+}
+
 export type ChatConfig = ChatContext;
 export interface RealtimeConfig { chatGroupId: string; realtimeEpoch: number; topic: string; expiry: string; token: string; url?: string; key?: string }
 
@@ -42,13 +54,29 @@ export interface SendMessageParams {
   mentions?: string[];
 }
 
-export async function fetchChatConfig(): Promise<ChatConfig> {
+export async function fetchAdminChatRooms(): Promise<AdminChatRoom[]> {
+  const session = getChatSession();
+  const server = (session.server || await getBaseUrl()).replace(/\/+$/, '');
+  const response = await apiFetch(`${server}/api/chat/admin/rooms`, {
+    headers: { Authorization: `Bearer ${session.credential || ''}` },
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw Object.assign(new Error(err.message || 'Failed to fetch admin rooms'), { status: response.status });
+  }
+  return response.json();
+}
+
+export async function fetchChatConfig(targetChatGroupId?: string): Promise<ChatConfig> {
   const start = getChatSession();
   assertLocalChatServer(start.server);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
   try {
-    const context = await api.get<ChatConfig>(`${start.server}/api/chat/config`, {signal: controller.signal, headers: {Authorization: `Bearer ${start.credential || ''}`}});
+    const url = targetChatGroupId
+      ? `${start.server}/api/chat/admin/rooms/${encodeURIComponent(targetChatGroupId)}/config`
+      : `${start.server}/api/chat/config`;
+    const context = await api.get<ChatConfig>(url, {signal: controller.signal, headers: {Authorization: `Bearer ${start.credential || ''}`}});
     if (!acceptChatContext(start, context)) throw new Error('Stale chat context');
     return context;
   } catch (error: any) {

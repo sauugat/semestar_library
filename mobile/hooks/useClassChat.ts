@@ -30,11 +30,12 @@ import {
 } from "@/services/chat-realtime";
 import { beginChatSession, getChatSession, subscribeChatSession, chatScope, type ChatContext } from '@/services/chat-session';
 
-type Typer = { name: string; expiresAt: number };
+type Typer = { studentId: string; name: string; expiresAt: number };
 
 export interface UseClassChatOptions {
   authToken?: string | null;
   onNewIncomingMessage?: (message: ChatMessage) => void;
+  selectedChatGroupId?: string | null;
 }
 
 export function useClassChat(
@@ -124,7 +125,7 @@ export function useClassChat(
       if (data.typing) {
         setActiveTypers(new Map(data.typing
           .filter(t => String(t.studentId) !== String(studentId))
-          .map(t => [String(t.studentId), { name: t.name, expiresAt: new Date(t.timestamp).getTime() + 3500 }])));
+          .map(t => [String(t.studentId), { studentId: String(t.studentId), name: t.name, expiresAt: new Date(t.timestamp).getTime() + 3500 }])));
       }
       if (hydrated.current && !reset && incoming.length > 0) {
         incoming.forEach((m) => {
@@ -189,7 +190,7 @@ export function useClassChat(
         if (!active.current || validating || AppState.currentState === 'background') return;
         validating = true; lastRefresh = Date.now();
         try {
-          await fetchChatConfig();
+          await fetchChatConfig(optionsRef.current?.selectedChatGroupId || undefined);
           if (!active.current) return;
           const epoch = generation.current;
         const cached = await getCachedChatMessages(50);
@@ -255,8 +256,10 @@ export function useClassChat(
         },
         onTyping: (name, senderId, expiresAt) => {
           if (!active.current) return;
+          if (String(senderId) === String(studentId)) return;
           setActiveTypers((prev) =>
-            new Map(prev).set(senderId, {
+            new Map(prev).set(String(senderId), {
+              studentId: String(senderId),
               name,
               expiresAt: Date.parse(expiresAt),
             })
@@ -327,7 +330,7 @@ export function useClassChat(
         appStateSub.remove();
         void disconnectChatRealtime();
       };
-    }, [studentId, serverUrl, options?.authToken, sync, refreshPinned]),
+    }, [studentId, serverUrl, options?.authToken, options?.selectedChatGroupId, sync, refreshPinned]),
   );
 
   // Refresh older pages from the server; fall back to disk when offline.

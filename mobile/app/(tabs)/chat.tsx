@@ -26,6 +26,7 @@ import {
   BackHandler,
   useWindowDimensions,
   Dimensions,
+  RefreshControl,
 } from "react-native";
 import { KeyboardStickyView, useKeyboardHandler } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -66,6 +67,8 @@ import { Text } from "@/components/ui/Typography";
 import {
   ChatMessage,
   ChatMember,
+  AdminChatRoom,
+  fetchAdminChatRooms,
   fetchChatMembers,
   fetchChatMessages,
   fetchExactChatMessage,
@@ -76,8 +79,29 @@ import {
   sendChatMessage,
   sendChatTyping,
 } from "@/services/chat";
+import { formatMessageTime, formatDate, safeParseDate } from "@/utils/date";
 import { setChatScreenActive, clearAppBadge } from "@/services/notifications";
 import { captureChatSession, getChatSession, isCurrentChatSession, subscribeChatSession } from '@/services/chat-session';
+
+function formatRoomTime(isoString?: string | null): string {
+  if (!isoString) return "";
+  const d = safeParseDate(isoString);
+  if (!d) return "";
+  const now = new Date();
+  const isToday =
+    d.getDate() === now.getDate() &&
+    d.getMonth() === now.getMonth() &&
+    d.getFullYear() === now.getFullYear();
+  if (isToday) return formatMessageTime(d);
+  const yesterday = new Date();
+  yesterday.setDate(now.getDate() - 1);
+  const isYesterday =
+    d.getDate() === yesterday.getDate() &&
+    d.getMonth() === yesterday.getMonth() &&
+    d.getFullYear() === yesterday.getFullYear();
+  if (isYesterday) return "Yesterday";
+  return formatDate(d, { month: "short", day: "numeric" });
+}
 
 function MemberAvatarItem({
   member,
@@ -166,9 +190,56 @@ export default function ChatScreen() {
     [user?.studentId]
   );
 
+  const isAdmin = Boolean(user?.isAdmin || user?.role === "admin");
+  const [selectedAdminRoom, setSelectedAdminRoom] = useState<AdminChatRoom | null>(null);
+  const [adminRooms, setAdminRooms] = useState<AdminChatRoom[]>([]);
+  const [adminRoomsLoading, setAdminRoomsLoading] = useState(false);
+  const [adminRoomsRefreshing, setAdminRoomsRefreshing] = useState(false);
+  const [adminRoomsError, setAdminRoomsError] = useState<string | null>(null);
+
+  const loadAdminRooms = useCallback(async (isRefresh = false) => {
+    if (!isAdmin) return;
+    if (isRefresh) setAdminRoomsRefreshing(true);
+    else setAdminRoomsLoading(true);
+    setAdminRoomsError(null);
+    try {
+      const rooms = await fetchAdminChatRooms();
+      setAdminRooms(rooms);
+    } catch (err: any) {
+      setAdminRoomsError(err?.message || "Failed to load cohort rooms.");
+    } finally {
+      setAdminRoomsLoading(false);
+      setAdminRoomsRefreshing(false);
+    }
+  }, [isAdmin]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (isAdmin && !selectedAdminRoom) {
+        void loadAdminRooms();
+      }
+    }, [isAdmin, selectedAdminRoom, loadAdminRooms])
+  );
+
+  useEffect(() => {
+    const onBackPress = () => {
+      if (isAdmin && selectedAdminRoom) {
+        setSelectedAdminRoom(null);
+        return true;
+      }
+      return false;
+    };
+    const sub = BackHandler.addEventListener("hardwareBackPress", onBackPress);
+    return () => sub.remove();
+  }, [isAdmin, selectedAdminRoom]);
+
   const chatOptions = useMemo(
-    () => ({ onNewIncomingMessage: handleNewIncomingMessage, authToken: token }),
-    [handleNewIncomingMessage, token]
+    () => ({
+      onNewIncomingMessage: handleNewIncomingMessage,
+      authToken: token,
+      selectedChatGroupId: isAdmin ? selectedAdminRoom?.chatGroupId : null,
+    }),
+    [handleNewIncomingMessage, token, isAdmin, selectedAdminRoom?.chatGroupId]
   );
 
   // State
@@ -194,6 +265,13 @@ export default function ChatScreen() {
   } = useClassChat(user?.studentId, serverUrl, chatOptions);
 
   const { targetMessageId, targetChatGroupId } = useLocalSearchParams<{ targetMessageId?: string; targetChatGroupId?: string }>();
+
+  useEffect(() => {
+    if (targetChatGroupId && isAdmin && !selectedAdminRoom && adminRooms.length > 0) {
+      const match = adminRooms.find(r => r.chatGroupId === targetChatGroupId);
+      if (match) setSelectedAdminRoom(match);
+    }
+  }, [targetChatGroupId, isAdmin, selectedAdminRoom, adminRooms]);
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const [actionMessage, setActionMessage] = useState<ChatMessage | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
@@ -301,16 +379,28 @@ export default function ChatScreen() {
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
   const lastTypingSentRef = useRef<number>(0);
   const isPickerLaunchingRef = useRef<boolean>(false);
-  const [typingPulsingAnim] = useState(() => new Animated.Value(0.3));
 
-  // Header subtitle: Requirement 14 & 15 (No hardcoded BCA, show online count)
+  // Header subtitle: typing indicator (filtered by studentId), online count, or fallback
+  const currentStudentId = user?.studentId ? String(user.studentId) : "";
+  const otherTypers = useMemo(() => {
+    return Array.from(activeTypers.values()).filter(
+      (t) => String(t.studentId) !== currentStudentId
+    );
+  }, [activeTypers, currentStudentId]);
+
   const typingNames = useMemo(() => {
-    return Array.from(activeTypers.values()).map((t) => t.name);
-  }, [activeTypers]);
+    return otherTypers.map((t) => t.name);
+  }, [otherTypers]);
 
   const headerSubtitle = useMemo(() => {
-    if (typingNames.length > 0) {
+    if (typingNames.length === 1) {
       return `${typingNames[0]} is typing...`;
+    }
+    if (typingNames.length === 2) {
+      return `${typingNames[0]} and ${typingNames[1]} are typing...`;
+    }
+    if (typingNames.length > 2) {
+      return "Several people are typing...";
     }
     if (error) return "Waiting for connection • tap to retry";
     if (isConnected && onlineIds.length > 0) {
@@ -332,26 +422,6 @@ export default function ChatScreen() {
     if (!token) return undefined;
     return { Authorization: `Bearer ${token}` };
   }, [token]);
-
-  useEffect(() => {
-    if (!activeTypers.size) return;
-    const animation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(typingPulsingAnim, {
-          toValue: 1,
-          duration: 500,
-          useNativeDriver: true,
-        }),
-        Animated.timing(typingPulsingAnim, {
-          toValue: 0.3,
-          duration: 500,
-          useNativeDriver: true,
-        }),
-      ]),
-    );
-    animation.start();
-    return () => animation.stop();
-  }, [activeTypers.size, typingPulsingAnim]);
 
   useFocusEffect(
     useCallback(() => {
@@ -1168,6 +1238,136 @@ export default function ChatScreen() {
     ]
   );
 
+  if (isAdmin && !selectedAdminRoom) {
+    return (
+      <View style={styles.screenContainer}>
+        <StatusBar barStyle="light-content" />
+        <View
+          style={[
+            styles.customHeader,
+            {
+              paddingTop: Math.max(insets.top, 10),
+              justifyContent: "space-between",
+            },
+          ]}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <TouchableOpacity
+              onPress={() => router.navigate("/(tabs)")}
+              style={styles.headerBackBtn}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityLabel="Go back"
+            >
+              <Ionicons name="arrow-back" size={22} color="#f5f5f5" />
+            </TouchableOpacity>
+            <View style={{ marginLeft: 8 }}>
+              <Text variant="lg" weight="700" style={{ color: "#f5f5f5" }}>
+                Cohorts
+              </Text>
+              <Text variant="xs" style={{ color: "#71717a" }}>
+                {adminRooms.length ? `${adminRooms.length} active classes` : "Class conversations"}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {adminRoomsLoading && adminRooms.length === 0 ? (
+          <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+            <ActivityIndicator size="large" color="#3b82f6" />
+          </View>
+        ) : adminRoomsError && adminRooms.length === 0 ? (
+          <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 24 }}>
+            <Ionicons name="alert-circle-outline" size={48} color="#ef4444" style={{ marginBottom: 12 }} />
+            <Text variant="md" weight="600" style={{ color: "#f5f5f5", textAlign: "center" }}>
+              {adminRoomsError}
+            </Text>
+            <TouchableOpacity
+              onPress={() => void loadAdminRooms()}
+              style={{ marginTop: 16, backgroundColor: "#27272a", paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 }}
+            >
+              <Text variant="sm" weight="600" style={{ color: "#3b82f6" }}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <FlatList
+            data={adminRooms}
+            keyExtractor={(item) => item.chatGroupId}
+            refreshControl={
+              <RefreshControl
+                refreshing={adminRoomsRefreshing}
+                onRefresh={() => void loadAdminRooms(true)}
+                tintColor="#3b82f6"
+              />
+            }
+            contentContainerStyle={{ paddingVertical: 8 }}
+            renderItem={({ item }) => {
+              const slot = (item.groupCode || "").toLowerCase();
+              const badgeColors: Record<string, { bg: string; border: string; text: string; icon: string }> = {
+                mercury: { bg: "rgba(59, 130, 246, 0.15)", border: "rgba(59, 130, 246, 0.3)", text: "#60a5fa", icon: "planet-outline" },
+                venus: { bg: "rgba(168, 85, 247, 0.15)", border: "rgba(168, 85, 247, 0.3)", text: "#c084fc", icon: "sparkles-outline" },
+                earth: { bg: "rgba(16, 185, 129, 0.15)", border: "rgba(16, 185, 129, 0.3)", text: "#34d399", icon: "globe-outline" },
+                mars: { bg: "rgba(249, 115, 22, 0.15)", border: "rgba(249, 115, 22, 0.3)", text: "#fb923c", icon: "flame-outline" },
+              };
+              const theme = badgeColors[slot] || badgeColors.mercury;
+              const formattedTime = formatRoomTime(item.latestMessageAt);
+
+              return (
+                <TouchableOpacity
+                  style={styles.adminRoomCard}
+                  activeOpacity={0.7}
+                  onPress={() => setSelectedAdminRoom(item)}
+                >
+                  <View style={[styles.adminRoomAvatar, { backgroundColor: theme.bg, borderColor: theme.border }]}>
+                    <Ionicons name={theme.icon as any} size={22} color={theme.text} />
+                  </View>
+
+                  <View style={styles.adminRoomContent}>
+                    <View style={styles.adminRoomRow}>
+                      <View style={{ flexDirection: "row", alignItems: "center", flex: 1, marginRight: 8 }}>
+                        <Text variant="md" weight="700" style={styles.adminRoomTitle}>
+                          {item.cohortDisplayName}
+                        </Text>
+                      </View>
+                      {formattedTime ? (
+                        <Text variant="xs" style={styles.adminRoomTime}>
+                          {formattedTime}
+                        </Text>
+                      ) : null}
+                    </View>
+
+                    <Text variant="xs" style={styles.adminRoomSemester}>
+                      {`Semester ${item.currentSemester}`}
+                    </Text>
+
+                    <View style={styles.adminRoomRow}>
+                      <Text
+                        variant="sm"
+                        numberOfLines={1}
+                        style={[
+                          styles.adminRoomPreview,
+                          !item.latestMessage && styles.adminRoomPreviewEmpty,
+                        ]}
+                      >
+                        {item.latestMessage || "No messages yet"}
+                      </Text>
+                      {item.unreadCount > 0 && (
+                        <View style={styles.adminRoomBadge}>
+                          <Text style={styles.adminRoomBadgeText}>
+                            {item.unreadCount > 99 ? "99+" : item.unreadCount}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              );
+            }}
+          />
+        )}
+      </View>
+    );
+  }
+
   return (
     <View style={styles.screenContainer}>
       <StatusBar barStyle="light-content" />
@@ -1182,7 +1382,13 @@ export default function ChatScreen() {
         ]}
       >
         <TouchableOpacity
-          onPress={() => router.navigate("/(tabs)")}
+          onPress={() => {
+            if (isAdmin && selectedAdminRoom) {
+              setSelectedAdminRoom(null);
+            } else {
+              router.navigate("/(tabs)");
+            }
+          }}
           style={styles.headerBackBtn}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           accessibilityLabel="Go back"
@@ -1382,10 +1588,7 @@ export default function ChatScreen() {
         {/* Floating Scroll to Bottom Button */}
         {showScrollToBottom && (
           <View
-            style={[
-              styles.floatingScrollContainer,
-              activeTypers.size > 0 && (styles.floatingScrollContainerWithTyping || styles.floatingScrollBtnWithTyping),
-            ]}
+            style={styles.floatingScrollContainer}
             pointerEvents="box-none"
           >
             <TouchableOpacity
@@ -1407,22 +1610,6 @@ export default function ChatScreen() {
                 </Text>
               </View>
             )}
-          </View>
-        )}
-
-        {/* Typing Indicator Bar */}
-        {activeTypers.size > 0 && (
-          <View style={styles.typingBar}>
-            <View style={styles.typingDotsContainer}>
-              <Animated.View style={[styles.typingDot, { opacity: typingPulsingAnim }]} />
-              <Animated.View style={[styles.typingDot, { opacity: typingPulsingAnim }]} />
-              <Animated.View style={[styles.typingDot, { opacity: typingPulsingAnim }]} />
-            </View>
-            <Text variant="xs" style={styles.typingText}>
-              {typingNames.length === 1
-                ? `${typingNames[0]} is typing...`
-                : `${typingNames[0]} and ${typingNames.length - 1} others are typing...`}
-            </Text>
           </View>
         )}
       </KeyboardContentBoundary>
@@ -1899,12 +2086,6 @@ const styles = StyleSheet.create({
     bottom: 14, // Floating clearly above composer inside boundary
     zIndex: 99,
   },
-  floatingScrollContainerWithTyping: {
-    bottom: 44,
-  },
-  floatingScrollBtnWithTyping: {
-    bottom: 44,
-  },
   floatingScrollBtn: {
     width: 38,
     height: 38,
@@ -1945,28 +2126,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     textAlign: "center",
     includeFontPadding: false,
-  },
-  typingBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 5,
-    backgroundColor: "#121214",
-  },
-  typingDotsContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-  },
-  typingDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: "#71717a",
-  },
-  typingText: {
-    color: "#a1a1aa",
-    marginLeft: 8,
   },
   replyBanner: {
     flexDirection: "row",
@@ -2262,5 +2421,71 @@ const styles = StyleSheet.create({
     color: "#a1a1aa",
     fontSize: 13,
     fontWeight: "500",
+  },
+  adminRoomCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#1f1f23",
+  },
+  adminRoomAvatar: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 14,
+  },
+  adminRoomContent: {
+    flex: 1,
+    justifyContent: "center",
+  },
+  adminRoomRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  adminRoomTitle: {
+    color: "#f4f4f5",
+    fontSize: 16,
+  },
+  adminRoomSemester: {
+    color: "#a1a1aa",
+    fontSize: 12,
+    fontWeight: "500",
+    marginTop: 2,
+    marginBottom: 4,
+  },
+  adminRoomTime: {
+    color: "#71717a",
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  adminRoomPreview: {
+    color: "#a1a1aa",
+    fontSize: 13,
+    flex: 1,
+    marginRight: 8,
+  },
+  adminRoomPreviewEmpty: {
+    color: "#52525b",
+    fontStyle: "italic",
+  },
+  adminRoomBadge: {
+    backgroundColor: "#3b82f6",
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 6,
+  },
+  adminRoomBadgeText: {
+    color: "#ffffff",
+    fontSize: 11,
+    fontWeight: "700",
   },
 });

@@ -53,6 +53,14 @@ module.exports = function cohortChatRouter(service) {
     res.set('X-Content-Type-Options', 'nosniff');
     res.type(file.mimeType || 'application/octet-stream').send(file.buffer);
   }));
+  router.get('/admin/rooms', route(async req => {
+    await service.requireAdmin(id(req));
+    return service.adminRooms(id(req));
+  }));
+  router.get('/admin/rooms/:chatGroupId/config', route(async req => {
+    await service.requireAdmin(id(req));
+    return service.adminRoomConfig(id(req), req.params.chatGroupId);
+  }));
   router.post('/admin/cohorts', route(req => service.createCohort(id(req), req.body)));
   router.post('/admin/groups/:id/advance', route(req => service.advance(id(req), req.params.id, req.body.expectedVersion)));
   router.post('/admin/groups/:id/graduate', route(req => service.graduate(id(req), req.params.id)));

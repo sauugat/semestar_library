@@ -29,6 +29,7 @@ export interface SearchSubjectItem {
 export interface SearchStudentItem {
   studentId: string;
   name: string;
+  username?: string | null;
   avatarUrl?: string | null;
   role: string;
   department?: string | null;

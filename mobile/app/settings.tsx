@@ -421,10 +421,10 @@ export default function SettingsScreen() {
         </View>
         <View style={styles.accountRow}>
           <Text variant="sm" color="secondary">
-            Program & Semester:
+            {user?.role === 'teacher' ? 'Department & Role:' : 'Program & Semester:'}
           </Text>
           <Text variant="sm" weight="600">
-            {user?.department || 'BIT'} • {user?.semester || 'Semester 1'}
+            {user?.department || 'BIT'} • {user?.role === 'teacher' ? 'Faculty' : (user?.semester || 'Semester 1')}
           </Text>
         </View>
 

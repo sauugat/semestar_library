@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import * as SecureStore from 'expo-secure-store';
 import {
   View,
   StyleSheet,
@@ -9,6 +10,7 @@ import {
   Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/constants/useTheme';
@@ -76,6 +78,7 @@ function formatHumanError(rawError: string | undefined): string {
 }
 
 export default function LoginScreen() {
+  const router = useRouter();
   const { login, register, forgotPassword, resendVerification } = useAuth();
   const { colors, spacing, radii, touchTarget } = useTheme();
 
@@ -146,6 +149,20 @@ export default function LoginScreen() {
 
     const result = await login(cleanId, password);
     setLoading(false);
+
+    if (result.onboardingRequired) {
+      if (result.onboardingToken) {
+        await SecureStore.setItemAsync('semester_library_teacher_onboarding_token', result.onboardingToken).catch(() => {});
+      }
+      router.push({
+        pathname: '/teacher-onboarding' as any,
+        params: {
+          token: result.onboardingToken,
+          state: JSON.stringify(result.state || {}),
+        },
+      });
+      return;
+    }
 
     if (!result.success) {
       if (result.code === 'EMAIL_NOT_CONFIRMED') {

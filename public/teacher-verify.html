@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Teacher Verification — Semester Library</title>
+
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/logo.jpg">
+  <link rel="icon" type="image/png" sizes="192x192" href="/logo.jpg">
+
+  <script>
+    (function() {
+      try {
+        var stored = localStorage.getItem('theme');
+        var theme = stored || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', theme);
+        if (theme === 'dark') document.documentElement.classList.add('dark');
+        else document.documentElement.classList.remove('dark');
+      } catch (e) {}
+    })();
+  </script>
+  <script src="theme.js"></script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="style.v4.css">
+  <link rel="stylesheet" href="theme-overrides.css">
+  <link rel="stylesheet" href="auth-ui.css">
+
+  <style>
+    .verify-card {
+      max-width: 460px;
+      width: 100%;
+      margin: 60px auto;
+      padding: 36px 32px;
+      background: var(--surface-bg, #ffffff);
+      border: 1px solid var(--border-color, #e5e7eb);
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+      text-align: center;
+    }
+    [data-theme="dark"] .verify-card {
+      background: #121212;
+      border-color: #27272a;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+    .status-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body class="apple-signin-page">
+
+  <div class="theme-toggle-wrap">
+    <button type="button" class="theme-toggle-btn" id="themeToggleBtn" aria-label="Toggle theme">
+      <svg class="theme-icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/></svg>
+      <svg class="theme-icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+  </div>
+
+  <main class="verify-card">
+    <img src="logo.jpg" alt="Semester Library" class="auth-logo" style="margin-bottom: 16px;">
+
+    <div id="loadingState">
+      <div class="status-icon">⏳</div>
+      <h1 class="auth-title" style="font-size: 20px; margin-bottom: 8px;">Verifying Account…</h1>
+      <p class="auth-subtext">Completing your permanent faculty activation. Please wait a moment.</p>
+    </div>
+
+    <div id="successState" style="display: none;">
+      <div class="status-icon">✅</div>
+      <h1 class="auth-title" style="font-size: 20px; margin-bottom: 8px;" id="successHeading">Teacher Account Ready</h1>
+      <p class="auth-subtext" style="margin-bottom: 24px;" id="successMsg">Your email has been verified and your permanent account is active.</p>
+      <a href="/login.html" class="btn btn-primary" style="display: inline-flex; text-decoration: none;">
+        <span>Sign In to Semester Library</span>
+      </a>
+    </div>
+
+    <div id="errorState" style="display: none;">
+      <div class="status-icon">⚠️</div>
+      <h1 class="auth-title" style="font-size: 20px; margin-bottom: 8px;">Verification Incomplete</h1>
+      <p class="auth-subtext" style="margin-bottom: 24px; color: var(--danger-color, #ef4444);" id="errorMsg">
+        The verification link could not be verified. It may be expired or already used.
+      </p>
+      <a href="/login.html" class="btn btn-secondary" style="display: inline-flex; text-decoration: none;">
+        Back to Sign In
+      </a>
+    </div>
+  </main>
+
+  <script src="auth.js"></script>
+  <script>
+    (async function() {
+      const loadingState = document.getElementById('loadingState');
+      const successState = document.getElementById('successState');
+      const errorState = document.getElementById('errorState');
+      const errorMsg = document.getElementById('errorMsg');
+      const successHeading = document.getElementById('successHeading');
+      const successMsg = document.getElementById('successMsg');
+
+      function showError(msg) {
+        loadingState.style.display = 'none';
+        successState.style.display = 'none';
+        errorMsg.textContent = msg;
+        errorState.style.display = 'block';
+      }
+
+      function showSuccess(heading, msg) {
+        loadingState.style.display = 'none';
+        errorState.style.display = 'none';
+        if (heading) successHeading.textContent = heading;
+        if (msg) successMsg.textContent = msg;
+        successState.style.display = 'block';
+      }
+
+      try {
+        const url = new URL(window.location.href);
+        const code = url.searchParams.get('code');
+        let accessToken = null;
+
+        // Check hash params for direct access token (Supabase implicit flow)
+        if (window.location.hash) {
+          const hashParams = new URLSearchParams(window.location.hash.substring(1));
+          accessToken = hashParams.get('access_token');
+        }
+
+        // Exchange PKCE code if present
+        if (!accessToken && code && typeof SemesterAuth !== 'undefined') {
+          const { data, error } = await SemesterAuth.exchangeCode(code);
+          if (error) {
+            console.warn('PKCE exchange error:', error);
+          } else if (data?.session?.access_token) {
+            accessToken = data.session.access_token;
+          }
+        }
+
+        // Check existing session if needed
+        if (!accessToken && typeof SemesterAuth !== 'undefined') {
+          const session = await SemesterAuth.getSession();
+          if (session?.access_token) {
+            accessToken = session.access_token;
+          }
+        }
+
+        if (!accessToken) {
+          showError('No valid verification token found. Please check your verification link or log in.');
+          return;
+        }
+
+        // Call backend finalization endpoint
+        const res = await fetch('/api/teacher/onboarding/finalize', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + accessToken
+          }
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.success) {
+          if (data.alreadyActive) {
+            showSuccess('Account Already Verified', 'Your permanent faculty account is already active. You can sign in immediately.');
+          } else {
+            showSuccess('Teacher Account Ready', 'Your permanent faculty account has been activated! Sign in with your new username and password.');
+          }
+        } else {
+          showError(data.message || 'Verification could not be completed.');
+        }
+      } catch (err) {
+        showError(err.message || 'Network error completing verification.');
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Teacher Account Setup — Semester Library</title>
+
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/logo.jpg">
+  <link rel="icon" type="image/png" sizes="192x192" href="/logo.jpg">
+
+  <script>
+    (function() {
+      try {
+        var stored = localStorage.getItem('theme');
+        var theme = stored || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', theme);
+        if (theme === 'dark') document.documentElement.classList.add('dark');
+        else document.documentElement.classList.remove('dark');
+      } catch (e) {}
+    })();
+  </script>
+  <script src="theme.js"></script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="style.v4.css">
+  <link rel="stylesheet" href="theme-overrides.css">
+  <link rel="stylesheet" href="auth-ui.css">
+
+  <style>
+    .teacher-card {
+      max-width: 600px;
+      width: 100%;
+      margin: 40px auto;
+      padding: 32px;
+      background: var(--surface-bg, #ffffff);
+      border: 1px solid var(--border-color, #e5e7eb);
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    }
+    [data-theme="dark"] .teacher-card {
+      background: #121212;
+      border-color: #27272a;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+    .stepper {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      position: relative;
+    }
+    .step-node {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted, #71717a);
+    }
+    .step-node.active {
+      color: var(--text-main, #09090b);
+    }
+    [data-theme="dark"] .step-node.active {
+      color: #fafafa;
+    }
+    .step-number {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      background: var(--surface-subtle, #f4f4f5);
+      border: 1px solid var(--border-color, #d4d4d8);
+    }
+    .step-node.active .step-number {
+      background: var(--text-main, #09090b);
+      color: #ffffff;
+      border-color: var(--text-main, #09090b);
+    }
+    [data-theme="dark"] .step-node.active .step-number {
+      background: #fafafa;
+      color: #09090b;
+      border-color: #fafafa;
+    }
+    .subject-picker-header {
+      margin-bottom: 16px;
+    }
+    .subject-search-input {
+      width: 100%;
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color, #d4d4d8);
+      background: var(--surface-bg, #ffffff);
+      color: var(--text-main, #09090b);
+      font-size: 14px;
+      outline: none;
+      box-sizing: border-box;
+    }
+    [data-theme="dark"] .subject-search-input {
+      background: #18181b;
+      border-color: #27272a;
+      color: #fafafa;
+    }
+    .chips-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 12px 0 16px;
+      min-height: 32px;
+    }
+    .subject-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      background: #f4f4f5;
+      color: #18181b;
+      font-size: 12px;
+      font-weight: 500;
+      border: 1px solid #e4e4e7;
+    }
+    [data-theme="dark"] .subject-chip {
+      background: #27272a;
+      color: #f4f4f5;
+      border-color: #3f3f46;
+    }
+    .subject-chip-remove {
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+      opacity: 0.6;
+    }
+    .subject-chip-remove:hover {
+      opacity: 1;
+    }
+    .semester-group-title {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted, #71717a);
+      margin: 14px 0 6px;
+    }
+    .subjects-list-scroll {
+      max-height: 280px;
+      overflow-y: auto;
+      border: 1px solid var(--border-color, #e4e4e7);
+      border-radius: 8px;
+      padding: 10px 14px;
+      background: var(--surface-subtle, #fafafa);
+    }
+    [data-theme="dark"] .subjects-list-scroll {
+      background: #18181b;
+      border-color: #27272a;
+    }
+    .subject-item-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 0;
+      cursor: pointer;
+      font-size: 13px;
+      border-bottom: 1px solid rgba(120, 120, 120, 0.1);
+    }
+    .subject-item-row:last-child {
+      border-bottom: none;
+    }
+    .review-card {
+      background: var(--surface-subtle, #f4f4f5);
+      border-radius: 8px;
+      padding: 14px 18px;
+      margin: 16px 0;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    [data-theme="dark"] .review-card {
+      background: #1e1e24;
+    }
+    .nav-buttons {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 24px;
+    }
+    .btn-secondary {
+      background: transparent;
+      border: 1px solid var(--border-color, #d4d4d8);
+      color: var(--text-main, #09090b);
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    [data-theme="dark"] .btn-secondary {
+      border-color: #3f3f46;
+      color: #fafafa;
+    }
+  </style>
+</head>
+<body class="apple-signin-page">
+
+  <div class="theme-toggle-wrap">
+    <button type="button" class="theme-toggle-btn" id="themeToggleBtn" aria-label="Toggle theme">
+      <svg class="theme-icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/></svg>
+      <svg class="theme-icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+  </div>
+
+  <main class="teacher-card">
+    <div style="text-align: center; margin-bottom: 24px;">
+      <img src="logo.jpg" alt="Semester Library" class="auth-logo" style="margin-bottom: 12px;">
+      <h1 class="auth-title" style="margin-bottom: 4px;">Teacher Account Setup</h1>
+      <p class="auth-subtext" id="headerSubtitle">Set up your permanent account to access your faculty dashboard.</p>
+    </div>
+
+    <!-- Step Progress Indicator -->
+    <div class="stepper" id="stepperNav">
+      <div class="step-node active" id="stepNode1">
+        <span class="step-number">1</span>
+        <span>Account</span>
+      </div>
+      <div class="step-node" id="stepNode2">
+        <span class="step-number">2</span>
+        <span>Subjects</span>
+      </div>
+      <div class="step-node" id="stepNode3">
+        <span class="step-number">3</span>
+        <span>Verification</span>
+      </div>
+    </div>
+
+    <!-- Alert Banner -->
+    <div id="authAlert" class="auth-banner" style="display: none;" role="alert">
+      <div class="auth-banner-title" id="authAlertTitle"></div>
+      <div class="auth-banner-msg" id="authAlertMsg"></div>
+    </div>
+
+    <!-- STEP 1: Personal Account Form -->
+    <div id="stepSection1">
+      <form id="step1Form" class="form" onsubmit="handleStep1Submit(event)">
+        <div class="field">
+          <label for="fullName" class="field-label">Full Name</label>
+          <input type="text" id="fullName" class="input" placeholder="e.g. Dr. Ram Sharma" required maxlength="100">
+        </div>
+
+        <div class="field">
+          <label for="username" class="field-label">Permanent Username</label>
+          <input type="text" id="username" class="input" placeholder="e.g. ram.sharma" required minlength="3" maxlength="30" autocapitalize="none">
+          <small id="usernameHint" style="font-size: 11px; color: var(--text-muted); margin-top: 4px; display: block;">3–30 characters, letters, numbers, dot or underscore</small>
+        </div>
+
+        <div class="field">
+          <label for="recoveryEmail" class="field-label">Account / Recovery Email</label>
+          <input type="email" id="recoveryEmail" class="input" placeholder="e.g. ram.sharma@example.com" required autocapitalize="none">
+        </div>
+
+        <div class="field">
+          <label for="newPassword" class="field-label">New Password</label>
+          <div class="field-password-wrap">
+            <input type="password" id="newPassword" class="input" placeholder="Minimum 8 characters" required minlength="8" autocomplete="new-password">
+            <button type="button" class="password-toggle" id="togglePasswordBtn" aria-label="Toggle password visibility">
+              <span id="pwdEyeIcon">👁</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="confirmPassword" class="field-label">Confirm Password</label>
+          <input type="password" id="confirmPassword" class="input" placeholder="Re-enter new password" required minlength="8" autocomplete="new-password">
+        </div>
+
+        <div class="nav-buttons">
+          <div></div>
+          <button type="submit" class="btn btn-primary" id="step1NextBtn">
+            <span>Continue to Subjects →</span>
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- STEP 2: Subjects You Teach -->
+    <div id="stepSection2" style="display: none;">
+      <div class="subject-picker-header">
+        <h2 style="font-size: 18px; font-weight: 700; margin-bottom: 4px;">Subjects You Teach</h2>
+        <p style="font-size: 13px; color: var(--text-muted);">Select the BIT subjects you will be instructing.</p>
+      </div>
+
+      <input type="text" id="subjectSearch" class="subject-search-input" placeholder="Search subjects or course code (e.g. Discrete, CIT123)..." autocomplete="off">
+
+      <div style="font-size: 12px; font-weight: 600; margin-top: 12px;" id="selectedCountText">Selected (0)</div>
+      <div class="chips-container" id="selectedChips"></div>
+
+      <div class="subjects-list-scroll" id="subjectsListContainer">
+        <div style="text-align: center; padding: 20px; color: var(--text-muted);">Loading BIT subjects...</div>
+      </div>
+
+      <div class="review-card" id="reviewSummary" style="display: none;">
+        <div style="font-weight: 700; margin-bottom: 6px;">Setup Summary</div>
+        <div><strong>Name:</strong> <span id="revName"></span></div>
+        <div><strong>Username:</strong> @<span id="revUsername"></span></div>
+        <div><strong>Email:</strong> <span id="revEmail"></span></div>
+        <div><strong>Subjects:</strong> <span id="revSubjectCount">0</span> selected</div>
+      </div>
+
+      <div class="nav-buttons">
+        <button type="button" class="btn-secondary" onclick="goToStep(1)">← Back</button>
+        <button type="button" class="btn btn-primary" id="finalSubmitBtn" onclick="submitOnboarding()">
+          <span>Complete Setup</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- STEP 3: Awaiting Email Verification -->
+    <div id="stepSection3" style="display: none; text-align: center;">
+      <div style="font-size: 44px; margin-bottom: 12px;">✉️</div>
+      <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">Verify Your Email</h2>
+      <p style="font-size: 14px; color: var(--text-muted); line-height: 1.5; margin-bottom: 20px;">
+        We sent a verification link to <strong id="waitingMaskedEmail"></strong>.<br>
+        Please check your inbox or spam folder and click the link to activate your permanent faculty account.
+      </p>
+
+      <div style="display: flex; flex-direction: column; gap: 10px; max-width: 320px; margin: 0 auto;">
+        <button type="button" class="btn btn-primary" id="resendBtn" onclick="handleResendVerification()">
+          <span>Resend Verification Email</span>
+        </button>
+        <button type="button" class="btn-secondary" id="changeEmailBtn" onclick="toggleChangeEmailForm()">
+          Change Email Address
+        </button>
+        <button type="button" class="btn-secondary" onclick="checkStatusManual()">
+          Refresh Status
+        </button>
+      </div>
+
+      <!-- Change Email Sub-form -->
+      <div id="changeEmailFormWrap" style="display: none; margin-top: 24px; text-align: left; padding: 16px; border: 1px solid var(--border-color); border-radius: 8px;">
+        <div class="field">
+          <label for="newEmailInput" class="field-label">Corrected Email Address</label>
+          <input type="email" id="newEmailInput" class="input" placeholder="new.email@example.com" required>
+        </div>
+        <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px;">
+          <button type="button" class="btn-secondary" onclick="toggleChangeEmailForm()">Cancel</button>
+          <button type="button" class="btn btn-primary" id="saveEmailBtn" onclick="handleSaveNewEmail()">Save & Resend</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script src="teacher-onboarding.js"></script>
+</body>
+</html>

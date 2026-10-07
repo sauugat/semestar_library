@@ -261,6 +261,18 @@ window.doModalLogin = async function (e) {
       return;
     }
 
+    if (data && data.onboardingRequired) {
+      if (loginBtn) {
+        loginBtn.innerHTML = '<span>Redirecting to Setup…</span>';
+      }
+      sessionStorage.setItem('teacher_onboarding_token', data.onboardingToken);
+      setTimeout(() => {
+        window.closeAuthModal();
+        window.location.href = '/teacher-onboarding.html';
+      }, 350);
+      return;
+    }
+
     if (data && data.session) {
       if (loginBtn) {
         loginBtn.innerHTML = '<span>Signing in…</span>';

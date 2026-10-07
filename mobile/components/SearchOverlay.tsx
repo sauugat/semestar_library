@@ -702,7 +702,7 @@ export function SearchOverlay({
                           )}
                         </View>
                         <Caption color="muted" style={{ marginTop: 2 }}>
-                          @{student.studentId} • {student.semester || 'Semester 1'} • {student.filesCount || 0} upload{Number(student.filesCount) === 1 ? '' : 's'}
+                          @{student.username || student.studentId} • {student.role === 'teacher' ? 'Faculty' : (student.semester || 'Semester 1')} • {student.filesCount || 0} upload{Number(student.filesCount) === 1 ? '' : 's'}
                         </Caption>
                       </View>
 
@@ -863,9 +863,9 @@ export function SearchOverlay({
                   >
                     <View style={styles.statCol}>
                       <Text variant="sm" weight="700">
-                        {selectedStudent.semester || 'Semester 1'}
+                        {selectedStudent.role === 'teacher' ? 'Faculty' : (selectedStudent.semester || 'Semester 1')}
                       </Text>
-                      <Caption color="muted">Semester</Caption>
+                      <Caption color="muted">{selectedStudent.role === 'teacher' ? 'Role' : 'Semester'}</Caption>
                     </View>
                     <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
                     <View style={styles.statCol}>

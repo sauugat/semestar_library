@@ -96,6 +96,9 @@
         body: JSON.stringify({ identifier: (identifier || '').trim(), password }),
       });
       const data = await res.json().catch(() => ({}));
+      if (res.ok && data.onboardingRequired) {
+        return { data: { onboardingRequired: true, onboardingToken: data.onboardingToken, state: data.state }, error: null };
+      }
       if (res.ok && data.session) {
         const client = await getSupabase();
         await client.auth.setSession({

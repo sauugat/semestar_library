@@ -740,6 +740,7 @@ app.get('/api/profile/:studentId/posts', requireLogin, (req, res, next) => {
 });
 app.use('/api/comments', require('./routes/comments')(db, requireLogin));
 app.use('/api/admin', require('./routes/admin-cohorts')(db, requireLogin));
+app.use('/api/teacher/onboarding', require('./routes/teacher-onboarding'));
 
 // --- Code Lab Rate Limiting ---
 const rateLimit = require('express-rate-limit');
@@ -843,6 +844,31 @@ app.post('/api/mobile/login', loginRateLimiter, async (req, res) => {
   }
 
   if (!student) {
+    try {
+      const { isTeacherOnboardingEnabled, verifyTemporaryTeacherCredentials, signOnboardingToken } = require('./lib/teacher-service');
+      if (isTeacherOnboardingEnabled()) {
+        const tempCheck = await verifyTemporaryTeacherCredentials(db, { username: identifier, password });
+        if (tempCheck && tempCheck.success) {
+          const invite = tempCheck.invite;
+          const tokenData = signOnboardingToken({
+            inviteId: invite.id,
+            initialUsername: invite.initial_username || invite.initialusername,
+            nonce: invite.onboarding_nonce || invite.onboardingnonce || 1
+          });
+          return res.json({
+            onboardingRequired: true,
+            onboardingToken: tokenData.token,
+            expiresAt: tokenData.expiresAt,
+            state: {
+              initialUsername: invite.initial_username || invite.initialusername,
+              status: invite.status,
+              expiresAt: invite.expires_at || invite.expiresat
+            }
+          });
+        }
+      }
+    } catch (_) {}
+
     await new Promise(r => setTimeout(r, 60 + Math.floor(Math.random() * 40)));
     await recordFailedLogin(ip);
     return res.status(401).json({ message: 'Invalid username/email or password.' });
@@ -1177,6 +1203,31 @@ app.post('/api/auth/login', loginRateLimiter, async (req, res) => {
     if (student && student.email) {
       resolvedEmail = student.email.toLowerCase();
     } else {
+      try {
+        const { isTeacherOnboardingEnabled, verifyTemporaryTeacherCredentials, signOnboardingToken } = require('./lib/teacher-service');
+        if (isTeacherOnboardingEnabled()) {
+          const tempCheck = await verifyTemporaryTeacherCredentials(db, { username: identifier, password });
+          if (tempCheck && tempCheck.success) {
+            const invite = tempCheck.invite;
+            const tokenData = signOnboardingToken({
+              inviteId: invite.id,
+              initialUsername: invite.initial_username || invite.initialusername,
+              nonce: invite.onboarding_nonce || invite.onboardingnonce || 1
+            });
+            return res.json({
+              onboardingRequired: true,
+              onboardingToken: tokenData.token,
+              expiresAt: tokenData.expiresAt,
+              state: {
+                initialUsername: invite.initial_username || invite.initialusername,
+                status: invite.status,
+                expiresAt: invite.expires_at || invite.expiresat
+              }
+            });
+          }
+        }
+      } catch (_) {}
+
       // Resistance against timing attacks & enumeration: execute dummy delay
       await new Promise(r => setTimeout(r, 60 + Math.floor(Math.random() * 40)));
       await recordFailedLogin(ip);
@@ -1407,7 +1458,8 @@ app.get('/api/me', requireLogin, async (req, res) => {
     isAdmin,
     isCR,
     department: req.user.department || profile?.department || 'BIT',
-    semester: req.user.semester || profile?.semester || 'Semester 1',
+    semester: role === 'teacher' ? null : (req.user.semester || profile?.semester || 'Semester 1'),
+    cohortId: role === 'teacher' ? null : (req.user.cohortId || profile?.cohortId || null),
     gender: req.user.gender || null,
     email: req.user.email || profile?.email || null,
     avatarUrl: req.user.avatarUrl || profile?.avatarUrl || null,
@@ -1415,6 +1467,7 @@ app.get('/api/me', requireLogin, async (req, res) => {
     githubUrl: profile?.githubUrl || '',
     linkedinUrl: profile?.linkedinUrl || '',
     verificationStatus: req.user.verificationStatus || profile?.verificationStatus || 'unverified',
+    subjects: profile?.subjects || [],
     stats: profile?.stats || { filesCount: 0, likesReceived: 0, followersCount: 0, followingCount: 0 }
   });
 });
@@ -4629,6 +4682,14 @@ async function getStudentProfile(targetStudentId, viewerStudentId) {
   const role = student.role || 'student';
   const canCreateAssignments = role === 'admin' || role === 'teacher' || role === 'cr' || role === 'class_rep';
 
+  let subjects = [];
+  if (role === 'teacher') {
+    try {
+      const { getTeacherSubjects } = require('./lib/teacher-service');
+      subjects = await getTeacherSubjects(db, actualStudentId);
+    } catch (_) {}
+  }
+
   return {
     studentId: student.studentId,
     username: student.username || null,
@@ -4640,13 +4701,15 @@ async function getStudentProfile(targetStudentId, viewerStudentId) {
     coverPosition: student.coverPosition || null,
     bio: student.bio || '',
     department: student.department || 'BIT',
-    semester: student.semester || 'Semester 1',
+    semester: role === 'teacher' ? null : (student.semester || 'Semester 1'),
+    cohortId: role === 'teacher' ? null : (student.cohort_id || null),
     githubUrl: student.githubUrl || '',
     linkedinUrl: student.linkedinUrl || '',
     role,
     isAdmin: role === 'admin',
     isCR: role === 'cr' || role === 'class_rep',
     canCreateAssignments,
+    subjects,
     verificationStatus: student.verification_status || student.verificationStatus || 'unverified',
     stats: {
       filesCount,
@@ -4667,7 +4730,19 @@ app.get('/api/profile', requireLogin, async (req, res) => {
   const activeStudentId = req.session?.studentId || req.user?.studentId || req.student?.studentId;
   const profile = await getStudentProfile(activeStudentId, activeStudentId);
   if (!profile) return res.status(404).json({ message: 'Profile not found' });
-  res.json(profile);
+  return res.json(profile);
+});
+
+// Get faculty assigned subjects
+app.get('/api/teacher/subjects', requireLogin, async (req, res) => {
+  const activeStudentId = req.session?.studentId || req.user?.studentId || req.student?.studentId;
+  try {
+    const { getTeacherSubjects } = require('./lib/teacher-service');
+    const subjects = await getTeacherSubjects(db, activeStudentId);
+    res.json({ subjects });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to load faculty subjects.' });
+  }
 });
 
 // Get any student's profile by ID

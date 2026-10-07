@@ -149,6 +149,18 @@ window.doLogin = async function (e) {
       return;
     }
 
+    if (data && data.onboardingRequired) {
+      if (loginBtn) {
+        loginBtn.innerHTML = '<span>Redirecting to Setup…</span>';
+      }
+      sessionStorage.setItem('teacher_onboarding_token', data.onboardingToken);
+      window.showAuthToast('Teacher initial login detected. Setting up account…', 'info', 2000);
+      setTimeout(() => {
+        window.location.href = '/teacher-onboarding.html';
+      }, 350);
+      return;
+    }
+
     if (data && data.session) {
       if (loginBtn) {
         loginBtn.innerHTML = '<span>Signing in…</span>';

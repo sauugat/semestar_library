@@ -839,24 +839,62 @@ export function ProfileView({ targetStudentId, isTab = false }: ProfileViewProps
               </Caption>
             )}
 
-            {/* Department and Semester Pill */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 6 }}>
-              <View
-                style={[
-                  styles.academicPill,
-                  {
-                    backgroundColor: colors.surfaceSubtle,
-                    borderColor: colors.borderSubtle,
-                    borderRadius: radii.full,
-                  },
-                ]}
-              >
-                <Ionicons name="school-outline" size={13} color={colors.textSecondary} style={{ marginRight: 5 }} />
-                <Text variant="xs" weight="600" color="secondary">
-                  {profile?.department || 'BIT'} • {profile?.semester || 'Semester 1'}
-                </Text>
+            {/* Department and Semester Pill OR Teacher Faculty & Subjects */}
+            {profile?.role === 'teacher' ? (
+              <View style={{ marginTop: 8 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <View
+                    style={[
+                      styles.academicPill,
+                      {
+                        backgroundColor: colors.surfaceSubtle,
+                        borderColor: colors.borderSubtle,
+                        borderRadius: radii.full,
+                      },
+                    ]}
+                  >
+                    <Ionicons name="school-outline" size={13} color={colors.textSecondary} style={{ marginRight: 5 }} />
+                    <Text variant="xs" weight="600" color="secondary">
+                      {profile?.department || 'BIT'} • Faculty
+                    </Text>
+                  </View>
+                </View>
+
+                {profile?.subjects && profile.subjects.length > 0 && (
+                  <View style={{ marginTop: 10 }}>
+                    <Text variant="xs" weight="700" color="secondary" style={{ textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
+                      Subjects Taught
+                    </Text>
+                    {profile.subjects.map((sub: any) => (
+                      <View key={sub.id || sub.code} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 3 }}>
+                        <Text variant="xs" color="muted" style={{ marginRight: 6 }}>•</Text>
+                        <Text variant="xs" weight="500" style={{ color: colors.text }}>
+                          {sub.title} {sub.code ? `(${sub.code})` : ''}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
               </View>
-            </View>
+            ) : (
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 6 }}>
+                <View
+                  style={[
+                    styles.academicPill,
+                    {
+                      backgroundColor: colors.surfaceSubtle,
+                      borderColor: colors.borderSubtle,
+                      borderRadius: radii.full,
+                    },
+                  ]}
+                >
+                  <Ionicons name="school-outline" size={13} color={colors.textSecondary} style={{ marginRight: 5 }} />
+                  <Text variant="xs" weight="600" color="secondary">
+                    {profile?.department || 'BIT'} • {profile?.semester || 'Semester 1'}
+                  </Text>
+                </View>
+              </View>
+            )}
 
             {/* Bio text */}
             {Boolean(profile?.bio && profile.bio.trim()) ? (

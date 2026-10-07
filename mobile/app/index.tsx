@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, Animated } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
 import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import { useAuth } from '@/context/AuthContext';
@@ -84,7 +85,19 @@ export default function Index() {
         if (token) {
           router.replace('/(tabs)');
         } else {
-          router.replace('/login');
+          void (async () => {
+            try {
+              const teacherToken = await SecureStore.getItemAsync('semester_library_teacher_onboarding_token');
+              if (teacherToken) {
+                router.replace({
+                  pathname: '/teacher-onboarding' as any,
+                  params: { token: teacherToken },
+                });
+                return;
+              }
+            } catch {}
+            router.replace('/login');
+          })();
         }
       });
     }

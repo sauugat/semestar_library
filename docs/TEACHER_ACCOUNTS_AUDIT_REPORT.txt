@@ -1,0 +1,440 @@
+================================================================================
+SEMESTER LIBRARY — TEACHER ACCOUNTS
+STEP 1: ARCHITECTURE, DATABASE & AUTHENTICATION AUDIT REPORT
+================================================================================
+
+DATE: October 7, 2026
+STATUS: AUDIT ONLY (NO CODE/DATA/DEPLOYMENT MODIFIED)
+
+================================================================================
+EXECUTIVE SUMMARY & PRE-FLIGHT VERIFICATION
+================================================================================
+This audit was conducted in strictly READ-ONLY inspection mode:
+- ZERO application code was modified.
+- ZERO database migrations were executed.
+- ZERO teacher accounts or Supabase identities were created.
+- ZERO production data was modified.
+- ZERO deployments (Vercel, Expo OTA, APK builds) were initiated.
+- Games and Ludo modules were completely untouched.
+- BIT curriculum courses were inspected from canonical sources, never invented.
+
+
+================================================================================
+1. CURRENT AUTHENTICATION ARCHITECTURE RELEVANT TO TEACHERS
+================================================================================
+Semester Library operates a dual-auth architecture serving both Web and Mobile
+clients, supported by a dual-engine database layer (Neon PostgreSQL in production
+and LibSQL/SQLite in test environments).
+
+A. Web Authentication:
+   1. Client (public/auth.js) invokes POST /api/auth/login with identifier and password.
+   2. Identifier may be username, studentId, or email.
+   3. Server resolves identifier to email:
+      SELECT email FROM students WHERE LOWER(username) = ? OR LOWER(studentId) = ?
+   4. Server validates password against Supabase Auth:
+      supabase.auth.signInWithPassword({ email, password })
+   5. If valid and email is confirmed, server returns Supabase session JWTs:
+      { access_token, refresh_token, expires_at }
+   6. Web client stores session in localStorage and passes JWT via Bearer header:
+      Authorization: Bearer <supabase_jwt>
+
+B. Mobile Authentication:
+   1. Client (mobile/context/AuthContext.tsx) invokes POST /api/mobile/login.
+   2. Server resolves identifier to student record in students table.
+   3. Server checks password via Supabase Auth first; falls back to bcrypt passwordHash
+      for local/fixture accounts.
+   4. Server generates an opaque 64-hex bearer token stored in mobile_tokens:
+      INSERT INTO mobile_tokens (token, studentId, createdAt, expiresAt)
+      (30-day token lifetime).
+   5. Mobile client securely stores token via expo-secure-store and passes:
+      Authorization: Bearer <opaque_token>
+
+C. Unified Middleware (lib/auth-middleware.js):
+   1. Distinguishes Supabase JWT (3 base64url segments separated by dots) from
+      legacy 64-hex mobile tokens.
+   2. Supabase JWT: Verifies token with Supabase Auth, maps user.id or email to
+      students table row, synchronizes verification status if confirmed.
+   3. Mobile Token: Validates against mobile_tokens table and checks expiration.
+   4. Populates req.user and req.student with:
+      - studentId, username, name, role, department, semester, gender, email,
+        avatarUrl, verificationStatus
+   5. Guards:
+      - requireLogin: Validates presence of req.user.studentId.
+      - requireAdmin: Validates req.user.role === 'admin'.
+
+
+================================================================================
+2. CURRENT ROLE MODEL & WHERE "TEACHER" FITS
+================================================================================
+The platform currently has 4 recognized roles:
+1. 'student': Standard learner. Restricted to their single enrolled cohort (cohort_id).
+2. 'cr': Class Representative. Learner with notice posting and moderation rights.
+3. 'admin': Platform administrator. Institutional oversight and cohort management.
+4. 'teacher': Faculty / Instructor.
+
+FINDING: The 'teacher' role ALREADY EXISTS extensively in existing backend logic:
+- lib/academic-context.js:
+  role === 'teacher' || role === 'admin'
+  -> canViewAllCohorts = true (Institutional oversight across all 4 cohorts)
+  -> canManageCohorts = false (Teachers CANNOT manage or promote cohorts)
+- routes/posts.js:
+  -> Notices can be posted by: ['admin', 'cr', 'teacher']
+  -> Assignments can be created by: ['admin', 'teacher']
+- routes/code-lab/assignments.js:
+  -> isStaff = role === 'admin' || role === 'teacher'
+- routes/routine.js:
+  -> Teachers can inspect routines across all cohorts.
+- lib/cohort-chat.js:
+  -> Staff filter: isStaff = role === 'teacher' || role === 'admin'
+- lib/push-notifications.js:
+  -> Push notification batching recognizes teacher upload events.
+
+However, there is currently NO teacher registration endpoint, NO pre-provisioning
+system, NO teacher onboarding wizard, and NO relational subject assignment table.
+Past test records (e.g. 'TEACHER_1791185061104', 'TEACHER_SHARMA') were inserted
+manually in test fixtures and migration scripts.
+
+
+================================================================================
+3. CAN TEACHERS SAFELY LIVE IN THE EXISTING "STUDENTS" TABLE?
+================================================================================
+Audit of students table:
+- Over 15 existing database tables maintain foreign keys to students(studentId):
+  * files.uploadedBy -> students(studentId)
+  * assignments.createdBy -> students(studentId)
+  * posts.user_id -> students(studentId)
+  * chat_messages.studentId -> students(studentId)
+  * notifications.actor_id -> students(studentId)
+  * notifications.recipientStudentId -> students(studentId)
+  * submission_grades.gradedBy -> students(studentId)
+  * mobile_tokens.studentId -> students(studentId)
+  * cohort_semester_history.promoted_by -> students(studentId)
+
+- Architectural Problem if teachers only live in students table:
+  1. students table has columns:
+     semester TEXT DEFAULT 'Semester 1'
+     department TEXT DEFAULT 'BIT'
+     cohort_id TEXT REFERENCES cohorts(id)
+  2. Front-end components (ProfileView.tsx, SearchOverlay.tsx) render:
+     @{student.studentId} • {student.semester || 'Semester 1'}
+  3. Defaulting a teacher to Semester 1 or a cohort breaks the academic domain model.
+
+RECOMMENDED ARCHITECTURE: OPTION B+ (Dedicated Table + Anchor Row)
+1. Introduce a dedicated teachers table storing teacher-specific domain attributes:
+   id, name, username, email, designation, department, supabase_uid, status.
+2. Maintain an anchor row in students:
+   - studentId = teachers.id (e.g. 'tea_' + UUID)
+   - role = 'teacher'
+   - semester = NULL (explicitly NULL, never default 'Semester 1')
+   - cohort_id = NULL (explicitly NULL, staff has cross-cohort oversight)
+   - department = 'Faculty'
+   - verification_status = 'verified'
+3. Benefits:
+   - 100% backward-compatible with all 15+ database foreign keys.
+   - Zero large-scale database refactoring required.
+   - Teachers are completely independent of student academic progression.
+
+
+================================================================================
+4. CANONICAL BIT SUBJECT DATA AUDIT
+================================================================================
+Audit of curriculum data across repository:
+- Canonical Source: syllabus-data.json and public/syllabus-data.json.
+- Contains the OFFICIAL Gandaki University Bachelor of Information Technology (BIT)
+  curriculum.
+- All 8 Semesters and all 45 courses are present:
+
+Semester I (6 courses):
+  [ELX111] Basic Electronics (3 cr)
+  [BSM111] Mathematics I (3 cr)
+  [CIT111] Computer Programming I (C) (3 cr)
+  [CIT112] Basics of IT (3 cr)
+  [CIT113] Workshop: Problem Solving and Logic (1 cr)
+  [BCT111] Business Communication Technique (2 cr)
+
+Semester II (6 courses):
+  [CIT121] Discrete Mathematics (3 cr)
+  [CIT122] Computer Programming II (Java) (3 cr)
+  [BSM121] Mathematics II (3 cr)
+  [ELX121] Digital Logic (3 cr)
+  [CIT123] Web Technology I (3 cr)
+  [CIT124] Project I (2 cr)
+
+Semester III (6 courses):
+  [CIT214] Data Structure and Algorithms (3 cr)
+  [CIT213] Database Management System (3 cr)
+  [ELX211] Microprocessor and Computer Architecture (4 cr)
+  [BCT211] Principles of Organization and Management (3 cr)
+  [CIT212] Software Engineering (3 cr)
+  [CIT211] Web Technology II (3 cr)
+
+Semester IV (6 courses):
+  [CIT224] Computer Graphics Technology (3 cr)
+  [CIT223] Data Communication and Computer Networks (4 cr)
+  [CIT222] Management Information System (3 cr)
+  [CIT221] Operating Systems (3 cr)
+  [BSM221] Fundamentals of Probability and Statistics (3 cr)
+  [CIT225] Project II (2 cr)
+
+Semester V (6 courses):
+  [BCT311] Economics (3 cr)
+  [CIT311] Mobile Application Development (3 cr)
+  [BSM311] Numerical Methods (3 cr)
+  [CIT312] Object Oriented Analysis and Design using UML (3 cr)
+  [BCT312] Research Methodology (3 cr)
+  [BCT313] Technical Proposal Writing (1 cr)
+
+Semester VI (6 courses):
+  [CIT323] Artificial Intelligence (3 cr)
+  [CIT322] Digital Forensic Security Technologies (3 cr)
+  [BCT322] Financial Accounting (3 cr)
+  [CIT321] Human Computer Interface and UI Design (3 cr)
+  [BCT321] IT Project Management (3 cr)
+  [CIT324] Project III (2 cr)
+
+Semester VII (5 courses):
+  [CIT413] Cloud Computing (3 cr)
+  [CIT411] Data Mining and Warehousing (3 cr)
+  [CIT412] Software Development and Operations (DevOps) (3 cr)
+  [BCT411] Technology Entrepreneurship (3 cr)
+  [CIT414] Wireless Communication Systems (3 cr - Elective)
+
+Semester VIII (4 courses):
+  [CIT421] Big Data Technologies (3 cr)
+  [BCT421] Society, IT and Law (3 cr)
+  [CIT422] Internship (2 cr)
+  [CIT423] Project IV (6 cr)
+
+Total Courses: 45 courses.
+Missing Courses: ZERO. All BIT subjects exist in the project repository.
+Current Database Status: Subjects currently exist as unstructured text in files and
+assignments. A normalized relational subjects table must be introduced in Step 2.
+
+
+================================================================================
+5. RECOMMENDED DATABASE SCHEMAS
+================================================================================
+
+1. teacher_invites (Provisioning & Temporary Access):
+   CREATE TABLE IF NOT EXISTS teacher_invites (
+     id TEXT PRIMARY KEY,
+     initial_username TEXT NOT NULL UNIQUE,
+     temporary_password_hash TEXT NOT NULL,
+     status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'onboarding', 'completed', 'expired', 'disabled')),
+     expires_at TIMESTAMPTZ NOT NULL,
+     claimed_at TIMESTAMPTZ,
+     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+     created_by TEXT REFERENCES students(studentId)
+   );
+   CREATE INDEX IF NOT EXISTS idx_teacher_invites_status ON teacher_invites(status);
+   CREATE UNIQUE INDEX IF NOT EXISTS idx_teacher_invites_username ON teacher_invites(LOWER(initial_username));
+
+2. subjects (Canonical Course Catalog):
+   CREATE TABLE IF NOT EXISTS subjects (
+     id TEXT PRIMARY KEY,                       -- e.g. 'CIT111'
+     code TEXT NOT NULL UNIQUE,                 -- e.g. 'CIT111'
+     name TEXT NOT NULL,                        -- e.g. 'Computer Programming I (C)'
+     semester INTEGER NOT NULL CHECK (semester BETWEEN 1 AND 8),
+     department TEXT NOT NULL DEFAULT 'BIT',
+     credit_hours NUMERIC(3, 1) DEFAULT 3.0,
+     nature TEXT DEFAULT 'TH + PR',
+     active BOOLEAN NOT NULL DEFAULT TRUE,
+     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+   );
+   CREATE INDEX IF NOT EXISTS idx_subjects_semester ON subjects(semester);
+   CREATE INDEX IF NOT EXISTS idx_subjects_code ON subjects(code);
+
+3. teachers (Permanent Teacher Profiles):
+   CREATE TABLE IF NOT EXISTS teachers (
+     id TEXT PRIMARY KEY,                       -- e.g. 'tea_' + UUID
+     user_id TEXT NOT NULL UNIQUE REFERENCES students(studentId) ON DELETE CASCADE,
+     name TEXT NOT NULL,
+     username TEXT NOT NULL UNIQUE,
+     email TEXT NOT NULL UNIQUE,
+     designation TEXT DEFAULT 'Instructor',
+     department TEXT DEFAULT 'Faculty',
+     supabase_uid TEXT UNIQUE,
+     status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'disabled')),
+     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+   );
+   CREATE UNIQUE INDEX IF NOT EXISTS idx_teachers_username_lower ON teachers(LOWER(username));
+   CREATE UNIQUE INDEX IF NOT EXISTS idx_teachers_email_lower ON teachers(LOWER(email));
+
+4. teacher_subjects (Teacher Capabilities - Many to Many):
+   CREATE TABLE IF NOT EXISTS teacher_subjects (
+     id TEXT PRIMARY KEY,
+     teacher_id TEXT NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
+     subject_id TEXT NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+     UNIQUE(teacher_id, subject_id)
+   );
+   CREATE INDEX IF NOT EXISTS idx_teacher_subjects_teacher ON teacher_subjects(teacher_id);
+   CREATE INDEX IF NOT EXISTS idx_teacher_subjects_subject ON teacher_subjects(subject_id);
+
+5. Future Table Compatibility: teacher_assignments
+   Will connect teacher_id + subject_id + cohort_id + academic_year without schema breaking.
+
+
+================================================================================
+6. TEACHER ACCOUNT LIFECYCLE STATE MACHINE
+================================================================================
+States:
+1. PROVISIONED:
+   Created by admin via script with temporary credentials. Expires in 14 days.
+2. ONBOARDING:
+   Teacher logs in with temporary credentials. Server issues restricted onboarding token.
+   Standard app APIs are blocked.
+3. AWAITING_EMAIL_VERIFICATION:
+   Teacher submits Full Name, New Username, Recovery Email, Permanent Password, and
+   selects Subjects. Supabase user is created with email confirmation required.
+   Temporary credentials marked 'completed' and invalidated.
+4. ACTIVE:
+   Teacher clicks verification link in email. Supabase sets email_confirmed_at.
+   Teacher logs in normally using new username/email and permanent password.
+5. DISABLED:
+   Admin suspends account. Tokens revoked.
+6. EXPIRED:
+   Provisional credential not redeemed within 14 days. Admin re-issuance required.
+
+
+================================================================================
+7. RESTRICTED ONBOARDING SESSION & FIRST-LOGIN ENFORCEMENT
+================================================================================
+1. Temporary Login Response:
+   When provisional credentials match in teacher_invites:
+   - Server returns:
+     {
+       "onboardingRequired": true,
+       "onboardingToken": "<signed_hmac_token_2h_expiry>",
+       "initialUsername": "teacher001"
+     }
+   - NO Supabase session JWT or mobile bearer token is issued.
+
+2. Access Boundary:
+   - onboardingToken is ONLY valid for:
+     GET  /api/teacher/onboarding/state
+     GET  /api/subjects
+     POST /api/teacher/onboarding/check-username
+     POST /api/teacher/onboarding/complete
+   - Normal endpoints (/api/me, /api/chat, /api/posts, /api/files) strictly reject
+     the onboarding token with 401 Unauthorized / 403 Forbidden.
+
+3. Server-Side Enforcement:
+   - Teacher cannot bypass onboarding by navigating to protected URLs.
+   - Client UI presents non-dismissible setup wizard.
+
+
+================================================================================
+8. IDENTITY & CREDENTIAL RULES
+================================================================================
+1. Full Name:
+   - Required, length 2 to 100 characters.
+   - Preserves honorific titles (e.g. "Dr. Ram Sharma", "Prof. A. K. Joshi").
+2. Username:
+   - Required, length 3 to 30 characters: ^[a-zA-Z0-9_.]{3,30}$
+   - Lowercase normalized.
+   - Case-insensitive unique across students and teachers.
+   - Reserved usernames blacklist enforced.
+3. Recovery Email:
+   - Required, lowercase normalized, globally unique.
+   - Mandatory email verification via Supabase Auth before account becomes ACTIVE.
+4. Permanent Password:
+   - Minimum 8 characters.
+   - Managed entirely by Supabase Auth (same standard as students).
+   - Never stored or hashed in PostgreSQL.
+
+
+================================================================================
+9. SUBJECT PICKER & PROFILE UX
+================================================================================
+1. Subject Picker UX:
+   - Mobile-first, responsive 2-step setup wizard.
+   - Search bar with instant client-side filtering by course name and course code.
+   - Selected subjects rendered as removable chips at the top:
+     [ CIT121: Discrete Mathematics ✕ ] [ CIT123: Web Technology I ✕ ]
+   - Accordion list grouping by Semester 1 to Semester 8.
+   - Requires at least 1 subject to be selected before completion.
+
+2. Teacher Profile UX:
+   - Displays Full Name and Username handle (@ram.sharma).
+   - Displays FACULTY / TEACHER badge.
+   - Hides student-specific fields (no "Semester 1" badge or cohort slot).
+   - Displays Subjects Taught card with tags for each assigned subject.
+   - Recovery email is kept private and hidden from public profile.
+
+
+================================================================================
+10. PROVISIONING & DISTRIBUTION PLAN (50 ACCOUNTS)
+================================================================================
+1. Script:
+   node scripts/provision-teachers.js --count 50
+2. Username Format:
+   teacher001 through teacher050.
+3. Temporary Passwords:
+   12-character high-entropy alphanumeric strings generated via crypto.randomBytes.
+   Hashed using bcrypt (cost factor 12) before database insertion.
+   Plaintext passwords are NEVER stored in the database and NEVER committed to Git.
+4. One-Time Secure Distribution:
+   Script outputs a distribution CSV to backups/teacher-credentials-TIMESTAMP.csv
+   (protected via .gitignore) for admin distribution.
+5. Expiry:
+   14-day expiration window.
+
+
+================================================================================
+11. SECURITY & THREAT AUDIT
+================================================================================
+- Temporary Credential Theft: 14-day expiry, bcrypt hashing, rate limiting, instant
+  destruction upon completion.
+- Username Enumeration: Constant-time delays (60-100ms) on failed logins, generic
+  error messages, enumeration-resistant password reset.
+- Onboarding Bypass: Backend blocks all standard routes for onboarding tokens;
+  account requires verified Supabase email.
+- Privilege Escalation: Role is hardcoded to 'teacher' on the server; requireAdmin
+  strictly restricts admin endpoints.
+- Subject Tampering: Selected subject IDs are validated against foreign keys in
+  the canonical subjects table.
+- Replay Attacks: Completed invites have their password hash wiped and status set
+  to 'completed'.
+
+
+================================================================================
+12. STEP 2 IMPLEMENTATION FILE & TABLE MANIFEST
+================================================================================
+Database Tables Added:
+- teacher_invites
+- subjects (seeded from syllabus-data.json)
+- teachers
+- teacher_subjects
+
+Backend Files:
+- migrations/20261008_teacher_accounts_schema.sql (PostgreSQL schema)
+- lib/teacher-service.js (Provisioning, validation, subject assignment)
+- routes/teacher-onboarding.js (Restricted onboarding REST endpoints)
+- lib/auth-middleware.js (Add requireTeacher middleware)
+- server.js (Mount onboarding routes, identifier resolution update)
+- scripts/provision-teachers.js (Admin provisioning CLI script)
+
+Frontend Files:
+- public/teacher-onboarding.html & public/teacher-onboarding.js (Web onboarding)
+- public/profile.html (Render teacher badge and subjects)
+- mobile/components/TeacherOnboardingModal.tsx (Mobile setup wizard)
+- mobile/components/ProfileView.tsx (Render teacher badge and subjects)
+- mobile/context/AuthContext.tsx (Handle onboardingRequired response)
+
+Tests:
+- tests/teacher-accounts.test.js (24-point automated test suite)
+
+
+================================================================================
+13. FINAL CONFIRMATION
+================================================================================
+Audit completed in full compliance with Step 1 constraints:
+- NO code files were modified.
+- NO database migrations were applied.
+- NO teacher accounts were created.
+- NO deployments or OTA updates were executed.
+- Ready for user review and approval prior to STEP 2 implementation.
+================================================================================

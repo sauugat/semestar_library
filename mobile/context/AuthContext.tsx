@@ -37,6 +37,7 @@ export interface StudentUser {
   linkedinUrl?: string;
   verificationStatus?: string;
   canCreateAssignments?: boolean;
+  subjects?: Array<{ id: string; code: string; title: string; semester?: number }>;
   stats?: {
     filesCount: number;
     postsCount?: number;
@@ -65,7 +66,7 @@ interface AuthContextType {
   token: string | null;
   serverUrl: string;
   isLoading: boolean;
-  login: (identifier: string, password: string, customUrl?: string) => Promise<{ success: boolean; error?: string; code?: string }>;
+  login: (identifier: string, password: string, customUrl?: string) => Promise<{ success: boolean; error?: string; code?: string; onboardingRequired?: boolean; onboardingToken?: string; state?: any }>;
   register: (payload: RegisterPayload, customUrl?: string) => Promise<{ success: boolean; message?: string; error?: string }>;
   forgotPassword: (identifier: string, customUrl?: string) => Promise<{ success: boolean; message?: string; error?: string }>;
   resendVerification: (identifier: string, customUrl?: string) => Promise<{ success: boolean; message?: string; error?: string }>;
@@ -190,6 +191,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       const data = await res.json().catch(() => ({}));
+
+      if (res.status === 200 && data.onboardingRequired) {
+        return {
+          success: false,
+          onboardingRequired: true,
+          onboardingToken: data.onboardingToken,
+          state: data.state,
+        };
+      }
 
       if (res.status === 200 && data.token) {
         invalidateChatSession();

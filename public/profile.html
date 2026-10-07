@@ -444,13 +444,21 @@
     function renderProfileHeader(p) {
       const role = p.role || (p.isAdmin ? 'admin' : 'student');
       const isAdmin = role === 'admin';
+      const isTeacher = role === 'teacher';
       const isCR = role === 'cr' || role === 'class_rep';
 
-      document.title = `${p.name} — ${isAdmin ? 'Admin Profile' : (isCR ? 'Class Rep Profile' : 'Student Profile')}`;
+      document.title = `${p.name} — ${isAdmin ? 'Admin Profile' : (isTeacher ? 'Teacher Profile' : (isCR ? 'Class Rep Profile' : 'Student Profile'))}`;
       document.getElementById('profileName').textContent = p.name;
-      document.getElementById('profileHandle').textContent = `@${p.studentId}`;
+      document.getElementById('profileHandle').textContent = `@${p.username || p.studentId}`;
       document.getElementById('profileDept').innerHTML = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>${escapeHtml(p.department || 'BIT')}`;
-      document.getElementById('profileSem').innerHTML = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>${escapeHtml(p.semester || 'Semester 1')}`;
+
+      const semEl = document.getElementById('profileSem');
+      if (isTeacher) {
+        semEl.style.display = 'none';
+      } else {
+        semEl.style.display = 'inline-flex';
+        semEl.innerHTML = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>${escapeHtml(p.semester || 'Semester 1')}`;
+      }
 
       const heroCard = document.querySelector('.profile-hero-card');
       const badgeEl = document.getElementById('profileVerifiedBadge');
@@ -467,6 +475,19 @@
           accoladeEl.style.display = 'flex';
           accoladeEl.querySelector('.accolade-title').textContent = 'Lead Developer';
           accoladeEl.querySelector('.accolade-desc').textContent = 'Semester Library Platform Administrator & Lead Developer';
+        }
+      } else if (isTeacher) {
+        if (heroCard) heroCard.classList.remove('admin-profile-hero');
+        if (badgeEl) {
+          badgeEl.className = 'post-verified-badge post-teacher-badge';
+          badgeEl.title = 'Gandaki University Faculty Teacher';
+          badgeEl.innerHTML = `<svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>Teacher`;
+        }
+        if (accoladeEl) {
+          accoladeEl.style.display = 'flex';
+          accoladeEl.querySelector('.accolade-title').textContent = 'Faculty Teacher';
+          const subs = (p.subjects || []).map(s => s.title || s.code).join(', ');
+          accoladeEl.querySelector('.accolade-desc').textContent = subs ? `Subjects Taught: ${subs}` : 'Gandaki University BIT Faculty Member';
         }
       } else if (isCR) {
         if (heroCard) heroCard.classList.add('admin-profile-hero');
@@ -496,8 +517,8 @@
         bioEl.style.fontStyle = 'normal';
       } else {
         bioEl.textContent = p.isSelf
-          ? (isAdmin ? 'System Administrator for Semester Library. Reach out for platform support.' : (isCR ? 'Class Representative for Semester 1 (Gandaki University). Reach out for official curriculum notices, notes, or moderation.' : 'No bio added yet. Click \'Edit Profile\' to introduce yourself to your class.'))
-          : (isAdmin ? 'Gandaki University System Administrator.' : (isCR ? 'Gandaki University Class Representative.' : 'No bio provided.'));
+          ? (isAdmin ? 'System Administrator for Semester Library. Reach out for platform support.' : (isTeacher ? 'Faculty member at Gandaki University.' : (isCR ? 'Class Representative for Semester 1 (Gandaki University). Reach out for official curriculum notices, notes, or moderation.' : 'No bio added yet. Click \'Edit Profile\' to introduce yourself to your class.')))
+          : (isAdmin ? 'Gandaki University System Administrator.' : (isTeacher ? 'Gandaki University BIT Faculty Member.' : (isCR ? 'Gandaki University Class Representative.' : 'No bio provided.')));
         bioEl.style.fontStyle = 'italic';
       }
 

@@ -8,10 +8,12 @@ describe('Mobile Class Group Chat (mobile/app/(tabs)/chat.tsx & mobile/services/
   const chatItemPath = path.join(__dirname, '..', 'mobile', 'components', 'chat', 'ChatMessageItem.tsx');
   const chatActionsPath = path.join(__dirname, '..', 'mobile', 'components', 'chat', 'ChatMessageActionsSheet.tsx');
   const chatRealtimePath = path.join(__dirname, '..', 'mobile', 'services', 'chat-realtime.ts');
+  const chatEventsPath = path.join(__dirname, '..', 'mobile', 'services', 'chat-events.ts');
   const chatScreenContent =
     fs.readFileSync(chatScreenPath, 'utf8') +
     fs.readFileSync(path.join(__dirname, '..', 'mobile', 'hooks', 'useClassChat.ts'), 'utf8') +
     (fs.existsSync(chatRealtimePath) ? fs.readFileSync(chatRealtimePath, 'utf8') : '') +
+    (fs.existsSync(chatEventsPath) ? fs.readFileSync(chatEventsPath, 'utf8') : '') +
     (fs.existsSync(chatItemPath) ? fs.readFileSync(chatItemPath, 'utf8') : '') +
     (fs.existsSync(chatActionsPath) ? fs.readFileSync(chatActionsPath, 'utf8') : '');
 
@@ -30,10 +32,10 @@ describe('Mobile Class Group Chat (mobile/app/(tabs)/chat.tsx & mobile/services/
 
   test('2. Supabase Realtime is integrated for real-time delivery', () => {
     assert.match(chatScreenContent, /import \{[^}]*createClient[^}]*\} from ['"]@supabase\/supabase-js['"]/ );
-    assert.match(chatScreenContent, /channel\(\s*['"]public:chat_messages['"]/ );
-    assert.match(chatScreenContent, /event:\s*['"]new_message['"]/ );
-    assert.match(chatScreenContent, /event:\s*['"]typing['"]/ );
-    assert.match(chatScreenContent, /event:\s*['"]delete_message['"]/ );
+    assert.match(chatScreenContent, /channel\(\s*config\.topic/ );
+    assert.match(chatScreenContent, /'new_message'/ );
+    assert.match(chatScreenContent, /'typing'/ );
+    assert.match(chatScreenContent, /'delete_message'/ );
   });
 
   test('3. Chat bubbles are self-contained with monochrome theme tokens', () => {

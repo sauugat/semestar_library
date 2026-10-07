@@ -3616,12 +3616,73 @@ app.get('/api/search', requireLogin, async (req, res) => {
 // GROUP CHAT SYSTEM
 // ============================================================
 
-// Deliberately no automatic migration or production provider installation.
-// The router owns every /api/chat path when enabled; it never falls through.
-if (process.env.COHORT_CHAT_LOCAL === '1') {
-  const cohortChat = require('./lib/cohort-chat').createCohortChat(db);
-  app.use('/api/chat', requireLogin, require('./routes/cohort-chat')(cohortChat));
-}
+const isCohortChatEnabled = process.env.COHORT_CHAT_PRODUCTION === '1' || process.env.COHORT_CHAT_LOCAL === '1';
+
+// Safe Cohort Chat Diagnostic Endpoint (No secrets exposed)
+app.get('/api/chat/health', async (req, res) => {
+  try {
+    const { checkCohortProviderConfig } = require('./lib/cohort-chat-providers');
+    const providerStatus = checkCohortProviderConfig();
+
+    let databaseReady = false;
+    let slotsReady = false;
+    let activeRoomCount = 0;
+    try {
+      if (db.isPostgres) {
+        const resTables = await db.all("SELECT table_name FROM information_schema.tables WHERE table_name = 'chat_send_keys'");
+        const resCols = await db.all("SELECT column_name FROM information_schema.columns WHERE table_name = 'chat_messages' AND column_name = 'chat_group_id'");
+        databaseReady = resTables.length > 0 && resCols.length > 0;
+      } else {
+        const resTables = await db.all("SELECT name FROM sqlite_master WHERE type='table' AND name='chat_send_keys'");
+        const resCols = await db.all("PRAGMA table_info(chat_messages)");
+        databaseReady = resTables.length > 0 && resCols.some(c => (c.name || '').toLowerCase() === 'chat_group_id');
+      }
+      const slots = await db.all("SELECT group_code, current_chat_group_id FROM chat_group_slots WHERE current_chat_group_id IS NOT NULL");
+      slotsReady = slots.length === 4;
+      const countRow = await db.get("SELECT COUNT(*) AS c FROM chat_groups WHERE status = 'active' AND kind = 'cohort'");
+      activeRoomCount = Number(countRow?.c || 0);
+    } catch (_) {}
+
+    res.json({
+      enabled: isCohortChatEnabled,
+      databaseReady,
+      slotsReady,
+      projectionProviderConfigured: providerStatus.configured,
+      activeRoomCount
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Health check failed' });
+  }
+});
+
+if (isCohortChatEnabled) {
+  let cohortService;
+  let prepareMiddleware;
+
+  if (process.env.COHORT_CHAT_LOCAL === '1' || (process.env.NODE_ENV === 'test' && process.env.COHORT_CHAT_PRODUCTION !== '1')) {
+    const cohortChat = require('./lib/cohort-chat').createCohortChat(db);
+    cohortService = cohortChat;
+    prepareMiddleware = (req, res, next) => next();
+  } else {
+    const runtime = require('./lib/cohort-chat-runtime').createProductionCohortRuntime(db);
+    cohortService = runtime.service;
+    prepareMiddleware = async (req, res, next) => {
+      // Lifecycle changes require the separately reviewed academic admin rollout.
+      if (req.path.startsWith('/admin/')) return res.status(503).json({ message: 'Cohort administration is temporarily unavailable.' });
+      try {
+        const ctx = await runtime.prepare(req.student.studentId, { ...req.query, ...req.body });
+        if (req.method === 'GET') await runtime.drain(ctx.chatGroupId).catch(() => {});
+        next();
+      } catch (error) {
+        res.status(error.status || 503).json({ message: error.status === 404 ? 'This conversation is no longer available.' : 'Chat is temporarily unavailable.' });
+      }
+    };
+  }
+
+  // Authoritative cohort router owns ALL /api/chat routes. No fallthrough.
+  app.use('/api/chat', requireLogin, prepareMiddleware, require('./routes/cohort-chat')(cohortService));
+} else {
+  // Legacy global chat endpoints (Fallback ONLY when cohort chat is disabled)
 
 app.get('/api/chat/config', requireLogin, (req, res) => {
   const { url, key } = require('./lib/supabase').getSupabaseConfig();

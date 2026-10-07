@@ -129,6 +129,9 @@ export class LudoOnlineController {
 
     if (initialState) {
       this.state = initialState;
+      if (!this.state.roomGeneration) {
+        this.state.roomGeneration = 1;
+      }
       // Normalize missing 4C1 fields for legacy pre-4C1 states
       for (const color of CANONICAL_COLORS) {
         const s = this.state.seats[color];
@@ -164,6 +167,7 @@ export class LudoOnlineController {
         createdAt: now,
         updatedAt: now,
         revision: 0,
+        roomGeneration: 1,
       };
     }
     this.loadPendingDisconnectGrace();
@@ -676,6 +680,7 @@ export class LudoOnlineController {
       seats: JSON.parse(JSON.stringify(this.state.seats)),
       activeSeatCount: this.state.activeSeatCount,
       revision: this.state.revision,
+      roomGeneration: this.state.roomGeneration || 1,
     };
   }
 
@@ -959,6 +964,10 @@ export class LudoOnlineController {
 
       case 'LUDO_LEAVE':
         this.handleLeave(ws, userId);
+        break;
+
+      case 'LUDO_RETURN_TO_LOBBY':
+        this.handleReturnToLobby(ws, userId);
         break;
 
       default:
@@ -1979,6 +1988,142 @@ export class LudoOnlineController {
     }
   }
 
+  private handleReturnToLobby(ws: WebSocket, userId: string): void {
+    if (this.state.status !== 'finished') {
+      this.sendError(ws, "This match can't be reset right now.", 'INVALID_PHASE');
+      return;
+    }
+
+    if (this.state.hostUserId !== userId) {
+      this.sendError(ws, 'Only the room host can start another match.', 'NOT_HOST');
+      return;
+    }
+
+    if (this.state.finishReason === 'all-humans-abandoned') {
+      this.sendError(ws, "This match can't be reset right now.", 'INVALID_PHASE');
+      return;
+    }
+
+    const candidateState: LudoRoomState = JSON.parse(JSON.stringify(this.state));
+    candidateState.status = 'lobby';
+    candidateState.engineState = null;
+    candidateState.rankings = [];
+    candidateState.displayRankings = undefined;
+    candidateState.finishReason = null;
+    candidateState.roomGeneration = (this.state.roomGeneration || 1) + 1;
+    candidateState.revision = this.state.revision + 1;
+
+    // Preserving activeSeatCount layout
+    const activeColors: PlayerColor[] =
+      candidateState.activeSeatCount === 2
+        ? ['red', 'yellow']
+        : candidateState.activeSeatCount === 3
+        ? ['red', 'green', 'yellow']
+        : ['red', 'green', 'yellow', 'blue'];
+
+    for (const color of CANONICAL_COLORS) {
+      const prevSeat = this.state.seats[color];
+      const isCanonicalActive = activeColors.includes(color);
+
+      if (!isCanonicalActive) {
+        candidateState.seats[color] = {
+          color,
+          status: 'closed',
+          userId: null,
+          displayName: null,
+          botDifficulty: null,
+          ready: false,
+          controlMode: 'human',
+          presence: 'online',
+          disconnectDeadline: null,
+          abandonedAt: null,
+        };
+        continue;
+      }
+
+      // Configured bot retention
+      if (prevSeat.status === 'bot' && prevSeat.controlMode === 'bot') {
+        candidateState.seats[color] = {
+          color,
+          status: 'bot',
+          userId: null,
+          displayName: prevSeat.displayName || `${color.charAt(0).toUpperCase() + color.slice(1)} Bot`,
+          botDifficulty: prevSeat.botDifficulty || 'normal',
+          ready: true,
+          controlMode: 'bot',
+          presence: 'online',
+          disconnectDeadline: null,
+          abandonedAt: null,
+        };
+      } else if (
+        prevSeat.status === 'human' &&
+        prevSeat.userId &&
+        prevSeat.controlMode !== 'takeover-bot' &&
+        prevSeat.presence !== 'abandoned' &&
+        this.callbacks.getUserSockets(prevSeat.userId).length > 0
+      ) {
+        // Connected human retention with active socket
+        candidateState.seats[color] = {
+          color,
+          status: 'human',
+          userId: prevSeat.userId,
+          displayName: prevSeat.displayName,
+          botDifficulty: null,
+          ready: false,
+          controlMode: 'human',
+          presence: 'online',
+          disconnectDeadline: null,
+          abandonedAt: null,
+        };
+      } else {
+        // Cleared human (disconnected, takeover-bot, or abandoned) -> open
+        candidateState.seats[color] = {
+          color,
+          status: 'open',
+          userId: null,
+          displayName: null,
+          botDifficulty: null,
+          ready: false,
+          controlMode: 'human',
+          presence: 'online',
+          disconnectDeadline: null,
+          abandonedAt: null,
+        };
+      }
+    }
+
+    const validation = validateLudoRoomState(candidateState);
+    if (!validation.valid) {
+      this.sendError(ws, "Couldn't prepare another match. Try again.", 'STORAGE_ERROR');
+      return;
+    }
+
+    const committed = this.commitAndBroadcast(candidateState, () => {
+      this.engine = null;
+      for (const timer of this.disconnectTimers.values()) {
+        clearTimeout(timer);
+      }
+      this.disconnectTimers.clear();
+      this.pendingDisconnects.clear();
+
+      if (this.callbacks.execSql) {
+        try {
+          this.callbacks.execSql('DELETE FROM disconnect_grace WHERE room_id = ?', this.roomId);
+        } catch {}
+      }
+      if (this.callbacks.deleteAlarm) {
+        try {
+          this.callbacks.deleteAlarm();
+        } catch {}
+      }
+    });
+
+    if (!committed) {
+      this.sendError(ws, "Couldn't prepare another match. Try again.", 'STORAGE_ERROR');
+      return;
+    }
+  }
+
   private findUserSeat(userId: string): LudoSeat | null {
     for (const color of CANONICAL_COLORS) {
       const s = this.state.seats[color];
@@ -2013,6 +2158,14 @@ export function validateLudoRoomState(
 
   if (typeof s.revision !== 'number' || !Number.isInteger(s.revision) || s.revision < 0) {
     return { valid: false, error: 'Invalid revision' };
+  }
+
+  if (s.roomGeneration !== undefined && s.roomGeneration !== null) {
+    if (typeof s.roomGeneration !== 'number' || !Number.isInteger(s.roomGeneration) || s.roomGeneration < 1) {
+      return { valid: false, error: 'Invalid roomGeneration' };
+    }
+  } else {
+    (s as any).roomGeneration = 1;
   }
 
   if (typeof s.seats !== 'object' || s.seats === null) {

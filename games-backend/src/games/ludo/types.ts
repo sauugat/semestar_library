@@ -46,6 +46,7 @@ export interface LudoLobbyState {
   seats: Record<PlayerColor, LudoSeat>;
   activeSeatCount: number;
   revision: number;
+  roomGeneration?: number;
 }
 
 export interface LudoRoomState {
@@ -60,6 +61,7 @@ export interface LudoRoomState {
   createdAt: number;
   updatedAt: number;
   revision: number;
+  roomGeneration?: number;
   // Phase 4C1 lifecycle extensions
   finishReason?: 'all-humans-abandoned' | 'normal' | null;
   displayRankings?: PlayerColor[];
@@ -78,7 +80,8 @@ export type LudoClientMessage =
   | { type: 'LUDO_ROLL_DICE' }
   | { type: 'LUDO_MOVE_TOKEN'; tokenId: number }
   | { type: 'LUDO_REQUEST_STATE' }
-  | { type: 'LUDO_LEAVE' };
+  | { type: 'LUDO_LEAVE' }
+  | { type: 'LUDO_RETURN_TO_LOBBY' };
 
 // Server Events
 export interface ServerLudoLobbyStateEvent {

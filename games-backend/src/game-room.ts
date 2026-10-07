@@ -372,12 +372,14 @@ export class GameRoom extends DurableObject<Env> {
     let hostUserId: string | null = null;
     let activeSeatCount = 0;
     let safeSeats: Record<string, { status: string; userId?: string }> | null = null;
+    let roomGeneration: number | undefined = undefined;
 
     if (this.roomGameType === 'ludo' && this.ludoController) {
       const state = this.ludoController.getState();
       roomStatus = state.status;
       hostUserId = state.hostUserId;
       activeSeatCount = state.activeSeatCount;
+      roomGeneration = state.roomGeneration || 1;
 
       const isHost = state.hostUserId === userId;
       const isSeatedParticipant = Object.values(state.seats || {}).some(
@@ -436,6 +438,7 @@ export class GameRoom extends DurableObject<Env> {
         activeSeatCount,
         seats: safeSeats,
         revision,
+        ...(roomGeneration !== undefined ? { roomGeneration } : {}),
       }),
       {
         status: 200,

@@ -18,6 +18,20 @@ import {
 
 import type { LocalLudoMoveResult } from '../../../types/ludo-session.ts';
 
+export interface LudoMoveAnimationSource {
+  type?: string;
+  player: PlayerColor;
+  tokenId: number;
+  fromProgress: number;
+  toProgress: number;
+  traversedCoordinates?: { x: number; y: number }[];
+  capturedTokens?: { color: PlayerColor; tokenIndex: number }[];
+  reachedFinish?: boolean;
+  playerRanked?: boolean;
+  rank?: number | null;
+  gameFinished?: boolean;
+}
+
 // Timing Constants (in milliseconds)
 export const LUDO_ANIMATION_CONSTANTS = {
   DICE_ROLL_DURATION_MS: 550,
@@ -102,14 +116,23 @@ export function getAnimationDurationForSteps(
  * engine traversal data.
  */
 export function buildTokenTravelPlan(
-  moveResult: LocalLudoMoveResult,
+  moveResult: LudoMoveAnimationSource | LocalLudoMoveResult,
   cellSize: number,
   options: {
     isReducedMotion?: boolean;
     targetStackOffset?: { offsetXRatio: number; offsetYRatio: number };
   } = {}
 ): TokenTravelPlan | null {
-  if (moveResult.type !== 'MOVE') {
+  if (cellSize <= 0 || !Number.isFinite(cellSize)) {
+    return null;
+  }
+
+  if (
+    'type' in moveResult &&
+    moveResult.type !== undefined &&
+    moveResult.type !== 'MOVE' &&
+    moveResult.type !== 'LUDO_MOVE_RESULT'
+  ) {
     return null;
   }
 
@@ -184,10 +207,14 @@ export function buildTokenTravelPlan(
  * Builds the return trajectory plan for captured opponent tokens traveling back to their yards.
  */
 export function buildCaptureReturnPlan(
-  moveResult: LocalLudoMoveResult,
+  moveResult: LudoMoveAnimationSource | LocalLudoMoveResult,
   cellSize: number,
   options: { isReducedMotion?: boolean } = {}
 ): CaptureReturnPlan[] {
+  if (cellSize <= 0 || !Number.isFinite(cellSize)) {
+    return [];
+  }
+
   if (!moveResult.capturedTokens || moveResult.capturedTokens.length === 0) {
     return [];
   }

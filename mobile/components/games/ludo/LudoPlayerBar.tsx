@@ -13,8 +13,17 @@ const PLAYER_CHIP_COLORS: Record<PlayerColor, { hex: string; bg: string }> = {
   blue: { hex: '#2563EB', bg: 'rgba(37, 99, 235, 0.14)' },
 };
 
+export interface LudoPlayerBarSeat {
+  color: PlayerColor;
+  status: 'human' | 'bot' | 'closed' | 'open';
+  displayName: string | null;
+  botDifficulty?: string | null;
+  isYou?: boolean;
+  isOnline?: boolean;
+}
+
 export interface LudoPlayerBarProps {
-  seats: LocalSeatConfig[];
+  seats: (LocalSeatConfig | LudoPlayerBarSeat)[];
   currentTurn: PlayerColor | null;
   isGameFinished: boolean;
 }
@@ -26,7 +35,7 @@ export function LudoPlayerBar({
 }: LudoPlayerBarProps) {
   const { colors, radii, isDark } = useTheme();
 
-  const activeSeats = seats.filter((s) => s.status !== 'closed');
+  const activeSeats = seats.filter((s) => s.status !== 'closed' && s.status !== 'open');
   const isTwoPlayer = activeSeats.length === 2;
 
   return (
@@ -36,10 +45,14 @@ export function LudoPlayerBar({
           const meta = PLAYER_CHIP_COLORS[seat.color];
           const isTurn = !isGameFinished && currentTurn === seat.color;
           const isBot = seat.status === 'bot';
+          const barSeat = seat as LudoPlayerBarSeat;
 
-          const desc = isBot
-            ? `Bot • ${seat.botDifficulty ? seat.botDifficulty.charAt(0).toUpperCase() + seat.botDifficulty.slice(1) : 'Normal'}`
-            : 'Human Player';
+          let desc = 'Human Player';
+          if (isBot) {
+            desc = `Bot • ${seat.botDifficulty ? seat.botDifficulty.charAt(0).toUpperCase() + seat.botDifficulty.slice(1) : 'Normal'}`;
+          } else if (barSeat.isOnline !== undefined) {
+            desc = barSeat.isOnline ? 'Online' : 'Offline';
+          }
 
           return (
             <View
@@ -61,7 +74,7 @@ export function LudoPlayerBar({
                 },
               ]}
               accessibilityRole="text"
-              accessibilityLabel={`${seat.displayName}, ${seat.color}, ${desc}${isTurn ? ', current turn' : ''}`}
+              accessibilityLabel={`${seat.displayName}${barSeat.isYou ? ' (You)' : ''}, ${seat.color}, ${desc}${isTurn ? ', current turn' : ''}`}
             >
               {/* Vertical Color Accent Pill */}
               <View style={[styles.colorPill, { backgroundColor: meta.hex }]} />
@@ -74,15 +87,32 @@ export function LudoPlayerBar({
                     numberOfLines={1}
                     ellipsizeMode="tail"
                   >
-                    {seat.displayName}
+                    {seat.displayName || seat.color.toUpperCase()}
                   </Text>
+                  {barSeat.isYou && (
+                    <View style={styles.youBadge}>
+                      <Text variant="xs" weight="800" style={styles.youBadgeText}>
+                        YOU
+                      </Text>
+                    </View>
+                  )}
                   {isTurn && (
                     <View style={[styles.turnIndicatorDot, { backgroundColor: meta.hex }]} />
                   )}
                 </View>
-                <Text variant="xs" style={{ color: colors.textMuted, fontSize: 10, marginTop: 1 }} numberOfLines={1}>
-                  {desc}
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 1 }}>
+                  {!isBot && barSeat.isOnline !== undefined && (
+                    <View
+                      style={[
+                        styles.presenceDot,
+                        { backgroundColor: barSeat.isOnline ? '#10B981' : '#6B7280' },
+                      ]}
+                    />
+                  )}
+                  <Text variant="xs" style={{ color: colors.textMuted, fontSize: 10 }} numberOfLines={1}>
+                    {desc}
+                  </Text>
+                </View>
               </View>
             </View>
           );
@@ -138,5 +168,23 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3,
     marginLeft: 6,
+  },
+  youBadge: {
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 4,
+    backgroundColor: '#3B82F6',
+    marginLeft: 6,
+  },
+  youBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    lineHeight: 11,
+  },
+  presenceDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 4,
   },
 });

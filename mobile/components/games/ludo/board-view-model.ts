@@ -22,6 +22,7 @@ import {
   type PlayerColor,
   type CanonicalBoardPosition,
   type LudoState,
+  type BotDifficulty,
 } from '../../../../packages/ludo-engine/src/index.ts';
 
 import type {
@@ -275,28 +276,76 @@ export function buildStaticBoardCells(): BoardCellViewModel[][] {
 // Cached static cell matrix (never changes)
 const STATIC_BOARD_CELLS = buildStaticBoardCells();
 
+export interface GenericSeatPresentation {
+  color: PlayerColor;
+  status: 'human' | 'bot' | 'closed' | 'open';
+  displayName?: string | null;
+  botDifficulty?: BotDifficulty | string | null;
+  isYou?: boolean;
+  isOnline?: boolean;
+}
+
+export interface BuildBoardViewModelParams {
+  engineState: {
+    status: 'playing' | 'finished' | string;
+    tokens: Record<PlayerColor, number[] | [number, number, number, number]>;
+    activeColors?: PlayerColor[];
+    currentTurn?: PlayerColor | null;
+    turnPhase?: any;
+    legalMoves?: { tokenIndex: number }[] | number[];
+    rankings?: PlayerColor[];
+    winner?: PlayerColor | null;
+  };
+  seats: GenericSeatPresentation[] | Record<PlayerColor, GenericSeatPresentation>;
+  selectableTokenIds?: number[];
+  currentTurn?: PlayerColor | null;
+  winner?: PlayerColor | null;
+  rankings?: PlayerColor[];
+}
+
 /**
- * Builds the complete renderable board view model from a session snapshot.
- *
+ * Builds the complete renderable board view model from arbitrary engine state and seat configuration.
  * Pure, deterministic, zero side-effects.
  */
-export function buildLudoBoardViewModel(
-  snapshot: LocalLudoSessionSnapshot
+export function buildLudoBoardViewModelFromState(
+  params: BuildBoardViewModelParams
 ): LudoBoardViewModel {
-  const engineState = snapshot.engineState;
-  const seats = snapshot.seats;
+  const { engineState, seats, selectableTokenIds = [] } = params;
+  const currentTurn = params.currentTurn ?? engineState.currentTurn ?? null;
+  const winner = params.winner ?? engineState.winner ?? null;
+  const rankings = params.rankings ?? engineState.rankings ?? [];
 
-  // Active / closed seats
+  // Normalize seat map
   const activeColors: PlayerColor[] = [];
   const closedColors: PlayerColor[] = [];
-  const seatMap = new Map<PlayerColor, LocalSeatConfig>();
+  const seatMap = new Map<PlayerColor, GenericSeatPresentation>();
 
-  for (const seat of seats) {
-    seatMap.set(seat.color, seat);
-    if (seat.status === 'closed') {
-      closedColors.push(seat.color);
-    } else {
-      activeColors.push(seat.color);
+  if (Array.isArray(seats)) {
+    for (const seat of seats) {
+      seatMap.set(seat.color, seat);
+      if (seat.status === 'closed') {
+        closedColors.push(seat.color);
+      } else {
+        activeColors.push(seat.color);
+      }
+    }
+  } else {
+    for (const color of PLAYER_COLORS) {
+      const seat = seats[color] || { color, status: 'closed', displayName: null };
+      seatMap.set(color, seat);
+      if (seat.status === 'closed') {
+        closedColors.push(color);
+      } else {
+        activeColors.push(color);
+      }
+    }
+  }
+
+  // Ensure all colors are represented in seatMap
+  for (const color of PLAYER_COLORS) {
+    if (!seatMap.has(color)) {
+      seatMap.set(color, { color, status: 'closed', displayName: null });
+      if (!closedColors.includes(color)) closedColors.push(color);
     }
   }
 
@@ -318,8 +367,8 @@ export function buildLudoBoardViewModel(
       color,
       status: isClosed ? 'closed' : 'active',
       playerType: seat.status === 'bot' ? 'bot' : 'human',
-      displayName: seat.displayName,
-      isCurrentTurn: !isClosed && snapshot.currentTurn === color && engineState.status === 'playing',
+      displayName: seat.displayName || color.toUpperCase(),
+      isCurrentTurn: !isClosed && currentTurn === color && engineState.status === 'playing',
       bounds: quadrantBounds[color],
       tokenSlots: [...YARD_GRID_COORDINATES[color]],
     };
@@ -336,11 +385,6 @@ export function buildLudoBoardViewModel(
     isSelectable: boolean;
   }[] = [];
 
-  const isHumanMovePhase =
-    engineState.status === 'playing' &&
-    !snapshot.isBotTurn &&
-    engineState.turnPhase === 'move';
-
   for (const color of activeColors) {
     const playerTokens = engineState.tokens[color];
     if (!playerTokens) continue;
@@ -351,9 +395,8 @@ export function buildLudoBoardViewModel(
       const gridCoord = getLogicalGridCoordinates(logicalPos);
 
       const isSelectable =
-        isHumanMovePhase &&
-        engineState.currentTurn === color &&
-        engineState.legalMoves.some((m) => m.tokenIndex === tIndex);
+        currentTurn === color &&
+        selectableTokenIds.includes(tIndex);
 
       let locDesc = 'home';
       if (progress >= 0 && progress <= 50) locDesc = `track cell ${logicalPos.type === 'track' ? logicalPos.trackIndex : ''}`;
@@ -419,9 +462,35 @@ export function buildLudoBoardViewModel(
     tokensByCellKey,
     activeColors,
     closedColors,
+    currentTurn,
+    winner,
+    rankings,
+    isFinished: engineState.status === 'finished',
+  };
+}
+
+/**
+ * Builds the complete renderable board view model from a local session snapshot.
+ * Backwards-compatible offline wrapper.
+ */
+export function buildLudoBoardViewModel(
+  snapshot: LocalLudoSessionSnapshot
+): LudoBoardViewModel {
+  const isHumanMovePhase =
+    snapshot.engineState.status === 'playing' &&
+    !snapshot.isBotTurn &&
+    snapshot.engineState.turnPhase === 'move';
+
+  const selectableTokenIds = isHumanMovePhase && snapshot.engineState.currentTurn
+    ? snapshot.engineState.legalMoves.map((m) => m.tokenIndex)
+    : [];
+
+  return buildLudoBoardViewModelFromState({
+    engineState: snapshot.engineState,
+    seats: snapshot.seats,
+    selectableTokenIds,
     currentTurn: snapshot.currentTurn,
     winner: snapshot.winner,
     rankings: snapshot.rankings,
-    isFinished: snapshot.status === 'finished',
-  };
+  });
 }

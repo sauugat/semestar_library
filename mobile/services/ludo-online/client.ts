@@ -107,6 +107,8 @@ export class OnlineLudoClient {
   private createRetryCount: number = 0;
   private hasSentJoinForCurrentConnection: boolean = false;
   private processedActionIds: Set<string> = new Set();
+  private processedActionOrder: string[] = [];
+  public static readonly MAX_PROCESSED_ACTION_IDS = 256;
   private appStateSubscription: { remove: () => void } | null = null;
 
   private readonly ticketProvider: () => Promise<{ ticket: string }>;
@@ -474,13 +476,17 @@ export class OnlineLudoClient {
           return; // Duplicate snapshot
         }
 
+        const isResyncingOrGap = this.state.isResyncing || this.state.presentationGapDetected;
+
         // Newer authoritative game snapshot: accept as truth
         this.updateState((prev) => ({
           playingState: event,
           presence: event.presence,
           lastSnapshotRevision: event.revision,
           lastAuthoritativeRevision: Math.max(event.revision, prev.lastActionRevision),
-          actionQueue: [], // Full snapshot supersedes action history
+          // Clear queue only when recovering from gap/resync. Contiguous bot/human bursts
+          // are preserved so presentation can sequentially animate every action.
+          actionQueue: isResyncingOrGap ? [] : prev.actionQueue,
           presentationGapDetected: false,
           isResyncing: false,
           lastError: null,
@@ -494,11 +500,11 @@ export class OnlineLudoClient {
         if (this.processedActionIds.has(actionId)) {
           return; // Duplicate action event
         }
-        if (event.revision < this.state.lastSnapshotRevision) {
-          return; // Stale action event older than current snapshot
+        if (event.revision <= this.state.lastSnapshotRevision) {
+          return; // Stale action event covered by current or newer snapshot
         }
 
-        this.processedActionIds.add(actionId);
+        this.recordProcessedAction(actionId);
 
         // Detect action sequence gap
         const baselineRevision = Math.max(this.state.lastSnapshotRevision, this.state.lastActionRevision);
@@ -611,6 +617,61 @@ export class OnlineLudoClient {
     return this.send({ type: 'LUDO_START_GAME' });
   }
 
+  // Authoritative Gameplay Commands (Phase 4B2)
+  public rollDice(): boolean {
+    return this.send({ type: 'LUDO_ROLL_DICE' });
+  }
+
+  public moveToken(tokenId: number): boolean {
+    return this.send({ type: 'LUDO_MOVE_TOKEN', tokenId });
+  }
+
+  // Action Queue Consumption & Acknowledgement (Phase 4B2)
+  public peekNextAction(): LudoServerEvent | null {
+    return this.state.actionQueue[0] || null;
+  }
+
+  public ackAction(eventOrId?: LudoServerEvent | string): void {
+    this.updateState((prev) => {
+      if (prev.actionQueue.length === 0) return prev;
+      if (!eventOrId) {
+        return { actionQueue: prev.actionQueue.slice(1) };
+      }
+      const targetId =
+        typeof eventOrId === 'string'
+          ? eventOrId
+          : `${eventOrId.type}:${(eventOrId as any).revision}`;
+      const head = prev.actionQueue[0];
+      const headId = `${head.type}:${(head as any).revision}`;
+      if (headId === targetId) {
+        return { actionQueue: prev.actionQueue.slice(1) };
+      }
+      return {
+        actionQueue: prev.actionQueue.filter(
+          (a) => `${a.type}:${(a as any).revision}` !== targetId
+        ),
+      };
+    });
+  }
+
+  public clearActionQueue(): void {
+    this.updateState(() => ({
+      actionQueue: [],
+      presentationGapDetected: false,
+    }));
+  }
+
+  private recordProcessedAction(actionId: string): void {
+    this.processedActionIds.add(actionId);
+    this.processedActionOrder.push(actionId);
+    if (this.processedActionOrder.length > OnlineLudoClient.MAX_PROCESSED_ACTION_IDS) {
+      const oldest = this.processedActionOrder.shift();
+      if (oldest) {
+        this.processedActionIds.delete(oldest);
+      }
+    }
+  }
+
   public requestState(): boolean {
     this.updateState(() => ({ isResyncing: true }));
     return this.send({ type: 'LUDO_REQUEST_STATE' });
@@ -644,6 +705,7 @@ export class OnlineLudoClient {
     }
 
     this.processedActionIds.clear();
+    this.processedActionOrder = [];
 
     this.updateState(() => ({
       connectionStatus: 'closed',

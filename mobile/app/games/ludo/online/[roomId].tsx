@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  BackHandler,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -30,6 +31,7 @@ import {
   normalizeRoomCode,
   isValidRoomCode,
 } from '@/services/ludo-online';
+import { OnlineLudoGameView } from '@/components/games/ludo';
 
 const COLOR_THEMES: Record<PlayerColor, { name: string; hex: string; bg: string }> = {
   red: { name: 'Red', hex: '#DC2626', bg: 'rgba(220, 38, 38, 0.12)' },
@@ -90,19 +92,54 @@ export default function OnlineLudoLobbyScreen() {
     setTimeout(() => setCopiedCode(false), 2000);
   };
 
-  const handleLeaveRoom = () => {
-    Alert.alert('Leave Room?', 'Are you sure you want to leave this online lobby?', [
-      { text: 'Stay', style: 'cancel' },
-      {
-        text: 'Leave',
-        style: 'destructive',
-        onPress: () => {
-          clientRef.current?.leaveRoom();
-          router.replace('/games/ludo/online' as any);
+  const handleLeaveRoom = useCallback(() => {
+    const isPlaying =
+      clientState?.playingState &&
+      (clientState.playingState.state as any)?.status === 'playing';
+
+    if (isPlaying) {
+      Alert.alert(
+        'Leave online match?',
+        'Your seat will remain reserved. You can return to this match later.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Leave',
+            style: 'destructive',
+            onPress: () => {
+              clientRef.current?.leaveRoom();
+              router.replace('/games/ludo/online' as any);
+            },
+          },
+        ]
+      );
+    } else {
+      Alert.alert('Leave Room?', 'Are you sure you want to leave this online lobby?', [
+        { text: 'Stay', style: 'cancel' },
+        {
+          text: 'Leave',
+          style: 'destructive',
+          onPress: () => {
+            clientRef.current?.leaveRoom();
+            router.replace('/games/ludo/online' as any);
+          },
         },
-      },
-    ]);
-  };
+      ]);
+    }
+  }, [clientState?.playingState, router]);
+
+  // Intercept Android hardware back button during room/match
+  useEffect(() => {
+    const onBackPress = () => {
+      handleLeaveRoom();
+      return true;
+    };
+
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => {
+      sub.remove();
+    };
+  }, [handleLeaveRoom]);
 
   const handleSetPlayerCount = (count: 2 | 3 | 4) => {
     clientRef.current?.setPlayerCount(count);
@@ -197,81 +234,14 @@ export default function OnlineLudoLobbyScreen() {
     );
   }
 
-  // Phase 4B1 Temporary Match Ready View when status === 'playing'
+  // Phase 4B2 Interactive Live Game View
   if (clientState?.playingState) {
     return (
-      <View
-        style={[
-          styles.container,
-          {
-            backgroundColor: colors.background,
-            paddingHorizontal: spacing.md,
-            paddingTop: spacing.xl,
-            paddingBottom: Math.max(insets.bottom + spacing.lg, spacing.xl),
-          },
-        ]}
-      >
-        <Card
-          style={[
-            styles.matchReadyCard,
-            {
-              backgroundColor: colors.surface,
-              borderColor: colors.primary,
-              borderRadius: radii.card,
-            },
-          ]}
-        >
-          <View
-            style={[
-              styles.matchReadyIconBox,
-              {
-                backgroundColor: colors.surfaceRaised,
-                borderRadius: radii.pill,
-              },
-            ]}
-          >
-            <Ionicons name="checkmark-circle" size={48} color={colors.primary} />
-          </View>
-
-          <Heading style={[styles.matchReadyTitle, { color: colors.text }]}>MATCH READY</Heading>
-          <Text variant="sm" weight="600" style={{ color: colors.primary, marginTop: 4 }}>
-            Room {activeRoomCode} connected successfully
-          </Text>
-
-          <Text variant="xs" style={{ color: colors.textMuted, textAlign: 'center', marginTop: 12 }}>
-            Authoritative online match engine state received from Cloudflare Workers.
-          </Text>
-
-          <View
-            style={[
-              styles.phaseNoteBox,
-              {
-                backgroundColor: colors.surfaceRaised,
-                borderColor: colors.borderStrong,
-                borderRadius: radii.md,
-                marginTop: 20,
-              },
-            ]}
-          >
-            <Text variant="xs" weight="700" style={{ color: colors.textSecondary }}>
-              PHASE 4B1 GATE COMPLETE
-            </Text>
-            <Text variant="xs" style={{ color: colors.textMuted, marginTop: 4, textAlign: 'center' }}>
-              Phase 4B2 will connect this live state to the interactive Ludo board, animations, dice,
-              and moves.
-            </Text>
-          </View>
-
-          <View style={{ marginTop: spacing.xl, width: '100%' }}>
-            <Button
-              title="Leave Match"
-              variant="secondary"
-              onPress={handleLeaveRoom}
-              leftIcon={<Ionicons name="exit-outline" size={18} color={colors.text} />}
-            />
-          </View>
-        </Card>
-      </View>
+      <OnlineLudoGameView
+        client={clientRef.current!}
+        clientState={clientState}
+        onLeaveRoom={handleLeaveRoom}
+      />
     );
   }
 

@@ -48,6 +48,7 @@ const NotificationFeedbackType = {
 };
 
 import type { LocalLudoMoveResult } from '../../../types/ludo-session.ts';
+import type { LudoMoveAnimationSource } from './ludo-animation.ts';
 
 export type LudoMoveHapticEvent = 'gameWon' | 'playerRanked' | 'finishToken' | 'capture';
 
@@ -56,11 +57,21 @@ export type LudoMoveHapticEvent = 'gameWon' | 'playerRanked' | 'finishToken' | '
  * Guarantees no conflicting or duplicate success haptics are fired for a single action.
  */
 export function resolveMoveHapticEvent(
-  result: LocalLudoMoveResult,
+  result:
+    | LocalLudoMoveResult
+    | LudoMoveAnimationSource
+    | {
+        gameFinished?: boolean;
+        playerRanked?: boolean;
+        rank?: number | null;
+        reachedFinish?: boolean;
+        capturedTokens?: any[];
+      },
   isBotTurn: boolean = false
 ): LudoMoveHapticEvent | null {
+  const r = result as any;
   // If match concluded, game victory haptic always takes top precedence
-  if (result.gameFinished) {
+  if (r.gameFinished) {
     return 'gameWon';
   }
 
@@ -70,15 +81,15 @@ export function resolveMoveHapticEvent(
   }
 
   // Human player priority chain
-  if (result.playerRanked && result.rank !== null) {
+  if (r.playerRanked && r.rank !== null && r.rank !== undefined) {
     return 'playerRanked';
   }
 
-  if (result.reachedFinish) {
+  if (r.reachedFinish) {
     return 'finishToken';
   }
 
-  if (result.capturedTokens && result.capturedTokens.length > 0) {
+  if (r.capturedTokens && r.capturedTokens.length > 0) {
     return 'capture';
   }
 

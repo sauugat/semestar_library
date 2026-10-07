@@ -10,7 +10,8 @@ import type { LocalLudoSessionSnapshot, PlayerColor } from '../../../types/ludo-
 import type { TokenTravelPlan, CaptureReturnPlan } from './ludo-animation';
 
 export interface LudoBoardProps {
-  snapshot: LocalLudoSessionSnapshot;
+  snapshot?: LocalLudoSessionSnapshot;
+  viewModel?: LudoBoardViewModel;
   maxBoardSize?: number;
   onTokenPress?: (tokenIndex: number) => void;
   disabled?: boolean;
@@ -28,6 +29,7 @@ export interface LudoBoardProps {
 
 export function LudoBoard({
   snapshot,
+  viewModel: externalViewModel,
   maxBoardSize = 430,
   onTokenPress,
   disabled = false,
@@ -53,8 +55,14 @@ export function LudoBoard({
 
   // Pure presentation view model
   const baseViewModel: LudoBoardViewModel = useMemo(() => {
-    return buildLudoBoardViewModel(snapshot);
-  }, [snapshot]);
+    if (externalViewModel) {
+      return externalViewModel;
+    }
+    if (snapshot) {
+      return buildLudoBoardViewModel(snapshot);
+    }
+    throw new Error('LudoBoard requires either viewModel or snapshot prop');
+  }, [externalViewModel, snapshot]);
 
   // Ghost/hide any tokens currently active in the animation layer
   const viewModel: LudoBoardViewModel = useMemo(() => {

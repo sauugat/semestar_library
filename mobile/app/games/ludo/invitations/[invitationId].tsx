@@ -32,6 +32,7 @@ type ScreenState =
   | 'room_started'
   | 'room_full'
   | 'room_unavailable'
+  | 'invitation_stale'
   | 'wrong_account'
   | 'error';
 
@@ -88,6 +89,8 @@ export default function LudoInvitationScreen() {
           setScreenState('room_started');
         } else if (err.code === 'ROOM_FULL') {
           setScreenState('room_full');
+        } else if (err.code === 'INVITATION_STALE') {
+          setScreenState('invitation_stale');
         } else {
           setScreenState('error');
           setErrorMessage(err.message || 'Failed to load invitation.');
@@ -144,6 +147,8 @@ export default function LudoInvitationScreen() {
           setScreenState('room_unavailable');
         } else if (err.code === 'EXPIRED') {
           setScreenState('expired');
+        } else if (err.code === 'INVITATION_STALE') {
+          setScreenState('invitation_stale');
         } else if (err.status === 403) {
           setScreenState('wrong_account');
         } else {
@@ -375,6 +380,29 @@ export default function LudoInvitationScreen() {
             <Heading style={styles.stateTitle}>Room Unavailable</Heading>
             <Text style={[styles.stateDesc, { color: colors.textSecondary }]}>
               This room is no longer active or could not be found.
+            </Text>
+            <SecondaryButton
+              title="Back to Games"
+              onPress={handleGoBack}
+              style={styles.stateBtn}
+              accessibilityLabel="Back to Games"
+            />
+          </Card>
+        )}
+
+        {screenState === 'invitation_stale' && (
+          <Card style={styles.card}>
+            <View
+              style={[
+                styles.iconCircle,
+                { backgroundColor: colors.surface, borderColor: colors.warning },
+              ]}
+            >
+              <Ionicons name="time-outline" size={44} color={colors.warning} />
+            </View>
+            <Heading style={styles.stateTitle}>Invitation Stale</Heading>
+            <Text style={[styles.stateDesc, { color: colors.textSecondary }]}>
+              This invitation belongs to an earlier match.
             </Text>
             <SecondaryButton
               title="Back to Games"

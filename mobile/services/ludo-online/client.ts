@@ -319,13 +319,14 @@ export class OnlineLudoClient {
     }
 
     if (this.isExplicitlyClosed) {
-      this.updateState(() => ({ connectionStatus: 'closed' }));
+      this.updateState(() => ({ connectionStatus: 'closed', pendingCommand: null }));
       return;
     }
 
     // Schedule exponential backoff reconnect
     this.updateState(() => ({
       connectionStatus: 'reconnecting',
+      pendingCommand: null,
       lastError: {
         message: error.message,
         friendlyMessage: 'Connection lost. Reconnecting…',
@@ -456,6 +457,7 @@ export class OnlineLudoClient {
         // Newer authoritative snapshot: accept as truth
         this.updateState((prev) => ({
           lobby: event.lobby,
+          playingState: null,
           presence: event.presence,
           lastSnapshotRevision: event.revision,
           lastAuthoritativeRevision: Math.max(event.revision, prev.lastActionRevision),
@@ -463,6 +465,7 @@ export class OnlineLudoClient {
           presentationGapDetected: false,
           isResyncing: false,
           lastError: null,
+          pendingCommand: null,
         }));
         break;
       }
@@ -553,6 +556,7 @@ export class OnlineLudoClient {
             message: event.message,
             friendlyMessage,
           },
+          pendingCommand: null,
         }));
 
         if (
@@ -626,6 +630,17 @@ export class OnlineLudoClient {
 
   public startGame(): boolean {
     return this.send({ type: 'LUDO_START_GAME' });
+  }
+
+  public returnToLobby(): boolean {
+    if (this.state.pendingCommand !== null) {
+      return false;
+    }
+    const sent = this.send({ type: 'LUDO_RETURN_TO_LOBBY' });
+    if (sent) {
+      this.updateState(() => ({ pendingCommand: 'LUDO_RETURN_TO_LOBBY' }));
+    }
+    return sent;
   }
 
   // Authoritative Gameplay Commands (Phase 4B2)

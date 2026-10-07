@@ -171,6 +171,11 @@ export function mapInvitationError(errorCode: string): { title: string; message:
         title: 'Invitation Expired',
         message: 'This invitation has expired. Ask the host to send a new invite.',
       };
+    case 'INVITATION_STALE':
+      return {
+        title: 'Invitation Stale',
+        message: 'This invitation belongs to an earlier match.',
+      };
     case 'WRONG_ACCOUNT':
     case 'FORBIDDEN':
       return {

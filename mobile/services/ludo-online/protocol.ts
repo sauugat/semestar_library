@@ -42,6 +42,7 @@ export interface LudoLobbyState {
   seats: Record<PlayerColor, LudoSeat>;
   activeSeatCount: number;
   revision: number;
+  roomGeneration?: number;
 }
 
 // Outgoing Client Messages
@@ -57,7 +58,8 @@ export type LudoClientMessage =
   | { type: 'LUDO_ROLL_DICE' }
   | { type: 'LUDO_MOVE_TOKEN'; tokenId: number }
   | { type: 'LUDO_REQUEST_STATE' }
-  | { type: 'LUDO_LEAVE' };
+  | { type: 'LUDO_LEAVE' }
+  | { type: 'LUDO_RETURN_TO_LOBBY' };
 
 // Inbound Server Events
 export interface LudoConnectedEvent {
@@ -272,6 +274,10 @@ export function validateLobbyState(raw: unknown): LudoLobbyState | null {
   const hostUserId = typeof l.hostUserId === 'string' && l.hostUserId.trim() ? l.hostUserId.trim() : null;
   const seats = validateSeats(l.seats);
   if (!seats) return null;
+  const roomGen =
+    typeof l.roomGeneration === 'number' && Number.isInteger(l.roomGeneration) && l.roomGeneration >= 1
+      ? l.roomGeneration
+      : undefined;
 
   return {
     gameType: 'ludo',
@@ -281,6 +287,7 @@ export function validateLobbyState(raw: unknown): LudoLobbyState | null {
     seats,
     activeSeatCount: l.activeSeatCount as 2 | 3 | 4,
     revision: l.revision,
+    ...(roomGen ? { roomGeneration: roomGen } : {}),
   };
 }
 

@@ -101,13 +101,22 @@ class TestContext {
           return { toArray: () => [] };
         }
         if (query.includes('DELETE FROM disconnect_grace')) {
-          const [userId] = params;
-          this.disconnectGraceRows.delete(userId);
+          if (query.includes('room_id = ?')) {
+            const [roomId] = params;
+            for (const [uid, r] of this.disconnectGraceRows.entries()) {
+              if (r.room_id === roomId) this.disconnectGraceRows.delete(uid);
+            }
+          } else {
+            const [userId] = params;
+            this.disconnectGraceRows.delete(userId);
+          }
           return { toArray: () => [] };
         }
         return { toArray: () => [] };
       },
     };
+
+    this.execSql = (query, ...params) => this.callbacks.execSql(query, ...params);
 
     this.controller = new LudoOnlineController(
       this.roomId,
@@ -3393,4 +3402,365 @@ test('162. (Gate 26) no raw alarm internals in broadcasted disconnectDeadline', 
   assert.equal(serialized.includes('sql_'), false);
   assert.equal(serialized.includes('key_'), false);
 });
+
+// ============================================================================
+// PHASE 4D: SAME-ROOM REMATCH AND GENERATION TESTS (163..199)
+// ============================================================================
+
+async function createFinishedGameHelper(overrides = {}) {
+  const { ctx, ws1, ws2, ws3, ws4 } = await createStartedGame(overrides.playerCount || 2, overrides.diceRolls || [1, 2]);
+  const state = ctx.controller.getState();
+  state.status = 'finished';
+  state.finishReason = overrides.finishReason || 'normal';
+  state.rankings = overrides.rankings || ['red', 'yellow'];
+  state.displayRankings = [...state.rankings];
+  if (state.engineState) {
+    state.engineState.status = 'finished';
+    state.engineState.currentTurn = null;
+    state.engineState.turnPhase = null;
+    state.engineState.tokens.red = [56, 56, 56, 56];
+    state.engineState.rankings = [...state.rankings];
+  }
+  if (overrides.mutateState) {
+    overrides.mutateState(state);
+  }
+  ctx.controller['state'] = state;
+  return { ctx, ws1, ws2, ws3, ws4 };
+}
+
+test('163. (Phase 4D / 1) normal finished host can return to lobby', async () => {
+  const { ctx, ws1 } = await createFinishedGameHelper();
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_RETURN_TO_LOBBY' });
+
+  assert.equal(ctx.controller.getState().status, 'lobby');
+  const lobbyEvents = ctx.broadcastEvents.filter((e) => e.type === 'LUDO_LOBBY_STATE');
+  assert.ok(lobbyEvents.length > 0);
+  const last = lobbyEvents[lobbyEvents.length - 1];
+  assert.equal(last.lobby.status, 'lobby');
+});
+
+test('164. (Phase 4D / 2) non-host cannot reset (NOT_HOST)', async () => {
+  const { ctx, ws2 } = await createFinishedGameHelper();
+  await ctx.send(ws2, 'user_bob', { type: 'LUDO_RETURN_TO_LOBBY' });
+
+  assert.equal(ctx.controller.getState().status, 'finished');
+  const err = ws2.lastMessage;
+  assert.equal(err.type, 'ERROR');
+  assert.equal(err.code, 'NOT_HOST');
+});
+
+test('165. (Phase 4D / 3) playing match cannot reset (INVALID_PHASE)', async () => {
+  const { ctx, ws1 } = await createStartedGame(2);
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_RETURN_TO_LOBBY' });
+
+  assert.equal(ctx.controller.getState().status, 'playing');
+  const err = ws1.lastMessage;
+  assert.equal(err.type, 'ERROR');
+  assert.equal(err.code, 'INVALID_PHASE');
+});
+
+test('166. (Phase 4D / 4) lobby cannot reset (INVALID_PHASE)', async () => {
+  const ctx = new TestContext('lobby_reset_test');
+  const ws1 = ctx.connect('user_alice');
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_JOIN', displayName: 'Alice' });
+
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_RETURN_TO_LOBBY' });
+  assert.equal(ctx.controller.getState().status, 'lobby');
+  const err = ws1.lastMessage;
+  assert.equal(err.type, 'ERROR');
+  assert.equal(err.code, 'INVALID_PHASE');
+});
+
+test('167. (Phase 4D / 5) all-human-abandoned terminal cannot reset (INVALID_PHASE)', async () => {
+  const { ctx, ws1 } = await createFinishedGameHelper({ finishReason: 'all-humans-abandoned' });
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_RETURN_TO_LOBBY' });
+
+  assert.equal(ctx.controller.getState().status, 'finished');
+  const err = ws1.lastMessage;
+  assert.equal(err.type, 'ERROR');
+  assert.equal(err.code, 'INVALID_PHASE');
+});
+
+test('168. (Phase 4D / 6 & 7) connected humans (host and non-host) retained with clean presence and ready false', async () => {
+  const { ctx, ws1 } = await createFinishedGameHelper();
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_RETURN_TO_LOBBY' });
+
+  const state = ctx.controller.getState();
+  // Alice retained
+  assert.equal(state.seats.red.status, 'human');
+  assert.equal(state.seats.red.userId, 'user_alice');
+  assert.equal(state.seats.red.ready, false);
+  assert.equal(state.seats.red.controlMode, 'human');
+  assert.equal(state.seats.red.presence, 'online');
+  assert.equal(state.seats.red.disconnectDeadline, null);
+  assert.equal(state.seats.red.abandonedAt, null);
+
+  // Bob retained
+  assert.equal(state.seats.yellow.status, 'human');
+  assert.equal(state.seats.yellow.userId, 'user_bob');
+  assert.equal(state.seats.yellow.ready, false);
+  assert.equal(state.seats.yellow.controlMode, 'human');
+  assert.equal(state.seats.yellow.presence, 'online');
+  assert.equal(state.seats.yellow.disconnectDeadline, null);
+  assert.equal(state.seats.yellow.abandonedAt, null);
+});
+
+test('169. (Phase 4D / 8) disconnected finished human cleared to open', async () => {
+  const { ctx, ws1, ws2 } = await createFinishedGameHelper();
+  // Bob disconnects after match finishes
+  ws2.close();
+  ctx.controller.handleDisconnect('user_bob', ws2);
+
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_RETURN_TO_LOBBY' });
+
+  const state = ctx.controller.getState();
+  assert.equal(state.seats.yellow.status, 'open');
+  assert.equal(state.seats.yellow.userId, null);
+  assert.equal(state.seats.yellow.displayName, null);
+  assert.equal(state.seats.yellow.ready, false);
+});
+
+test('170. (Phase 4D / 9 & 10) abandoned human / takeover bot cleared to open and does not become configured bot', async () => {
+  const { ctx, ws1 } = await createFinishedGameHelper({
+    mutateState: (s) => {
+      s.seats.yellow.controlMode = 'takeover-bot';
+      s.seats.yellow.presence = 'abandoned';
+      s.seats.yellow.abandonedAt = 123456;
+    },
+  });
+
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_RETURN_TO_LOBBY' });
+
+  const state = ctx.controller.getState();
+  assert.equal(state.seats.yellow.status, 'open');
+  assert.equal(state.seats.yellow.userId, null);
+  assert.equal(state.seats.yellow.displayName, null);
+  assert.equal(state.seats.yellow.controlMode, 'human');
+  assert.equal(state.seats.yellow.presence, 'online');
+  assert.notEqual(state.seats.yellow.status, 'bot');
+});
+
+test('171. (Phase 4D / 11 & 12) configured bot retained with color, difficulty, and ready true', async () => {
+  const ctx = new TestContext('bot_retention_room');
+  const ws1 = ctx.connect('user_alice');
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_JOIN', displayName: 'Alice' });
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_ADD_BOT', color: 'yellow', difficulty: 'hard' });
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_START_GAME' });
+
+  const state = ctx.controller.getState();
+  state.status = 'finished';
+  state.finishReason = 'normal';
+  state.rankings = ['red', 'yellow'];
+  state.displayRankings = ['red', 'yellow'];
+  if (state.engineState) {
+    state.engineState.status = 'finished';
+    state.engineState.rankings = ['red', 'yellow'];
+  }
+  ctx.controller['state'] = state;
+
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_RETURN_TO_LOBBY' });
+
+  const resetState = ctx.controller.getState();
+  assert.equal(resetState.seats.yellow.status, 'bot');
+  assert.equal(resetState.seats.yellow.controlMode, 'bot');
+  assert.equal(resetState.seats.yellow.botDifficulty, 'hard');
+  assert.equal(resetState.seats.yellow.ready, true);
+  assert.equal(resetState.seats.yellow.presence, 'online');
+});
+
+test('172. (Phase 4D / 13, 14, 15) activeSeatCount retained, cleared active seat becomes open, inactive remains closed', async () => {
+  const { ctx, ws1, ws2, ws4 } = await createFinishedGameHelper({ playerCount: 4 });
+  // Dave disconnects
+  ws4.close();
+  ctx.controller.handleDisconnect('user_dave', ws4);
+
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_RETURN_TO_LOBBY' });
+
+  const state = ctx.controller.getState();
+  assert.equal(state.activeSeatCount, 4);
+  assert.equal(state.seats.red.status, 'human');
+  assert.equal(state.seats.green.status, 'human');
+  assert.equal(state.seats.yellow.status, 'human');
+  assert.equal(state.seats.blue.status, 'open'); // Dave's seat cleared to open
+
+  // Now test 2-player game retains inactive seats closed
+  const { ctx: ctx2, ws1: wsA } = await createFinishedGameHelper({ playerCount: 2 });
+  await ctx2.send(wsA, 'user_alice', { type: 'LUDO_RETURN_TO_LOBBY' });
+  const state2 = ctx2.controller.getState();
+  assert.equal(state2.activeSeatCount, 2);
+  assert.equal(state2.seats.green.status, 'closed');
+  assert.equal(state2.seats.blue.status, 'closed');
+});
+
+test('173. (Phase 4D / 16..21) engine, rankings, finishReason, and lifecycle fields cleared', async () => {
+  const { ctx, ws1 } = await createFinishedGameHelper();
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_RETURN_TO_LOBBY' });
+
+  const state = ctx.controller.getState();
+  assert.equal(state.engineState, null);
+  assert.deepEqual(state.rankings, []);
+  assert.equal(state.displayRankings, undefined);
+  assert.equal(state.finishReason, null);
+  assert.equal(state.seats.red.ready, false);
+  assert.equal(state.seats.yellow.ready, false);
+  assert.equal(state.seats.red.disconnectDeadline, null);
+  assert.equal(state.seats.yellow.disconnectDeadline, null);
+  assert.equal(state.seats.red.abandonedAt, null);
+  assert.equal(state.seats.yellow.abandonedAt, null);
+});
+
+test('174. (Phase 4D / 22 & 23) disconnect_grace rows and alarm cleared; stale alarm after reset is no-op', async () => {
+  const { ctx, ws1 } = await createFinishedGameHelper();
+  // Insert mock disconnect grace row
+  ctx.execSql('INSERT INTO disconnect_grace (user_id, room_id, deadline) VALUES (?, ?, ?)', 'user_bob', ctx.roomId, Date.now() + 90000);
+
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_RETURN_TO_LOBBY' });
+
+  const remaining = ctx.execSql('SELECT user_id FROM disconnect_grace WHERE room_id = ?', ctx.roomId).toArray();
+  assert.equal(remaining.length, 0);
+
+  // Stale alarm executes against reset lobby
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_bob');
+  // State remains unaffected in lobby
+  assert.equal(ctx.controller.getState().status, 'lobby');
+});
+
+test('175. (Phase 4D / 24) revision increments monotonically exactly once for reset', async () => {
+  const { ctx, ws1 } = await createFinishedGameHelper();
+  const revBefore = ctx.controller.getRevision();
+
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_RETURN_TO_LOBBY' });
+  const revAfter = ctx.controller.getRevision();
+
+  assert.equal(revAfter, revBefore + 1);
+});
+
+test('176. (Phase 4D / 25) persistence failure leaves finished state intact', async () => {
+  const { ctx, ws1 } = await createFinishedGameHelper();
+  const originalState = ctx.controller.getState();
+
+  // Sabotage persist callback
+  ctx.controller['callbacks'].persist = () => {
+    throw new Error('Disk quota exceeded');
+  };
+
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_RETURN_TO_LOBBY' });
+
+  assert.equal(ctx.controller.getState().status, 'finished');
+  assert.deepEqual(ctx.controller.getState().rankings, originalState.rankings);
+  const err = ws1.lastMessage;
+  assert.equal(err.type, 'ERROR');
+  assert.equal(err.code, 'STORAGE_ERROR');
+});
+
+test('177. (Phase 4D / 26 & 36) DO restart then reset works and preserves generation', async () => {
+  const { ctx, ws1 } = await createFinishedGameHelper();
+  const finishedState = ctx.controller.getState();
+  finishedState.roomGeneration = 2;
+
+  // Simulate DO hibernation restart by constructing fresh controller from serialized state
+  const restarted = LudoOnlineController.fromState(
+    ctx.roomId,
+    ctx.controller['callbacks'],
+    finishedState
+  );
+  assert.equal(restarted.getState().roomGeneration, 2);
+
+  // Host reconnects and triggers Play Again on restarted instance
+  restarted['handleReturnToLobby'](ws1, 'user_alice');
+
+  assert.equal(restarted.getState().status, 'lobby');
+  assert.equal(restarted.getState().roomGeneration, 3);
+});
+
+test('178. (Phase 4D / 27 & 28) legacy room defaults generation 1 and fresh room has generation 1', async () => {
+  const ctx = new TestContext('gen_test_room');
+  assert.equal(ctx.controller.getState().roomGeneration, 1);
+
+  // Legacy state without roomGeneration
+  const legacyState = JSON.parse(JSON.stringify(ctx.controller.getState()));
+  delete legacyState.roomGeneration;
+
+  const restored = LudoOnlineController.fromState(ctx.roomId, ctx.controller['callbacks'], legacyState);
+  assert.equal(restored.getState().roomGeneration, 1);
+});
+
+test('179. (Phase 4D / 29 & 30) normal game start and finish do NOT increment generation', async () => {
+  const { ctx } = await createStartedGame(2);
+  assert.equal(ctx.controller.getState().roomGeneration, 1);
+
+  // Transition to finished
+  const state = ctx.controller.getState();
+  state.status = 'finished';
+  state.finishReason = 'normal';
+  state.rankings = ['red', 'yellow'];
+  ctx.controller['state'] = state;
+
+  assert.equal(ctx.controller.getState().roomGeneration, 1);
+});
+
+test('180. (Phase 4D / 31 & 32) Play Again increments generation 1 -> 2, and next cycle increments 2 -> 3', async () => {
+  const { ctx, ws1, ws2 } = await createFinishedGameHelper();
+  assert.equal(ctx.controller.getState().roomGeneration, 1);
+
+  // Cycle 1 Rematch
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_RETURN_TO_LOBBY' });
+  assert.equal(ctx.controller.getState().roomGeneration, 2);
+  assert.equal(ctx.controller.getLobbyState().roomGeneration, 2);
+
+  // Ready up and start game in generation 2
+  await ctx.send(ws2, 'user_bob', { type: 'LUDO_SET_READY', ready: true });
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_START_GAME' });
+  assert.equal(ctx.controller.getState().roomGeneration, 2);
+
+  // Finish match 2
+  const state2 = ctx.controller.getState();
+  state2.status = 'finished';
+  state2.finishReason = 'normal';
+  state2.rankings = ['yellow', 'red'];
+  state2.displayRankings = ['yellow', 'red'];
+  ctx.controller['state'] = state2;
+
+  // Cycle 2 Rematch
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_RETURN_TO_LOBBY' });
+  assert.equal(ctx.controller.getState().roomGeneration, 3);
+  assert.equal(ctx.controller.getLobbyState().roomGeneration, 3);
+});
+
+test('181. (Phase 4D / 33 & 34) player-count change and bot settings do NOT increment generation', async () => {
+  const ctx = new TestContext('settings_gen_room');
+  const ws1 = ctx.connect('user_alice');
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_JOIN', displayName: 'Alice' });
+  assert.equal(ctx.controller.getState().roomGeneration, 1);
+
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_SET_PLAYER_COUNT', playerCount: 3 });
+  assert.equal(ctx.controller.getState().roomGeneration, 1);
+
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_ADD_BOT', color: 'green', difficulty: 'easy' });
+  assert.equal(ctx.controller.getState().roomGeneration, 1);
+
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_SET_BOT_DIFFICULTY', color: 'green', difficulty: 'hard' });
+  assert.equal(ctx.controller.getState().roomGeneration, 1);
+});
+
+test('182. (Phase 4D / 35) malformed generation validation rejected', () => {
+  const ctx = new TestContext('validate_gen_room');
+  const validState = ctx.controller.getState();
+
+  const zeroGen = { ...validState, roomGeneration: 0 };
+  assert.equal(validateLudoRoomState(zeroGen).valid, false);
+
+  const negGen = { ...validState, roomGeneration: -5 };
+  assert.equal(validateLudoRoomState(negGen).valid, false);
+
+  const nanGen = { ...validState, roomGeneration: NaN };
+  assert.equal(validateLudoRoomState(nanGen).valid, false);
+
+  const fracGen = { ...validState, roomGeneration: 2.7 };
+  assert.equal(validateLudoRoomState(fracGen).valid, false);
+
+  const strGen = { ...validState, roomGeneration: '2' };
+  assert.equal(validateLudoRoomState(strGen).valid, false);
+});
+
 

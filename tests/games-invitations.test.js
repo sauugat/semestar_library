@@ -54,6 +54,7 @@ function createMockRoomState(roomId, overrides = {}) {
     hostUserId: hostAlice.studentId,
     activeSeatCount: 1,
     maxSeats: 4,
+    roomGeneration: 1,
     seats: {
       red: { status: 'player', userId: hostAlice.studentId },
       green: { status: 'open' },
@@ -96,6 +97,7 @@ async function mockGamesWorkerFetch(url, options = {}) {
       roomStatus: room.roomStatus,
       hostUserId: room.hostUserId,
       activeSeatCount: room.activeSeatCount,
+      roomGeneration: room.roomGeneration,
       seats: room.seats,
     }),
   };
@@ -899,3 +901,176 @@ test('28. User search rate limit: 30 requests/minute/user', async () => {
   const dataLimit = await resLimit.json();
   assert.strictEqual(dataLimit.error, 'RATE_LIMITED');
 });
+
+test('29. (Gate 38) generation 1 invite stores generation 1', async () => {
+  const roomId = 'GEN234';
+  mockRooms.set(roomId, createMockRoomState(roomId, { roomGeneration: 1 }));
+
+  const res = await fetch(`${baseUrl}/api/games/ludo/invitations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-test-user': 'alice' },
+    body: JSON.stringify({ roomId, inviteeUserId: inviteeBob.studentId }),
+  });
+  assert.strictEqual(res.status, 201);
+  const data = await res.json();
+  assert.strictEqual(data.invitation.roomGeneration, 1);
+
+  const row = await db.get(`SELECT room_generation FROM game_invitations WHERE id = ?`, data.invitation.id);
+  assert.strictEqual(row.room_generation, 1);
+});
+
+test('30. (Gate 39) generation 1 invite accepted during generation 1 succeeds', async () => {
+  const roomId = 'GEN235';
+  mockRooms.set(roomId, createMockRoomState(roomId, { roomGeneration: 1 }));
+
+  const createRes = await fetch(`${baseUrl}/api/games/ludo/invitations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-test-user': 'alice' },
+    body: JSON.stringify({ roomId, inviteeUserId: inviteeBob.studentId }),
+  });
+  const { invitation } = await createRes.json();
+
+  const acceptRes = await fetch(`${baseUrl}/api/games/ludo/invitations/${invitation.id}/accept`, {
+    method: 'POST',
+    headers: { 'x-test-user': 'bob' },
+  });
+  assert.strictEqual(acceptRes.status, 200);
+  const data = await acceptRes.json();
+  assert.strictEqual(data.status, 'accepted');
+  assert.strictEqual(data.roomId, roomId);
+});
+
+test('31. (Gate 40, 41, 42) generation 1 invite rejected after room becomes generation 2 with INVITATION_STALE and transitions cancelled', async () => {
+  const roomId = 'GEN236';
+  mockRooms.set(roomId, createMockRoomState(roomId, { roomGeneration: 1 }));
+
+  const createRes = await fetch(`${baseUrl}/api/games/ludo/invitations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-test-user': 'alice' },
+    body: JSON.stringify({ roomId, inviteeUserId: inviteeBob.studentId }),
+  });
+  const { invitation } = await createRes.json();
+
+  // Host resets finished match -> room advances to generation 2
+  mockRooms.set(roomId, createMockRoomState(roomId, { roomGeneration: 2 }));
+
+  const acceptRes = await fetch(`${baseUrl}/api/games/ludo/invitations/${invitation.id}/accept`, {
+    method: 'POST',
+    headers: { 'x-test-user': 'bob' },
+  });
+  assert.strictEqual(acceptRes.status, 409);
+  const errData = await acceptRes.json();
+  assert.strictEqual(errData.error, 'INVITATION_STALE');
+  assert.strictEqual(errData.message, 'This invitation belongs to an earlier match.');
+
+  // Invitation is transitioned to cancelled
+  const row = await db.get(`SELECT status FROM game_invitations WHERE id = ?`, invitation.id);
+  assert.strictEqual(row.status, 'cancelled');
+});
+
+test('32. (Gate 43) generation 2 invite succeeds for same room code', async () => {
+  const roomId = 'GEN237';
+  mockRooms.set(roomId, createMockRoomState(roomId, { roomGeneration: 2 }));
+
+  const res = await fetch(`${baseUrl}/api/games/ludo/invitations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-test-user': 'alice' },
+    body: JSON.stringify({ roomId, inviteeUserId: inviteeBob.studentId }),
+  });
+  assert.strictEqual(res.status, 201);
+  const data = await res.json();
+  assert.strictEqual(data.invitation.roomGeneration, 2);
+  assert.strictEqual(data.invitation.roomId, roomId);
+});
+
+test('33. (Gate 44) old pending gen1 does not dedupe gen2 invite', async () => {
+  const roomId = 'GEN238';
+  // Generation 1 invitation created
+  mockRooms.set(roomId, createMockRoomState(roomId, { roomGeneration: 1 }));
+  const gen1Res = await fetch(`${baseUrl}/api/games/ludo/invitations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-test-user': 'alice' },
+    body: JSON.stringify({ roomId, inviteeUserId: inviteeBob.studentId }),
+  });
+  const gen1Data = await gen1Res.json();
+
+  // Match plays and finishes, host resets to generation 2
+  mockRooms.set(roomId, createMockRoomState(roomId, { roomGeneration: 2 }));
+
+  // Alice sends new invitation to Bob in generation 2
+  const gen2Res = await fetch(`${baseUrl}/api/games/ludo/invitations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-test-user': 'alice' },
+    body: JSON.stringify({ roomId, inviteeUserId: inviteeBob.studentId }),
+  });
+  assert.strictEqual(gen2Res.status, 201);
+  const gen2Data = await gen2Res.json();
+
+  // Should NOT dedupe across generations
+  assert.strictEqual(gen2Data.deduplicated, false);
+  assert.notStrictEqual(gen2Data.invitation.id, gen1Data.invitation.id);
+  assert.strictEqual(gen2Data.invitation.roomGeneration, 2);
+});
+
+test('34. (Gate 45) same gen2 duplicate dedupes', async () => {
+  const roomId = 'GEN239';
+  mockRooms.set(roomId, createMockRoomState(roomId, { roomGeneration: 2 }));
+
+  const firstRes = await fetch(`${baseUrl}/api/games/ludo/invitations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-test-user': 'alice' },
+    body: JSON.stringify({ roomId, inviteeUserId: inviteeBob.studentId }),
+  });
+  const firstData = await firstRes.json();
+
+  const secondRes = await fetch(`${baseUrl}/api/games/ludo/invitations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-test-user': 'alice' },
+    body: JSON.stringify({ roomId, inviteeUserId: inviteeBob.studentId }),
+  });
+  assert.strictEqual(secondRes.status, 200);
+  const secondData = await secondRes.json();
+
+  assert.strictEqual(secondData.deduplicated, true);
+  assert.strictEqual(secondData.invitation.id, firstData.invitation.id);
+});
+
+test('35. (Gate 46 & 47) unique index protects same generation concurrency and push sent once', async () => {
+  const roomId = 'GEN242';
+  mockRooms.set(roomId, createMockRoomState(roomId, { roomGeneration: 2 }));
+
+  const [res1, res2] = await Promise.all([
+    fetch(`${baseUrl}/api/games/ludo/invitations`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-test-user': 'alice' },
+      body: JSON.stringify({ roomId, inviteeUserId: inviteeBob.studentId }),
+    }),
+    fetch(`${baseUrl}/api/games/ludo/invitations`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-test-user': 'alice' },
+      body: JSON.stringify({ roomId, inviteeUserId: inviteeBob.studentId }),
+    }),
+  ]);
+
+  const [d1, d2] = await Promise.all([res1.json(), res2.json()]);
+  assert.strictEqual(d1.invitation.id, d2.invitation.id);
+
+  // Exactly one invitation row exists in DB
+  const rows = await db.all(`SELECT id FROM game_invitations WHERE room_id = ? AND room_generation = 2`, roomId);
+  assert.strictEqual(rows.length, 1);
+});
+
+test('36. (Gate 48) migration defaults legacy invitation rows to room_generation 1', async () => {
+  const testId = 'legacy_migrated_invite_' + Math.random().toString(36).slice(2);
+  await db.run(
+    `INSERT INTO game_invitations (id, game_type, room_id, inviter_user_id, invitee_user_id, status, expires_at)
+     VALUES (?, 'ludo', 'MEG234', ?, ?, 'pending', datetime('now', '+10 minutes'))`,
+    testId,
+    hostAlice.studentId,
+    inviteeBob.studentId
+  );
+
+  const row = await db.get(`SELECT room_generation FROM game_invitations WHERE id = ?`, testId);
+  assert.strictEqual(row.room_generation, 1);
+});
+

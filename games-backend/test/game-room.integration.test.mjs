@@ -1142,6 +1142,7 @@ test('Integration: GET /rooms/:roomId auth checks and safe metadata exposure', a
   assert.equal(aliceData.seats.red.token, undefined);
   assert.equal(aliceData.seats.red.ws, undefined);
   assert.equal(aliceData.seats.red.socket, undefined);
+  assert.equal(aliceData.roomGeneration, 1);
 
   // 6. Server role ticket can introspect room -> 200
   const serverRes = await fetch(`${BASE_HTTP}/rooms/${roomId}`, {
@@ -1151,6 +1152,7 @@ test('Integration: GET /rooms/:roomId auth checks and safe metadata exposure', a
   const serverData = await serverRes.json();
   assert.equal(serverData.status, 'ok');
   assert.equal(serverData.roomId, roomId);
+  assert.equal(serverData.roomGeneration, 1);
 
   wsAlice.close();
 });

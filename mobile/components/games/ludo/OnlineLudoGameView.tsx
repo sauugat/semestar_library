@@ -246,6 +246,19 @@ export function OnlineLudoGameView({
     };
   }, []);
 
+  // Clean unmount (Rule 36 / Phase 4D)
+  useEffect(() => {
+    return () => {
+      if (pacingTimerRef.current) {
+        clearTimeout(pacingTimerRef.current);
+        pacingTimerRef.current = null;
+      }
+      isProcessingQueueRef.current = false;
+      activeActionRef.current = null;
+      pendingCommandRef.current = null;
+    };
+  }, []);
+
   // AppState background cancellation + foreground authoritative resync
   useEffect(() => {
     const sub = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
@@ -772,6 +785,11 @@ export function OnlineLudoGameView({
   // Render Finished Standings Screen (Rule 38)
   if (presentationState.status === 'finished') {
     const isAllHumansAbandoned = finishReason === 'all-humans-abandoned';
+    const isHost = Boolean(
+      clientState.playingState?.hostUserId &&
+        myUserId &&
+        clientState.playingState.hostUserId === myUserId
+    );
     const finalRankings = getOnlineResultRankings(
       clientState.playingState?.displayRankings,
       presentationState.rankings
@@ -872,13 +890,52 @@ export function OnlineLudoGameView({
             </View>
 
             <View style={{ marginTop: spacing.xl, width: '100%', gap: spacing.sm }}>
-              <PrimaryButton
-                title="Back to Online Ludo"
-                onPress={() => {
-                  client.leaveRoom();
-                  router.replace('/games/ludo/online' as any);
-                }}
-              />
+              {!isAllHumansAbandoned && isHost && (
+                <PrimaryButton
+                  title="Play Again"
+                  accessibilityLabel="Play another Ludo match"
+                  disabled={clientState.pendingCommand !== null || clientState.connectionStatus !== 'connected'}
+                  loading={clientState.pendingCommand === 'LUDO_RETURN_TO_LOBBY'}
+                  onPress={() => {
+                    client.returnToLobby();
+                  }}
+                />
+              )}
+              {!isAllHumansAbandoned && !isHost && (
+                <View
+                  style={{
+                    paddingVertical: spacing.sm,
+                    paddingHorizontal: spacing.md,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Text
+                    variant="sm"
+                    style={{ color: colors.textMuted, textAlign: 'center' }}
+                    accessibilityRole="text"
+                  >
+                    Waiting for host to start another match...
+                  </Text>
+                </View>
+              )}
+              {isHost && !isAllHumansAbandoned ? (
+                <SecondaryButton
+                  title="Back to Online Ludo"
+                  onPress={() => {
+                    client.leaveRoom();
+                    router.replace('/games/ludo/online' as any);
+                  }}
+                />
+              ) : (
+                <PrimaryButton
+                  title="Back to Online Ludo"
+                  onPress={() => {
+                    client.leaveRoom();
+                    router.replace('/games/ludo/online' as any);
+                  }}
+                />
+              )}
               <SecondaryButton
                 title="Back to Games"
                 onPress={() => {

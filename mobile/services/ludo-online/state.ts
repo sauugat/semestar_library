@@ -36,6 +36,7 @@ export interface LudoOnlineState {
   presentationGapDetected: boolean;
   isResyncing: boolean;
   lastError: LudoClientError | null;
+  pendingCommand: string | null;
 }
 
 /**
@@ -56,6 +57,7 @@ export function createInitialOnlineState(): LudoOnlineState {
     presentationGapDetected: false,
     isResyncing: false,
     lastError: null,
+    pendingCommand: null,
   };
 }
 
@@ -72,7 +74,10 @@ export function mapLudoErrorCodeToMessage(code?: string, defaultMessage?: string
     case 'ROOM_FULL':
       return 'This room is full.';
     case 'NOT_HOST':
-      return 'Only the room host can perform this action.';
+      if (defaultMessage && defaultMessage.toLowerCase().includes('match')) {
+        return defaultMessage.trim();
+      }
+      return 'Only the room host can start another match.';
     case 'NOT_READY':
       return 'All players must be ready before starting.';
     case 'SEAT_OCCUPIED':
@@ -88,7 +93,10 @@ export function mapLudoErrorCodeToMessage(code?: string, defaultMessage?: string
     case 'ROOM_GAME_TYPE_MISMATCH':
       return 'This room is reserved for a different game.';
     case 'STORAGE_ERROR':
-      return 'Unable to save room state. Please try again.';
+      if (defaultMessage && defaultMessage.toLowerCase().includes('match')) {
+        return defaultMessage.trim();
+      }
+      return "Couldn't prepare another match. Try again.";
     case 'CORRUPTED_STATE':
       return 'Room state error. Please create a new room.';
     case 'BOT_GUARD_LIMIT_EXCEEDED':
@@ -98,7 +106,10 @@ export function mapLudoErrorCodeToMessage(code?: string, defaultMessage?: string
     case 'NOT_YOUR_TURN':
       return 'It is not your turn.';
     case 'INVALID_PHASE':
-      return 'Action is not permitted in the current turn phase.';
+      if (defaultMessage && defaultMessage.toLowerCase().includes('reset')) {
+        return defaultMessage.trim();
+      }
+      return "This match can't be reset right now.";
     case 'ILLEGAL_MOVE':
       return 'That move is not legal.';
     case 'PLAYER_ABANDONED':
@@ -107,6 +118,8 @@ export function mapLudoErrorCodeToMessage(code?: string, defaultMessage?: string
       return 'Your seat is reconnecting. Please wait for synchronization.';
     case 'GAME_OVER':
       return 'This match has ended.';
+    case 'INVITATION_STALE':
+      return 'This invitation belongs to an earlier match.';
     case 'MALFORMED_MESSAGE':
       return 'Invalid action requested.';
     default:

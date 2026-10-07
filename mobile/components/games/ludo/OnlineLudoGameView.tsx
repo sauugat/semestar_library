@@ -70,6 +70,12 @@ import {
   formatOnlineRollStatus,
   formatOnlineTurnStatus,
   resolveOnlineMoveHaptic,
+  isCurrentUserSpectator,
+  isSeatHumanControlled,
+  getOnlineResultRankings,
+  formatReconnectCountdown,
+  detectLifecycleTransitions,
+  type LifecycleToast,
 } from '../../../services/ludo-online/index.ts';
 
 export interface OnlineLudoGameViewProps {
@@ -109,12 +115,79 @@ export function OnlineLudoGameView({
   );
   const mySeat = myColor ? authoritativeSeats[myColor] : null;
 
+  const isSpectator = useMemo(
+    () => isCurrentUserSpectator(authoritativeSeats, myUserId),
+    [authoritativeSeats, myUserId]
+  );
+
   // Presentation State (visual truth while actions animate)
   const initialEngineState = clientState.playingState?.state as LudoState;
   const initialRevision = clientState.playingState?.revision || 0;
   const [presentationState, setPresentationState] = useState<OnlinePresentationState>(() =>
     createPresentationStateFromEngine(initialEngineState, initialRevision)
   );
+
+  const hasReconnectingSeats = useMemo(() => {
+    return CANONICAL_COLORS.some((color) => {
+      const seat = authoritativeSeats[color];
+      return seat?.presence === 'reconnecting' && seat?.disconnectDeadline != null;
+    });
+  }, [authoritativeSeats]);
+
+  const [isAppActive, setIsAppActive] = useState<boolean>(true);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!isAppActive || !hasReconnectingSeats || presentationState.status === 'finished') {
+      return;
+    }
+    const interval = setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isAppActive, hasReconnectingSeats, presentationState.status]);
+
+  const [lifecycleToast, setLifecycleToast] = useState<LifecycleToast | null>(null);
+  const prevSeatsRef = useRef<Record<PlayerColor, LudoSeat> | null>(null);
+  const hasMountedRef = useRef<boolean>(false);
+
+  // Reset lifecycle toast baseline when connection is interrupted/reconnecting
+  // so that new connection generation doesn't compare against stale generation
+  useEffect(() => {
+    if (
+      clientState.connectionStatus === 'reconnecting' ||
+      clientState.connectionStatus === 'connecting'
+    ) {
+      hasMountedRef.current = false;
+    }
+  }, [clientState.connectionStatus]);
+
+  useEffect(() => {
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      prevSeatsRef.current = authoritativeSeats;
+      return;
+    }
+
+    const toasts = detectLifecycleTransitions(
+      prevSeatsRef.current,
+      authoritativeSeats,
+      myUserId
+    );
+    prevSeatsRef.current = authoritativeSeats;
+
+    if (toasts.length > 0 && presentationState.status !== 'finished') {
+      setLifecycleToast(toasts[0]);
+    }
+  }, [authoritativeSeats, myUserId, presentationState.status]);
+
+  useEffect(() => {
+    if (!lifecycleToast) return;
+    const timer = setTimeout(() => {
+      setLifecycleToast(null);
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, [lifecycleToast]);
 
   // Command submission lock
   const [pendingCommand, setPendingCommand] = useState<'roll' | 'move' | null>(null);
@@ -177,6 +250,7 @@ export function OnlineLudoGameView({
   useEffect(() => {
     const sub = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
       if (nextAppState !== 'active') {
+        setIsAppActive(false);
         if (pacingTimerRef.current) {
           clearTimeout(pacingTimerRef.current);
           pacingTimerRef.current = null;
@@ -206,6 +280,8 @@ export function OnlineLudoGameView({
           }
         }
       } else {
+        setIsAppActive(true);
+        setNow(Date.now());
         // Foreground transition:
         // If connected, request authoritative state so that controls remain blocked
         // (via isResyncing) until fresh authoritative truth is received from server.
@@ -226,15 +302,8 @@ export function OnlineLudoGameView({
     if (clientState.lastError) {
       pendingCommandRef.current = null;
       setPendingCommand(null);
-      if (
-        clientState.lastError.code === 'NOT_YOUR_TURN' ||
-        clientState.lastError.code === 'INVALID_PHASE' ||
-        clientState.lastError.code === 'ILLEGAL_MOVE'
-      ) {
-        client.requestState();
-      }
     }
-  }, [clientState.lastError, client]);
+  }, [clientState.lastError]);
 
   // Reconnect / Desync safety
   useEffect(() => {
@@ -316,15 +385,19 @@ export function OnlineLudoGameView({
 
     try {
       if (nextAction.type === 'LUDO_DICE_ROLLED') {
+        const isActionHumanControlled = isSeatHumanControlled(authoritativeSeats[nextAction.color]);
         const isMyAction =
-          nextAction.color === myColor && pendingCommandRef.current === 'roll';
+          !isSpectator &&
+          nextAction.color === myColor &&
+          isActionHumanControlled &&
+          pendingCommandRef.current === 'roll';
         pendingCommandRef.current = null;
         setPendingCommand(null);
 
         const seatName =
           authoritativeSeats[nextAction.color]?.displayName ||
           nextAction.color.toUpperCase();
-        setStatusMessage(formatOnlineRollStatus(nextAction, nextAction.color === myColor, seatName));
+        setStatusMessage(formatOnlineRollStatus(nextAction, isMyAction, seatName));
         setDisplayDiceValue(nextAction.roll);
         setIsDiceRolling(true);
 
@@ -332,8 +405,12 @@ export function OnlineLudoGameView({
           void LudoHaptics.rollStart();
         }
       } else if (nextAction.type === 'LUDO_MOVE_RESULT') {
+        const isActionHumanControlled = isSeatHumanControlled(authoritativeSeats[nextAction.player]);
         const isMyAction =
-          nextAction.player === myColor && pendingCommandRef.current === 'move';
+          !isSpectator &&
+          nextAction.player === myColor &&
+          isActionHumanControlled &&
+          pendingCommandRef.current === 'move';
         pendingCommandRef.current = null;
         setPendingCommand(null);
 
@@ -397,7 +474,8 @@ export function OnlineLudoGameView({
       const action = activeActionRef.current as LudoDiceRolledEvent;
 
       if (action && action.type === 'LUDO_DICE_ROLLED') {
-        const isMyAction = action.color === myColor;
+        const isActionHumanControlled = isSeatHumanControlled(authoritativeSeats[action.color]);
+        const isMyAction = !isSpectator && action.color === myColor && isActionHumanControlled;
         if (outcome === 'completed' && isMyAction) {
           void LudoHaptics.rollSettle();
         }
@@ -415,7 +493,7 @@ export function OnlineLudoGameView({
         processNextQueuedAction();
       }, pauseMs);
     },
-    [client, myColor, processNextQueuedAction]
+    [client, myColor, isSpectator, authoritativeSeats, processNextQueuedAction]
   );
 
   // Token Travel Completion Handler
@@ -448,14 +526,20 @@ export function OnlineLudoGameView({
     _outcome: 'completed' | 'cancelled'
   ) => {
     if (action && action.type === 'LUDO_MOVE_RESULT') {
-      const isMyAction = action.player === myColor;
+      const isActionHumanControlled = isSeatHumanControlled(authoritativeSeats[action.player]);
+      const isMyAction = !isSpectator && action.player === myColor && isActionHumanControlled;
+      const isAllHumansAbandoned = clientState.playingState?.finishReason === 'all-humans-abandoned';
 
       // Centralized online haptic policy
       const hapticEvent = resolveOnlineMoveHaptic(action, isMyAction);
       if (hapticEvent === 'gameWin') {
-        void LudoHaptics.gameWon();
+        if (!isAllHumansAbandoned) {
+          void LudoHaptics.gameWon();
+        }
       } else if (hapticEvent === 'rank') {
-        void LudoHaptics.playerRanked();
+        if (!isAllHumansAbandoned) {
+          void LudoHaptics.playerRanked();
+        }
       } else if (hapticEvent === 'finish') {
         void LudoHaptics.finishToken();
       } else if (hapticEvent === 'capture') {
@@ -465,7 +549,7 @@ export function OnlineLudoGameView({
       }
 
       // Celebrations
-      if (action.playerRanked) {
+      if (action.playerRanked && !isAllHumansAbandoned) {
         const playerName =
           authoritativeSeats[action.player]?.displayName ||
           action.player.toUpperCase();
@@ -476,7 +560,7 @@ export function OnlineLudoGameView({
         });
       }
 
-      if (action.gameFinished) {
+      if (action.gameFinished && !isAllHumansAbandoned) {
         setShowWinnerCelebration(true);
       }
 
@@ -517,6 +601,8 @@ export function OnlineLudoGameView({
     myColor,
     mySeatStatus: mySeat?.status || null,
     pendingCommand,
+    myControlMode: mySeat?.controlMode,
+    myPresence: mySeat?.presence,
   });
 
   const handleRollPress = () => {
@@ -542,6 +628,9 @@ export function OnlineLudoGameView({
     myColor,
     legalMoves: presentationState.legalMoves,
     pendingCommand,
+    mySeatStatus: mySeat?.status || null,
+    myControlMode: mySeat?.controlMode,
+    myPresence: mySeat?.presence,
   });
 
   const handleTokenPress = (tokenIndex: number) => {
@@ -635,9 +724,13 @@ export function OnlineLudoGameView({
         botDifficulty: s.botDifficulty,
         isYou: s.status === 'human' && s.userId === myUserId,
         isOnline: s.userId ? Boolean(clientState.presence[s.userId]) : true,
+        controlMode: s.controlMode,
+        presence: s.presence,
+        countdownText: formatReconnectCountdown(s.disconnectDeadline, now),
+        isRanked: presentationState.rankings.includes(color),
       };
     });
-  }, [authoritativeSeats, myUserId, clientState.presence]);
+  }, [authoritativeSeats, myUserId, clientState.presence, now, presentationState.rankings]);
 
   // Turn status presentation
   const isMyTurn = presentationState.currentTurn === myColor;
@@ -647,7 +740,12 @@ export function OnlineLudoGameView({
   const currentTurnPlayerName =
     currentSeat?.displayName ||
     (presentationState.currentTurn ? presentationState.currentTurn.toUpperCase() : 'Waiting');
-  const isCurrentTurnBot = currentSeat?.status === 'bot';
+  const isCurrentTurnBot = currentSeat?.status === 'bot' || currentSeat?.controlMode === 'bot';
+  const isCurrentTurnReconnecting = currentSeat?.presence === 'reconnecting';
+  const currentTurnCountdown = formatReconnectCountdown(currentSeat?.disconnectDeadline, now);
+  const isCurrentTurnTakeoverBot =
+    currentSeat?.controlMode === 'takeover-bot' || currentSeat?.presence === 'abandoned';
+  const finishReason = clientState.playingState?.finishReason;
 
   const turnStatus = formatOnlineTurnStatus(
     presentationState.currentTurn,
@@ -657,7 +755,14 @@ export function OnlineLudoGameView({
     isCurrentTurnBot,
     clientState.connectionStatus,
     clientState.isResyncing,
-    presentationState.status === 'finished'
+    presentationState.status === 'finished',
+    {
+      finishReason,
+      isCurrentTurnReconnecting,
+      reconnectCountdown: currentTurnCountdown,
+      isCurrentTurnTakeoverBot,
+      isCurrentUserSpectator: isSpectator,
+    }
   );
 
   const turnAccent = presentationState.currentTurn
@@ -666,6 +771,12 @@ export function OnlineLudoGameView({
 
   // Render Finished Standings Screen (Rule 38)
   if (presentationState.status === 'finished') {
+    const isAllHumansAbandoned = finishReason === 'all-humans-abandoned';
+    const finalRankings = getOnlineResultRankings(
+      clientState.playingState?.displayRankings,
+      presentationState.rankings
+    );
+
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <ScrollView
@@ -679,7 +790,7 @@ export function OnlineLudoGameView({
               styles.finishedCard,
               {
                 backgroundColor: colors.surface,
-                borderColor: colors.primary,
+                borderColor: isAllHumansAbandoned ? colors.borderStrong : colors.primary,
                 borderRadius: radii.card,
               },
             ]}
@@ -690,21 +801,34 @@ export function OnlineLudoGameView({
                 { backgroundColor: colors.surfaceRaised, borderRadius: radii.pill },
               ]}
             >
-              <Ionicons name="trophy" size={48} color="#F59E0B" />
+              {isAllHumansAbandoned ? (
+                <Ionicons name="flag-outline" size={48} color={colors.textMuted} />
+              ) : (
+                <Ionicons name="trophy" size={48} color="#F59E0B" />
+              )}
             </View>
 
             <Heading style={[styles.finishedTitle, { color: colors.text }]}>
-              GAME FINISHED
+              {isAllHumansAbandoned ? 'MATCH ENDED' : 'GAME FINISHED'}
             </Heading>
-            <Text variant="sm" style={{ color: colors.textMuted, marginTop: 4 }}>
-              Match completed • Room {clientState.roomId}
+            <Text variant="sm" style={{ color: colors.textMuted, marginTop: 4, textAlign: 'center' }}>
+              {isAllHumansAbandoned
+                ? `All human players left the match. • Room ${clientState.roomId}`
+                : `Match completed • Room ${clientState.roomId}`}
             </Text>
 
             <View style={[styles.rankingsList, { marginTop: spacing.lg }]}>
-              {presentationState.rankings.map((color: PlayerColor, idx: number) => {
+              {finalRankings.map((color: PlayerColor, idx: number) => {
                 const seat = authoritativeSeats[color];
                 const isYou = seat?.status === 'human' && seat?.userId === myUserId;
+                const isTakeover =
+                  seat?.controlMode === 'takeover-bot' || seat?.presence === 'abandoned';
+                const isConfiguredBot =
+                  !isTakeover && (seat?.status === 'bot' || seat?.controlMode === 'bot');
                 const place = idx === 0 ? '1st' : idx === 1 ? '2nd' : idx === 2 ? '3rd' : '4th';
+
+                const displayName = seat?.displayName || color.toUpperCase();
+
                 return (
                   <View
                     key={color}
@@ -712,7 +836,7 @@ export function OnlineLudoGameView({
                       styles.rankingRow,
                       {
                         backgroundColor: colors.surfaceRaised,
-                        borderColor: isYou ? colors.primary : colors.borderStrong,
+                        borderColor: isYou && !isTakeover ? colors.primary : colors.borderStrong,
                         borderRadius: radii.md,
                       },
                     ]}
@@ -725,13 +849,21 @@ export function OnlineLudoGameView({
                     <View style={[styles.colorPill, { backgroundColor: COLOR_ACCENTS[color] }]} />
                     <View style={{ flex: 1 }}>
                       <Text variant="sm" weight="700" style={{ color: colors.text }}>
-                        {seat?.displayName || color.toUpperCase()}
+                        {displayName}
                       </Text>
-                      {seat?.status === 'bot' && (
-                        <Caption style={{ color: colors.textMuted }}>Bot ({seat.botDifficulty})</Caption>
+                      {isTakeover && (
+                        <Caption style={{ color: '#F97316' }}>Bot takeover</Caption>
+                      )}
+                      {isConfiguredBot && (
+                        <Caption style={{ color: colors.textMuted }}>
+                          Bot ({seat?.botDifficulty ? seat.botDifficulty.charAt(0).toUpperCase() + seat.botDifficulty.slice(1) : 'Normal'})
+                        </Caption>
                       )}
                     </View>
-                    {isYou && (
+                    {isTakeover && (
+                      <Badge label="TAKEOVER" variant="neutral" size="sm" />
+                    )}
+                    {isYou && !isTakeover && (
                       <Badge label="YOU" variant="official" size="sm" />
                     )}
                   </View>
@@ -812,8 +944,82 @@ export function OnlineLudoGameView({
         contentContainerStyle={[styles.scrollContent, { paddingBottom: spacing.xl }]}
         showsVerticalScrollIndicator={false}
       >
+        {/* Spectator Mode Banner */}
+        {isSpectator && (
+          <View
+            style={{ width: '100%', paddingHorizontal: spacing.md, marginTop: spacing.xs }}
+            accessibilityRole="alert"
+            accessibilityLabel="You left this match. A bot is now playing for your seat. You are watching as spectator."
+          >
+            <Card
+              style={[
+                styles.turnCard,
+                {
+                  backgroundColor: colors.surfaceRaised,
+                  borderLeftColor: '#F59E0B',
+                  borderLeftWidth: 4,
+                  borderColor: colors.borderStrong,
+                  borderRadius: radii.md,
+                  padding: spacing.sm,
+                },
+              ]}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Ionicons name="eye-outline" size={20} color="#F59E0B" style={{ marginRight: 8 }} />
+                <View style={{ flex: 1 }}>
+                  <Text variant="xs" weight="800" style={{ color: colors.text }}>
+                    You left this match
+                  </Text>
+                  <Caption style={{ color: colors.textMuted }}>
+                    A bot is now playing for your seat. You can continue watching.
+                  </Caption>
+                </View>
+              </View>
+            </Card>
+          </View>
+        )}
+
+        {/* Restrained Lifecycle Transition Toast */}
+        {lifecycleToast && (
+          <View style={{ width: '100%', paddingHorizontal: spacing.md, marginTop: spacing.xs }}>
+            <View
+              style={[
+                styles.toastBanner,
+                {
+                  backgroundColor: colors.surfaceRaised,
+                  borderColor: COLOR_ACCENTS[lifecycleToast.color],
+                  borderWidth: 1,
+                  borderRadius: radii.sm,
+                  paddingVertical: 6,
+                  paddingHorizontal: 10,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                },
+              ]}
+              accessibilityRole="alert"
+              accessibilityLabel={lifecycleToast.message}
+            >
+              <Ionicons
+                name={
+                  lifecycleToast.type === 'abandoned'
+                    ? 'person-remove-outline'
+                    : lifecycleToast.type === 'reconnected'
+                    ? 'person-add-outline'
+                    : 'time-outline'
+                }
+                size={16}
+                color={COLOR_ACCENTS[lifecycleToast.color]}
+                style={{ marginRight: 6 }}
+              />
+              <Text variant="xs" weight="700" style={{ color: colors.text, flex: 1 }}>
+                {lifecycleToast.message}
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* Player Bar */}
-        <View style={{ paddingHorizontal: spacing.md, marginVertical: spacing.xs }}>
+        <View style={{ width: '100%', paddingHorizontal: spacing.md, marginVertical: spacing.xs }}>
           <LudoPlayerBar
             seats={playerBarSeats}
             currentTurn={presentationState.currentTurn}
@@ -822,7 +1028,7 @@ export function OnlineLudoGameView({
         </View>
 
         {/* Turn Status Banner */}
-        <View style={{ paddingHorizontal: spacing.md, marginBottom: spacing.xs }}>
+        <View style={{ width: '100%', paddingHorizontal: spacing.md, marginBottom: spacing.xs }}>
           <Card
             style={[
               styles.turnCard,
@@ -864,7 +1070,7 @@ export function OnlineLudoGameView({
             viewModel={boardViewModel}
             maxBoardSize={maxBoardSize}
             onTokenPress={handleTokenPress}
-            disabled={!isMyTurn || presentationState.turnPhase !== 'move' || isBoardBusy}
+            disabled={!isMyTurn || isSpectator || presentationState.turnPhase !== 'move' || isBoardBusy}
             hiddenTokenKeys={hiddenTokenKeys}
             travelPlan={travelPlan}
             capturePlans={capturePlans}
@@ -891,13 +1097,37 @@ export function OnlineLudoGameView({
               size={54}
               disabled={!canRoll}
               isRolling={isDiceRolling}
-              isBotTurn={!isMyTurn}
+              isBotTurn={!isMyTurn || isSpectator}
               isReducedMotion={isReducedMotion}
               onRollComplete={handleDiceRollComplete}
             />
 
             <View style={{ flex: 1, marginLeft: spacing.md }}>
-              {isMyTurn && presentationState.turnPhase === 'move' ? (
+              {isSpectator ? (
+                <View
+                  style={[
+                    styles.instructionBox,
+                    {
+                      backgroundColor: colors.surfaceRaised,
+                      borderRadius: radii.md,
+                      paddingVertical: 12,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    },
+                  ]}
+                  accessibilityRole="text"
+                  accessibilityLabel="You are watching as spectator"
+                >
+                  <Ionicons name="eye-outline" size={18} color={colors.textMuted} />
+                  <Text
+                    variant="xs"
+                    weight="700"
+                    style={{ color: colors.textMuted, marginLeft: 6 }}
+                  >
+                    Spectator Mode
+                  </Text>
+                </View>
+              ) : isMyTurn && presentationState.turnPhase === 'move' ? (
                 <View
                   style={[
                     styles.instructionBox,
@@ -1031,5 +1261,8 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 2,
     marginRight: 10,
+  },
+  toastBanner: {
+    width: '100%',
   },
 });

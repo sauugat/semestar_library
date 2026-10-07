@@ -554,6 +554,17 @@ export class OnlineLudoClient {
             friendlyMessage,
           },
         }));
+
+        if (
+          (event.code === 'PLAYER_ABANDONED' ||
+            event.code === 'PLAYER_OFFLINE' ||
+            event.code === 'NOT_YOUR_TURN' ||
+            event.code === 'INVALID_PHASE' ||
+            event.code === 'ILLEGAL_MOVE') &&
+          !this.state.isResyncing
+        ) {
+          this.requestState();
+        }
         break;
       }
     }

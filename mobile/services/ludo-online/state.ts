@@ -95,6 +95,18 @@ export function mapLudoErrorCodeToMessage(code?: string, defaultMessage?: string
       return 'Bot action limit reached.';
     case 'NOT_IN_ROOM':
       return 'You are not seated in this room.';
+    case 'NOT_YOUR_TURN':
+      return 'It is not your turn.';
+    case 'INVALID_PHASE':
+      return 'Action is not permitted in the current turn phase.';
+    case 'ILLEGAL_MOVE':
+      return 'That move is not legal.';
+    case 'PLAYER_ABANDONED':
+      return 'A bot has taken over your seat. You can keep watching this match.';
+    case 'PLAYER_OFFLINE':
+      return 'Your seat is reconnecting. Please wait for synchronization.';
+    case 'GAME_OVER':
+      return 'This match has ended.';
     case 'MALFORMED_MESSAGE':
       return 'Invalid action requested.';
     default:

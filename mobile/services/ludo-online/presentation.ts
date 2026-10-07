@@ -14,6 +14,8 @@
 import type { PlayerColor, LudoState } from '../../../packages/ludo-engine/src/index.ts';
 import type {
   LudoSeat,
+  LudoControlMode,
+  LudoPresenceStatus,
   LudoDiceRolledEvent,
   LudoMoveResultEvent,
   LudoGameStateEvent,
@@ -42,6 +44,8 @@ export interface CanRollParams {
   myColor: PlayerColor | null;
   mySeatStatus: string | null;
   pendingCommand: string | null;
+  myControlMode?: LudoControlMode | null;
+  myPresence?: LudoPresenceStatus | null;
 }
 
 export interface SelectableTokensParams {
@@ -54,11 +58,22 @@ export interface SelectableTokensParams {
   myColor: PlayerColor | null;
   legalMoves: number[];
   pendingCommand: string | null;
+  mySeatStatus?: string | null;
+  myControlMode?: LudoControlMode | null;
+  myPresence?: LudoPresenceStatus | null;
 }
 
 export interface TurnStatusInfo {
   title: string;
   subtitle: string;
+}
+
+export interface TurnStatusLifecycleOptions {
+  finishReason?: 'all-humans-abandoned' | 'normal' | null;
+  isCurrentTurnReconnecting?: boolean;
+  reconnectCountdown?: string | null;
+  isCurrentTurnTakeoverBot?: boolean;
+  isCurrentUserSpectator?: boolean;
 }
 
 /**
@@ -221,6 +236,12 @@ export function canOnlineHumanRoll(params: CanRollParams): boolean {
   if (params.mySeatStatus !== 'human') return false;
   if (params.pendingCommand !== null) return false;
 
+  const controlMode = params.myControlMode ?? 'human';
+  if (controlMode !== 'human') return false;
+
+  const presence = params.myPresence ?? 'online';
+  if (presence !== 'online') return false;
+
   return true;
 }
 
@@ -236,6 +257,16 @@ export function getOnlineSelectableTokens(params: SelectableTokensParams): numbe
   if (!params.myColor || params.currentTurn !== params.myColor) return [];
   if (params.turnPhase !== 'move') return [];
   if (params.pendingCommand !== null) return [];
+
+  if (params.mySeatStatus !== undefined && params.mySeatStatus !== null && params.mySeatStatus !== 'human') {
+    return [];
+  }
+
+  const controlMode = params.myControlMode ?? 'human';
+  if (controlMode !== 'human') return [];
+
+  const presence = params.myPresence ?? 'online';
+  if (presence !== 'online') return [];
 
   return Array.isArray(params.legalMoves) ? params.legalMoves : [];
 }
@@ -271,9 +302,13 @@ export function formatOnlineTurnStatus(
   isBot: boolean,
   connectionStatus: string,
   isResyncing: boolean,
-  isFinished: boolean
+  isFinished: boolean,
+  options?: TurnStatusLifecycleOptions
 ): TurnStatusInfo {
   if (isFinished) {
+    if (options?.finishReason === 'all-humans-abandoned') {
+      return { title: 'Match Ended', subtitle: 'All human players left the match.' };
+    }
     return { title: 'Game Finished', subtitle: 'Match complete' };
   }
   if (connectionStatus === 'reconnecting') {
@@ -286,7 +321,21 @@ export function formatOnlineTurnStatus(
     return { title: 'Waiting…', subtitle: 'Setting up game' };
   }
 
-  if (isMyTurn) {
+  if (options?.isCurrentTurnReconnecting) {
+    let subtitle = 'Waiting for reconnection…';
+    if (options.reconnectCountdown === '0:00') {
+      subtitle = 'Waiting for server…';
+    } else if (options.reconnectCountdown) {
+      subtitle = `Waiting for reconnection • ${options.reconnectCountdown}`;
+    }
+    return { title: `${playerName} disconnected`, subtitle };
+  }
+
+  if (options?.isCurrentTurnTakeoverBot) {
+    return { title: `${playerName} • Bot takeover`, subtitle: 'Bot is playing for them' };
+  }
+
+  if (isMyTurn && !options?.isCurrentUserSpectator) {
     if (turnPhase === 'roll') {
       return { title: 'Your turn', subtitle: 'Roll the dice' };
     }

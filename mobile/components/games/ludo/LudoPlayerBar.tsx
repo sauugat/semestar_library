@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/Badge';
 import { useTheme } from '@/constants/useTheme';
 import type { LocalSeatConfig } from '../../../types/ludo-session';
 import type { PlayerColor } from '../../../../packages/ludo-engine/src/index.ts';
+import type { LudoControlMode, LudoPresenceStatus } from '../../../services/ludo-online/index.ts';
 
 const PLAYER_CHIP_COLORS: Record<PlayerColor, { hex: string; bg: string }> = {
   red: { hex: '#DC2626', bg: 'rgba(220, 38, 38, 0.14)' },
@@ -20,6 +21,10 @@ export interface LudoPlayerBarSeat {
   botDifficulty?: string | null;
   isYou?: boolean;
   isOnline?: boolean;
+  controlMode?: LudoControlMode;
+  presence?: LudoPresenceStatus;
+  countdownText?: string | null;
+  isRanked?: boolean;
 }
 
 export interface LudoPlayerBarProps {
@@ -44,14 +49,54 @@ export function LudoPlayerBar({
         {activeSeats.map((seat) => {
           const meta = PLAYER_CHIP_COLORS[seat.color];
           const isTurn = !isGameFinished && currentTurn === seat.color;
-          const isBot = seat.status === 'bot';
           const barSeat = seat as LudoPlayerBarSeat;
+          const rawSeat = seat as any;
+
+          const isTakeover =
+            barSeat.controlMode === 'takeover-bot' || barSeat.presence === 'abandoned';
+          const isReconnecting = barSeat.presence === 'reconnecting';
+          const isBot =
+            !isTakeover &&
+            (seat.status === 'bot' || rawSeat.isBot || barSeat.controlMode === 'bot');
+
+          const displayName =
+            seat.displayName || rawSeat.name || seat.color.toUpperCase();
 
           let desc = 'Human Player';
-          if (isBot) {
-            desc = `Bot • ${seat.botDifficulty ? seat.botDifficulty.charAt(0).toUpperCase() + seat.botDifficulty.slice(1) : 'Normal'}`;
-          } else if (barSeat.isOnline !== undefined) {
-            desc = barSeat.isOnline ? 'Online' : 'Offline';
+          let accessibilityLabel = '';
+
+          if (isTakeover) {
+            desc = 'Bot takeover';
+            accessibilityLabel = barSeat.isYou
+              ? `Your seat, bot takeover, ${seat.color}${isTurn ? ', current turn' : ''}`
+              : `${displayName}, bot takeover, ${seat.color}${isTurn ? ', current turn' : ''}`;
+          } else if (isReconnecting) {
+            if (barSeat.isRanked && !barSeat.countdownText) {
+              desc = 'Finished';
+              accessibilityLabel = `${displayName}, finished, ${seat.color}`;
+            } else {
+              desc = barSeat.countdownText
+                ? `Reconnecting • ${barSeat.countdownText}`
+                : 'Reconnecting…';
+              accessibilityLabel = `${displayName}, reconnecting${
+                barSeat.countdownText ? `, ${barSeat.countdownText} remaining` : ''
+              }, ${seat.color}${isTurn ? ', current turn' : ''}`;
+            }
+          } else if (isBot) {
+            const diff =
+              seat.botDifficulty || rawSeat.botDifficulty
+                ? (seat.botDifficulty || rawSeat.botDifficulty).charAt(0).toUpperCase() +
+                  (seat.botDifficulty || rawSeat.botDifficulty).slice(1)
+                : 'Normal';
+            desc = `Bot • ${diff}`;
+            accessibilityLabel = `${displayName}, bot, ${diff}, ${seat.color}${isTurn ? ', current turn' : ''}`;
+          } else {
+            if (barSeat.isOnline !== undefined) {
+              desc = barSeat.isOnline ? 'Online' : 'Offline';
+            } else {
+              desc = 'Online';
+            }
+            accessibilityLabel = `${displayName}${barSeat.isYou ? ' (You)' : ''}, ${seat.color}, ${desc}${isTurn ? ', current turn' : ''}`;
           }
 
           return (
@@ -74,7 +119,7 @@ export function LudoPlayerBar({
                 },
               ]}
               accessibilityRole="text"
-              accessibilityLabel={`${seat.displayName}${barSeat.isYou ? ' (You)' : ''}, ${seat.color}, ${desc}${isTurn ? ', current turn' : ''}`}
+              accessibilityLabel={accessibilityLabel}
             >
               {/* Vertical Color Accent Pill */}
               <View style={[styles.colorPill, { backgroundColor: meta.hex }]} />
@@ -87,7 +132,7 @@ export function LudoPlayerBar({
                     numberOfLines={1}
                     ellipsizeMode="tail"
                   >
-                    {seat.displayName || seat.color.toUpperCase()}
+                    {displayName}
                   </Text>
                   {barSeat.isYou && (
                     <View style={styles.youBadge}>
@@ -96,20 +141,49 @@ export function LudoPlayerBar({
                       </Text>
                     </View>
                   )}
+                  {isTakeover && (
+                    <View style={styles.takeoverBadge}>
+                      <Text variant="xs" weight="800" style={styles.takeoverBadgeText}>
+                        BOT
+                      </Text>
+                    </View>
+                  )}
                   {isTurn && (
                     <View style={[styles.turnIndicatorDot, { backgroundColor: meta.hex }]} />
                   )}
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 1 }}>
-                  {!isBot && barSeat.isOnline !== undefined && (
+                  {!isBot && !isTakeover && barSeat.isOnline !== undefined && (
                     <View
                       style={[
                         styles.presenceDot,
-                        { backgroundColor: barSeat.isOnline ? '#10B981' : '#6B7280' },
+                        {
+                          backgroundColor: isReconnecting
+                            ? '#F59E0B'
+                            : barSeat.isOnline
+                            ? '#10B981'
+                            : '#6B7280',
+                        },
                       ]}
                     />
                   )}
-                  <Text variant="xs" style={{ color: colors.textMuted, fontSize: 10 }} numberOfLines={1}>
+                  {isTakeover && (
+                    <View
+                      style={[
+                        styles.presenceDot,
+                        { backgroundColor: '#F97316' },
+                      ]}
+                    />
+                  )}
+                  <Text
+                    variant="xs"
+                    style={{
+                      color: isReconnecting ? '#F59E0B' : colors.textMuted,
+                      fontSize: 10,
+                      fontWeight: isReconnecting ? '700' : '400',
+                    }}
+                    numberOfLines={1}
+                  >
                     {desc}
                   </Text>
                 </View>
@@ -177,6 +251,18 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   youBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    lineHeight: 11,
+  },
+  takeoverBadge: {
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 4,
+    backgroundColor: '#F97316',
+    marginLeft: 6,
+  },
+  takeoverBadgeText: {
     color: '#FFFFFF',
     fontSize: 9,
     lineHeight: 11,

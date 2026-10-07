@@ -30,6 +30,7 @@ import {
   canStartGame,
   normalizeRoomCode,
   isValidRoomCode,
+  getOnlineLeaveMode,
 } from '@/services/ludo-online';
 import { OnlineLudoGameView } from '@/components/games/ludo';
 
@@ -96,37 +97,41 @@ export default function OnlineLudoLobbyScreen() {
     const isPlaying =
       clientState?.playingState &&
       (clientState.playingState.state as any)?.status === 'playing';
+    const isFinished =
+      clientState?.playingState &&
+      (clientState.playingState.state as any)?.status === 'finished';
 
-    if (isPlaying) {
-      Alert.alert(
-        'Leave online match?',
-        'Your seat will remain reserved. You can return to this match later.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Leave',
-            style: 'destructive',
-            onPress: () => {
-              clientRef.current?.leaveRoom();
-              router.replace('/games/ludo/online' as any);
-            },
-          },
-        ]
-      );
-    } else {
-      Alert.alert('Leave Room?', 'Are you sure you want to leave this online lobby?', [
-        { text: 'Stay', style: 'cancel' },
+    const gameStatus = isPlaying ? 'playing' : isFinished ? 'finished' : 'lobby';
+    const seats = clientState?.playingState?.seats || clientState?.lobby?.seats || null;
+    const rankings = (clientState?.playingState?.state as any)?.rankings || null;
+
+    const leaveCopy = getOnlineLeaveMode({
+      gameStatus,
+      seats,
+      myUserId: clientState?.myUserId,
+      rankings,
+    });
+
+    Alert.alert(
+      leaveCopy.title,
+      leaveCopy.message,
+      [
+        { text: leaveCopy.cancelLabel, style: 'cancel' },
         {
-          text: 'Leave',
+          text: leaveCopy.confirmLabel,
           style: 'destructive',
           onPress: () => {
-            clientRef.current?.leaveRoom();
+            if (leaveCopy.shouldSendLeaveMessage) {
+              clientRef.current?.leaveRoom();
+            } else {
+              clientRef.current?.disconnect();
+            }
             router.replace('/games/ludo/online' as any);
           },
         },
-      ]);
-    }
-  }, [clientState?.playingState, router]);
+      ]
+    );
+  }, [clientState, router]);
 
   // Intercept Android hardware back button during room/match
   useEffect(() => {

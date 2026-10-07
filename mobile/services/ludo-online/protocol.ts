@@ -15,6 +15,11 @@ export type BotDifficulty = 'easy' | 'normal' | 'hard';
 export const VALID_BOT_DIFFICULTIES: BotDifficulty[] = ['easy', 'normal', 'hard'];
 
 export type LudoSeatStatus = 'human' | 'bot' | 'open' | 'closed';
+export type LudoControlMode = 'human' | 'bot' | 'takeover-bot';
+export const VALID_CONTROL_MODES: LudoControlMode[] = ['human', 'bot', 'takeover-bot'];
+
+export type LudoPresenceStatus = 'online' | 'reconnecting' | 'abandoned';
+export const VALID_PRESENCE_STATUSES: LudoPresenceStatus[] = ['online', 'reconnecting', 'abandoned'];
 
 export interface LudoSeat {
   color: PlayerColor;
@@ -23,6 +28,10 @@ export interface LudoSeat {
   displayName: string | null;
   botDifficulty: BotDifficulty | null;
   ready: boolean;
+  controlMode?: LudoControlMode;
+  presence?: LudoPresenceStatus;
+  disconnectDeadline?: number | null;
+  abandonedAt?: number | null;
 }
 
 export interface LudoLobbyState {
@@ -76,6 +85,8 @@ export interface LudoGameStateEvent {
   presence: Record<string, boolean>;
   revision: number;
   protocolVersion: number;
+  finishReason?: 'all-humans-abandoned' | 'normal' | null;
+  displayRankings?: PlayerColor[];
 }
 
 export interface LudoDiceRolledEvent {
@@ -117,6 +128,8 @@ export interface LudoPresenceEvent {
   roomId: string;
   userId: string;
   online: boolean;
+  status?: LudoPresenceStatus;
+  disconnectDeadline?: number | null;
   protocolVersion: number;
 }
 
@@ -161,7 +174,55 @@ function validateSeat(raw: unknown, expectedColor: PlayerColor): LudoSeat | null
 
   const ready = typeof s.ready === 'boolean' ? s.ready : false;
 
-  return {
+  let controlMode: LudoControlMode | undefined = undefined;
+  if (s.controlMode !== undefined && s.controlMode !== null) {
+    if (typeof s.controlMode !== 'string' || !VALID_CONTROL_MODES.includes(s.controlMode as LudoControlMode)) {
+      return null;
+    }
+    controlMode = s.controlMode as LudoControlMode;
+  }
+
+  let presence: LudoPresenceStatus | undefined = undefined;
+  if (s.presence !== undefined && s.presence !== null) {
+    if (typeof s.presence !== 'string' || !VALID_PRESENCE_STATUSES.includes(s.presence as LudoPresenceStatus)) {
+      return null;
+    }
+    presence = s.presence as LudoPresenceStatus;
+  }
+
+  let disconnectDeadline: number | null | undefined = undefined;
+  if (s.disconnectDeadline !== undefined) {
+    if (s.disconnectDeadline === null) {
+      disconnectDeadline = null;
+    } else if (
+      typeof s.disconnectDeadline === 'number' &&
+      Number.isFinite(s.disconnectDeadline) &&
+      Number.isInteger(s.disconnectDeadline) &&
+      s.disconnectDeadline >= 0
+    ) {
+      disconnectDeadline = s.disconnectDeadline;
+    } else {
+      return null;
+    }
+  }
+
+  let abandonedAt: number | null | undefined = undefined;
+  if (s.abandonedAt !== undefined) {
+    if (s.abandonedAt === null) {
+      abandonedAt = null;
+    } else if (
+      typeof s.abandonedAt === 'number' &&
+      Number.isFinite(s.abandonedAt) &&
+      Number.isInteger(s.abandonedAt) &&
+      s.abandonedAt >= 0
+    ) {
+      abandonedAt = s.abandonedAt;
+    } else {
+      return null;
+    }
+  }
+
+  const result: LudoSeat = {
     color: expectedColor,
     status: s.status,
     userId,
@@ -169,6 +230,13 @@ function validateSeat(raw: unknown, expectedColor: PlayerColor): LudoSeat | null
     botDifficulty,
     ready,
   };
+
+  if (controlMode !== undefined) result.controlMode = controlMode;
+  if (presence !== undefined) result.presence = presence;
+  if (disconnectDeadline !== undefined) result.disconnectDeadline = disconnectDeadline;
+  if (abandonedAt !== undefined) result.abandonedAt = abandonedAt;
+
+  return result;
 }
 
 /**
@@ -314,6 +382,36 @@ export function parseLudoServerEvent(raw: unknown): LudoServerEvent | null {
 
       const hostUserId = typeof e.hostUserId === 'string' && e.hostUserId.trim() ? e.hostUserId.trim() : null;
 
+      let finishReason: 'all-humans-abandoned' | 'normal' | null | undefined = undefined;
+      if (e.finishReason !== undefined) {
+        if (e.finishReason === null) {
+          finishReason = null;
+        } else if (e.finishReason === 'all-humans-abandoned' || e.finishReason === 'normal') {
+          finishReason = e.finishReason;
+        } else {
+          return null;
+        }
+      }
+
+      let displayRankings: PlayerColor[] | undefined = undefined;
+      if (e.displayRankings !== undefined && e.displayRankings !== null) {
+        if (!Array.isArray(e.displayRankings)) return null;
+        const seenColors = new Set<PlayerColor>();
+        const parsedDisplayRankings: PlayerColor[] = [];
+        for (const item of e.displayRankings) {
+          if (typeof item !== 'string' || !CANONICAL_COLORS.includes(item as PlayerColor)) {
+            return null;
+          }
+          const col = item as PlayerColor;
+          if (seenColors.has(col)) {
+            return null; // Reject duplicate displayRankings colors
+          }
+          seenColors.add(col);
+          parsedDisplayRankings.push(col);
+        }
+        displayRankings = parsedDisplayRankings;
+      }
+
       const presence: Record<string, boolean> = {};
       if (typeof e.presence === 'object' && e.presence !== null) {
         for (const [k, v] of Object.entries(e.presence)) {
@@ -323,7 +421,7 @@ export function parseLudoServerEvent(raw: unknown): LudoServerEvent | null {
         }
       }
 
-      return {
+      const gameStateEvent: LudoGameStateEvent = {
         type: 'LUDO_GAME_STATE',
         roomId: e.roomId.trim(),
         state: e.state,
@@ -333,6 +431,11 @@ export function parseLudoServerEvent(raw: unknown): LudoServerEvent | null {
         revision: e.revision,
         protocolVersion,
       };
+
+      if (finishReason !== undefined) gameStateEvent.finishReason = finishReason;
+      if (displayRankings !== undefined) gameStateEvent.displayRankings = displayRankings;
+
+      return gameStateEvent;
     }
 
     case 'LUDO_DICE_ROLLED': {
@@ -432,13 +535,42 @@ export function parseLudoServerEvent(raw: unknown): LudoServerEvent | null {
       if (typeof e.userId !== 'string' || !e.userId.trim()) return null;
       if (typeof e.online !== 'boolean') return null;
 
-      return {
+      let status: LudoPresenceStatus | undefined = undefined;
+      if (e.status !== undefined && e.status !== null) {
+        if (typeof e.status !== 'string' || !VALID_PRESENCE_STATUSES.includes(e.status as LudoPresenceStatus)) {
+          return null;
+        }
+        status = e.status as LudoPresenceStatus;
+      }
+
+      let disconnectDeadline: number | null | undefined = undefined;
+      if (e.disconnectDeadline !== undefined) {
+        if (e.disconnectDeadline === null) {
+          disconnectDeadline = null;
+        } else if (
+          typeof e.disconnectDeadline === 'number' &&
+          Number.isFinite(e.disconnectDeadline) &&
+          Number.isInteger(e.disconnectDeadline) &&
+          e.disconnectDeadline >= 0
+        ) {
+          disconnectDeadline = e.disconnectDeadline;
+        } else {
+          return null;
+        }
+      }
+
+      const presenceEvent: LudoPresenceEvent = {
         type: 'LUDO_PRESENCE',
         roomId: e.roomId.trim(),
         userId: e.userId.trim(),
         online: e.online,
         protocolVersion,
       };
+
+      if (status !== undefined) presenceEvent.status = status;
+      if (disconnectDeadline !== undefined) presenceEvent.disconnectDeadline = disconnectDeadline;
+
+      return presenceEvent;
     }
 
     case 'ERROR': {

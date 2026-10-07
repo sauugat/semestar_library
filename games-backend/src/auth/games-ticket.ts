@@ -4,6 +4,7 @@ export interface GamesTicketPayload {
   username: string | null;
   name: string | null;
   avatarUrl: string | null;
+  role?: string;
   iss: 'semester-library';
   aud: 'semester-games';
   iat: number;
@@ -181,6 +182,7 @@ export async function verifyGamesTicket(
     iat: rawPayload.iat,
     exp: rawPayload.exp,
     jti: rawPayload.jti.trim(),
+    role: typeof rawPayload.role === 'string' && rawPayload.role.trim() ? rawPayload.role.trim() : undefined,
   };
 
   return { valid: true, payload };

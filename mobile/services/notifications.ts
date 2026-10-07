@@ -108,6 +108,13 @@ export interface GameInviteNotificationData extends BaseNotificationData {
   expiresAt?: string;
 }
 
+export interface LudoInvitationNotificationData extends BaseNotificationData {
+  type: 'ludo_invitation';
+  invitationId: string;
+  roomId?: string;
+  gameType?: string;
+}
+
 export interface InAppNotificationActor {
   studentId: string;
   name: string;
@@ -149,6 +156,7 @@ export type NotificationPayload =
   | RoutineNotificationData
   | PostReactionNotificationData
   | GameInviteNotificationData
+  | LudoInvitationNotificationData
   | (BaseNotificationData & { type: string; [key: string]: any });
 
 export interface NotificationPreferences {
@@ -703,11 +711,40 @@ export function parseNotificationData(raw: unknown): NotificationPayload | null 
     }
   }
 
+  if (type === 'ludo_invitation') {
+    const invitationId = typeof data.invitationId === 'string' ? data.invitationId.trim() : '';
+    if (invitationId.length > 0) {
+      return {
+        type: 'ludo_invitation',
+        invitationId,
+        roomId: typeof data.roomId === 'string' ? data.roomId.trim().toUpperCase() : undefined,
+        gameType: typeof data.gameType === 'string' ? data.gameType.trim() : 'ludo',
+        actorId: data.actorId ? String(data.actorId) : undefined,
+        actorName: data.actorName ? String(data.actorName) : undefined,
+        groupKey: data.groupKey,
+        collapseId: data.collapseId,
+      };
+    }
+  }
+
   if (type === 'game_invite') {
     const gameType = typeof data.gameType === 'string' ? data.gameType.trim() : '';
     const invitationId = typeof data.invitationId === 'string' ? data.invitationId.trim() : '';
     const roomId = typeof data.roomId === 'string' ? data.roomId.trim().toUpperCase() : '';
     const expiresAt = typeof data.expiresAt === 'string' ? data.expiresAt.trim() : undefined;
+
+    if (gameType === 'ludo' && invitationId.length > 0) {
+      return {
+        type: 'ludo_invitation',
+        invitationId,
+        roomId: roomId || undefined,
+        gameType: 'ludo',
+        actorId: data.actorId ? String(data.actorId) : undefined,
+        actorName: data.actorName ? String(data.actorName) : undefined,
+        groupKey: data.groupKey,
+        collapseId: data.collapseId,
+      };
+    }
 
     if (gameType === 'tic-tac-toe' && invitationId.length > 0 && /^[A-Z0-9]{4,16}$/.test(roomId)) {
       if (expiresAt) {
@@ -850,15 +887,23 @@ export function navigateFromNotification(
           break;
         }
 
+        case 'ludo_invitation':
+          router.push(`/games/ludo/invitations/${payload.invitationId}` as any);
+          break;
+
         case 'game_invite':
-          router.push({
-            pathname: '/games/tic-tac-toe',
-            params: {
-              invite: payload.invitationId,
-              room: payload.roomId,
-              autoJoin: '1',
-            },
-          });
+          if (payload.gameType === 'ludo') {
+            router.push(`/games/ludo/invitations/${payload.invitationId}` as any);
+          } else {
+            router.push({
+              pathname: '/games/tic-tac-toe',
+              params: {
+                invite: payload.invitationId,
+                room: payload.roomId,
+                autoJoin: '1',
+              },
+            });
+          }
           break;
 
         default:
@@ -1169,6 +1214,10 @@ export function navigateToNotificationTarget(notification: InAppNotification): v
       } else if (deepLink.startsWith('/routine')) {
         router.push('/routine' as any);
         return;
+      } else if (deepLink.startsWith('/games/ludo/invitations/')) {
+        const invId = deepLink.replace('/games/ludo/invitations/', '').split('?')[0];
+        router.push(`/games/ludo/invitations/${invId}` as any);
+        return;
       } else if (deepLink.startsWith('/chat')) {
         const params = new URLSearchParams(deepLink.split('?')[1] || '');
         navigateFromNotification({
@@ -1208,6 +1257,14 @@ export function navigateToNotificationTarget(notification: InAppNotification): v
     if (entityType === 'routine' || type === 'routine_updated' || type === 'routine') {
       router.push('/routine' as any);
       return;
+    }
+
+    if (entityType === 'game_invitation' || type === 'ludo_invitation' || type === 'game_invitation') {
+      const invId = entityId || notification.metadata?.invitationId;
+      if (invId) {
+        router.push(`/games/ludo/invitations/${invId}` as any);
+        return;
+      }
     }
 
     if (entityType === 'chat' || type === 'chat_message' || type === 'chat') {

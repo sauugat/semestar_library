@@ -1078,3 +1078,80 @@ test('Integration: Spoofed identity headers are stripped by Worker and cannot ov
   wsSpoof.close();
 });
 
+test('Integration: GET /rooms/:roomId auth checks and safe metadata exposure', async () => {
+  const roomId = `room_inspect_${Date.now()}`;
+  const aliceTicket = createGamesTicket(
+    { studentId: 'student_alice_host', username: 'alice', name: 'Alice Host' },
+    TEST_SECRET
+  );
+  const charlieTicket = createGamesTicket(
+    { studentId: 'student_charlie_stranger', username: 'charlie', name: 'Charlie Stranger' },
+    TEST_SECRET
+  );
+  const serverTicket = createGamesTicket(
+    { studentId: 'server_agent', username: 'server' },
+    TEST_SECRET,
+    { role: 'server' }
+  );
+
+  // 1. Anonymous request to GET /rooms/:roomId is rejected with 401
+  const anonRes = await fetch(`${BASE_HTTP}/rooms/${roomId}`);
+  assert.equal(anonRes.status, 401);
+
+  // 2. Alice connects to room and initializes Ludo lobby
+  const wsAlice = await connectWs(`${BASE_WS}/rooms/${roomId}/ws`, {
+    Authorization: `Bearer ${aliceTicket}`,
+  });
+  const queueAlice = new MessageQueue(wsAlice);
+  await queueAlice.next(); // CONNECTED
+  wsAlice.send(JSON.stringify({ type: 'LUDO_JOIN', displayName: 'Alice Host' }));
+  await queueAlice.next(); // LUDO_LOBBY_STATE
+
+  // 3. Charlie (unrelated authenticated user) attempts GET /rooms/:roomId -> 403 Forbidden
+  const charlieRes = await fetch(`${BASE_HTTP}/rooms/${roomId}`, {
+    headers: { Authorization: `Bearer ${charlieTicket}` },
+  });
+  assert.equal(charlieRes.status, 403);
+  const charlieData = await charlieRes.json();
+  assert.equal(charlieData.error, 'FORBIDDEN');
+  assert.equal(charlieData.message, 'You are not authorized to inspect this room.');
+
+  // 4. Spoofed X-Games-* headers by Charlie cannot bypass authorization
+  const spoofRes = await fetch(`${BASE_HTTP}/rooms/${roomId}`, {
+    headers: {
+      Authorization: `Bearer ${charlieTicket}`,
+      'X-Games-User-Id': 'student_alice_host',
+      'X-Games-Role': 'server',
+    },
+  });
+  assert.equal(spoofRes.status, 403);
+
+  // 5. Host (Alice) can introspect room -> 200 with minimal safe metadata
+  const aliceRes = await fetch(`${BASE_HTTP}/rooms/${roomId}`, {
+    headers: { Authorization: `Bearer ${aliceTicket}` },
+  });
+  assert.equal(aliceRes.status, 200);
+  const aliceData = await aliceRes.json();
+  assert.equal(aliceData.status, 'ok');
+  assert.equal(aliceData.roomId, roomId);
+  assert.equal(aliceData.gameType, 'ludo');
+  assert.equal(aliceData.roomStatus, 'lobby');
+  assert.equal(aliceData.hostUserId, 'student_alice_host');
+  assert.equal(aliceData.seats.red.userId, 'student_alice_host');
+  // Minimized representation check: no socket data, no tickets, no tokens
+  assert.equal(aliceData.seats.red.token, undefined);
+  assert.equal(aliceData.seats.red.ws, undefined);
+  assert.equal(aliceData.seats.red.socket, undefined);
+
+  // 6. Server role ticket can introspect room -> 200
+  const serverRes = await fetch(`${BASE_HTTP}/rooms/${roomId}`, {
+    headers: { Authorization: `Bearer ${serverTicket}` },
+  });
+  assert.equal(serverRes.status, 200);
+  const serverData = await serverRes.json();
+  assert.equal(serverData.status, 'ok');
+  assert.equal(serverData.roomId, roomId);
+
+  wsAlice.close();
+});
+

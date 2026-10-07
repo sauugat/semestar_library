@@ -15,3 +15,4 @@ export * from './ludo-animation';
 export * from './ludo-haptics';
 export * from './LudoAnimatedOverlay';
 export * from './OnlineLudoGameView';
+export * from './LudoInviteModal';

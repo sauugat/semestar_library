@@ -357,6 +357,67 @@ export class GameRoom extends DurableObject<Env> {
       });
     }
 
+    const userId = request.headers.get('X-Games-User-Id');
+    const role = request.headers.get('X-Games-Role');
+
+    if (!userId) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized', message: 'Authentication required' }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    let isAuthorized = false;
+    let roomStatus: string | null = null;
+    let hostUserId: string | null = null;
+    let activeSeatCount = 0;
+    let safeSeats: Record<string, { status: string; userId?: string }> | null = null;
+
+    if (this.roomGameType === 'ludo' && this.ludoController) {
+      const state = this.ludoController.getState();
+      roomStatus = state.status;
+      hostUserId = state.hostUserId;
+      activeSeatCount = state.activeSeatCount;
+
+      const isHost = state.hostUserId === userId;
+      const isSeatedParticipant = Object.values(state.seats || {}).some(
+        (s: any) => s && s.userId === userId
+      );
+      const isServerRole = role === 'server' || role === 'system';
+
+      isAuthorized = isHost || isSeatedParticipant || isServerRole;
+
+      if (isAuthorized && state.seats) {
+        safeSeats = {};
+        for (const [color, seat] of Object.entries(state.seats as Record<string, any>)) {
+          if (seat) {
+            safeSeats[color] = {
+              status: seat.status,
+              ...(seat.userId ? { userId: seat.userId } : {}),
+            };
+          }
+        }
+      }
+    } else if (this.roomGameType === 'tic-tac-toe' && this.ticTacToeController) {
+      const isServerRole = role === 'server' || role === 'system';
+      isAuthorized = isServerRole;
+    } else {
+      isAuthorized = role === 'server' || role === 'system';
+    }
+
+    if (!isAuthorized) {
+      return new Response(
+        JSON.stringify({
+          error: 'FORBIDDEN',
+          message: 'You are not authorized to inspect this room.',
+        }),
+        {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
     const revision =
       this.roomGameType === 'tic-tac-toe' && this.ticTacToeController
         ? this.ticTacToeController.getRevision()
@@ -370,6 +431,10 @@ export class GameRoom extends DurableObject<Env> {
         roomId,
         service: 'semester-library-games-room',
         gameType: this.roomGameType || 'tic-tac-toe',
+        roomStatus,
+        hostUserId,
+        activeSeatCount,
+        seats: safeSeats,
         revision,
       }),
       {

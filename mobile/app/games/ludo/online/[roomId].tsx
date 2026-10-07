@@ -32,7 +32,7 @@ import {
   isValidRoomCode,
   getOnlineLeaveMode,
 } from '@/services/ludo-online';
-import { OnlineLudoGameView } from '@/components/games/ludo';
+import { OnlineLudoGameView, LudoInviteModal } from '@/components/games/ludo';
 
 const COLOR_THEMES: Record<PlayerColor, { name: string; hex: string; bg: string }> = {
   red: { name: 'Red', hex: '#DC2626', bg: 'rgba(220, 38, 38, 0.12)' },
@@ -56,8 +56,25 @@ export default function OnlineLudoLobbyScreen() {
   const [clientState, setClientState] = useState<LudoOnlineState | null>(null);
   const [copiedCode, setCopiedCode] = useState<boolean>(false);
   const [isStartingGame, setIsStartingGame] = useState<boolean>(false);
+  const [showInviteModal, setShowInviteModal] = useState<boolean>(false);
 
   const activeRoomCode = clientState?.roomId || roomId;
+
+  const seatedUserIds = useMemo(() => {
+    if (!clientState?.lobby?.seats) return [];
+    return Object.values(clientState.lobby.seats)
+      .map((s: any) => s?.userId)
+      .filter(Boolean) as string[];
+  }, [clientState?.lobby?.seats]);
+
+  const openSeatCount = useMemo(() => {
+    if (!clientState?.lobby?.seats) return 0;
+    return Object.values(clientState.lobby.seats).filter(
+      (s: any) => s && s.status === 'open'
+    ).length;
+  }, [clientState?.lobby?.seats]);
+
+  const isOpenSeatAvailable = openSeatCount > 0;
 
   // Initialize and connect client on mount
   useEffect(() => {
@@ -565,6 +582,17 @@ export default function OnlineLudoLobbyScreen() {
           />
         )}
 
+        {/* Host Invite Player Button */}
+        {isHost && (
+          <Button
+            title={isOpenSeatAvailable ? 'Invite Player' : 'Room is Full'}
+            variant="secondary"
+            disabled={!isOpenSeatAvailable}
+            onPress={() => setShowInviteModal(true)}
+            leftIcon={<Ionicons name="person-add-outline" size={18} color={colors.text} />}
+          />
+        )}
+
         {/* Leave Room Button */}
         <SecondaryButton
           title="Leave Room"
@@ -572,6 +600,18 @@ export default function OnlineLudoLobbyScreen() {
           leftIcon={<Ionicons name="exit-outline" size={18} color={colors.text} />}
         />
       </View>
+
+      {/* Host Player Invite Modal */}
+      {isHost && (
+        <LudoInviteModal
+          visible={showInviteModal}
+          onClose={() => setShowInviteModal(false)}
+          roomId={activeRoomCode}
+          currentUserId={clientState?.myUserId}
+          seatedUserIds={seatedUserIds}
+          openSeatCount={openSeatCount}
+        />
+      )}
     </ScrollView>
   );
 }

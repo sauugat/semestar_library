@@ -32,6 +32,8 @@ const noteSearch = require('./lib/note-search');
 const pushNotifications = require('./lib/push-notifications');
 const officePreview = require('./lib/office-preview');
 const gamesTicket = require('./lib/games-ticket');
+const gamesInvitations = require('./lib/games-invitations');
+const createGamesInvitationsRouter = require('./routes/games-invitations');
 
 async function indexUploadedNote(file) {
   try {
@@ -1334,6 +1336,18 @@ app.post('/api/games/ticket', auth.requireLogin, async (req, res) => {
     });
   }
 });
+
+void gamesInvitations.ensureGamesInvitationsSchema(db).catch((err) => {
+  console.warn('[Games Invitations Schema Warning]:', err.message);
+});
+
+app.use(
+  '/api/games/ludo',
+  createGamesInvitationsRouter(db, auth.requireLogin, {
+    gamesServiceUrl: process.env.GAMES_SERVICE_URL,
+    pushNotifications,
+  })
+);
 
 app.post('/api/change-password', requireLogin, async (req, res) => {
   const { currentPassword, newPassword, confirmPassword } = req.body || {};

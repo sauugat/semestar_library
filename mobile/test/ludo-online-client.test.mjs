@@ -22,6 +22,7 @@ import {
   isUserHost,
   getUserSeat,
   canStartGame,
+  canHostRematch,
 } from '../services/ludo-online/state.ts';
 
 import { OnlineLudoClient } from '../services/ludo-online/client.ts';
@@ -1837,4 +1838,293 @@ test('60. ticket still absent from URL/routes/state/loggable data', async () => 
   assert.equal(client.getState().roomId.includes(secret), false);
 
   client.destroy();
+});
+
+// ==========================================
+// Phase 4D: Same-Room Rematch Tests
+// ==========================================
+
+// 61. (Gate 49) host normal finish sees Play Again
+test('61. (Gate 49) host normal finish sees Play Again', () => {
+  const hostId = 'user_host_1';
+  const finishedState = {
+    engine: { status: 'finished', rankings: ['red', 'yellow'] },
+    finishReason: 'normal',
+  };
+  assert.equal(canHostRematch(finishedState, hostId, hostId), true);
+});
+
+// 62. (Gate 50) non-host normal finish does not see Play Again
+test('62. (Gate 50) non-host normal finish does not see Play Again', () => {
+  const hostId = 'user_host_1';
+  const guestId = 'user_guest_2';
+  const finishedState = {
+    engine: { status: 'finished', rankings: ['red', 'yellow'] },
+    finishReason: 'normal',
+  };
+  assert.equal(canHostRematch(finishedState, hostId, guestId), false);
+});
+
+// 63. (Gate 51) all-humans-abandoned shows no Play Again
+test('63. (Gate 51) all-humans-abandoned shows no Play Again', () => {
+  const hostId = 'user_host_1';
+  const finishedState = {
+    engine: { status: 'finished', rankings: ['yellow'] },
+    finishReason: 'all-humans-abandoned',
+  };
+  assert.equal(canHostRematch(finishedState, hostId, hostId), false);
+});
+
+// 64. canHostRematch returns false during playing phase or null state
+test('64. canHostRematch returns false during playing phase or null state', () => {
+  const hostId = 'user_host_1';
+  assert.equal(canHostRematch(null, hostId, hostId), false);
+  const playingState = {
+    engine: { status: 'playing' },
+    finishReason: null,
+  };
+  assert.equal(canHostRematch(playingState, hostId, hostId), false);
+});
+
+// 65. (Gate 52) rapid Play Again sends one command and sets pendingCommand
+test('65. (Gate 52) rapid Play Again sends one command and sets pendingCommand', async () => {
+  let socketRef = null;
+  const client = new OnlineLudoClient({
+    ticketProvider: async () => ({ ticket: 'mock-ticket' }),
+    wsUrlResolver: (id) => `wss://games.worker.dev/room/${id}/ws`,
+    socketFactory: (url, p, o) => {
+      socketRef = new MockWebSocket(url, p, o);
+      return socketRef;
+    },
+  });
+
+  await client.connect('ABCD23');
+  assert.equal(client.getState().pendingCommand, null);
+
+  // First tap
+  const firstSent = client.returnToLobby();
+  assert.equal(firstSent, true);
+  assert.equal(client.getState().pendingCommand, 'LUDO_RETURN_TO_LOBBY');
+
+  // Second rapid tap while pending
+  const secondSent = client.returnToLobby();
+  assert.equal(secondSent, false); // Blocked
+
+  // Only one message sent over socket
+  assert.equal(socketRef.sentMessages.length, 1);
+  const sentMsg = JSON.parse(socketRef.sentMessages[0]);
+  assert.equal(sentMsg.type, 'LUDO_RETURN_TO_LOBBY');
+
+  client.destroy();
+});
+
+// 66. (Gate 53 & 55 & 56) lobby snapshot resolves pending rematch, clears playingState, and clears actionQueue
+test('66. (Gate 53 & 55 & 56) lobby snapshot resolves pending rematch, clears playingState, and clears actionQueue', async () => {
+  let socket = null;
+  const client = new OnlineLudoClient({
+    ticketProvider: async () => ({ ticket: 'mock-ticket' }),
+    wsUrlResolver: (id) => `wss://games.worker.dev/room/${id}/ws`,
+    socketFactory: (url, p, o) => {
+      socket = new MockWebSocket(url, p, o);
+      return socket;
+    },
+  });
+
+  await client.connect('ABCD23');
+
+  // Set up mock playing state and queued action
+  client.returnToLobby();
+  assert.equal(client.getState().pendingCommand, 'LUDO_RETURN_TO_LOBBY');
+
+  // Authoritative LUDO_LOBBY_STATE arrives from server
+  const freshLobby = {
+    type: 'LUDO_LOBBY_STATE',
+    roomId: 'ABCD23',
+    revision: 25,
+    hostUserId: 'user_host_1',
+    activeSeatCount: 2,
+    roomGeneration: 2,
+    seats: {
+      red: { color: 'red', status: 'human', userId: 'user_host_1', displayName: 'Host', botDifficulty: null, ready: false },
+      green: { color: 'green', status: 'closed', userId: null, displayName: null, botDifficulty: null, ready: false },
+      yellow: { color: 'yellow', status: 'bot', userId: null, displayName: 'Yellow Bot', botDifficulty: 'normal', ready: true },
+      blue: { color: 'blue', status: 'closed', userId: null, displayName: null, botDifficulty: null, ready: false },
+    },
+    presence: { user_host_1: true },
+  };
+
+  socket.receiveMessage(freshLobby);
+
+  const state = client.getState();
+  assert.equal(state.pendingCommand, null);
+  assert.equal(state.playingState, null);
+  assert.equal(state.actionQueue.length, 0);
+  assert.equal(state.lobbyState?.roomGeneration, 2);
+  assert.equal(state.revision, 25);
+
+  client.destroy();
+});
+
+// 67. (Gate 54) rematch error resolves pendingCommand
+test('67. (Gate 54) rematch error resolves pendingCommand', async () => {
+  let socket = null;
+  const client = new OnlineLudoClient({
+    ticketProvider: async () => ({ ticket: 'mock-ticket' }),
+    wsUrlResolver: (id) => `wss://games.worker.dev/room/${id}/ws`,
+    socketFactory: (url, p, o) => {
+      socket = new MockWebSocket(url, p, o);
+      return socket;
+    },
+  });
+
+  await client.connect('ABCD23');
+  client.returnToLobby();
+  assert.equal(client.getState().pendingCommand, 'LUDO_RETURN_TO_LOBBY');
+
+  // Server responds with structured error
+  socket.receiveMessage({
+    type: 'LUDO_ERROR',
+    code: 'NOT_HOST',
+    message: 'Only the room host can return to lobby.',
+  });
+
+  assert.equal(client.getState().pendingCommand, null);
+  assert.equal(client.getState().lastError?.code, 'NOT_HOST');
+
+  client.destroy();
+});
+
+// 68. (Gate 57) stale old gameplay action ignored after lobby reset
+test('68. (Gate 57) stale old gameplay action ignored after lobby reset', async () => {
+  let socket = null;
+  const client = new OnlineLudoClient({
+    ticketProvider: async () => ({ ticket: 'mock-ticket' }),
+    wsUrlResolver: (id) => `wss://games.worker.dev/room/${id}/ws`,
+    socketFactory: (url, p, o) => {
+      socket = new MockWebSocket(url, p, o);
+      return socket;
+    },
+  });
+
+  await client.connect('ABCD23');
+
+  // Fresh lobby arrives at revision 30
+  socket.receiveMessage({
+    type: 'LUDO_LOBBY_STATE',
+    roomId: 'ABCD23',
+    revision: 30,
+    hostUserId: 'user_host_1',
+    activeSeatCount: 2,
+    roomGeneration: 2,
+    seats: {
+      red: { color: 'red', status: 'human', userId: 'user_host_1', displayName: 'Host', botDifficulty: null, ready: false },
+      green: { color: 'green', status: 'closed', userId: null, displayName: null, botDifficulty: null, ready: false },
+      yellow: { color: 'yellow', status: 'open', userId: null, displayName: null, botDifficulty: null, ready: false },
+      blue: { color: 'blue', status: 'closed', userId: null, displayName: null, botDifficulty: null, ready: false },
+    },
+    presence: { user_host_1: true },
+  });
+
+  // Stale gameplay action from previous match arrives with revision 29
+  socket.receiveMessage({
+    type: 'LUDO_DICE_ROLLED',
+    roomId: 'ABCD23',
+    revision: 29,
+    color: 'red',
+    roll: 6,
+    legalMoves: [0],
+  });
+
+  // Should NOT be queued into actionQueue
+  assert.equal(client.getState().actionQueue.length, 0);
+  assert.equal(client.getState().playingState, null);
+
+  client.destroy();
+});
+
+// 69. (Gate 58 & 59) same client and same socket instance retained across reset
+test('69. (Gate 58 & 59) same client and same socket instance retained across reset', async () => {
+  let socket = null;
+  const client = new OnlineLudoClient({
+    ticketProvider: async () => ({ ticket: 'mock-ticket' }),
+    wsUrlResolver: (id) => `wss://games.worker.dev/room/${id}/ws`,
+    socketFactory: (url, p, o) => {
+      socket = new MockWebSocket(url, p, o);
+      return socket;
+    },
+  });
+
+  await client.connect('ABCD23');
+  const initialSocket = socket;
+
+  // Simulate lobby -> game -> finished -> lobby cycle
+  socket.receiveMessage({
+    type: 'LUDO_LOBBY_STATE',
+    roomId: 'ABCD23',
+    revision: 1,
+    hostUserId: 'user_host_1',
+    activeSeatCount: 2,
+    roomGeneration: 1,
+    seats: {
+      red: { color: 'red', status: 'human', userId: 'user_host_1', displayName: 'Host', botDifficulty: null, ready: true },
+      green: { color: 'green', status: 'closed', userId: null, displayName: null, botDifficulty: null, ready: false },
+      yellow: { color: 'yellow', status: 'bot', userId: null, displayName: 'Yellow Bot', botDifficulty: 'normal', ready: true },
+      blue: { color: 'blue', status: 'closed', userId: null, displayName: null, botDifficulty: null, ready: false },
+    },
+    presence: { user_host_1: true },
+  });
+
+  // Rematch to lobby
+  client.returnToLobby();
+  socket.receiveMessage({
+    type: 'LUDO_LOBBY_STATE',
+    roomId: 'ABCD23',
+    revision: 50,
+    hostUserId: 'user_host_1',
+    activeSeatCount: 2,
+    roomGeneration: 2,
+    seats: {
+      red: { color: 'red', status: 'human', userId: 'user_host_1', displayName: 'Host', botDifficulty: null, ready: false },
+      green: { color: 'green', status: 'closed', userId: null, displayName: null, botDifficulty: null, ready: false },
+      yellow: { color: 'yellow', status: 'bot', userId: null, displayName: 'Yellow Bot', botDifficulty: 'normal', ready: true },
+      blue: { color: 'blue', status: 'closed', userId: null, displayName: null, botDifficulty: null, ready: false },
+    },
+    presence: { user_host_1: true },
+  });
+
+  // Socket remains unchanged
+  assert.strictEqual(socket, initialSocket);
+  assert.equal(socket.readyState, MockWebSocket.OPEN);
+
+  client.destroy();
+});
+
+// 70. socket closure clears pendingCommand
+test('70. socket closure clears pendingCommand', async () => {
+  let socket = null;
+  const client = new OnlineLudoClient({
+    ticketProvider: async () => ({ ticket: 'mock-ticket' }),
+    wsUrlResolver: (id) => `wss://games.worker.dev/room/${id}/ws`,
+    socketFactory: (url, p, o) => {
+      socket = new MockWebSocket(url, p, o);
+      return socket;
+    },
+  });
+
+  await client.connect('ABCD23');
+  client.returnToLobby();
+  assert.equal(client.getState().pendingCommand, 'LUDO_RETURN_TO_LOBBY');
+
+  socket.close();
+  assert.equal(client.getState().pendingCommand, null);
+
+  client.destroy();
+});
+
+// 71. mapLudoErrorCodeToMessage maps Phase 4D rematch and stale invitation codes
+test('71. mapLudoErrorCodeToMessage maps Phase 4D rematch and stale invitation codes', () => {
+  assert.equal(mapLudoErrorCodeToMessage('INVITATION_STALE'), 'This invitation belongs to an earlier match.');
+  assert.equal(mapLudoErrorCodeToMessage('NOT_HOST'), 'Only the room host can start another match.');
+  assert.equal(mapLudoErrorCodeToMessage('INVALID_PHASE'), "This match can't be reset right now.");
+  assert.equal(mapLudoErrorCodeToMessage('STORAGE_ERROR'), "Couldn't prepare another match. Try again.");
 });

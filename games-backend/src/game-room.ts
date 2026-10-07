@@ -213,7 +213,7 @@ export class GameRoom extends DurableObject<Env> {
     return {
       broadcast: (event: LudoServerEvent) => this.broadcast(event),
       sendToSocket: (ws: WebSocket, event: LudoServerEvent) => this.sendToSocket(ws, event),
-      getUserSockets: (userId: string) => this.getUserSockets(userId),
+      getUserSockets: (userId: string, excludingWs?: WebSocket) => this.getUserSockets(userId, excludingWs),
       persist: (state: LudoRoomState) => {
         this.ctx.storage.sql.exec(
           `INSERT INTO game_state (key, game_type, state_json, updated_at)
@@ -227,6 +227,19 @@ export class GameRoom extends DurableObject<Env> {
           JSON.stringify(state),
           Date.now()
         );
+      },
+      scheduleAlarm: (deadline: number) => {
+        try {
+          void this.ctx.storage.setAlarm(deadline);
+        } catch {}
+      },
+      deleteAlarm: () => {
+        try {
+          void this.ctx.storage.deleteAlarm();
+        } catch {}
+      },
+      execSql: <T extends Record<string, any>>(query: string, ...params: any[]) => {
+        return this.ctx.storage.sql.exec<T>(query, ...params);
       },
     };
   }
@@ -258,8 +271,10 @@ export class GameRoom extends DurableObject<Env> {
   }
 
   async alarm(): Promise<void> {
-    if (this.ticTacToeController) {
+    if (this.roomGameType === 'tic-tac-toe' && this.ticTacToeController) {
       await this.ticTacToeController.handleAlarm();
+    } else if (this.roomGameType === 'ludo' && this.ludoController) {
+      await this.ludoController.handleAlarm();
     }
   }
 
@@ -452,7 +467,7 @@ export class GameRoom extends DurableObject<Env> {
       if (this.roomGameType === 'tic-tac-toe' && this.ticTacToeController) {
         this.ticTacToeController.handleDisconnect(userId, ws);
       } else if (this.roomGameType === 'ludo' && this.ludoController) {
-        this.ludoController.handleDisconnect(userId);
+        this.ludoController.handleDisconnect(userId, ws);
       }
     }
   }
@@ -468,7 +483,7 @@ export class GameRoom extends DurableObject<Env> {
       if (this.roomGameType === 'tic-tac-toe' && this.ticTacToeController) {
         this.ticTacToeController.handleDisconnect(userId, ws);
       } else if (this.roomGameType === 'ludo' && this.ludoController) {
-        this.ludoController.handleDisconnect(userId);
+        this.ludoController.handleDisconnect(userId, ws);
       }
     }
   }

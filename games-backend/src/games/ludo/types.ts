@@ -8,7 +8,12 @@ import type {
   LudoGameStatus,
 } from '../../../../packages/ludo-engine/src/index.ts';
 
+export const LUDO_RECONNECT_GRACE_MS = 90_000;
+export const LUDO_TAKEOVER_BOT_DIFFICULTY: BotDifficulty = 'normal';
+
 export type LudoSeatStatus = 'human' | 'bot' | 'open' | 'closed';
+export type LudoControlMode = 'human' | 'bot' | 'takeover-bot';
+export type LudoPresenceStatus = 'online' | 'reconnecting' | 'abandoned';
 
 export interface LudoUserSession {
   userId: string;
@@ -24,6 +29,11 @@ export interface LudoSeat {
   displayName: string | null;
   botDifficulty: BotDifficulty | null;
   ready: boolean;
+  // Phase 4C1 lifecycle extensions
+  controlMode?: LudoControlMode;
+  presence?: LudoPresenceStatus;
+  disconnectDeadline?: number | null;
+  abandonedAt?: number | null;
 }
 
 export type LudoRoomStatus = 'lobby' | 'playing' | 'finished';
@@ -50,6 +60,9 @@ export interface LudoRoomState {
   createdAt: number;
   updatedAt: number;
   revision: number;
+  // Phase 4C1 lifecycle extensions
+  finishReason?: 'all-humans-abandoned' | 'normal' | null;
+  displayRankings?: PlayerColor[];
 }
 
 // Client Messages
@@ -86,6 +99,8 @@ export interface ServerLudoGameStateEvent {
   presence: Record<string, boolean>;
   revision: number;
   protocolVersion: number;
+  finishReason?: 'all-humans-abandoned' | 'normal' | null;
+  displayRankings?: PlayerColor[];
 }
 
 export interface ServerLudoDiceRolledEvent {
@@ -130,6 +145,8 @@ export interface ServerLudoPresenceEvent {
   roomId: string;
   userId: string;
   online: boolean;
+  status?: LudoPresenceStatus;
+  disconnectDeadline?: number | null;
   protocolVersion: number;
 }
 

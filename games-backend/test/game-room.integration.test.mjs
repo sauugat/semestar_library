@@ -500,8 +500,14 @@ test('Integration: Durable persistence, restarts, and room isolation', async () 
   // Phase G: Continue the match after restart
   // O -> 8
   wsB2.send(JSON.stringify({ type: 'MAKE_MOVE', cellIndex: 8 }));
-  const move4_A = await queueA2.next();
-  await queueB2.next();
+  let move4_A = await queueA2.next();
+  while (!move4_A.state || move4_A.state.revision < 6) {
+    move4_A = await queueA2.next();
+  }
+  let move4_B = await queueB2.next();
+  while (!move4_B.state || move4_B.state.revision < 6) {
+    move4_B = await queueB2.next();
+  }
   assert.equal(move4_A.state.board[8], 'O');
   assert.equal(move4_A.state.currentTurn, 'X');
   assert.equal(move4_A.state.revision, 6);

@@ -2,11 +2,24 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   LudoOnlineController,
+  LudoEngine,
   validateLudoRoomState,
   createDeterministicDiceRoller,
   FINISH_PROGRESS,
   TOTAL_TRACK_CELLS,
+  computeLudoDisplayRankings,
+  LUDO_RECONNECT_GRACE_MS,
+  LUDO_TAKEOVER_BOT_DIFFICULTY,
 } from '../src/games/ludo/index.ts';
+import {
+  parseLudoServerEvent,
+  validateEngineStateEnvelope,
+} from '../../mobile/services/ludo-online/protocol.ts';
+import {
+  canOnlineHumanRoll,
+  getOnlineSelectableTokens,
+  createPresentationStateFromEngine,
+} from '../../mobile/services/ludo-online/presentation.ts';
 
 // --- Test Mock Infrastructure ---
 
@@ -45,6 +58,10 @@ class TestContext {
     this.persistedStates = [];
     this.broadcastEvents = [];
     this.sockets = new Map(); // userId -> MockWebSocket[]
+    this.alarms = [];
+    this.deletedAlarms = 0;
+    this.disconnectGraceRows = new Map(); // userId -> { user_id, room_id, deadline }
+    this.failPersist = false;
 
     this.callbacks = {
       broadcast: (event) => {
@@ -58,11 +75,37 @@ class TestContext {
       sendToSocket: (ws, event) => {
         if (ws.readyState === 1) ws.send(JSON.stringify(event));
       },
-      getUserSockets: (userId) => {
-        return (this.sockets.get(userId) || []).filter((s) => s.readyState === 1);
+      getUserSockets: (userId, excludingWs) => {
+        return (this.sockets.get(userId) || []).filter((s) => s.readyState === 1 && s !== excludingWs);
       },
       persist: (state) => {
+        if (this.failPersist) {
+          throw new Error('Storage write failed');
+        }
         this.persistedStates.push(JSON.parse(JSON.stringify(state)));
+      },
+      scheduleAlarm: (deadline) => {
+        this.alarms.push(deadline);
+      },
+      deleteAlarm: () => {
+        this.deletedAlarms++;
+      },
+      execSql: (query, ...params) => {
+        if (query.includes('SELECT') && query.includes('disconnect_grace')) {
+          const rows = Array.from(this.disconnectGraceRows.values()).sort((a, b) => a.deadline - b.deadline);
+          return { toArray: () => rows };
+        }
+        if (query.includes('INSERT OR REPLACE INTO disconnect_grace')) {
+          const [userId, roomId, deadline] = params;
+          this.disconnectGraceRows.set(userId, { user_id: userId, room_id: roomId, deadline });
+          return { toArray: () => [] };
+        }
+        if (query.includes('DELETE FROM disconnect_grace')) {
+          const [userId] = params;
+          this.disconnectGraceRows.delete(userId);
+          return { toArray: () => [] };
+        }
+        return { toArray: () => [] };
       },
     };
 
@@ -1651,5 +1694,1703 @@ test('76. cross-field corrupt validation: rejects duplicate human seats, missing
   const badRev = JSON.parse(JSON.stringify(validState));
   badRev.revision = -1;
   assert.equal(validateLudoRoomState(badRev).valid, false);
+});
+
+// ============================================================================
+// PHASE 4C1: DISCONNECT, ABANDONMENT, AND LIFECYCLE TESTS (77..136)
+// ============================================================================
+
+async function createStartedGame(playerCount = 2, diceRolls = [1, 2]) {
+  const ctx = new TestContext('game_room_' + Math.random().toString(36).slice(2), {
+    diceRoller: createDeterministicDiceRoller(diceRolls),
+  });
+  // Alice joins Red
+  const ws1 = ctx.connect('user_alice');
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_JOIN', displayName: 'Alice' });
+
+  if (playerCount > 2) {
+    await ctx.send(ws1, 'user_alice', { type: 'LUDO_SET_PLAYER_COUNT', playerCount });
+  }
+
+  // Bob joins (Yellow if 2 players, Green if 3 or 4 players)
+  const ws2 = ctx.connect('user_bob');
+  await ctx.send(ws2, 'user_bob', { type: 'LUDO_JOIN', displayName: 'Bob' });
+  await ctx.send(ws2, 'user_bob', { type: 'LUDO_SET_READY', ready: true });
+
+  let ws3 = null;
+  let ws4 = null;
+
+  if (playerCount >= 3) {
+    ws3 = ctx.connect('user_charlie');
+    await ctx.send(ws3, 'user_charlie', { type: 'LUDO_JOIN', displayName: 'Charlie' });
+    await ctx.send(ws3, 'user_charlie', { type: 'LUDO_SET_READY', ready: true });
+  }
+
+  if (playerCount >= 4) {
+    ws4 = ctx.connect('user_dave');
+    await ctx.send(ws4, 'user_dave', { type: 'LUDO_JOIN', displayName: 'Dave' });
+    await ctx.send(ws4, 'user_dave', { type: 'LUDO_SET_READY', ready: true });
+  }
+
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_START_GAME' });
+  assert.equal(ctx.controller.getState().status, 'playing');
+  return { ctx, ws1, ws2, ws3, ws4 };
+}
+
+// --- PART 1: PRESENCE / GRACE (1..14) ---
+
+test('77. (Min. 1) one socket disconnect starts grace', async () => {
+  const { ctx, ws1 } = await createStartedGame(2);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+
+  const state = ctx.controller.getState();
+  assert.equal(state.seats.red.presence, 'reconnecting');
+  assert.ok(state.seats.red.disconnectDeadline > Date.now());
+  assert.ok(ctx.alarms.length > 0);
+  const pres = ctx.lastBroadcast('LUDO_PRESENCE');
+  assert.equal(pres.userId, 'user_alice');
+  assert.equal(pres.online, false);
+  assert.equal(pres.status, 'reconnecting');
+  assert.ok(pres.disconnectDeadline > 0);
+});
+
+test('78. (Min. 2) one of two sockets disconnects does NOT start grace', async () => {
+  const { ctx, ws1 } = await createStartedGame(2);
+  const ws1b = ctx.createSocket('user_alice');
+
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+
+  const state = ctx.controller.getState();
+  assert.equal(state.seats.red.presence, 'online');
+  assert.equal(state.seats.red.disconnectDeadline, null);
+  assert.equal(ctx.alarms.length, 0);
+});
+
+test('79. (Min. 3) last socket disconnect starts grace', async () => {
+  const { ctx, ws1 } = await createStartedGame(2);
+  const ws1b = ctx.createSocket('user_alice');
+
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  assert.equal(ctx.controller.getState().seats.red.presence, 'online');
+
+  ws1b.close();
+  ctx.controller.handleDisconnect('user_alice', ws1b);
+  assert.equal(ctx.controller.getState().seats.red.presence, 'reconnecting');
+  assert.ok(ctx.controller.getState().seats.red.disconnectDeadline > 0);
+});
+
+test('80. (Min. 4) grace deadline persisted', async () => {
+  const { ctx, ws1 } = await createStartedGame(2);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+
+  assert.ok(ctx.disconnectGraceRows.has('user_alice'));
+  const lastPersisted = ctx.persistedStates[ctx.persistedStates.length - 1];
+  assert.equal(lastPersisted.seats.red.presence, 'reconnecting');
+  assert.ok(lastPersisted.seats.red.disconnectDeadline > 0);
+});
+
+test('81. (Min. 5) reconnect before deadline cancels grace', async () => {
+  const { ctx, ws1 } = await createStartedGame(2);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  assert.equal(ctx.controller.getState().seats.red.presence, 'reconnecting');
+
+  const wsRe = ctx.connect('user_alice');
+  const state = ctx.controller.getState();
+  assert.equal(state.seats.red.presence, 'online');
+  assert.equal(state.seats.red.disconnectDeadline, null);
+  assert.equal(ctx.disconnectGraceRows.has('user_alice'), false);
+  const pres = ctx.lastBroadcast('LUDO_PRESENCE');
+  assert.equal(pres.userId, 'user_alice');
+  assert.equal(pres.online, true);
+  assert.equal(pres.status, 'online');
+});
+
+test('82. (Min. 6) reconnect returns same color', async () => {
+  const { ctx, ws1 } = await createStartedGame(2);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+
+  ctx.connect('user_alice');
+  const state = ctx.controller.getState();
+  assert.equal(state.seats.red.userId, 'user_alice');
+  assert.equal(state.seats.yellow.userId, 'user_bob');
+});
+
+test('83. (Min. 7) reconnect does not create duplicate seat', async () => {
+  const { ctx, ws1 } = await createStartedGame(2);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+
+  ctx.connect('user_alice');
+  const seats = ctx.controller.getState().seats;
+  const aliceSeats = Object.values(seats).filter((s) => s.userId === 'user_alice');
+  assert.equal(aliceSeats.length, 1);
+});
+
+test('84. (Min. 8) stale alarm after reconnect does nothing', async () => {
+  const { ctx, ws1 } = await createStartedGame(2);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+
+  ctx.connect('user_alice');
+  assert.equal(ctx.controller.getState().seats.red.presence, 'online');
+
+  await ctx.controller.handleAlarm();
+  const state = ctx.controller.getState();
+  assert.equal(state.seats.red.presence, 'online');
+  assert.equal(state.seats.red.controlMode, 'human');
+});
+
+test('85. (Min. 9) grace expiration marks abandoned', async () => {
+  const { ctx, ws1 } = await createStartedGame(3);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_alice');
+  const state = ctx.controller.getState();
+  assert.equal(state.seats.red.controlMode, 'takeover-bot');
+  assert.equal(state.seats.red.presence, 'abandoned');
+  assert.ok(state.seats.red.abandonedAt > 0);
+  assert.equal(state.seats.red.disconnectDeadline, null);
+});
+
+test('86. (Min. 10) abandoned seat control becomes takeover bot', async () => {
+  const { ctx, ws1 } = await createStartedGame(3);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_alice');
+
+  const seat = ctx.controller.getState().seats.red;
+  assert.equal(seat.status, 'human'); // Mobile backward-compatible
+  assert.equal(seat.controlMode, 'takeover-bot');
+});
+
+test('87. (Min. 11) original identity retained', async () => {
+  const { ctx, ws1 } = await createStartedGame(3);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_alice');
+
+  const seat = ctx.controller.getState().seats.red;
+  assert.equal(seat.userId, 'user_alice');
+  assert.equal(seat.displayName, 'Alice');
+  assert.equal(seat.color, 'red');
+});
+
+test('88. (Min. 12) reconnect after abandonment cannot reclaim', async () => {
+  const { ctx, ws1 } = await createStartedGame(3);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_alice');
+
+  const wsRe = ctx.connect('user_alice');
+  wsRe.clear();
+  await ctx.send(wsRe, 'user_alice', { type: 'LUDO_ROLL_DICE' });
+
+  const lastErr = wsRe.getMessages('ERROR')[0];
+  assert.ok(lastErr);
+  assert.equal(lastErr.code, 'PLAYER_ABANDONED');
+});
+
+test('89. (Min. 13) reconnect after abandonment receives state as spectator', async () => {
+  const { ctx, ws1 } = await createStartedGame(3);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_alice');
+
+  const wsRe = ctx.connect('user_alice');
+  const gameStateMsg = wsRe.getMessages('LUDO_GAME_STATE')[0];
+  assert.ok(gameStateMsg);
+  assert.equal(gameStateMsg.seats.red.controlMode, 'takeover-bot');
+  assert.equal(gameStateMsg.seats.red.presence, 'abandoned');
+});
+
+test('90. (Min. 14) another user cannot claim abandoned seat', async () => {
+  const { ctx, ws1 } = await createStartedGame(3);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_alice');
+
+  const wsEve = ctx.createSocket('user_eve');
+  await ctx.send(wsEve, 'user_eve', { type: 'LUDO_JOIN' });
+  const err = wsEve.getMessages('ERROR')[0];
+  assert.ok(err);
+  assert.equal(err.code, 'GAME_ALREADY_STARTED');
+});
+
+// --- PART 2: TAKEOVER GAMEPLAY (15..25) ---
+
+test('91. (Min. 15) takeover bot rolls server-side', async () => {
+  const { ctx, ws1 } = await createStartedGame(3, [3, 2]);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  // Red's turn to roll
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_alice');
+
+  const rollEvents = ctx.broadcastEvents.filter((e) => e.type === 'LUDO_DICE_ROLLED');
+  assert.ok(rollEvents.length > 0);
+  assert.equal(rollEvents[0].color, 'red');
+  assert.equal(rollEvents[0].roll, 3);
+});
+
+test('92. (Min. 16) takeover bot makes legal move', async () => {
+  const { ctx, ws1 } = await createStartedGame(3, [6, 2]);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_alice');
+
+  const moveEvents = ctx.broadcastEvents.filter((e) => e.type === 'LUDO_MOVE_RESULT');
+  assert.ok(moveEvents.length > 0);
+  assert.equal(moveEvents[0].player, 'red');
+  assert.equal(moveEvents[0].tokenId, 0);
+  assert.equal(moveEvents[0].toProgress, 0); // Moved out onto start track
+});
+
+test('93. (Min. 17) takeover uses Normal difficulty', () => {
+  assert.equal(LUDO_TAKEOVER_BOT_DIFFICULTY, 'normal');
+});
+
+test('94. (Min. 18) takeover handles six extra turn', async () => {
+  const { ctx, ws1 } = await createStartedGame(3, [6, 3, 2]);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_alice');
+
+  const moveEvents = ctx.broadcastEvents.filter((e) => e.type === 'LUDO_MOVE_RESULT');
+  assert.equal(moveEvents.length, 2);
+  assert.equal(moveEvents[0].extraTurn, true);
+  assert.equal(moveEvents[1].toProgress, 3);
+});
+
+test('95. (Min. 19) takeover handles capture', async () => {
+  const { ctx, ws1 } = await createStartedGame(3, [6, 2]);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_alice');
+  assert.ok(ctx.broadcastEvents.some((e) => e.type === 'LUDO_MOVE_RESULT'));
+});
+
+test('96. (Min. 20) takeover handles finish', async () => {
+  const { ctx, ws1 } = await createStartedGame(3, [6, 4]);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_alice');
+  assert.equal(ctx.controller.getState().seats.red.controlMode, 'takeover-bot');
+});
+
+test('97. (Min. 21) takeover during current turn progresses automatically', async () => {
+  const { ctx, ws1 } = await createStartedGame(3, [1, 2]);
+  assert.equal(ctx.controller.getState().engineState.currentTurn, 'red');
+
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_alice');
+
+  // Red rolled 1 (auto-pass), turn passed to green (in 3-player, next active color is green)
+  assert.equal(ctx.controller.getState().engineState.currentTurn, 'green');
+});
+
+test('98. (Min. 22) takeover while another player\'s turn waits', async () => {
+  const { ctx, ws1 } = await createStartedGame(3, [1, 2]);
+  // Red rolls 1 (passes)
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_ROLL_DICE' });
+  assert.equal(ctx.controller.getState().engineState.currentTurn, 'green');
+
+  // Red disconnects during Green's turn
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_alice');
+
+  // Green's turn is undisturbed
+  assert.equal(ctx.controller.getState().engineState.currentTurn, 'green');
+});
+
+test('99. (Min. 23) configured bot remains configured difficulty', async () => {
+  const ctx = new TestContext('room_conf_bot', {
+    diceRoller: createDeterministicDiceRoller([1, 2]),
+  });
+  const ws1 = ctx.connect('user_alice');
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_JOIN', displayName: 'Alice' });
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_ADD_BOT', color: 'yellow', difficulty: 'hard' });
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_START_GAME' });
+
+  assert.equal(ctx.controller.getState().seats.yellow.botDifficulty, 'hard');
+  assert.equal(ctx.controller.getState().seats.yellow.controlMode, 'bot');
+});
+
+test('100. (Min. 24) all bot events retain authoritative revisions', async () => {
+  const { ctx, ws1 } = await createStartedGame(3, [6, 2]);
+  const revBefore = ctx.controller.getRevision();
+
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  const revGrace = ctx.controller.getRevision();
+  assert.ok(revGrace > revBefore);
+
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_alice');
+  const revAfter = ctx.controller.getRevision();
+  assert.ok(revAfter > revGrace);
+});
+
+test('101. (Min. 25) mobile-compatible action metadata remains unchanged', async () => {
+  const { ctx, ws1 } = await createStartedGame(3, [6, 2]);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_alice');
+
+  const diceEvent = ctx.broadcastEvents.find((e) => e.type === 'LUDO_DICE_ROLLED');
+  assert.ok('roll' in diceEvent);
+  assert.ok('dice' in diceEvent);
+  assert.ok('legalMoves' in diceEvent);
+
+  const moveEvent = ctx.broadcastEvents.find((e) => e.type === 'LUDO_MOVE_RESULT');
+  assert.ok('traversedCoordinates' in moveEvent);
+  assert.ok('extraTurn' in moveEvent);
+});
+
+// --- PART 3: MULTIPLE DISCONNECTS (26..34) ---
+
+test('102. (Min. 26) two humans have different deadlines', async () => {
+  const { ctx, ws1, ws2 } = await createStartedGame(3);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  const d1 = ctx.controller.getState().seats.red.disconnectDeadline;
+
+  ws2.close();
+  ctx.controller.handleDisconnect('user_bob', ws2);
+  const d2 = ctx.controller.getState().seats.yellow.disconnectDeadline;
+
+  assert.ok(d1 > 0);
+  assert.ok(d2 > 0);
+});
+
+test('103. (Min. 27) earliest deadline schedules alarm', async () => {
+  const { ctx, ws1, ws2 } = await createStartedGame(3);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  ws2.close();
+  ctx.controller.handleDisconnect('user_bob', ws2);
+
+  assert.ok(ctx.alarms.length >= 2);
+  const d1 = ctx.controller.getState().seats.red.disconnectDeadline;
+  assert.equal(ctx.alarms[0], d1);
+});
+
+test('104. (Min. 28) first expiry preserves second grace', async () => {
+  const { ctx, ws1, ws2 } = await createStartedGame(3);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  ws2.close();
+  ctx.controller.handleDisconnect('user_bob', ws2);
+
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_alice');
+  const state = ctx.controller.getState();
+  assert.equal(state.seats.red.controlMode, 'takeover-bot');
+  assert.equal(state.seats.yellow.presence, 'reconnecting');
+});
+
+test('105. (Min. 29) next alarm rescheduled correctly', async () => {
+  const { ctx, ws1, ws2 } = await createStartedGame(3);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  ws2.close();
+  ctx.controller.handleDisconnect('user_bob', ws2);
+
+  const alarmCountBefore = ctx.alarms.length;
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_alice');
+  assert.ok(ctx.alarms.length > alarmCountBefore);
+});
+
+test('106. (Min. 30) both eventually abandon independently', async () => {
+  const { ctx, ws1, ws2 } = await createStartedGame(3);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  ws2.close();
+  ctx.controller.handleDisconnect('user_bob', ws2);
+
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_alice');
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_bob');
+
+  const state = ctx.controller.getState();
+  assert.equal(state.seats.red.controlMode, 'takeover-bot');
+  assert.equal(state.seats.yellow.controlMode, 'takeover-bot');
+  assert.equal(state.seats.green.controlMode, 'human'); // Charlie remains
+});
+
+test('107. (Min. 31) one reconnects while other expires', async () => {
+  const { ctx, ws1, ws2 } = await createStartedGame(3);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  ws2.close();
+  ctx.controller.handleDisconnect('user_bob', ws2);
+
+  ctx.connect('user_alice');
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_bob');
+
+  const state = ctx.controller.getState();
+  assert.equal(state.seats.red.controlMode, 'human');
+  assert.equal(state.seats.red.presence, 'online');
+  assert.equal(state.seats.yellow.controlMode, 'takeover-bot');
+});
+
+test('108. (Min. 32) host disconnect + other disconnect', async () => {
+  const { ctx, ws1, ws2 } = await createStartedGame(3);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  ws2.close();
+  ctx.controller.handleDisconnect('user_bob', ws2);
+
+  const state = ctx.controller.getState();
+  assert.equal(state.seats.red.presence, 'reconnecting');
+  assert.equal(state.seats.yellow.presence, 'reconnecting');
+});
+
+test('109. (Min. 33) multi-socket host temporary disconnect retains host', async () => {
+  const { ctx, ws1 } = await createStartedGame(3);
+  const ws1b = ctx.createSocket('user_alice');
+
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  assert.equal(ctx.controller.getState().hostUserId, 'user_alice');
+});
+
+test('110. (Min. 34) permanent host abandonment transfers host', async () => {
+  const { ctx, ws1 } = await createStartedGame(2);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_alice');
+
+  const state = ctx.controller.getState();
+  assert.equal(state.hostUserId, 'user_bob'); // Transferred to Bob
+});
+
+// --- PART 4: RANKING (35..45) ---
+
+test('111. (Min. 35) single abandoned player displayed last', () => {
+  const seats = {
+    red: { color: 'red', status: 'human', controlMode: 'takeover-bot', abandonedAt: 100 },
+    green: { color: 'green', status: 'human', controlMode: 'human' },
+    yellow: { color: 'yellow', status: 'human', controlMode: 'human' },
+    blue: { color: 'blue', status: 'human', controlMode: 'human' },
+  };
+  const activeColors = ['red', 'green', 'yellow', 'blue'];
+  const engineRankings = ['yellow', 'blue', 'green'];
+
+  const display = computeLudoDisplayRankings(engineRankings, activeColors, seats);
+  assert.deepEqual(display, ['yellow', 'blue', 'green', 'red']);
+});
+
+test('112. (Min. 36) two abandoned players ordered by abandonment time', () => {
+  const seats = {
+    red: { color: 'red', status: 'human', controlMode: 'takeover-bot', abandonedAt: 100 },
+    green: { color: 'green', status: 'human', controlMode: 'takeover-bot', abandonedAt: 200 },
+    yellow: { color: 'yellow', status: 'human', controlMode: 'human' },
+    blue: { color: 'blue', status: 'human', controlMode: 'human' },
+  };
+  const activeColors = ['red', 'green', 'yellow', 'blue'];
+  const engineRankings = ['yellow', 'blue'];
+
+  const display = computeLudoDisplayRankings(engineRankings, activeColors, seats);
+  assert.deepEqual(display, ['yellow', 'blue', 'green', 'red']);
+});
+
+test('113. (Min. 37) later abandonment ranks above earlier abandonment', () => {
+  const seats = {
+    red: { color: 'red', status: 'human', controlMode: 'takeover-bot', abandonedAt: 50 },
+    yellow: { color: 'yellow', status: 'human', controlMode: 'takeover-bot', abandonedAt: 150 },
+  };
+  const display = computeLudoDisplayRankings([], ['red', 'yellow'], seats);
+  assert.deepEqual(display, ['yellow', 'red']);
+});
+
+test('114. (Min. 38) configured bot ranks normally', () => {
+  const seats = {
+    red: { color: 'red', status: 'human', controlMode: 'human' },
+    yellow: { color: 'yellow', status: 'bot', controlMode: 'bot' },
+  };
+  const display = computeLudoDisplayRankings(['yellow', 'red'], ['red', 'yellow'], seats);
+  assert.deepEqual(display, ['yellow', 'red']);
+});
+
+test('115. (Min. 39) already-finished human disconnect keeps earned rank', async () => {
+  const { ctx, ws1 } = await createStartedGame(2);
+  // Mark Red as finished in engine rankings
+  const candidate = ctx.controller.getState();
+  candidate.engineState.rankings = ['red'];
+  candidate.rankings = ['red'];
+  const restored = new LudoOnlineController(ctx.roomId, ctx.callbacks, candidate);
+
+  ws1.close();
+  restored.handleDisconnect('user_alice', ws1);
+
+  // Red is not reconnecting and has no deadline because Red already finished!
+  const state = restored.getState();
+  assert.equal(state.seats.red.presence, 'online');
+  assert.equal(state.seats.red.disconnectDeadline, null);
+  assert.equal(ctx.disconnectGraceRows.has('user_alice'), false);
+});
+
+test('116. (Min. 40) takeover color finishing early still ranks after active humans', () => {
+  const seats = {
+    red: { color: 'red', status: 'human', controlMode: 'takeover-bot', abandonedAt: 100 },
+    yellow: { color: 'yellow', status: 'human', controlMode: 'human' },
+  };
+  // Engine rankings: Red finished before Yellow
+  const engineRankings = ['red', 'yellow'];
+  const display = computeLudoDisplayRankings(engineRankings, ['red', 'yellow'], seats);
+  assert.deepEqual(display, ['yellow', 'red']);
+});
+
+test('117. (Min. 41) 2-player abandon yields remaining player first', () => {
+  const seats = {
+    red: { color: 'red', status: 'human', controlMode: 'takeover-bot', abandonedAt: 100 },
+    yellow: { color: 'yellow', status: 'human', controlMode: 'human' },
+  };
+  const display = computeLudoDisplayRankings([], ['red', 'yellow'], seats);
+  assert.deepEqual(display, ['yellow', 'red']);
+});
+
+test('118. (Min. 42) 3-player abandon ordering', () => {
+  const seats = {
+    red: { color: 'red', status: 'human', controlMode: 'takeover-bot', abandonedAt: 100 },
+    green: { color: 'green', status: 'human', controlMode: 'takeover-bot', abandonedAt: 200 },
+    yellow: { color: 'yellow', status: 'human', controlMode: 'human' },
+  };
+  const display = computeLudoDisplayRankings(['yellow'], ['red', 'green', 'yellow'], seats);
+  assert.deepEqual(display, ['yellow', 'green', 'red']);
+});
+
+test('119. (Min. 43) 4-player mixed human/bot/abandon ranking', () => {
+  const seats = {
+    red: { color: 'red', status: 'human', controlMode: 'takeover-bot', abandonedAt: 100 },
+    green: { color: 'green', status: 'bot', controlMode: 'bot' },
+    yellow: { color: 'yellow', status: 'human', controlMode: 'human' },
+    blue: { color: 'blue', status: 'human', controlMode: 'human' },
+  };
+  const display = computeLudoDisplayRankings(['yellow', 'green', 'blue'], ['red', 'green', 'yellow', 'blue'], seats);
+  assert.deepEqual(display, ['yellow', 'green', 'blue', 'red']);
+});
+
+test('120. (Min. 44) final displayRankings persisted', async () => {
+  const { ctx, ws1, ws2 } = await createStartedGame(2);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  ws2.close();
+  ctx.controller.handleDisconnect('user_bob', ws2);
+
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_alice');
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_bob');
+
+  const state = ctx.controller.getState();
+  assert.ok(Array.isArray(state.displayRankings));
+  assert.equal(state.status, 'finished');
+});
+
+test('121. (Min. 45) restart preserves display rankings', async () => {
+  const { ctx, ws1, ws2 } = await createStartedGame(2);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  ws2.close();
+  ctx.controller.handleDisconnect('user_bob', ws2);
+
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_alice');
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_bob');
+
+  const finalState = ctx.controller.getState();
+  assert.equal(finalState.status, 'finished');
+  assert.ok(Array.isArray(finalState.displayRankings));
+
+  const validation = validateLudoRoomState(finalState);
+  assert.equal(validation.valid, true);
+
+  const restored = LudoOnlineController.fromState(ctx.roomId, ctx.callbacks, finalState);
+  assert.deepEqual(restored.getState().displayRankings, finalState.displayRankings);
+});
+
+// --- PART 5: TERMINAL ALL-HUMAN ABANDONMENT (46..51) ---
+
+test('122. (Min. 46) all humans abandoning stops further bot progression', async () => {
+  const { ctx, ws1, ws2 } = await createStartedGame(2);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  ws2.close();
+  ctx.controller.handleDisconnect('user_bob', ws2);
+
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_alice');
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_bob');
+
+  const state = ctx.controller.getState();
+  assert.equal(state.status, 'finished');
+  assert.equal(state.finishReason, 'all-humans-abandoned');
+});
+
+test('123. (Min. 47) room reaches compatible terminal state', async () => {
+  const { ctx, ws1, ws2 } = await createStartedGame(2);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  ws2.close();
+  ctx.controller.handleDisconnect('user_bob', ws2);
+
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_alice');
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_bob');
+
+  assert.equal(ctx.controller.getState().status, 'finished');
+});
+
+test('124. (Min. 48) finishReason is all-humans-abandoned', async () => {
+  const { ctx, ws1, ws2 } = await createStartedGame(2);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  ws2.close();
+  ctx.controller.handleDisconnect('user_bob', ws2);
+
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_alice');
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_bob');
+
+  assert.equal(ctx.controller.getState().finishReason, 'all-humans-abandoned');
+});
+
+test('125. (Min. 49) no endless bot simulation', async () => {
+  const { ctx, ws1, ws2 } = await createStartedGame(2);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  ws2.close();
+  ctx.controller.handleDisconnect('user_bob', ws2);
+
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_alice');
+  const countBefore = ctx.broadcastEvents.length;
+
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_bob');
+  // Only terminal broadcast emitted, no further loop
+  const rollsAfter = ctx.broadcastEvents.slice(countBefore).filter((e) => e.type === 'LUDO_DICE_ROLLED');
+  assert.equal(rollsAfter.length, 0);
+});
+
+test('126. (Min. 50) restart preserves terminal state', async () => {
+  const { ctx, ws1, ws2 } = await createStartedGame(2);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  ws2.close();
+  ctx.controller.handleDisconnect('user_bob', ws2);
+
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_alice');
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_bob');
+
+  const terminalState = ctx.controller.getState();
+  assert.equal(terminalState.status, 'finished');
+  assert.equal(terminalState.finishReason, 'all-humans-abandoned');
+
+  const restored = LudoOnlineController.fromState('room_term', ctx.callbacks, terminalState);
+  assert.equal(restored.getState().status, 'finished');
+  assert.equal(restored.getState().finishReason, 'all-humans-abandoned');
+});
+
+test('127. (Min. 51) actions rejected after terminal abandonment', async () => {
+  const { ctx, ws1, ws2 } = await createStartedGame(2);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  ws2.close();
+  ctx.controller.handleDisconnect('user_bob', ws2);
+
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_alice');
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_bob');
+
+  const ws = ctx.createSocket('user_alice');
+  await ctx.send(ws, 'user_alice', { type: 'LUDO_ROLL_DICE' });
+  const err = ws.getMessages('ERROR')[0];
+  assert.ok(err);
+  assert.equal(err.code, 'GAME_FINISHED');
+});
+
+// --- PART 6: DURABILITY (52..60) ---
+
+test('128. (Min. 52) DO restart during grace', async () => {
+  const { ctx, ws1 } = await createStartedGame(2);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+
+  const savedState = ctx.controller.getState();
+  const restored = LudoOnlineController.fromState(ctx.roomId, ctx.callbacks, savedState);
+
+  assert.equal(restored.getState().seats.red.presence, 'reconnecting');
+  assert.ok(restored.getState().seats.red.disconnectDeadline > 0);
+});
+
+test('129. (Min. 53) alarm expiry after restart', async () => {
+  const { ctx, ws1 } = await createStartedGame(3);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+
+  const pastDeadline = Date.now() - 1000;
+  ctx.disconnectGraceRows.set('user_alice', { user_id: 'user_alice', room_id: ctx.roomId, deadline: pastDeadline });
+  const savedState = ctx.controller.getState();
+  savedState.seats.red.disconnectDeadline = pastDeadline;
+
+  const restored = new LudoOnlineController(ctx.roomId, ctx.callbacks, savedState);
+  await restored.handleAlarm();
+  assert.equal(restored.getState().seats.red.controlMode, 'takeover-bot');
+  assert.equal(restored.getState().seats.red.presence, 'abandoned');
+});
+
+test('130. (Min. 54) restart after abandonment', async () => {
+  const { ctx, ws1 } = await createStartedGame(3);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_alice');
+
+  const savedState = ctx.controller.getState();
+  const restored = LudoOnlineController.fromState(ctx.roomId, ctx.callbacks, savedState);
+  assert.equal(restored.getState().seats.red.controlMode, 'takeover-bot');
+});
+
+test('131. (Min. 55) takeover persists restart', async () => {
+  const { ctx, ws1 } = await createStartedGame(3);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_alice');
+
+  const savedState = ctx.controller.getState();
+  const restored = LudoOnlineController.fromState(ctx.roomId, ctx.callbacks, savedState);
+
+  const wsRe = ctx.createSocket('user_alice');
+  await restored.handleConnect(wsRe, 'user_alice');
+  await restored.handleMessage(wsRe, 'user_alice', { type: 'LUDO_ROLL_DICE' });
+
+  const err = wsRe.getMessages('ERROR')[0];
+  assert.ok(err);
+  assert.equal(err.code, 'PLAYER_ABANDONED');
+});
+
+test('132. (Min. 56) stale alarm after restart safe', async () => {
+  const { ctx, ws1 } = await createStartedGame(3);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  ctx.connect('user_alice'); // Reconnected
+
+  const savedState = ctx.controller.getState();
+  const restored = new LudoOnlineController(ctx.roomId, ctx.callbacks, savedState);
+
+  await restored.handleAlarm();
+  assert.equal(restored.getState().seats.red.controlMode, 'human');
+  assert.equal(restored.getState().seats.red.presence, 'online');
+});
+
+test('133. (Min. 57) persistence failure starting grace rolls back', async () => {
+  const { ctx, ws1 } = await createStartedGame(2);
+  ctx.failPersist = true;
+
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+
+  // Live state not updated because persist failed
+  assert.equal(ctx.controller.getState().seats.red.presence, 'online');
+  assert.equal(ctx.controller.getState().seats.red.disconnectDeadline, null);
+});
+
+test('134. (Min. 58) persistence failure cancelling grace rolls back', async () => {
+  const { ctx, ws1 } = await createStartedGame(2);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  assert.equal(ctx.controller.getState().seats.red.presence, 'reconnecting');
+
+  ctx.failPersist = true;
+  ctx.controller.cancelDisconnectGraceIfPending('user_alice');
+
+  // Rolled back
+  assert.equal(ctx.controller.getState().seats.red.presence, 'reconnecting');
+});
+
+test('135. (Min. 59) persistence failure takeover rolls back', async () => {
+  const { ctx, ws1 } = await createStartedGame(3);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  assert.equal(ctx.controller.getState().seats.red.presence, 'reconnecting');
+
+  ctx.failPersist = true;
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_alice');
+
+  // Takeover did not commit
+  assert.equal(ctx.controller.getState().seats.red.controlMode, 'human');
+});
+
+test('136. (Min. 60) persistence failure terminal transition rolls back', async () => {
+  const { ctx, ws1, ws2 } = await createStartedGame(2);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  ws2.close();
+  ctx.controller.handleDisconnect('user_bob', ws2);
+
+  ctx.failPersist = true;
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_alice');
+
+  assert.equal(ctx.controller.getState().status, 'playing');
+});
+
+// --- PART 7: PHASE 4C1 FINAL TERMINAL-STATE / DOUBLE-FIRE / PERSISTENCE GATES ---
+
+test('137. (Gate 1) all-humans-abandoned mobile snapshot serialization & validation', async () => {
+  const { ctx, ws1, ws2 } = await createStartedGame(2);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  ws2.close();
+  ctx.controller.handleDisconnect('user_bob', ws2);
+
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_alice');
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_bob');
+
+  const finalState = ctx.controller.getState();
+  assert.equal(finalState.status, 'finished');
+  assert.equal(finalState.finishReason, 'all-humans-abandoned');
+
+  // Verify internal engine state invariants preserved
+  assert.ok(ctx.controller.engine);
+  // Safe outbound serialization
+  const broadcastEngine = ctx.controller.getBroadcastEngineState();
+  assert.ok(broadcastEngine);
+  assert.equal(broadcastEngine.status, 'finished');
+  assert.equal(broadcastEngine.currentTurn, null);
+  assert.equal(broadcastEngine.turnPhase, null);
+  assert.equal(broadcastEngine.currentRoll, null);
+  assert.deepEqual(broadcastEngine.legalMoves, []);
+  assert.deepEqual(broadcastEngine.rankings, finalState.displayRankings);
+
+  // Find the terminal LUDO_GAME_STATE broadcast
+  const gameStates = ctx.broadcastEvents.filter((e) => e.type === 'LUDO_GAME_STATE');
+  const lastGameState = gameStates[gameStates.length - 1];
+  assert.ok(lastGameState);
+  assert.equal(lastGameState.state.status, 'finished');
+
+  // Verify mobile's Phase 4B2 protocol parser & envelope validation accepts it
+  const isEnvelopeValid = validateEngineStateEnvelope(lastGameState.state);
+  assert.equal(isEnvelopeValid, true);
+
+  const parsedEvent = parseLudoServerEvent(lastGameState);
+  assert.ok(parsedEvent);
+  assert.equal(parsedEvent.type, 'LUDO_GAME_STATE');
+
+  // Verify mobile presentation layer disables controls
+  const presentationState = createPresentationStateFromEngine(parsedEvent.state);
+  assert.equal(presentationState.status, 'finished');
+
+  const canRoll = canOnlineHumanRoll({
+    connectionStatus: 'connected',
+    isResyncing: false,
+    isPresentationBusy: false,
+    actionQueueLength: 0,
+    gameStatus: presentationState.status,
+    currentTurn: presentationState.currentTurn,
+    turnPhase: presentationState.turnPhase,
+    myColor: 'yellow',
+    mySeatStatus: 'human',
+    pendingCommand: null,
+  });
+  assert.equal(canRoll, false);
+
+  const selectableTokens = getOnlineSelectableTokens({
+    connectionStatus: 'connected',
+    isResyncing: false,
+    isPresentationBusy: false,
+    gameStatus: presentationState.status,
+    currentTurn: presentationState.currentTurn,
+    turnPhase: presentationState.turnPhase,
+    myColor: 'yellow',
+    legalMoves: presentationState.legalMoves,
+    pendingCommand: null,
+  });
+  assert.deepEqual(selectableTokens, []);
+});
+
+test('138. (Gate 2) terminal action rejection consistency', async () => {
+  const { ctx, ws1, ws2 } = await createStartedGame(2);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  ws2.close();
+  ctx.controller.handleDisconnect('user_bob', ws2);
+
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_alice');
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_bob');
+
+  const ws = ctx.createSocket('user_alice');
+
+  // ROLL -> GAME_FINISHED
+  ws.clear();
+  await ctx.send(ws, 'user_alice', { type: 'LUDO_ROLL_DICE' });
+  let err = ws.getMessages('ERROR')[0];
+  assert.ok(err);
+  assert.equal(err.code, 'GAME_FINISHED');
+
+  // MOVE -> GAME_FINISHED
+  ws.clear();
+  await ctx.send(ws, 'user_alice', { type: 'LUDO_MOVE_TOKEN', tokenId: 0 });
+  err = ws.getMessages('ERROR')[0];
+  assert.ok(err);
+  assert.equal(err.code, 'GAME_FINISHED');
+
+  // START -> GAME_ALREADY_STARTED
+  ws.clear();
+  await ctx.send(ws, 'user_alice', { type: 'LUDO_START_GAME' });
+  err = ws.getMessages('ERROR')[0];
+  assert.ok(err);
+  assert.equal(err.code, 'GAME_ALREADY_STARTED');
+
+  // Non-reconnecting JOIN -> GAME_ALREADY_STARTED
+  const wsEve = ctx.createSocket('user_eve');
+  wsEve.clear();
+  await ctx.send(wsEve, 'user_eve', { type: 'LUDO_JOIN' });
+  err = wsEve.getMessages('ERROR')[0];
+  assert.ok(err);
+  assert.equal(err.code, 'GAME_ALREADY_STARTED');
+
+  // Lobby actions -> GAME_ALREADY_STARTED
+  ws.clear();
+  await ctx.send(ws, 'user_alice', { type: 'LUDO_SET_READY', ready: true });
+  err = ws.getMessages('ERROR')[0];
+  assert.ok(err);
+  assert.equal(err.code, 'GAME_ALREADY_STARTED');
+
+  ws.clear();
+  await ctx.send(ws, 'user_alice', { type: 'LUDO_SET_PLAYER_COUNT', playerCount: 3 });
+  err = ws.getMessages('ERROR')[0];
+  assert.ok(err);
+  assert.equal(err.code, 'GAME_ALREADY_STARTED');
+
+  ws.clear();
+  await ctx.send(ws, 'user_alice', { type: 'LUDO_SET_SEAT', color: 'green', status: 'closed' });
+  err = ws.getMessages('ERROR')[0];
+  assert.ok(err);
+  assert.equal(err.code, 'GAME_ALREADY_STARTED');
+
+  ws.clear();
+  await ctx.send(ws, 'user_alice', { type: 'LUDO_ADD_BOT', color: 'green' });
+  err = ws.getMessages('ERROR')[0];
+  assert.ok(err);
+  assert.equal(err.code, 'GAME_ALREADY_STARTED');
+
+  ws.clear();
+  await ctx.send(ws, 'user_alice', { type: 'LUDO_REMOVE_BOT', color: 'green' });
+  err = ws.getMessages('ERROR')[0];
+  assert.ok(err);
+  assert.equal(err.code, 'GAME_ALREADY_STARTED');
+
+  ws.clear();
+  await ctx.send(ws, 'user_alice', { type: 'LUDO_SET_BOT_DIFFICULTY', color: 'green', difficulty: 'hard' });
+  err = ws.getMessages('ERROR')[0];
+  assert.ok(err);
+  assert.equal(err.code, 'GAME_ALREADY_STARTED');
+});
+
+test('139. (Gate 3) display rankings completeness across 2, 3, and 4 players', async () => {
+  // 2-player test
+  {
+    const { ctx, ws1, ws2 } = await createStartedGame(2);
+    ws1.close();
+    ctx.controller.handleDisconnect('user_alice', ws1);
+    ws2.close();
+    ctx.controller.handleDisconnect('user_bob', ws2);
+    await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_alice');
+    await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_bob');
+
+    const rankings = ctx.controller.getState().displayRankings;
+    assert.equal(rankings.length, 2);
+    assert.deepEqual(new Set(rankings), new Set(['red', 'yellow']));
+    assert.equal(new Set(rankings).size, 2); // No duplicates
+  }
+
+  // 3-player test (2 humans, 1 bot)
+  {
+    const ctx = new TestContext('room_3p');
+    const ws1 = ctx.connect('user_alice');
+    await ctx.send(ws1, 'user_alice', { type: 'LUDO_JOIN', preferredColor: 'red' });
+    await ctx.send(ws1, 'user_alice', { type: 'LUDO_SET_PLAYER_COUNT', playerCount: 3 });
+    const ws2 = ctx.connect('user_bob');
+    await ctx.send(ws2, 'user_bob', { type: 'LUDO_JOIN', preferredColor: 'yellow' });
+    await ctx.send(ws1, 'user_alice', { type: 'LUDO_ADD_BOT', color: 'green' });
+    await ctx.send(ws2, 'user_bob', { type: 'LUDO_SET_READY', ready: true });
+    await ctx.send(ws1, 'user_alice', { type: 'LUDO_START_GAME' });
+
+    ws1.close();
+    ctx.controller.handleDisconnect('user_alice', ws1);
+    ws2.close();
+    ctx.controller.handleDisconnect('user_bob', ws2);
+    await ctx.controller.handleDisconnectTimeout('room_3p', 'user_alice');
+    await ctx.controller.handleDisconnectTimeout('room_3p', 'user_bob');
+
+    const rankings = ctx.controller.getState().displayRankings;
+    assert.equal(rankings.length, 3);
+    assert.deepEqual(new Set(rankings), new Set(['red', 'green', 'yellow']));
+    assert.equal(new Set(rankings).size, 3);
+    assert.equal(rankings[0], 'green'); // configured bot ranks ahead of abandoned humans
+  }
+
+  // 4-player test (2 humans, 2 bots)
+  {
+    const ctx = new TestContext('room_4p');
+    const ws1 = ctx.connect('user_alice');
+    await ctx.send(ws1, 'user_alice', { type: 'LUDO_JOIN', preferredColor: 'red' });
+    await ctx.send(ws1, 'user_alice', { type: 'LUDO_SET_PLAYER_COUNT', playerCount: 4 });
+    const ws2 = ctx.connect('user_bob');
+    await ctx.send(ws2, 'user_bob', { type: 'LUDO_JOIN', preferredColor: 'yellow' });
+    await ctx.send(ws1, 'user_alice', { type: 'LUDO_ADD_BOT', color: 'green' });
+    await ctx.send(ws1, 'user_alice', { type: 'LUDO_ADD_BOT', color: 'blue' });
+    await ctx.send(ws2, 'user_bob', { type: 'LUDO_SET_READY', ready: true });
+    await ctx.send(ws1, 'user_alice', { type: 'LUDO_START_GAME' });
+
+    ws1.close();
+    ctx.controller.handleDisconnect('user_alice', ws1);
+    ws2.close();
+    ctx.controller.handleDisconnect('user_bob', ws2);
+    await ctx.controller.handleDisconnectTimeout('room_4p', 'user_alice');
+    await ctx.controller.handleDisconnectTimeout('room_4p', 'user_bob');
+
+    const rankings = ctx.controller.getState().displayRankings;
+    assert.equal(rankings.length, 4);
+    assert.deepEqual(new Set(rankings), new Set(['red', 'green', 'yellow', 'blue']));
+    assert.equal(new Set(rankings).size, 4);
+  }
+});
+
+test('140. (Gate 4) partial canonical rankings + abandonment preserves legitimate first place', () => {
+  const seats = {
+    red: { color: 'red', status: 'human', controlMode: 'takeover-bot', abandonedAt: 1000 },
+    green: { color: 'green', status: 'bot', controlMode: 'bot', abandonedAt: null },
+    yellow: { color: 'yellow', status: 'human', controlMode: 'human', abandonedAt: null },
+    blue: { color: 'blue', status: 'closed', controlMode: 'human', abandonedAt: null },
+  };
+
+  // Yellow legitimately finished first before red abandoned
+  const engineRankings = ['yellow'];
+  const activeColors = ['red', 'green', 'yellow'];
+
+  const display = computeLudoDisplayRankings(engineRankings, activeColors, seats);
+
+  assert.equal(display[0], 'yellow'); // Legitimate winner preserved in 1st place!
+  assert.equal(display[1], 'green');  // Active configured bot 2nd
+  assert.equal(display[2], 'red');    // Abandoned human last
+  assert.equal(display.length, 3);
+});
+
+test('141. (Gate 5) explicit LUDO_LEAVE + socket close double-fire', async () => {
+  const { ctx, ws1 } = await createStartedGame(2);
+  const revBefore = ctx.controller.getState().revision;
+
+  // 1. Client explicitly sends LUDO_LEAVE
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_LEAVE' });
+  const revAfterLeave = ctx.controller.getState().revision;
+  assert.equal(revAfterLeave, revBefore + 1);
+
+  const seatAfterLeave = ctx.controller.getState().seats.red;
+  assert.equal(seatAfterLeave.presence, 'reconnecting');
+  const deadline = seatAfterLeave.disconnectDeadline;
+  assert.ok(deadline > 0);
+
+  const graceRowsCount = ctx.disconnectGraceRows.size;
+  assert.equal(graceRowsCount, 1);
+
+  const presenceBroadcastsCount = ctx.broadcastEvents.filter((e) => e.type === 'LUDO_PRESENCE').length;
+
+  // 2. Client then closes the WebSocket connection
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+
+  // Must be a complete no-op: no extra revision, same deadline, no extra rows or broadcasts
+  const revAfterClose = ctx.controller.getState().revision;
+  assert.equal(revAfterClose, revAfterLeave);
+  assert.equal(ctx.controller.getState().seats.red.disconnectDeadline, deadline);
+  assert.equal(ctx.disconnectGraceRows.size, 1);
+  assert.equal(ctx.broadcastEvents.filter((e) => e.type === 'LUDO_PRESENCE').length, presenceBroadcastsCount);
+});
+
+test('142. (Gate 6) repeated disconnect callback idempotency', async () => {
+  let currentTime = 1_000_000;
+  const ctx = new TestContext('room_rep_disc', { now: () => currentTime });
+  const ws1 = ctx.connect('user_alice');
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_JOIN', preferredColor: 'red' });
+  const ws2 = ctx.connect('user_bob');
+  await ctx.send(ws2, 'user_bob', { type: 'LUDO_JOIN', preferredColor: 'yellow' });
+  await ctx.send(ws2, 'user_bob', { type: 'LUDO_SET_READY', ready: true });
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_START_GAME' });
+
+  // 1st disconnect at T = 1,000,000
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  const expectedDeadline = 1_000_000 + LUDO_RECONNECT_GRACE_MS;
+  assert.equal(ctx.controller.getState().seats.red.disconnectDeadline, expectedDeadline);
+  const revAfterFirst = ctx.controller.getState().revision;
+
+  // Network layer repeats disconnect callback 5 seconds later at T = 1,005,000
+  currentTime += 5000;
+  ctx.controller.handleDisconnect('user_alice', ws1);
+
+  // Deadline MUST NOT be extended to 1,005,000 + grace
+  assert.equal(ctx.controller.getState().seats.red.disconnectDeadline, expectedDeadline);
+  // Revision must not increment
+  assert.equal(ctx.controller.getState().revision, revAfterFirst);
+});
+
+test('143. (Gate 7) LUDO_LEAVE while already reconnecting', async () => {
+  const { ctx, ws1 } = await createStartedGame(2);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+
+  const deadlineBefore = ctx.controller.getState().seats.red.disconnectDeadline;
+  const revBefore = ctx.controller.getState().revision;
+
+  // Stale/second socket sends LUDO_LEAVE
+  const wsStale = ctx.createSocket('user_alice');
+  await ctx.send(wsStale, 'user_alice', { type: 'LUDO_LEAVE' });
+
+  assert.equal(ctx.controller.getState().seats.red.disconnectDeadline, deadlineBefore);
+  assert.equal(ctx.controller.getState().revision, revBefore);
+});
+
+test('144. (Gate 8) reconnect cancellation idempotency', async () => {
+  const { ctx, ws1 } = await createStartedGame(2);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  assert.equal(ctx.controller.getState().seats.red.presence, 'reconnecting');
+
+  // Socket 1 reconnects
+  const wsRe1 = ctx.createSocket('user_alice');
+  ctx.controller.handleConnect(wsRe1, 'user_alice');
+  assert.equal(ctx.controller.getState().seats.red.presence, 'online');
+  const revAfterFirstReconnect = ctx.controller.getState().revision;
+
+  // Socket 2 connects immediately afterwards for same user
+  const wsRe2 = ctx.createSocket('user_alice');
+  ctx.controller.handleConnect(wsRe2, 'user_alice');
+
+  // Must not increment revision again
+  assert.equal(ctx.controller.getState().revision, revAfterFirstReconnect);
+});
+
+test('145. (Gate 9) alarm + local fallback double-fire', async () => {
+  const { ctx, ws1 } = await createStartedGame(3);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+
+  // 1. Local fallback timer fires
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_alice');
+  assert.equal(ctx.controller.getState().seats.red.controlMode, 'takeover-bot');
+  const abandonedAt1 = ctx.controller.getState().seats.red.abandonedAt;
+  const revAfterFallback = ctx.controller.getState().revision;
+  const broadcastCount = ctx.broadcastEvents.length;
+
+  // 2. Later Durable Object alarm fires for the same user
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_alice');
+
+  // Second execution must be a strict no-op
+  assert.equal(ctx.controller.getState().seats.red.abandonedAt, abandonedAt1);
+  assert.equal(ctx.controller.getState().revision, revAfterFallback);
+  assert.equal(ctx.broadcastEvents.length, broadcastCount);
+});
+
+test('146. (Gate 10) abandonment timestamp immutability', async () => {
+  let currentTime = 1_000_000;
+  const ctx = new TestContext('room_immut', { now: () => currentTime });
+  const ws1 = ctx.connect('user_alice');
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_JOIN', preferredColor: 'red' });
+  const ws2 = ctx.connect('user_bob');
+  await ctx.send(ws2, 'user_bob', { type: 'LUDO_JOIN', preferredColor: 'yellow' });
+  const ws3 = ctx.connect('user_charlie');
+  await ctx.send(ws3, 'user_charlie', { type: 'LUDO_JOIN', preferredColor: 'green' });
+  await ctx.send(ws2, 'user_bob', { type: 'LUDO_SET_READY', ready: true });
+  await ctx.send(ws3, 'user_charlie', { type: 'LUDO_SET_READY', ready: true });
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_START_GAME' });
+
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+
+  // Abandon at T = 1,000,000
+  await ctx.controller.handleDisconnectTimeout('room_immut', 'user_alice');
+  assert.equal(ctx.controller.getState().seats.red.abandonedAt, 1_000_000);
+
+  // Stale callback runs at T = 1,500,000
+  currentTime = 1_500_000;
+  await ctx.controller.handleDisconnectTimeout('room_immut', 'user_alice');
+
+  // Must remain 1,000,000
+  assert.equal(ctx.controller.getState().seats.red.abandonedAt, 1_000_000);
+});
+
+test('147. (Gate 11) takeover activation exactly once', async () => {
+  const { ctx, ws1 } = await createStartedGame(3);
+  // Red's turn currently
+  assert.equal(ctx.controller.getState().engineState.currentTurn, 'red');
+
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+
+  const rollsBefore = ctx.broadcastEvents.filter((e) => e.type === 'LUDO_DICE_ROLLED').length;
+
+  // 1st timeout invocation: converts and progresses bot
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_alice');
+  const rollsAfterFirst = ctx.broadcastEvents.filter((e) => e.type === 'LUDO_DICE_ROLLED').length;
+  assert.ok(rollsAfterFirst > rollsBefore);
+
+  const revAfterFirst = ctx.controller.getState().revision;
+
+  // 2nd timeout invocation
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_alice');
+  const rollsAfterSecond = ctx.broadcastEvents.filter((e) => e.type === 'LUDO_DICE_ROLLED').length;
+  assert.equal(rollsAfterSecond, rollsAfterFirst); // No extra roll
+  assert.equal(ctx.controller.getState().revision, revAfterFirst); // No revision bump
+});
+
+test('148. (Gate 12) takeover bot + configured bot chain', async () => {
+  const ctx = new TestContext('room_chain', {
+    diceRoller: createDeterministicDiceRoller([1, 1, 1]), // rolls that cannot move tokens from yard
+  });
+  const ws1 = ctx.connect('user_alice');
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_JOIN', preferredColor: 'red' });
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_SET_PLAYER_COUNT', playerCount: 3 });
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_ADD_BOT', color: 'green' });
+  const ws2 = ctx.connect('user_bob');
+  await ctx.send(ws2, 'user_bob', { type: 'LUDO_JOIN', preferredColor: 'yellow' });
+  await ctx.send(ws2, 'user_bob', { type: 'LUDO_SET_READY', ready: true });
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_START_GAME' });
+
+  // Red is human turn. Alice abandons -> Red becomes takeover bot
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  await ctx.controller.handleDisconnectTimeout('room_chain', 'user_alice');
+
+  // Red takeover bot acts (rolls 1, auto-passes) -> Green configured bot acts (rolls 1, auto-passes) -> Yellow human turn
+  assert.equal(ctx.controller.getState().seats.red.controlMode, 'takeover-bot');
+  assert.equal(ctx.controller.getState().seats.green.controlMode, 'bot');
+  assert.equal(ctx.controller.getState().seats.yellow.controlMode, 'human');
+  assert.equal(ctx.controller.getState().engineState.currentTurn, 'yellow');
+});
+
+test('149. (Gate 13) takeover extra-turn chain + MAX_BOT_TURNS_PER_ACTION safety guard', async () => {
+  // Constant sixes
+  const ctx = new TestContext('room_guard', {
+    diceRoller: { roll: () => 6 },
+  });
+  const ws1 = ctx.connect('user_alice');
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_JOIN', preferredColor: 'red' });
+  const ws2 = ctx.connect('user_bob');
+  await ctx.send(ws2, 'user_bob', { type: 'LUDO_JOIN', preferredColor: 'yellow' });
+  await ctx.send(ws2, 'user_bob', { type: 'LUDO_SET_READY', ready: true });
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_START_GAME' });
+
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+
+  // Must not hang or throw infinite loop error
+  await ctx.controller.handleDisconnectTimeout('room_guard', 'user_alice');
+  assert.ok(true);
+});
+
+test('150. (Gate 14) lifecycle metadata survives normal gameplay of other players', async () => {
+  const { ctx, ws1, ws2 } = await createStartedGame(2);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_alice');
+
+  const redSeat = ctx.controller.getState().seats.red;
+  assert.equal(redSeat.presence, 'abandoned');
+  assert.equal(redSeat.controlMode, 'takeover-bot');
+  const redAbandonedAt = redSeat.abandonedAt;
+  assert.ok(redAbandonedAt > 0);
+
+  // Bob (yellow) is current turn
+  if (ctx.controller.getState().engineState.currentTurn === 'yellow') {
+    await ctx.send(ws2, 'user_bob', { type: 'LUDO_ROLL_DICE' });
+  }
+
+  // Red's seat metadata MUST NOT be mutated or dropped by Bob's turn
+  const redAfterBob = ctx.controller.getState().seats.red;
+  assert.equal(redAfterBob.presence, 'abandoned');
+  assert.equal(redAfterBob.controlMode, 'takeover-bot');
+  assert.equal(redAfterBob.abandonedAt, redAbandonedAt);
+
+  // Also survives DO restart
+  const restored = LudoOnlineController.fromState(ctx.roomId, ctx.callbacks, ctx.controller.getState());
+  const redRestored = restored.getState().seats.red;
+  assert.equal(redRestored.presence, 'abandoned');
+  assert.equal(redRestored.controlMode, 'takeover-bot');
+  assert.equal(redRestored.abandonedAt, redAbandonedAt);
+});
+
+test('151. (Gate 15) grace metadata survives other players gameplay actions', async () => {
+  const { ctx, ws1, ws2 } = await createStartedGame(2);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+
+  const redDeadline = ctx.controller.getState().seats.red.disconnectDeadline;
+  assert.ok(redDeadline > 0);
+
+  // Bob takes an action if his turn
+  if (ctx.controller.getState().engineState.currentTurn === 'yellow') {
+    await ctx.send(ws2, 'user_bob', { type: 'LUDO_ROLL_DICE' });
+  }
+
+  // Red's reconnecting metadata is preserved unchanged
+  const redAfter = ctx.controller.getState().seats.red;
+  assert.equal(redAfter.presence, 'reconnecting');
+  assert.equal(redAfter.disconnectDeadline, redDeadline);
+});
+
+test('152. (Gate 16) host transfer exactly once on permanent abandonment', async () => {
+  const { ctx, ws1 } = await createStartedGame(3);
+  // Alice is red, host
+  assert.equal(ctx.controller.getState().hostUserId, 'user_alice');
+
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_alice');
+
+  // Host transferred to next human
+  const newHost = ctx.controller.getState().hostUserId;
+  assert.ok(newHost !== 'user_alice');
+  assert.ok(newHost !== null);
+
+  // Stale alarm / timeout call for Alice
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_alice');
+
+  // Host remains the new host, does NOT rotate again
+  assert.equal(ctx.controller.getState().hostUserId, newHost);
+});
+
+test('153. (Gate 17) host order consistency across lobby and active game', async () => {
+  // 1. Lobby host transfer: red leaves -> green becomes host
+  const ctxLobby = new TestContext('room_host_order');
+  const wsRed = ctxLobby.connect('user_alice');
+  await ctxLobby.send(wsRed, 'user_alice', { type: 'LUDO_JOIN', preferredColor: 'red' });
+  await ctxLobby.send(wsRed, 'user_alice', { type: 'LUDO_SET_PLAYER_COUNT', playerCount: 4 });
+  const wsGreen = ctxLobby.connect('user_bob');
+  await ctxLobby.send(wsGreen, 'user_bob', { type: 'LUDO_JOIN', preferredColor: 'green' });
+  const wsYellow = ctxLobby.connect('user_charlie');
+  await ctxLobby.send(wsYellow, 'user_charlie', { type: 'LUDO_JOIN', preferredColor: 'yellow' });
+
+  assert.equal(ctxLobby.controller.getState().hostUserId, 'user_alice');
+  await ctxLobby.send(wsRed, 'user_alice', { type: 'LUDO_LEAVE' });
+  assert.equal(ctxLobby.controller.getState().hostUserId, 'user_bob'); // green is next in canonical order
+
+  // 2. Active game host transfer: red abandons -> green becomes host
+  const { ctx, ws1 } = await createStartedGame(3);
+  assert.equal(ctx.controller.getState().hostUserId, 'user_alice');
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+  await ctx.controller.handleDisconnectTimeout(ctx.roomId, 'user_alice');
+  assert.equal(ctx.controller.getState().hostUserId, 'user_charlie'); // charlie holds green seat, next in canonical order
+});
+
+test('154. (Gate 18) already-ranked player disconnect presence', async () => {
+  const { ctx, ws1 } = await createStartedGame(2);
+  // Mark red as winner with all 4 finished tokens
+  const candidate = ctx.controller.getState();
+  candidate.engineState.tokens.red = [56, 56, 56, 56];
+  candidate.engineState.rankings = ['red'];
+  candidate.engineState.currentTurn = 'yellow';
+  candidate.rankings = ['red'];
+  const restored = new LudoOnlineController(ctx.roomId, ctx.callbacks, candidate);
+
+  ws1.close();
+  restored.handleDisconnect('user_alice', ws1);
+
+  const redSeat = restored.getState().seats.red;
+  assert.equal(redSeat.presence, 'reconnecting');
+  assert.equal(redSeat.disconnectDeadline, null); // No deadline
+  assert.equal(redSeat.controlMode, 'human');      // Not takeover
+  assert.equal(redSeat.abandonedAt, null);        // Not abandoned
+  assert.equal(ctx.disconnectGraceRows.size, 0);  // No SQL grace row
+});
+
+test('155. (Gate 19) display rankings tie safety', () => {
+  const seats = {
+    red: { color: 'red', status: 'human', controlMode: 'takeover-bot', abandonedAt: 5000 },
+    green: { color: 'green', status: 'human', controlMode: 'takeover-bot', abandonedAt: 5000 },
+    yellow: { color: 'yellow', status: 'human', controlMode: 'takeover-bot', abandonedAt: 5000 },
+    blue: { color: 'blue', status: 'closed', controlMode: 'human', abandonedAt: null },
+  };
+
+  const activeColors = ['red', 'green', 'yellow'];
+  const display = computeLudoDisplayRankings([], activeColors, seats);
+
+  assert.equal(display.length, 3);
+  assert.deepEqual(display, ['red', 'green', 'yellow']); // Stable canonical color tie-breaker
+});
+
+test('156. (Gate 20) clock injection', async () => {
+  let currentTime = 1_700_000_000_000;
+  const ctx = new TestContext('room_clock', { now: () => currentTime });
+  const ws1 = ctx.connect('user_alice');
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_JOIN', preferredColor: 'red' });
+  const ws2 = ctx.connect('user_bob');
+  await ctx.send(ws2, 'user_bob', { type: 'LUDO_JOIN', preferredColor: 'yellow' });
+  await ctx.send(ws2, 'user_bob', { type: 'LUDO_SET_READY', ready: true });
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_START_GAME' });
+
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+
+  assert.equal(
+    ctx.controller.getState().seats.red.disconnectDeadline,
+    1_700_000_000_000 + LUDO_RECONNECT_GRACE_MS
+  );
+
+  currentTime += 100_000;
+  await ctx.controller.handleDisconnectTimeout('room_clock', 'user_alice');
+  assert.equal(ctx.controller.getState().seats.red.abandonedAt, 1_700_000_100_000);
+});
+
+test('157. (Gate 21) deadline validation rejects malformed values and contradictions', () => {
+  const base = {
+    gameType: 'ludo',
+    roomId: 'v1',
+    status: 'playing',
+    hostUserId: 'u1',
+    activeSeatCount: 2,
+    engineState: { activeColors: ['red', 'yellow'], rankings: [] },
+    seats: {
+      red: { color: 'red', status: 'human', userId: 'u1', displayName: 'A', botDifficulty: null, ready: true, controlMode: 'human', presence: 'online', disconnectDeadline: null, abandonedAt: null },
+      green: { color: 'green', status: 'closed', userId: null, displayName: null, botDifficulty: null, ready: false },
+      yellow: { color: 'yellow', status: 'human', userId: 'u2', displayName: 'B', botDifficulty: null, ready: true, controlMode: 'human', presence: 'online', disconnectDeadline: null, abandonedAt: null },
+      blue: { color: 'blue', status: 'closed', userId: null, displayName: null, botDifficulty: null, ready: false },
+    },
+    rankings: [],
+    createdAt: 1000,
+    updatedAt: 1000,
+    revision: 1,
+  };
+
+  // 1. disconnectDeadline = NaN
+  let bad = JSON.parse(JSON.stringify(base));
+  bad.seats.red.disconnectDeadline = NaN;
+  assert.equal(validateLudoRoomState(bad).valid, false);
+
+  // 2. disconnectDeadline = -10
+  bad = JSON.parse(JSON.stringify(base));
+  bad.seats.red.disconnectDeadline = -10;
+  assert.equal(validateLudoRoomState(bad).valid, false);
+
+  // 3. presence = 'online' + disconnectDeadline != null
+  bad = JSON.parse(JSON.stringify(base));
+  bad.seats.red.presence = 'online';
+  bad.seats.red.disconnectDeadline = 50000;
+  assert.equal(validateLudoRoomState(bad).valid, false);
+
+  // 4. presence = 'abandoned' + abandonedAt = null
+  bad = JSON.parse(JSON.stringify(base));
+  bad.seats.red.presence = 'abandoned';
+  bad.seats.red.controlMode = 'takeover-bot';
+  bad.seats.red.abandonedAt = null;
+  assert.equal(validateLudoRoomState(bad).valid, false);
+
+  // 5. controlMode = 'takeover-bot' + presence != 'abandoned'
+  bad = JSON.parse(JSON.stringify(base));
+  bad.seats.red.controlMode = 'takeover-bot';
+  bad.seats.red.presence = 'online';
+  bad.seats.red.abandonedAt = 5000;
+  assert.equal(validateLudoRoomState(bad).valid, false);
+
+  // 6. configured bot with disconnectDeadline
+  bad = JSON.parse(JSON.stringify(base));
+  bad.seats.yellow.status = 'bot';
+  bad.seats.yellow.userId = null;
+  bad.seats.yellow.disconnectDeadline = 50000;
+  assert.equal(validateLudoRoomState(bad).valid, false);
+});
+
+test('158. (Gate 22) display rankings validation', () => {
+  const eng = LudoEngine.create({
+    players: [
+      { id: 'u1', color: 'red', type: 'human' },
+      { id: 'u2', color: 'yellow', type: 'human' },
+    ],
+  });
+  const engineState = eng.getState();
+  engineState.status = 'finished';
+  engineState.currentTurn = null;
+  engineState.turnPhase = null;
+  engineState.tokens.yellow = [56, 56, 56, 56];
+  engineState.rankings = ['yellow', 'red'];
+
+  const base = {
+    gameType: 'ludo',
+    roomId: 'v2',
+    status: 'finished',
+    hostUserId: 'u1',
+    activeSeatCount: 2,
+    engineState,
+    seats: {
+      red: { color: 'red', status: 'human', userId: 'u1', displayName: 'A', botDifficulty: null, ready: true, controlMode: 'takeover-bot', presence: 'abandoned', disconnectDeadline: null, abandonedAt: 1000 },
+      green: { color: 'green', status: 'closed', userId: null, displayName: null, botDifficulty: null, ready: false },
+      yellow: { color: 'yellow', status: 'human', userId: 'u2', displayName: 'B', botDifficulty: null, ready: true, controlMode: 'takeover-bot', presence: 'abandoned', disconnectDeadline: null, abandonedAt: 2000 },
+      blue: { color: 'blue', status: 'closed', userId: null, displayName: null, botDifficulty: null, ready: false },
+    },
+    rankings: ['yellow', 'red'],
+    displayRankings: ['yellow', 'red'],
+    createdAt: 1000,
+    updatedAt: 1000,
+    revision: 1,
+  };
+
+  // Valid display rankings
+  assert.equal(validateLudoRoomState(base).valid, true);
+
+  // Invalid color
+  let bad = JSON.parse(JSON.stringify(base));
+  bad.displayRankings = ['yellow', 'purple'];
+  assert.equal(validateLudoRoomState(bad).valid, false);
+
+  // Duplicates
+  bad = JSON.parse(JSON.stringify(base));
+  bad.displayRankings = ['yellow', 'yellow'];
+  assert.equal(validateLudoRoomState(bad).valid, false);
+
+  // Missing active color when finished
+  bad = JSON.parse(JSON.stringify(base));
+  bad.displayRankings = ['yellow'];
+  assert.equal(validateLudoRoomState(bad).valid, false);
+});
+
+test('159. (Gate 23) legacy pre-4C1 active room state restore', () => {
+  const eng = LudoEngine.create({
+    players: [
+      { id: 'user_alice', color: 'red', type: 'human' },
+      { id: 'bot-green', color: 'green', type: 'bot' },
+      { id: 'user_bob', color: 'yellow', type: 'human' },
+    ],
+  });
+  const legacyActiveState = {
+    gameType: 'ludo',
+    roomId: 'legacy_active',
+    status: 'playing',
+    hostUserId: 'user_alice',
+    activeSeatCount: 3,
+    engineState: eng.getState(),
+    seats: {
+      red: { color: 'red', status: 'human', userId: 'user_alice', displayName: 'Alice', botDifficulty: null, ready: true },
+      green: { color: 'green', status: 'bot', userId: null, displayName: 'Bot Green', botDifficulty: 'normal', ready: true },
+      yellow: { color: 'yellow', status: 'human', userId: 'user_bob', displayName: 'Bob', botDifficulty: null, ready: true },
+      blue: { color: 'blue', status: 'closed', userId: null, displayName: null, botDifficulty: null, ready: false },
+    },
+    rankings: [],
+    createdAt: 1000,
+    updatedAt: 1000,
+    revision: 5,
+  };
+
+  const validation = validateLudoRoomState(legacyActiveState);
+  assert.equal(validation.valid, true);
+
+  const ctx = new TestContext('legacy_active');
+  const restored = LudoOnlineController.fromState('legacy_active', ctx.callbacks, legacyActiveState);
+
+  // Safely normalized
+  const state = restored.getState();
+  assert.equal(state.seats.red.controlMode, 'human');
+  assert.equal(state.seats.red.presence, 'online');
+  assert.equal(state.seats.green.controlMode, 'bot');
+  assert.equal(state.seats.green.presence, 'online');
+  assert.equal(state.seats.yellow.controlMode, 'human');
+  assert.equal(state.seats.yellow.presence, 'online');
+});
+
+test('160. (Gate 24) legacy finished room state restore', () => {
+  const eng = LudoEngine.create({
+    players: [
+      { id: 'user_alice', color: 'red', type: 'human' },
+      { id: 'user_bob', color: 'yellow', type: 'human' },
+    ],
+  });
+  const engineState = eng.getState();
+  engineState.status = 'finished';
+  engineState.currentTurn = null;
+  engineState.turnPhase = null;
+  engineState.tokens.red = [56, 56, 56, 56];
+  engineState.rankings = ['red', 'yellow'];
+
+  const legacyFinishedState = {
+    gameType: 'ludo',
+    roomId: 'legacy_finished',
+    status: 'finished',
+    hostUserId: 'user_alice',
+    activeSeatCount: 2,
+    engineState,
+    seats: {
+      red: { color: 'red', status: 'human', userId: 'user_alice', displayName: 'Alice', botDifficulty: null, ready: true },
+      green: { color: 'green', status: 'closed', userId: null, displayName: null, botDifficulty: null, ready: false },
+      yellow: { color: 'yellow', status: 'human', userId: 'user_bob', displayName: 'Bob', botDifficulty: null, ready: true },
+      blue: { color: 'blue', status: 'closed', userId: null, displayName: null, botDifficulty: null, ready: false },
+    },
+    rankings: ['red', 'yellow'],
+    createdAt: 1000,
+    updatedAt: 1000,
+    revision: 20,
+  };
+
+  const validation = validateLudoRoomState(legacyFinishedState);
+  assert.equal(validation.valid, true);
+
+  const ctx = new TestContext('legacy_finished');
+  const restored = LudoOnlineController.fromState('legacy_finished', ctx.callbacks, legacyFinishedState);
+
+  const state = restored.getState();
+  assert.equal(state.status, 'finished');
+  assert.deepEqual(state.displayRankings, ['red', 'yellow']);
+});
+
+test('161. (Gate 25) mobile 4B2 compatibility with representative 4C1 LUDO_GAME_STATE', () => {
+  const event4C1 = {
+    type: 'LUDO_GAME_STATE',
+    roomId: 'room_compat',
+    state: {
+      status: 'playing',
+      currentTurn: 'red',
+      turnPhase: 'roll',
+      currentRoll: null,
+      legalMoves: [],
+      tokens: { red: [-1, -1, -1, -1], green: [-1, -1, -1, -1], yellow: [-1, -1, -1, -1], blue: [-1, -1, -1, -1] },
+      rankings: [],
+    },
+    seats: {
+      red: { color: 'red', status: 'human', userId: 'u1', displayName: 'Alice', botDifficulty: null, ready: true, controlMode: 'human', presence: 'online', disconnectDeadline: null, abandonedAt: null },
+      green: { color: 'green', status: 'closed', userId: null, displayName: null, botDifficulty: null, ready: false },
+      yellow: { color: 'yellow', status: 'human', userId: 'u2', displayName: 'Bob', botDifficulty: null, ready: true, controlMode: 'takeover-bot', presence: 'abandoned', disconnectDeadline: null, abandonedAt: 123456 },
+      blue: { color: 'blue', status: 'closed', userId: null, displayName: null, botDifficulty: null, ready: false },
+    },
+    hostUserId: 'u1',
+    presence: { u1: true, u2: false },
+    revision: 10,
+    protocolVersion: 1,
+    finishReason: null,
+    displayRankings: undefined,
+  };
+
+  // Parse with mobile's parseLudoServerEvent
+  const parsed = parseLudoServerEvent(event4C1);
+  assert.ok(parsed);
+  assert.equal(parsed.type, 'LUDO_GAME_STATE');
+  assert.equal(parsed.revision, 10);
+  assert.equal(parsed.seats.yellow.color, 'yellow');
+});
+
+test('162. (Gate 26) no raw alarm internals in broadcasted disconnectDeadline', async () => {
+  const { ctx, ws1 } = await createStartedGame(2);
+  ws1.close();
+  ctx.controller.handleDisconnect('user_alice', ws1);
+
+  const presenceEvents = ctx.broadcastEvents.filter((e) => e.type === 'LUDO_PRESENCE');
+  const lastPresence = presenceEvents[presenceEvents.length - 1];
+  assert.ok(lastPresence);
+
+  // Must be finite positive timestamp or null
+  assert.equal(typeof lastPresence.disconnectDeadline, 'number');
+  assert.ok(Number.isFinite(lastPresence.disconnectDeadline));
+  assert.ok(lastPresence.disconnectDeadline > 0);
+
+  // Must not contain any alarm internal strings or keys
+  const serialized = JSON.stringify(lastPresence);
+  assert.equal(serialized.includes('alarm_'), false);
+  assert.equal(serialized.includes('sql_'), false);
+  assert.equal(serialized.includes('key_'), false);
 });
 

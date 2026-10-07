@@ -1024,7 +1024,7 @@
         let supaClient = null;
         try {
           if (window.supabase) {
-            const cfgRes = await fetch('/api/chat/config');
+            const cfgRes = await fetch('/api/auth/config');
             if (cfgRes.ok) {
               const cfg = await cfgRes.json();
               if (cfg.url && cfg.key) {

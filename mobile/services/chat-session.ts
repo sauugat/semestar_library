@@ -41,8 +41,11 @@ export function captureChatSession() {
 export const isCurrentChatSession = (s: ChatSession) => s.generation === session.generation && chatScope(s) !== '' && chatScope(s) === chatScope();
 export function assertCurrentChatSession(s: ChatSession) { if (!isCurrentChatSession(s)) throw new Error(CHAT_UNAVAILABLE); }
 export function assertLocalChatServer(server: string) {
-  const host = new URL(server).hostname;
+  const url = new URL(server);
+  if (url.username || url.password || url.search || url.hash || url.pathname !== '/') throw new Error('Invalid chat server.');
+  if (['https://semestar-library.vercel.app','https://ahcccqsyvpxacnsttzeh.supabase.co'].includes(url.origin)) return;
+  const host = url.hostname;
   if (!/^(localhost|127\.0\.0\.1|\[::1\]|10\.0\.2\.2|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)$/.test(host)) {
-    throw new Error('Cohort chat is available on the local test server only.');
+    throw new Error('This chat server is not trusted.');
   }
 }

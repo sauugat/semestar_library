@@ -595,7 +595,7 @@
           onInvalidate: clearRoomUI,
           onContext: (context, cache, changed) => {
             messageCache = cache;
-            const displayName = context.cohortDisplayName || (context.groupCode[0] + context.groupCode.slice(1).toLowerCase() + ' Group');
+            const displayName = context.cohortDisplayName || (context.groupCode[0] + context.groupCode.slice(1).toLowerCase());
             const semStatus = context.cohortStatus === 'graduated' ? 'Graduated' : ('Semester ' + context.currentSemester);
             document.querySelector('.im-contact-name').textContent = displayName + ' • ' + semStatus;
             const isArchived = context.cohortStatus === 'graduated' || context.roomStatus === 'closed' || (context.permissions && context.permissions.canPost === false);

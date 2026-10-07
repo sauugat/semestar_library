@@ -4353,6 +4353,7 @@ app.get('/api/chat/attachment/:filename', requireLogin, async (req, res) => {
   res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'; style-src 'unsafe-inline'");
   res.sendFile(filePath);
 });
+} // end legacy chat fallback
 
 // ============================================================
 // NOTIFICATION SYSTEM & CENTER

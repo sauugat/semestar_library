@@ -11,13 +11,13 @@ import {
   Animated,
   StatusBar,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library/legacy';
-import { Text, Caption } from '@/components/ui/Typography';
+import { Text } from '@/components/ui/Typography';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -36,9 +36,13 @@ export function FullScreenImageViewer({
   headers,
   onClose,
 }: FullScreenImageViewerProps) {
+  const insets = useSafeAreaInsets();
   const [savingImage, setSavingImage] = useState(false);
   const [sharingImage, setSharingImage] = useState(false);
   const [isZoomed, setIsZoomed] = useState(false);
+  const [controlsVisible, setControlsVisible] = useState(true);
+  const controlsOpacity = useRef(new Animated.Value(1)).current;
+  const singleTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Animated values for zoom, pan, and swipe-down dismissal
   const scale = useRef(new Animated.Value(1)).current;
@@ -94,6 +98,42 @@ export function FullScreenImageViewer({
       lastTapRef.current = 0;
     }
   }, [visible, imageUri]);
+
+  const [showHint, setShowHint] = useState(true);
+
+  const toggleControls = () => {
+    setControlsVisible((prev) => {
+      const next = !prev;
+      Animated.timing(controlsOpacity, {
+        toValue: next ? 1 : 0,
+        duration: 180,
+        useNativeDriver: true,
+      }).start();
+      return next;
+    });
+  };
+
+  // Auto-hide hint after 2.5 seconds
+  useEffect(() => {
+    if (visible) {
+      setShowHint(true);
+      setControlsVisible(true);
+      controlsOpacity.setValue(1);
+      const timer = setTimeout(() => {
+        setShowHint(false);
+      }, 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [visible]);
+
+  // Clean up single tap timer on unmount
+  useEffect(() => {
+    return () => {
+      if (singleTapTimerRef.current) {
+        clearTimeout(singleTapTimerRef.current);
+      }
+    };
+  }, []);
 
   const resetZoom = () => {
     Animated.parallel([
@@ -233,15 +273,25 @@ export function FullScreenImageViewer({
             }
           }
 
-          // Double tap detection (tap with minimal movement)
+          // Double tap vs single tap detection
           if (Math.abs(gestureState.dx) < 8 && Math.abs(gestureState.dy) < 8) {
             const now = Date.now();
-            if (now - lastTapRef.current < 300) {
+            if (now - lastTapRef.current < 280) {
+              if (singleTapTimerRef.current) {
+                clearTimeout(singleTapTimerRef.current);
+                singleTapTimerRef.current = null;
+              }
               lastTapRef.current = 0;
               handleDoubleTap();
             } else {
               lastTapRef.current = now;
-              // Single tap explicitly does not close the viewer!
+              if (singleTapTimerRef.current) {
+                clearTimeout(singleTapTimerRef.current);
+              }
+              singleTapTimerRef.current = setTimeout(() => {
+                singleTapTimerRef.current = null;
+                toggleControls();
+              }, 280);
             }
           }
         },
@@ -347,9 +397,18 @@ export function FullScreenImageViewer({
           },
         ]}
       >
-        <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-          {/* Header Action Bar */}
-          <View style={styles.header}>
+        <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+          {/* Header Action Bar respecting safe-area top inset */}
+          <Animated.View
+            style={[
+              styles.header,
+              {
+                paddingTop: insets.top + 12,
+                opacity: controlsOpacity,
+              },
+            ]}
+            pointerEvents={controlsVisible ? 'auto' : 'none'}
+          >
             <View style={styles.actionGroup}>
               {/* Share */}
               <TouchableOpacity
@@ -401,7 +460,7 @@ export function FullScreenImageViewer({
             >
               <Ionicons name="close" size={24} color="#FFFFFF" />
             </TouchableOpacity>
-          </View>
+          </Animated.View>
 
           {/* Interactive Zoom & Pan Area with PanResponder */}
           <View style={styles.zoomContainer} {...panResponder.panHandlers}>
@@ -430,14 +489,19 @@ export function FullScreenImageViewer({
             </Animated.View>
           </View>
 
-          {/* Footer Hint */}
-          <View style={styles.footer} pointerEvents="none">
-            <Caption style={styles.footerText}>
-              {isZoomed
-                ? 'Double-tap to reset • Pan with 1 finger • Pinch to adjust'
-                : 'Double-tap or pinch to zoom • Swipe down or tap ✕ to close'}
-            </Caption>
-          </View>
+          {/* Auto-dismissing Footer Hint */}
+          {showHint && (
+            <Animated.View
+              style={[styles.footer, { opacity: controlsOpacity }]}
+              pointerEvents="none"
+            >
+              <Text variant="xs" style={styles.footerText}>
+                {isZoomed
+                  ? 'Double-tap to reset • Pan with 1 finger • Pinch to adjust'
+                  : 'Double-tap or pinch to zoom • Swipe down or tap ✕ to close'}
+              </Text>
+            </Animated.View>
+          )}
         </SafeAreaView>
       </Animated.View>
     </Modal>

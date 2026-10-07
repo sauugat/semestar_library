@@ -287,6 +287,8 @@ function areMessagePropsEqual(
   if (prev.item.text !== next.item.text) return false;
   if (prev.item.attachmentName !== next.item.attachmentName) return false;
   if (prev.item.attachmentSize !== next.item.attachmentSize) return false;
+  if (prev.item.chatGroupId !== next.item.chatGroupId) return false;
+  if (prev.item.localUri !== next.item.localUri) return false;
   if (prev.isHighlighted !== next.isHighlighted) return false;
   if (prev.downloadingFileId !== next.downloadingFileId) return false;
   if (prev.isDelivered !== next.isDelivered) return false;
@@ -387,11 +389,24 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
   const isConsecutive = !isFirstInGroup;
 
   const isImg = isImageAttachment(item.attachmentName, item.attachmentMimeType);
-  const attachmentUrl = item.localUri
-    ? item.localUri
-    : item.attachmentName
-      ? `${serverUrl}/api/chat/attachment/${encodeURIComponent(item.attachmentName)}`
-      : null;
+  const remoteAttachmentUrl = useMemo(() => {
+    if (!item.attachmentName) return null;
+    const base = `${serverUrl.replace(/\/+$/, '')}/api/chat/attachment/${encodeURIComponent(item.attachmentName)}`;
+    return item.chatGroupId ? `${base}?chatGroupId=${encodeURIComponent(item.chatGroupId)}` : base;
+  }, [serverUrl, item.attachmentName, item.chatGroupId]);
+
+  const [imageState, setImageState] = useState<'loading' | 'loaded' | 'error'>('loading');
+  const [retryKey, setRetryKey] = useState(0);
+  const [localUriFailed, setLocalUriFailed] = useState(false);
+
+  // Authoritative remote source:
+  // Transient localUri is only used for pending optimistic state; once sent or if local fails, remote is authoritative
+  const effectiveImageUrl = useMemo(() => {
+    if (item.status === 'pending' && item.localUri && !localUriFailed) {
+      return item.localUri;
+    }
+    return remoteAttachmentUrl;
+  }, [item.status, item.localUri, localUriFailed, remoteAttachmentUrl]);
 
   const timeString = formatMessageTime(item.createdAt);
   const initialChar = (item.name || 'S').trim().charAt(0).toUpperCase();
@@ -408,26 +423,35 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
 
   // Image natural aspect ratio tracking & measurement
   const [imageDims, setImageDims] = useState<{ width: number; height: number } | null>(() => {
-    if (!attachmentUrl) return null;
-    return imageDimensionsCache.get(attachmentUrl) || null;
+    if (!effectiveImageUrl) return null;
+    return imageDimensionsCache.get(effectiveImageUrl) || null;
   });
 
   useEffect(() => {
-    if (!isImg || !attachmentUrl) return;
-    if (imageDimensionsCache.has(attachmentUrl)) return;
-    RNImage.getSize(
-      attachmentUrl,
-      (w, h) => {
-        if (w > 0 && h > 0) {
-          imageDimensionsCache.set(attachmentUrl, { width: w, height: h });
-          setImageDims({ width: w, height: h });
+    if (!isImg || !effectiveImageUrl) return;
+    setImageState('loading');
+    if (imageDimensionsCache.has(effectiveImageUrl)) {
+      const cached = imageDimensionsCache.get(effectiveImageUrl)!;
+      setImageDims(cached);
+    } else {
+      RNImage.getSize(
+        effectiveImageUrl,
+        (w, h) => {
+          if (w > 0 && h > 0) {
+            imageDimensionsCache.set(effectiveImageUrl, { width: w, height: h });
+            setImageDims({ width: w, height: h });
+          }
+        },
+        () => {
+          if (item.localUri && !localUriFailed && remoteAttachmentUrl) {
+            setLocalUriFailed(true);
+          }
         }
-      },
-      () => {}
-    );
-  }, [isImg, attachmentUrl]);
+      );
+    }
+  }, [isImg, effectiveImageUrl, retryKey]);
 
-  const targetImageWidth = Math.min(Math.round(screenWidth * 0.72), 290);
+  const targetImageWidth = Math.min(Math.round(screenWidth * 0.74), 280);
   const renderedImageDims = useMemo(() => {
     if (!imageDims || !imageDims.width || !imageDims.height) {
       return { width: targetImageWidth, height: Math.round(targetImageWidth * 0.75), contentFit: 'cover' as const };
@@ -604,6 +628,7 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
 
   const tapDelay = singleTapDelayMs ?? 250;
   const handleImagePress = () => {
+    if (imageState === 'error') return;
     const now = Date.now();
     if (now - lastTapRef.current < 300) {
       if (singleTapTimerRef.current) {
@@ -618,18 +643,18 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
         clearTimeout(singleTapTimerRef.current);
       }
       if (tapDelay <= 0) {
-        if (attachmentUrl) {
+        if (effectiveImageUrl) {
           onOpenImage({
-            uri: attachmentUrl,
+            uri: effectiveImageUrl,
             name: item.attachmentOriginalName || item.attachmentName || 'image.jpg',
           });
         }
       } else {
         singleTapTimerRef.current = setTimeout(() => {
           singleTapTimerRef.current = null;
-          if (attachmentUrl) {
+          if (effectiveImageUrl) {
             onOpenImage({
-              uri: attachmentUrl,
+              uri: effectiveImageUrl,
               name: item.attachmentOriginalName || item.attachmentName || 'image.jpg',
             });
           }
@@ -736,7 +761,7 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
             styles.bubbleRowAnimated,
             isMe ? styles.bubbleRowRight : styles.bubbleRowLeft,
             {
-              marginTop: isConsecutive ? 2 : 10,
+              marginTop: isConsecutive ? 3 : 12,
               transform: [{ translateX }],
             },
           ]}
@@ -847,48 +872,101 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
               )}
 
               {/* Image Attachment */}
-              {isImg && attachmentUrl && (
+              {isImg && effectiveImageUrl && (
                 <Pressable
                   onPress={handleImagePress}
                   onLongPress={handleLongPress}
                   delayLongPress={280}
                   accessibilityLabel="Open photo. Double tap for heart reaction. Long press for message actions."
-                  style={styles.imageContainer}
+                  style={[
+                    styles.imageContainer,
+                    imageState === 'error' && styles.imageErrorContainer,
+                  ]}
                 >
-                  <Image
-                    source={{
-                      uri: attachmentUrl,
-                      headers: authToken ? { Authorization: `Bearer ${authToken}` } : undefined,
-                    }}
-                    style={[
-                      styles.imageThumbnail,
-                      {
-                        width: renderedImageDims.width,
-                        height: renderedImageDims.height,
-                      },
-                    ]}
-                    cachePolicy="memory-disk"
-                    recyclingKey={`${item.id}:${item.attachmentName}`}
-                    contentFit={renderedImageDims.contentFit}
-                    transition={150}
-                    onLoad={(e) => {
-                      const { width, height } = e.source;
-                      if (width && height && attachmentUrl && !imageDimensionsCache.has(attachmentUrl)) {
-                        imageDimensionsCache.set(attachmentUrl, { width, height });
-                        setImageDims({ width, height });
-                      }
-                    }}
-                  />
+                  {imageState === 'loading' && (
+                    <View
+                      style={[
+                        StyleSheet.absoluteFill,
+                        styles.imageSkeleton,
+                        {
+                          width: renderedImageDims.width,
+                          height: renderedImageDims.height,
+                        },
+                      ]}
+                    >
+                      <ActivityIndicator size="small" color="#71717a" />
+                    </View>
+                  )}
+
+                  {imageState === 'error' ? (
+                    <View
+                      style={[
+                        styles.imageErrorCard,
+                        { width: Math.min(renderedImageDims.width, 240) },
+                      ]}
+                    >
+                      <Ionicons name="alert-circle-outline" size={26} color="#71717a" />
+                      <Text style={styles.imageErrorText}>Couldn't load image</Text>
+                      <TouchableOpacity
+                        activeOpacity={0.7}
+                        onPress={() => {
+                          setImageState('loading');
+                          setLocalUriFailed(true);
+                          setRetryKey((k) => k + 1);
+                        }}
+                        style={styles.imageRetryBtn}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Ionicons name="refresh-outline" size={13} color="#e4e4e7" style={{ marginRight: 4 }} />
+                        <Text style={styles.imageRetryText}>Retry</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <Image
+                      key={`${effectiveImageUrl}:${retryKey}`}
+                      source={{
+                        uri: effectiveImageUrl,
+                        headers: authToken ? { Authorization: `Bearer ${authToken}` } : undefined,
+                      }}
+                      style={[
+                        styles.imageThumbnail,
+                        {
+                          width: renderedImageDims.width,
+                          height: renderedImageDims.height,
+                        },
+                      ]}
+                      cachePolicy="memory-disk"
+                      recyclingKey={`${item.id}:${item.attachmentName}`}
+                      contentFit={renderedImageDims.contentFit}
+                      transition={150}
+                      onLoad={(e) => {
+                        setImageState('loaded');
+                        const { width, height } = e.source;
+                        if (width && height && effectiveImageUrl && !imageDimensionsCache.has(effectiveImageUrl)) {
+                          imageDimensionsCache.set(effectiveImageUrl, { width, height });
+                          setImageDims({ width, height });
+                        }
+                      }}
+                      onError={() => {
+                        if (item.localUri && !localUriFailed && remoteAttachmentUrl) {
+                          setLocalUriFailed(true);
+                          setImageState('loading');
+                        } else {
+                          setImageState('error');
+                        }
+                      }}
+                    />
+                  )}
 
                   {/* Subtle translucent dark overlay while uploading */}
-                  {item.status === 'pending' && (
+                  {item.status === 'pending' && imageState !== 'error' && (
                     <View style={styles.imageUploadingOverlay}>
                       <ActivityIndicator size="small" color="#ffffff" />
                     </View>
                   )}
 
                   {/* If image only: overlay timestamp pill on bottom-right of image */}
-                  {isImageOnly && (
+                  {isImageOnly && imageState !== 'error' && (
                     <View style={styles.imageOverlayMetaPill}>
                       <MessageStatusMeta
                         status={item.status}
@@ -1123,15 +1201,16 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   bubbleMe: {
-    backgroundColor: '#2c2c2e', // own: lighter gray fill
+    backgroundColor: '#2c2c2e', // own: refined dark gray
   },
   bubbleOther: {
-    backgroundColor: '#1c1c1e', // others: darker gray fill
+    backgroundColor: '#1c1c1e', // others: subtle dark gray
   },
   imageBubbleTightPadding: {
-    paddingHorizontal: 3,
-    paddingTop: 3,
-    paddingBottom: 3,
+    paddingHorizontal: 0,
+    paddingTop: 0,
+    paddingBottom: 0,
+    backgroundColor: 'transparent',
   },
   highlightOverlay: {
     backgroundColor: 'rgba(255, 255, 255, 0.16)',
@@ -1164,13 +1243,51 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   imageContainer: {
-    borderRadius: 13,
+    borderRadius: 16,
     overflow: 'hidden',
     position: 'relative',
     backgroundColor: '#18181b',
   },
   imageThumbnail: {
-    borderRadius: 13,
+    borderRadius: 16,
+  },
+  imageSkeleton: {
+    backgroundColor: '#18181b',
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  imageErrorContainer: {
+    backgroundColor: '#18181b',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#27272a',
+  },
+  imageErrorCard: {
+    paddingVertical: 18,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  imageErrorText: {
+    fontSize: 12,
+    color: '#a1a1aa',
+    marginTop: 6,
+    marginBottom: 8,
+    fontWeight: '500',
+  },
+  imageRetryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#27272a',
+    paddingHorizontal: 10,
+    paddingVertical: 4.5,
+    borderRadius: 12,
+  },
+  imageRetryText: {
+    fontSize: 11.5,
+    color: '#e4e4e7',
+    fontWeight: '600',
   },
   imageUploadingOverlay: {
     position: 'absolute',
@@ -1181,7 +1298,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.40)',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 13,
+    borderRadius: 16,
   },
   captionContainer: {
     paddingHorizontal: 8,

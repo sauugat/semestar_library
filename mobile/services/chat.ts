@@ -197,9 +197,10 @@ export async function sendChatTyping(): Promise<void> {
   }
 }
 
-export async function getAttachmentUrl(filename: string): Promise<string> {
+export async function getAttachmentUrl(filename: string, chatGroupId?: string): Promise<string> {
   const baseUrl = await getBaseUrl();
-  return `${baseUrl}/api/chat/attachment/${encodeURIComponent(filename)}`;
+  const query = chatGroupId ? `?chatGroupId=${encodeURIComponent(chatGroupId)}` : '';
+  return `${baseUrl}/api/chat/attachment/${encodeURIComponent(filename)}${query}`;
 }
 
 export const CHAT_PAGE_SIZE = 40;

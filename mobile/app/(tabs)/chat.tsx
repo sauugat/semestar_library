@@ -1497,11 +1497,12 @@ export default function ChatScreen() {
       {/* Main Message List & Viewport Boundary */}
       <KeyboardContentBoundary style={styles.messagesBoundary}>
         {loadingInitial ? (
-          <View style={styles.centerContainer}>
-            <ActivityIndicator size="large" color="#f5f5f5" />
-            <Text variant="sm" style={styles.loadingInitialText}>
-              Loading group messages...
-            </Text>
+          <View style={styles.skeletonContainer}>
+            <View style={[styles.skeletonBubble, styles.skeletonBubbleLeft, { width: 170 }]} />
+            <View style={[styles.skeletonBubble, styles.skeletonBubbleRight, { width: 220 }]} />
+            <View style={[styles.skeletonBubble, styles.skeletonBubbleRight, { width: 130 }]} />
+            <View style={[styles.skeletonBubble, styles.skeletonBubbleLeft, { width: 240 }]} />
+            <View style={[styles.skeletonBubble, styles.skeletonBubbleRight, { width: 180 }]} />
           </View>
         ) : error && messages.length === 0 ? (
           <View style={styles.centerContainer}>
@@ -1571,14 +1572,12 @@ export default function ChatScreen() {
             }
             ListEmptyComponent={
               <View style={[styles.emptyContainer, { transform: [{ scaleY: -1 }] }]}>
-                <View style={styles.emptyIconBox}>
-                  <Ionicons name="chatbubbles-outline" size={30} color="#71717a" />
-                </View>
-                <Text variant="md" weight="700" style={styles.emptyTitle}>
-                  Welcome to Class Chat
+                <Ionicons name="chatbubble-ellipses-outline" size={32} color="#52525b" style={{ marginBottom: 8 }} />
+                <Text variant="md" weight="600" style={styles.emptyTitle}>
+                  No messages yet
                 </Text>
                 <Text variant="sm" style={styles.emptyDesc}>
-                  Ask questions, share study notes, and collaborate with your class.
+                  Start the conversation
                 </Text>
               </View>
             }
@@ -2425,19 +2424,19 @@ const styles = StyleSheet.create({
   adminRoomCard: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 14,
+    paddingVertical: 12,
     paddingHorizontal: 16,
-    borderBottomWidth: 1,
+    borderBottomWidth: 0.5,
     borderBottomColor: "#1f1f23",
   },
   adminRoomAvatar: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 14,
+    marginRight: 12,
   },
   adminRoomContent: {
     flex: 1,
@@ -2450,18 +2449,19 @@ const styles = StyleSheet.create({
   },
   adminRoomTitle: {
     color: "#f4f4f5",
-    fontSize: 16,
+    fontSize: 15.5,
+    fontWeight: "600",
   },
   adminRoomSemester: {
-    color: "#a1a1aa",
-    fontSize: 12,
+    color: "#71717a",
+    fontSize: 11.5,
     fontWeight: "500",
-    marginTop: 2,
-    marginBottom: 4,
+    marginTop: 1,
+    marginBottom: 3,
   },
   adminRoomTime: {
     color: "#71717a",
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: "500",
   },
   adminRoomPreview: {
@@ -2476,16 +2476,35 @@ const styles = StyleSheet.create({
   },
   adminRoomBadge: {
     backgroundColor: "#3b82f6",
-    minWidth: 20,
-    height: 20,
-    borderRadius: 10,
+    minWidth: 19,
+    height: 19,
+    borderRadius: 9.5,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 6,
+    paddingHorizontal: 5,
   },
   adminRoomBadgeText: {
     color: "#ffffff",
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: "700",
+  },
+  skeletonContainer: {
+    flex: 1,
+    paddingHorizontal: 16,
+    justifyContent: "flex-end",
+    paddingBottom: 20,
+    gap: 8,
+  },
+  skeletonBubble: {
+    height: 38,
+    borderRadius: 16,
+  },
+  skeletonBubbleLeft: {
+    alignSelf: "flex-start",
+    backgroundColor: "#1c1c1f",
+  },
+  skeletonBubbleRight: {
+    alignSelf: "flex-end",
+    backgroundColor: "#2c2c30",
   },
 });

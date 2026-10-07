@@ -170,6 +170,43 @@
     }
   }
 
+  async function onAuthStateChange(callback) {
+    try {
+      const client = await getSupabase();
+      return client.auth.onAuthStateChange(callback);
+    } catch (err) {
+      console.warn('[Auth] onAuthStateChange setup error:', err);
+      return { data: { subscription: { unsubscribe: () => {} } } };
+    }
+  }
+
+  async function exchangeCode(code) {
+    try {
+      const client = await getSupabase();
+      return await client.auth.exchangeCodeForSession(code);
+    } catch (err) {
+      return { data: null, error: err };
+    }
+  }
+
+  async function syncPasswordReset() {
+    try {
+      const res = await authFetch('/api/auth/sync-password-reset', { method: 'POST' });
+      return await res.json().catch(() => ({}));
+    } catch (err) {
+      return { error: err.message };
+    }
+  }
+
+  async function syncVerification() {
+    try {
+      const res = await authFetch('/api/auth/sync-verification', { method: 'POST' });
+      return await res.json().catch(() => ({}));
+    } catch (err) {
+      return { error: err.message };
+    }
+  }
+
   async function signOut() {
     try {
       const client = await getSupabase();
@@ -318,6 +355,10 @@
     forgotPassword,
     resendVerification,
     updatePassword,
+    onAuthStateChange,
+    exchangeCode,
+    syncPasswordReset,
+    syncVerification,
     authFetch,
     protectPage,
   };

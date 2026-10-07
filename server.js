@@ -869,6 +869,16 @@ app.post('/api/mobile/login', loginRateLimiter, async (req, res) => {
         }
       } else if (data && data.user) {
         authenticated = true;
+        // Synchronize supabase_uid and verification_status to database
+        if (student.studentId) {
+          const sid = student.studentId;
+          const suid = data.user.id;
+          if (!student.supabase_uid || student.verification_status !== 'verified') {
+            db.run('UPDATE students SET supabase_uid = ?, verification_status = ? WHERE studentId = ?', suid, 'verified', sid).catch(() => {});
+            student.supabase_uid = suid;
+            student.verification_status = 'verified';
+          }
+        }
       }
     } catch (supabaseErr) {
       // Ignore and try fallback to local passwordHash
@@ -988,25 +998,6 @@ app.post('/api/auth/register', loginRateLimiter, async (req, res) => {
     return res.status(400).json({ message: 'Please select a valid semester (Semester 1 through 8).' });
   }
 
-  // Authoritative cohort resolution (client-provided cohort_id is strictly ignored)
-  const cohortResolution = await resolveActiveCohortForSemester(db, semNum);
-  if (cohortResolution.status === 'NO_MATCH') {
-    return res.status(400).json({
-      message: `No active academic cohort currently matches Semester ${semNum}. Please check your semester selection or contact administration.`
-    });
-  }
-  if (cohortResolution.status === 'AMBIGUOUS') {
-    return res.status(409).json({
-      message: `Multiple active academic cohorts found for Semester ${semNum}. Administrative cohort assignment required.`
-    });
-  }
-  if (!cohortResolution.cohort || !cohortResolution.cohort.id) {
-    return res.status(400).json({ message: 'Unable to resolve academic cohort for selected semester.' });
-  }
-
-  const assignedCohort = cohortResolution.cohort;
-  const assignedCohortId = assignedCohort.id;
-
   if (cleanGender && !['male', 'female', 'other', 'prefer_not_to_say'].includes(cleanGender)) {
     return res.status(400).json({ message: 'Invalid gender selection.' });
   }
@@ -1033,6 +1024,36 @@ app.post('/api/auth/register', loginRateLimiter, async (req, res) => {
     return res.status(400).json({ message: 'An account with this email address already exists.' });
   }
 
+  // Authoritative cohort resolution (client-provided cohort_id is strictly ignored)
+  const cohortResolution = await resolveActiveCohortForSemester(db, semNum);
+  if (cohortResolution.status === 'NO_MATCH') {
+    return res.status(400).json({
+      message: `No active academic cohort currently matches Semester ${semNum}. Please check your semester selection or contact administration.`
+    });
+  }
+  if (cohortResolution.status === 'AMBIGUOUS') {
+    return res.status(409).json({
+      message: `Multiple active academic cohorts found for Semester ${semNum}. Administrative cohort assignment required.`
+    });
+  }
+  if (!cohortResolution.cohort || !cohortResolution.cohort.id) {
+    return res.status(400).json({ message: 'Unable to resolve academic cohort for selected semester.' });
+  }
+
+  const assignedCohort = cohortResolution.cohort;
+  const assignedCohortId = assignedCohort.id;
+
+  // Resolve verification redirect URL
+  let origin = req.headers.origin || (process.env.APP_URL ? process.env.APP_URL.replace(/\/$/, '') : '');
+  if (!origin && req.headers.host) {
+    const proto = req.headers['x-forwarded-proto'] || (req.headers.host.includes('localhost') ? 'http' : 'https');
+    origin = `${proto}://${req.headers.host}`;
+  }
+  if (!origin) {
+    origin = 'https://semestar-library.vercel.app';
+  }
+  const redirectUrl = `${origin}/login.html?verified=true`;
+
   // 4. Create user in Supabase Auth (email_confirm: false)
   let supabaseUid = null;
   const { registerSupabaseUser, getSupabaseAdminClient } = require('./lib/supabase');
@@ -1048,6 +1069,7 @@ app.post('/api/auth/register', loginRateLimiter, async (req, res) => {
         department: cleanDept,
         semester: cleanSem,
       },
+      redirectTo: redirectUrl,
     });
 
     if (authErr) {
@@ -1199,6 +1221,17 @@ app.post('/api/auth/login', loginRateLimiter, async (req, res) => {
       data.user.id, resolvedEmail
     );
 
+    if (student && student.studentId) {
+      const suid = data.user.id;
+      const sid = student.studentId;
+      if (!student.supabase_uid || (student.verification_status !== 'verified' && student.verificationStatus !== 'verified')) {
+        db.run('UPDATE students SET supabase_uid = ?, verification_status = ? WHERE studentId = ?', suid, 'verified', sid).catch(() => {});
+        student.supabase_uid = suid;
+        student.verification_status = 'verified';
+        student.verificationStatus = 'verified';
+      }
+    }
+
     return res.json({
       session: {
         access_token: data.session.access_token,
@@ -1215,7 +1248,7 @@ app.post('/api/auth/login', loginRateLimiter, async (req, res) => {
         semester: student?.semester || null,
         gender: student?.gender || null,
         email: student?.email || resolvedEmail,
-        verificationStatus: student?.verification_status || student?.verificationStatus || 'unverified',
+        verificationStatus: 'verified',
       }
     });
   } catch (loginErr) {
@@ -1246,7 +1279,14 @@ app.post('/api/auth/forgot-password', loginRateLimiter, async (req, res) => {
   if (emailToSend) {
     try {
       const { sendPasswordResetEmail } = require('./lib/supabase');
-      const origin = req.headers.origin || (process.env.APP_URL ? process.env.APP_URL.replace(/\/$/, '') : `http://${req.headers.host}`);
+      let origin = req.headers.origin || (process.env.APP_URL ? process.env.APP_URL.replace(/\/$/, '') : '');
+      if (!origin && req.headers.host) {
+        const proto = req.headers['x-forwarded-proto'] || (req.headers.host.includes('localhost') ? 'http' : 'https');
+        origin = `${proto}://${req.headers.host}`;
+      }
+      if (!origin) {
+        origin = 'https://semestar-library.vercel.app';
+      }
       const redirectTo = `${origin}/reset-password.html`;
       await sendPasswordResetEmail({ email: emailToSend, redirectTo });
     } catch (err) {
@@ -1292,6 +1332,65 @@ app.post('/api/auth/resend-verification', loginRateLimiter, async (req, res) => 
     success: true,
     message: 'If an unverified account exists, a new verification email has been sent.'
   });
+});
+
+// Synchronize password reset completion: revokes mobile tokens, updates passwordHash to supabase_auth, sets verified
+app.post('/api/auth/sync-password-reset', requireLogin, async (req, res) => {
+  const studentId = req.user.studentId;
+  const supabaseUid = req.user.supabaseUid;
+  if (!studentId) {
+    return res.status(401).json({ message: 'Authentication required' });
+  }
+
+  try {
+    if (db.isPostgres) {
+      await db.run(
+        `UPDATE students SET passwordHash = 'supabase_auth', verification_status = 'verified', supabase_uid = COALESCE($1, supabase_uid), updated_at = CURRENT_TIMESTAMP WHERE studentId = $2`,
+        supabaseUid || null, studentId
+      );
+    } else {
+      await db.run(
+        `UPDATE students SET passwordHash = 'supabase_auth', verification_status = 'verified', supabase_uid = COALESCE(?, supabase_uid), updated_at = CURRENT_TIMESTAMP WHERE studentId = ?`,
+        supabaseUid || null, studentId
+      );
+    }
+
+    // Revoke all existing mobile tokens for this student so old tokens cannot be used after password reset
+    await db.run('DELETE FROM mobile_tokens WHERE studentId = ?', studentId);
+
+    return res.json({ success: true, message: 'Password reset synchronized and mobile tokens revoked.' });
+  } catch (err) {
+    console.error('[Sync Password Reset Error]:', err.message);
+    return res.status(500).json({ message: 'Failed to synchronize password reset.' });
+  }
+});
+
+// Synchronize email confirmation status to database
+app.post('/api/auth/sync-verification', requireLogin, async (req, res) => {
+  const studentId = req.user.studentId;
+  const supabaseUid = req.user.supabaseUid;
+  if (!studentId) {
+    return res.status(401).json({ message: 'Authentication required' });
+  }
+
+  try {
+    if (db.isPostgres) {
+      await db.run(
+        `UPDATE students SET verification_status = 'verified', supabase_uid = COALESCE($1, supabase_uid), updated_at = CURRENT_TIMESTAMP WHERE studentId = $2`,
+        supabaseUid || null, studentId
+      );
+    } else {
+      await db.run(
+        `UPDATE students SET verification_status = 'verified', supabase_uid = COALESCE(?, supabase_uid), updated_at = CURRENT_TIMESTAMP WHERE studentId = ?`,
+        supabaseUid || null, studentId
+      );
+    }
+
+    return res.json({ success: true, message: 'Verification status synchronized.' });
+  } catch (err) {
+    console.error('[Sync Verification Error]:', err.message);
+    return res.status(500).json({ message: 'Failed to synchronize email verification.' });
+  }
 });
 
 app.get('/api/me', requireLogin, async (req, res) => {

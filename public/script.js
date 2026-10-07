@@ -347,12 +347,35 @@ function initLoginHandlers() {
     }
   });
 
-  // Check if redirected after confirming email (?verified=true)
+  // Check if redirected after confirming email (?verified=true), resetting password (?reset=true), or error
   const urlParams = new URLSearchParams(window.location.search);
-  if (urlParams.get('verified') === 'true') {
+  const hashParams = new URLSearchParams(window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash);
+
+  const errorMsg = urlParams.get('error_description') || hashParams.get('error_description');
+  const errorCode = urlParams.get('error_code') || hashParams.get('error_code') || urlParams.get('error') || hashParams.get('error');
+
+  if (errorCode || errorMsg) {
+    let friendly = 'Your link is invalid or has expired. Please sign in or request a new verification email.';
+    if ((errorCode && errorCode.includes('expired')) || (errorMsg && errorMsg.includes('expired'))) {
+      friendly = 'Your verification link has expired. Please enter your email and click "Resend verification email".';
+    }
+    window.showAuthBanner(friendly, 'error', { title: 'Verification Link Expired' });
+  } else if (urlParams.get('reset') === 'true') {
+    window.showAuthBanner('Password successfully updated! You can now sign in with your new password.', 'success', {
+      title: 'Password Updated'
+    });
+  } else if (urlParams.get('verified') === 'true') {
     window.showAuthBanner('Email verified successfully! You can now sign in to your Semester Library account.', 'success', {
       title: 'Email Verified'
     });
+    const code = urlParams.get('code');
+    if (code && typeof SemesterAuth !== 'undefined' && typeof SemesterAuth.exchangeCode === 'function') {
+      SemesterAuth.exchangeCode(code).then(() => {
+        if (typeof SemesterAuth.syncVerification === 'function') {
+          SemesterAuth.syncVerification().catch(() => {});
+        }
+      }).catch(() => {});
+    }
   }
 
   // Restore remembered username/email

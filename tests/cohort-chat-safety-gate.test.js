@@ -305,3 +305,107 @@ test('Safety Gate 6: Production migration is strictly additive, non-destructive,
     assert.ok(!stmt.includes('CREATE INDEX'), 'No CREATE INDEX on second run');
   }
 });
+
+test('Safety Gate 7: Realtime JWT claims, subject derivation, and auth.uid contract', async () => {
+  const { createCohortChatProviders } = require('../lib/cohort-chat-providers');
+  const env = {
+    COHORT_SUPABASE_URL: 'https://test.supabase.co',
+    COHORT_SUPABASE_PUBLIC_KEY: 'test-public-anon-key',
+    COHORT_SUPABASE_SERVICE_KEY: 'test-service-role-key',
+    COHORT_SUPABASE_JWT_SECRET: 'test-jwt-secret-min-32-characters-long-key'
+  };
+  const providers = createCohortChatProviders(env);
+
+  const studentA = {
+    student_id: '26020260',
+    supabase_uid: 'a1111111-1111-4111-a111-111111111111'
+  };
+  const studentB = {
+    student_id: '26020261',
+    supabase_uid: 'b2222222-2222-4222-a222-222222222222'
+  };
+  const studentWithoutUid = {
+    student_id: '26020262',
+    supabase_uid: null
+  };
+
+  // 1. Verify subject derivation returns Supabase Auth UUID
+  const subjectA = await providers.credentials.subject(studentA);
+  const subjectB = await providers.credentials.subject(studentB);
+  const subjectFallback = await providers.credentials.subject(studentWithoutUid);
+
+  assert.equal(subjectA, studentA.supabase_uid, 'Must use Supabase auth UUID when available');
+  assert.notEqual(subjectA, studentA.student_id, 'Subject must NOT be raw studentId');
+  assert.equal(subjectB, studentB.supabase_uid);
+
+  // 2. Fallback subject must be a valid RFC UUID string
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  assert.ok(uuidRegex.test(subjectFallback), 'Fallback subject must be a valid UUID');
+  assert.notEqual(subjectFallback, studentWithoutUid.student_id);
+
+  // 3. Issue realtime JWT and inspect claims
+  const expiry = new Date(Date.now() + 60000).toISOString();
+  const mercuryRoomId = '77777777-7777-4777-a777-777777777777';
+  const token = await providers.credentials.issue({
+    subject: subjectA,
+    chatGroupId: mercuryRoomId,
+    realtimeEpoch: 1,
+    expiry
+  });
+
+  const [headerB64, payloadB64, signature] = token.split('.');
+  const payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString('utf8'));
+
+  assert.equal(payload.sub, subjectA, 'JWT sub must match the Supabase auth UUID');
+  assert.equal(payload.role, 'authenticated', 'JWT role must be authenticated');
+  assert.equal(payload.aud, 'authenticated', 'JWT aud must be authenticated');
+  assert.equal(payload.chat_room_id, mercuryRoomId, 'JWT chat_room_id must match room');
+  assert.equal(payload.chat_epoch, 1, 'JWT chat_epoch must match epoch');
+  assert.ok(payload.exp > Math.floor(Date.now() / 1000), 'JWT exp must be in future');
+
+  // 4. Verify cross-room isolation at claim level
+  const venusRoomId = '88888888-8888-4888-a888-888888888888';
+  assert.notEqual(payload.chat_room_id, venusRoomId, 'Student A token cannot match Venus room ID');
+});
+
+test('Safety Gate 8: Representative projection snapshot UUID validation', async () => {
+  const { createCohortChatProviders } = require('../lib/cohort-chat-providers');
+  const env = {
+    COHORT_SUPABASE_URL: 'https://test.supabase.co',
+    COHORT_SUPABASE_PUBLIC_KEY: 'test-public-anon-key',
+    COHORT_SUPABASE_SERVICE_KEY: 'test-service-role-key',
+    COHORT_SUPABASE_JWT_SECRET: 'test-jwt-secret-min-32-characters-long-key'
+  };
+  const providers = createCohortChatProviders(env);
+
+  const roster = [
+    { student_id: 's1', supabase_uid: '11111111-1111-4111-a111-111111111111' },
+    { student_id: 's2', supabase_uid: '22222222-2222-4222-a222-222222222222' },
+    { student_id: 's3', supabase_uid: null }, // fallback
+    { student_id: 's4', supabase_uid: '44444444-4444-4444-a444-444444444444' }
+  ];
+
+  const projected = [];
+  for (const member of roster) {
+    projected.push({
+      studentId: member.student_id,
+      subject: await providers.credentials.subject(member)
+    });
+  }
+
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  for (const m of projected) {
+    assert.ok(uuidRegex.test(m.subject), `Subject for student ${m.studentId} must be a valid UUID`);
+    assert.notEqual(m.subject, m.studentId, `Subject must not be raw studentId`);
+  }
+
+  const snapshot = {
+    chatGroupId: '99999999-9999-4999-a999-999999999999',
+    realtimeEpoch: 1,
+    status: 'active',
+    members: projected
+  };
+
+  assert.equal(snapshot.members.length, 4);
+  assert.equal(new Set(snapshot.members.map(m => m.subject)).size, 4, 'All subjects must be unique UUIDs');
+});

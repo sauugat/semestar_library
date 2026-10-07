@@ -1074,3 +1074,131 @@ test('36. (Gate 48) migration defaults legacy invitation rows to room_generation
   assert.strictEqual(row.room_generation, 1);
 });
 
+test('37. (Section 3) cross-generation concurrency: pending gen1 and gen2 coexist and concurrent gen2 dedupes', async () => {
+  const roomId = 'CDE234';
+  // Generation 1 invitation
+  mockRooms.set(roomId, createMockRoomState(roomId, { roomGeneration: 1 }));
+  const gen1Res = await fetch(`${baseUrl}/api/games/ludo/invitations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-test-user': 'alice' },
+    body: JSON.stringify({ roomId, inviteeUserId: inviteeBob.studentId }),
+  });
+  assert.strictEqual(gen1Res.status, 201);
+  const gen1Data = await gen1Res.json();
+  assert.strictEqual(gen1Data.invitation.roomGeneration, 1);
+
+  // Room advances to generation 2
+  mockRooms.set(roomId, createMockRoomState(roomId, { roomGeneration: 2 }));
+  capturedPushes.length = 0;
+
+  // Alice sends invitation to Bob in generation 2
+  const gen2Res = await fetch(`${baseUrl}/api/games/ludo/invitations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-test-user': 'alice' },
+    body: JSON.stringify({ roomId, inviteeUserId: inviteeBob.studentId }),
+  });
+  assert.strictEqual(gen2Res.status, 201);
+  const gen2Data = await gen2Res.json();
+  assert.strictEqual(gen2Data.invitation.roomGeneration, 2);
+
+  // Both pending gen1 and gen2 rows coexist in DB
+  const pendingRows = await db.all(
+    `SELECT id, room_generation, status FROM game_invitations WHERE room_id = ? AND status = 'pending' ORDER BY room_generation ASC`,
+    roomId
+  );
+  assert.strictEqual(pendingRows.length, 2);
+  assert.strictEqual(pendingRows[0].room_generation, 1);
+  assert.strictEqual(pendingRows[1].room_generation, 2);
+
+  // Concurrent duplicate generation-2 creates
+  const [dupRes1, dupRes2] = await Promise.all([
+    fetch(`${baseUrl}/api/games/ludo/invitations`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-test-user': 'alice' },
+      body: JSON.stringify({ roomId, inviteeUserId: inviteeBob.studentId }),
+    }),
+    fetch(`${baseUrl}/api/games/ludo/invitations`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-test-user': 'alice' },
+      body: JSON.stringify({ roomId, inviteeUserId: inviteeBob.studentId }),
+    }),
+  ]);
+  const [dup1, dup2] = await Promise.all([dupRes1.json(), dupRes2.json()]);
+  assert.strictEqual(dup1.invitation.id, gen2Data.invitation.id);
+  assert.strictEqual(dup2.invitation.id, gen2Data.invitation.id);
+
+  // DB still has exactly 1 gen2 row
+  const gen2Rows = await db.all(
+    `SELECT id FROM game_invitations WHERE room_id = ? AND room_generation = 2 AND status = 'pending'`,
+    roomId
+  );
+  assert.strictEqual(gen2Rows.length, 1);
+  // Exactly 1 push was sent for gen2
+  assert.strictEqual(capturedPushes.length, 1);
+});
+
+test('38. (Section 22) real schema test: old unique index dropped and new generation index enforces generation-aware uniqueness', async () => {
+  const testTable = 'game_invitations_index_test_' + Date.now();
+  // 1. Create table with legacy index (room_id, inviter_user_id, invitee_user_id)
+  await db.exec(`
+    CREATE TABLE ${testTable} (
+      id TEXT PRIMARY KEY,
+      game_type TEXT NOT NULL,
+      room_id TEXT NOT NULL,
+      inviter_user_id TEXT NOT NULL,
+      invitee_user_id TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      room_generation INTEGER NOT NULL DEFAULT 1
+    );
+    CREATE UNIQUE INDEX uq_legacy_pending_${Date.now()} ON ${testTable}(room_id, inviter_user_id, invitee_user_id) WHERE status = 'pending';
+  `);
+
+  // Insert gen 1 row
+  await db.run(
+    `INSERT INTO ${testTable} (id, game_type, room_id, inviter_user_id, invitee_user_id, status, room_generation)
+     VALUES ('i1', 'ludo', 'TEST99', 'alice', 'bob', 'pending', 1)`
+  );
+
+  // Before migration, inserting gen 2 would fail on legacy index
+  await assert.rejects(
+    async () => {
+      await db.run(
+        `INSERT INTO ${testTable} (id, game_type, room_id, inviter_user_id, invitee_user_id, status, room_generation)
+         VALUES ('i2', 'ludo', 'TEST99', 'alice', 'bob', 'pending', 2)`
+      );
+    },
+    /UNIQUE constraint failed/
+  );
+
+  // 2. Apply migration transition: drop old index, create new generation index
+  const legacyIndexName = (await db.all(
+    `SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = ? AND name LIKE 'uq_legacy_pending_%'`,
+    testTable
+  ))[0].name;
+
+  await db.exec(`
+    DROP INDEX ${legacyIndexName};
+    CREATE UNIQUE INDEX uq_new_gen_pending_${Date.now()} ON ${testTable}(room_id, room_generation, inviter_user_id, invitee_user_id) WHERE status = 'pending';
+  `);
+
+  // 3. Now gen 2 pending insert succeeds! Both gen 1 and gen 2 coexist
+  await db.run(
+    `INSERT INTO ${testTable} (id, game_type, room_id, inviter_user_id, invitee_user_id, status, room_generation)
+     VALUES ('i2', 'ludo', 'TEST99', 'alice', 'bob', 'pending', 2)`
+  );
+
+  const countRows = await db.all(`SELECT id, room_generation FROM ${testTable}`);
+  assert.strictEqual(countRows.length, 2);
+
+  // 4. Duplicate gen 2 pending fails on new index
+  await assert.rejects(
+    async () => {
+      await db.run(
+        `INSERT INTO ${testTable} (id, game_type, room_id, inviter_user_id, invitee_user_id, status, room_generation)
+         VALUES ('i3', 'ludo', 'TEST99', 'alice', 'bob', 'pending', 2)`
+      );
+    },
+    /UNIQUE constraint failed/
+  );
+});
+

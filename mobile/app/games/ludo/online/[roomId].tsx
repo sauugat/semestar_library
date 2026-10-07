@@ -536,6 +536,21 @@ export default function OnlineLudoLobbyScreen() {
                           <Caption style={{ color: colors.primary }}>+ Add Bot</Caption>
                         </TouchableOpacity>
                       )}
+                      {!isHost && !mySeat && (
+                        <TouchableOpacity
+                          style={[
+                            styles.smallPillButton,
+                            { backgroundColor: colors.primary, borderColor: colors.primary, marginTop: 4 },
+                          ]}
+                          onPress={() => {
+                            clientRef.current?.claimSeat(color);
+                          }}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Take ${theme.name} seat`}
+                        >
+                          <Caption style={{ color: colors.primaryText, fontWeight: '700' }}>Take Seat</Caption>
+                        </TouchableOpacity>
+                      )}
                     </View>
                   )}
 
@@ -555,6 +570,28 @@ export default function OnlineLudoLobbyScreen() {
 
       {/* Action Controls Section */}
       <View style={{ marginTop: spacing.sm, gap: 10 }}>
+        {/* Unseated Observer Join Button */}
+        {!isHost && !mySeat && (
+          isOpenSeatAvailable ? (
+            <PrimaryButton
+              title="Join this Lobby"
+              accessibilityLabel="Join an open seat in this lobby"
+              disabled={clientState?.pendingCommand !== null}
+              loading={clientState?.pendingCommand === 'LUDO_JOIN'}
+              onPress={() => {
+                clientRef.current?.claimSeat();
+              }}
+              leftIcon={<Ionicons name="person-add-outline" size={18} color={colors.primaryText} />}
+            />
+          ) : (
+            <View style={{ paddingVertical: spacing.sm, alignItems: 'center' }}>
+              <Text variant="sm" style={{ color: colors.textMuted }}>
+                All seats taken. Spectating lobby...
+              </Text>
+            </View>
+          )
+        )}
+
         {/* Non-host Ready Toggle */}
         {!isHost && mySeat && (
           <Button

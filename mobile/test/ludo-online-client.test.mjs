@@ -1899,6 +1899,7 @@ test('65. (Gate 52) rapid Play Again sends one command and sets pendingCommand',
   });
 
   await client.connect('ABCD23');
+  socketRef.receiveMessage({ type: 'CONNECTED', roomId: 'ABCD23', userId: 'user_host_1', protocolVersion: 1 });
   assert.equal(client.getState().pendingCommand, null);
 
   // First tap
@@ -1910,10 +1911,11 @@ test('65. (Gate 52) rapid Play Again sends one command and sets pendingCommand',
   const secondSent = client.returnToLobby();
   assert.equal(secondSent, false); // Blocked
 
-  // Only one message sent over socket
-  assert.equal(socketRef.sentMessages.length, 1);
-  const sentMsg = JSON.parse(socketRef.sentMessages[0]);
-  assert.equal(sentMsg.type, 'LUDO_RETURN_TO_LOBBY');
+  // Only one LUDO_RETURN_TO_LOBBY message sent over socket
+  const rematchMessages = socketRef.sentMessages
+    .map((m) => JSON.parse(m))
+    .filter((m) => m.type === 'LUDO_RETURN_TO_LOBBY');
+  assert.equal(rematchMessages.length, 1);
 
   client.destroy();
 });
@@ -1931,6 +1933,7 @@ test('66. (Gate 53 & 55 & 56) lobby snapshot resolves pending rematch, clears pl
   });
 
   await client.connect('ABCD23');
+  socket.receiveMessage({ type: 'CONNECTED', roomId: 'ABCD23', userId: 'user_host_1', protocolVersion: 1 });
 
   // Set up mock playing state and queued action
   client.returnToLobby();
@@ -1941,16 +1944,23 @@ test('66. (Gate 53 & 55 & 56) lobby snapshot resolves pending rematch, clears pl
     type: 'LUDO_LOBBY_STATE',
     roomId: 'ABCD23',
     revision: 25,
-    hostUserId: 'user_host_1',
-    activeSeatCount: 2,
-    roomGeneration: 2,
-    seats: {
-      red: { color: 'red', status: 'human', userId: 'user_host_1', displayName: 'Host', botDifficulty: null, ready: false },
-      green: { color: 'green', status: 'closed', userId: null, displayName: null, botDifficulty: null, ready: false },
-      yellow: { color: 'yellow', status: 'bot', userId: null, displayName: 'Yellow Bot', botDifficulty: 'normal', ready: true },
-      blue: { color: 'blue', status: 'closed', userId: null, displayName: null, botDifficulty: null, ready: false },
-    },
+    protocolVersion: 1,
     presence: { user_host_1: true },
+    lobby: {
+      gameType: 'ludo',
+      status: 'lobby',
+      roomId: 'ABCD23',
+      revision: 25,
+      hostUserId: 'user_host_1',
+      activeSeatCount: 2,
+      roomGeneration: 2,
+      seats: {
+        red: { color: 'red', status: 'human', userId: 'user_host_1', displayName: 'Host', botDifficulty: null, ready: false },
+        green: { color: 'green', status: 'closed', userId: null, displayName: null, botDifficulty: null, ready: false },
+        yellow: { color: 'yellow', status: 'bot', userId: null, displayName: 'Yellow Bot', botDifficulty: 'normal', ready: true },
+        blue: { color: 'blue', status: 'closed', userId: null, displayName: null, botDifficulty: null, ready: false },
+      },
+    },
   };
 
   socket.receiveMessage(freshLobby);
@@ -1959,8 +1969,9 @@ test('66. (Gate 53 & 55 & 56) lobby snapshot resolves pending rematch, clears pl
   assert.equal(state.pendingCommand, null);
   assert.equal(state.playingState, null);
   assert.equal(state.actionQueue.length, 0);
-  assert.equal(state.lobbyState?.roomGeneration, 2);
-  assert.equal(state.revision, 25);
+  assert.equal(state.lobby?.roomGeneration, 2);
+  assert.equal(state.lastSnapshotRevision, 25);
+  assert.equal(state.lobby?.revision, 25);
 
   client.destroy();
 });
@@ -1978,14 +1989,16 @@ test('67. (Gate 54) rematch error resolves pendingCommand', async () => {
   });
 
   await client.connect('ABCD23');
+  socket.receiveMessage({ type: 'CONNECTED', roomId: 'ABCD23', userId: 'user_host_1', protocolVersion: 1 });
   client.returnToLobby();
   assert.equal(client.getState().pendingCommand, 'LUDO_RETURN_TO_LOBBY');
 
   // Server responds with structured error
   socket.receiveMessage({
-    type: 'LUDO_ERROR',
+    type: 'ERROR',
     code: 'NOT_HOST',
     message: 'Only the room host can return to lobby.',
+    protocolVersion: 1,
   });
 
   assert.equal(client.getState().pendingCommand, null);
@@ -2007,22 +2020,30 @@ test('68. (Gate 57) stale old gameplay action ignored after lobby reset', async 
   });
 
   await client.connect('ABCD23');
+  socket.receiveMessage({ type: 'CONNECTED', roomId: 'ABCD23', userId: 'user_host_1', protocolVersion: 1 });
 
   // Fresh lobby arrives at revision 30
   socket.receiveMessage({
     type: 'LUDO_LOBBY_STATE',
     roomId: 'ABCD23',
     revision: 30,
-    hostUserId: 'user_host_1',
-    activeSeatCount: 2,
-    roomGeneration: 2,
-    seats: {
-      red: { color: 'red', status: 'human', userId: 'user_host_1', displayName: 'Host', botDifficulty: null, ready: false },
-      green: { color: 'green', status: 'closed', userId: null, displayName: null, botDifficulty: null, ready: false },
-      yellow: { color: 'yellow', status: 'open', userId: null, displayName: null, botDifficulty: null, ready: false },
-      blue: { color: 'blue', status: 'closed', userId: null, displayName: null, botDifficulty: null, ready: false },
-    },
+    protocolVersion: 1,
     presence: { user_host_1: true },
+    lobby: {
+      gameType: 'ludo',
+      status: 'lobby',
+      roomId: 'ABCD23',
+      revision: 30,
+      hostUserId: 'user_host_1',
+      activeSeatCount: 2,
+      roomGeneration: 2,
+      seats: {
+        red: { color: 'red', status: 'human', userId: 'user_host_1', displayName: 'Host', botDifficulty: null, ready: false },
+        green: { color: 'green', status: 'closed', userId: null, displayName: null, botDifficulty: null, ready: false },
+        yellow: { color: 'yellow', status: 'open', userId: null, displayName: null, botDifficulty: null, ready: false },
+        blue: { color: 'blue', status: 'closed', userId: null, displayName: null, botDifficulty: null, ready: false },
+      },
+    },
   });
 
   // Stale gameplay action from previous match arrives with revision 29
@@ -2030,9 +2051,14 @@ test('68. (Gate 57) stale old gameplay action ignored after lobby reset', async 
     type: 'LUDO_DICE_ROLLED',
     roomId: 'ABCD23',
     revision: 29,
+    protocolVersion: 1,
     color: 'red',
     roll: 6,
+    consecutiveSixes: 1,
     legalMoves: [0],
+    autoPassed: false,
+    threeSixesForfeit: false,
+    nextTurn: null,
   });
 
   // Should NOT be queued into actionQueue
@@ -2055,6 +2081,7 @@ test('69. (Gate 58 & 59) same client and same socket instance retained across re
   });
 
   await client.connect('ABCD23');
+  socket.receiveMessage({ type: 'CONNECTED', roomId: 'ABCD23', userId: 'user_host_1', protocolVersion: 1 });
   const initialSocket = socket;
 
   // Simulate lobby -> game -> finished -> lobby cycle
@@ -2062,16 +2089,23 @@ test('69. (Gate 58 & 59) same client and same socket instance retained across re
     type: 'LUDO_LOBBY_STATE',
     roomId: 'ABCD23',
     revision: 1,
-    hostUserId: 'user_host_1',
-    activeSeatCount: 2,
-    roomGeneration: 1,
-    seats: {
-      red: { color: 'red', status: 'human', userId: 'user_host_1', displayName: 'Host', botDifficulty: null, ready: true },
-      green: { color: 'green', status: 'closed', userId: null, displayName: null, botDifficulty: null, ready: false },
-      yellow: { color: 'yellow', status: 'bot', userId: null, displayName: 'Yellow Bot', botDifficulty: 'normal', ready: true },
-      blue: { color: 'blue', status: 'closed', userId: null, displayName: null, botDifficulty: null, ready: false },
-    },
+    protocolVersion: 1,
     presence: { user_host_1: true },
+    lobby: {
+      gameType: 'ludo',
+      status: 'lobby',
+      roomId: 'ABCD23',
+      revision: 1,
+      hostUserId: 'user_host_1',
+      activeSeatCount: 2,
+      roomGeneration: 1,
+      seats: {
+        red: { color: 'red', status: 'human', userId: 'user_host_1', displayName: 'Host', botDifficulty: null, ready: true },
+        green: { color: 'green', status: 'closed', userId: null, displayName: null, botDifficulty: null, ready: false },
+        yellow: { color: 'yellow', status: 'bot', userId: null, displayName: 'Yellow Bot', botDifficulty: 'normal', ready: true },
+        blue: { color: 'blue', status: 'closed', userId: null, displayName: null, botDifficulty: null, ready: false },
+      },
+    },
   });
 
   // Rematch to lobby
@@ -2080,16 +2114,23 @@ test('69. (Gate 58 & 59) same client and same socket instance retained across re
     type: 'LUDO_LOBBY_STATE',
     roomId: 'ABCD23',
     revision: 50,
-    hostUserId: 'user_host_1',
-    activeSeatCount: 2,
-    roomGeneration: 2,
-    seats: {
-      red: { color: 'red', status: 'human', userId: 'user_host_1', displayName: 'Host', botDifficulty: null, ready: false },
-      green: { color: 'green', status: 'closed', userId: null, displayName: null, botDifficulty: null, ready: false },
-      yellow: { color: 'yellow', status: 'bot', userId: null, displayName: 'Yellow Bot', botDifficulty: 'normal', ready: true },
-      blue: { color: 'blue', status: 'closed', userId: null, displayName: null, botDifficulty: null, ready: false },
-    },
+    protocolVersion: 1,
     presence: { user_host_1: true },
+    lobby: {
+      gameType: 'ludo',
+      status: 'lobby',
+      roomId: 'ABCD23',
+      revision: 50,
+      hostUserId: 'user_host_1',
+      activeSeatCount: 2,
+      roomGeneration: 2,
+      seats: {
+        red: { color: 'red', status: 'human', userId: 'user_host_1', displayName: 'Host', botDifficulty: null, ready: false },
+        green: { color: 'green', status: 'closed', userId: null, displayName: null, botDifficulty: null, ready: false },
+        yellow: { color: 'yellow', status: 'bot', userId: null, displayName: 'Yellow Bot', botDifficulty: 'normal', ready: true },
+        blue: { color: 'blue', status: 'closed', userId: null, displayName: null, botDifficulty: null, ready: false },
+      },
+    },
   });
 
   // Socket remains unchanged
@@ -2112,6 +2153,7 @@ test('70. socket closure clears pendingCommand', async () => {
   });
 
   await client.connect('ABCD23');
+  socket.receiveMessage({ type: 'CONNECTED', roomId: 'ABCD23', userId: 'user_host_1', protocolVersion: 1 });
   client.returnToLobby();
   assert.equal(client.getState().pendingCommand, 'LUDO_RETURN_TO_LOBBY');
 
@@ -2127,4 +2169,83 @@ test('71. mapLudoErrorCodeToMessage maps Phase 4D rematch and stale invitation c
   assert.equal(mapLudoErrorCodeToMessage('NOT_HOST'), 'Only the room host can start another match.');
   assert.equal(mapLudoErrorCodeToMessage('INVALID_PHASE'), "This match can't be reset right now.");
   assert.equal(mapLudoErrorCodeToMessage('STORAGE_ERROR'), "Couldn't prepare another match. Try again.");
+});
+
+// 72. claimSeat allows unseated connected user in fresh lobby to take open seat over same socket
+test('72. claimSeat allows unseated connected user in fresh lobby to take open seat over same socket', async () => {
+  let socket = null;
+  const client = new OnlineLudoClient({
+    ticketProvider: async () => ({ ticket: 'mock-ticket' }),
+    wsUrlResolver: (id) => `wss://games.worker.dev/room/${id}/ws`,
+    socketFactory: (url, p, o) => {
+      socket = new MockWebSocket(url, p, o);
+      return socket;
+    },
+  });
+
+  await client.connect('ABCD23');
+  socket.receiveMessage({ type: 'CONNECTED', roomId: 'ABCD23', userId: 'user_spectator', protocolVersion: 1 });
+
+  // Lobby where user_spectator has no seat
+  socket.receiveMessage({
+    type: 'LUDO_LOBBY_STATE',
+    roomId: 'ABCD23',
+    revision: 10,
+    protocolVersion: 1,
+    presence: { user_host: true, user_spectator: true },
+    lobby: {
+      gameType: 'ludo',
+      status: 'lobby',
+      roomId: 'ABCD23',
+      revision: 10,
+      hostUserId: 'user_host',
+      activeSeatCount: 2,
+      roomGeneration: 2,
+      seats: {
+        red: { color: 'red', status: 'human', userId: 'user_host', displayName: 'Host', botDifficulty: null, ready: true },
+        green: { color: 'green', status: 'closed', userId: null, displayName: null, botDifficulty: null, ready: false },
+        yellow: { color: 'yellow', status: 'open', userId: null, displayName: null, botDifficulty: null, ready: false },
+        blue: { color: 'blue', status: 'closed', userId: null, displayName: null, botDifficulty: null, ready: false },
+      },
+    },
+  });
+
+  // Verify unseated observer
+  assert.equal(client.isSeated(), false);
+
+  // Unseated spectator claims seat
+  const sent = client.claimSeat('yellow');
+  assert.equal(sent, true);
+  const msg = JSON.parse(socket.sentMessages[socket.sentMessages.length - 1]);
+  assert.equal(msg.type, 'LUDO_JOIN');
+  assert.equal(msg.preferredColor, 'yellow');
+
+  // Once seated: claimSeat is a no-op
+  socket.receiveMessage({
+    type: 'LUDO_LOBBY_STATE',
+    roomId: 'ABCD23',
+    revision: 11,
+    protocolVersion: 1,
+    presence: { user_host: true, user_spectator: true },
+    lobby: {
+      gameType: 'ludo',
+      status: 'lobby',
+      roomId: 'ABCD23',
+      revision: 11,
+      hostUserId: 'user_host',
+      activeSeatCount: 2,
+      roomGeneration: 2,
+      seats: {
+        red: { color: 'red', status: 'human', userId: 'user_host', displayName: 'Host', botDifficulty: null, ready: true },
+        green: { color: 'green', status: 'closed', userId: null, displayName: null, botDifficulty: null, ready: false },
+        yellow: { color: 'yellow', status: 'human', userId: 'user_spectator', displayName: 'Spectator', botDifficulty: null, ready: false },
+        blue: { color: 'blue', status: 'closed', userId: null, displayName: null, botDifficulty: null, ready: false },
+      },
+    },
+  });
+
+  assert.equal(client.isSeated(), true);
+  assert.equal(client.claimSeat('yellow'), false);
+
+  client.destroy();
 });

@@ -214,12 +214,14 @@ export function canStartGame(lobby: LudoLobbyState | null): { canStart: boolean;
  * Checks whether the current user is authorized to trigger Play Again rematch.
  */
 export function canHostRematch(
-  playingState: LudoPlayingState | null,
+  playingState: LudoGameStateEvent | { engine?: { status?: string }; finishReason?: string | null } | null,
   hostUserId: string | null,
   currentUserId: string | null
 ): boolean {
   if (!playingState || !hostUserId || !currentUserId) return false;
-  if (playingState.engine.status !== 'finished') return false;
+  const engineStatus =
+    (playingState as any).state?.status || (playingState as any).engine?.status;
+  if (engineStatus !== 'finished') return false;
   if (playingState.finishReason === 'all-humans-abandoned') return false;
   return hostUserId === currentUserId;
 }

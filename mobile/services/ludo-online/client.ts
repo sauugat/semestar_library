@@ -643,6 +643,53 @@ export class OnlineLudoClient {
     return sent;
   }
 
+  /**
+   * Allows an unseated connected observer in a lobby to claim an open seat.
+   */
+  public claimSeat(preferredColor?: PlayerColor): boolean {
+    if (this.state.pendingCommand !== null) {
+      return false;
+    }
+    if (this.state.connectionStatus !== 'connected' || !this.ws) {
+      return false;
+    }
+    if (!this.state.lobby || this.state.playingState !== null) {
+      return false;
+    }
+    const alreadySeated = Object.values(this.state.lobby.seats).some(
+      (s) => s.status === 'human' && s.userId === this.state.myUserId
+    );
+    if (alreadySeated) {
+      return false;
+    }
+    const sent = this.send({
+      type: 'LUDO_JOIN',
+      preferredColor,
+    });
+    if (sent) {
+      this.updateState(() => ({ pendingCommand: 'LUDO_JOIN' }));
+    }
+    return sent;
+  }
+
+  /**
+   * Returns whether the local connected user currently holds a seated slot.
+   */
+  public isSeated(): boolean {
+    if (!this.state.myUserId) return false;
+    if (this.state.lobby) {
+      return Object.values(this.state.lobby.seats).some(
+        (s) => s.status === 'human' && s.userId === this.state.myUserId
+      );
+    }
+    if (this.state.playingState) {
+      return Object.values(this.state.playingState.seats).some(
+        (s) => s.status === 'human' && s.userId === this.state.myUserId
+      );
+    }
+    return false;
+  }
+
   // Authoritative Gameplay Commands (Phase 4B2)
   public rollDice(): boolean {
     return this.send({ type: 'LUDO_ROLL_DICE' });

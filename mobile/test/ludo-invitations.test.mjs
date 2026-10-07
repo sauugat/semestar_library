@@ -385,11 +385,11 @@ test('17. User search cancellation / race: sequence guard drops older query resp
 // Phase 4D: Stale Invitation Tests (Gates 65-68)
 // ----------------------------------------------------
 test('18. (Gate 65) INVITATION_STALE mapped to friendly copy', () => {
-  const mapped = mapInvitationError('INVITATION_STALE', 'Room generation mismatch');
-  assert.strictEqual(mapped, 'This invitation belongs to an earlier match.');
+  const mapped = mapInvitationError('INVITATION_STALE');
+  assert.strictEqual(mapped.message, 'This invitation belongs to an earlier match.');
 
-  const mappedFromError = mapInvitationError(new LudoInvitationError('INVITATION_STALE', 'Generation changed'));
-  assert.strictEqual(mappedFromError, 'This invitation belongs to an earlier match.');
+  const mappedFromError = mapInvitationError(new LudoInvitationError('Generation changed', 'INVITATION_STALE'));
+  assert.strictEqual(mappedFromError.message, 'This invitation belongs to an earlier match.');
 });
 
 test('19. (Gate 66 & 67) stale invitation state is read-only with no join action', () => {

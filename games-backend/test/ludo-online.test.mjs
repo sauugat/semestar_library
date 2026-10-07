@@ -3763,4 +3763,261 @@ test('182. (Phase 4D / 35) malformed generation validation rejected', () => {
   assert.equal(validateLudoRoomState(strGen).valid, false);
 });
 
+test('183. (Section 4 & 15) Abandoned takeover human seat resets to OPEN with all metadata cleared', async () => {
+  const { ctx, ws1 } = await createFinishedGameHelper();
+  // Simulate Yellow seat was taken over by bot
+  const state = ctx.controller.getState();
+  state.seats.yellow = {
+    color: 'yellow',
+    status: 'human',
+    userId: 'user_bob',
+    displayName: 'Bob',
+    botDifficulty: null,
+    ready: false,
+    controlMode: 'takeover-bot',
+    presence: 'abandoned',
+    abandonedAt: 123456,
+    disconnectDeadline: 123000,
+  };
+  ctx.controller['state'] = state;
+
+  // Host resets to lobby
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_RETURN_TO_LOBBY' });
+
+  const resetState = ctx.controller.getState();
+  assert.equal(resetState.status, 'lobby');
+  const yellowSeat = resetState.seats.yellow;
+  assert.equal(yellowSeat.status, 'open');
+  assert.equal(yellowSeat.userId, null);
+  assert.equal(yellowSeat.displayName, null);
+  assert.equal(yellowSeat.botDifficulty, null);
+  assert.equal(yellowSeat.ready, false);
+  assert.equal(yellowSeat.controlMode, 'human');
+  assert.equal(yellowSeat.presence, 'online');
+  assert.equal(yellowSeat.disconnectDeadline, null);
+  assert.equal(yellowSeat.abandonedAt, null);
+});
+
+test('184. (Section 6) Active socket accounting controls human retention across multi-socket events', async () => {
+  const { ctx, ws1, ws2 } = await createFinishedGameHelper();
+
+  // Bob initially has 1 socket (ws2). Connect a second socket for Bob.
+  const wsBob2 = ctx.connect('user_bob');
+  assert.equal(ctx.controller['callbacks'].getUserSockets('user_bob').length, 2);
+
+  // Bob closes 1 socket -> still has 1 socket (ws2), seat retained
+  wsBob2.close();
+  ctx.controller.handleDisconnect('user_bob', wsBob2);
+  assert.equal(ctx.controller['callbacks'].getUserSockets('user_bob').length, 1);
+
+  // Bob closes ws2 -> 0 sockets
+  ws2.close();
+  ctx.controller.handleDisconnect('user_bob', ws2);
+  assert.equal(ctx.controller['callbacks'].getUserSockets('user_bob').length, 0);
+
+  // Bob reconnects 1 socket before rematch
+  const wsBob3 = ctx.connect('user_bob');
+  assert.equal(ctx.controller['callbacks'].getUserSockets('user_bob').length, 1);
+
+  // Host triggers rematch -> Bob is retained because active socket count > 0
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_RETURN_TO_LOBBY' });
+  const lobby = ctx.controller.getState();
+  assert.equal(lobby.seats.yellow.status, 'human');
+  assert.equal(lobby.seats.yellow.userId, 'user_bob');
+
+  // Next game finished -> Bob closes socket
+  lobby.status = 'finished';
+  lobby.finishReason = 'normal';
+  ctx.controller['state'] = lobby;
+  wsBob3.close();
+  ctx.controller.handleDisconnect('user_bob', wsBob3);
+  assert.equal(ctx.controller['callbacks'].getUserSockets('user_bob').length, 0);
+
+  // Host triggers rematch -> Bob now has 0 sockets, so seat is cleared to OPEN
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_RETURN_TO_LOBBY' });
+  const lobby2 = ctx.controller.getState();
+  assert.equal(lobby2.seats.yellow.status, 'open');
+  assert.equal(lobby2.seats.yellow.userId, null);
+});
+
+test('185. (Section 7) Finished player with stale presence but 0 active sockets is cleared to OPEN', async () => {
+  const { ctx, ws1, ws2 } = await createFinishedGameHelper();
+
+  // Disconnect Bob's active socket
+  ws2.close();
+  ctx.controller.handleDisconnect('user_bob', ws2);
+  assert.equal(ctx.controller['callbacks'].getUserSockets('user_bob').length, 0);
+
+  // State metadata claims Bob is online, but sockets map has 0 connections
+  const state = ctx.controller.getState();
+  state.seats.yellow.presence = 'online';
+  state.seats.yellow.disconnectDeadline = null;
+  ctx.controller['state'] = state;
+
+  // Host triggers Play Again
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_RETURN_TO_LOBBY' });
+
+  // Actual socket ownership wins: Bob is cleared to OPEN
+  assert.equal(ctx.controller.getState().seats.yellow.status, 'open');
+  assert.equal(ctx.controller.getState().seats.yellow.userId, null);
+});
+
+test('186. (Section 8 & 9) Abandoned spectator with active WebSocket is NOT retained in old seat', async () => {
+  const { ctx, ws1, ws2 } = await createFinishedGameHelper();
+
+  // Yellow was abandoned takeover-bot
+  const state = ctx.controller.getState();
+  state.seats.yellow.controlMode = 'takeover-bot';
+  state.seats.yellow.presence = 'abandoned';
+  ctx.controller['state'] = state;
+
+  // Original Bob user reconnected after abandonment as spectator (has active socket ws2)
+  assert.equal(ctx.controller['callbacks'].getUserSockets('user_bob').length, 1);
+
+  // Host resets to lobby
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_RETURN_TO_LOBBY' });
+
+  const resetState = ctx.controller.getState();
+  // Historical Yellow seat MUST be cleared to OPEN despite Bob having active socket
+  assert.equal(resetState.seats.yellow.status, 'open');
+  assert.equal(resetState.seats.yellow.userId, null);
+});
+
+test('187. (Section 10 & 11) Unseated connected spectator can claim open seat in fresh lobby without reconnecting', async () => {
+  const { ctx, ws1, ws2 } = await createFinishedGameHelper();
+
+  // Yellow was abandoned takeover-bot
+  const state = ctx.controller.getState();
+  state.seats.yellow.controlMode = 'takeover-bot';
+  state.seats.yellow.presence = 'abandoned';
+  ctx.controller['state'] = state;
+
+  // Host resets: Yellow seat is cleared to OPEN, Bob remains connected on ws2
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_RETURN_TO_LOBBY' });
+
+  assert.equal(ctx.controller.getState().seats.yellow.status, 'open');
+
+  // Bob is connected on ws2, unseated. Sends LUDO_JOIN over existing socket ws2.
+  await ctx.send(ws2, 'user_bob', { type: 'LUDO_JOIN', preferredColor: 'yellow' });
+
+  // Bob claims open Yellow seat!
+  const lobby = ctx.controller.getState();
+  assert.equal(lobby.seats.yellow.status, 'human');
+  assert.equal(lobby.seats.yellow.userId, 'user_bob');
+  assert.equal(lobby.seats.yellow.ready, false);
+});
+
+test('188. (Section 14) Configured bots (easy, normal, hard) are retained with difficulties and controlMode bot', async () => {
+  const ctx = new TestContext('bot_retention_room');
+  const ws1 = ctx.connect('user_alice');
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_JOIN', displayName: 'Alice' });
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_SET_PLAYER_COUNT', playerCount: 4 });
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_ADD_BOT', color: 'green', difficulty: 'easy' });
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_ADD_BOT', color: 'yellow', difficulty: 'normal' });
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_ADD_BOT', color: 'blue', difficulty: 'hard' });
+
+  // Simulate game start and finish
+  const state = ctx.controller.getState();
+  state.status = 'finished';
+  state.finishReason = 'normal';
+  state.rankings = ['red', 'blue', 'yellow', 'green'];
+  ctx.controller['state'] = state;
+
+  // Rematch
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_RETURN_TO_LOBBY' });
+
+  const lobby = ctx.controller.getState();
+  assert.equal(lobby.seats.green.status, 'bot');
+  assert.equal(lobby.seats.green.controlMode, 'bot');
+  assert.equal(lobby.seats.green.botDifficulty, 'easy');
+  assert.equal(lobby.seats.green.ready, true);
+
+  assert.equal(lobby.seats.yellow.status, 'bot');
+  assert.equal(lobby.seats.yellow.controlMode, 'bot');
+  assert.equal(lobby.seats.yellow.botDifficulty, 'normal');
+  assert.equal(lobby.seats.yellow.ready, true);
+
+  assert.equal(lobby.seats.blue.status, 'bot');
+  assert.equal(lobby.seats.blue.controlMode, 'bot');
+  assert.equal(lobby.seats.blue.botDifficulty, 'hard');
+  assert.equal(lobby.seats.blue.ready, true);
+});
+
+test('189. (Section 17) Stale alarm firing after reset is a strict no-op', async () => {
+  const { ctx, ws1 } = await createFinishedGameHelper();
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_RETURN_TO_LOBBY' });
+  assert.equal(ctx.controller.getState().status, 'lobby');
+  const revBefore = ctx.controller.getRevision();
+
+  // Platform triggers alarm in lobby
+  await ctx.controller.handleAlarm();
+
+  // No-op: revision unchanged, status remains lobby
+  assert.equal(ctx.controller.getRevision(), revBefore);
+  assert.equal(ctx.controller.getState().status, 'lobby');
+});
+
+test('190. (Section 27) Double rematch command: first succeeds (gen 1 -> 2), second receives INVALID_PHASE (stays gen 2)', async () => {
+  const { ctx, ws1 } = await createFinishedGameHelper();
+  const ws1_second = ctx.connect('user_alice');
+
+  // Both sockets send LUDO_RETURN_TO_LOBBY
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_RETURN_TO_LOBBY' });
+  assert.equal(ctx.controller.getState().status, 'lobby');
+  assert.equal(ctx.controller.getState().roomGeneration, 2);
+
+  // Second socket sends LUDO_RETURN_TO_LOBBY while already in lobby
+  await ctx.send(ws1_second, 'user_alice', { type: 'LUDO_RETURN_TO_LOBBY' });
+  const err = ws1_second.lastMessage;
+  assert.equal(err.type, 'ERROR');
+  assert.equal(err.code, 'INVALID_PHASE');
+
+  // Generation remains 2 (NEVER 3)
+  assert.equal(ctx.controller.getState().roomGeneration, 2);
+});
+
+test('191. (Section 28) Persistence failure during rematch keeps finished state and emits STORAGE_ERROR', async () => {
+  const { ctx, ws1 } = await createFinishedGameHelper();
+  const revBefore = ctx.controller.getRevision();
+
+  // Mock persist callback to throw
+  ctx.controller['callbacks'].persist = () => {
+    throw new Error('Disk full');
+  };
+
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_RETURN_TO_LOBBY' });
+
+  assert.equal(ctx.controller.getState().status, 'finished');
+  assert.equal(ctx.controller.getRevision(), revBefore);
+  const err = ws1.lastMessage;
+  assert.equal(err.type, 'ERROR');
+  assert.equal(err.code, 'STORAGE_ERROR');
+});
+
+test('192. (Section 33) Full second-game clean-start flow', async () => {
+  const { ctx, ws1, ws2 } = await createFinishedGameHelper();
+  assert.equal(ctx.controller.getState().roomGeneration, 1);
+
+  // Rematch to generation 2
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_RETURN_TO_LOBBY' });
+  assert.equal(ctx.controller.getState().status, 'lobby');
+  assert.equal(ctx.controller.getState().roomGeneration, 2);
+
+  // Both players ready up
+  await ctx.send(ws2, 'user_bob', { type: 'LUDO_SET_READY', ready: true });
+  await ctx.send(ws1, 'user_alice', { type: 'LUDO_START_GAME' });
+
+  const playingState = ctx.controller.getState();
+  assert.equal(playingState.status, 'playing');
+  assert.equal(playingState.roomGeneration, 2);
+  assert.ok(playingState.engineState);
+  assert.deepEqual(playingState.rankings, []);
+  assert.equal(playingState.finishReason, null);
+
+  // Verify all tokens are fresh at home (-1)
+  const tokens = playingState.engineState.tokens;
+  assert.equal(tokens.red.every((pos) => pos === -1), true);
+  assert.equal(tokens.yellow.every((pos) => pos === -1), true);
+});
+
 

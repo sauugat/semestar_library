@@ -148,7 +148,8 @@ export function formatInvitationCountdown(seconds: number): string {
 /**
  * Maps invitation error codes to user-friendly messages.
  */
-export function mapInvitationError(errorCode: string): { title: string; message: string } {
+export function mapInvitationError(err: string | { code?: string }): { title: string; message: string } {
+  const errorCode = typeof err === 'string' ? err : err?.code || '';
   switch (errorCode) {
     case 'ROOM_STARTED':
       return {

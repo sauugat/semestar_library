@@ -3668,7 +3668,10 @@ if (isCohortChatEnabled) {
     cohortService = runtime.service;
     prepareMiddleware = async (req, res, next) => {
       // Lifecycle changes require the separately reviewed academic admin rollout.
-      if (req.path.startsWith('/admin/')) return res.status(503).json({ message: 'Cohort administration is temporarily unavailable.' });
+      if (req.path.startsWith('/admin/cohorts') || req.path.startsWith('/admin/groups') || req.path.startsWith('/admin/recycle')) {
+        return res.status(503).json({ message: 'Cohort administration is temporarily unavailable.' });
+      }
+      if (req.path.startsWith('/admin/rooms')) return next();
       try {
         const ctx = await runtime.prepare(req.student.studentId, { ...req.query, ...req.body });
         if (req.method === 'GET') await runtime.drain(ctx.chatGroupId).catch(() => {});

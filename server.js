@@ -970,8 +970,231 @@ app.get('/api/auth/config', (req, res) => {
   res.json({ url, key });
 });
 
-// Student Self-Registration (Strictly validated, forced student role & unverified status)
-app.post('/api/auth/register', loginRateLimiter, async (req, res) => {
+// Check availability for email and username during student registration
+app.all(['/api/auth/check-availability', '/api/auth/signup/check'], loginRateLimiter, async (req, res) => {
+  const email = (req.method === 'POST' ? req.body.email : req.query.email) || '';
+  const username = (req.method === 'POST' ? req.body.username : req.query.username) || '';
+
+  const cleanEmail = String(email).trim().toLowerCase();
+  const cleanUsername = String(username).trim().toLowerCase();
+
+  if (cleanEmail) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cleanEmail) || cleanEmail.length > 150) {
+      return res.status(400).json({ available: false, field: 'email', message: 'Please provide a valid email address.' });
+    }
+    const existingEmail = await db.get('SELECT studentId FROM students WHERE LOWER(email) = ?', cleanEmail);
+    if (existingEmail) {
+      return res.status(400).json({
+        available: false,
+        field: 'email',
+        code: 'EMAIL_EXISTS',
+        message: 'An account with this email address already exists. Log in instead.'
+      });
+    }
+  }
+
+  if (cleanUsername) {
+    if (!/^[a-zA-Z0-9_.]{3,30}$/.test(cleanUsername)) {
+      return res.status(400).json({
+        available: false,
+        field: 'username',
+        message: 'Username must be 3-30 characters (letters, numbers, underscore, dot).'
+      });
+    }
+    const existingUser = await db.get('SELECT studentId FROM students WHERE LOWER(username) = ?', cleanUsername);
+    if (existingUser) {
+      return res.status(400).json({
+        available: false,
+        field: 'username',
+        code: 'USERNAME_TAKEN',
+        message: 'This username is already taken. Please choose another.'
+      });
+    }
+  }
+
+  return res.json({ available: true, message: 'Available for registration.' });
+});
+
+// Student Self-Registration (Supports verified Supabase OTP finalization and legacy password flow)
+app.post(['/api/auth/register', '/api/auth/finalize-signup'], loginRateLimiter, async (req, res) => {
+  const authHeader = req.headers.authorization || '';
+  const supabaseBearer = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : (req.body && req.body.supabaseToken ? String(req.body.supabaseToken).trim() : '');
+
+  // VERIFIED OTP STUDENT FINALIZATION BRANCH
+  if (supabaseBearer) {
+    const { verifySupabaseToken } = require('./lib/supabase');
+    const { user: authUser, error: tokenErr } = await verifySupabaseToken(supabaseBearer);
+    if (tokenErr || !authUser || !authUser.id) {
+      return res.status(401).json({ message: 'Invalid or expired authentication session. Please verify your email again.' });
+    }
+
+    const isConfirmed = !!(authUser.email_confirmed_at || authUser.confirmed_at);
+    if (!isConfirmed) {
+      return res.status(400).json({ message: 'Email must be verified before completing registration.' });
+    }
+
+    const cleanName = String(req.body.fullName || req.body.name || '').trim();
+    const cleanUsername = String(req.body.username || '').trim().toLowerCase();
+    const cleanEmail = String(req.body.email || authUser.email || '').trim().toLowerCase();
+    const cleanDept = String(req.body.department || 'BIT').trim();
+    const cleanSem = String(req.body.semester || 'Semester 1').trim();
+    const cleanGender = req.body.gender && String(req.body.gender).trim() ? String(req.body.gender).trim().toLowerCase() : null;
+
+    if (!cleanName || !cleanUsername || !cleanEmail || !cleanSem) {
+      return res.status(400).json({ message: 'Full Name, Username, Email, and Semester are required.' });
+    }
+
+    if (cleanName.length < 2 || cleanName.length > 100) {
+      return res.status(400).json({ message: 'Full name must be between 2 and 100 characters.' });
+    }
+    if (!/^[a-zA-Z0-9_.]{3,30}$/.test(cleanUsername)) {
+      return res.status(400).json({ message: 'Username must be 3-30 characters (letters, numbers, underscore, dot).' });
+    }
+    if (authUser.email && cleanEmail !== authUser.email.toLowerCase().trim()) {
+      return res.status(400).json({ message: 'Verified email does not match registration email.' });
+    }
+
+    const validSemesters = ['Semester 1', 'Semester 2', 'Semester 3', 'Semester 4', 'Semester 5', 'Semester 6', 'Semester 7', 'Semester 8'];
+    if (!validSemesters.includes(cleanSem)) {
+      return res.status(400).json({ message: 'Please select a valid semester (Semester 1 through 8).' });
+    }
+    const semNum = parseSemesterNumber(cleanSem);
+    if (!semNum) {
+      return res.status(400).json({ message: 'Please select a valid semester (Semester 1 through 8).' });
+    }
+    if (cleanGender && !['male', 'female', 'other', 'prefer_not_to_say'].includes(cleanGender)) {
+      return res.status(400).json({ message: 'Invalid gender selection.' });
+    }
+
+    // Check if student with this Supabase UID already exists (idempotent retry)
+    const existingStudentByUid = await db.get('SELECT * FROM students WHERE supabase_uid = ?', authUser.id);
+    if (existingStudentByUid) {
+      const mobileToken = crypto.randomBytes(32).toString('hex');
+      const createdAt = new Date().toISOString();
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      await db.run('INSERT INTO mobile_tokens (token, studentId, createdAt, expiresAt) VALUES (?, ?, ?, ?)', mobileToken, existingStudentByUid.studentId, createdAt, expiresAt);
+      req.session.studentId = existingStudentByUid.studentId;
+      req.session.studentName = existingStudentByUid.name;
+      req.session.role = existingStudentByUid.role || 'student';
+      return res.status(200).json({
+        success: true,
+        message: 'Account already finalized.',
+        user: {
+          studentId: existingStudentByUid.studentId,
+          username: existingStudentByUid.username,
+          name: existingStudentByUid.name,
+          email: existingStudentByUid.email,
+          role: existingStudentByUid.role,
+          department: existingStudentByUid.department,
+          semester: existingStudentByUid.semester,
+          gender: existingStudentByUid.gender,
+          cohortId: existingStudentByUid.cohort_id,
+          verificationStatus: 'verified'
+        },
+        mobileToken,
+        token: mobileToken
+      });
+    }
+
+    // Check for username and email uniqueness
+    const existingUser = await db.get('SELECT studentId FROM students WHERE LOWER(username) = ?', cleanUsername);
+    if (existingUser) {
+      return res.status(400).json({ message: 'This username is already taken. Please choose another.' });
+    }
+    const existingEmail = await db.get('SELECT studentId FROM students WHERE LOWER(email) = ?', cleanEmail);
+    if (existingEmail) {
+      return res.status(400).json({ message: 'An account with this email address already exists. Log in instead.' });
+    }
+
+    // Authoritative cohort resolution
+    const cohortResolution = await resolveActiveCohortForSemester(db, semNum);
+    if (cohortResolution.status === 'NO_MATCH') {
+      return res.status(400).json({
+        message: `No active academic cohort currently matches Semester ${semNum}. Please check your semester selection or contact administration.`
+      });
+    }
+    if (cohortResolution.status === 'AMBIGUOUS') {
+      return res.status(409).json({
+        message: `Multiple active academic cohorts found for Semester ${semNum}. Administrative cohort assignment required.`
+      });
+    }
+    if (!cohortResolution.cohort || !cohortResolution.cohort.id) {
+      return res.status(400).json({ message: 'Unable to resolve academic cohort for selected semester.' });
+    }
+
+    const assignedCohort = cohortResolution.cohort;
+    const assignedCohortId = assignedCohort.id;
+
+    let studentIdToUse = String(req.body.studentId || cleanUsername).trim();
+    const existingId = await db.get('SELECT studentId FROM students WHERE studentId = ?', studentIdToUse);
+    if (existingId) {
+      studentIdToUse = `s_${cleanUsername}_${crypto.randomBytes(3).toString('hex')}`;
+    }
+
+    if (db.isPostgres) {
+      await db.run(
+        `INSERT INTO students (
+          studentId, username, name, email, supabase_uid,
+          department, semester, gender, role, verification_status,
+          passwordHash, cohort_id, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'student', 'verified', 'supabase_auth', $9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+        studentIdToUse, cleanUsername, cleanName, cleanEmail, authUser.id,
+        cleanDept, cleanSem, cleanGender, assignedCohortId
+      );
+    } else {
+      await db.run(
+        `INSERT INTO students (
+          studentId, username, name, email, supabase_uid,
+          department, semester, gender, role, verification_status,
+          passwordHash, cohort_id, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'student', 'verified', 'supabase_auth', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+        studentIdToUse, cleanUsername, cleanName, cleanEmail, authUser.id,
+        cleanDept, cleanSem, cleanGender, assignedCohortId
+      );
+    }
+
+    await logCohortAudit(db, {
+      action: 'signup_auto_assign',
+      cohortId: assignedCohortId,
+      actorId: studentIdToUse,
+      details: {
+        semester: cleanSem,
+        semesterNo: semNum,
+        slotCode: assignedCohort.slotCode,
+        displayName: assignedCohort.displayName,
+        currentSemester: assignedCohort.currentSemester
+      }
+    });
+
+    req.session.studentId = studentIdToUse;
+    req.session.studentName = cleanName;
+    req.session.role = 'student';
+
+    const mobileToken = crypto.randomBytes(32).toString('hex');
+    const createdAt = new Date().toISOString();
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    await db.run('INSERT INTO mobile_tokens (token, studentId, createdAt, expiresAt) VALUES (?, ?, ?, ?)', mobileToken, studentIdToUse, createdAt, expiresAt);
+
+    return res.status(201).json({
+      success: true,
+      message: 'Account created successfully!',
+      user: {
+        studentId: studentIdToUse,
+        username: cleanUsername,
+        name: cleanName,
+        email: cleanEmail,
+        role: 'student',
+        department: cleanDept,
+        semester: cleanSem,
+        gender: cleanGender,
+        cohortId: assignedCohortId,
+        verificationStatus: 'verified'
+      },
+      mobileToken,
+      token: mobileToken
+    });
+  }
   const {
     fullName,
     studentId,

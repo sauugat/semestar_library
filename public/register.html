@@ -20,10 +20,7 @@
     (function() {
       try {
         var stored = localStorage.getItem('theme');
-        var theme = stored;
-        if (!theme) {
-          theme = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
-        }
+        var theme = stored || ((window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light');
         document.documentElement.setAttribute('data-theme', theme);
         if (theme === 'dark') {
           document.documentElement.classList.add('dark');
@@ -45,6 +42,90 @@
   <link rel="stylesheet" href="style.v4.css">
   <link rel="stylesheet" href="theme-overrides.css">
   <link rel="stylesheet" href="auth-ui.css">
+
+  <style>
+    .input-btn-group {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .input-btn-group .input {
+      flex: 1;
+    }
+    .btn-inline-verify {
+      height: 44px;
+      padding: 0 16px;
+      border-radius: 8px;
+      border: 1px solid var(--btn-bg, #0a0a0a);
+      background: var(--btn-bg, #0a0a0a);
+      color: var(--btn-text, #fafafa);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: opacity 0.15s ease, background 0.15s ease;
+    }
+    .btn-inline-verify:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .email-verified-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #10b981;
+      font-weight: 600;
+      font-size: 13px;
+    }
+    .otp-inline-section {
+      margin: 10px 0 16px;
+      padding: 16px;
+      background: var(--field, #f5f5f5);
+      border: 1px solid var(--border, #e5e5e5);
+      border-radius: 10px;
+      animation: fadeIn 0.2s ease-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .otp-inputs-row {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin: 14px 0 16px;
+    }
+    .otp-digit-input {
+      width: 44px;
+      height: 50px;
+      border-radius: 8px;
+      border: 1.5px solid var(--border, #d4d4d8);
+      background: var(--surface, #ffffff);
+      color: var(--text, #0a0a0a);
+      font-size: 20px;
+      font-weight: 700;
+      text-align: center;
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+      box-sizing: border-box;
+    }
+    .otp-digit-input:focus {
+      border-color: var(--text, #0a0a0a);
+      box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
+    }
+    [data-theme="dark"] .otp-digit-input {
+      background: #171717;
+      border-color: #262626;
+      color: #fafafa;
+    }
+    [data-theme="dark"] .otp-digit-input:focus {
+      border-color: #fafafa;
+      box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.15);
+    }
+    .progressive-section {
+      animation: fadeIn 0.25s ease-out;
+    }
+  </style>
 </head>
 
 <body class="apple-signin-page">
@@ -69,13 +150,13 @@
     </button>
   </div>
 
-  <!-- Registration Card (Same 460px max-width, 32px padding as login) -->
+  <!-- Registration Card -->
   <main class="apple-signin-card register-card">
 
     <!-- 56px Centered Monochrome Logo -->
     <img src="logo.jpg" alt="Semester Library" class="auth-logo">
 
-    <h1 class="auth-title">Create an Account</h1>
+    <h1 class="auth-title">Create Account</h1>
     <p class="auth-subtext">Join Gandaki University students on Semester Library</p>
 
     <!-- Inline Alert Banner -->
@@ -84,17 +165,8 @@
       <div class="auth-banner-msg" id="authAlertMsg"></div>
     </div>
 
-    <!-- Success View (Shown after successful submission) -->
-    <div id="successBox" style="display: none; width: 100%; text-align: center; padding: 8px 0;">
-      <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 8px; color: var(--text);">Registration Submitted</h2>
-      <p id="successMessageText" style="font-size: 14px; color: var(--muted); line-height: 1.5; margin-bottom: 24px;">
-        A verification link has been sent to your email. Please check your inbox and verify your email address to activate your account.
-      </p>
-      <a href="login.html" class="btn btn-primary" style="text-decoration: none;">Go to Sign In</a>
-    </div>
-
     <!-- Registration Form -->
-    <form id="registerForm" class="form" onsubmit="handleRegister(event)">
+    <form id="registerForm" class="form" onsubmit="handleRegisterSubmit(event)">
 
       <!-- Full Name -->
       <div class="field">
@@ -102,118 +174,144 @@
         <input type="text" id="fullName" name="fullName" class="input" placeholder="e.g. Saugat Subedi" required autocomplete="name">
       </div>
 
-      <!-- Student ID & Username Grid -->
-      <div class="row-2">
-        <div class="field">
-          <label for="studentId" class="field-label">Student ID</label>
-          <input type="text" id="studentId" name="studentId" class="input" placeholder="e.g. 26020266" required>
-        </div>
-        <div class="field">
-          <label for="username" class="field-label">Username</label>
-          <input type="text" id="username" name="username" class="input" placeholder="e.g. saugat_subedi" required autocomplete="username">
-        </div>
-      </div>
-
-      <!-- Email Address -->
+      <!-- Username -->
       <div class="field">
-        <label for="email" class="field-label">Email Address (Required for verification)</label>
-        <input type="email" id="email" name="email" class="input" placeholder="student@example.com" required autocomplete="email">
+        <label for="username" class="field-label">Username</label>
+        <input type="text" id="username" name="username" class="input" placeholder="e.g. saugat123" required autocomplete="username">
       </div>
 
-      <!-- Department & Semester Grid -->
-      <div class="row-2">
-        <div class="field">
-          <label for="department" class="field-label">Department</label>
-          <select id="department" name="department" class="select" required>
-            <option value="BIT" selected>BIT</option>
-            <option value="BBA">BBA</option>
-            <option value="BPharm">BPharm</option>
-            <option value="BTech">BTech Food</option>
-            <option value="BLLB">BLLB</option>
-          </select>
-        </div>
-        <div class="field">
-          <label for="semester" class="field-label">Semester</label>
-          <select id="semester" name="semester" class="select" required>
-            <option value="Semester 1" selected>Semester 1</option>
-            <option value="Semester 2">Semester 2</option>
-            <option value="Semester 3">Semester 3</option>
-            <option value="Semester 4">Semester 4</option>
-            <option value="Semester 5">Semester 5</option>
-            <option value="Semester 6">Semester 6</option>
-            <option value="Semester 7">Semester 7</option>
-            <option value="Semester 8">Semester 8</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Gender (Optional) -->
+      <!-- Email Address with Inline Verify Button / Verified State -->
       <div class="field">
-        <label for="gender" class="field-label">Gender (Optional)</label>
-        <select id="gender" name="gender" class="select">
-          <option value="" selected>Prefer not to say</option>
-          <option value="male">Male</option>
-          <option value="female">Female</option>
-          <option value="other">Other</option>
-        </select>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <label for="email" class="field-label" style="margin-bottom: 0;">Email</label>
+          <div id="emailVerifiedBadge" style="display: none;" class="email-verified-badge">
+            <span>✓ Verified</span>
+            <button type="button" id="changeEmailBtn" onclick="handleChangeEmail()" style="background: none; border: none; color: var(--muted); text-decoration: underline; font-size: 12px; margin-left: 8px; cursor: pointer;">Change Email</button>
+          </div>
+        </div>
+        <div class="input-btn-group">
+          <input type="email" id="email" name="email" class="input" placeholder="saugatxtra@gmail.com" required autocomplete="email">
+          <button type="button" id="verifyEmailBtn" class="btn-inline-verify" onclick="handleSendOtp()">Verify</button>
+        </div>
       </div>
 
-      <!-- Password & Confirm Password Grid with Inside Visibility Toggles -->
-      <div class="row-2">
-        <div class="field">
-          <label for="password" class="field-label">Password</label>
-          <div class="field-password-wrap">
-            <input type="password" id="password" name="password" class="input" placeholder="Min. 8 characters" required autocomplete="new-password">
-            <button type="button" class="password-toggle" aria-label="Toggle password visibility">
-              <svg class="eye-open-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                <circle cx="12" cy="12" r="3"></circle>
-              </svg>
-              <svg class="eye-closed-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;">
-                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                <line x1="1" y1="1" x2="23" y2="23"></line>
-              </svg>
-            </button>
+      <!-- Inline OTP Section (Expands directly below Email) -->
+      <div id="otpSection" class="otp-inline-section" style="display: none;">
+        <div style="font-size: 13px; font-weight: 600; color: var(--text);">Verification Code</div>
+        <div style="font-size: 12px; color: var(--muted); margin-top: 2px;">Enter the 6-digit verification code sent to your email.</div>
+        <div class="otp-inputs-row">
+          <input type="text" class="otp-digit-input" id="otp0" maxlength="1" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code">
+          <input type="text" class="otp-digit-input" id="otp1" maxlength="1" inputmode="numeric" pattern="[0-9]*">
+          <input type="text" class="otp-digit-input" id="otp2" maxlength="1" inputmode="numeric" pattern="[0-9]*">
+          <input type="text" class="otp-digit-input" id="otp3" maxlength="1" inputmode="numeric" pattern="[0-9]*">
+          <input type="text" class="otp-digit-input" id="otp4" maxlength="1" inputmode="numeric" pattern="[0-9]*">
+          <input type="text" class="otp-digit-input" id="otp5" maxlength="1" inputmode="numeric" pattern="[0-9]*">
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center; justify-content: space-between;">
+          <button type="button" class="btn btn-primary" id="verifyOtpBtn" onclick="handleVerifyOtp()" style="padding: 8px 18px; font-size: 13px; width: auto;">Verify Code</button>
+          <div id="resendCountdown" style="font-size: 12px; color: var(--muted); display: none;">Resend code in 60s</div>
+          <button type="button" id="resendOtpBtn" onclick="handleResendOtp()" style="display: none; background: none; border: none; color: var(--text); font-weight: 600; font-size: 12px; cursor: pointer; text-decoration: underline;">Resend Code</button>
+        </div>
+      </div>
+
+      <!-- Progressive Account Details (Revealed after successful OTP) -->
+      <div id="accountDetailsSection" class="progressive-section" style="display: none;">
+
+        <!-- Password & Confirm Password Grid -->
+        <div class="row-2">
+          <div class="field">
+            <label for="password" class="field-label">Password</label>
+            <div class="field-password-wrap">
+              <input type="password" id="password" name="password" class="input" placeholder="Min. 8 characters" autocomplete="new-password">
+              <button type="button" class="password-toggle" aria-label="Toggle password visibility">
+                <svg class="eye-open-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+                <svg class="eye-closed-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                  <line x1="1" y1="1" x2="23" y2="23"></line>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="confirmPassword" class="field-label">Confirm Password</label>
+            <div class="field-password-wrap">
+              <input type="password" id="confirmPassword" name="confirmPassword" class="input" placeholder="Repeat password" autocomplete="new-password">
+              <button type="button" class="password-toggle" aria-label="Toggle password visibility">
+                <svg class="eye-open-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+                <svg class="eye-closed-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                  <line x1="1" y1="1" x2="23" y2="23"></line>
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
 
-        <div class="field">
-          <label for="confirmPassword" class="field-label">Confirm Password</label>
-          <div class="field-password-wrap">
-            <input type="password" id="confirmPassword" name="confirmPassword" class="input" placeholder="Repeat password" required autocomplete="new-password">
-            <button type="button" class="password-toggle" aria-label="Toggle password visibility">
-              <svg class="eye-open-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                <circle cx="12" cy="12" r="3"></circle>
-              </svg>
-              <svg class="eye-closed-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;">
-                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                <line x1="1" y1="1" x2="23" y2="23"></line>
-              </svg>
-            </button>
+        <!-- Department & Semester Grid -->
+        <div class="row-2">
+          <div class="field">
+            <label for="department" class="field-label">Department</label>
+            <select id="department" name="department" class="select">
+              <option value="BIT" selected>BIT</option>
+              <option value="BBA">BBA</option>
+              <option value="BPharm">BPharm</option>
+              <option value="BTech">BTech Food</option>
+              <option value="BLLB">BLLB</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="semester" class="field-label">Semester</label>
+            <select id="semester" name="semester" class="select">
+              <option value="Semester 1" selected>Semester 1</option>
+              <option value="Semester 2">Semester 2</option>
+              <option value="Semester 3">Semester 3</option>
+              <option value="Semester 4">Semester 4</option>
+              <option value="Semester 5">Semester 5</option>
+              <option value="Semester 6">Semester 6</option>
+              <option value="Semester 7">Semester 7</option>
+              <option value="Semester 8">Semester 8</option>
+            </select>
           </div>
         </div>
+
+        <!-- Gender Selector -->
+        <div class="field">
+          <label for="gender" class="field-label">Gender (Optional)</label>
+          <select id="gender" name="gender" class="select">
+            <option value="" selected>Prefer not to say</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+
+        <!-- Legal Consent Checkbox -->
+        <label class="checkbox-wrap" for="acceptTerms">
+          <input type="checkbox" id="acceptTerms" name="acceptTerms" class="custom-checkbox" checked>
+          <span>
+            I agree to the
+            <a href="privacy.html" target="_blank" rel="noopener noreferrer" class="link" onclick="event.stopPropagation()">Privacy Policy</a>
+            and
+            <a href="termsandconditions.html" target="_blank" rel="noopener noreferrer" class="link" onclick="event.stopPropagation()">Terms &amp; Conditions</a>.
+          </span>
+        </label>
+
+        <!-- Submit Button -->
+        <button type="submit" class="btn btn-primary" id="registerBtn">Create Account</button>
       </div>
-
-      <!-- Legal Consent Checkbox (No heavy bordered box) -->
-      <label class="checkbox-wrap" for="acceptTerms">
-        <input type="checkbox" id="acceptTerms" name="acceptTerms" class="custom-checkbox" required>
-        <span>
-          I agree to the
-          <a href="privacy.html" target="_blank" rel="noopener noreferrer" class="link" onclick="event.stopPropagation()">Privacy Policy</a>
-          and
-          <a href="termsandconditions.html" target="_blank" rel="noopener noreferrer" class="link" onclick="event.stopPropagation()">Terms &amp; Conditions</a>.
-        </span>
-      </label>
-
-      <!-- Submit Button -->
-      <button type="submit" class="btn btn-primary" id="registerBtn">Create Account</button>
 
       <p id="errorMsg" class="error-msg" style="display: none;"></p>
 
       <!-- Sign In Link -->
       <div class="auth-switch-text">
-        Already have an account? <a href="login.html" class="link" style="font-weight: 600;">Sign In</a>
+        Already have an account? <a href="login.html" class="link" style="font-weight: 600;">Log In</a>
       </div>
 
       <!-- Subtle Footer Navigation Links -->
@@ -227,6 +325,21 @@
 
   <script src="auth.js"></script>
   <script>
+    let isEmailVerified = false;
+    let verifiedSession = null;
+    let resendTimer = null;
+    let resendSecondsRemaining = 0;
+
+    function generateTempSignupPassword() {
+      if (window.crypto && window.crypto.getRandomValues) {
+        const bytes = new Uint8Array(24);
+        window.crypto.getRandomValues(bytes);
+        const hex = Array.from(bytes).map(b => ('0' + b.toString(16)).slice(-2)).join('');
+        return `Tmp#${hex}Aa1!`;
+      }
+      return `Tmp#${Date.now().toString(36)}${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}Aa1!`;
+    }
+
     function showRegisterAlert(message, type = 'error', title = null) {
       const banner = document.getElementById('authAlert');
       const titleEl = document.getElementById('authAlertTitle');
@@ -236,7 +349,7 @@
       if (legacyErrorMsg) legacyErrorMsg.textContent = message;
       if (!banner) return;
 
-      banner.className = 'auth-banner';
+      banner.className = 'auth-banner' + (type === 'notice' ? ' auth-banner-notice' : '');
       if (titleEl) {
         titleEl.textContent = title || (type === 'error' ? 'Validation Error' : 'Notice');
         titleEl.style.display = 'block';
@@ -273,18 +386,295 @@
       };
     });
 
-    async function handleRegister(e) {
+    // OTP Input Event Handling
+    const otpInputs = [
+      document.getElementById('otp0'),
+      document.getElementById('otp1'),
+      document.getElementById('otp2'),
+      document.getElementById('otp3'),
+      document.getElementById('otp4'),
+      document.getElementById('otp5')
+    ];
+
+    otpInputs.forEach((input, idx) => {
+      if (!input) return;
+      input.addEventListener('input', (e) => {
+        const val = e.target.value.replace(/\D/g, '');
+        e.target.value = val ? val[0] : '';
+        if (val && idx < 5) {
+          otpInputs[idx + 1].focus();
+        }
+        const fullOtp = getOtpValue();
+        if (fullOtp.length === 6) {
+          handleVerifyOtp();
+        }
+      });
+
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace' && !input.value && idx > 0) {
+          otpInputs[idx - 1].focus();
+        }
+      });
+
+      input.addEventListener('paste', (e) => {
+        e.preventDefault();
+        const text = (e.clipboardData || window.clipboardData).getData('text');
+        const digits = text.replace(/\D/g, '').slice(0, 6);
+        for (let i = 0; i < digits.length; i++) {
+          if (otpInputs[i]) otpInputs[i].value = digits[i];
+        }
+        if (digits.length >= 6) {
+          otpInputs[5].focus();
+          handleVerifyOtp();
+        } else if (otpInputs[digits.length]) {
+          otpInputs[digits.length].focus();
+        }
+      });
+    });
+
+    function getOtpValue() {
+      return otpInputs.map(i => (i ? i.value.trim() : '')).join('');
+    }
+
+    function clearOtpInputs() {
+      otpInputs.forEach(i => { if (i) i.value = ''; });
+    }
+
+    function startResendCooldown() {
+      if (resendTimer) clearInterval(resendTimer);
+      resendSecondsRemaining = 60;
+      const cdEl = document.getElementById('resendCountdown');
+      const btnEl = document.getElementById('resendOtpBtn');
+      if (cdEl) {
+        cdEl.style.display = 'block';
+        cdEl.textContent = `Resend code in ${resendSecondsRemaining}s`;
+      }
+      if (btnEl) btnEl.style.display = 'none';
+
+      resendTimer = setInterval(() => {
+        resendSecondsRemaining--;
+        if (resendSecondsRemaining <= 0) {
+          clearInterval(resendTimer);
+          resendTimer = null;
+          if (cdEl) cdEl.style.display = 'none';
+          if (btnEl) btnEl.style.display = 'inline-block';
+        } else if (cdEl) {
+          cdEl.textContent = `Resend code in ${resendSecondsRemaining}s`;
+        }
+      }, 1000);
+    }
+
+    // Step 1: Send OTP
+    async function handleSendOtp() {
+      hideAuthAlert();
+      const emailInput = document.getElementById('email');
+      const usernameInput = document.getElementById('username');
+      const fullNameInput = document.getElementById('fullName');
+      const verifyBtn = document.getElementById('verifyEmailBtn');
+
+      const email = emailInput.value.trim().toLowerCase();
+      const username = usernameInput.value.trim().toLowerCase();
+      const fullName = fullNameInput.value.trim();
+
+      if (!fullName) {
+        showRegisterAlert('Please enter your full name first.', 'error');
+        fullNameInput.focus();
+        return;
+      }
+      if (!username) {
+        showRegisterAlert('Please enter a username first.', 'error');
+        usernameInput.focus();
+        return;
+      }
+      if (!/^[a-zA-Z0-9_.]{3,30}$/.test(username)) {
+        showRegisterAlert('Username must be 3-30 characters (letters, numbers, underscore, dot).', 'error');
+        usernameInput.focus();
+        return;
+      }
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!email || !emailRegex.test(email)) {
+        showRegisterAlert('Please provide a valid email address.', 'error');
+        emailInput.focus();
+        return;
+      }
+
+      verifyBtn.disabled = true;
+      verifyBtn.textContent = 'Sending…';
+
+      try {
+        // 1. Check availability with backend
+        const checkRes = await SemesterAuth.checkAvailability({ email, username });
+        if (checkRes.error) {
+          showRegisterAlert(checkRes.error.message || 'An account with this email address already exists. Log in instead.', 'error');
+          verifyBtn.disabled = false;
+          verifyBtn.textContent = 'Verify';
+          return;
+        }
+
+        // 2. Call Supabase signUp with internal random temporary password
+        const supabase = SemesterAuth.getSupabase();
+        const tempPassword = generateTempSignupPassword();
+        let signUpRes = await supabase.auth.signUp({
+          email,
+          password: tempPassword,
+          options: {
+            data: { name: fullName, username }
+          }
+        });
+
+        // If user already registered in Supabase but not in students, trigger resend
+        if (signUpRes.error && (signUpRes.error.message?.toLowerCase().includes('already registered') || signUpRes.error.status === 400)) {
+          const resendRes = await supabase.auth.resend({ type: 'signup', email });
+          if (resendRes.error) {
+            // Already confirmed user attempting alternate login
+            showRegisterAlert('An account with this email already exists. Log in instead.', 'error');
+            verifyBtn.disabled = false;
+            verifyBtn.textContent = 'Verify';
+            return;
+          }
+        } else if (signUpRes.error) {
+          showRegisterAlert(signUpRes.error.message || 'Failed to dispatch verification code. Please try again.', 'error');
+          verifyBtn.disabled = false;
+          verifyBtn.textContent = 'Verify';
+          return;
+        }
+
+        // Expand OTP Section directly below email
+        document.getElementById('otpSection').style.display = 'block';
+        startResendCooldown();
+        clearOtpInputs();
+        if (otpInputs[0]) otpInputs[0].focus();
+        verifyBtn.disabled = false;
+        verifyBtn.textContent = 'Resend';
+      } catch (err) {
+        showRegisterAlert(err.message || 'Error sending verification code. Please try again.', 'error');
+        verifyBtn.disabled = false;
+        verifyBtn.textContent = 'Verify';
+      }
+    }
+
+    // Step 2: Verify OTP
+    async function handleVerifyOtp() {
+      hideAuthAlert();
+      const code = getOtpValue();
+      const email = document.getElementById('email').value.trim().toLowerCase();
+      const verifyOtpBtn = document.getElementById('verifyOtpBtn');
+
+      if (code.length < 6) {
+        showRegisterAlert('Please enter the full 6-digit verification code.', 'error');
+        return;
+      }
+
+      verifyOtpBtn.disabled = true;
+      verifyOtpBtn.textContent = 'Verifying…';
+
+      try {
+        const supabase = SemesterAuth.getSupabase();
+        let verifyRes = await supabase.auth.verifyOtp({
+          email,
+          token: code,
+          type: 'signup'
+        });
+
+        if (verifyRes.error && (verifyRes.error.message?.toLowerCase().includes('type') || verifyRes.error.code === 'validation_failed')) {
+          const fallback = await supabase.auth.verifyOtp({
+            email,
+            token: code,
+            type: 'email'
+          });
+          if (!fallback.error) verifyRes = fallback;
+        }
+
+        if (verifyRes.error) {
+          const isExpired = verifyRes.error.code === 'otp_expired' || verifyRes.error.message?.toLowerCase().includes('expired');
+          if (isExpired) {
+            showRegisterAlert('That code has expired. Request a new code.', 'error');
+          } else {
+            showRegisterAlert('That verification code is incorrect.', 'error');
+          }
+          verifyOtpBtn.disabled = false;
+          verifyOtpBtn.textContent = 'Verify Code';
+          return;
+        }
+
+        if (!verifyRes.data || !verifyRes.data.session) {
+          showRegisterAlert('Verification succeeded but session could not be established. Please try again.', 'error');
+          verifyOtpBtn.disabled = false;
+          verifyOtpBtn.textContent = 'Verify Code';
+          return;
+        }
+
+        // Email verified successfully!
+        isEmailVerified = true;
+        verifiedSession = verifyRes.data.session;
+
+        // Update UI
+        document.getElementById('otpSection').style.display = 'none';
+        document.getElementById('verifyEmailBtn').style.display = 'none';
+        document.getElementById('emailVerifiedBadge').style.display = 'inline-flex';
+        document.getElementById('email').readOnly = true;
+
+        // Reveal progressive account creation fields
+        document.getElementById('accountDetailsSection').style.display = 'block';
+        document.getElementById('password').focus();
+      } catch (err) {
+        showRegisterAlert(err.message || 'Error verifying code.', 'error');
+        verifyOtpBtn.disabled = false;
+        verifyOtpBtn.textContent = 'Verify Code';
+      }
+    }
+
+    // Step 2b: Resend OTP
+    async function handleResendOtp() {
+      const email = document.getElementById('email').value.trim().toLowerCase();
+      if (!email) return;
+      try {
+        const supabase = SemesterAuth.getSupabase();
+        const res = await supabase.auth.resend({ type: 'signup', email });
+        if (res.error) {
+          showRegisterAlert(res.error.message || 'Failed to resend code.', 'error');
+          return;
+        }
+        startResendCooldown();
+        clearOtpInputs();
+        if (otpInputs[0]) otpInputs[0].focus();
+        showRegisterAlert('New verification code sent to your email.', 'notice', 'Code Resent');
+      } catch (err) {
+        showRegisterAlert(err.message || 'Failed to resend code.', 'error');
+      }
+    }
+
+    // Step 2c: Change Email
+    function handleChangeEmail() {
+      if (!confirm('Changing your email address will reset verification. Continue?')) {
+        return;
+      }
+      isEmailVerified = false;
+      verifiedSession = null;
+      document.getElementById('email').readOnly = false;
+      document.getElementById('emailVerifiedBadge').style.display = 'none';
+      document.getElementById('verifyEmailBtn').style.display = 'inline-block';
+      document.getElementById('verifyEmailBtn').textContent = 'Verify';
+      document.getElementById('otpSection').style.display = 'none';
+      document.getElementById('accountDetailsSection').style.display = 'none';
+      clearOtpInputs();
+      document.getElementById('email').focus();
+    }
+
+    // Step 3: Final Account Creation
+    async function handleRegisterSubmit(e) {
       e.preventDefault();
       hideAuthAlert();
 
-      const registerBtn = document.getElementById('registerBtn');
-      const form = document.getElementById('registerForm');
-      const successBox = document.getElementById('successBox');
+      if (!isEmailVerified || !verifiedSession) {
+        showRegisterAlert('Please verify your email address before creating your account.', 'error');
+        return;
+      }
 
+      const registerBtn = document.getElementById('registerBtn');
       const fullName = document.getElementById('fullName').value.trim();
-      const studentId = document.getElementById('studentId').value.trim();
-      const username = document.getElementById('username').value.trim();
-      const email = document.getElementById('email').value.trim();
+      const username = document.getElementById('username').value.trim().toLowerCase();
+      const email = document.getElementById('email').value.trim().toLowerCase();
       const department = document.getElementById('department').value;
       const semester = document.getElementById('semester').value;
       const gender = document.getElementById('gender').value;
@@ -292,7 +682,7 @@
       const confirmPassword = document.getElementById('confirmPassword').value;
       const consentCheckbox = document.getElementById('acceptTerms');
 
-      if (!fullName || !studentId || !username || !email || !password || !confirmPassword) {
+      if (!fullName || !username || !email || !password || !confirmPassword) {
         showRegisterAlert('Please fill out all required fields.', 'error');
         return;
       }
@@ -316,19 +706,28 @@
       registerBtn.textContent = 'Creating account…';
 
       try {
+        // 1. Update Supabase password to permanent user choice
+        const supabase = SemesterAuth.getSupabase();
+        const { error: pwdErr } = await supabase.auth.updateUser({ password });
+        if (pwdErr) {
+          showRegisterAlert(pwdErr.message || 'Failed to set account password.', 'error');
+          registerBtn.disabled = false;
+          registerBtn.textContent = 'Create Account';
+          return;
+        }
+
+        // 2. Call backend registration finalization with verified Supabase access token
         const payload = {
           fullName,
-          studentId,
           username,
           email,
           department,
           semester,
           gender: gender || null,
-          password,
-          confirmPassword
+          studentId: username
         };
 
-        const { data, error } = await SemesterAuth.signUp(payload);
+        const { data, error } = await SemesterAuth.signUp(payload, verifiedSession.access_token);
 
         if (error) {
           showRegisterAlert(error.message || 'Registration failed. Please check your information.', 'error', 'Registration Error');
@@ -337,17 +736,52 @@
           return;
         }
 
-        form.style.display = 'none';
-        successBox.style.display = 'block';
-        if (data && data.message) {
-          document.getElementById('successMessageText').textContent = data.message;
-        }
+        // Automatic authentication: directly redirect to student dashboard
+        window.location.href = '/dashboard.html';
       } catch (err) {
         showRegisterAlert(err.message || 'Connection error. Please try again.', 'error');
         registerBtn.disabled = false;
         registerBtn.textContent = 'Create Account';
       }
     }
+
+    // On page load: check if resuming with verified Supabase session
+    window.addEventListener('DOMContentLoaded', async () => {
+      try {
+        const supabase = SemesterAuth.getSupabase();
+        const { data } = await supabase.auth.getSession();
+        if (data && data.session && data.session.user) {
+          const user = data.session.user;
+          if (user.email_confirmed_at || user.confirmed_at) {
+            // Check if already a completed student
+            const meRes = await fetch('/api/me');
+            if (meRes.ok) {
+              window.location.href = '/dashboard.html';
+              return;
+            }
+            // Resume at verified state
+            verifiedSession = data.session;
+            isEmailVerified = true;
+            const emailInput = document.getElementById('email');
+            if (emailInput) {
+              emailInput.value = user.email || '';
+              emailInput.readOnly = true;
+            }
+            const nameInput = document.getElementById('fullName');
+            if (nameInput && user.user_metadata?.name) {
+              nameInput.value = user.user_metadata.name;
+            }
+            const userInput = document.getElementById('username');
+            if (userInput && user.user_metadata?.username) {
+              userInput.value = user.user_metadata.username;
+            }
+            document.getElementById('emailVerifiedBadge').style.display = 'inline-flex';
+            document.getElementById('verifyEmailBtn').style.display = 'none';
+            document.getElementById('accountDetailsSection').style.display = 'block';
+          }
+        }
+      } catch {}
+    });
   </script>
 </body>
 </html>

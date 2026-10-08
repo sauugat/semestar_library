@@ -51,14 +51,15 @@ export interface StudentUser {
 
 export interface RegisterPayload {
   fullName: string;
-  studentId: string;
+  studentId?: string;
   username: string;
   email: string;
   department: string;
   semester: string;
   gender?: string;
-  password: string;
-  confirmPassword: string;
+  password?: string;
+  confirmPassword?: string;
+  supabaseToken?: string;
 }
 
 interface AuthContextType {
@@ -67,7 +68,7 @@ interface AuthContextType {
   serverUrl: string;
   isLoading: boolean;
   login: (identifier: string, password: string, customUrl?: string) => Promise<{ success: boolean; error?: string; code?: string; onboardingRequired?: boolean; onboardingToken?: string; state?: any }>;
-  register: (payload: RegisterPayload, customUrl?: string) => Promise<{ success: boolean; message?: string; error?: string }>;
+  register: (payload: RegisterPayload, customUrl?: string) => Promise<{ success: boolean; message?: string; error?: string; user?: StudentUser; mobileToken?: string }>;
   forgotPassword: (identifier: string, customUrl?: string) => Promise<{ success: boolean; message?: string; error?: string }>;
   resendVerification: (identifier: string, customUrl?: string) => Promise<{ success: boolean; message?: string; error?: string }>;
   refreshProfile: () => Promise<StudentUser | null>;
@@ -246,21 +247,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const register = async (payload: RegisterPayload, customUrl?: string) => {
     const targetUrl = customUrl ? customUrl.trim() : serverUrl;
     try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      };
+      if (payload.supabaseToken) {
+        headers['Authorization'] = `Bearer ${payload.supabaseToken}`;
+      }
+
       const res = await fetch(`${targetUrl}/api/auth/register`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
+        headers,
         body: JSON.stringify(payload),
       });
 
       const data = await res.json().catch(() => ({}));
 
       if (res.ok) {
+        if (data.mobileToken && data.user) {
+          await setSession(data.mobileToken, data.user);
+        }
+
         return {
           success: true,
-          message: data.message || 'Account created successfully! Please verify your email before logging in.',
+          message: data.message || 'Account created successfully!',
+          user: data.user,
+          mobileToken: data.mobileToken,
         };
       } else {
         return {

@@ -119,11 +119,15 @@
     }
   }
 
-  async function signUp(payload) {
+  async function signUp(payload, supabaseToken = null) {
     try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (supabaseToken) {
+        headers['Authorization'] = `Bearer ${supabaseToken}`;
+      }
       const res = await rawFetch('/api/auth/register', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => ({}));
@@ -133,6 +137,23 @@
       return { data: null, error: { message: getResponseErrorMessage(res, data, 'Registration failed. Please check your information.') } };
     } catch (err) {
       return { data: null, error: { message: err.message || 'Network error registering' } };
+    }
+  }
+
+  async function checkAvailability(payload) {
+    try {
+      const res = await rawFetch('/api/auth/check-availability', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.available) {
+        return { data, error: null };
+      }
+      return { data: null, error: { message: getResponseErrorMessage(res, data, 'Email or username is already taken.') } };
+    } catch (err) {
+      return { data: null, error: { message: err.message || 'Network error checking availability' } };
     }
   }
 
@@ -354,6 +375,7 @@
     getAccessToken,
     signIn,
     signUp,
+    checkAvailability,
     signOut,
     forgotPassword,
     resendVerification,

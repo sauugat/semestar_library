@@ -23,7 +23,8 @@ function adminCohortsRouter(arg1, arg2) {
   }
   const router = express.Router();
   router.use((req, res, next) => {
-    if (process.env.COHORT_CHAT_PRODUCTION === '1' && !['GET','HEAD','OPTIONS'].includes(req.method)) {
+    const isCohortRoute = req.path.startsWith('/cohorts') || req.path.startsWith('/unassigned-students');
+    if (isCohortRoute && process.env.COHORT_CHAT_PRODUCTION === '1' && !['GET','HEAD','OPTIONS'].includes(req.method)) {
       return res.status(503).json({ message: 'Cohort administration is temporarily unavailable.' });
     }
     next();

@@ -5,7 +5,7 @@
   <script src="/theme.js"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Teacher Management — Semester Library</title>
+  <title>Teacher Management — Semester Library Admin</title>
   <meta name="description" content="Admin teacher invitation, temporary credential lifecycle, and faculty account management.">
   <link rel="icon" type="image/png" sizes="192x192" href="logo.jpg">
 
@@ -28,10 +28,30 @@
 
   <style>
     :root {
+      --bg-page: #f8fafc;
+      --bg-card: #ffffff;
+      --bg-card-hover: #f1f5f9;
+      --border-color: #e2e8f0;
+      --border-subtle: #edf2f7;
+      --text-primary: #0f172a;
+      --text-secondary: #64748b;
+      --text-muted: #94a3b8;
+      --accent-blue: #2563eb;
+      --accent-green: #10b981;
+      --accent-purple: #8b5cf6;
+      --accent-amber: #f59e0b;
+      --accent-red: #ef4444;
+      --table-header-bg: #f8fafc;
+      --table-row-hover: #f8fafc;
+      --input-bg: #ffffff;
+    }
+
+    [data-theme="dark"], body.dark-mode, .dark {
       --bg-page: #0f1117;
       --bg-card: #181b23;
       --bg-card-hover: #1f232e;
       --border-color: #272d3d;
+      --border-subtle: #212631;
       --text-primary: #f3f4f6;
       --text-secondary: #9ca3af;
       --text-muted: #6b7280;
@@ -40,21 +60,55 @@
       --accent-purple: #8b5cf6;
       --accent-amber: #f59e0b;
       --accent-red: #ef4444;
+      --table-header-bg: #141720;
+      --table-row-hover: #1c202a;
+      --input-bg: #111318;
     }
 
     body {
       background: var(--bg-page);
       color: var(--text-primary);
-      font-family: 'Inter', sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
       margin: 0;
       padding: 0;
       min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
     }
 
     .admin-container {
-      max-width: 1280px;
+      max-width: 1240px;
       margin: 0 auto;
       padding: 24px 20px 80px;
+    }
+
+    .admin-breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+
+    .admin-breadcrumb a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-weight: 500;
+      transition: color 0.15s ease;
+    }
+
+    .admin-breadcrumb a:hover {
+      color: var(--accent-blue);
+    }
+
+    .admin-breadcrumb .breadcrumb-sep {
+      color: var(--text-muted);
+      opacity: 0.6;
+    }
+
+    .admin-breadcrumb .breadcrumb-current {
+      color: var(--text-primary);
+      font-weight: 600;
     }
 
     .admin-header {
@@ -69,11 +123,12 @@
     }
 
     .admin-title-group h1 {
-      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
       font-size: 26px;
-      font-weight: 700;
+      font-weight: 800;
       margin: 0 0 6px 0;
-      letter-spacing: -0.02em;
+      letter-spacing: -0.025em;
+      color: var(--text-primary);
     }
 
     .admin-title-group p {
@@ -102,6 +157,7 @@
       border: 1px solid transparent;
       text-decoration: none;
       white-space: nowrap;
+      font-family: inherit;
     }
 
     .btn:disabled {
@@ -111,15 +167,15 @@
 
     .btn-primary { background: var(--accent-blue); color: #fff; }
     .btn-primary:hover:not(:disabled) { background: #2563eb; }
-    .btn-secondary { background: #222734; color: var(--text-primary); border-color: var(--border-color); }
-    .btn-secondary:hover:not(:disabled) { background: #2a3142; }
+    .btn-secondary { background: var(--bg-card); color: var(--text-primary); border-color: var(--border-color); }
+    .btn-secondary:hover:not(:disabled) { background: var(--bg-card-hover); }
     .btn-success { background: #059669; color: #fff; }
     .btn-success:hover:not(:disabled) { background: #047857; }
     .btn-warning { background: #d97706; color: #fff; }
     .btn-warning:hover:not(:disabled) { background: #b45309; }
     .btn-danger { background: #dc2626; color: #fff; }
     .btn-danger:hover:not(:disabled) { background: #b91c1c; }
-    .btn-sm { padding: 5px 10px; font-size: 12px; border-radius: 6px; }
+    .btn-sm { padding: 6px 11px; font-size: 12px; border-radius: 6px; }
 
     /* Warning Banner */
     .feature-flag-banner {
@@ -139,24 +195,29 @@
     /* Summary Grid */
     .summary-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 16px;
-      margin-bottom: 28px;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 14px;
+      margin-bottom: 24px;
     }
 
     .summary-card {
       background: var(--bg-card);
       border: 1px solid var(--border-color);
       border-radius: 12px;
-      padding: 16px 20px;
+      padding: 16px 18px;
       display: flex;
       flex-direction: column;
       gap: 6px;
+      transition: border-color 0.15s ease, transform 0.15s ease;
+    }
+
+    .summary-card:hover {
+      border-color: #3b4252;
     }
 
     .summary-label {
-      font-size: 12px;
-      font-weight: 500;
+      font-size: 11.5px;
+      font-weight: 600;
       color: var(--text-secondary);
       text-transform: uppercase;
       letter-spacing: 0.05em;
@@ -164,8 +225,8 @@
 
     .summary-value {
       font-family: 'Plus Jakarta Sans', sans-serif;
-      font-size: 28px;
-      font-weight: 700;
+      font-size: 26px;
+      font-weight: 800;
       color: var(--text-primary);
     }
 
@@ -174,8 +235,8 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      gap: 16px;
-      margin-bottom: 20px;
+      gap: 14px;
+      margin-bottom: 18px;
       flex-wrap: wrap;
     }
 
@@ -188,13 +249,14 @@
 
     .search-input-wrap input {
       width: 100%;
-      background: var(--bg-card);
+      background: var(--input-bg);
       border: 1px solid var(--border-color);
       border-radius: 8px;
       padding: 9px 12px 9px 36px;
       color: var(--text-primary);
       font-size: 13px;
       box-sizing: border-box;
+      font-family: inherit;
     }
 
     .search-input-wrap input:focus {
@@ -211,13 +273,13 @@
     }
 
     .filter-select {
-      background: var(--bg-card);
+      background: var(--input-bg);
       border: 1px solid var(--border-color);
-      color: var(--text-primary);
-      padding: 9px 14px;
       border-radius: 8px;
+      padding: 9px 14px;
+      color: var(--text-primary);
       font-size: 13px;
-      font-weight: 500;
+      font-family: inherit;
       cursor: pointer;
     }
 
@@ -226,12 +288,13 @@
       border-color: var(--accent-blue);
     }
 
-    /* Table Styles */
+    /* Table & Container */
     .table-container {
       background: var(--bg-card);
       border: 1px solid var(--border-color);
       border-radius: 12px;
       overflow-x: auto;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
 
     table {
@@ -242,13 +305,13 @@
     }
 
     th {
-      background: #14171f;
+      background: var(--table-header-bg);
       color: var(--text-secondary);
-      font-size: 11px;
       font-weight: 600;
+      font-size: 11.5px;
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      padding: 14px 16px;
+      padding: 12px 16px;
       border-bottom: 1px solid var(--border-color);
       white-space: nowrap;
     }
@@ -256,30 +319,30 @@
     td {
       padding: 14px 16px;
       border-bottom: 1px solid var(--border-color);
-      color: var(--text-primary);
       vertical-align: middle;
-      white-space: nowrap;
+      color: var(--text-primary);
     }
 
     tr:last-child td {
       border-bottom: none;
     }
 
-    tr:hover td {
-      background: var(--bg-card-hover);
+    tbody tr:hover {
+      background: var(--table-row-hover);
     }
 
-    .font-mono {
-      font-family: 'JetBrains Mono', monospace;
-    }
-
-    .temp-user-cell {
+    .username-code {
       font-family: 'JetBrains Mono', monospace;
       font-weight: 600;
-      color: #93c5fd;
+      color: #60a5fa;
+      background: rgba(59, 130, 246, 0.12);
+      padding: 3px 7px;
+      border-radius: 5px;
+      display: inline-block;
+      font-size: 12.5px;
     }
 
-    /* Status Badges */
+    /* Badges */
     .badge {
       display: inline-flex;
       align-items: center;
@@ -289,56 +352,77 @@
       font-size: 11px;
       font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.04em;
     }
 
-    .badge-provisioned { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
-    .badge-onboarding { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
-    .badge-verification { background: rgba(139, 92, 246, 0.15); color: #c084fc; border: 1px solid rgba(139, 92, 246, 0.3); }
-    .badge-active { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
-    .badge-expired { background: rgba(156, 163, 175, 0.15); color: #9ca3af; border: 1px solid rgba(156, 163, 175, 0.3); }
-    .badge-revoked { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+    .badge-provisioned { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.25); }
+    .badge-onboarding { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.25); }
+    .badge-awaiting { background: rgba(139, 92, 246, 0.15); color: #c084fc; border: 1px solid rgba(139, 92, 246, 0.25); }
+    .badge-active { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.25); }
+    .badge-expired { background: rgba(156, 163, 175, 0.15); color: #9ca3af; border: 1px solid rgba(156, 163, 175, 0.25); }
+    .badge-revoked { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.25); }
+
+    .subject-pill {
+      display: inline-block;
+      background: var(--input-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 5px;
+      padding: 2px 7px;
+      font-size: 11.5px;
+      color: var(--text-secondary);
+      margin-right: 4px;
+      margin-bottom: 2px;
+      font-weight: 500;
+    }
 
     .action-group {
       display: flex;
       gap: 6px;
       align-items: center;
+      flex-wrap: wrap;
     }
 
-    /* Modal Styles */
+    .empty-state {
+      padding: 48px 24px;
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+
+    /* Modal Backdrop */
     .modal-backdrop {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.8);
+      background: rgba(0, 0, 0, 0.75);
       backdrop-filter: blur(4px);
       display: none;
       align-items: center;
       justify-content: center;
       z-index: 1000;
       padding: 16px;
-      overflow-y: auto;
     }
 
     .modal-box {
       background: var(--bg-card);
       border: 1px solid var(--border-color);
       border-radius: 14px;
-      max-width: 540px;
+      max-width: 580px;
       width: 100%;
       padding: 24px;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
-      box-sizing: border-box;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
+      max-height: 90vh;
+      overflow-y: auto;
     }
 
     .modal-box.modal-lg {
-      max-width: 740px;
+      max-width: 680px;
     }
 
     .modal-title {
-      font-family: 'Plus Jakarta Sans', sans-serif;
-      font-size: 19px;
+      font-size: 18px;
       font-weight: 700;
-      margin: 0 0 8px;
+      margin: 0 0 6px;
+      color: var(--text-primary);
     }
 
     .modal-desc {
@@ -356,29 +440,72 @@
       flex-wrap: wrap;
     }
 
+    .cred-callout {
+      background: var(--input-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 12px;
+    }
+
+    .cred-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+      font-size: 13px;
+    }
+
+    .cred-label {
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .cred-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .cred-warning-tag {
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      color: #fbbf24;
+      padding: 10px 14px;
+      border-radius: 8px;
+      margin-top: 14px;
+      font-size: 12.5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      line-height: 1.4;
+    }
+
     .form-group {
-      margin-bottom: 18px;
+      margin-bottom: 16px;
     }
 
     .form-label {
       display: block;
       font-size: 12px;
       font-weight: 600;
-      margin-bottom: 6px;
       color: var(--text-secondary);
+      margin-bottom: 6px;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.04em;
     }
 
     .form-input {
       width: 100%;
-      background: #111318;
+      box-sizing: border-box;
+      padding: 10px 14px;
+      background: var(--input-bg);
       border: 1px solid var(--border-color);
       border-radius: 8px;
-      padding: 10px 14px;
       color: var(--text-primary);
-      font-size: 14px;
-      box-sizing: border-box;
+      font-size: 15px;
+      font-family: inherit;
     }
 
     .form-input:focus {
@@ -386,95 +513,56 @@
       border-color: var(--accent-blue);
     }
 
-    /* Credential Callout Box */
-    .cred-callout {
-      background: #111318;
-      border: 1px solid #2d3748;
-      border-radius: 10px;
-      padding: 18px;
-      margin: 16px 0;
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 140px 1fr;
+      gap: 12px 16px;
+      font-size: 13.5px;
+      margin-bottom: 16px;
     }
 
-    .cred-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 8px 0;
-      border-bottom: 1px solid #1f2430;
-      gap: 12px;
-    }
-
-    .cred-row:last-child {
-      border-bottom: none;
-    }
-
-    .cred-label {
-      font-size: 12px;
-      color: var(--text-muted);
+    .detail-grid dt {
+      color: var(--text-secondary);
       font-weight: 500;
     }
 
-    .cred-val {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 14px;
+    .detail-grid dd {
+      margin: 0;
+      color: var(--text-primary);
       font-weight: 600;
-      color: #38bdf8;
-      word-break: break-all;
     }
 
-    .cred-warning-tag {
-      background: rgba(239, 68, 68, 0.12);
-      border: 1px solid rgba(239, 68, 68, 0.3);
-      color: #f87171;
-      padding: 10px 14px;
-      border-radius: 8px;
-      font-size: 12px;
-      margin-top: 14px;
-      line-height: 1.4;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .subject-pill {
-      display: inline-block;
-      background: #1f2533;
-      border: 1px solid #2d3748;
-      color: #93c5fd;
-      padding: 3px 8px;
-      border-radius: 6px;
-      font-size: 11px;
-      margin: 2px 4px 2px 0;
-    }
-
-    .empty-state {
-      padding: 48px 24px;
-      text-align: center;
-      color: var(--text-secondary);
-      font-size: 14px;
-    }
-
-    /* Toast notification */
+    /* Toast */
     #toastBox {
       position: fixed;
       bottom: 24px;
       right: 24px;
-      background: #1f2937;
-      border: 1px solid #374151;
-      color: #fff;
-      padding: 12px 20px;
-      border-radius: 8px;
-      font-size: 13px;
-      font-weight: 500;
-      display: none;
-      align-items: center;
+      display: flex;
+      flex-direction: column;
       gap: 10px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
       z-index: 2000;
     }
 
-    @media (max-width: 640px) {
-      .admin-container { padding: 16px 12px 60px; }
+    .toast-msg {
+      padding: 12px 18px;
+      background: #1f2937;
+      color: #fff;
+      border-radius: 8px;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.35);
+      border: 1px solid #374151;
+    }
+
+    .toast-error {
+      background: #991b1b;
+      border-color: #b91c1c;
+    }
+
+    @media (max-width: 768px) {
+      .admin-container { padding: 16px 14px 60px; }
       .admin-header { flex-direction: column; align-items: flex-start; }
       .summary-grid { grid-template-columns: 1fr 1fr; }
       .controls-bar { flex-direction: column; align-items: stretch; }
@@ -484,8 +572,52 @@
   </style>
 </head>
 
-<body>
-  <div class="admin-container">
+<body class="dash admin-body">
+
+  <!-- Apple Pro Header with Translucent Blur & Seamless Admin Navigation -->
+  <header class="dash-header">
+    <a href="/dashboard.html" class="lib-wordmark">Semester Library</a>
+    <nav class="dash-header-nav">
+      <a href="/dashboard.html" class="header-nav-item">Dashboard</a>
+      <a href="/admin-cohorts.html" class="header-nav-item">Cohorts</a>
+      <a href="/admin-teachers.html" class="header-nav-item active">Teachers</a>
+      <a href="/profile.html" class="header-nav-item">Profile</a>
+    </nav>
+    <div class="dash-header-actions">
+      <button type="button" class="theme-toggle-btn dash-theme-btn" id="themeToggleBtn" aria-label="Toggle theme" title="Toggle theme">
+        <span class="theme-toggle-track">
+          <svg class="theme-icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+          <svg class="theme-icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </span>
+      </button>
+      <a href="/profile.html" class="dash-profile-chip" title="View Profile">
+        <div class="dash-profile-avatar" id="headerAvatar">A</div>
+        <span class="dash-profile-label" id="headerProfileName">Admin</span>
+      </a>
+    </div>
+  </header>
+
+  <main class="admin-container" id="adminContent">
+    <!-- Breadcrumb Context -->
+    <div class="admin-breadcrumb">
+      <a href="/dashboard.html">Admin</a>
+      <span class="breadcrumb-sep">/</span>
+      <span class="breadcrumb-current">Teachers</span>
+    </div>
+
+    <!-- Admin Screen Header -->
     <header class="admin-header">
       <div class="admin-title-group">
         <h1>Teacher Management</h1>
@@ -505,7 +637,7 @@
           Create Multiple
         </button>
         <button type="button" class="btn btn-primary" onclick="submitCreateSingle()">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="12" y2="12"/></svg>
           + Create Teacher Login
         </button>
       </div>
@@ -543,18 +675,18 @@
       </div>
     </div>
 
-    <!-- Controls Bar -->
+    <!-- Controls Bar: Search & Status Filter -->
     <div class="controls-bar">
       <div class="search-input-wrap">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input type="text" id="searchInput" placeholder="Search temporary username, name, email..." oninput="handleSearch(this.value)">
+        <input type="text" id="searchInput" placeholder="Search teacher ID, name, email..." oninput="handleSearch(this.value)">
       </div>
 
       <div style="display: flex; gap: 10px; align-items: center;">
         <label for="statusFilter" style="font-size: 12px; color: var(--text-secondary); font-weight: 500;">Filter:</label>
         <select id="statusFilter" class="filter-select" onchange="handleFilter(this.value)">
           <option value="all">All Statuses</option>
-          <option value="provisioned">Not Activated</option>
+          <option value="provisioned">Awaiting Setup</option>
           <option value="onboarding">Setup Started</option>
           <option value="awaiting_email_verification">Awaiting Verification</option>
           <option value="active">Active Teachers</option>
@@ -564,17 +696,17 @@
       </div>
     </div>
 
-    <!-- Main Table -->
+    <!-- Teacher Invites Table -->
     <div class="table-container">
       <table>
         <thead>
           <tr>
-            <th>Temporary Login</th>
+            <th>Temporary ID</th>
             <th>Status</th>
             <th>Teacher Name</th>
             <th>Permanent Username</th>
             <th>Email</th>
-            <th>Subjects</th>
+            <th>Subjects Taught</th>
             <th>Created</th>
             <th>Expires</th>
             <th style="text-align: right;">Actions</th>
@@ -582,43 +714,22 @@
         </thead>
         <tbody id="invitesTableBody">
           <tr>
-            <td colspan="9" class="empty-state">Loading teacher invitations...</td>
+            <td colspan="9" class="empty-state">Loading teacher management data...</td>
           </tr>
         </tbody>
       </table>
     </div>
-  </div>
+  </main>
 
-  <!-- Modal: Bulk Create -->
-  <div id="bulkCreateModal" class="modal-backdrop">
-    <div class="modal-box">
-      <h3 class="modal-title">Create Multiple Teacher Logins</h3>
-      <p class="modal-desc">Generate a batch of temporary logins and high-entropy passwords at once.</p>
-
-      <div class="feature-flag-banner" style="margin-bottom: 20px;">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        <div>
-          Temporary credentials expire after the configured invitation period (14 days). Generate them only when you plan to distribute them.
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label" for="bulkCountInput">Number of Accounts (1–50)</label>
-        <input type="number" id="bulkCountInput" class="form-input" min="1" max="50" value="10">
-      </div>
-
-      <div class="modal-actions">
-        <button type="button" class="btn btn-secondary" onclick="closeModal('bulkCreateModal')">Cancel</button>
-        <button type="button" class="btn btn-primary" id="confirmBulkBtn" onclick="submitCreateBulk()">Generate Batch</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal: One-Time Credential Display -->
+  <!-- ============================================================ -->
+  <!-- MODAL: ONE-TIME CREDENTIALS DISPLAY                          -->
+  <!-- ============================================================ -->
   <div id="credentialModal" class="modal-backdrop">
     <div class="modal-box modal-lg">
       <h3 class="modal-title" id="credentialModalTitle">Teacher Login Created</h3>
-      <p class="modal-desc" id="credentialModalDesc">Credentials generated securely. Distribute these to faculty members.</p>
+      <p class="modal-desc" id="credentialModalDesc">
+        Credentials generated securely. Distribute these to faculty members.
+      </p>
 
       <div id="singleCredView" style="display: none;">
         <div class="cred-callout">
@@ -628,7 +739,7 @@
           </div>
           <div class="cred-row">
             <span class="cred-label">Temporary Password:</span>
-            <span class="cred-val" id="singleCredPassword">—</span>
+            <span class="cred-val" id="singleCredPassword" style="color: #60a5fa;">—</span>
           </div>
           <div class="cred-row">
             <span class="cred-label">Expires:</span>
@@ -675,7 +786,38 @@
     </div>
   </div>
 
-  <!-- Modal: Regenerate Password Confirmation -->
+  <!-- ============================================================ -->
+  <!-- MODAL: BULK CREATE                                           -->
+  <!-- ============================================================ -->
+  <div id="bulkCreateModal" class="modal-backdrop">
+    <div class="modal-box">
+      <h3 class="modal-title">Create Multiple Teacher Logins</h3>
+      <p class="modal-desc">
+        Generate a batch of temporary logins and high-entropy passwords at once.
+      </p>
+
+      <div class="feature-flag-banner" style="margin-bottom: 20px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <div>
+          Temporary credentials expire after the configured invitation period (14 days). Generate them only when you plan to distribute them.
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="bulkCountInput">Number of Accounts (1–50)</label>
+        <input type="number" id="bulkCountInput" class="form-input" min="1" max="50" value="10">
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('bulkCreateModal')">Cancel</button>
+        <button type="button" id="confirmBulkBtn" class="btn btn-primary" onclick="submitCreateBulk()">Generate Batch</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- MODAL: REGENERATE PASSWORD CONFIRMATION                      -->
+  <!-- ============================================================ -->
   <div id="regenerateModal" class="modal-backdrop">
     <div class="modal-box">
       <h3 class="modal-title">Regenerate Temporary Password</h3>
@@ -690,7 +832,9 @@
     </div>
   </div>
 
-  <!-- Modal: Reissue Expired Invite Confirmation -->
+  <!-- ============================================================ -->
+  <!-- MODAL: REISSUE EXPIRED INVITE CONFIRMATION                   -->
+  <!-- ============================================================ -->
   <div id="reissueModal" class="modal-backdrop">
     <div class="modal-box">
       <h3 class="modal-title">Reissue Teacher Invite</h3>
@@ -705,7 +849,9 @@
     </div>
   </div>
 
-  <!-- Modal: Revoke Invite Confirmation -->
+  <!-- ============================================================ -->
+  <!-- MODAL: REVOKE INVITE CONFIRMATION                            -->
+  <!-- ============================================================ -->
   <div id="revokeModal" class="modal-backdrop">
     <div class="modal-box">
       <h3 class="modal-title" style="color: #f87171;">Revoke Teacher Invite</h3>
@@ -720,44 +866,18 @@
     </div>
   </div>
 
-  <!-- Modal: Teacher Detail Drawer / Modal -->
+  <!-- ============================================================ -->
+  <!-- MODAL: ACTIVE TEACHER DETAILS                                -->
+  <!-- ============================================================ -->
   <div id="detailModal" class="modal-backdrop">
     <div class="modal-box">
       <h3 class="modal-title">Teacher Account Details</h3>
       <p class="modal-desc" id="detailSubtitle">Activated faculty profile</p>
 
-      <div class="cred-callout">
-        <div class="cred-row">
-          <span class="cred-label">Full Name:</span>
-          <span class="cred-val" style="color: var(--text-primary);" id="detailName">—</span>
-        </div>
-        <div class="cred-row">
-          <span class="cred-label">Permanent Username:</span>
-          <span class="cred-val" id="detailUsername">—</span>
-        </div>
-        <div class="cred-row">
-          <span class="cred-label">Email:</span>
-          <span class="cred-val" style="color: var(--text-primary); font-family: inherit;" id="detailEmail">—</span>
-        </div>
-        <div class="cred-row">
-          <span class="cred-label">Status:</span>
-          <span id="detailStatusBadge">—</span>
-        </div>
-        <div class="cred-row">
-          <span class="cred-label">Designation:</span>
-          <span style="font-size: 13px;" id="detailDesignation">Instructor</span>
-        </div>
-        <div class="cred-row">
-          <span class="cred-label">Activation Date:</span>
-          <span style="font-size: 13px; color: var(--text-secondary);" id="detailActivatedAt">—</span>
-        </div>
-      </div>
-
-      <div style="margin-top: 16px;">
-        <label class="form-label">Subjects Taught</label>
-        <div id="detailSubjectsList" style="margin-top: 8px;">
-          <span style="color: var(--text-muted); font-size: 13px;">None assigned</span>
-        </div>
+      <div id="detailModalBody">
+        <dl class="detail-grid" id="detailGrid">
+          <!-- Populated via JS -->
+        </dl>
       </div>
 
       <div class="modal-actions">
@@ -776,6 +896,23 @@
     let activeFilter = 'all';
     let searchQuery = '';
 
+    // Load admin profile chip from /api/me
+    async function loadAdminHeaderProfile() {
+      try {
+        const res = await fetch('/api/me');
+        if (res.ok) {
+          const u = await res.json();
+          if (u && u.name) {
+            const initial = u.name.charAt(0).toUpperCase();
+            const av = document.getElementById('headerAvatar');
+            const lbl = document.getElementById('headerProfileName');
+            if (av) av.textContent = initial;
+            if (lbl) lbl.textContent = u.name.split(' ')[0] || 'Admin';
+          }
+        }
+      } catch (e) {}
+    }
+
     // Fetch and render data
     async function loadData() {
       try {
@@ -786,16 +923,23 @@
         const res = await fetch('/api/admin/teacher-invites?' + queryParams.toString());
         if (!res.ok) {
           if (res.status === 401 || res.status === 403) {
-            document.body.innerHTML = `
-              <div style="max-width: 500px; margin: 100px auto; text-align: center; font-family: sans-serif; color: #fff;">
-                <h2 style="color: #f87171;">Access Denied</h2>
-                <p style="color: #9ca3af;">Administrator access required to view Teacher Management.</p>
-                <a href="/login.html" style="color: #38bdf8; text-decoration: underline;">Return to Login</a>
-              </div>
-            `;
+            const main = document.getElementById('adminContent');
+            if (main) {
+              main.innerHTML = `
+                <div class="empty-state" style="padding: 60px 20px; max-width: 480px; margin: 40px auto; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px;">
+                  <h2 style="color: var(--accent-red); margin: 0 0 8px 0; font-size: 20px;">Access Denied</h2>
+                  <p style="color: var(--text-secondary); margin: 0 0 20px 0;">Administrator access required to view Teacher Management.</p>
+                  <a href="/login.html" class="btn btn-secondary">Return to Login</a>
+                </div>
+              `;
+            }
             return;
           }
-          throw new Error('Failed to load teacher invites');
+          const errData = await res.json().catch(() => ({}));
+          const safeMsg = errData.message && !errData.message.toLowerCase().includes('cohort')
+            ? errData.message
+            : 'Teacher management is temporarily unavailable.';
+          throw new Error(safeMsg);
         }
 
         const data = await res.json();
@@ -804,43 +948,57 @@
 
         // Feature flag banner
         const banner = document.getElementById('onboardingDisabledBanner');
-        if (data.onboarding_enabled === false) {
-          banner.style.display = 'flex';
-        } else {
-          banner.style.display = 'none';
+        if (banner) {
+          if (data.onboarding_enabled === false) {
+            banner.style.display = 'flex';
+          } else {
+            banner.style.display = 'none';
+          }
         }
 
         renderSummary();
         renderTable();
       } catch (err) {
-        showToast(err.message, true);
+        const safeMsg = err.message && !err.message.toLowerCase().includes('cohort')
+          ? err.message
+          : 'Teacher management is temporarily unavailable.';
+        showToast(safeMsg, true);
+        const tbody = document.getElementById('invitesTableBody');
+        if (tbody && invitesData.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="9" class="empty-state" style="color: var(--accent-red);">${escapeHtml(safeMsg)}</td></tr>`;
+        }
       }
     }
 
     function renderSummary() {
-      document.getElementById('summaryTotal').textContent = summaryData.total_invites || 0;
-      document.getElementById('summaryAwaiting').textContent = summaryData.awaiting_activation || 0;
-      document.getElementById('summaryActive').textContent = summaryData.active_teachers || 0;
-      document.getElementById('summaryExpired').textContent = summaryData.expired || 0;
-      document.getElementById('summaryRevoked').textContent = summaryData.revoked || 0;
+      const setVal = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = val !== undefined ? val : 0;
+      };
+      setVal('summaryTotal', summaryData.total_invites);
+      setVal('summaryAwaiting', summaryData.awaiting_activation);
+      setVal('summaryActive', summaryData.active_teachers);
+      setVal('summaryExpired', summaryData.expired);
+      setVal('summaryRevoked', summaryData.revoked);
     }
 
     function renderTable() {
       const tbody = document.getElementById('invitesTableBody');
+      if (!tbody) return;
+
       if (invitesData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="empty-state">No teacher invitations found matching your criteria.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="empty-state">No teacher invitations found. Use "+ Create Teacher Login" to generate credentials.</td></tr>';
         return;
       }
 
       tbody.innerHTML = invitesData.map(item => {
         const isCompleted = item.status === 'active';
-        const isExpired = item.status === 'expired';
         const isRevoked = item.status === 'revoked';
         const isUncompleted = !isCompleted && !isRevoked;
 
         const teacher = item.teacher || {};
         const teacherName = teacher.name ? escapeHtml(teacher.name) : '—';
-        const permanentUsername = teacher.username ? escapeHtml(teacher.username) : '—';
+        const permanentUsername = teacher.username ? `@${escapeHtml(teacher.username)}` : '—';
         const teacherEmail = teacher.email ? escapeHtml(teacher.email) : '—';
 
         let subjectsHtml = '—';
@@ -848,88 +1006,56 @@
           subjectsHtml = teacher.subjects.map(s => `<span class="subject-pill">${escapeHtml(s.code)}</span>`).join('');
         }
 
-        const createdStr = formatDate(item.created_at);
-        const expiresStr = formatExpiry(item.expires_at, isCompleted, isRevoked);
+        const createdAt = item.created_at ? new Date(item.created_at).toLocaleDateString() : '—';
+        const expiresAt = item.expires_at ? new Date(item.expires_at).toLocaleDateString() : '—';
+
+        let badgeHtml = '';
+        if (item.status === 'active') badgeHtml = '<span class="badge badge-active">Active</span>';
+        else if (item.status === 'provisioned') badgeHtml = '<span class="badge badge-provisioned">Awaiting Setup</span>';
+        else if (item.status === 'onboarding') badgeHtml = '<span class="badge badge-onboarding">Setup Started</span>';
+        else if (item.status === 'awaiting_email_verification') badgeHtml = '<span class="badge badge-awaiting">Awaiting Verification</span>';
+        else if (item.status === 'expired') badgeHtml = '<span class="badge badge-expired">Expired</span>';
+        else if (item.status === 'revoked') badgeHtml = '<span class="badge badge-revoked">Revoked</span>';
+        else badgeHtml = `<span class="badge badge-provisioned">${escapeHtml(item.status)}</span>`;
+
+        let actionsHtml = '';
+        if (isUncompleted) {
+          actionsHtml = `
+            <div class="action-group" style="justify-content: flex-end;">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="openRegenerateModal('${escapeHtml(item.temporary_username)}')">Regenerate</button>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="openReissueModal('${escapeHtml(item.temporary_username)}')">Reissue</button>
+              <button type="button" class="btn btn-danger btn-sm" onclick="openRevokeModal('${escapeHtml(item.temporary_username)}')">Revoke</button>
+            </div>
+          `;
+        } else if (isCompleted) {
+          actionsHtml = `
+            <div class="action-group" style="justify-content: flex-end;">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="openDetailModal('${escapeHtml(item.temporary_username)}')">View Details</button>
+            </div>
+          `;
+        } else {
+          actionsHtml = '<span style="color: var(--text-muted); font-size: 12px;">—</span>';
+        }
 
         return `
           <tr>
-            <td class="temp-user-cell">${escapeHtml(item.initial_username)}</td>
-            <td>${renderStatusBadge(item)}</td>
-            <td>${teacherName}</td>
-            <td class="font-mono">${permanentUsername}</td>
-            <td>${teacherEmail}</td>
+            <td><span class="username-code">${escapeHtml(item.temporary_username)}</span></td>
+            <td>${badgeHtml}</td>
+            <td><strong>${teacherName}</strong></td>
+            <td><span style="font-family: monospace; font-size: 12.5px;">${permanentUsername}</span></td>
+            <td style="color: var(--text-secondary);">${teacherEmail}</td>
             <td>${subjectsHtml}</td>
-            <td style="color: var(--text-secondary); font-size: 12px;">${createdStr}</td>
-            <td style="color: var(--text-secondary); font-size: 12px;">${expiresStr}</td>
-            <td style="text-align: right;">
-              <div class="action-group" style="justify-content: flex-end;">
-                ${isCompleted ? `
-                  <button type="button" class="btn btn-secondary btn-sm" onclick="openDetailModal('${item.id}')">View Details</button>
-                ` : ''}
-
-                ${isUncompleted && !isExpired ? `
-                  <button type="button" class="btn btn-warning btn-sm" onclick="promptRegenerate('${item.id}')">Generate New Password</button>
-                  <button type="button" class="btn btn-danger btn-sm" onclick="promptRevoke('${item.id}')">Revoke</button>
-                ` : ''}
-
-                ${isExpired && !isRevoked ? `
-                  <button type="button" class="btn btn-primary btn-sm" onclick="promptReissue('${item.id}')">Reissue Invite</button>
-                  <button type="button" class="btn btn-danger btn-sm" onclick="promptRevoke('${item.id}')">Revoke</button>
-                ` : ''}
-
-                ${isRevoked ? `
-                  <span style="color: var(--text-muted); font-size: 12px; font-style: italic;">Revoked</span>
-                ` : ''}
-              </div>
-            </td>
+            <td style="color: var(--text-secondary); white-space: nowrap;">${createdAt}</td>
+            <td style="color: var(--text-secondary); white-space: nowrap;">${expiresAt}</td>
+            <td style="text-align: right;">${actionsHtml}</td>
           </tr>
         `;
       }).join('');
     }
 
-    function renderStatusBadge(item) {
-      const s = item.status;
-      if (s === 'active') return `<span class="badge badge-active">Active</span>`;
-      if (s === 'revoked') return `<span class="badge badge-revoked">Revoked</span>`;
-      if (s === 'expired') return `<span class="badge badge-expired">Expired</span>`;
-      if (s === 'awaiting_email_verification') return `<span class="badge badge-verification">Awaiting Verification</span>`;
-      if (s === 'onboarding') return `<span class="badge badge-onboarding">Setup Started</span>`;
-      return `<span class="badge badge-provisioned">Not Activated</span>`;
-    }
-
-    function formatDate(iso) {
-      if (!iso) return '—';
-      try {
-        const d = new Date(iso);
-        return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-      } catch (_) {
-        return iso;
-      }
-    }
-
-    function formatExpiry(iso, isCompleted, isRevoked) {
-      if (isCompleted) return 'Activated';
-      if (isRevoked) return 'Revoked';
-      if (!iso) return '—';
-      try {
-        const d = new Date(iso);
-        const diffMs = d.getTime() - Date.now();
-        const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-        if (diffDays <= 0) return 'Expired';
-        return `In ${diffDays} day${diffDays === 1 ? '' : 's'}`;
-      } catch (_) {
-        return iso;
-      }
-    }
-
-    // Search and Filter Handlers
-    let searchDebounceTimer;
     function handleSearch(val) {
-      clearTimeout(searchDebounceTimer);
-      searchDebounceTimer = setTimeout(() => {
-        searchQuery = val.trim();
-        loadData();
-      }, 300);
+      searchQuery = val.trim();
+      loadData();
     }
 
     function handleFilter(val) {
@@ -947,8 +1073,11 @@
         });
 
         if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.message || 'Failed to create teacher login.');
+          const err = await res.json().catch(() => ({}));
+          const safeMsg = err.message && !err.message.toLowerCase().includes('cohort')
+            ? err.message
+            : 'Teacher management is temporarily unavailable.';
+          throw new Error(safeMsg);
         }
 
         const data = await res.json();
@@ -958,13 +1087,17 @@
         showSingleCredential(created);
         loadData();
       } catch (err) {
-        showToast(err.message, true);
+        const safeMsg = err.message && !err.message.toLowerCase().includes('cohort')
+          ? err.message
+          : 'Teacher management is temporarily unavailable.';
+        showToast(safeMsg, true);
       }
     }
 
     // Bulk Create Modal
     function openBulkCreateModal() {
-      document.getElementById('bulkCountInput').value = 10;
+      const input = document.getElementById('bulkCountInput');
+      if (input) input.value = 10;
       openModal('bulkCreateModal');
     }
 
@@ -977,8 +1110,10 @@
       }
 
       const btn = document.getElementById('confirmBulkBtn');
-      btn.disabled = true;
-      btn.textContent = 'Generating...';
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Generating...';
+      }
 
       try {
         const res = await fetch('/api/admin/teacher-invites', {
@@ -988,8 +1123,11 @@
         });
 
         if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.message || 'Failed to generate bulk teacher logins.');
+          const err = await res.json().catch(() => ({}));
+          const safeMsg = err.message && !err.message.toLowerCase().includes('cohort')
+            ? err.message
+            : 'Teacher management is temporarily unavailable.';
+          throw new Error(safeMsg);
         }
 
         const data = await res.json();
@@ -997,10 +1135,15 @@
         showBulkCredentials(data.invites || []);
         loadData();
       } catch (err) {
-        showToast(err.message, true);
+        const safeMsg = err.message && !err.message.toLowerCase().includes('cohort')
+          ? err.message
+          : 'Teacher management is temporarily unavailable.';
+        showToast(safeMsg, true);
       } finally {
-        btn.disabled = false;
-        btn.textContent = 'Generate Batch';
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = 'Generate Batch';
+        }
       }
     }
 
@@ -1009,220 +1152,283 @@
       lastGeneratedBatch = [inv];
       document.getElementById('credentialModalTitle').textContent = 'Teacher Login Created';
       document.getElementById('credentialModalDesc').textContent = 'Credentials generated securely. Distribute these to the faculty member.';
-
-      document.getElementById('singleCredUsername').textContent = inv.temporary_username;
-      document.getElementById('singleCredPassword').textContent = inv.temporary_password;
-      document.getElementById('singleCredExpires').textContent = formatDate(inv.expires_at);
+      document.getElementById('singleCredUsername').textContent = inv.temporary_username || inv.username || '—';
+      document.getElementById('singleCredPassword').textContent = inv.temporary_password || inv.temporaryPassword || '—';
+      document.getElementById('singleCredExpires').textContent = inv.expires_at || inv.expiresAt ? new Date(inv.expires_at || inv.expiresAt).toLocaleDateString() : '14 days';
 
       document.getElementById('singleCredView').style.display = 'block';
       document.getElementById('bulkCredView').style.display = 'none';
-
       openModal('credentialModal');
     }
 
-    function showBulkCredentials(invites) {
-      lastGeneratedBatch = invites;
-      document.getElementById('credentialModalTitle').textContent = `${invites.length} Teacher Logins Created`;
+    function showBulkCredentials(batch) {
+      lastGeneratedBatch = batch;
+      document.getElementById('credentialModalTitle').textContent = `${batch.length} Teacher Logins Created`;
       document.getElementById('credentialModalDesc').textContent = 'Temporary credentials generated. Save or download CSV immediately before closing.';
 
       const tbody = document.getElementById('bulkCredTableBody');
-      tbody.innerHTML = invites.map(inv => `
-        <tr>
-          <td class="font-mono">${escapeHtml(inv.temporary_username)}</td>
-          <td class="font-mono" style="color: #38bdf8;">${escapeHtml(inv.temporary_password)}</td>
-          <td style="color: var(--text-secondary);">${formatDate(inv.expires_at)}</td>
-        </tr>
-      `).join('');
+      if (tbody) {
+        tbody.innerHTML = batch.map(inv => {
+          const u = inv.temporary_username || inv.username || '—';
+          const p = inv.temporary_password || inv.temporaryPassword || '—';
+          const exp = inv.expires_at || inv.expiresAt ? new Date(inv.expires_at || inv.expiresAt).toLocaleDateString() : '14 days';
+          return `
+            <tr>
+              <td><span style="font-family: monospace; font-weight: 600;">${escapeHtml(u)}</span></td>
+              <td><span style="font-family: monospace; color: #60a5fa; font-weight: 600;">${escapeHtml(p)}</span></td>
+              <td style="color: var(--text-secondary);">${escapeHtml(exp)}</td>
+            </tr>
+          `;
+        }).join('');
+      }
 
       document.getElementById('singleCredView').style.display = 'none';
       document.getElementById('bulkCredView').style.display = 'block';
-
       openModal('credentialModal');
     }
 
     function closeCredentialModal() {
-      // Clear memory references to plaintext passwords
       lastGeneratedBatch = [];
-      document.getElementById('singleCredPassword').textContent = '—';
-      document.getElementById('bulkCredTableBody').innerHTML = '';
       closeModal('credentialModal');
     }
 
-    // Copy Handlers
     function copySingleUsername() {
-      if (!lastGeneratedBatch[0]) return;
-      copyTextToClipboard(lastGeneratedBatch[0].temporary_username, 'Username copied');
+      const u = document.getElementById('singleCredUsername').textContent;
+      copyToClipboard(u, 'Username copied to clipboard');
     }
 
     function copySinglePassword() {
-      if (!lastGeneratedBatch[0]) return;
-      copyTextToClipboard(lastGeneratedBatch[0].temporary_password, 'Temporary password copied');
+      const p = document.getElementById('singleCredPassword').textContent;
+      copyToClipboard(p, 'Password copied to clipboard');
     }
 
     function copySingleBoth() {
-      if (!lastGeneratedBatch[0]) return;
-      const inv = lastGeneratedBatch[0];
-      const message = `Semester Library Teacher Login\n\nUsername: ${inv.temporary_username}\nTemporary Password: ${inv.temporary_password}\n\nOpen Semester Library and sign in.\nYou will be asked to create your permanent teacher account.`;
-      copyTextToClipboard(message, 'Credentials copied to clipboard');
+      const u = document.getElementById('singleCredUsername').textContent;
+      const p = document.getElementById('singleCredPassword').textContent;
+      const cleanMsg = `Gandaki University — Semester Library Faculty Login\\nUsername: ${u}\\nTemporary Password: ${p}\\n\\nPlease log in at https://semestar-library.vercel.app/login.html to complete faculty onboarding and set your permanent password.`;
+      copyToClipboard(cleanMsg, 'Login details copied to clipboard');
     }
 
     function copyAllBulk() {
-      if (lastGeneratedBatch.length === 0) return;
-      const text = lastGeneratedBatch.map(inv => `${inv.temporary_username}\t${inv.temporary_password}\t${inv.expires_at}`).join('\n');
-      copyTextToClipboard(text, 'All credentials copied');
+      if (!lastGeneratedBatch || lastGeneratedBatch.length === 0) return;
+      const text = lastGeneratedBatch.map(inv => {
+        const u = inv.temporary_username || inv.username;
+        const p = inv.temporary_password || inv.temporaryPassword;
+        return `Username: ${u}\\nTemporary Password: ${p}`;
+      }).join('\\n\\n---\\n\\n');
+      copyToClipboard(text, 'All credentials copied to clipboard');
     }
 
     function downloadBulkCsv() {
-      if (lastGeneratedBatch.length === 0) return;
-      const rows = [
-        ['temporary_username', 'temporary_password', 'expires_at'].join(',')
-      ];
-      for (const inv of lastGeneratedBatch) {
-        rows.push([inv.temporary_username, inv.temporary_password, inv.expires_at].join(','));
-      }
-      const csvContent = 'data:text/csv;charset=utf-8,' + encodeURIComponent(rows.join('\n'));
-      const a = document.createElement('a');
-      a.setAttribute('href', csvContent);
-      a.setAttribute('download', `teacher-logins-${Date.now()}.csv`);
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      if (!lastGeneratedBatch || lastGeneratedBatch.length === 0) return;
+      let csv = 'temporary_username,temporary_password,expires_at\\n';
+      lastGeneratedBatch.forEach(inv => {
+        const u = inv.temporary_username || inv.username;
+        const p = inv.temporary_password || inv.temporaryPassword;
+        const exp = inv.expires_at || inv.expiresAt || '';
+        csv += `"${u}","${p}","${exp}"\\n`;
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `teacher_invites_${Date.now()}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
       showToast('CSV downloaded');
     }
 
-    // Regenerate Password
-    function promptRegenerate(id) {
-      document.getElementById('regenerateInviteId').value = id;
+    // Modal action openers
+    function openRegenerateModal(username) {
+      document.getElementById('regenerateInviteId').value = username;
       openModal('regenerateModal');
     }
 
     async function submitRegeneratePassword() {
-      const inviteId = document.getElementById('regenerateInviteId').value;
+      const username = document.getElementById('regenerateInviteId').value;
       const btn = document.getElementById('confirmRegenerateBtn');
-      btn.disabled = true;
+      if (btn) btn.disabled = true;
 
       try {
-        const res = await fetch(`/api/admin/teacher-invites/${inviteId}/regenerate-password`, {
+        const res = await fetch(`/api/admin/teacher-invites/${encodeURIComponent(username)}/regenerate-password`, {
           method: 'POST'
         });
-
         if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.message || 'Failed to regenerate password.');
+          const err = await res.json().catch(() => ({}));
+          const safeMsg = err.message && !err.message.toLowerCase().includes('cohort')
+            ? err.message
+            : 'Teacher management is temporarily unavailable.';
+          throw new Error(safeMsg);
         }
-
         const data = await res.json();
         closeModal('regenerateModal');
-        showSingleCredential(data);
+        showSingleCredential({
+          temporary_username: username,
+          temporary_password: data.temporaryPassword || data.temporary_password,
+          expires_at: data.expiresAt || data.expires_at
+        });
         loadData();
       } catch (err) {
-        showToast(err.message, true);
+        const safeMsg = err.message && !err.message.toLowerCase().includes('cohort')
+          ? err.message
+          : 'Teacher management is temporarily unavailable.';
+        showToast(safeMsg, true);
       } finally {
-        btn.disabled = false;
+        if (btn) btn.disabled = false;
       }
     }
 
-    // Reissue Invite
-    function promptReissue(id) {
-      document.getElementById('reissueInviteId').value = id;
+    function openReissueModal(username) {
+      document.getElementById('reissueInviteId').value = username;
       openModal('reissueModal');
     }
 
     async function submitReissue() {
-      const inviteId = document.getElementById('reissueInviteId').value;
+      const username = document.getElementById('reissueInviteId').value;
       const btn = document.getElementById('confirmReissueBtn');
-      btn.disabled = true;
+      if (btn) btn.disabled = true;
 
       try {
-        const res = await fetch(`/api/admin/teacher-invites/${inviteId}/reissue`, {
+        const res = await fetch(`/api/admin/teacher-invites/${encodeURIComponent(username)}/reissue`, {
           method: 'POST'
         });
-
         if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.message || 'Failed to reissue invite.');
+          const err = await res.json().catch(() => ({}));
+          const safeMsg = err.message && !err.message.toLowerCase().includes('cohort')
+            ? err.message
+            : 'Teacher management is temporarily unavailable.';
+          throw new Error(safeMsg);
         }
-
         const data = await res.json();
         closeModal('reissueModal');
-        showSingleCredential(data);
+        showSingleCredential({
+          temporary_username: username,
+          temporary_password: data.temporaryPassword || data.temporary_password,
+          expires_at: data.expiresAt || data.expires_at
+        });
         loadData();
       } catch (err) {
-        showToast(err.message, true);
+        const safeMsg = err.message && !err.message.toLowerCase().includes('cohort')
+          ? err.message
+          : 'Teacher management is temporarily unavailable.';
+        showToast(safeMsg, true);
       } finally {
-        btn.disabled = false;
+        if (btn) btn.disabled = false;
       }
     }
 
-    // Revoke Invite
-    function promptRevoke(id) {
-      document.getElementById('revokeInviteId').value = id;
+    function openRevokeModal(username) {
+      document.getElementById('revokeInviteId').value = username;
       openModal('revokeModal');
     }
 
     async function submitRevoke() {
-      const inviteId = document.getElementById('revokeInviteId').value;
+      const username = document.getElementById('revokeInviteId').value;
       const btn = document.getElementById('confirmRevokeBtn');
-      btn.disabled = true;
+      if (btn) btn.disabled = true;
 
       try {
-        const res = await fetch(`/api/admin/teacher-invites/${inviteId}/revoke`, {
+        const res = await fetch(`/api/admin/teacher-invites/${encodeURIComponent(username)}/revoke`, {
           method: 'POST'
         });
-
         if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.message || 'Failed to revoke invite.');
+          const err = await res.json().catch(() => ({}));
+          const safeMsg = err.message && !err.message.toLowerCase().includes('cohort')
+            ? err.message
+            : 'Teacher management is temporarily unavailable.';
+          throw new Error(safeMsg);
         }
-
         closeModal('revokeModal');
         showToast('Teacher invitation revoked.');
         loadData();
       } catch (err) {
-        showToast(err.message, true);
+        const safeMsg = err.message && !err.message.toLowerCase().includes('cohort')
+          ? err.message
+          : 'Teacher management is temporarily unavailable.';
+        showToast(safeMsg, true);
       } finally {
-        btn.disabled = false;
+        if (btn) btn.disabled = false;
       }
     }
 
-    // Detail Modal
-    async function openDetailModal(id) {
+    // View Faculty Details
+    async function openDetailModal(username) {
       try {
-        const res = await fetch(`/api/admin/teacher-invites/${id}/detail`);
-        if (!res.ok) throw new Error('Failed to load teacher details.');
-
+        const res = await fetch(`/api/admin/teacher-invites/${encodeURIComponent(username)}`);
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          const safeMsg = err.message && !err.message.toLowerCase().includes('cohort')
+            ? err.message
+            : 'Teacher management is temporarily unavailable.';
+          throw new Error(safeMsg);
+        }
         const data = await res.json();
         const teacher = data.teacher || {};
 
-        document.getElementById('detailName').textContent = teacher.name || '—';
-        document.getElementById('detailUsername').textContent = teacher.username || '—';
-        document.getElementById('detailEmail').textContent = teacher.email || '—';
-        document.getElementById('detailDesignation').textContent = teacher.designation || 'Instructor';
-        document.getElementById('detailActivatedAt').textContent = formatDate(data.completed_at);
-        document.getElementById('detailStatusBadge').innerHTML = renderStatusBadge(data);
-
-        const subjectsContainer = document.getElementById('detailSubjectsList');
+        let subjectsList = 'None assigned';
         if (teacher.subjects && teacher.subjects.length > 0) {
-          subjectsContainer.innerHTML = teacher.subjects.map(s => `
-            <div style="background: #111318; border: 1px solid var(--border-color); border-radius: 6px; padding: 6px 10px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
-              <div>
-                <span class="subject-pill">${escapeHtml(s.code)}</span>
-                <span style="font-size: 13px; font-weight: 500;">${escapeHtml(s.name)}</span>
-              </div>
-              <span style="font-size: 11px; color: var(--text-muted);">Semester ${s.semester}</span>
-            </div>
-          `).join('');
-        } else {
-          subjectsContainer.innerHTML = '<span style="color: var(--text-muted); font-size: 13px;">No subjects assigned</span>';
+          subjectsList = teacher.subjects.map(s => `${escapeHtml(s.code)}${s.title ? ` (${escapeHtml(s.title)})` : ''}`).join(', ');
         }
 
+        document.getElementById('detailSubtitle').textContent = `Invite: ${escapeHtml(username)}`;
+        document.getElementById('detailGrid').innerHTML = `
+          <dt>Full Name:</dt><dd>${escapeHtml(teacher.name || '—')}</dd>
+          <dt>Username:</dt><dd><span style="font-family: monospace;">@${escapeHtml(teacher.username || '—')}</span></dd>
+          <dt>Role:</dt><dd><span class="badge badge-active">Teacher</span></dd>
+          <dt>Email:</dt><dd>${escapeHtml(teacher.email || '—')}</dd>
+          <dt>Designation:</dt><dd>${escapeHtml(teacher.designation || 'Lecturer')}</dd>
+          <dt>Department:</dt><dd>${escapeHtml(teacher.department || 'BIT')}</dd>
+          <dt>Subjects Taught:</dt><dd>${subjectsList}</dd>
+        `;
         openModal('detailModal');
       } catch (err) {
-        showToast(err.message, true);
+        const safeMsg = err.message && !err.message.toLowerCase().includes('cohort')
+          ? err.message
+          : 'Teacher management is temporarily unavailable.';
+        showToast(safeMsg, true);
       }
     }
 
-    // Modal helpers
+    // Clipboard and Utilities
+    function copyToClipboard(text, successMsg) {
+      if (!navigator.clipboard) {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+          document.execCommand('copy');
+          showToast(successMsg || 'Copied!');
+        } catch (err) {
+          showToast('Could not copy to clipboard', true);
+        }
+        document.body.removeChild(textArea);
+        return;
+      }
+      navigator.clipboard.writeText(text).then(() => {
+        showToast(successMsg || 'Copied!');
+      }).catch(() => {
+        showToast('Could not copy to clipboard', true);
+      });
+    }
+
+    function showToast(msg, isError) {
+      const box = document.getElementById('toastBox');
+      const div = document.createElement('div');
+      div.className = `toast-msg ${isError ? 'toast-error' : ''}`;
+      div.textContent = msg;
+      box.appendChild(div);
+      setTimeout(() => {
+        div.style.opacity = '0';
+        div.style.transition = 'opacity 0.3s ease';
+        setTimeout(() => div.remove(), 300);
+      }, 3500);
+    }
+
     function openModal(id) {
       const el = document.getElementById(id);
       if (el) el.style.display = 'flex';
@@ -1233,43 +1439,6 @@
       if (el) el.style.display = 'none';
     }
 
-    // Utilities
-    function copyTextToClipboard(text, successMsg) {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(() => {
-          showToast(successMsg || 'Copied!');
-        }).catch(() => fallbackCopy(text, successMsg));
-      } else {
-        fallbackCopy(text, successMsg);
-      }
-    }
-
-    function fallbackCopy(text, successMsg) {
-      const textArea = document.createElement('textarea');
-      textArea.value = text;
-      textArea.style.position = 'fixed';
-      textArea.style.opacity = '0';
-      document.body.appendChild(textArea);
-      textArea.select();
-      try {
-        document.execCommand('copy');
-        showToast(successMsg || 'Copied!');
-      } catch (_) {
-        showToast('Could not copy to clipboard', true);
-      }
-      document.body.removeChild(textArea);
-    }
-
-    function showToast(msg, isError) {
-      const toast = document.getElementById('toastBox');
-      toast.textContent = msg;
-      toast.style.background = isError ? '#dc2626' : '#10b981';
-      toast.style.display = 'flex';
-      setTimeout(() => {
-        toast.style.display = 'none';
-      }, 3500);
-    }
-
     function escapeHtml(str) {
       if (!str) return '';
       return String(str)
@@ -1277,11 +1446,12 @@
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
+        .replace(/'/g, '&#39;');
     }
 
-    // Initialize on page load
-    document.addEventListener('DOMContentLoaded', loadData);
+    // Initialize
+    loadAdminHeaderProfile();
+    loadData();
   </script>
 </body>
 

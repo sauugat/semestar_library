@@ -397,6 +397,56 @@ export default function SettingsScreen() {
         )}
       </Card>
 
+      {/* ADMIN TOOLS (Admin Only) */}
+      {user?.role === 'admin' && (
+        <>
+          <Subheading style={{ marginTop: spacing.md, marginBottom: spacing.xs }}>Admin Tools</Subheading>
+          <Caption color="muted" style={{ marginBottom: spacing.sm }}>
+            Administrative controls and faculty credentials
+          </Caption>
+          <Card variant="elevated" padding="md" style={styles.card}>
+            <TouchableOpacity
+              style={styles.linkRow}
+              onPress={() => router.push('/admin/teachers' as any)}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Ionicons name="people-outline" size={18} color={colors.primary} />
+                <View>
+                  <Text variant="sm" weight="600">Teacher Management</Text>
+                  <Caption color="muted">Create and manage temporary teacher logins</Caption>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+            </TouchableOpacity>
+
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+            <TouchableOpacity
+              style={styles.linkRow}
+              onPress={() => {
+                Alert.alert(
+                  'Cohort Management',
+                  'Cohort management and promotion tools are available on the web admin portal.',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Open Web Portal', onPress: () => Linking.openURL('https://semestar-library.vercel.app/admin-cohorts.html') },
+                  ]
+                );
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Ionicons name="school-outline" size={18} color={colors.textSecondary} />
+                <View>
+                  <Text variant="sm" weight="600">Cohort Management</Text>
+                  <Caption color="muted">Student cohorts and graduation lifecycle</Caption>
+                </View>
+              </View>
+              <Ionicons name="open-outline" size={16} color={colors.textMuted} />
+            </TouchableOpacity>
+          </Card>
+        </>
+      )}
+
       {/* 3. ACCOUNT SECTION */}
       <Subheading style={{ marginTop: spacing.md, marginBottom: spacing.xs }}>Account</Subheading>
       <Caption color="muted" style={{ marginBottom: spacing.sm }}>

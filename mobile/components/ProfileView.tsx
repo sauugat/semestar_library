@@ -953,6 +953,65 @@ export function ProfileView({ targetStudentId, isTab = false }: ProfileViewProps
               </View>
             )}
 
+            {/* Admin Tools (Admin Only) */}
+            {isSelf && currentUser?.role === 'admin' && (
+              <View style={{ marginTop: 12, marginBottom: 4 }}>
+                <Text variant="xs" weight="700" color="muted" style={{ textTransform: 'uppercase', marginBottom: 8, letterSpacing: 0.6 }}>
+                  Admin Tools
+                </Text>
+                <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                  <TouchableOpacity
+                    style={[
+                      styles.socialChip,
+                      {
+                        backgroundColor: colors.surfaceRaised,
+                        borderColor: colors.border,
+                        borderRadius: radii.full,
+                        paddingVertical: 6,
+                        paddingHorizontal: 12,
+                      },
+                    ]}
+                    onPress={() => router.push('/admin/teachers' as any)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="people-outline" size={14} color={colors.primary} />
+                    <Text variant="xs" weight="700" style={{ marginLeft: 6, color: colors.text }}>
+                      Teacher Management
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.socialChip,
+                      {
+                        backgroundColor: colors.surfaceRaised,
+                        borderColor: colors.border,
+                        borderRadius: radii.full,
+                        paddingVertical: 6,
+                        paddingHorizontal: 12,
+                      },
+                    ]}
+                    onPress={() => {
+                      Alert.alert(
+                        'Cohort Management',
+                        'Student cohort lifecycle and promotion tools are available on the web admin portal.',
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          { text: 'Open Web Portal', onPress: () => Linking.openURL('https://semestar-library.vercel.app/admin-cohorts.html') },
+                        ]
+                      );
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="school-outline" size={14} color={colors.textSecondary} />
+                    <Text variant="xs" weight="700" style={{ marginLeft: 6, color: colors.text }}>
+                      Cohort Management
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
             {/* Stats Row Strip */}
             <View
               style={[

@@ -301,8 +301,47 @@
   </style>
 </head>
 
-<body>
+<body class="dash admin-body">
+  <header class="dash-header">
+    <a href="dashboard.html" class="lib-wordmark">Semester Library</a>
+    <nav class="dash-header-nav">
+      <a href="dashboard.html" class="header-nav-item">Dashboard</a>
+      <a href="admin-cohorts.html" class="header-nav-item active">Cohorts</a>
+      <a href="admin-teachers.html" class="header-nav-item">Teachers</a>
+      <a href="profile.html" class="header-nav-item">Profile</a>
+    </nav>
+    <div class="dash-header-actions">
+      <button type="button" class="theme-toggle-btn dash-theme-btn" id="themeToggleBtn" aria-label="Toggle theme" title="Toggle theme">
+        <span class="theme-toggle-track">
+          <svg class="theme-icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+          <svg class="theme-icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </span>
+      </button>
+      <a href="profile.html" class="dash-profile-chip" title="View Profile">
+        <div class="dash-profile-avatar" id="headerAvatar">A</div>
+        <span class="dash-profile-label" id="headerProfileName">Admin</span>
+      </a>
+    </div>
+  </header>
+
   <div class="admin-container">
+    <div class="admin-breadcrumb" style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">
+      <a href="dashboard.html" style="color: var(--text-secondary); text-decoration: none; font-weight: 500;">Admin</a>
+      <span class="breadcrumb-sep" style="color: var(--text-muted); opacity: 0.6;">/</span>
+      <span class="breadcrumb-current" style="color: var(--text-primary); font-weight: 600;">Cohorts</span>
+    </div>
     <header class="admin-header">
       <div class="admin-title-group">
         <h1>Permanent Cohort Lifecycle</h1>

@@ -739,8 +739,8 @@ app.get('/api/profile/:studentId/posts', requireLogin, (req, res, next) => {
   postsRouterInstance(req, res, next);
 });
 app.use('/api/comments', require('./routes/comments')(db, requireLogin));
-app.use('/api/admin', require('./routes/admin-cohorts')(db, requireLogin));
 app.use('/api/admin', require('./routes/admin-teachers')(db, requireLogin));
+app.use('/api/admin', require('./routes/admin-cohorts')(db, requireLogin));
 app.use('/api/teacher/onboarding', require('./routes/teacher-onboarding'));
 
 // --- Code Lab Rate Limiting ---

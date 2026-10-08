@@ -113,6 +113,18 @@
 
           </div>
 
+          <!-- Admin Quick Tools -->
+          <div class="admin-tools-row" id="adminToolsRow" style="display:none; gap: 8px; margin-top: 12px; margin-bottom: 8px; flex-wrap: wrap;">
+            <a href="/admin-cohorts.html" style="background: #181b23; border: 1px solid #272d3d; border-radius: 6px; padding: 6px 12px; font-size: 12px; text-decoration: none; color: #f3f4f6; display: inline-flex; align-items: center; gap: 6px;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+              Cohorts Management
+            </a>
+            <a href="/admin-teachers.html" style="background: #181b23; border: 1px solid #272d3d; border-radius: 6px; padding: 6px 12px; font-size: 12px; text-decoration: none; color: #f3f4f6; display: inline-flex; align-items: center; gap: 6px;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              Teacher Management
+            </a>
+          </div>
+
           <!-- Chips Row: Department, Semester, Campus -->
           <div class="profile-badges-row">
             <span class="profile-tag-pill" id="profileDept">
@@ -476,6 +488,8 @@
           accoladeEl.querySelector('.accolade-title').textContent = 'Lead Developer';
           accoladeEl.querySelector('.accolade-desc').textContent = 'Semester Library Platform Administrator & Lead Developer';
         }
+        const adminToolsEl = document.getElementById('adminToolsRow');
+        if (adminToolsEl) adminToolsEl.style.display = 'flex';
       } else if (isTeacher) {
         if (heroCard) heroCard.classList.remove('admin-profile-hero');
         if (badgeEl) {

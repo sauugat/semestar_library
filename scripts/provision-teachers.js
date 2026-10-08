@@ -18,7 +18,9 @@ const bcrypt = require('bcryptjs');
 const db = require('../db');
 const {
   DEFAULT_INVITE_EXPIRY_DAYS,
-  RESERVED_USERNAMES
+  RESERVED_USERNAMES,
+  generateSecureTemporaryPassword,
+  createTeacherInvitesBatch
 } = require('../lib/teacher-service');
 
 function parseArgs(argv) {
@@ -54,12 +56,10 @@ function parseArgs(argv) {
 }
 
 /**
- * Generates high-entropy password (96+ bits of entropy).
- * Uses crypto.randomBytes(12) producing 16 characters base64url.
+ * Backward-compatible alias for existing tests.
  */
 function generateSecurePassword() {
-  const bytes = crypto.randomBytes(12);
-  return bytes.toString('base64url');
+  return generateSecureTemporaryPassword();
 }
 
 /**
@@ -107,56 +107,19 @@ async function runProvisioning(customOptions = null) {
     console.log(`Output Target   : ${resolvedOutputFile}`);
   }
 
-  // 1. Scan existing usernames in both students and teacher_invites to prevent collisions
-  const existingStudents = await db.all('SELECT LOWER(username) AS u, LOWER(studentId) AS sid FROM students');
-  const existingInvites = await db.all('SELECT LOWER(initial_username) AS u FROM teacher_invites');
+  // Generate accounts using shared teacher-service logic
+  const batchResult = await createTeacherInvitesBatch(db, {
+    count: options.count,
+    prefix: options.prefix,
+    expiryDays: options.expiryDays,
+    dryRun: options.dryRun
+  });
 
-  const takenUsernames = new Set();
-  for (const s of existingStudents) {
-    if (s.u) takenUsernames.add(s.u.toLowerCase());
-    if (s.sid) takenUsernames.add(s.sid.toLowerCase());
-  }
-  for (const inv of existingInvites) {
-    if (inv.u) takenUsernames.add(inv.u.toLowerCase());
-  }
-  for (const reserved of RESERVED_USERNAMES) {
-    takenUsernames.add(reserved);
-  }
-
-  // 2. Deterministically generate collision-free usernames and cryptographically secure passwords
-  const generatedAccounts = [];
-  let candidateNum = 1;
-  const now = new Date();
-  const expiresAt = new Date(now.getTime() + options.expiryDays * 24 * 60 * 60 * 1000).toISOString();
-
-  while (generatedAccounts.length < options.count) {
-    const pad = String(candidateNum).padStart(3, '0');
-    const candidateUsername = `${options.prefix}${pad}`.toLowerCase();
-
-    if (!takenUsernames.has(candidateUsername)) {
-      takenUsernames.add(candidateUsername);
-      const plaintextPassword = generateSecurePassword();
-      const passwordHash = bcrypt.hashSync(plaintextPassword, 12);
-      const inviteId = crypto.randomUUID();
-
-      generatedAccounts.push({
-        id: inviteId,
-        username: candidateUsername,
-        plaintextPassword,
-        passwordHash,
-        expiresAt
-      });
-    }
-
-    candidateNum++;
-    if (candidateNum > options.count + 5000) {
-      throw new Error('Too many candidate username collisions encountered.');
-    }
-  }
+  const generatedAccounts = batchResult.invites;
 
   console.log(`Candidate accounts generated: ${generatedAccounts.length}`);
-  console.log(`First account candidate    : ${generatedAccounts[0].username}`);
-  console.log(`Last account candidate     : ${generatedAccounts[generatedAccounts.length - 1].username}`);
+  console.log(`First account candidate    : ${generatedAccounts[0].temporary_username}`);
+  console.log(`Last account candidate     : ${generatedAccounts[generatedAccounts.length - 1].temporary_username}`);
 
   if (options.dryRun) {
     console.log('\n✔ DRY-RUN COMPLETE: No rows were inserted into the database.');
@@ -165,42 +128,13 @@ async function runProvisioning(customOptions = null) {
     return { success: true, dryRun: true, count: generatedAccounts.length };
   }
 
-  // 3. APPLY: Insert records into teacher_invites
-  console.log('\nInserting provisioned records into database...');
-  let inserted = 0;
+  console.log(`✔ SUCCESS: ${generatedAccounts.length} teacher invites inserted into database.`);
 
-  for (const acc of generatedAccounts) {
-    if (db.isPostgres) {
-      await db.run(
-        `INSERT INTO teacher_invites (
-          id, initial_username, temporary_password_hash, status, expires_at
-        ) VALUES ($1, $2, $3, 'provisioned', $4)`,
-        acc.id,
-        acc.username,
-        acc.passwordHash,
-        acc.expiresAt
-      );
-    } else {
-      await db.run(
-        `INSERT INTO teacher_invites (
-          id, initial_username, temporary_password_hash, status, expires_at
-        ) VALUES (?, ?, ?, 'provisioned', ?)`,
-        acc.id,
-        acc.username,
-        acc.passwordHash,
-        acc.expiresAt
-      );
-    }
-    inserted++;
-  }
-
-  console.log(`✔ SUCCESS: ${inserted} teacher invites inserted into database.`);
-
-  // 4. Output plaintext credentials to external secure file if requested
+  // Output plaintext credentials to external secure file if requested
   if (resolvedOutputFile) {
     const header = 'id,initial_username,temporary_password,expires_at\n';
     const rows = generatedAccounts.map(
-      a => `${a.id},${a.username},${a.plaintextPassword},${a.expiresAt}`
+      a => `${a.id},${a.temporary_username},${a.temporary_password},${a.expires_at}`
     ).join('\n');
 
     fs.writeFileSync(resolvedOutputFile, header + rows, {
@@ -211,7 +145,7 @@ async function runProvisioning(customOptions = null) {
     console.log(`✔ Plaintext credentials saved for one-time admin distribution at:\n  ${resolvedOutputFile}`);
   }
 
-  return { success: true, applied: true, count: inserted };
+  return { success: true, applied: true, count: generatedAccounts.length };
 }
 
 if (require.main === module) {

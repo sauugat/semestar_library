@@ -1,0 +1,1288 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+  <script src="/theme.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Teacher Management — Semester Library</title>
+  <meta name="description" content="Admin teacher invitation, temporary credential lifecycle, and faculty account management.">
+  <link rel="icon" type="image/png" sizes="192x192" href="logo.jpg">
+
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', t);
+        if (t === 'dark') document.documentElement.classList.add('dark');
+        else document.documentElement.classList.remove('dark');
+      } catch (e) { }
+    })();
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.v4.css">
+  <link rel="stylesheet" href="/theme-overrides.css">
+
+  <style>
+    :root {
+      --bg-page: #0f1117;
+      --bg-card: #181b23;
+      --bg-card-hover: #1f232e;
+      --border-color: #272d3d;
+      --text-primary: #f3f4f6;
+      --text-secondary: #9ca3af;
+      --text-muted: #6b7280;
+      --accent-blue: #3b82f6;
+      --accent-green: #10b981;
+      --accent-purple: #8b5cf6;
+      --accent-amber: #f59e0b;
+      --accent-red: #ef4444;
+    }
+
+    body {
+      background: var(--bg-page);
+      color: var(--text-primary);
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+    }
+
+    .admin-container {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 24px 20px 80px;
+    }
+
+    .admin-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border-color);
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .admin-title-group h1 {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 26px;
+      font-weight: 700;
+      margin: 0 0 6px 0;
+      letter-spacing: -0.02em;
+    }
+
+    .admin-title-group p {
+      margin: 0;
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+
+    .admin-nav-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 9px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.15s ease;
+      border: 1px solid transparent;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-primary { background: var(--accent-blue); color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: #2563eb; }
+    .btn-secondary { background: #222734; color: var(--text-primary); border-color: var(--border-color); }
+    .btn-secondary:hover:not(:disabled) { background: #2a3142; }
+    .btn-success { background: #059669; color: #fff; }
+    .btn-success:hover:not(:disabled) { background: #047857; }
+    .btn-warning { background: #d97706; color: #fff; }
+    .btn-warning:hover:not(:disabled) { background: #b45309; }
+    .btn-danger { background: #dc2626; color: #fff; }
+    .btn-danger:hover:not(:disabled) { background: #b91c1c; }
+    .btn-sm { padding: 5px 10px; font-size: 12px; border-radius: 6px; }
+
+    /* Warning Banner */
+    .feature-flag-banner {
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      color: #fbbf24;
+      padding: 12px 16px;
+      border-radius: 10px;
+      margin-bottom: 24px;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      line-height: 1.5;
+    }
+
+    /* Summary Grid */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .summary-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .summary-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .summary-value {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    /* Controls Bar */
+    .controls-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .search-input-wrap {
+      flex: 1;
+      min-width: 260px;
+      max-width: 440px;
+      position: relative;
+    }
+
+    .search-input-wrap input {
+      width: 100%;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 9px 12px 9px 36px;
+      color: var(--text-primary);
+      font-size: 13px;
+      box-sizing: border-box;
+    }
+
+    .search-input-wrap input:focus {
+      outline: none;
+      border-color: var(--accent-blue);
+    }
+
+    .search-input-wrap svg {
+      position: absolute;
+      left: 11px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+    }
+
+    .filter-select {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      padding: 9px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .filter-select:focus {
+      outline: none;
+      border-color: var(--accent-blue);
+    }
+
+    /* Table Styles */
+    .table-container {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      text-align: left;
+    }
+
+    th {
+      background: #14171f;
+      color: var(--text-secondary);
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border-color);
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-primary);
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:hover td {
+      background: var(--bg-card-hover);
+    }
+
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .temp-user-cell {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      color: #93c5fd;
+    }
+
+    /* Status Badges */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .badge-provisioned { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
+    .badge-onboarding { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .badge-verification { background: rgba(139, 92, 246, 0.15); color: #c084fc; border: 1px solid rgba(139, 92, 246, 0.3); }
+    .badge-active { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-expired { background: rgba(156, 163, 175, 0.15); color: #9ca3af; border: 1px solid rgba(156, 163, 175, 0.3); }
+    .badge-revoked { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+
+    .action-group {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    /* Modal Styles */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 16px;
+      overflow-y: auto;
+    }
+
+    .modal-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      max-width: 540px;
+      width: 100%;
+      padding: 24px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+      box-sizing: border-box;
+    }
+
+    .modal-box.modal-lg {
+      max-width: 740px;
+    }
+
+    .modal-title {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 19px;
+      font-weight: 700;
+      margin: 0 0 8px;
+    }
+
+    .modal-desc {
+      color: var(--text-secondary);
+      font-size: 13px;
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 24px;
+      flex-wrap: wrap;
+    }
+
+    .form-group {
+      margin-bottom: 18px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .form-input {
+      width: 100%;
+      background: #111318;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: var(--text-primary);
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: var(--accent-blue);
+    }
+
+    /* Credential Callout Box */
+    .cred-callout {
+      background: #111318;
+      border: 1px solid #2d3748;
+      border-radius: 10px;
+      padding: 18px;
+      margin: 16px 0;
+    }
+
+    .cred-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid #1f2430;
+      gap: 12px;
+    }
+
+    .cred-row:last-child {
+      border-bottom: none;
+    }
+
+    .cred-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .cred-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      font-weight: 600;
+      color: #38bdf8;
+      word-break: break-all;
+    }
+
+    .cred-warning-tag {
+      background: rgba(239, 68, 68, 0.12);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #f87171;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      margin-top: 14px;
+      line-height: 1.4;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .subject-pill {
+      display: inline-block;
+      background: #1f2533;
+      border: 1px solid #2d3748;
+      color: #93c5fd;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      margin: 2px 4px 2px 0;
+    }
+
+    .empty-state {
+      padding: 48px 24px;
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+
+    /* Toast notification */
+    #toastBox {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #1f2937;
+      border: 1px solid #374151;
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      display: none;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      z-index: 2000;
+    }
+
+    @media (max-width: 640px) {
+      .admin-container { padding: 16px 12px 60px; }
+      .admin-header { flex-direction: column; align-items: flex-start; }
+      .summary-grid { grid-template-columns: 1fr 1fr; }
+      .controls-bar { flex-direction: column; align-items: stretch; }
+      .search-input-wrap { max-width: 100%; }
+      .modal-box { padding: 18px; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="admin-container">
+    <header class="admin-header">
+      <div class="admin-title-group">
+        <h1>Teacher Management</h1>
+        <p>Create and manage temporary teacher access credentials.</p>
+      </div>
+      <div class="admin-nav-actions">
+        <a href="/dashboard.html" class="btn btn-secondary">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+          Dashboard
+        </a>
+        <a href="/admin-cohorts.html" class="btn btn-secondary">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          Cohorts
+        </a>
+        <button type="button" class="btn btn-secondary" onclick="openBulkCreateModal()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+          Create Multiple
+        </button>
+        <button type="button" class="btn btn-primary" onclick="submitCreateSingle()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          + Create Teacher Login
+        </button>
+      </div>
+    </header>
+
+    <!-- Teacher Onboarding Disabled Warning Banner -->
+    <div id="onboardingDisabledBanner" class="feature-flag-banner" style="display: none;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <div>
+        <strong>Teacher onboarding is currently disabled.</strong> You can prepare credentials, but teachers cannot activate them yet.
+      </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="summary-label">Total Invites / Slots</div>
+        <div class="summary-value" id="summaryTotal">0</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Awaiting Activation</div>
+        <div class="summary-value" id="summaryAwaiting" style="color: #60a5fa;">0</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Active Teachers</div>
+        <div class="summary-value" id="summaryActive" style="color: #34d399;">0</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Expired</div>
+        <div class="summary-value" id="summaryExpired" style="color: #9ca3af;">0</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Revoked</div>
+        <div class="summary-value" id="summaryRevoked" style="color: #f87171;">0</div>
+      </div>
+    </div>
+
+    <!-- Controls Bar -->
+    <div class="controls-bar">
+      <div class="search-input-wrap">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="searchInput" placeholder="Search temporary username, name, email..." oninput="handleSearch(this.value)">
+      </div>
+
+      <div style="display: flex; gap: 10px; align-items: center;">
+        <label for="statusFilter" style="font-size: 12px; color: var(--text-secondary); font-weight: 500;">Filter:</label>
+        <select id="statusFilter" class="filter-select" onchange="handleFilter(this.value)">
+          <option value="all">All Statuses</option>
+          <option value="provisioned">Not Activated</option>
+          <option value="onboarding">Setup Started</option>
+          <option value="awaiting_email_verification">Awaiting Verification</option>
+          <option value="active">Active Teachers</option>
+          <option value="expired">Expired</option>
+          <option value="revoked">Revoked</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Main Table -->
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Temporary Login</th>
+            <th>Status</th>
+            <th>Teacher Name</th>
+            <th>Permanent Username</th>
+            <th>Email</th>
+            <th>Subjects</th>
+            <th>Created</th>
+            <th>Expires</th>
+            <th style="text-align: right;">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="invitesTableBody">
+          <tr>
+            <td colspan="9" class="empty-state">Loading teacher invitations...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Modal: Bulk Create -->
+  <div id="bulkCreateModal" class="modal-backdrop">
+    <div class="modal-box">
+      <h3 class="modal-title">Create Multiple Teacher Logins</h3>
+      <p class="modal-desc">Generate a batch of temporary logins and high-entropy passwords at once.</p>
+
+      <div class="feature-flag-banner" style="margin-bottom: 20px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <div>
+          Temporary credentials expire after the configured invitation period (14 days). Generate them only when you plan to distribute them.
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="bulkCountInput">Number of Accounts (1–50)</label>
+        <input type="number" id="bulkCountInput" class="form-input" min="1" max="50" value="10">
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('bulkCreateModal')">Cancel</button>
+        <button type="button" class="btn btn-primary" id="confirmBulkBtn" onclick="submitCreateBulk()">Generate Batch</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: One-Time Credential Display -->
+  <div id="credentialModal" class="modal-backdrop">
+    <div class="modal-box modal-lg">
+      <h3 class="modal-title" id="credentialModalTitle">Teacher Login Created</h3>
+      <p class="modal-desc" id="credentialModalDesc">Credentials generated securely. Distribute these to faculty members.</p>
+
+      <div id="singleCredView" style="display: none;">
+        <div class="cred-callout">
+          <div class="cred-row">
+            <span class="cred-label">Username:</span>
+            <span class="cred-val" id="singleCredUsername">—</span>
+          </div>
+          <div class="cred-row">
+            <span class="cred-label">Temporary Password:</span>
+            <span class="cred-val" id="singleCredPassword">—</span>
+          </div>
+          <div class="cred-row">
+            <span class="cred-label">Expires:</span>
+            <span style="font-size: 13px; color: var(--text-secondary);" id="singleCredExpires">—</span>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px;">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="copySingleUsername()">Copy Username</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="copySinglePassword()">Copy Password</button>
+          <button type="button" class="btn btn-primary btn-sm" onclick="copySingleBoth()">Copy Both (Clean Message)</button>
+        </div>
+      </div>
+
+      <div id="bulkCredView" style="display: none;">
+        <div style="max-height: 280px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; margin: 16px 0;">
+          <table style="font-size: 12px;">
+            <thead>
+              <tr>
+                <th>Username</th>
+                <th>Temporary Password</th>
+                <th>Expires</th>
+              </tr>
+            </thead>
+            <tbody id="bulkCredTableBody">
+            </tbody>
+          </table>
+        </div>
+
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="copyAllBulk()">Copy All</button>
+          <button type="button" class="btn btn-success btn-sm" onclick="downloadBulkCsv()">Download CSV</button>
+        </div>
+      </div>
+
+      <div class="cred-warning-tag">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+        <span><strong>This temporary password is shown only once.</strong> It is not stored in plaintext and cannot be retrieved after closing this window.</span>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-primary" onclick="closeCredentialModal()">I Have Saved the Credentials</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Regenerate Password Confirmation -->
+  <div id="regenerateModal" class="modal-backdrop">
+    <div class="modal-box">
+      <h3 class="modal-title">Regenerate Temporary Password</h3>
+      <p class="modal-desc">
+        Generating a new password will immediately invalidate the previous temporary password.
+      </p>
+      <input type="hidden" id="regenerateInviteId">
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('regenerateModal')">Cancel</button>
+        <button type="button" class="btn btn-warning" id="confirmRegenerateBtn" onclick="submitRegeneratePassword()">Generate New Password</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Reissue Expired Invite Confirmation -->
+  <div id="reissueModal" class="modal-backdrop">
+    <div class="modal-box">
+      <h3 class="modal-title">Reissue Teacher Invite</h3>
+      <p class="modal-desc">
+        This will retain the temporary username, generate a fresh temporary password, and reset the expiration period to 14 days.
+      </p>
+      <input type="hidden" id="reissueInviteId">
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('reissueModal')">Cancel</button>
+        <button type="button" class="btn btn-primary" id="confirmReissueBtn" onclick="submitReissue()">Reissue Invite</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Revoke Invite Confirmation -->
+  <div id="revokeModal" class="modal-backdrop">
+    <div class="modal-box">
+      <h3 class="modal-title" style="color: #f87171;">Revoke Teacher Invite</h3>
+      <p class="modal-desc">
+        Revoking will immediately invalidate the temporary credentials and any in-progress setup. This action cannot be undone.
+      </p>
+      <input type="hidden" id="revokeInviteId">
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('revokeModal')">Cancel</button>
+        <button type="button" class="btn btn-danger" id="confirmRevokeBtn" onclick="submitRevoke()">Revoke Invitation</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Teacher Detail Drawer / Modal -->
+  <div id="detailModal" class="modal-backdrop">
+    <div class="modal-box">
+      <h3 class="modal-title">Teacher Account Details</h3>
+      <p class="modal-desc" id="detailSubtitle">Activated faculty profile</p>
+
+      <div class="cred-callout">
+        <div class="cred-row">
+          <span class="cred-label">Full Name:</span>
+          <span class="cred-val" style="color: var(--text-primary);" id="detailName">—</span>
+        </div>
+        <div class="cred-row">
+          <span class="cred-label">Permanent Username:</span>
+          <span class="cred-val" id="detailUsername">—</span>
+        </div>
+        <div class="cred-row">
+          <span class="cred-label">Email:</span>
+          <span class="cred-val" style="color: var(--text-primary); font-family: inherit;" id="detailEmail">—</span>
+        </div>
+        <div class="cred-row">
+          <span class="cred-label">Status:</span>
+          <span id="detailStatusBadge">—</span>
+        </div>
+        <div class="cred-row">
+          <span class="cred-label">Designation:</span>
+          <span style="font-size: 13px;" id="detailDesignation">Instructor</span>
+        </div>
+        <div class="cred-row">
+          <span class="cred-label">Activation Date:</span>
+          <span style="font-size: 13px; color: var(--text-secondary);" id="detailActivatedAt">—</span>
+        </div>
+      </div>
+
+      <div style="margin-top: 16px;">
+        <label class="form-label">Subjects Taught</label>
+        <div id="detailSubjectsList" style="margin-top: 8px;">
+          <span style="color: var(--text-muted); font-size: 13px;">None assigned</span>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('detailModal')">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Element -->
+  <div id="toastBox"></div>
+
+  <script>
+    let invitesData = [];
+    let summaryData = {};
+    let lastGeneratedBatch = [];
+    let activeFilter = 'all';
+    let searchQuery = '';
+
+    // Fetch and render data
+    async function loadData() {
+      try {
+        const queryParams = new URLSearchParams();
+        if (searchQuery) queryParams.set('search', searchQuery);
+        if (activeFilter && activeFilter !== 'all') queryParams.set('status', activeFilter);
+
+        const res = await fetch('/api/admin/teacher-invites?' + queryParams.toString());
+        if (!res.ok) {
+          if (res.status === 401 || res.status === 403) {
+            document.body.innerHTML = `
+              <div style="max-width: 500px; margin: 100px auto; text-align: center; font-family: sans-serif; color: #fff;">
+                <h2 style="color: #f87171;">Access Denied</h2>
+                <p style="color: #9ca3af;">Administrator access required to view Teacher Management.</p>
+                <a href="/login.html" style="color: #38bdf8; text-decoration: underline;">Return to Login</a>
+              </div>
+            `;
+            return;
+          }
+          throw new Error('Failed to load teacher invites');
+        }
+
+        const data = await res.json();
+        invitesData = data.invites || [];
+        summaryData = data.summary || {};
+
+        // Feature flag banner
+        const banner = document.getElementById('onboardingDisabledBanner');
+        if (data.onboarding_enabled === false) {
+          banner.style.display = 'flex';
+        } else {
+          banner.style.display = 'none';
+        }
+
+        renderSummary();
+        renderTable();
+      } catch (err) {
+        showToast(err.message, true);
+      }
+    }
+
+    function renderSummary() {
+      document.getElementById('summaryTotal').textContent = summaryData.total_invites || 0;
+      document.getElementById('summaryAwaiting').textContent = summaryData.awaiting_activation || 0;
+      document.getElementById('summaryActive').textContent = summaryData.active_teachers || 0;
+      document.getElementById('summaryExpired').textContent = summaryData.expired || 0;
+      document.getElementById('summaryRevoked').textContent = summaryData.revoked || 0;
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('invitesTableBody');
+      if (invitesData.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="empty-state">No teacher invitations found matching your criteria.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = invitesData.map(item => {
+        const isCompleted = item.status === 'active';
+        const isExpired = item.status === 'expired';
+        const isRevoked = item.status === 'revoked';
+        const isUncompleted = !isCompleted && !isRevoked;
+
+        const teacher = item.teacher || {};
+        const teacherName = teacher.name ? escapeHtml(teacher.name) : '—';
+        const permanentUsername = teacher.username ? escapeHtml(teacher.username) : '—';
+        const teacherEmail = teacher.email ? escapeHtml(teacher.email) : '—';
+
+        let subjectsHtml = '—';
+        if (teacher.subjects && teacher.subjects.length > 0) {
+          subjectsHtml = teacher.subjects.map(s => `<span class="subject-pill">${escapeHtml(s.code)}</span>`).join('');
+        }
+
+        const createdStr = formatDate(item.created_at);
+        const expiresStr = formatExpiry(item.expires_at, isCompleted, isRevoked);
+
+        return `
+          <tr>
+            <td class="temp-user-cell">${escapeHtml(item.initial_username)}</td>
+            <td>${renderStatusBadge(item)}</td>
+            <td>${teacherName}</td>
+            <td class="font-mono">${permanentUsername}</td>
+            <td>${teacherEmail}</td>
+            <td>${subjectsHtml}</td>
+            <td style="color: var(--text-secondary); font-size: 12px;">${createdStr}</td>
+            <td style="color: var(--text-secondary); font-size: 12px;">${expiresStr}</td>
+            <td style="text-align: right;">
+              <div class="action-group" style="justify-content: flex-end;">
+                ${isCompleted ? `
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="openDetailModal('${item.id}')">View Details</button>
+                ` : ''}
+
+                ${isUncompleted && !isExpired ? `
+                  <button type="button" class="btn btn-warning btn-sm" onclick="promptRegenerate('${item.id}')">Generate New Password</button>
+                  <button type="button" class="btn btn-danger btn-sm" onclick="promptRevoke('${item.id}')">Revoke</button>
+                ` : ''}
+
+                ${isExpired && !isRevoked ? `
+                  <button type="button" class="btn btn-primary btn-sm" onclick="promptReissue('${item.id}')">Reissue Invite</button>
+                  <button type="button" class="btn btn-danger btn-sm" onclick="promptRevoke('${item.id}')">Revoke</button>
+                ` : ''}
+
+                ${isRevoked ? `
+                  <span style="color: var(--text-muted); font-size: 12px; font-style: italic;">Revoked</span>
+                ` : ''}
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function renderStatusBadge(item) {
+      const s = item.status;
+      if (s === 'active') return `<span class="badge badge-active">Active</span>`;
+      if (s === 'revoked') return `<span class="badge badge-revoked">Revoked</span>`;
+      if (s === 'expired') return `<span class="badge badge-expired">Expired</span>`;
+      if (s === 'awaiting_email_verification') return `<span class="badge badge-verification">Awaiting Verification</span>`;
+      if (s === 'onboarding') return `<span class="badge badge-onboarding">Setup Started</span>`;
+      return `<span class="badge badge-provisioned">Not Activated</span>`;
+    }
+
+    function formatDate(iso) {
+      if (!iso) return '—';
+      try {
+        const d = new Date(iso);
+        return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+      } catch (_) {
+        return iso;
+      }
+    }
+
+    function formatExpiry(iso, isCompleted, isRevoked) {
+      if (isCompleted) return 'Activated';
+      if (isRevoked) return 'Revoked';
+      if (!iso) return '—';
+      try {
+        const d = new Date(iso);
+        const diffMs = d.getTime() - Date.now();
+        const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+        if (diffDays <= 0) return 'Expired';
+        return `In ${diffDays} day${diffDays === 1 ? '' : 's'}`;
+      } catch (_) {
+        return iso;
+      }
+    }
+
+    // Search and Filter Handlers
+    let searchDebounceTimer;
+    function handleSearch(val) {
+      clearTimeout(searchDebounceTimer);
+      searchDebounceTimer = setTimeout(() => {
+        searchQuery = val.trim();
+        loadData();
+      }, 300);
+    }
+
+    function handleFilter(val) {
+      activeFilter = val;
+      loadData();
+    }
+
+    // Single Create
+    async function submitCreateSingle() {
+      try {
+        const res = await fetch('/api/admin/teacher-invites', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ count: 1 })
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.message || 'Failed to create teacher login.');
+        }
+
+        const data = await res.json();
+        const created = data.invites && data.invites[0];
+        if (!created) throw new Error('No invite returned.');
+
+        showSingleCredential(created);
+        loadData();
+      } catch (err) {
+        showToast(err.message, true);
+      }
+    }
+
+    // Bulk Create Modal
+    function openBulkCreateModal() {
+      document.getElementById('bulkCountInput').value = 10;
+      openModal('bulkCreateModal');
+    }
+
+    async function submitCreateBulk() {
+      const input = document.getElementById('bulkCountInput');
+      const count = parseInt(input.value, 10);
+      if (!count || count < 1 || count > 50) {
+        showToast('Count must be between 1 and 50.', true);
+        return;
+      }
+
+      const btn = document.getElementById('confirmBulkBtn');
+      btn.disabled = true;
+      btn.textContent = 'Generating...';
+
+      try {
+        const res = await fetch('/api/admin/teacher-invites', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ count })
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.message || 'Failed to generate bulk teacher logins.');
+        }
+
+        const data = await res.json();
+        closeModal('bulkCreateModal');
+        showBulkCredentials(data.invites || []);
+        loadData();
+      } catch (err) {
+        showToast(err.message, true);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Generate Batch';
+      }
+    }
+
+    // Credential Displays
+    function showSingleCredential(inv) {
+      lastGeneratedBatch = [inv];
+      document.getElementById('credentialModalTitle').textContent = 'Teacher Login Created';
+      document.getElementById('credentialModalDesc').textContent = 'Credentials generated securely. Distribute these to the faculty member.';
+
+      document.getElementById('singleCredUsername').textContent = inv.temporary_username;
+      document.getElementById('singleCredPassword').textContent = inv.temporary_password;
+      document.getElementById('singleCredExpires').textContent = formatDate(inv.expires_at);
+
+      document.getElementById('singleCredView').style.display = 'block';
+      document.getElementById('bulkCredView').style.display = 'none';
+
+      openModal('credentialModal');
+    }
+
+    function showBulkCredentials(invites) {
+      lastGeneratedBatch = invites;
+      document.getElementById('credentialModalTitle').textContent = `${invites.length} Teacher Logins Created`;
+      document.getElementById('credentialModalDesc').textContent = 'Temporary credentials generated. Save or download CSV immediately before closing.';
+
+      const tbody = document.getElementById('bulkCredTableBody');
+      tbody.innerHTML = invites.map(inv => `
+        <tr>
+          <td class="font-mono">${escapeHtml(inv.temporary_username)}</td>
+          <td class="font-mono" style="color: #38bdf8;">${escapeHtml(inv.temporary_password)}</td>
+          <td style="color: var(--text-secondary);">${formatDate(inv.expires_at)}</td>
+        </tr>
+      `).join('');
+
+      document.getElementById('singleCredView').style.display = 'none';
+      document.getElementById('bulkCredView').style.display = 'block';
+
+      openModal('credentialModal');
+    }
+
+    function closeCredentialModal() {
+      // Clear memory references to plaintext passwords
+      lastGeneratedBatch = [];
+      document.getElementById('singleCredPassword').textContent = '—';
+      document.getElementById('bulkCredTableBody').innerHTML = '';
+      closeModal('credentialModal');
+    }
+
+    // Copy Handlers
+    function copySingleUsername() {
+      if (!lastGeneratedBatch[0]) return;
+      copyTextToClipboard(lastGeneratedBatch[0].temporary_username, 'Username copied');
+    }
+
+    function copySinglePassword() {
+      if (!lastGeneratedBatch[0]) return;
+      copyTextToClipboard(lastGeneratedBatch[0].temporary_password, 'Temporary password copied');
+    }
+
+    function copySingleBoth() {
+      if (!lastGeneratedBatch[0]) return;
+      const inv = lastGeneratedBatch[0];
+      const message = `Semester Library Teacher Login\n\nUsername: ${inv.temporary_username}\nTemporary Password: ${inv.temporary_password}\n\nOpen Semester Library and sign in.\nYou will be asked to create your permanent teacher account.`;
+      copyTextToClipboard(message, 'Credentials copied to clipboard');
+    }
+
+    function copyAllBulk() {
+      if (lastGeneratedBatch.length === 0) return;
+      const text = lastGeneratedBatch.map(inv => `${inv.temporary_username}\t${inv.temporary_password}\t${inv.expires_at}`).join('\n');
+      copyTextToClipboard(text, 'All credentials copied');
+    }
+
+    function downloadBulkCsv() {
+      if (lastGeneratedBatch.length === 0) return;
+      const rows = [
+        ['temporary_username', 'temporary_password', 'expires_at'].join(',')
+      ];
+      for (const inv of lastGeneratedBatch) {
+        rows.push([inv.temporary_username, inv.temporary_password, inv.expires_at].join(','));
+      }
+      const csvContent = 'data:text/csv;charset=utf-8,' + encodeURIComponent(rows.join('\n'));
+      const a = document.createElement('a');
+      a.setAttribute('href', csvContent);
+      a.setAttribute('download', `teacher-logins-${Date.now()}.csv`);
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      showToast('CSV downloaded');
+    }
+
+    // Regenerate Password
+    function promptRegenerate(id) {
+      document.getElementById('regenerateInviteId').value = id;
+      openModal('regenerateModal');
+    }
+
+    async function submitRegeneratePassword() {
+      const inviteId = document.getElementById('regenerateInviteId').value;
+      const btn = document.getElementById('confirmRegenerateBtn');
+      btn.disabled = true;
+
+      try {
+        const res = await fetch(`/api/admin/teacher-invites/${inviteId}/regenerate-password`, {
+          method: 'POST'
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.message || 'Failed to regenerate password.');
+        }
+
+        const data = await res.json();
+        closeModal('regenerateModal');
+        showSingleCredential(data);
+        loadData();
+      } catch (err) {
+        showToast(err.message, true);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    // Reissue Invite
+    function promptReissue(id) {
+      document.getElementById('reissueInviteId').value = id;
+      openModal('reissueModal');
+    }
+
+    async function submitReissue() {
+      const inviteId = document.getElementById('reissueInviteId').value;
+      const btn = document.getElementById('confirmReissueBtn');
+      btn.disabled = true;
+
+      try {
+        const res = await fetch(`/api/admin/teacher-invites/${inviteId}/reissue`, {
+          method: 'POST'
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.message || 'Failed to reissue invite.');
+        }
+
+        const data = await res.json();
+        closeModal('reissueModal');
+        showSingleCredential(data);
+        loadData();
+      } catch (err) {
+        showToast(err.message, true);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    // Revoke Invite
+    function promptRevoke(id) {
+      document.getElementById('revokeInviteId').value = id;
+      openModal('revokeModal');
+    }
+
+    async function submitRevoke() {
+      const inviteId = document.getElementById('revokeInviteId').value;
+      const btn = document.getElementById('confirmRevokeBtn');
+      btn.disabled = true;
+
+      try {
+        const res = await fetch(`/api/admin/teacher-invites/${inviteId}/revoke`, {
+          method: 'POST'
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.message || 'Failed to revoke invite.');
+        }
+
+        closeModal('revokeModal');
+        showToast('Teacher invitation revoked.');
+        loadData();
+      } catch (err) {
+        showToast(err.message, true);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    // Detail Modal
+    async function openDetailModal(id) {
+      try {
+        const res = await fetch(`/api/admin/teacher-invites/${id}/detail`);
+        if (!res.ok) throw new Error('Failed to load teacher details.');
+
+        const data = await res.json();
+        const teacher = data.teacher || {};
+
+        document.getElementById('detailName').textContent = teacher.name || '—';
+        document.getElementById('detailUsername').textContent = teacher.username || '—';
+        document.getElementById('detailEmail').textContent = teacher.email || '—';
+        document.getElementById('detailDesignation').textContent = teacher.designation || 'Instructor';
+        document.getElementById('detailActivatedAt').textContent = formatDate(data.completed_at);
+        document.getElementById('detailStatusBadge').innerHTML = renderStatusBadge(data);
+
+        const subjectsContainer = document.getElementById('detailSubjectsList');
+        if (teacher.subjects && teacher.subjects.length > 0) {
+          subjectsContainer.innerHTML = teacher.subjects.map(s => `
+            <div style="background: #111318; border: 1px solid var(--border-color); border-radius: 6px; padding: 6px 10px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <span class="subject-pill">${escapeHtml(s.code)}</span>
+                <span style="font-size: 13px; font-weight: 500;">${escapeHtml(s.name)}</span>
+              </div>
+              <span style="font-size: 11px; color: var(--text-muted);">Semester ${s.semester}</span>
+            </div>
+          `).join('');
+        } else {
+          subjectsContainer.innerHTML = '<span style="color: var(--text-muted); font-size: 13px;">No subjects assigned</span>';
+        }
+
+        openModal('detailModal');
+      } catch (err) {
+        showToast(err.message, true);
+      }
+    }
+
+    // Modal helpers
+    function openModal(id) {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'flex';
+    }
+
+    function closeModal(id) {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    }
+
+    // Utilities
+    function copyTextToClipboard(text, successMsg) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => {
+          showToast(successMsg || 'Copied!');
+        }).catch(() => fallbackCopy(text, successMsg));
+      } else {
+        fallbackCopy(text, successMsg);
+      }
+    }
+
+    function fallbackCopy(text, successMsg) {
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      textArea.style.position = 'fixed';
+      textArea.style.opacity = '0';
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        showToast(successMsg || 'Copied!');
+      } catch (_) {
+        showToast('Could not copy to clipboard', true);
+      }
+      document.body.removeChild(textArea);
+    }
+
+    function showToast(msg, isError) {
+      const toast = document.getElementById('toastBox');
+      toast.textContent = msg;
+      toast.style.background = isError ? '#dc2626' : '#10b981';
+      toast.style.display = 'flex';
+      setTimeout(() => {
+        toast.style.display = 'none';
+      }, 3500);
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', loadData);
+  </script>
+</body>
+
+</html>

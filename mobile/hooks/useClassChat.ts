@@ -145,6 +145,8 @@ export function useClassChat(
     } finally {
       if (epoch === generation.current) {
         syncing.current = false;
+      }
+      if (active.current) {
         setLoadingInitial(false);
       }
     }
@@ -172,6 +174,11 @@ export function useClassChat(
       setOnlineIds([]);
       setActiveTypers(new Map());
       let lastScope = '', validating = false, lastRefresh = 0;
+      const skeletonTimer = setTimeout(() => {
+        if (active.current) {
+          setLoadingInitial(false);
+        }
+      }, 5000);
       const reset = () => {
         const session = getChatSession();
         const nextScope = chatScope(session);
@@ -203,7 +210,12 @@ export function useClassChat(
           await initChatRealtime();
         } catch (err: any) {
           if (active.current) { setError(err.message || 'Unable to validate conversation.'); setLoadingInitial(false); }
-        } finally { validating = false; }
+        } finally {
+          validating = false;
+          if (active.current && !hydrated.current) {
+            setLoadingInitial(false);
+          }
+        }
       };
       const heartbeat = async () => {
         if (!active.current || !getChatSession().context || AppState.currentState !== 'active') return;
@@ -328,6 +340,7 @@ export function useClassChat(
         clearInterval(pruneInterval);
         clearInterval(pollInterval);
         appStateSub.remove();
+        clearTimeout(skeletonTimer);
         void disconnectChatRealtime();
       };
     }, [studentId, serverUrl, options?.authToken, options?.selectedChatGroupId, sync, refreshPinned]),

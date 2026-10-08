@@ -165,4 +165,46 @@ describe('Step 5B.3.2: Secure DM Feature Gating & Navigation Architecture', () =
     const authContent = fs.readFileSync(authContextPath, 'utf8');
     assert.ok(authContent.includes("savedUrl.includes('vercel.app')"), 'AuthContext must detect stale vercel.app URL in dev');
   });
+
+  // 9. Live server /api/chat/admin/rooms is mounted and returns 401 when unauth, not 404
+  test('9. Live server /api/chat/admin/rooms is mounted and protected by requireLogin', async () => {
+    const res = await new Promise((resolve, reject) => {
+      http.get('http://127.0.0.1:3000/api/chat/admin/rooms', (resp) => {
+        let data = '';
+        resp.on('data', chunk => { data += chunk; });
+        resp.on('end', () => resolve({ status: resp.statusCode, body: data }));
+      }).on('error', reject);
+    });
+
+    assert.equal(res.status, 401, 'Unauthenticated request must receive 401, NOT 404 Resource not found');
+    assert.ok(!res.body.includes('Resource not found'), 'Response must NOT be Resource not found');
+  });
+
+  // 10. Live server allows admin 26020266 to access cohort rooms and DMs
+  test('10. Live server allows admin 26020266 to access cohort rooms and DMs with bearer token', async () => {
+    const db = require('../db');
+    const tokenRecord = await db.get(
+      'SELECT token FROM mobile_tokens WHERE studentId = ? ORDER BY expiresat DESC LIMIT 1',
+      '26020266'
+    );
+    assert.ok(tokenRecord && tokenRecord.token, 'Mobile token for 26020266 must exist');
+
+    // Test /api/chat/admin/rooms
+    const roomsRes = await fetch('http://127.0.0.1:3000/api/chat/admin/rooms', {
+      headers: { Authorization: `Bearer ${tokenRecord.token}` },
+    });
+    assert.equal(roomsRes.status, 200, 'Admin rooms must return 200 for 26020266');
+    const rooms = await roomsRes.json();
+    assert.ok(Array.isArray(rooms), 'Rooms must be an array');
+    assert.equal(rooms.length, 4, 'Must return 4 active cohorts (Mercury, Earth, Mars, Venus)');
+
+    // Test /api/dm-status
+    const dmRes = await fetch('http://127.0.0.1:3000/api/dm-status', {
+      headers: { Authorization: `Bearer ${tokenRecord.token}` },
+    });
+    assert.equal(dmRes.status, 200, 'DM status must return 200');
+    const dmData = await dmRes.json();
+    assert.equal(dmData.enabled, true, 'DM status must be enabled for allowlisted admin 26020266');
+    await db.close();
+  });
 });

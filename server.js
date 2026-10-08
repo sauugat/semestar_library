@@ -4012,7 +4012,7 @@ app.get('/api/search', requireLogin, async (req, res) => {
 // GROUP CHAT SYSTEM
 // ============================================================
 
-const isCohortChatEnabled = process.env.COHORT_CHAT_PRODUCTION === '1' || process.env.COHORT_CHAT_LOCAL === '1';
+const isCohortChatEnabled = (process.env.COHORT_CHAT_PRODUCTION === '1' && (db.isPostgres || process.env.NODE_ENV !== 'test')) || process.env.COHORT_CHAT_LOCAL === '1';
 
 // Safe Cohort Chat Diagnostic Endpoint (No secrets exposed)
 app.get('/api/chat/health', async (req, res) => {

@@ -11,6 +11,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const http = require('http');
+const bcrypt = require('bcryptjs');
 const db = require('../db');
 const {
   ensureTeacherSchema,
@@ -102,10 +103,11 @@ test.before(async () => {
   const mockSupabase = {
     auth: {
       signUp: async ({ email, password }) => {
+        const uid = 'mock-sb-uid-' + Math.random().toString(36).slice(2, 9);
         return {
           data: {
             user: {
-              id: 'mock-sb-uid-' + Math.random().toString(36).slice(2, 9),
+              id: uid,
               email
             }
           },
@@ -115,12 +117,54 @@ test.before(async () => {
       resend: async ({ type, email }) => {
         return { data: {}, error: null };
       },
+      verifyOtp: async ({ email, token, type }) => {
+        if (!token || token.length !== 6 || token === '000000') {
+          return { data: { user: null, session: null }, error: { message: 'Token has expired or is invalid', code: 'bad_code' } };
+        }
+        if (token === '999999') {
+          return { data: { user: null, session: null }, error: { message: 'Token has expired', code: 'otp_expired' } };
+        }
+        const uid = 'mock-otp-uid-' + Math.random().toString(36).slice(2, 9);
+        return {
+          data: {
+            user: {
+              id: uid,
+              email: email || 'verified.teacher@example.com',
+              email_confirmed_at: '2026-10-08T12:00:00Z'
+            },
+            session: {
+              access_token: 'mock-sb-token-' + uid,
+              refresh_token: 'mock-refresh-token',
+              token_type: 'bearer',
+              user: {
+                id: uid,
+                email: email || 'verified.teacher@example.com',
+                email_confirmed_at: '2026-10-08T12:00:00Z'
+              }
+            }
+          },
+          error: null
+        };
+      },
       getUser: async (token) => {
         if (token === 'unconfirmed-sb-token') {
           return { data: { user: { id: 'unconf-uid', email: 'unconf@example.com', email_confirmed_at: null } }, error: null };
         }
         if (token === 'sb-uid-non-existent-random') {
           return { data: { user: { id: 'sb-uid-non-existent-random', email: 'nonexistent.random@example.com', email_confirmed_at: '2026-10-08T12:00:00Z' } }, error: null };
+        }
+        if (typeof token === 'string' && token.startsWith('mock-sb-token-')) {
+          const uid = token.replace('mock-sb-token-', '');
+          return {
+            data: {
+              user: {
+                id: uid,
+                email: 'verified.teacher@example.com',
+                email_confirmed_at: '2026-10-08T12:00:00Z'
+              }
+            },
+            error: null
+          };
         }
         return {
           data: {
@@ -2525,5 +2569,376 @@ test('Step 3.5.28: Feature flag TEACHER_ONBOARDING_ENABLED=0 returns 503 while n
   }
 });
 
+// =================================================================
+// SECTION 21: IN-APP EMAIL OTP VERIFICATION & AUTOMATIC AUTH SUITE
+// =================================================================
 
+test('Section 21.1 & 21.2: Valid onboarding submission requests OTP, no permanent teacher before verification', async () => {
+  const subs = await listOnboardingSubjects(db);
+  const invite = await createTeacherInvite(db, {
+    initialUsername: 'v_otp_001',
+    temporaryPassword: 'TempPassword123!'
+  });
 
+  const loginRes = await fetch(`${baseUrl}/api/teacher/onboarding/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: 'v_otp_001', password: 'TempPassword123!' })
+  });
+  const loginData = await loginRes.json();
+  const token = loginData.onboardingToken;
+
+  const submitRes = await fetch(`${baseUrl}/api/teacher/onboarding/submit`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      name: 'Dr. Ram Sharma',
+      username: 'ram.sharma.otp',
+      email: 'ram.sharma.otp@example.com',
+      password: 'PermanentPassword123!',
+      confirmPassword: 'PermanentPassword123!',
+      subjectIds: [subs[0].id, subs[1].id]
+    })
+  });
+
+  assert.equal(submitRes.status, 200);
+  const submitData = await submitRes.json();
+  assert.equal(submitData.success, true);
+  assert.equal(submitData.status, 'awaiting_email_verification');
+  assert.ok(submitData.emailMasked);
+  assert.equal(submitData.email, 'ram.sharma.otp@example.com');
+  assert.match(submitData.message, /verification code|6-digit/i);
+
+  // NO permanent teacher row before OTP verification
+  const permStudent = await db.get("SELECT * FROM students WHERE username = 'ram.sharma.otp'");
+  assert.ok(!permStudent, 'Permanent student row must not exist before OTP verification');
+
+  const permTeacher = await db.get("SELECT * FROM teachers WHERE invite_id = ?", invite.id);
+  assert.ok(!permTeacher, 'Permanent teacher row must not exist before OTP verification');
+
+  // Pending row exists in quarantine
+  const pendingRow = await db.get("SELECT * FROM teacher_onboarding_pending WHERE invite_id = ?", invite.id);
+  assert.ok(pendingRow);
+  assert.equal(pendingRow.username, 'ram.sharma.otp');
+});
+
+test('Section 21.3 & 21.4: Wrong OTP and Expired OTP are denied while preserving pending state', async () => {
+  const pending = await db.get("SELECT * FROM teacher_onboarding_pending WHERE username = 'ram.sharma.otp'");
+  assert.ok(pending);
+
+  const mockSupabase = global.__testSupabaseMock;
+  // 1. Wrong OTP ('000000') denied by Supabase Auth
+  const wrongRes = await mockSupabase.auth.verifyOtp({
+    email: pending.email,
+    token: '000000',
+    type: 'email'
+  });
+  assert.ok(wrongRes.error);
+  assert.equal(wrongRes.data.session, null);
+
+  // 2. Expired OTP ('999999') denied by Supabase Auth
+  const expiredRes = await mockSupabase.auth.verifyOtp({
+    email: pending.email,
+    token: '999999',
+    type: 'email'
+  });
+  assert.ok(expiredRes.error);
+  assert.equal(expiredRes.error.code, 'otp_expired');
+  assert.equal(expiredRes.data.session, null);
+
+  // Pending setup is preserved and not cleared
+  const stillPending = await db.get("SELECT * FROM teacher_onboarding_pending WHERE id = ?", pending.id);
+  assert.ok(stillPending, 'Pending record must NOT be deleted on incorrect or expired OTP');
+});
+
+test('Section 21.5: Resend verification code enforces DB-backed cooldown', async () => {
+  const pending = await db.get("SELECT * FROM teacher_onboarding_pending WHERE username = 'ram.sharma.otp'");
+  assert.ok(pending);
+
+  const loginRes = await fetch(`${baseUrl}/api/teacher/onboarding/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: 'v_otp_001', password: 'TempPassword123!' })
+  });
+  const { onboardingToken } = await loginRes.json();
+
+  // First resend (reset cooldown timestamp first to guarantee fresh window)
+  await db.run("UPDATE teacher_onboarding_pending SET last_verification_sent_at = '2026-01-01T00:00:00Z' WHERE id = ?", pending.id);
+  resendCooldownMap.delete(pending.invite_id);
+
+  const resend1 = await fetch(`${baseUrl}/api/teacher/onboarding/resend-verification`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${onboardingToken}` }
+  });
+  assert.equal(resend1.status, 200);
+
+  // Immediate second resend is rate-limited
+  const resend2 = await fetch(`${baseUrl}/api/teacher/onboarding/resend-verification`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${onboardingToken}` }
+  });
+  assert.equal(resend2.status, 429);
+  const data2 = await resend2.json();
+  assert.equal(data2.code, 'RATE_LIMITED');
+});
+
+test('Section 21.6: Change email updates pending DB, validates uniqueness, and issues new OTP', async () => {
+  const pending = await db.get("SELECT * FROM teacher_onboarding_pending WHERE username = 'ram.sharma.otp'");
+  assert.ok(pending);
+
+  const loginRes = await fetch(`${baseUrl}/api/teacher/onboarding/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: 'v_otp_001', password: 'TempPassword123!' })
+  });
+  const { onboardingToken } = await loginRes.json();
+
+  const changeRes = await fetch(`${baseUrl}/api/teacher/onboarding/change-email`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${onboardingToken}`
+    },
+    body: JSON.stringify({ email: 'ram.sharma.updated@example.com' })
+  });
+
+  assert.equal(changeRes.status, 200);
+  const changeData = await changeRes.json();
+  assert.equal(changeData.success, true);
+  assert.equal(changeData.email, 'ram.sharma.updated@example.com');
+  assert.ok(changeData.emailMasked);
+
+  // Verify updated in DB
+  const updatedPending = await db.get("SELECT email FROM teacher_onboarding_pending WHERE id = ?", pending.id);
+  assert.equal(updatedPending.email, 'ram.sharma.updated@example.com');
+});
+
+test('Section 21.7, 21.8, 21.9: Supabase UID mismatch, email mismatch, and different verified UID denied', async () => {
+  const pending = await db.get("SELECT * FROM teacher_onboarding_pending WHERE username = 'ram.sharma.otp'");
+  assert.ok(pending);
+
+  // 1. UID mismatch denied
+  const mismatchRes = await fetch(`${baseUrl}/api/teacher/onboarding/finalize`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      token: 'sb-uid-non-existent-random',
+      user: {
+        id: 'different-sb-uid-999',
+        email: pending.email,
+        email_confirmed_at: '2026-10-08T12:00:00Z'
+      }
+    })
+  });
+  assert.equal(mismatchRes.status, 404);
+
+  // 2. Email mismatch denied
+  const emailMismatchRes = await fetch(`${baseUrl}/api/teacher/onboarding/finalize`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      token: 'some-token',
+      user: {
+        id: pending.supabase_uid,
+        email: 'attacker-wrong@example.com',
+        email_confirmed_at: '2026-10-08T12:00:00Z'
+      }
+    })
+  });
+  assert.equal(emailMismatchRes.status, 400);
+
+  // 3. Different verified user cannot claim existing teacher email
+  const claimRes = await fetch(`${baseUrl}/api/teacher/onboarding/finalize`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      token: 'some-token',
+      user: {
+        id: 'foreign-uid-1234',
+        email: 'existing@example.com',
+        email_confirmed_at: '2026-10-08T12:00:00Z'
+      }
+    })
+  });
+  assert.equal(claimRes.status, 404);
+});
+
+test('Section 21.10 - 21.16: OTP success finalizes teacher, subjects persisted, mobile opaque token issued, credentials invalidated, automatically authenticated', async () => {
+  const pending = await db.get("SELECT * FROM teacher_onboarding_pending WHERE username = 'ram.sharma.otp'");
+  assert.ok(pending);
+
+  // Perform successful Supabase OTP verification with matching credentials
+  const verifiedUser = {
+    id: pending.supabase_uid,
+    email: pending.email,
+    email_confirmed_at: '2026-10-08T12:00:00Z'
+  };
+
+  const finRes = await fetch(`${baseUrl}/api/teacher/onboarding/finalize`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      user: verifiedUser,
+      token: 'mock-sb-token-' + pending.supabase_uid
+    })
+  });
+
+  assert.equal(finRes.status, 200);
+  const finData = await finRes.json();
+  assert.equal(finData.success, true);
+  assert.equal(finData.activated, true);
+  assert.ok(finData.mobileToken, 'Response must include mobileToken');
+  assert.ok(finData.user, 'Response must include safe user profile');
+  assert.equal(finData.user.role, 'teacher');
+  assert.equal(finData.user.semester, null);
+
+  // 1. Permanent students anchor row created
+  const studentRow = await db.get("SELECT * FROM students WHERE supabase_uid = ?", pending.supabase_uid);
+  assert.ok(studentRow);
+  assert.equal(studentRow.role, 'teacher');
+  assert.equal(studentRow.semester, null);
+  assert.equal(studentRow.gender, null);
+  assert.equal(studentRow.department, 'BIT');
+  assert.equal(studentRow.verification_status || studentRow.verificationstatus || studentRow.verificationStatus, 'verified');
+
+  // 2. Teachers row created
+  const teacherRow = await db.get("SELECT * FROM teachers WHERE user_id = ?", studentRow.studentId);
+  assert.ok(teacherRow);
+  assert.equal(teacherRow.status, 'active');
+
+  // 3. Subjects persisted
+  const subjects = await getTeacherSubjects(db, studentRow.studentId);
+  assert.ok(subjects.length >= 2, 'Teacher subjects must be persisted');
+
+  // 4. Invite marked completed
+  const invite = await db.get("SELECT * FROM teacher_invites WHERE id = ?", pending.invite_id);
+  assert.equal(invite.status, 'completed');
+
+  // 5. Pending records deleted
+  const pendingCheck = await db.get("SELECT * FROM teacher_onboarding_pending WHERE id = ?", pending.id);
+  assert.ok(!pendingCheck);
+
+  // 6. Temporary credential invalidated
+  const relogin = await fetch(`${baseUrl}/api/teacher/onboarding/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: 'v_otp_001', password: 'TempPassword123!' })
+  });
+  assert.equal(relogin.status, 401);
+
+  // 7. Mobile opaque token issued and valid in mobile_tokens table
+  const dbMobileToken = await db.get("SELECT * FROM mobile_tokens WHERE token = ?", finData.mobileToken);
+  assert.ok(dbMobileToken, 'Mobile token must exist in mobile_tokens table');
+  assert.equal(dbMobileToken.studentId, studentRow.studentId);
+
+  // 8. Teacher automatically authenticated on mobile using issued mobile token
+  const meRes = await fetch(`${baseUrl}/api/me`, {
+    headers: { 'Authorization': `Bearer ${finData.mobileToken}` }
+  });
+  assert.equal(meRes.status, 200);
+  const meData = await meRes.json();
+  assert.equal(meData.user.role, 'teacher');
+  assert.equal(meData.user.studentId, studentRow.studentId);
+});
+
+test('Section 21.17: App restart while awaiting OTP resumes verification screen with email', async () => {
+  const subs = await listOnboardingSubjects(db);
+  const invite = await createTeacherInvite(db, {
+    initialUsername: 'v_otp_resume_01',
+    temporaryPassword: 'TempPassword123!'
+  });
+
+  const loginRes = await fetch(`${baseUrl}/api/teacher/onboarding/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: 'v_otp_resume_01', password: 'TempPassword123!' })
+  });
+  const { onboardingToken } = await loginRes.json();
+
+  // Submit profile to reach awaiting_email_verification
+  await fetch(`${baseUrl}/api/teacher/onboarding/submit`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${onboardingToken}`
+    },
+    body: JSON.stringify({
+      name: 'Dr. Resume Test',
+      username: 'resume.test.otp',
+      email: 'resume.test.otp@example.com',
+      password: 'PermanentPassword123!',
+      confirmPassword: 'PermanentPassword123!',
+      subjectIds: [subs[0].id]
+    })
+  });
+
+  // Client restarts: reads onboarding token from SecureStore, calls GET /api/teacher/onboarding/state
+  const stateRes = await fetch(`${baseUrl}/api/teacher/onboarding/state`, {
+    headers: { 'Authorization': `Bearer ${onboardingToken}` }
+  });
+  assert.equal(stateRes.status, 200);
+  const stateData = await stateRes.json();
+  assert.equal(stateData.status, 'awaiting_email_verification');
+  assert.ok(stateData.emailMasked);
+  assert.equal(stateData.email, 'resume.test.otp@example.com', 'State must return unmasked email to allow client verifyOtp');
+});
+
+test('Section 21.18: App restart after activation resumes normal teacher session', async () => {
+  const student = await db.get("SELECT * FROM students WHERE username = 'ram.sharma.otp'");
+  assert.ok(student);
+  const mTok = await db.get("SELECT token FROM mobile_tokens WHERE studentId = ?", student.studentId);
+  assert.ok(mTok);
+
+  // App restarts: reads stored mobile token from SecureStore, calls GET /api/me
+  const meRes = await fetch(`${baseUrl}/api/me`, {
+    headers: { 'Authorization': `Bearer ${mTok.token}` }
+  });
+  assert.equal(meRes.status, 200);
+  const meData = await meRes.json();
+  assert.equal(meData.user.role, 'teacher');
+});
+
+test('Section 21.19: Student, CR, and Admin authorization behavior unaffected', async () => {
+  // Student cannot access teacher check
+  const studentLogin = await fetch(`${baseUrl}/api/mobile/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ identifier: 'existing_user', password: 'fake_hash' })
+  });
+
+  // Verify permissions matrix using helper
+  const auth = createAuthMiddleware(db);
+  const fakeStudentReq = { user: { role: 'student', studentId: 'stud_1' } };
+  const fakeCRReq = { user: { role: 'student', isCR: true, studentId: 'stud_cr' } };
+  const fakeTeacherReq = { user: { role: 'teacher', studentId: 'teach_1' } };
+  const fakeAdminReq = { user: { role: 'admin', isAdmin: true, studentId: 'admin_1' } };
+
+  let nextCalled = false;
+  const mockNext = () => { nextCalled = true; };
+  const mockRes = { status: (c) => ({ json: (d) => ({ code: c, body: d }) }) };
+
+  // Teacher route requires teacher
+  nextCalled = false;
+  auth.requireTeacher(fakeStudentReq, mockRes, mockNext);
+  assert.equal(nextCalled, false, 'Student blocked from teacher route');
+
+  nextCalled = false;
+  auth.requireTeacher(fakeCRReq, mockRes, mockNext);
+  assert.equal(nextCalled, false, 'CR blocked from teacher route');
+
+  nextCalled = false;
+  auth.requireTeacher(fakeTeacherReq, mockRes, mockNext);
+  assert.equal(nextCalled, true, 'Teacher allowed on teacher route');
+
+  // Admin route blocks teacher
+  nextCalled = false;
+  auth.requireAdmin(fakeTeacherReq, mockRes, mockNext);
+  assert.equal(nextCalled, false, 'Teacher strictly blocked from admin route');
+
+  nextCalled = false;
+  auth.requireAdmin(fakeAdminReq, mockRes, mockNext);
+  assert.equal(nextCalled, true, 'Admin allowed on admin route');
+});

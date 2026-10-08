@@ -18,6 +18,7 @@
     email: '',
     password: ''
   };
+  let targetEmail = '';
   let resendCooldownTimer = null;
   let resendCooldownSeconds = 0;
 
@@ -48,6 +49,7 @@
 
     setupPasswordToggle();
     setupSubjectSearch();
+    setupOtpInputs();
     await checkInitialState();
   }
 
@@ -64,10 +66,12 @@
       }
       const data = await res.json();
       if (data.status === 'completed' || data.completed) {
-        showCompletedState();
+        sessionStorage.removeItem('teacher_onboarding_token');
+        window.location.href = '/dashboard.html';
         return;
       }
       if (data.status === 'awaiting_email_verification') {
+        targetEmail = data.email || data.state?.pending?.email || '';
         showAwaitingVerification(data.emailMasked);
       } else {
         await loadSubjects();
@@ -340,6 +344,7 @@
         throw new Error(data.message || 'Onboarding submission failed.');
       }
 
+      targetEmail = data.email || step1Data.email;
       showAwaitingVerification(data.emailMasked || maskEmail(step1Data.email));
     } catch (err) {
       showAlert(err.message || 'An error occurred during onboarding.', 'error');
@@ -351,8 +356,139 @@
   function showAwaitingVerification(maskedEmail) {
     goToStep(3);
     document.getElementById('waitingMaskedEmail').textContent = maskedEmail || 'your email';
+    // Clear any previous OTP digits
+    const inputs = document.querySelectorAll('.otp-digit-input');
+    inputs.forEach(inp => { inp.value = ''; });
+    if (inputs[0]) inputs[0].focus();
     startResendCooldown(60);
   }
+
+  function setupOtpInputs() {
+    const inputs = document.querySelectorAll('.otp-digit-input');
+    inputs.forEach((input, index) => {
+      input.addEventListener('input', () => {
+        const val = input.value.replace(/[^0-9]/g, '');
+        if (!val) {
+          input.value = '';
+          return;
+        }
+
+        // Handle paste of full code
+        if (val.length > 1) {
+          const digits = val.slice(0, 6).split('');
+          inputs.forEach((inp, i) => {
+            inp.value = digits[i] || '';
+          });
+          const nextIdx = Math.min(digits.length, 5);
+          inputs[nextIdx]?.focus();
+          if (digits.length === 6) {
+            handleVerifyOtp();
+          }
+          return;
+        }
+
+        // Single digit typed
+        input.value = val[0];
+        if (index < 5) {
+          inputs[index + 1]?.focus();
+        } else if (index === 5) {
+          const allFilled = Array.from(inputs).every(inp => inp.value.length === 1);
+          if (allFilled) handleVerifyOtp();
+        }
+      });
+
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace') {
+          if (!input.value && index > 0) {
+            inputs[index - 1].value = '';
+            inputs[index - 1].focus();
+          }
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          handleVerifyOtp();
+        }
+      });
+    });
+  }
+
+  // OTP Verification Handler
+  window.handleVerifyOtp = async function() {
+    hideAlert();
+    const inputs = document.querySelectorAll('.otp-digit-input');
+    const digits = Array.from(inputs).map(inp => inp.value.trim()).join('');
+
+    if (digits.length !== 6) {
+      showAlert('Please enter the 6-digit verification code.', 'error', 'Incomplete Code');
+      return;
+    }
+
+    const btn = document.getElementById('verifyOtpBtn');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span>Verifying…</span>';
+    }
+
+    try {
+      const supabase = await window.SemesterAuth.getSupabase();
+      let verifyRes = await supabase.auth.verifyOtp({
+        email: targetEmail,
+        token: digits,
+        type: 'email'
+      });
+
+      if (verifyRes.error && (verifyRes.error.message || '').toLowerCase().includes('type')) {
+        verifyRes = await supabase.auth.verifyOtp({
+          email: targetEmail,
+          token: digits,
+          type: 'signup'
+        });
+      }
+
+      if (verifyRes.error || !verifyRes.data?.session?.access_token) {
+        const errMsg = (verifyRes.error?.message || '').toLowerCase();
+        if (errMsg.includes('expired') || verifyRes.error?.code === 'otp_expired') {
+          showAlert('That code has expired. Request a new verification code.', 'error', 'Code Expired');
+        } else {
+          showAlert('That verification code is incorrect.', 'error', 'Incorrect Code');
+        }
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<span>Verify & Continue</span>';
+        }
+        return;
+      }
+
+      const accessToken = verifyRes.data.session.access_token;
+
+      // Call backend finalize
+      const finRes = await fetch('/api/teacher/onboarding/finalize', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({ token: accessToken })
+      });
+
+      const finData = await finRes.json().catch(() => ({}));
+      if (!finRes.ok || !finData.success) {
+        throw new Error(finData.message || 'Account activation failed.');
+      }
+
+      sessionStorage.removeItem('teacher_onboarding_token');
+
+      showAlert('Account verified! Taking you to your dashboard…', 'success', 'Welcome');
+      setTimeout(() => {
+        window.location.href = '/dashboard.html';
+      }, 500);
+    } catch (err) {
+      showAlert(err.message || 'Verification failed. Please try again.', 'error');
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<span>Verify & Continue</span>';
+      }
+    }
+  };
 
   // Resend Verification Email
   window.handleResendVerification = async function() {
@@ -372,12 +508,12 @@
       if (!res.ok) {
         throw new Error(data.message || 'Could not resend email.');
       }
-      showAlert('Verification email sent! Please check your inbox.', 'success', 'Email Sent');
+      showAlert('Verification code sent! Please check your inbox.', 'success', 'Code Sent');
       startResendCooldown(60);
     } catch (err) {
       showAlert(err.message, 'error');
       btn.disabled = false;
-      btn.innerHTML = '<span>Resend Verification Email</span>';
+      btn.innerHTML = '<span>Resend Code</span>';
     }
   };
 
@@ -395,7 +531,7 @@
       if (resendCooldownSeconds <= 0) {
         clearInterval(resendCooldownTimer);
         btn.disabled = false;
-        btn.innerHTML = '<span>Resend Verification Email</span>';
+        btn.innerHTML = '<span>Resend Code</span>';
       } else {
         btn.innerHTML = `<span>Resend in ${resendCooldownSeconds}s</span>`;
       }
@@ -436,8 +572,11 @@
       if (!res.ok) {
         throw new Error(data.message || 'Could not change email.');
       }
-      showAlert('Email updated and verification link resent!', 'success', 'Email Updated');
-      document.getElementById('waitingMaskedEmail').textContent = data.emailMasked || maskEmail(newEmail);
+      targetEmail = cleanNewEmail;
+      showAlert('Email updated and new verification code sent!', 'success', 'Email Updated');
+      document.getElementById('waitingMaskedEmail').textContent = data.emailMasked || maskEmail(cleanNewEmail);
+      const inputs = document.querySelectorAll('.otp-digit-input');
+      inputs.forEach(inp => { inp.value = ''; });
       toggleChangeEmailForm();
       startResendCooldown(60);
     } catch (err) {
@@ -446,12 +585,6 @@
       btn.disabled = false;
       btn.textContent = 'Save & Resend';
     }
-  };
-
-  window.checkStatusManual = async function() {
-    hideAlert();
-    await checkInitialState();
-    showAlert('Status updated.', 'success', 'Checked');
   };
 
   document.addEventListener('DOMContentLoaded', init);

@@ -203,6 +203,39 @@
       border-color: #3f3f46;
       color: #fafafa;
     }
+    .otp-inputs-row {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin: 20px 0 24px;
+    }
+    .otp-digit-input {
+      width: 46px;
+      height: 54px;
+      border-radius: 8px;
+      border: 1.5px solid var(--border-color, #d4d4d8);
+      background: var(--surface-bg, #ffffff);
+      color: var(--text-main, #09090b);
+      font-size: 22px;
+      font-weight: 700;
+      text-align: center;
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+      box-sizing: border-box;
+    }
+    .otp-digit-input:focus {
+      border-color: var(--primary-color, #4338ca);
+      box-shadow: 0 0 0 3px rgba(67, 56, 202, 0.15);
+    }
+    [data-theme="dark"] .otp-digit-input {
+      background: #18181b;
+      border-color: #27272a;
+      color: #fafafa;
+    }
+    [data-theme="dark"] .otp-digit-input:focus {
+      border-color: #818cf8;
+      box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.25);
+    }
   </style>
 </head>
 <body class="apple-signin-page">
@@ -318,24 +351,34 @@
       </div>
     </div>
 
-    <!-- STEP 3: Awaiting Email Verification -->
+    <!-- STEP 3: Verify Your Email (In-App OTP Verification) -->
     <div id="stepSection3" style="display: none; text-align: center;">
       <div style="font-size: 44px; margin-bottom: 12px;">✉️</div>
       <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">Verify Your Email</h2>
-      <p style="font-size: 14px; color: var(--text-muted); line-height: 1.5; margin-bottom: 20px;">
-        We sent a verification link to <strong id="waitingMaskedEmail"></strong>.<br>
-        Please check your inbox or spam folder and click the link to activate your permanent faculty account.
+      <p style="font-size: 14px; color: var(--text-muted); line-height: 1.5; margin-bottom: 16px;">
+        We sent a 6-digit verification code to:<br>
+        <strong id="waitingMaskedEmail"></strong>
       </p>
 
+      <!-- 6 OTP Boxes -->
+      <div class="otp-inputs-row" id="otpContainer">
+        <input type="text" maxlength="6" inputmode="numeric" pattern="[0-9]*" class="otp-digit-input" data-index="0" autocomplete="one-time-code">
+        <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]*" class="otp-digit-input" data-index="1">
+        <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]*" class="otp-digit-input" data-index="2">
+        <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]*" class="otp-digit-input" data-index="3">
+        <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]*" class="otp-digit-input" data-index="4">
+        <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]*" class="otp-digit-input" data-index="5">
+      </div>
+
       <div style="display: flex; flex-direction: column; gap: 10px; max-width: 320px; margin: 0 auto;">
-        <button type="button" class="btn btn-primary" id="resendBtn" onclick="handleResendVerification()">
-          <span>Resend Verification Email</span>
+        <button type="button" class="btn btn-primary" id="verifyOtpBtn" onclick="handleVerifyOtp()">
+          <span>Verify & Continue</span>
+        </button>
+        <button type="button" class="btn-secondary" id="resendBtn" onclick="handleResendVerification()">
+          Resend Code
         </button>
         <button type="button" class="btn-secondary" id="changeEmailBtn" onclick="toggleChangeEmailForm()">
-          Change Email Address
-        </button>
-        <button type="button" class="btn-secondary" onclick="checkStatusManual()">
-          Refresh Status
+          Change Email
         </button>
       </div>
 
@@ -354,6 +397,7 @@
 
   </main>
 
+  <script src="auth.js"></script>
   <script src="teacher-onboarding.js"></script>
 </body>
 </html>

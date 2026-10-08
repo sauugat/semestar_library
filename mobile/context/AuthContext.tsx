@@ -74,6 +74,7 @@ interface AuthContextType {
   updateProfile: (data: Partial<StudentUser>) => Promise<{ success: boolean; profile?: StudentUser; error?: string }>;
   logout: () => Promise<void>;
   updateServerUrl: (url: string) => Promise<void>;
+  setSession: (token: string, user: StudentUser) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -441,6 +442,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setServerUrl(sanitized);
   };
 
+  const setSession = async (newToken: string, newUser: StudentUser) => {
+    invalidateChatSession();
+    await SecureStore.setItemAsync(TOKEN_KEY, newToken);
+    if (newUser) {
+      await SecureStore.setItemAsync(USER_KEY, JSON.stringify(newUser));
+    }
+    setToken(newToken);
+    setUser(newUser);
+    void registerPushToken();
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -456,6 +468,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         updateProfile,
         logout,
         updateServerUrl,
+        setSession,
       }}
     >
       {children}

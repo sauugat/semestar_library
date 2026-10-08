@@ -197,10 +197,12 @@ router.post('/login', teacherLoginRateLimiter, async (req, res) => {
 router.get('/state', requireOnboardingToken, async (req, res) => {
   const state = req.onboarding.state || {};
   const emailMasked = state.emailMasked || state.pending?.emailMasked || null;
+  const email = state.pending?.email || null;
   const subjectsSelected = state.subjectsSelected ?? state.pending?.subjectsCount ?? 0;
   return res.json({
     status: state.status,
     emailMasked,
+    email,
     canResend: state.canResend ?? (state.status === 'awaiting_email_verification'),
     canChangeEmail: state.canChangeEmail ?? (state.status === 'awaiting_email_verification'),
     subjectsSelected,
@@ -332,6 +334,13 @@ router.post('/finalize', async (req, res) => {
                    result.code === 'NO_PENDING_RECORD' ? 404 :
                    result.code === 'INVALID_TOKEN' ? 401 : 400;
     return res.status(status).json({ message: result.reason || 'Account finalization failed.' });
+  }
+
+  // Automatically authenticate web session if express-session is present
+  if (req.session) {
+    req.session.studentId = result.teacherId;
+    req.session.studentName = result.teacher?.name || result.user?.name;
+    req.session.role = 'teacher';
   }
 
   return res.json(result);

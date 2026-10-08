@@ -18,6 +18,7 @@ import { Text } from '@/components/ui/Typography';
 import { Button } from '@/components/ui/Button';
 import { useTheme } from '@/constants/useTheme';
 import { useAuth } from '@/context/AuthContext';
+import { getMobileSupabaseClient } from '@/services/supabase';
 
 export const TEACHER_ONBOARDING_TOKEN_KEY = 'semester_library_teacher_onboarding_token';
 
@@ -31,12 +32,14 @@ interface SubjectItem {
 export default function TeacherOnboardingScreen() {
   const router = useRouter();
   const { colors, radii, spacing } = useTheme();
-  const { serverUrl } = useAuth();
+  const { serverUrl, setSession } = useAuth();
   const params = useLocalSearchParams<{ token?: string; state?: string }>();
 
   const [activeToken, setActiveToken] = useState<string>(params.token || '');
-  const [isCompleted, setIsCompleted] = useState(false);
-  const [checkingStatus, setCheckingStatus] = useState(false);
+  const [targetEmail, setTargetEmail] = useState('');
+  const [otpDigits, setOtpDigits] = useState<string[]>(['', '', '', '', '', '']);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const inputRefs = useRef<(TextInput | null)[]>([]);
 
   // Non-dismissible lock: intercept Android hardware back press
   useEffect(() => {
@@ -112,11 +115,17 @@ export default function TeacherOnboardingScreen() {
         const data = await res.json().catch(() => ({}));
         if (data.status === 'completed' || data.completed) {
           await SecureStore.deleteItemAsync(TEACHER_ONBOARDING_TOKEN_KEY).catch(() => {});
-          setIsCompleted(true);
+          const mobileTok = await SecureStore.getItemAsync('semester_library_mobile_token').catch(() => null);
+          if (mobileTok) {
+            router.replace('/(tabs)');
+          } else {
+            router.replace('/login');
+          }
           return;
         }
         if (data.status === 'awaiting_email_verification') {
           setMaskedEmail(data.emailMasked || '');
+          setTargetEmail(data.email || data.state?.pending?.email || '');
           setCurrentStep(3);
         } else {
           loadSubjectsList(tokenToUse);
@@ -149,40 +158,7 @@ export default function TeacherOnboardingScreen() {
     }
   };
 
-  // Manual Check Status Handler
-  const handleCheckStatus = async () => {
-    if (checkingStatus) return;
-    setCheckingStatus(true);
-    setErrorMessage(null);
 
-    try {
-      let tokenToUse = activeToken;
-      if (!tokenToUse) {
-        tokenToUse = (await SecureStore.getItemAsync(TEACHER_ONBOARDING_TOKEN_KEY).catch(() => null)) || '';
-      }
-      const res = await fetch(`${serverUrl}/api/teacher/onboarding/state`, {
-        headers: { Authorization: `Bearer ${tokenToUse}` },
-      });
-      const data = await res.json().catch(() => ({}));
-      if (data.status === 'completed' || data.completed) {
-        await SecureStore.deleteItemAsync(TEACHER_ONBOARDING_TOKEN_KEY).catch(() => {});
-        setIsCompleted(true);
-        return;
-      }
-      if (res.status === 401) {
-        await SecureStore.deleteItemAsync(TEACHER_ONBOARDING_TOKEN_KEY).catch(() => {});
-        Alert.alert('Session Expired', 'Please log in again with your temporary credentials.', [
-          { text: 'OK', onPress: () => router.replace('/login') },
-        ]);
-        return;
-      }
-      Alert.alert('Awaiting Verification', 'Your email verification is still pending. Tap the link in your email, then check status again.');
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Could not check status. Please verify your connection.');
-    } finally {
-      setCheckingStatus(false);
-    }
-  };
 
   // Cooldown timer for resend
   useEffect(() => {
@@ -300,6 +276,8 @@ export default function TeacherOnboardingScreen() {
       }
 
       setMaskedEmail(data.emailMasked || email);
+      setTargetEmail(data.email || email.trim().toLowerCase());
+      setOtpDigits(['', '', '', '', '', '']);
       setCurrentStep(3);
       setResendCooldown(60);
     } catch (err: any) {
@@ -324,7 +302,7 @@ export default function TeacherOnboardingScreen() {
       if (!res.ok) {
         throw new Error(data.message || 'Failed to resend verification email.');
       }
-      Alert.alert('Email Sent', 'Verification link resent to your email.');
+      Alert.alert('Code Sent', 'Verification code resent to your email.');
       setResendCooldown(60);
     } catch (err: any) {
       setErrorMessage(err.message || 'Could not resend email.');
@@ -359,14 +337,141 @@ export default function TeacherOnboardingScreen() {
         throw new Error(data.message || 'Could not change email.');
       }
       setMaskedEmail(data.emailMasked || cleanNewEmail);
+      setTargetEmail(data.email || cleanNewEmail);
+      setOtpDigits(['', '', '', '', '', '']);
       setIsChangingEmail(false);
       setNewEmailInput('');
       setResendCooldown(60);
-      Alert.alert('Email Updated', 'Verification email sent to your new address.');
+      Alert.alert('Email Updated', 'Verification code sent to your new address.');
     } catch (err: any) {
       setErrorMessage(err.message || 'Failed to update email.');
     } finally {
       setSavingNewEmail(false);
+    }
+  };
+
+  // OTP input handler
+  const handleOtpChange = (text: string, index: number) => {
+    setErrorMessage(null);
+    const cleaned = text.replace(/[^0-9]/g, '');
+
+    if (!cleaned) {
+      const updated = [...otpDigits];
+      updated[index] = '';
+      setOtpDigits(updated);
+      return;
+    }
+
+    // Pasting multiple digits
+    if (cleaned.length > 1) {
+      const digits = cleaned.slice(0, 6).split('');
+      const updated = [...otpDigits];
+      for (let i = 0; i < 6; i++) {
+        updated[i] = digits[i] || '';
+      }
+      setOtpDigits(updated);
+      const nextIdx = Math.min(digits.length, 5);
+      inputRefs.current[nextIdx]?.focus();
+      if (digits.length === 6) {
+        void verifyOtpCode(digits.join(''));
+      }
+      return;
+    }
+
+    // Single digit typed
+    const updated = [...otpDigits];
+    updated[index] = cleaned[0];
+    setOtpDigits(updated);
+
+    if (index < 5) {
+      inputRefs.current[index + 1]?.focus();
+    } else if (index === 5 && updated.every((d) => d.length === 1)) {
+      void verifyOtpCode(updated.join(''));
+    }
+  };
+
+  const handleOtpKeyPress = (e: any, index: number) => {
+    if (e.nativeEvent?.key === 'Backspace') {
+      if (!otpDigits[index] && index > 0) {
+        const updated = [...otpDigits];
+        updated[index - 1] = '';
+        setOtpDigits(updated);
+        inputRefs.current[index - 1]?.focus();
+      }
+    }
+  };
+
+  const verifyOtpCode = async (codeToVerify?: string) => {
+    if (isVerifyingOtp) return;
+    const code = (codeToVerify || otpDigits.join('')).trim();
+    if (code.length !== 6) {
+      setErrorMessage('Please enter the 6-digit verification code.');
+      return;
+    }
+
+    setIsVerifyingOtp(true);
+    setErrorMessage(null);
+
+    try {
+      const supabase = await getMobileSupabaseClient(serverUrl);
+      let verifyRes = await supabase.auth.verifyOtp({
+        email: targetEmail,
+        token: code,
+        type: 'email',
+      });
+
+      if (verifyRes.error && (verifyRes.error.message || '').toLowerCase().includes('type')) {
+        verifyRes = await supabase.auth.verifyOtp({
+          email: targetEmail,
+          token: code,
+          type: 'signup',
+        });
+      }
+
+      if (verifyRes.error || !verifyRes.data?.session?.access_token) {
+        const errMsg = (verifyRes.error?.message || '').toLowerCase();
+        if (errMsg.includes('expired') || verifyRes.error?.code === 'otp_expired') {
+          setErrorMessage('That code has expired. Request a new verification code.');
+        } else {
+          setErrorMessage('That verification code is incorrect.');
+        }
+        setIsVerifyingOtp(false);
+        return;
+      }
+
+      const accessToken = verifyRes.data.session.access_token;
+
+      // Finalize onboarding with backend
+      const finRes = await fetch(`${serverUrl}/api/teacher/onboarding/finalize`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ token: accessToken }),
+      });
+
+      const finData = await finRes.json().catch(() => ({}));
+      if (!finRes.ok || !finData.success) {
+        throw new Error(finData.message || 'Account activation failed.');
+      }
+
+      const mobileAuthToken = finData.mobileToken || finData.token;
+      const teacherUser = finData.user || finData.teacher;
+
+      // Delete onboarding token from storage
+      await SecureStore.deleteItemAsync(TEACHER_ONBOARDING_TOKEN_KEY).catch(() => {});
+
+      if (mobileAuthToken && teacherUser) {
+        await setSession(mobileAuthToken, teacherUser);
+        router.replace('/(tabs)');
+      } else {
+        router.replace('/login');
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Verification failed. Please try again.');
+    } finally {
+      setIsVerifyingOtp(false);
     }
   };
 
@@ -387,34 +492,11 @@ export default function TeacherOnboardingScreen() {
           <Text variant="sm" color="muted" style={{ textAlign: 'center', marginTop: 4 }}>
             {currentStep === 1 && 'Step 1: Set up your permanent identity'}
             {currentStep === 2 && 'Step 2: Choose the BIT subjects you teach'}
-            {currentStep === 3 && 'Step 3: Verify your recovery email'}
+            {currentStep === 3 && 'Step 3: Enter the 6-digit verification code'}
           </Text>
         </View>
 
-        {isCompleted ? (
-          <View style={[styles.card, { alignItems: 'center', paddingVertical: 24 }]}>
-            <View style={[styles.iconCircle, { backgroundColor: 'rgba(34, 197, 94, 0.15)', width: 80, height: 80, borderRadius: 40 }]}>
-              <Ionicons name="checkmark-circle" size={48} color="#22c55e" />
-            </View>
-            <Text variant="xl" weight="800" style={{ color: colors.text, marginTop: 16 }}>
-              Account Ready
-            </Text>
-            <Text variant="sm" color="muted" style={{ textAlign: 'center', marginTop: 10, lineHeight: 22, paddingHorizontal: 16 }}>
-              Your teacher account is ready. Sign in with your new username and password.
-            </Text>
-            <Button
-              title="Sign In"
-              variant="primary"
-              size="lg"
-              onPress={async () => {
-                await SecureStore.deleteItemAsync(TEACHER_ONBOARDING_TOKEN_KEY).catch(() => {});
-                router.replace('/login');
-              }}
-              style={{ marginTop: 24, width: '100%', borderRadius: radii.md }}
-            />
-          </View>
-        ) : (
-          <>
+        <>
             {/* Step Indicator */}
             <View style={styles.stepperRow}>
               <View style={[styles.stepDot, currentStep >= 1 && { backgroundColor: colors.primary }]}>
@@ -662,7 +744,7 @@ export default function TeacherOnboardingScreen() {
           </View>
         )}
 
-        {/* STEP 3: Verify Your Email */}
+        {/* STEP 3: Verify Your Email (In-App OTP Verification) */}
         {currentStep === 3 && (
           <View style={[styles.card, { alignItems: 'center' }]}>
             <View style={styles.iconCircle}>
@@ -672,33 +754,61 @@ export default function TeacherOnboardingScreen() {
               Verify Your Email
             </Text>
             <Text variant="sm" color="muted" style={{ textAlign: 'center', marginTop: 8, lineHeight: 20 }}>
-              We sent a verification link to <Text weight="700" style={{ color: colors.text }}>{maskedEmail}</Text>.
-              Please open your email and tap the link to activate your permanent faculty account.
+              We sent a 6-digit verification code to:{'\n'}
+              <Text weight="700" style={{ color: colors.text }}>{maskedEmail || 'your email'}</Text>
             </Text>
 
-            <View style={{ width: '100%', marginTop: 24, gap: 10 }}>
+            {/* 6 OTP Boxes */}
+            <View style={styles.otpRow}>
+              {[0, 1, 2, 3, 4, 5].map((i) => (
+                <TextInput
+                  key={i}
+                  ref={(ref) => { inputRefs.current[i] = ref; }}
+                  style={[
+                    styles.otpBox,
+                    {
+                      borderColor: otpDigits[i] ? colors.primary : colors.border,
+                      backgroundColor: colors.surfaceRaised,
+                      color: colors.text,
+                    },
+                  ]}
+                  keyboardType="number-pad"
+                  textContentType="oneTimeCode"
+                  maxLength={i === 0 ? 6 : 1}
+                  value={otpDigits[i]}
+                  onChangeText={(text) => handleOtpChange(text, i)}
+                  onKeyPress={(e) => handleOtpKeyPress(e, i)}
+                  textAlign="center"
+                  selectTextOnFocus
+                  editable={!isVerifyingOtp}
+                />
+              ))}
+            </View>
+
+            <View style={{ width: '100%', marginTop: 20, gap: 10 }}>
               <Button
-                title={resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend Verification Email'}
+                title="Verify & Continue"
                 variant="primary"
                 size="md"
-                disabled={resendCooldown > 0}
+                loading={isVerifyingOtp}
+                disabled={isVerifyingOtp}
+                onPress={() => verifyOtpCode()}
+                style={{ borderRadius: radii.md }}
+              />
+
+              <Button
+                title={resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend Code'}
+                variant="outline"
+                size="md"
+                disabled={resendCooldown > 0 || resendLoading}
                 loading={resendLoading}
                 onPress={handleResend}
                 style={{ borderRadius: radii.md }}
               />
 
               <Button
-                title="Check Status"
-                variant="outline"
-                size="md"
-                loading={checkingStatus}
-                onPress={handleCheckStatus}
-                style={{ borderRadius: radii.md }}
-              />
-
-              <Button
-                title="Change Email Address"
-                variant="outline"
+                title="Change Email"
+                variant="ghost"
                 size="md"
                 onPress={() => setIsChangingEmail(!isChangingEmail)}
                 style={{ borderRadius: radii.md }}
@@ -719,6 +829,7 @@ export default function TeacherOnboardingScreen() {
                   autoCapitalize="none"
                   value={newEmailInput}
                   onChangeText={setNewEmailInput}
+                  editable={!savingNewEmail}
                 />
                 <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
                   <Button
@@ -742,7 +853,6 @@ export default function TeacherOnboardingScreen() {
           </View>
         )}
         </>
-        )}
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -878,5 +988,21 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     marginTop: 14,
+  },
+  otpRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 20,
+    marginBottom: 8,
+  },
+  otpBox: {
+    width: 44,
+    height: 52,
+    borderWidth: 1.5,
+    borderRadius: 8,
+    fontSize: 22,
+    fontWeight: '700',
+    textAlign: 'center',
   },
 });

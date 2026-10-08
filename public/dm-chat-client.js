@@ -312,9 +312,6 @@
       }
 
       // Dropdown Actions
-      const muteBtn = document.getElementById('dmMenuMuteBtn');
-      if (muteBtn) muteBtn.addEventListener('click', () => this.toggleMuteActive());
-
       const clearBtn = document.getElementById('dmMenuClearBtn');
       if (clearBtn) clearBtn.addEventListener('click', () => this.openClearModal());
 
@@ -591,14 +588,8 @@
       }
 
       if (el.peerStatusText) {
-        el.peerStatusText.textContent = conv.blocked ? 'Blocked' : 'Online';
+        el.peerStatusText.textContent = conv.blocked ? 'Blocked' : '';
         el.peerStatusText.classList.remove('typing');
-      }
-
-      // Update Mute button label in menu
-      const muteBtn = document.getElementById('dmMenuMuteBtn');
-      if (muteBtn) {
-        muteBtn.textContent = conv.isMuted ? 'Unmute Conversation' : 'Mute Conversation';
       }
 
       // Update Block button label in menu
@@ -724,6 +715,8 @@
 
       for (let i = 0; i < this.messages.length; i++) {
         const msg = this.messages[i];
+        const prevMsg = i > 0 ? this.messages[i - 1] : null;
+        const nextMsg = i < this.messages.length - 1 ? this.messages[i + 1] : null;
         const dateStr = formatDateSeparator(msg.createdAt);
 
         if (dateStr && dateStr !== lastDateStr) {
@@ -735,17 +728,31 @@
           lastDateStr = dateStr;
         }
 
-        html += this.buildMessageRowHtml(msg);
+        html += this.buildMessageRowHtml(msg, prevMsg, nextMsg);
       }
 
       el.timeline.innerHTML = html;
     }
 
-    buildMessageRowHtml(msg) {
+    buildMessageRowHtml(msg, prevMsg = null, nextMsg = null) {
       const isSelf = msg.senderId === this.currentUser.studentId;
-      const rowClass = isSelf ? 'self' : 'peer';
+      let rowClass = isSelf ? 'self' : 'peer';
       const isDeleted = Boolean(msg.deletedForAll);
       const isEdited = Boolean(msg.isEdited);
+
+      const isSamePrev = Boolean(
+        prevMsg &&
+        prevMsg.senderId === msg.senderId &&
+        formatDateSeparator(prevMsg.createdAt) === formatDateSeparator(msg.createdAt)
+      );
+      const isSameNext = Boolean(
+        nextMsg &&
+        nextMsg.senderId === msg.senderId &&
+        formatDateSeparator(nextMsg.createdAt) === formatDateSeparator(msg.createdAt)
+      );
+
+      if (isSamePrev) rowClass += ' same-prev';
+      if (isSameNext) rowClass += ' same-next';
 
       // Read status (Seen vs Sent)
       let readReceiptHtml = '';
@@ -1568,13 +1575,13 @@
         clearTimeout(this.peerTypingTimeout);
         this.peerTypingTimeout = setTimeout(() => {
           if (el.peerStatusText) {
-            el.peerStatusText.textContent = 'Online';
+            el.peerStatusText.textContent = this.activeConversation?.blocked ? 'Blocked' : '';
             el.peerStatusText.classList.remove('typing');
           }
         }, 4000);
       } else {
         if (el.peerStatusText) {
-          el.peerStatusText.textContent = 'Online';
+          el.peerStatusText.textContent = this.activeConversation?.blocked ? 'Blocked' : '';
           el.peerStatusText.classList.remove('typing');
         }
       }

@@ -690,6 +690,15 @@ export default function DmConversationScreen() {
     const olderItem = messages[index + 1];
     const showDateSeparator = !olderItem || !isSameDay(item.createdAt, olderItem.createdAt);
 
+    // Consecutive grouping checks (inverted list: index + 1 is visually above, index - 1 is visually below)
+    const newerItem = index > 0 ? messages[index - 1] : undefined;
+    const isSameSenderAbove = Boolean(
+      olderItem && olderItem.senderId === item.senderId && !showDateSeparator
+    );
+    const isSameSenderBelow = Boolean(
+      newerItem && newerItem.senderId === item.senderId && isSameDay(item.createdAt, newerItem.createdAt)
+    );
+
     // Seen / Sent read receipt
     const numericId = typeof item.id === 'number' ? item.id : 0;
     const isSeen = isSelf && numericId > 0 && peerLastReadId >= numericId;
@@ -712,6 +721,10 @@ export default function DmConversationScreen() {
           style={[
             styles.bubbleRow,
             isSelf ? styles.bubbleRowSelf : styles.bubbleRowPeer,
+            {
+              marginTop: isSameSenderAbove ? 2 : 5,
+              marginBottom: isSameSenderBelow ? 2 : 5,
+            },
           ]}
         >
           <View
@@ -722,6 +735,8 @@ export default function DmConversationScreen() {
                     styles.bubbleSelf,
                     {
                       backgroundColor: colors.text, // crisp dark/contrast bubble matching minimal mobile theme
+                      borderTopRightRadius: isSameSenderAbove ? 4 : 16,
+                      borderBottomRightRadius: isSameSenderBelow ? 4 : 4,
                     },
                   ]
                 : [
@@ -729,6 +744,8 @@ export default function DmConversationScreen() {
                     {
                       backgroundColor: colors.surfaceRaised,
                       borderColor: colors.borderSubtle,
+                      borderTopLeftRadius: isSameSenderAbove ? 4 : 16,
+                      borderBottomLeftRadius: isSameSenderBelow ? 4 : 4,
                     },
                   ],
             ]}

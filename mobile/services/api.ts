@@ -22,6 +22,19 @@ export class ApiError extends Error {
   }
 }
 
+export function isLocalAddress(url: string): boolean {
+  if (!url) return false;
+  const lower = url.toLowerCase().trim();
+  return (
+    lower.startsWith('http://') ||
+    lower.includes('localhost') ||
+    lower.includes('127.0.0.1') ||
+    lower.includes('192.168.') ||
+    lower.includes('10.') ||
+    lower.includes('172.16.')
+  );
+}
+
 export function getAutoDetectedServerUrl(): string {
   try {
     if (__DEV__) {
@@ -40,21 +53,23 @@ export function getAutoDetectedServerUrl(): string {
 export async function getBaseUrl(): Promise<string> {
   // In production builds (!__DEV__), NEVER allow custom/arbitrary server URL overrides.
   // Purge any stored key and lock strictly to trusted production configuration.
+  // Ensure development URL overrides cannot accidentally redirect production builds to a local HTTP address.
   if (!__DEV__) {
     try {
       await SecureStore.deleteItemAsync(SERVER_URL_STORAGE_KEY).catch(() => {});
     } catch {}
 
-    if (process.env.EXPO_PUBLIC_API_URL && process.env.EXPO_PUBLIC_API_URL.trim()) {
-      return process.env.EXPO_PUBLIC_API_URL.trim().replace(/\/+$/, '');
+    const envUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
+    if (envUrl && !isLocalAddress(envUrl)) {
+      return envUrl.replace(/\/+$/, '');
     }
 
     const extraUrl = (Constants.expoConfig?.extra as any)?.apiUrl;
-    if (extraUrl && typeof extraUrl === 'string' && extraUrl.trim()) {
+    if (extraUrl && typeof extraUrl === 'string' && extraUrl.trim() && !isLocalAddress(extraUrl)) {
       return extraUrl.trim().replace(/\/+$/, '');
     }
 
-    return DEFAULT_SERVER_URL;
+    return 'https://semestar-library.vercel.app';
   }
 
   // Development builds: allow developer override from SecureStore

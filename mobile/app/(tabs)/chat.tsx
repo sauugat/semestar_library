@@ -285,7 +285,7 @@ export default function ChatScreen() {
     let isMounted = true;
     void (async () => {
       try {
-        const status = await fetchDmStatus(user?.studentId);
+        const status = await fetchDmStatus();
         if (isMounted) {
           setDmEnabled(Boolean(status?.enabled));
         }

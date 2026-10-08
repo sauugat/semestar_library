@@ -570,20 +570,11 @@
 
       try {
         const supabase = SemesterAuth.getSupabase();
-        let verifyRes = await supabase.auth.verifyOtp({
+        const verifyRes = await supabase.auth.verifyOtp({
           email,
           token: code,
           type: 'signup'
         });
-
-        if (verifyRes.error && (verifyRes.error.message?.toLowerCase().includes('type') || verifyRes.error.code === 'validation_failed')) {
-          const fallback = await supabase.auth.verifyOtp({
-            email,
-            token: code,
-            type: 'email'
-          });
-          if (!fallback.error) verifyRes = fallback;
-        }
 
         if (verifyRes.error) {
           const isExpired = verifyRes.error.code === 'otp_expired' || verifyRes.error.message?.toLowerCase().includes('expired');

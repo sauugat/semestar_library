@@ -367,17 +367,10 @@ export default function LoginScreen() {
 
     try {
       const supabase = await getMobileSupabaseClient(serverUrl);
-      let { error } = await supabase.auth.resend({
+      const { error } = await supabase.auth.resend({
         type: 'signup',
         email: cleanEmail,
       });
-      if (error && (error.message || '').toLowerCase().includes('type')) {
-        const fallback = await supabase.auth.resend({
-          type: 'signup',
-          email: cleanEmail,
-        });
-        error = fallback.error;
-      }
 
       if (error) {
         setErrorMessage(error.message);
@@ -407,19 +400,11 @@ export default function LoginScreen() {
 
     try {
       const supabase = await getMobileSupabaseClient(serverUrl);
-      let verifyRes = await supabase.auth.verifyOtp({
+      const verifyRes = await supabase.auth.verifyOtp({
         email: cleanEmail,
         token: code,
         type: 'signup',
       });
-
-      if (verifyRes.error && (verifyRes.error.message || '').toLowerCase().includes('type')) {
-        verifyRes = await supabase.auth.verifyOtp({
-          email: cleanEmail,
-          token: code,
-          type: 'email',
-        });
-      }
 
       if (verifyRes.error || !verifyRes.data?.session?.access_token) {
         const errMsg = (verifyRes.error?.message || '').toLowerCase();

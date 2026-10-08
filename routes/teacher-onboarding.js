@@ -294,7 +294,7 @@ router.post('/change-email', requireOnboardingToken, async (req, res) => {
   });
 
   if (!result.success) {
-    const status = result.code === 'SERVICE_UNAVAILABLE' ? 503 : 400;
+    const status = result.code === 'SERVICE_UNAVAILABLE' ? 503 : (result.code === 'EMAIL_COLLISION' ? 409 : 400);
     return res.status(status).json({ message: result.reason, code: result.code });
   }
 

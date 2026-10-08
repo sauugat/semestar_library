@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   ScrollView,
@@ -40,7 +40,9 @@ interface TeacherProfile {
 
 interface TeacherInviteItem {
   id: string;
-  temporary_username: string;
+  temporary_username?: string;
+  initial_username?: string;
+  username?: string;
   status: 'provisioned' | 'onboarding' | 'awaiting_email_verification' | 'active' | 'expired' | 'revoked';
   expires_at: string;
   created_at: string;
@@ -65,10 +67,18 @@ interface GeneratedCredential {
   expires_at?: string;
 }
 
+const FILTER_TABS = [
+  { id: 'all', label: 'All' },
+  { id: 'provisioned', label: 'Awaiting' },
+  { id: 'active', label: 'Active' },
+  { id: 'expired', label: 'Expired' },
+  { id: 'revoked', label: 'Revoked' },
+];
+
 export default function AdminTeachersScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { colors, spacing, radii, typography } = useTheme();
+  const { colors, spacing, radii } = useTheme();
   const { user } = useAuth();
 
   const isAdmin = user?.role === 'admin';
@@ -125,9 +135,9 @@ export default function AdminTeachersScreen() {
           throw new Error('Administrator access required.');
         }
         const errJson = await res.json().catch(() => ({}));
-        const rawMsg = errJson.message || 'Could not load teacher management. Please try again.';
+        const rawMsg = errJson.message || "Couldn't load teacher management.";
         const safeMsg = rawMsg.toLowerCase().includes('cohort')
-          ? 'Teacher management is temporarily unavailable.'
+          ? "Couldn't load teacher management."
           : rawMsg;
         throw new Error(safeMsg);
       }
@@ -137,7 +147,7 @@ export default function AdminTeachersScreen() {
       setSummary(data.summary || {});
       setOnboardingEnabled(data.onboarding_enabled !== false);
     } catch (err: any) {
-      setError(err?.message || 'Could not load teacher management. Please try again.');
+      setError(err?.message || "Couldn't load teacher management.");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -164,7 +174,7 @@ export default function AdminTeachersScreen() {
         const errJson = await res.json().catch(() => ({}));
         const rawMsg = errJson.message || 'Failed to create teacher login.';
         const safeMsg = rawMsg.toLowerCase().includes('cohort')
-          ? 'Teacher management is temporarily unavailable.'
+          ? "Couldn't load teacher management."
           : rawMsg;
         throw new Error(safeMsg);
       }
@@ -178,7 +188,7 @@ export default function AdminTeachersScreen() {
       setCredentialsTitle('Teacher Login Created');
       setCredentialsList(
         generated.map((inv: any) => ({
-          username: inv.username || inv.temporary_username,
+          username: inv.temporary_username || inv.initial_username || inv.username,
           temporaryPassword: inv.temporaryPassword || inv.temporary_password,
           expiresAt: inv.expiresAt || inv.expires_at,
         }))
@@ -212,7 +222,7 @@ export default function AdminTeachersScreen() {
         const errJson = await res.json().catch(() => ({}));
         const rawMsg = errJson.message || 'Failed to generate bulk credentials.';
         const safeMsg = rawMsg.toLowerCase().includes('cohort')
-          ? 'Teacher management is temporarily unavailable.'
+          ? "Couldn't load teacher management."
           : rawMsg;
         throw new Error(safeMsg);
       }
@@ -224,7 +234,7 @@ export default function AdminTeachersScreen() {
       setCredentialsTitle(`Batch Created (${generated.length} Logins)`);
       setCredentialsList(
         generated.map((inv: any) => ({
-          username: inv.username || inv.temporary_username,
+          username: inv.temporary_username || inv.initial_username || inv.username,
           temporaryPassword: inv.temporaryPassword || inv.temporary_password,
           expiresAt: inv.expiresAt || inv.expires_at,
         }))
@@ -242,7 +252,7 @@ export default function AdminTeachersScreen() {
   const handleRegeneratePassword = (username: string) => {
     Alert.alert(
       'Regenerate Password',
-      `Generate a new temporary password for ${username}? Any previous password will immediately stop working.`,
+      `Generate a new temporary password for ${username}? The previous temporary password will stop working immediately.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -250,14 +260,14 @@ export default function AdminTeachersScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              const res = await apiFetch(`/api/admin/teacher-invites/${username}/regenerate-password`, {
+              const res = await apiFetch(`/api/admin/teacher-invites/${encodeURIComponent(username)}/regenerate-password`, {
                 method: 'POST',
               });
               if (!res.ok) {
                 const errJson = await res.json().catch(() => ({}));
                 const rawMsg = errJson.message || 'Failed to regenerate password.';
                 const safeMsg = rawMsg.toLowerCase().includes('cohort')
-                  ? 'Teacher management is temporarily unavailable.'
+                  ? "Couldn't load teacher management."
                   : rawMsg;
                 throw new Error(safeMsg);
               }
@@ -292,14 +302,14 @@ export default function AdminTeachersScreen() {
           text: 'Reissue',
           onPress: async () => {
             try {
-              const res = await apiFetch(`/api/admin/teacher-invites/${username}/reissue`, {
+              const res = await apiFetch(`/api/admin/teacher-invites/${encodeURIComponent(username)}/reissue`, {
                 method: 'POST',
               });
               if (!res.ok) {
                 const errJson = await res.json().catch(() => ({}));
                 const rawMsg = errJson.message || 'Failed to reissue invitation.';
                 const safeMsg = rawMsg.toLowerCase().includes('cohort')
-                  ? 'Teacher management is temporarily unavailable.'
+                  ? "Couldn't load teacher management."
                   : rawMsg;
                 throw new Error(safeMsg);
               }
@@ -335,14 +345,14 @@ export default function AdminTeachersScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              const res = await apiFetch(`/api/admin/teacher-invites/${username}/revoke`, {
+              const res = await apiFetch(`/api/admin/teacher-invites/${encodeURIComponent(username)}/revoke`, {
                 method: 'POST',
               });
               if (!res.ok) {
                 const errJson = await res.json().catch(() => ({}));
                 const rawMsg = errJson.message || 'Failed to revoke invitation.';
                 const safeMsg = rawMsg.toLowerCase().includes('cohort')
-                  ? 'Teacher management is temporarily unavailable.'
+                  ? "Couldn't load teacher management."
                   : rawMsg;
                 throw new Error(safeMsg);
               }
@@ -364,6 +374,13 @@ export default function AdminTeachersScreen() {
     setTimeout(() => setCopiedKey(null), 2500);
   };
 
+  const copyBothCredentials = async (username: string, password: string) => {
+    const text = `Gandaki University — Semester Library Faculty Login\nUsername: ${username}\nTemporary Password: ${password}\n\nPlease log in at https://semestar-library.vercel.app/login.html to complete faculty onboarding.`;
+    await Clipboard.setStringAsync(text);
+    setCopiedKey(`b-${username}`);
+    setTimeout(() => setCopiedKey(null), 2500);
+  };
+
   const copyAllCredentials = async () => {
     const formatted = credentialsList
       .map((c) => `Username: ${c.username}\nTemporary Password: ${c.temporaryPassword || ''}`)
@@ -376,16 +393,16 @@ export default function AdminTeachersScreen() {
   const getStatusBadge = (status: TeacherInviteItem['status']) => {
     switch (status) {
       case 'active':
-        return <Badge label="Active Faculty" variant="success" size="sm" icon="checkmark-circle-outline" />;
+        return <Badge label="Active" variant="success" size="sm" />;
       case 'provisioned':
-        return <Badge label="Awaiting Setup" variant="warning" size="sm" icon="time-outline" />;
+        return <Badge label="Awaiting Setup" variant="warning" size="sm" />;
       case 'onboarding':
       case 'awaiting_email_verification':
-        return <Badge label="Setup In Progress" variant="warning" size="sm" icon="sync-outline" />;
+        return <Badge label="Setup Started" variant="warning" size="sm" />;
       case 'expired':
-        return <Badge label="Expired" variant="neutral" size="sm" icon="alert-circle-outline" />;
+        return <Badge label="Expired" variant="neutral" size="sm" />;
       case 'revoked':
-        return <Badge label="Revoked" variant="error" size="sm" icon="close-circle-outline" />;
+        return <Badge label="Revoked" variant="error" size="sm" />;
       default:
         return <Badge label={status} variant="neutral" size="sm" />;
     }
@@ -395,7 +412,7 @@ export default function AdminTeachersScreen() {
   if (!isAdmin) {
     return (
       <View style={[styles.deniedContainer, { backgroundColor: colors.background, paddingTop: insets.top + 40 }]}>
-        <Ionicons name="shield-outline" size={64} color={colors.error} />
+        <Ionicons name="shield-outline" size={56} color={colors.error} />
         <Heading style={{ marginTop: 16, color: colors.text }}>Access Denied</Heading>
         <Text color="secondary" style={{ textAlign: 'center', marginTop: 8, paddingHorizontal: 32 }}>
           Administrator privileges are required to manage teacher invitations and faculty accounts.
@@ -417,8 +434,8 @@ export default function AdminTeachersScreen() {
         contentContainerStyle={[
           styles.scrollContent,
           {
-            paddingTop: spacing.md,
-            paddingBottom: insets.bottom + 40,
+            paddingTop: spacing.sm,
+            paddingBottom: insets.bottom + 36,
           },
         ]}
         refreshControl={
@@ -430,106 +447,104 @@ export default function AdminTeachersScreen() {
           />
         }
       >
-        {/* Header Title Section */}
+        {/* Compact Page Header (Standard native header handled by stack) */}
         <View style={styles.headerBlock}>
-          <Text variant="xs" weight="700" color="muted" style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>
-            Admin Portal
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Teacher Management</Text>
+          <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
+            Manage teacher access and faculty accounts.
           </Text>
-          <Heading style={{ marginTop: 2 }}>Teacher Management</Heading>
-          <Caption color="secondary" style={{ marginTop: 4 }}>
-            Create and manage temporary teacher access credentials.
-          </Caption>
         </View>
 
-        {/* Feature Flag Banner (Onboarding Disabled) */}
+        {/* Feature Flag Banner (Onboarding Disabled) - Compact */}
         {!onboardingEnabled && (
-          <Card
-            variant="outlined"
-            padding="md"
-            style={[styles.bannerCard, { backgroundColor: colors.warningBg, borderColor: colors.warning }]}
-          >
-            <View style={styles.bannerRow}>
-              <Ionicons name="alert-circle" size={20} color={colors.warning} style={{ marginRight: 10 }} />
-              <View style={{ flex: 1 }}>
-                <Text variant="xs" weight="700" style={{ color: colors.warning }}>
-                  Teacher onboarding is currently disabled.
-                </Text>
-                <Caption style={{ color: colors.text, marginTop: 2 }}>
-                  You can prepare credentials, but teachers cannot activate them yet.
-                </Caption>
-              </View>
+          <View style={styles.compactBanner}>
+            <Ionicons name="warning-outline" size={16} color="#fbbf24" style={{ marginTop: 1, marginRight: 8 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.compactBannerTitle}>
+                Teacher onboarding is disabled
+              </Text>
+              <Text style={[styles.compactBannerSubtext, { color: colors.textSecondary }]}>
+                Credentials can be prepared, but teachers cannot activate them yet.
+              </Text>
             </View>
-          </Card>
+          </View>
         )}
 
         {/* Action Buttons Row */}
         <View style={styles.actionButtonsRow}>
           <Button
-            title="Create Teacher Login"
+            title="+ Create Teacher Login"
             variant="primary"
             size="md"
             loading={isCreatingSingle}
-            leftIcon={<Ionicons name="person-add-outline" size={16} color="#FFFFFF" />}
+            leftIcon={<Ionicons name="person-add-outline" size={15} color={colors.primaryText} />}
             onPress={handleCreateSingle}
-            style={{ flex: 1.2 }}
+            style={{ flex: 1.3, borderRadius: 12, height: 44 }}
+            textStyle={{ fontWeight: '700' }}
           />
           <Button
             title="Create Multiple"
             variant="secondary"
             size="md"
-            leftIcon={<Ionicons name="copy-outline" size={16} color={colors.text} />}
+            leftIcon={<Ionicons name="copy-outline" size={15} color={colors.text} />}
             onPress={() => setBulkModalVisible(true)}
-            style={{ flex: 1 }}
+            style={{ flex: 1, borderRadius: 12, height: 44 }}
           />
         </View>
 
-        {/* Summary Metrics Strip */}
-        <Card variant="elevated" padding="md" style={styles.summaryCard}>
-          <Text variant="xs" weight="700" color="muted" style={{ marginBottom: 10, textTransform: 'uppercase' }}>
-            Invitation Overview
-          </Text>
-          <View style={styles.metricsRow}>
-            <View style={styles.metricItem}>
-              <Text variant="xl" weight="800" style={{ color: colors.text }}>
+        {/* Compact 2-Row Summary Card */}
+        <View style={[styles.summaryBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          {/* Row 1 */}
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>TOTAL</Text>
+              <Text style={[styles.summaryNumber, { color: colors.text }]}>
                 {summary.total_invites ?? 0}
               </Text>
-              <Caption color="muted">Total</Caption>
             </View>
-            <View style={styles.metricDivider} />
-            <View style={styles.metricItem}>
-              <Text variant="xl" weight="800" style={{ color: colors.warning }}>
+            <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>AWAITING</Text>
+              <Text style={[styles.summaryNumber, { color: '#fbbf24' }]}>
                 {summary.awaiting_activation ?? 0}
               </Text>
-              <Caption color="muted">Awaiting</Caption>
             </View>
-            <View style={styles.metricDivider} />
-            <View style={styles.metricItem}>
-              <Text variant="xl" weight="800" style={{ color: colors.success }}>
+            <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>ACTIVE</Text>
+              <Text style={[styles.summaryNumber, { color: '#22c55e' }]}>
                 {summary.active_teachers ?? 0}
               </Text>
-              <Caption color="muted">Active</Caption>
-            </View>
-            <View style={styles.metricDivider} />
-            <View style={styles.metricItem}>
-              <Text variant="xl" weight="800" style={{ color: colors.textSecondary }}>
-                {summary.expired ?? 0}
-              </Text>
-              <Caption color="muted">Expired</Caption>
-            </View>
-            <View style={styles.metricDivider} />
-            <View style={styles.metricItem}>
-              <Text variant="xl" weight="800" style={{ color: colors.error }}>
-                {summary.revoked ?? 0}
-              </Text>
-              <Caption color="muted">Revoked</Caption>
             </View>
           </View>
-        </Card>
 
-        {/* Search & Status Filters */}
+          {/* Row Divider */}
+          <View style={[styles.summaryHorizontalDivider, { backgroundColor: colors.border }]} />
+
+          {/* Row 2 */}
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>EXPIRED</Text>
+              <Text style={[styles.summaryNumber, { color: colors.textSecondary }]}>
+                {summary.expired ?? 0}
+              </Text>
+            </View>
+            <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>REVOKED</Text>
+              <Text style={[styles.summaryNumber, { color: '#ef4444' }]}>
+                {summary.revoked ?? 0}
+              </Text>
+            </View>
+            <View style={[styles.summaryDivider, { backgroundColor: 'transparent' }]} />
+            <View style={styles.summaryItem} />
+          </View>
+        </View>
+
+        {/* Search & Horizontal Filter Chips */}
         <View style={styles.filterSection}>
           <View style={[styles.searchBox, { backgroundColor: colors.surfaceSubtle, borderColor: colors.border }]}>
-            <Ionicons name="search-outline" size={17} color={colors.textMuted} style={{ marginRight: 8 }} />
+            <Ionicons name="search-outline" size={16} color={colors.textMuted} style={{ marginRight: 8 }} />
             <TextInput
               style={[styles.searchInput, { color: colors.text }]}
               placeholder="Search teacher ID, name, email..."
@@ -546,32 +561,35 @@ export default function AdminTeachersScreen() {
             )}
           </View>
 
-          {/* Filter Pills */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterPillsScroll}>
-            {[
-              { id: 'all', label: 'All Invites' },
-              { id: 'provisioned', label: 'Awaiting Setup' },
-              { id: 'active', label: 'Active Faculty' },
-              { id: 'expired', label: 'Expired' },
-              { id: 'revoked', label: 'Revoked' },
-            ].map((f) => {
+          {/* Filter Chips - Fully reachable horizontal scroll */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterChipsContent}
+          >
+            {FILTER_TABS.map((f) => {
               const active = statusFilter === f.id;
               return (
                 <TouchableOpacity
                   key={f.id}
                   style={[
-                    styles.filterPill,
+                    styles.filterChip,
                     {
-                      backgroundColor: active ? colors.primary : colors.surfaceSubtle,
-                      borderColor: active ? colors.primary : colors.border,
+                      backgroundColor: active ? '#FFFFFF' : colors.surfaceSubtle,
+                      borderColor: active ? '#FFFFFF' : colors.border,
                     },
                   ]}
                   onPress={() => setStatusFilter(f.id)}
+                  activeOpacity={0.7}
                 >
                   <Text
-                    variant="xs"
-                    weight={active ? '700' : '500'}
-                    style={{ color: active ? '#FFFFFF' : colors.textSecondary }}
+                    style={[
+                      styles.filterChipText,
+                      {
+                        color: active ? '#000000' : colors.textSecondary,
+                        fontWeight: active ? '700' : '500',
+                      },
+                    ]}
                   >
                     {f.label}
                   </Text>
@@ -584,156 +602,175 @@ export default function AdminTeachersScreen() {
         {/* List Content / Loading / Empty State */}
         {loading && !refreshing ? (
           <View style={styles.centerLoading}>
-            <ActivityIndicator size="large" color={colors.primary} />
-            <Caption color="muted" style={{ marginTop: 12 }}>
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Caption color="muted" style={{ marginTop: 10 }}>
               Loading teacher invitations...
             </Caption>
           </View>
         ) : error ? (
-          <Card variant="outlined" padding="lg" style={[styles.errorCard, { borderColor: colors.error }]}>
-            <Ionicons name="warning-outline" size={32} color={colors.error} />
-            <Text weight="700" style={{ marginTop: 8, color: colors.error }}>
-              {error}
+          <Card variant="outlined" padding="lg" style={[styles.errorCard, { borderColor: colors.border }]}>
+            <Ionicons name="alert-circle-outline" size={28} color={colors.error} />
+            <Text weight="700" style={{ marginTop: 8, color: colors.text, fontSize: 15 }}>
+              Couldn't load teacher management.
             </Text>
             <Button
-              title="Try Again"
+              title="Retry"
               variant="outline"
               size="sm"
               onPress={() => loadInvites()}
-              style={{ marginTop: 16 }}
+              style={{ marginTop: 14, borderRadius: 10 }}
             />
           </Card>
         ) : invites.length === 0 ? (
           <Card variant="outlined" padding="lg" style={styles.emptyCard}>
-            <Ionicons name="folder-open-outline" size={40} color={colors.textMuted} />
-            <Text weight="600" style={{ marginTop: 12, color: colors.text }}>
-              No Teacher Invites Found
+            <Ionicons name="folder-open-outline" size={32} color={colors.textMuted} />
+            <Text weight="600" style={{ marginTop: 10, color: colors.text, fontSize: 14 }}>
+              {searchQuery || statusFilter !== 'all' ? 'No matching invites' : 'No teacher invites yet.'}
             </Text>
             <Caption color="muted" style={{ textAlign: 'center', marginTop: 4 }}>
               {searchQuery || statusFilter !== 'all'
                 ? 'Try adjusting your search query or filter.'
-                : 'Tap "Create Teacher Login" above to generate your first temporary access credentials.'}
+                : 'Create a temporary teacher login to get started.'}
             </Caption>
           </Card>
         ) : (
           <View style={styles.invitesList}>
             {invites.map((item) => {
-              const isUnused = item.status === 'provisioned' || item.status === 'onboarding' || item.status === 'awaiting_email_verification';
+              const tempUser = item.temporary_username || item.initial_username || item.username || '—';
               const isActive = item.status === 'active';
+              const isExpired = item.status === 'expired';
+              const isRevoked = item.status === 'revoked';
               const teacher = item.teacher;
 
               return (
-                <Card key={item.id || item.temporary_username} variant="elevated" padding="md" style={styles.inviteCard}>
-                  {/* Card Header */}
-                  <View style={styles.cardHeader}>
-                    <View style={{ flex: 1 }}>
-                      <Text variant="md" weight="800" style={{ fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace', color: colors.text }}>
-                        {item.temporary_username}
-                      </Text>
-                      {isActive && teacher?.name && (
-                        <Text variant="sm" weight="600" style={{ color: colors.text, marginTop: 2 }}>
-                          {teacher.name}
+                <View
+                  key={item.id || tempUser}
+                  style={[
+                    styles.compactInviteCard,
+                    { backgroundColor: colors.card, borderColor: colors.border },
+                  ]}
+                >
+                  {/* Card Top Row: Prominent Temporary ID / Name + Status */}
+                  <View style={styles.cardTopRow}>
+                    <View style={{ flex: 1, marginRight: 8 }}>
+                      {isActive && teacher?.name ? (
+                        <>
+                          <Text style={[styles.activeTeacherName, { color: colors.text }]}>
+                            {teacher.name}
+                          </Text>
+                          {teacher.username && (
+                            <Text style={styles.activeTeacherUsername}>
+                              @{teacher.username}
+                            </Text>
+                          )}
+                        </>
+                      ) : (
+                        <Text style={[styles.cardTemporaryUsername, { color: colors.text }]}>
+                          {tempUser}
                         </Text>
-                      )}
-                      {isActive && teacher?.username && (
-                        <Caption color="muted" style={{ marginTop: 1 }}>
-                          @{teacher.username}
-                        </Caption>
                       )}
                     </View>
                     {getStatusBadge(item.status)}
                   </View>
 
-                  {/* Card Body Details */}
-                  <View style={styles.cardMetaBlock}>
+                  {/* Card Secondary Metadata */}
+                  <View style={styles.cardMetaRow}>
                     {isActive ? (
-                      <View style={{ gap: 4 }}>
-                        {teacher?.email && (
-                          <View style={styles.metaRow}>
-                            <Ionicons name="mail-outline" size={13} color={colors.textMuted} />
-                            <Caption color="secondary">{teacher.email}</Caption>
-                          </View>
-                        )}
-                        {teacher?.subjects && teacher.subjects.length > 0 && (
-                          <View style={styles.subjectsRow}>
-                            <Ionicons name="book-outline" size={13} color={colors.textMuted} />
-                            <View style={styles.subjectsPillContainer}>
-                              {teacher.subjects.map((s) => (
-                                <View
-                                  key={s.id || s.code}
-                                  style={[styles.subjectChip, { backgroundColor: colors.surfaceSubtle, borderColor: colors.border }]}
-                                >
-                                  <Text variant="xs" weight="700" style={{ fontSize: 10, color: colors.textSecondary }}>
-                                    {s.code}
-                                  </Text>
-                                </View>
-                              ))}
+                      teacher?.subjects && teacher.subjects.length > 0 ? (
+                        <View style={styles.subjectsContainer}>
+                          {teacher.subjects.slice(0, 3).map((s) => (
+                            <View
+                              key={s.id || s.code}
+                              style={[styles.compactSubjectChip, { backgroundColor: colors.surfaceSubtle, borderColor: colors.border }]}
+                            >
+                              <Text style={[styles.compactSubjectText, { color: colors.textSecondary }]}>
+                                {s.code}
+                              </Text>
                             </View>
-                          </View>
-                        )}
-                      </View>
+                          ))}
+                          {teacher.subjects.length > 3 && (
+                            <Text style={[styles.moreSubjectsLabel, { color: colors.textMuted }]}>
+                              +{teacher.subjects.length - 3} more
+                            </Text>
+                          )}
+                        </View>
+                      ) : (
+                        <Text style={[styles.cardExpiryText, { color: colors.textMuted }]}>
+                          Active Faculty
+                        </Text>
+                      )
                     ) : (
-                      <View style={styles.metaRow}>
-                        <Ionicons name="time-outline" size={13} color={colors.textMuted} />
-                        <Caption color="muted">
-                          Expires: {item.expires_at ? new Date(item.expires_at).toLocaleDateString() : '14 days'}
-                        </Caption>
-                      </View>
+                      <Text style={[styles.cardExpiryText, { color: colors.textMuted }]}>
+                        {isExpired
+                          ? `Expired on ${item.expires_at ? new Date(item.expires_at).toLocaleDateString() : '—'}`
+                          : `Expires ${item.expires_at ? new Date(item.expires_at).toLocaleDateString() : '14 days'}`}
+                      </Text>
                     )}
                   </View>
 
-                  {/* Action Toolbar */}
-                  <View style={[styles.cardActionToolbar, { borderTopColor: colors.borderSubtle }]}>
-                    {isUnused ? (
-                      <>
-                        <TouchableOpacity
-                          style={styles.actionBtn}
-                          onPress={() => handleRegeneratePassword(item.temporary_username)}
-                        >
-                          <Ionicons name="key-outline" size={14} color={colors.primary} />
-                          <Text variant="xs" weight="600" style={{ color: colors.primary, marginLeft: 4 }}>
-                            Regenerate
-                          </Text>
-                        </TouchableOpacity>
+                  {/* Card Divider */}
+                  <View style={[styles.cardDivider, { backgroundColor: colors.border }]} />
 
-                        <TouchableOpacity
-                          style={styles.actionBtn}
-                          onPress={() => handleReissue(item.temporary_username)}
-                        >
-                          <Ionicons name="refresh-outline" size={14} color={colors.textSecondary} />
-                          <Text variant="xs" weight="600" style={{ color: colors.textSecondary, marginLeft: 4 }}>
-                            Reissue
-                          </Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                          style={styles.actionBtn}
-                          onPress={() => handleRevoke(item.temporary_username)}
-                        >
-                          <Ionicons name="close-circle-outline" size={14} color={colors.error} />
-                          <Text variant="xs" weight="600" style={{ color: colors.error, marginLeft: 4 }}>
-                            Revoke
-                          </Text>
-                        </TouchableOpacity>
-                      </>
-                    ) : isActive ? (
+                  {/* State-Specific Actions Toolbar */}
+                  <View style={styles.cardActionsRow}>
+                    {isActive ? (
                       <TouchableOpacity
-                        style={styles.actionBtn}
+                        style={styles.cardLinkAction}
                         onPress={() => {
                           setSelectedInvite(item);
                           setDetailModalVisible(true);
                         }}
+                        activeOpacity={0.7}
                       >
-                        <Ionicons name="person-outline" size={14} color={colors.primary} />
-                        <Text variant="xs" weight="600" style={{ color: colors.primary, marginLeft: 4 }}>
-                          View Faculty Details
+                        <Text style={[styles.cardLinkActionText, { color: colors.primary }]}>
+                          View Teacher →
                         </Text>
                       </TouchableOpacity>
+                    ) : isExpired ? (
+                      <View style={styles.dualActionsGroup}>
+                        <TouchableOpacity
+                          style={[styles.compactBtn, { borderColor: colors.border }]}
+                          onPress={() => handleReissue(tempUser)}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="refresh-outline" size={13} color={colors.text} />
+                          <Text style={[styles.compactBtnText, { color: colors.text }]}>Reissue</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={[styles.compactDangerBtn, { borderColor: 'rgba(239, 68, 68, 0.3)' }]}
+                          onPress={() => handleRevoke(tempUser)}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="close-circle-outline" size={13} color="#ef4444" />
+                          <Text style={styles.compactDangerBtnText}>Revoke</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ) : isRevoked ? (
+                      <Text style={[styles.cardExpiryText, { color: colors.textMuted }]}>Revoked</Text>
                     ) : (
-                      <Caption color="muted">No actions available for {item.status} invite</Caption>
+                      <View style={styles.dualActionsGroup}>
+                        <TouchableOpacity
+                          style={[styles.compactBtn, { borderColor: colors.border }]}
+                          onPress={() => handleRegeneratePassword(tempUser)}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="key-outline" size={13} color={colors.text} />
+                          <Text style={[styles.compactBtnText, { color: colors.text }]}>Regenerate</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={[styles.compactDangerBtn, { borderColor: 'rgba(239, 68, 68, 0.3)' }]}
+                          onPress={() => handleRevoke(tempUser)}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="close-circle-outline" size={13} color="#ef4444" />
+                          <Text style={styles.compactDangerBtnText}>Revoke</Text>
+                        </TouchableOpacity>
+                      </View>
                     )}
                   </View>
-                </Card>
+                </View>
               );
             })}
           </View>
@@ -746,7 +783,7 @@ export default function AdminTeachersScreen() {
       <Modal
         visible={credentialsModalVisible}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => {
           setCredentialsList([]);
           setCredentialsModalVisible(false);
@@ -756,8 +793,12 @@ export default function AdminTeachersScreen() {
           <View style={[styles.modalContent, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
             <View style={styles.modalHeader}>
               <View style={{ flex: 1 }}>
-                <Subheading weight="800">{credentialsTitle}</Subheading>
-                <Caption color="muted">One-time temporary credentials. Save securely now.</Caption>
+                <Text style={[styles.modalTitleText, { color: colors.text }]}>
+                  {credentialsTitle}
+                </Text>
+                <Text style={[styles.modalSubtitleText, { color: colors.textSecondary }]}>
+                  Save these credentials now. The temporary password will not be shown again.
+                </Text>
               </View>
               <TouchableOpacity
                 onPress={() => {
@@ -766,16 +807,18 @@ export default function AdminTeachersScreen() {
                 }}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <Ionicons name="close" size={22} color={colors.text} />
+                <Ionicons name="close" size={20} color={colors.text} />
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={{ maxHeight: 360, marginVertical: 12 }}>
+            <ScrollView style={{ maxHeight: 320, marginVertical: 12 }}>
               {credentialsList.map((cred, idx) => {
                 const uKey = `u-${cred.username}`;
                 const pKey = `p-${cred.username}`;
                 const bKey = `b-${cred.username}`;
-                const password = cred.temporaryPassword || '—';
+                const password = cred.temporaryPassword || cred.temporary_password || '—';
+                const rawExp = cred.expiresAt || cred.expires_at;
+                const expires = rawExp ? new Date(rawExp).toLocaleDateString() : '14 days';
 
                 return (
                   <View
@@ -783,36 +826,35 @@ export default function AdminTeachersScreen() {
                     style={[styles.credBox, { backgroundColor: colors.surfaceSubtle, borderColor: colors.border }]}
                   >
                     <View style={styles.credRow}>
-                      <Text variant="xs" weight="700" color="muted">USERNAME:</Text>
-                      <Text
-                        variant="sm"
-                        weight="800"
-                        style={{ fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace', color: colors.text }}
-                      >
+                      <Text style={styles.credLabel}>Username</Text>
+                      <Text style={[styles.credValMonospace, { color: colors.text }]}>
                         {cred.username}
                       </Text>
                     </View>
 
                     <View style={[styles.credRow, { marginTop: 6 }]}>
-                      <Text variant="xs" weight="700" color="muted">TEMPORARY PASSWORD:</Text>
-                      <Text
-                        variant="sm"
-                        weight="800"
-                        style={{ fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace', color: colors.primary }}
-                      >
+                      <Text style={styles.credLabel}>Temporary Password</Text>
+                      <Text style={[styles.credValMonospace, { color: '#60a5fa' }]}>
                         {password}
                       </Text>
                     </View>
 
-                    {/* Copy Buttons for this credential */}
+                    <View style={[styles.credRow, { marginTop: 6 }]}>
+                      <Text style={styles.credLabel}>Expires</Text>
+                      <Text style={[styles.credValText, { color: colors.textSecondary }]}>
+                        {expires}
+                      </Text>
+                    </View>
+
+                    {/* Copy Buttons */}
                     <View style={styles.credCopyButtons}>
                       <TouchableOpacity
                         style={[styles.copyChip, { borderColor: colors.border }]}
                         onPress={() => copyText(cred.username, uKey, 'Username copied!')}
                       >
                         <Ionicons name="copy-outline" size={12} color={colors.text} />
-                        <Text variant="xs" weight="600" style={{ marginLeft: 4, color: colors.text }}>
-                          {copiedKey === uKey ? 'Copied!' : 'Copy Username'}
+                        <Text style={[styles.copyChipText, { color: colors.text }]}>
+                          {copiedKey === uKey ? 'Copied' : 'Copy Username'}
                         </Text>
                       </TouchableOpacity>
 
@@ -821,24 +863,18 @@ export default function AdminTeachersScreen() {
                         onPress={() => copyText(password, pKey, 'Password copied!')}
                       >
                         <Ionicons name="key-outline" size={12} color={colors.text} />
-                        <Text variant="xs" weight="600" style={{ marginLeft: 4, color: colors.text }}>
-                          {copiedKey === pKey ? 'Copied!' : 'Copy Password'}
+                        <Text style={[styles.copyChipText, { color: colors.text }]}>
+                          {copiedKey === pKey ? 'Copied' : 'Copy Password'}
                         </Text>
                       </TouchableOpacity>
 
                       <TouchableOpacity
                         style={[styles.copyChip, { borderColor: colors.border }]}
-                        onPress={() =>
-                          copyText(
-                            `Username: ${cred.username}\nTemporary Password: ${password}`,
-                            bKey,
-                            'Username and Password copied!'
-                          )
-                        }
+                        onPress={() => copyBothCredentials(cred.username, password)}
                       >
                         <Ionicons name="duplicate-outline" size={12} color={colors.text} />
-                        <Text variant="xs" weight="600" style={{ marginLeft: 4, color: colors.text }}>
-                          {copiedKey === bKey ? 'Copied!' : 'Copy Both'}
+                        <Text style={[styles.copyChipText, { color: colors.text }]}>
+                          {copiedKey === bKey ? 'Copied' : 'Copy Both'}
                         </Text>
                       </TouchableOpacity>
                     </View>
@@ -847,33 +883,34 @@ export default function AdminTeachersScreen() {
               })}
             </ScrollView>
 
-            <View style={[styles.warningNote, { backgroundColor: colors.warningBg }]}>
-              <Ionicons name="alert-circle-outline" size={15} color={colors.warning} />
-              <Caption style={{ color: colors.warning, marginLeft: 6, flex: 1 }}>
-                Passwords are never stored in plaintext and cannot be retrieved again after closing.
-              </Caption>
+            <View style={styles.warningTagContainer}>
+              <Ionicons name="alert-circle-outline" size={15} color="#fbbf24" />
+              <Text style={styles.warningTagText}>
+                This password is shown only once. It cannot be retrieved again after closing.
+              </Text>
             </View>
 
-            <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
               {credentialsList.length > 1 && (
                 <Button
                   title="Copy All"
                   variant="outline"
                   size="md"
                   onPress={copyAllCredentials}
-                  leftIcon={<Ionicons name="duplicate-outline" size={15} color={colors.text} />}
-                  style={{ flex: 1 }}
+                  leftIcon={<Ionicons name="duplicate-outline" size={14} color={colors.text} />}
+                  style={{ flex: 1, borderRadius: 12 }}
                 />
               )}
               <Button
-                title="Done"
+                title="I've Saved the Credentials"
                 variant="primary"
                 size="md"
                 onPress={() => {
                   setCredentialsList([]);
                   setCredentialsModalVisible(false);
                 }}
-                style={{ flex: 1 }}
+                style={{ flex: 1, borderRadius: 12 }}
+                textStyle={{ fontWeight: '700' }}
               />
             </View>
           </View>
@@ -892,20 +929,18 @@ export default function AdminTeachersScreen() {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
             <View style={styles.modalHeader}>
-              <Subheading weight="800">Create Multiple Logins</Subheading>
+              <Text style={[styles.modalTitleText, { color: colors.text }]}>Create Multiple Logins</Text>
               <TouchableOpacity onPress={() => setBulkModalVisible(false)}>
-                <Ionicons name="close" size={22} color={colors.text} />
+                <Ionicons name="close" size={20} color={colors.text} />
               </TouchableOpacity>
             </View>
 
-            <Text variant="sm" color="secondary" style={{ marginTop: 8 }}>
-              Generate a batch of temporary teacher access credentials (quantity between 1 and 50).
+            <Text style={[styles.modalSubtitleText, { color: colors.textSecondary, marginTop: 6 }]}>
+              Generate a batch of temporary teacher access credentials (quantity 1 to 50).
             </Text>
 
-            <View style={{ marginVertical: 18 }}>
-              <Text variant="xs" weight="700" color="muted" style={{ marginBottom: 6 }}>
-                QUANTITY (1 - 50):
-              </Text>
+            <View style={{ marginVertical: 16 }}>
+              <Text style={styles.credLabel}>QUANTITY (1 - 50)</Text>
               <TextInput
                 style={[
                   styles.countInput,
@@ -918,8 +953,8 @@ export default function AdminTeachersScreen() {
               />
             </View>
 
-            <Caption color="muted" style={{ marginBottom: 16 }}>
-              Each login will be assigned an incremental identifier (e.g. teacher001) and an unguessable temporary password valid for 14 days.
+            <Caption color="muted" style={{ marginBottom: 14 }}>
+              Each login will be assigned an incremental identifier (e.g. teacher001) and a temporary password valid for 14 days.
             </Caption>
 
             <View style={{ flexDirection: 'row', gap: 10 }}>
@@ -928,7 +963,7 @@ export default function AdminTeachersScreen() {
                 variant="outline"
                 size="md"
                 onPress={() => setBulkModalVisible(false)}
-                style={{ flex: 1 }}
+                style={{ flex: 1, borderRadius: 12 }}
               />
               <Button
                 title="Generate Batch"
@@ -936,7 +971,8 @@ export default function AdminTeachersScreen() {
                 size="md"
                 loading={isCreatingBulk}
                 onPress={handleCreateBulk}
-                style={{ flex: 1 }}
+                style={{ flex: 1, borderRadius: 12 }}
+                textStyle={{ fontWeight: '700' }}
               />
             </View>
           </View>
@@ -949,71 +985,69 @@ export default function AdminTeachersScreen() {
       <Modal
         visible={detailModalVisible}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setDetailModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
             <View style={styles.modalHeader}>
               <View style={{ flex: 1 }}>
-                <Subheading weight="800">Faculty Details</Subheading>
-                <Caption color="muted">{selectedInvite?.temporary_username}</Caption>
+                <Text style={[styles.modalTitleText, { color: colors.text }]}>Faculty Details</Text>
+                <Caption color="muted">{selectedInvite?.temporary_username || selectedInvite?.initial_username}</Caption>
               </View>
               <TouchableOpacity onPress={() => setDetailModalVisible(false)}>
-                <Ionicons name="close" size={22} color={colors.text} />
+                <Ionicons name="close" size={20} color={colors.text} />
               </TouchableOpacity>
             </View>
 
             {selectedInvite?.teacher ? (
-              <View style={{ marginVertical: 16, gap: 12 }}>
+              <View style={{ marginVertical: 14, gap: 10 }}>
                 <View style={styles.detailRow}>
-                  <Text variant="xs" weight="700" color="muted">FULL NAME</Text>
-                  <Text variant="sm" weight="700" style={{ color: colors.text }}>
+                  <Text style={styles.credLabel}>FULL NAME</Text>
+                  <Text style={[styles.detailValueText, { color: colors.text }]}>
                     {selectedInvite.teacher.name || '—'}
                   </Text>
                 </View>
 
                 <View style={styles.detailRow}>
-                  <Text variant="xs" weight="700" color="muted">PERMANENT USERNAME</Text>
-                  <Text variant="sm" weight="700" style={{ color: colors.text }}>
+                  <Text style={styles.credLabel}>PERMANENT USERNAME</Text>
+                  <Text style={[styles.detailValueText, { color: colors.text }]}>
                     @{selectedInvite.teacher.username || '—'}
                   </Text>
                 </View>
 
                 <View style={styles.detailRow}>
-                  <Text variant="xs" weight="700" color="muted">ROLE</Text>
-                  <Text variant="sm" weight="700" style={{ color: colors.text }}>
-                    Teacher
-                  </Text>
+                  <Text style={styles.credLabel}>ROLE</Text>
+                  <Text style={[styles.detailValueText, { color: colors.text }]}>Teacher</Text>
                 </View>
 
                 <View style={styles.detailRow}>
-                  <Text variant="xs" weight="700" color="muted">EMAIL</Text>
-                  <Text variant="sm" weight="600" style={{ color: colors.text }}>
+                  <Text style={styles.credLabel}>EMAIL</Text>
+                  <Text style={[styles.detailValueText, { color: colors.text }]}>
                     {selectedInvite.teacher.email || '—'}
                   </Text>
                 </View>
 
                 <View style={styles.detailRow}>
-                  <Text variant="xs" weight="700" color="muted">DESIGNATION</Text>
-                  <Text variant="sm" weight="600" style={{ color: colors.text }}>
+                  <Text style={styles.credLabel}>DESIGNATION</Text>
+                  <Text style={[styles.detailValueText, { color: colors.text }]}>
                     {selectedInvite.teacher.designation || 'Lecturer'}
                   </Text>
                 </View>
 
                 <View style={styles.detailRow}>
-                  <Text variant="xs" weight="700" color="muted">SUBJECTS TAUGHT</Text>
+                  <Text style={styles.credLabel}>SUBJECTS TAUGHT</Text>
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
                     {selectedInvite.teacher.subjects && selectedInvite.teacher.subjects.length > 0 ? (
                       selectedInvite.teacher.subjects.map((sub) => (
                         <View
                           key={sub.id || sub.code}
                           style={[
-                            styles.subjectChip,
+                            styles.compactSubjectChip,
                             { backgroundColor: colors.surfaceSubtle, borderColor: colors.border },
                           ]}
                         >
-                          <Text variant="xs" weight="700" style={{ color: colors.text }}>
+                          <Text style={[styles.compactSubjectText, { color: colors.text }]}>
                             {sub.code}{sub.title || sub.name ? ` — ${sub.title || sub.name}` : ''}
                           </Text>
                         </View>
@@ -1025,7 +1059,7 @@ export default function AdminTeachersScreen() {
                 </View>
               </View>
             ) : (
-              <Caption color="muted" style={{ marginVertical: 20 }}>
+              <Caption color="muted" style={{ marginVertical: 16 }}>
                 No active faculty profile linked to this invite.
               </Caption>
             )}
@@ -1035,6 +1069,7 @@ export default function AdminTeachersScreen() {
               variant="outline"
               size="md"
               onPress={() => setDetailModalVisible(false)}
+              style={{ borderRadius: 12, marginTop: 4 }}
             />
           </View>
         </View>
@@ -1057,39 +1092,81 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   headerBlock: {
-    marginBottom: 16,
+    marginBottom: 14,
   },
-  bannerCard: {
-    marginBottom: 16,
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: -0.4,
   },
-  bannerRow: {
+  headerSubtitle: {
+    fontSize: 13,
+    marginTop: 2,
+    lineHeight: 18,
+  },
+  compactBanner: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    backgroundColor: 'rgba(245, 158, 11, 0.08)',
+    borderColor: 'rgba(245, 158, 11, 0.28)',
+    marginBottom: 14,
+  },
+  compactBannerTitle: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#fbbf24',
+  },
+  compactBannerSubtext: {
+    fontSize: 11.5,
+    marginTop: 2,
+    lineHeight: 16,
   },
   actionButtonsRow: {
     flexDirection: 'row',
-    gap: 10,
-    marginBottom: 16,
+    gap: 8,
+    marginBottom: 14,
   },
-  summaryCard: {
-    marginBottom: 16,
+  summaryBox: {
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 14,
   },
-  metricsRow: {
+  summaryRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  metricItem: {
+  summaryItem: {
     flex: 1,
     alignItems: 'center',
+    paddingVertical: 2,
   },
-  metricDivider: {
+  summaryLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#888888',
+    letterSpacing: 0.5,
+  },
+  summaryNumber: {
+    fontSize: 19,
+    fontWeight: '800',
+    marginTop: 2,
+  },
+  summaryDivider: {
     width: 1,
-    height: 32,
-    backgroundColor: '#33333330',
+    height: 28,
+  },
+  summaryHorizontalDivider: {
+    height: 1,
+    marginVertical: 8,
   },
   filterSection: {
-    marginBottom: 16,
+    marginBottom: 14,
   },
   searchBox: {
     flexDirection: 'row',
@@ -1097,124 +1174,209 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     paddingHorizontal: 12,
-    height: 42,
+    height: 40,
     marginBottom: 10,
   },
   searchInput: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 13.5,
     paddingVertical: 0,
   },
-  filterPillsScroll: {
+  filterChipsContent: {
     flexDirection: 'row',
+    paddingRight: 16,
+    gap: 6,
   },
-  filterPill: {
-    paddingHorizontal: 12,
+  filterChip: {
+    paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 20,
     borderWidth: 1,
-    marginRight: 8,
+  },
+  filterChipText: {
+    fontSize: 12,
   },
   centerLoading: {
-    paddingVertical: 48,
+    paddingVertical: 40,
     alignItems: 'center',
   },
   errorCard: {
     alignItems: 'center',
-    paddingVertical: 32,
+    paddingVertical: 24,
   },
   emptyCard: {
     alignItems: 'center',
-    paddingVertical: 36,
+    paddingVertical: 28,
   },
   invitesList: {
-    gap: 12,
+    gap: 10,
   },
-  inviteCard: {
-    borderRadius: 12,
+  compactInviteCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
-  cardHeader: {
+  cardTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 8,
-  },
-  cardMetaBlock: {
-    marginVertical: 6,
-  },
-  metaRow: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
   },
-  subjectsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 4,
+  cardTemporaryUsername: {
+    fontSize: 16,
+    fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    letterSpacing: -0.2,
   },
-  subjectsPillContainer: {
+  activeTeacherName: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  activeTeacherUsername: {
+    fontSize: 12,
+    color: '#888888',
+    marginTop: 1,
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+  },
+  cardMetaRow: {
+    marginTop: 6,
+  },
+  cardExpiryText: {
+    fontSize: 12.5,
+  },
+  subjectsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    alignItems: 'center',
     gap: 4,
   },
-  subjectChip: {
+  compactSubjectChip: {
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 6,
+    borderRadius: 5,
     borderWidth: 1,
   },
-  cardActionToolbar: {
+  compactSubjectText: {
+    fontSize: 10.5,
+    fontWeight: '600',
+  },
+  moreSubjectsLabel: {
+    fontSize: 11,
+    marginLeft: 2,
+  },
+  cardDivider: {
+    height: 1,
+    marginVertical: 10,
+  },
+  cardActionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
-    gap: 16,
-    borderTopWidth: 1,
-    paddingTop: 10,
-    marginTop: 8,
   },
-  actionBtn: {
+  dualActionsGroup: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  compactBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 4,
+  },
+  compactBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  compactDangerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 4,
+    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+  },
+  compactDangerBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#ef4444',
+  },
+  cardLinkAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 2,
+  },
+  cardLinkActionText: {
+    fontSize: 12.5,
+    fontWeight: '600',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.65)',
+    backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: 16,
   },
   modalContent: {
     width: '100%',
-    maxWidth: 480,
+    maxWidth: 440,
     borderRadius: 16,
     borderWidth: 1,
-    padding: 20,
+    padding: 18,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
   },
+  modalTitleText: {
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  modalSubtitleText: {
+    fontSize: 12.5,
+    marginTop: 3,
+    lineHeight: 16,
+  },
   credBox: {
     borderRadius: 10,
     borderWidth: 1,
     padding: 12,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   credRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  credLabel: {
+    fontSize: 10.5,
+    fontWeight: '600',
+    color: '#888888',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  credValMonospace: {
+    fontSize: 13,
+    fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+  },
+  credValText: {
+    fontSize: 12,
+  },
   credCopyButtons: {
     flexDirection: 'row',
     gap: 6,
     flexWrap: 'wrap',
-    marginTop: 10,
+    marginTop: 8,
     paddingTop: 8,
     borderTopWidth: 0.5,
-    borderTopColor: '#55555530',
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
   },
   copyChip: {
     flexDirection: 'row',
@@ -1223,25 +1385,45 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 6,
     borderWidth: 1,
+    gap: 4,
   },
-  warningNote: {
+  copyChipText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+  },
+  warningTagContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 8,
     borderRadius: 8,
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    gap: 6,
+    marginTop: 2,
+  },
+  warningTagText: {
+    fontSize: 11.5,
+    color: '#fbbf24',
+    flex: 1,
+    lineHeight: 15,
   },
   countInput: {
     borderWidth: 1,
     borderRadius: 8,
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     textAlign: 'center',
+    marginTop: 6,
   },
   detailRow: {
     borderBottomWidth: 0.5,
-    borderBottomColor: '#55555520',
-    paddingBottom: 8,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    paddingBottom: 6,
+  },
+  detailValueText: {
+    fontSize: 13.5,
+    fontWeight: '600',
+    marginTop: 2,
   },
 });

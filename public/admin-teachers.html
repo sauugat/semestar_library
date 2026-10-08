@@ -44,25 +44,31 @@
       --table-header-bg: #f8fafc;
       --table-row-hover: #f8fafc;
       --input-bg: #ffffff;
+      --btn-primary-bg: #0f172a;
+      --btn-primary-text: #ffffff;
+      --btn-primary-hover: #1e293b;
     }
 
     [data-theme="dark"], body.dark-mode, .dark {
-      --bg-page: #0f1117;
-      --bg-card: #181b23;
-      --bg-card-hover: #1f232e;
-      --border-color: #272d3d;
-      --border-subtle: #212631;
-      --text-primary: #f3f4f6;
-      --text-secondary: #9ca3af;
-      --text-muted: #6b7280;
+      --bg-page: #0a0c10;
+      --bg-card: #131620;
+      --bg-card-hover: #1a1e2b;
+      --border-color: #232838;
+      --border-subtle: #1a1e2b;
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
       --accent-blue: #3b82f6;
       --accent-green: #10b981;
       --accent-purple: #8b5cf6;
       --accent-amber: #f59e0b;
       --accent-red: #ef4444;
-      --table-header-bg: #141720;
-      --table-row-hover: #1c202a;
-      --input-bg: #111318;
+      --table-header-bg: #0e1118;
+      --table-row-hover: #161924;
+      --input-bg: #0e1118;
+      --btn-primary-bg: #ffffff;
+      --btn-primary-text: #090a0f;
+      --btn-primary-hover: #e2e8f0;
     }
 
     body {
@@ -78,7 +84,7 @@
     .admin-container {
       max-width: 1240px;
       margin: 0 auto;
-      padding: 24px 20px 80px;
+      padding: 20px 20px 80px;
     }
 
     .admin-breadcrumb {
@@ -87,7 +93,7 @@
       gap: 8px;
       font-size: 13px;
       color: var(--text-muted);
-      margin-bottom: 16px;
+      margin-bottom: 14px;
     }
 
     .admin-breadcrumb a {
@@ -98,7 +104,7 @@
     }
 
     .admin-breadcrumb a:hover {
-      color: var(--accent-blue);
+      color: var(--text-primary);
     }
 
     .admin-breadcrumb .breadcrumb-sep {
@@ -115,8 +121,8 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 24px;
-      padding-bottom: 20px;
+      margin-bottom: 20px;
+      padding-bottom: 18px;
       border-bottom: 1px solid var(--border-color);
       flex-wrap: wrap;
       gap: 16px;
@@ -124,17 +130,17 @@
 
     .admin-title-group h1 {
       font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-      font-size: 26px;
+      font-size: 24px;
       font-weight: 800;
-      margin: 0 0 6px 0;
-      letter-spacing: -0.025em;
+      margin: 0 0 4px 0;
+      letter-spacing: -0.02em;
       color: var(--text-primary);
     }
 
     .admin-title-group p {
       margin: 0;
       color: var(--text-secondary);
-      font-size: 14px;
+      font-size: 13.5px;
     }
 
     .admin-nav-actions {
@@ -145,7 +151,7 @@
     }
 
     .btn {
-      padding: 9px 16px;
+      padding: 8px 16px;
       border-radius: 8px;
       font-size: 13px;
       font-weight: 600;
@@ -158,57 +164,79 @@
       text-decoration: none;
       white-space: nowrap;
       font-family: inherit;
+      line-height: 1.4;
     }
 
     .btn:disabled {
-      opacity: 0.5;
+      opacity: 0.45;
       cursor: not-allowed;
     }
 
-    .btn-primary { background: var(--accent-blue); color: #fff; }
-    .btn-primary:hover:not(:disabled) { background: #2563eb; }
-    .btn-secondary { background: var(--bg-card); color: var(--text-primary); border-color: var(--border-color); }
-    .btn-secondary:hover:not(:disabled) { background: var(--bg-card-hover); }
+    .btn-primary {
+      background: var(--btn-primary-bg);
+      color: var(--btn-primary-text) !important;
+      border-color: var(--btn-primary-bg);
+      font-weight: 700;
+    }
+    .btn-primary:hover:not(:disabled) {
+      background: var(--btn-primary-hover);
+      border-color: var(--btn-primary-hover);
+      color: var(--btn-primary-text) !important;
+    }
+    .btn-primary svg {
+      stroke: var(--btn-primary-text) !important;
+    }
+
+    .btn-secondary {
+      background: var(--bg-card);
+      color: var(--text-primary);
+      border-color: var(--border-color);
+    }
+    .btn-secondary:hover:not(:disabled) {
+      background: var(--bg-card-hover);
+      border-color: #3b4252;
+    }
+
     .btn-success { background: #059669; color: #fff; }
     .btn-success:hover:not(:disabled) { background: #047857; }
     .btn-warning { background: #d97706; color: #fff; }
     .btn-warning:hover:not(:disabled) { background: #b45309; }
     .btn-danger { background: #dc2626; color: #fff; }
     .btn-danger:hover:not(:disabled) { background: #b91c1c; }
-    .btn-sm { padding: 6px 11px; font-size: 12px; border-radius: 6px; }
+    .btn-sm { padding: 5px 10px; font-size: 12px; border-radius: 6px; }
 
     /* Warning Banner */
     .feature-flag-banner {
-      background: rgba(245, 158, 11, 0.12);
-      border: 1px solid rgba(245, 158, 11, 0.35);
+      background: rgba(245, 158, 11, 0.08);
+      border: 1px solid rgba(245, 158, 11, 0.3);
       color: #fbbf24;
-      padding: 12px 16px;
-      border-radius: 10px;
-      margin-bottom: 24px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      margin-bottom: 20px;
       font-size: 13px;
       display: flex;
       align-items: center;
-      gap: 12px;
-      line-height: 1.5;
+      gap: 10px;
+      line-height: 1.4;
     }
 
     /* Summary Grid */
     .summary-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-      gap: 14px;
-      margin-bottom: 24px;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
     }
 
     .summary-card {
       background: var(--bg-card);
       border: 1px solid var(--border-color);
-      border-radius: 12px;
-      padding: 16px 18px;
+      border-radius: 10px;
+      padding: 12px 14px;
       display: flex;
       flex-direction: column;
-      gap: 6px;
-      transition: border-color 0.15s ease, transform 0.15s ease;
+      gap: 4px;
+      transition: border-color 0.15s ease;
     }
 
     .summary-card:hover {
@@ -216,16 +244,16 @@
     }
 
     .summary-label {
-      font-size: 11.5px;
+      font-size: 11px;
       font-weight: 600;
-      color: var(--text-secondary);
+      color: var(--text-muted);
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.06em;
     }
 
     .summary-value {
       font-family: 'Plus Jakarta Sans', sans-serif;
-      font-size: 26px;
+      font-size: 22px;
       font-weight: 800;
       color: var(--text-primary);
     }
@@ -235,8 +263,8 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      gap: 14px;
-      margin-bottom: 18px;
+      gap: 12px;
+      margin-bottom: 16px;
       flex-wrap: wrap;
     }
 
@@ -561,13 +589,23 @@
       border-color: #b91c1c;
     }
 
+    @media (max-width: 1024px) {
+      .summary-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+
     @media (max-width: 768px) {
       .admin-container { padding: 16px 14px 60px; }
       .admin-header { flex-direction: column; align-items: flex-start; }
-      .summary-grid { grid-template-columns: 1fr 1fr; }
+      .summary-grid { grid-template-columns: repeat(2, 1fr); }
       .controls-bar { flex-direction: column; align-items: stretch; }
       .search-input-wrap { max-width: 100%; }
       .modal-box { padding: 18px; }
+    }
+
+    @media (max-width: 480px) {
+      .summary-grid { grid-template-columns: 1fr; }
+      .admin-nav-actions { width: 100%; }
+      .admin-nav-actions .btn { flex: 1; justify-content: center; }
     }
   </style>
 </head>
@@ -621,7 +659,7 @@
     <header class="admin-header">
       <div class="admin-title-group">
         <h1>Teacher Management</h1>
-        <p>Create and manage temporary teacher access credentials.</p>
+        <p>Manage temporary teacher access and activated faculty accounts.</p>
       </div>
       <div class="admin-nav-actions">
         <a href="/dashboard.html" class="btn btn-secondary">
@@ -645,29 +683,29 @@
 
     <!-- Teacher Onboarding Disabled Warning Banner -->
     <div id="onboardingDisabledBanner" class="feature-flag-banner" style="display: none;">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
       <div>
-        <strong>Teacher onboarding is currently disabled.</strong> You can prepare credentials, but teachers cannot activate them yet.
+        <strong>Teacher onboarding is currently disabled.</strong> Credentials can be prepared, but teachers cannot activate them yet.
       </div>
     </div>
 
     <!-- Summary Cards -->
     <div class="summary-grid">
       <div class="summary-card">
-        <div class="summary-label">Total Invites / Slots</div>
+        <div class="summary-label">Total</div>
         <div class="summary-value" id="summaryTotal">0</div>
       </div>
       <div class="summary-card">
-        <div class="summary-label">Awaiting Activation</div>
-        <div class="summary-value" id="summaryAwaiting" style="color: #60a5fa;">0</div>
+        <div class="summary-label">Awaiting</div>
+        <div class="summary-value" id="summaryAwaiting" style="color: #fbbf24;">0</div>
       </div>
       <div class="summary-card">
-        <div class="summary-label">Active Teachers</div>
+        <div class="summary-label">Active</div>
         <div class="summary-value" id="summaryActive" style="color: #34d399;">0</div>
       </div>
       <div class="summary-card">
         <div class="summary-label">Expired</div>
-        <div class="summary-value" id="summaryExpired" style="color: #9ca3af;">0</div>
+        <div class="summary-value" id="summaryExpired" style="color: #94a3b8;">0</div>
       </div>
       <div class="summary-card">
         <div class="summary-label">Revoked</div>
@@ -689,7 +727,7 @@
           <option value="provisioned">Awaiting Setup</option>
           <option value="onboarding">Setup Started</option>
           <option value="awaiting_email_verification">Awaiting Verification</option>
-          <option value="active">Active Teachers</option>
+          <option value="active">Active</option>
           <option value="expired">Expired</option>
           <option value="revoked">Revoked</option>
         </select>
@@ -701,12 +739,12 @@
       <table>
         <thead>
           <tr>
-            <th>Temporary ID</th>
+            <th>Temporary Login</th>
             <th>Status</th>
-            <th>Teacher Name</th>
-            <th>Permanent Username</th>
+            <th>Teacher</th>
+            <th>Username</th>
             <th>Email</th>
-            <th>Subjects Taught</th>
+            <th>Subjects</th>
             <th>Created</th>
             <th>Expires</th>
             <th style="text-align: right;">Actions</th>
@@ -728,29 +766,29 @@
     <div class="modal-box modal-lg">
       <h3 class="modal-title" id="credentialModalTitle">Teacher Login Created</h3>
       <p class="modal-desc" id="credentialModalDesc">
-        Credentials generated securely. Distribute these to faculty members.
+        Save these credentials now. The temporary password will not be shown again.
       </p>
 
       <div id="singleCredView" style="display: none;">
         <div class="cred-callout">
           <div class="cred-row">
-            <span class="cred-label">Username:</span>
-            <span class="cred-val" id="singleCredUsername">—</span>
+            <span class="cred-label">Username</span>
+            <span class="cred-val" id="singleCredUsername" style="font-family: 'JetBrains Mono', monospace; font-size: 14px;">—</span>
           </div>
-          <div class="cred-row">
-            <span class="cred-label">Temporary Password:</span>
-            <span class="cred-val" id="singleCredPassword" style="color: #60a5fa;">—</span>
+          <div class="cred-row" style="margin-top: 8px;">
+            <span class="cred-label">Temporary Password</span>
+            <span class="cred-val" id="singleCredPassword" style="font-family: 'JetBrains Mono', monospace; font-size: 14px; color: #60a5fa;">—</span>
           </div>
-          <div class="cred-row">
-            <span class="cred-label">Expires:</span>
+          <div class="cred-row" style="margin-top: 8px;">
+            <span class="cred-label">Expires</span>
             <span style="font-size: 13px; color: var(--text-secondary);" id="singleCredExpires">—</span>
           </div>
         </div>
 
-        <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px;">
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px;">
           <button type="button" class="btn btn-secondary btn-sm" onclick="copySingleUsername()">Copy Username</button>
           <button type="button" class="btn btn-secondary btn-sm" onclick="copySinglePassword()">Copy Password</button>
-          <button type="button" class="btn btn-primary btn-sm" onclick="copySingleBoth()">Copy Both (Clean Message)</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="copySingleBoth()">Copy Both</button>
         </div>
       </div>
 
@@ -777,11 +815,15 @@
 
       <div class="cred-warning-tag">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-        <span><strong>This temporary password is shown only once.</strong> It is not stored in plaintext and cannot be retrieved after closing this window.</span>
+        <span><strong>This password is shown only once.</strong> It is not stored in plaintext and cannot be retrieved after closing this window.</span>
       </div>
 
-      <div class="modal-actions">
-        <button type="button" class="btn btn-primary" onclick="closeCredentialModal()">I Have Saved the Credentials</button>
+      <div style="margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+        <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); cursor: pointer;">
+          <input type="checkbox" id="savedCredCheckbox" onchange="toggleSavedBtn(this.checked)" style="cursor: pointer; width: 16px; height: 16px;">
+          <span>I have securely saved these credentials</span>
+        </label>
+        <button type="button" class="btn btn-primary" id="savedCredBtn" onclick="closeCredentialModal()">I've Saved the Credentials</button>
       </div>
     </div>
   </div>
@@ -987,14 +1029,20 @@
       if (!tbody) return;
 
       if (invitesData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="empty-state">No teacher invitations found. Use "+ Create Teacher Login" to generate credentials.</td></tr>';
+        if (searchQuery || (activeFilter && activeFilter !== 'all')) {
+          tbody.innerHTML = '<tr><td colspan="9" class="empty-state">No teacher invitations found matching your criteria.</td></tr>';
+        } else {
+          tbody.innerHTML = '<tr><td colspan="9" class="empty-state">No teacher invites yet.<br><span style="font-size: 13px; color: var(--text-muted); margin-top: 6px; display: inline-block;">Create a temporary teacher login to get started.</span></td></tr>';
+        }
         return;
       }
 
       tbody.innerHTML = invitesData.map(item => {
         const isCompleted = item.status === 'active';
         const isRevoked = item.status === 'revoked';
-        const isUncompleted = !isCompleted && !isRevoked;
+        const isExpired = item.status === 'expired';
+
+        const tempUser = item.temporary_username || item.initial_username || item.username || '—';
 
         const teacher = item.teacher || {};
         const teacherName = teacher.name ? escapeHtml(teacher.name) : '—';
@@ -1019,27 +1067,34 @@
         else badgeHtml = `<span class="badge badge-provisioned">${escapeHtml(item.status)}</span>`;
 
         let actionsHtml = '';
-        if (isUncompleted) {
+        if (isExpired) {
           actionsHtml = `
             <div class="action-group" style="justify-content: flex-end;">
-              <button type="button" class="btn btn-secondary btn-sm" onclick="openRegenerateModal('${escapeHtml(item.temporary_username)}')">Regenerate</button>
-              <button type="button" class="btn btn-secondary btn-sm" onclick="openReissueModal('${escapeHtml(item.temporary_username)}')">Reissue</button>
-              <button type="button" class="btn btn-danger btn-sm" onclick="openRevokeModal('${escapeHtml(item.temporary_username)}')">Revoke</button>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="openReissueModal('${escapeHtml(tempUser)}')">Reissue</button>
+              <button type="button" class="btn btn-danger btn-sm" onclick="openRevokeModal('${escapeHtml(tempUser)}')">Revoke</button>
             </div>
           `;
         } else if (isCompleted) {
           actionsHtml = `
             <div class="action-group" style="justify-content: flex-end;">
-              <button type="button" class="btn btn-secondary btn-sm" onclick="openDetailModal('${escapeHtml(item.temporary_username)}')">View Details</button>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="openDetailModal('${escapeHtml(tempUser)}')">View Details</button>
             </div>
           `;
-        } else {
+        } else if (isRevoked) {
           actionsHtml = '<span style="color: var(--text-muted); font-size: 12px;">—</span>';
+        } else {
+          // Awaiting Setup / Setup Started / Awaiting Verification
+          actionsHtml = `
+            <div class="action-group" style="justify-content: flex-end;">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="openRegenerateModal('${escapeHtml(tempUser)}')">Regenerate</button>
+              <button type="button" class="btn btn-danger btn-sm" onclick="openRevokeModal('${escapeHtml(tempUser)}')">Revoke</button>
+            </div>
+          `;
         }
 
         return `
           <tr>
-            <td><span class="username-code">${escapeHtml(item.temporary_username)}</span></td>
+            <td><span class="username-code">${escapeHtml(tempUser)}</span></td>
             <td>${badgeHtml}</td>
             <td><strong>${teacherName}</strong></td>
             <td><span style="font-family: monospace; font-size: 12.5px;">${permanentUsername}</span></td>
@@ -1061,6 +1116,14 @@
     function handleFilter(val) {
       activeFilter = val;
       loadData();
+    }
+
+    function toggleSavedBtn(checked) {
+      const btn = document.getElementById('savedCredBtn');
+      if (btn) {
+        btn.disabled = !checked;
+        btn.textContent = checked ? 'Done' : "I've Saved the Credentials";
+      }
     }
 
     // Single Create
@@ -1150,11 +1213,23 @@
     // Credential Displays
     function showSingleCredential(inv) {
       lastGeneratedBatch = [inv];
+      const username = inv.temporary_username || inv.username || inv.initial_username || '—';
+      const password = inv.temporary_password || inv.temporaryPassword || '—';
+      const expires = inv.expires_at || inv.expiresAt ? new Date(inv.expires_at || inv.expiresAt).toLocaleDateString() : '14 days';
+
       document.getElementById('credentialModalTitle').textContent = 'Teacher Login Created';
-      document.getElementById('credentialModalDesc').textContent = 'Credentials generated securely. Distribute these to the faculty member.';
-      document.getElementById('singleCredUsername').textContent = inv.temporary_username || inv.username || '—';
-      document.getElementById('singleCredPassword').textContent = inv.temporary_password || inv.temporaryPassword || '—';
-      document.getElementById('singleCredExpires').textContent = inv.expires_at || inv.expiresAt ? new Date(inv.expires_at || inv.expiresAt).toLocaleDateString() : '14 days';
+      document.getElementById('credentialModalDesc').textContent = 'Save these credentials now. The temporary password will not be shown again.';
+      document.getElementById('singleCredUsername').textContent = username;
+      document.getElementById('singleCredPassword').textContent = password;
+      document.getElementById('singleCredExpires').textContent = expires;
+
+      const chk = document.getElementById('savedCredCheckbox');
+      const btn = document.getElementById('savedCredBtn');
+      if (chk) chk.checked = false;
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = "I've Saved the Credentials";
+      }
 
       document.getElementById('singleCredView').style.display = 'block';
       document.getElementById('bulkCredView').style.display = 'none';
@@ -1164,12 +1239,12 @@
     function showBulkCredentials(batch) {
       lastGeneratedBatch = batch;
       document.getElementById('credentialModalTitle').textContent = `${batch.length} Teacher Logins Created`;
-      document.getElementById('credentialModalDesc').textContent = 'Temporary credentials generated. Save or download CSV immediately before closing.';
+      document.getElementById('credentialModalDesc').textContent = 'Save these credentials now. Temporary passwords will not be shown again.';
 
       const tbody = document.getElementById('bulkCredTableBody');
       if (tbody) {
         tbody.innerHTML = batch.map(inv => {
-          const u = inv.temporary_username || inv.username || '—';
+          const u = inv.temporary_username || inv.username || inv.initial_username || '—';
           const p = inv.temporary_password || inv.temporaryPassword || '—';
           const exp = inv.expires_at || inv.expiresAt ? new Date(inv.expires_at || inv.expiresAt).toLocaleDateString() : '14 days';
           return `
@@ -1180,6 +1255,14 @@
             </tr>
           `;
         }).join('');
+      }
+
+      const chk = document.getElementById('savedCredCheckbox');
+      const btn = document.getElementById('savedCredBtn');
+      if (chk) chk.checked = false;
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = "I've Saved the Credentials";
       }
 
       document.getElementById('singleCredView').style.display = 'none';
@@ -1205,28 +1288,28 @@
     function copySingleBoth() {
       const u = document.getElementById('singleCredUsername').textContent;
       const p = document.getElementById('singleCredPassword').textContent;
-      const cleanMsg = `Gandaki University — Semester Library Faculty Login\\nUsername: ${u}\\nTemporary Password: ${p}\\n\\nPlease log in at https://semestar-library.vercel.app/login.html to complete faculty onboarding and set your permanent password.`;
+      const cleanMsg = `Gandaki University — Semester Library Faculty Login\nUsername: ${u}\nTemporary Password: ${p}\n\nPlease log in at https://semestar-library.vercel.app/login.html to complete faculty onboarding and set your permanent password.`;
       copyToClipboard(cleanMsg, 'Login details copied to clipboard');
     }
 
     function copyAllBulk() {
       if (!lastGeneratedBatch || lastGeneratedBatch.length === 0) return;
       const text = lastGeneratedBatch.map(inv => {
-        const u = inv.temporary_username || inv.username;
+        const u = inv.temporary_username || inv.username || inv.initial_username;
         const p = inv.temporary_password || inv.temporaryPassword;
-        return `Username: ${u}\\nTemporary Password: ${p}`;
-      }).join('\\n\\n---\\n\\n');
+        return `Username: ${u}\nTemporary Password: ${p}`;
+      }).join('\n\n---\n\n');
       copyToClipboard(text, 'All credentials copied to clipboard');
     }
 
     function downloadBulkCsv() {
       if (!lastGeneratedBatch || lastGeneratedBatch.length === 0) return;
-      let csv = 'temporary_username,temporary_password,expires_at\\n';
+      let csv = 'temporary_username,temporary_password,expires_at\n';
       lastGeneratedBatch.forEach(inv => {
-        const u = inv.temporary_username || inv.username;
-        const p = inv.temporary_password || inv.temporaryPassword;
+        const u = inv.temporary_username || inv.username || inv.initial_username || '';
+        const p = inv.temporary_password || inv.temporaryPassword || '';
         const exp = inv.expires_at || inv.expiresAt || '';
-        csv += `"${u}","${p}","${exp}"\\n`;
+        csv += `"${u}","${p}","${exp}"\n`;
       });
 
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });

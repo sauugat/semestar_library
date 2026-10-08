@@ -12,6 +12,17 @@ module.exports = function directMessagingRouter(service) {
 
   router.use((req, res, next) => {
     res.set('Cache-Control', 'private, no-store');
+    const cronSecret = process.env.CRON_SECRET;
+    const authHeader = req.headers['authorization'] || '';
+    const cronHeader = req.headers['x-cron-secret'] || '';
+    const isCron = cronSecret && (
+      authHeader === `Bearer ${cronSecret}` ||
+      cronHeader === cronSecret
+    );
+    if (isCron && req.path === '/outbox/drain') {
+      req.isInternalWorker = true;
+      return next();
+    }
     if (!req.student?.studentId) {
       return res.status(401).json({ message: 'Authentication required.' });
     }
@@ -132,6 +143,43 @@ module.exports = function directMessagingRouter(service) {
     });
     res.status(201);
     return result;
+  }));
+
+  // 13. Scoped Realtime Credentials
+  router.get('/conversations/:id/realtime-config', asyncRoute(async req => {
+    return service.getRealtimeConfig(getCallerId(req), req.params.id);
+  }));
+
+  // 14. Ephemeral Typing Indicator
+  router.post('/conversations/:id/typing', asyncRoute(async req => {
+    const isTyping = req.body?.isTyping !== false;
+    return service.sendTyping(getCallerId(req), req.params.id, { isTyping });
+  }));
+
+  // 15. Reconnection & Multi-Device Sync
+  router.get('/conversations/:id/sync', asyncRoute(async req => {
+    return service.syncConversation(getCallerId(req), req.params.id, {
+      sinceMessageId: req.query.sinceMessageId,
+      sinceTimestamp: req.query.sinceTimestamp,
+    });
+  }));
+
+  // 16. Outbox Drain Trigger (Background / Maintenance / Testing)
+  router.post('/outbox/drain', asyncRoute(async (req, res) => {
+    const cronSecret = process.env.CRON_SECRET;
+    const authHeader = req.headers['authorization'] || '';
+    const cronHeader = req.headers['x-cron-secret'] || '';
+    const isCron = cronSecret && (
+      authHeader === `Bearer ${cronSecret}` ||
+      cronHeader === cronSecret
+    );
+    const isAdmin = req.student?.role === 'admin';
+
+    if (!isCron && !isAdmin) {
+      return res.status(403).json({ message: 'Forbidden: administrative or internal worker authorization required.' });
+    }
+
+    return service.drain();
   }));
 
   // 404 handler for unmatched routes

@@ -2156,6 +2156,20 @@
     </div>
   </section>
 
+  <section class="feed-launcher" aria-label="Campus shortcuts">
+    <button type="button" class="feed-compose-prompt" onclick="openPostModal()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m15 5 4 4M4 20l4-1L20 7a2.8 2.8 0 0 0-4-4L4 15z"/></svg>
+      <span>What's on your mind?</span>
+    </button>
+    <div class="feed-shortcuts">
+      <a href="/routine.html" class="feed-shortcut"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18M8 15h2M14 15h2"/></svg><span>Routine</span></a>
+      <a href="/notices.html" class="feed-shortcut"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 14-5v14L3 14zM7 15l1 6h4l-2-5M21 8v8"/></svg><span>Notices</span></a>
+      <a href="/library.html?upload=1" class="feed-shortcut"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V3m-5 5 5-5 5 5M4 16v5h16v-5"/></svg><span>Upload</span></a>
+      <a href="semesterlibrary://games" id="feedGamesShortcut" class="feed-shortcut" title="Open games in the app"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 8h10c3 0 5 10 3 11-2 1-4-3-5-3H9c-1 0-3 4-5 3C2 18 4 8 7 8Z M8 10v4m-2-2h4m5 0h.01m3 2h.01"/></svg><span>Games</span></a>
+    </div>
+    <p id="gamesAppHint" class="games-app-hint" hidden>Games open in the Semester Library app. <a href="/download.html">Get the app</a></p>
+  </section>
+
   <div class="feed-heading">
     <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
       <h2 style="margin:0;">Your Feed</h2>
@@ -2747,9 +2761,9 @@
     function renderPostShell({ kind, id, className = '', profileUrl, avatar, name, badge = '', meta, controls = '', body, actions, comments = '' }) {
       return `
         <article class="feed-card social-post-card post-card ${className}" data-${kind}-id="${id}">
-          <a href="${profileUrl}" class="post-avatar" aria-label="View ${escapeHtml(name)}'s profile">${avatar}</a>
           <div class="post-main post-body">
             <header class="post-header">
+              <a href="${profileUrl}" class="post-avatar" aria-label="View ${escapeHtml(name)}'s profile">${avatar}</a>
               <div class="post-user-info">
                 <div class="post-author-row">
                   <a href="${profileUrl}" class="post-author-name post-author-link">${escapeHtml(name)}</a>
@@ -3912,7 +3926,9 @@
       if (post) Object.assign(post, { liked_by_me: liked, like_count: count });
       const button = document.querySelector(`[data-post-id="${id}"] .like-btn`);
       if (!button) return;
+      const becameLiked = liked && button.dataset.liked !== 'true';
       button.dataset.liked = String(liked);
+      if (becameLiked && typeof animateLikeButton === 'function') animateLikeButton(button);
       button.classList.toggle('liked', liked);
       button.setAttribute('aria-pressed', String(liked));
       button.setAttribute('aria-label', liked ? 'Unlike post' : 'Like post');

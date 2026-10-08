@@ -130,7 +130,8 @@
       if (event.key === 'Tab') {
         const controls = Array.from(imageLightbox.querySelectorAll('button:not([disabled]), a[href]')).filter(el => el.offsetParent !== null);
         const first = controls[0], last = controls[controls.length - 1];
-        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+        if (!imageLightbox.contains(document.activeElement)) { event.preventDefault(); first.focus(); }
+        else if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
         else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
       }
     });
@@ -140,11 +141,22 @@
       const card = image.closest('[data-post-id]');
       const button = card?.querySelector('.like-btn');
       if (button && button.dataset.liked !== 'true') void toggleStatusLike(Number(card.dataset.postId), button);
+      animatePhotoHeart(image.parentElement);
+    }
+
+    function animatePhotoHeart(container) {
       const heart = document.createElement('span');
       heart.className = 'feed-heart'; heart.textContent = '♥'; heart.setAttribute('aria-hidden', 'true');
-      image.parentElement.querySelector('.feed-heart')?.remove();
-      image.parentElement.append(heart);
+      container.querySelector('.feed-heart')?.remove();
+      container.append(heart);
       setTimeout(() => heart.remove(), 900);
+    }
+
+    function animateLikeButton(button) {
+      button.classList.remove('like-pop');
+      // Restart the animation even when the user likes again after an unlike.
+      void button.offsetWidth;
+      button.classList.add('like-pop');
     }
 
     function renderViewerDetails() {
@@ -158,13 +170,38 @@
       const caption = document.createElement('p'); caption.textContent = post.content || '';
       const actions = document.createElement('div'); actions.className = 'viewer-actions';
       const like = document.createElement('button');
+      like.className = 'viewer-like';
       const sourceButton = card.querySelector('.like-btn');
       const liked = sourceButton?.dataset.liked === 'true';
       like.setAttribute('aria-pressed', String(liked));
       like.setAttribute('aria-label', liked ? 'Unlike post' : 'Like post');
-      like.textContent = `${liked ? '♥' : '♡'} ${sourceButton?.querySelector('.like-count')?.textContent || 0}`;
+      const heartIcon = sourceButton.querySelector('svg').cloneNode(true);
+      heartIcon.setAttribute('aria-hidden', 'true');
+      const likeCount = document.createElement('span');
+      likeCount.textContent = sourceButton.querySelector('.like-count')?.textContent || '0';
+      like.append(heartIcon, likeCount);
       like.disabled = pendingPostLikes.has(Number(post.id));
-      like.onclick = async () => { const pending = toggleStatusLike(Number(post.id), sourceButton); renderViewerDetails(); await pending; if (!imageLightbox.classList.contains('hidden')) renderViewerDetails(); };
+      like.onclick = async () => {
+        const wasLiked = sourceButton.dataset.liked === 'true';
+        const pending = toggleStatusLike(Number(post.id), sourceButton);
+        renderViewerDetails();
+        if (!wasLiked) {
+          animateLikeButton(details.querySelector('.viewer-like'));
+          animatePhotoHeart(stage);
+        }
+        await pending;
+        if (!imageLightbox.classList.contains('hidden') && lightboxTrigger?.closest('[data-post-id]')?.dataset.postId === String(post.id)) {
+          const current = details.querySelector('.viewer-like');
+          // Keep the same node so a quick response does not cut off the heart animation.
+          const nowLiked = sourceButton.dataset.liked === 'true';
+          current.disabled = false;
+          current.setAttribute('aria-pressed', String(nowLiked));
+          current.setAttribute('aria-label', nowLiked ? 'Unlike post' : 'Like post');
+          current.querySelector('svg').setAttribute('fill', nowLiked ? 'currentColor' : 'none');
+          current.querySelector('span').textContent = sourceButton.querySelector('.like-count').textContent;
+          current.focus({ preventScroll: true });
+        }
+      };
       const comments = document.createElement('button'); comments.textContent = `${post.comment_count || 0} comments`;
       comments.onclick = () => { closePostImage(); togglePostComments(Number(post.id), card); };
       actions.append(like, comments); details.append(author, time, caption, actions);
@@ -181,7 +218,7 @@
       lightboxImg.style.transform = `translate(${photoX}px, ${photoY}px) scale(${photoZoom})`;
       lightboxImg.style.cursor = photoZoom > 1 ? 'grab' : 'zoom-in';
     }
-    function resetPhotoZoom() { pointers.clear(); pinch = null; drag = null; photoZoom = 1; photoX = photoY = 0; lastPhotoTap = 0; paintPhoto(); }
+    function resetPhotoZoom() { safariGesture = null; pointers.clear(); pinch = null; drag = null; photoZoom = 1; photoX = photoY = 0; lastPhotoTap = 0; paintPhoto(); }
     function zoomPhoto(target, clientX, clientY, animate) {
       const rect = stage.getBoundingClientRect();
       const mx = clientX - rect.left - rect.width / 2, my = clientY - rect.top - rect.height / 2;
@@ -190,6 +227,7 @@
       paintPhoto(animate);
     }
     stage.addEventListener('pointerdown', event => {
+      if (event.button !== 0 && event.pointerType === 'mouse') return;
       event.preventDefault(); stage.setPointerCapture(event.pointerId);
       pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
       if (pointers.size === 1) { moved = false; usedPinch = false; drag = { x: event.clientX, y: event.clientY, px: photoX, py: photoY }; }
@@ -201,6 +239,7 @@
     });
     stage.addEventListener('pointermove', event => {
       if (!pointers.has(event.pointerId)) return;
+      event.preventDefault();
       pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
       if (pointers.size >= 2 && pinch) {
         const [a, b] = [...pointers.values()];
@@ -229,9 +268,49 @@
     }
     stage.addEventListener('pointerup', endPhotoPointer);
     stage.addEventListener('pointercancel', endPhotoPointer);
-    stage.addEventListener('wheel', event => {
-      event.preventDefault(); zoomPhoto(photoZoom * Math.exp(-event.deltaY * .004), event.clientX, event.clientY, false);
-    }, { passive: false });
+    // Trackpads use Ctrl+wheel in Chrome/Firefox and GestureEvent in Safari.
+    // Listen on the whole viewer so a pinch still works when the cursor is over its caption.
+    let safariGesture = null;
+    const gesturePoint = event => {
+      const rect = stage.getBoundingClientRect();
+      return {
+        x: Number.isFinite(event.clientX) && event.clientX !== 0 ? event.clientX : rect.left + rect.width / 2,
+        y: Number.isFinite(event.clientY) && event.clientY !== 0 ? event.clientY : rect.top + rect.height / 2,
+      };
+    };
+    imageLightbox.addEventListener('wheel', event => {
+      if (imageLightbox.classList.contains('hidden')) return;
+      if (event.ctrlKey || event.metaKey) {
+        event.preventDefault();
+        if (safariGesture) return; // Some Safari versions also emit wheel during GestureEvent.
+        const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? stage.clientHeight : 1);
+        const point = gesturePoint(event);
+        zoomPhoto(photoZoom * Math.exp(-delta * .01), point.x, point.y, false);
+      } else if (stage.contains(event.target)) {
+        // Two-finger scrolling pans a magnified photo; it must not change the zoom.
+        event.preventDefault();
+        if (photoZoom > 1) {
+          photoX -= event.deltaX; photoY -= event.deltaY; paintPhoto();
+        }
+      }
+    }, { passive: false, capture: true });
+    document.addEventListener('gesturestart', event => {
+      if (imageLightbox.classList.contains('hidden')) return;
+      event.preventDefault();
+      safariGesture = { zoom: photoZoom, scale: Number(event.scale) || 1 };
+      lastPhotoTap = 0;
+    }, { passive: false, capture: true });
+    document.addEventListener('gesturechange', event => {
+      if (!safariGesture || imageLightbox.classList.contains('hidden')) return;
+      event.preventDefault();
+      if (pointers.size >= 2) return; // Touchscreen pointers already own this pinch.
+      const point = gesturePoint(event);
+      zoomPhoto(safariGesture.zoom * (Number(event.scale) || 1) / safariGesture.scale, point.x, point.y, false);
+    }, { passive: false, capture: true });
+    document.addEventListener('gestureend', event => {
+      if (imageLightbox.classList.contains('hidden')) return;
+      event.preventDefault(); safariGesture = null;
+    }, { passive: false, capture: true });
     window.addEventListener('resize', () => paintPhoto());
 
     let feedSwipe = null;
@@ -245,3 +324,8 @@
       if (Date.now() - feedSwipe.time < 600 && touch.clientX - feedSwipe.x > 100 && Math.abs(touch.clientY - feedSwipe.y) < 45) window.location.assign('/library.html');
       feedSwipe = null;
     }, { passive: true });
+
+    document.getElementById('feedGamesShortcut').addEventListener('click', () => {
+      // Preserve the direct app link; provide a download fallback without redirecting the browser.
+      document.getElementById('gamesAppHint').hidden = false;
+    });

@@ -129,8 +129,16 @@ export interface InAppNotification {
   actor?: InAppNotificationActor | null;
 }
 
+export interface DirectMessageNotificationData extends BaseNotificationData {
+  type: 'dm';
+  conversationId: string;
+  messageId?: number;
+  senderId?: string;
+}
+
 export type NotificationPayload =
   | ChatNotificationData
+  | DirectMessageNotificationData
   | MaterialNotificationData
   | MaterialBatchNotificationData
   | PostNotificationData
@@ -694,6 +702,22 @@ export function parseNotificationData(raw: unknown): NotificationPayload | null 
     }
   }
 
+  if (type === 'dm') {
+    const conversationId = String(data.conversationId || '');
+    if (conversationId) {
+      const messageId = Number(data.messageId);
+      return {
+        type: 'dm',
+        conversationId,
+        messageId: Number.isFinite(messageId) && messageId > 0 ? messageId : undefined,
+        senderId: data.senderId ? String(data.senderId) : undefined,
+        actorId: data.senderId ? String(data.senderId) : undefined,
+        groupKey: `dm:${conversationId}`,
+        collapseId: `dm:${conversationId}`,
+      };
+    }
+  }
+
   return null;
 }
 
@@ -807,6 +831,21 @@ export function navigateFromNotification(
             pathname: '/post/[id]',
             params,
           });
+          break;
+        }
+
+        case 'dm': {
+          try {
+            router.push({
+              pathname: '/(tabs)/chat',
+              params: {
+                dmConversationId: payload.conversationId,
+                targetMessageId: payload.messageId ? String(payload.messageId) : undefined,
+              },
+            });
+          } catch {
+            router.push('/(tabs)');
+          }
           break;
         }
 

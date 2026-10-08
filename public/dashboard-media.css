@@ -39,3 +39,58 @@
 .lightbox-details button { border: 0; border-radius: 8px; padding: 10px; background: #ffffff12; color: #fff; cursor: pointer; font: inherit; }
 .lightbox-details button[aria-pressed="true"] { color: #fb7185; }
 @media (prefers-reduced-motion: reduce) { .feed-heart { animation-duration: 150ms; } }
+
+/* A compact, consistently aligned social feed on laptop and mobile. */
+body.dash { --dashboard-feed-width: 500px; }
+body.dash .dash-hero,
+body.dash .feed-launcher,
+body.dash .feed-heading,
+body.dash main.feed {
+  width: min(var(--dashboard-feed-width), calc(100% - 32px));
+  box-sizing: border-box;
+  margin-left: auto;
+  margin-right: auto;
+}
+body.dash .dash-hero { margin-top: 24px; padding: 18px 20px; gap: 14px; box-shadow: none; border-radius: 16px !important; }
+body.dash .dash-hero .dash-avatar { width: 44px; height: 44px; font-size: 18px; }
+body.dash .dash-hero .dash-greeting-line { font-size: 17px; }
+body.dash .dash-hero .dash-id { font-size: 12px; }
+body.dash .feed-heading { margin-top: 24px; padding: 0 20px 12px; }
+body.dash main.feed { padding: 0 0 100px !important; gap: 12px; }
+body.dash .feed .post-card .post-main { width: 100%; max-width: 420px; margin-inline: auto; }
+body.dash .feed .post-card .post-header { align-items: center; gap: 10px !important; margin-bottom: 12px !important; }
+body.dash .feed .post-card .post-header .post-avatar { width: 36px !important; height: 36px !important; flex: 0 0 36px; margin: 0; border-radius: 50%; }
+body.dash .feed .post-card .post-user-info { display: flex; flex-direction: column; align-items: flex-start; flex: 1; gap: 3px; }
+body.dash .feed .post-card .post-author-name { font-size: 14px; }
+body.dash .feed .post-card .post-meta-row { font-size: 11px; }
+body.dash .feed .post-card .status-post-text { font-size: 14px; line-height: 1.6; }
+body.dash .feed .post-card .post-single-image { max-width: 420px; border-radius: 10px; }
+body.dash .feed .post-card .post-single-image img { border-radius: 0; }
+.feed-launcher { margin-top: 16px; padding: 14px; border: 1px solid var(--border-color); border-radius: 16px; background: var(--bg-primary); }
+.feed-compose-prompt { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px; border: 0; border-radius: 10px; background: var(--bg-tertiary); color: var(--text-muted); font: inherit; text-align: left; cursor: pointer; }
+.feed-compose-prompt svg { width: 20px; height: 20px; }
+.feed-shortcuts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+.feed-shortcut { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 13px 4px; border: 1px solid var(--border-color); border-radius: 10px; background: transparent; color: var(--text-primary); font: inherit; font-size: 12px; font-weight: 600; text-decoration: none; cursor: pointer; transition: background .15s ease, transform .15s ease; }
+.feed-shortcut svg { width: 22px; height: 22px; }
+.feed-shortcut:hover { background: var(--bg-tertiary); transform: translateY(-2px); }
+.feed-shortcut:focus-visible, .feed-compose-prompt:focus-visible { outline: 2px solid var(--text-primary); outline-offset: 3px; }
+html:root body.dash .feed .post-card .post-actions .like-btn.liked { color: #f43f5e !important; }
+.feed-heart { color: #f43f5e; }
+.lightbox-stage { position: relative; }
+.lightbox-details { background: transparent; width: min(100%, 640px); }
+.lightbox-details button { background: transparent; padding: 8px 0; border-radius: 0; display: inline-flex; align-items: center; gap: 8px; }
+.lightbox-details button[aria-pressed="true"] { color: #f43f5e; }
+.lightbox-details .viewer-like svg { width: 25px; height: 25px; }
+.lightbox-details .viewer-like[aria-pressed="true"] svg { fill: currentColor; }
+.like-pop svg { animation: like-button-pop 420ms cubic-bezier(.2,.8,.3,1); }
+@keyframes like-button-pop { 0%,100% { transform: scale(1); } 35% { transform: scale(1.35) rotate(-12deg); } 65% { transform: scale(.9) rotate(5deg); } }
+@media (max-width: 540px) {
+  body.dash main.feed { width: 100%; }
+  body.dash .feed .post-card .post-main { max-width: 420px; }
+  body.dash .feed-heading { padding-inline: 4px; }
+}
+@media (prefers-reduced-motion: reduce) { .like-pop svg { animation: none; } .feed-shortcut { transition: none; } }
+
+.games-app-hint { margin: 12px 4px 0; color: var(--text-muted); font-size: 12px; line-height: 1.5; }
+.games-app-hint a { color: var(--text-primary); text-underline-offset: 3px; }
+.lightbox { overscroll-behavior: contain; }

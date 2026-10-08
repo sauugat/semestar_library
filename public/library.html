@@ -2948,6 +2948,12 @@
         setupUploadModalControls();
         renderView();
         checkUrl();
+        if (new URLSearchParams(location.search).get('upload') === '1') {
+          openDirectUploadModal();
+          const cleanUrl = new URL(location.href);
+          cleanUrl.searchParams.delete('upload');
+          history.replaceState(null, '', cleanUrl);
+        }
       } catch (e) {
         console.error('Init error:', e);
       }

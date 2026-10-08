@@ -2067,7 +2067,6 @@
       border-top: 1px solid rgba(0, 0, 0, 0.12) !important;
     }
   </style>
-  <link rel="stylesheet" href="/dashboard-media.css">
 </head>
 
 <body class="dash">
@@ -2149,31 +2148,17 @@
       <div id="heroRealText" style="display: none;">
         <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:4px;">
           <p class="dash-greeting-line" id="greetingLine" style="margin:0;"></p>
-
+          <span class="academic-context-badge" id="dashAcademicBadge" style="display:none;"></span>
         </div>
         <p class="dash-id" id="idLine"></p>
       </div>
     </div>
   </section>
 
-  <section class="feed-launcher" aria-label="Campus shortcuts">
-    <button type="button" class="feed-compose-prompt" onclick="openPostModal()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m15 5 4 4M4 20l4-1L20 7a2.8 2.8 0 0 0-4-4L4 15z"/></svg>
-      <span>What's on your mind?</span>
-    </button>
-    <div class="feed-shortcuts">
-      <a href="/routine.html" class="feed-shortcut"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18M8 15h2M14 15h2"/></svg><span>Routine</span></a>
-      <a href="/notices.html" class="feed-shortcut"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 14-5v14L3 14zM7 15l1 6h4l-2-5M21 8v8"/></svg><span>Notices</span></a>
-      <a href="/library.html?upload=1" class="feed-shortcut"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V3m-5 5 5-5 5 5M4 16v5h16v-5"/></svg><span>Upload</span></a>
-      <a href="semesterlibrary://games" id="feedGamesShortcut" class="feed-shortcut" title="Open games in the app"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 8h10c3 0 5 10 3 11-2 1-4-3-5-3H9c-1 0-3 4-5 3C2 18 4 8 7 8Z M8 10v4m-2-2h4m5 0h.01m3 2h.01"/></svg><span>Games</span></a>
-    </div>
-    <p id="gamesAppHint" class="games-app-hint" hidden>Games open in the Semester Library app. <a href="/download.html">Get the app</a></p>
-  </section>
-
   <div class="feed-heading">
     <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
       <h2 style="margin:0;">Your Feed</h2>
-
+      <span class="academic-context-badge" id="feedAcademicBadge" style="display:none;"></span>
     </div>
     <span>Updated just now</span>
   </div>
@@ -2281,7 +2266,6 @@
       </div>
     </div>
     <div id="postPagination" class="post-pagination">
-      <p id="feedEndMessage" hidden>You reached Bedrock :)</p>
       <p id="postFeedMessage" class="post-feedback" role="status" aria-live="polite"></p>
       <button type="button" id="loadMorePosts" class="post-action-btn" hidden>Load older posts</button>
     </div>
@@ -2466,6 +2450,11 @@
 
         document.getElementById('greetingLine').textContent = `${getGreeting()}, ${data.name}`;
         document.getElementById('idLine').textContent = `Student ID: ${data.studentId}`;
+
+        if (window.AcademicContext) {
+          window.AcademicContext.renderBadge('#dashAcademicBadge');
+          window.AcademicContext.renderBadge('#feedAcademicBadge');
+        }
 
         // Populate top right header profile chip
         const headerAvatar = document.getElementById('headerAvatar');
@@ -2761,9 +2750,9 @@
     function renderPostShell({ kind, id, className = '', profileUrl, avatar, name, badge = '', meta, controls = '', body, actions, comments = '' }) {
       return `
         <article class="feed-card social-post-card post-card ${className}" data-${kind}-id="${id}">
+          <a href="${profileUrl}" class="post-avatar" aria-label="View ${escapeHtml(name)}'s profile">${avatar}</a>
           <div class="post-main post-body">
             <header class="post-header">
-              <a href="${profileUrl}" class="post-avatar" aria-label="View ${escapeHtml(name)}'s profile">${avatar}</a>
               <div class="post-user-info">
                 <div class="post-author-row">
                   <a href="${profileUrl}" class="post-author-name post-author-link">${escapeHtml(name)}</a>
@@ -2956,7 +2945,7 @@
               <div class="file-actions">
                 <a href="/code-lab/assignment.html?id=${a.id}" class="file-action primary" title="Open and solve assignment">
                   <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                  <span>Do assignment</span>
+                  <span>Open</span>
                 </a>
               </div>
             </div>
@@ -3219,7 +3208,7 @@
       let imageHtml = '';
       if (postImages.length === 1) {
         const singleUrl = postImages[0].url;
-        imageHtml = `<div class="post-image post-single-image"><img src="${singleUrl}" alt="Image attached by ${escapeHtml(post.name)}" loading="lazy" decoding="async" tabindex="0" role="button" aria-label="Open full image" aria-haspopup="dialog" onload="this.parentElement.style.aspectRatio = Math.max(0.8, this.naturalWidth / this.naturalHeight)" onerror="this.hidden = true; this.nextElementSibling.hidden = false;"><a class="status-post-attachment" href="${singleUrl}" target="_blank" rel="noopener noreferrer" hidden>View attachment ↗</a></div>`;
+        imageHtml = `<div class="post-image"><img src="${singleUrl}" alt="Image attached by ${escapeHtml(post.name)}" loading="lazy" decoding="async" tabindex="0" role="button" aria-label="Open full image" aria-haspopup="dialog" onerror="this.hidden = true; this.nextElementSibling.hidden = false;"><a class="status-post-attachment" href="${singleUrl}" target="_blank" rel="noopener noreferrer" hidden>View attachment ↗</a></div>`;
       } else if (postImages.length === 2) {
         imageHtml = `
           <div class="post-image post-media-grid grid-2">
@@ -3346,6 +3335,7 @@
 
     function renderFeed() {
       const container = document.getElementById('realFiles');
+      feedItems = feedItems.filter(item => item._feedType !== 'assignment' && item.type !== 'assignment');
       feedItems.sort((a, b) => b._feedTime - a._feedTime || b.id - a.id);
       // Reuse existing cards so paging or publishing preserves open comments and pending likes.
       const fragment = document.createDocumentFragment();
@@ -3365,7 +3355,6 @@
         container.innerHTML = `<div class="post-feed-empty"><p>No posts shared yet</p><p>Share a status above or upload notes in Library.</p></div>`;
       }
       loadMorePostsBtn.hidden = postsLoaded && postsCursor === null;
-      document.getElementById('feedEndMessage').hidden = !postsLoaded || postsCursor !== null || !feedItems.length;
       loadMorePostsBtn.textContent = postsLoaded ? 'Load older posts' : 'Retry loading posts';
       initDashboardCardPhysics();
     }
@@ -3373,6 +3362,7 @@
     function addFeedPosts(posts) {
       const existing = new Set(feedItems.filter(item => item._feedType === 'post').map(item => item.id));
       posts.forEach(post => {
+        if (post.type === 'assignment') return;
         if (!existing.has(post.id)) {
           feedItems.push({ ...post, _feedType: 'post', _feedTime: new Date(post.created_at).getTime() });
           existing.add(post.id);
@@ -3387,36 +3377,21 @@
     }
 
     async function loadFeed() {
-      const [files, page, assignments] = await Promise.all([
+      const [files, page] = await Promise.all([
         fetch('/api/files').then(r => r.ok ? r.json() : []).catch(() => []),
-        fetchPostPage().catch(err => { postFeedMessage.textContent = err.message; return null; }),
-        fetch('/api/code-lab/assignments').then(r => { if (!r.ok) throw new Error('Could not load assignments.'); return r.json(); }).catch(err => { postFeedMessage.textContent = err.message; return []; })
+        fetchPostPage().catch(err => { postFeedMessage.textContent = err.message; return null; })
       ]);
       feedItems = [
-        ...files.map(f => ({ ...f, _feedType: 'file', _feedTime: new Date(f.uploadedAt || f.createdAt || 0).getTime() })),
-        ...assignments.map(a => ({ ...a, _feedType: 'assignment', _feedTime: new Date(a.createdAt).getTime() }))
+        ...files.map(f => ({ ...f, _feedType: 'file', _feedTime: new Date(f.uploadedAt || f.createdAt || 0).getTime() }))
       ];
       if (page) {
         addFeedPosts(page.posts);
         postsCursor = page.nextCursor;
         postsLoaded = true;
       }
-      document.getElementById('realFiles').replaceChildren();
       renderFeed();
     }
 
-    let refreshingHome = false;
-    async function refreshHomeFeed(event) {
-      event?.preventDefault();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      if (refreshingHome) return;
-      refreshingHome = true;
-      try {
-        postFeedMessage.textContent = '';
-        await loadFeed();
-      } finally { refreshingHome = false; }
-    }
-    document.querySelectorAll('a[href="dashboard.html"]').forEach(link => link.addEventListener('click', refreshHomeFeed));
     const feedReady = loadFeed();
 
     loadMorePostsBtn.addEventListener('click', async () => {
@@ -3926,9 +3901,7 @@
       if (post) Object.assign(post, { liked_by_me: liked, like_count: count });
       const button = document.querySelector(`[data-post-id="${id}"] .like-btn`);
       if (!button) return;
-      const becameLiked = liked && button.dataset.liked !== 'true';
       button.dataset.liked = String(liked);
-      if (becameLiked && typeof animateLikeButton === 'function') animateLikeButton(button);
       button.classList.toggle('liked', liked);
       button.setAttribute('aria-pressed', String(liked));
       button.setAttribute('aria-label', liked ? 'Unlike post' : 'Like post');
@@ -4370,14 +4343,133 @@
     <button type="button" class="lightbox-nav-btn lightbox-prev" id="lightboxPrev" aria-label="Previous image" style="display: none;">
       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
     </button>
-    <div id="lightboxStage" class="lightbox-stage"><img id="lightboxImg" alt="" draggable="false"></div>
-    <div id="lightboxDetails" class="lightbox-details"></div>
+    <img id="lightboxImg" alt="">
     <div id="lightboxCounter" class="lightbox-counter" style="display: none;">1 / 1</div>
     <button type="button" class="lightbox-nav-btn lightbox-next" id="lightboxNext" aria-label="Next image" style="display: none;">
       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
     </button>
   </div>
-  <script src="/dashboard-media.js"></script>
+  <script>
+    const imageLightbox = document.getElementById('imageLightbox');
+    const lightboxImg = document.getElementById('lightboxImg');
+    const lightboxClose = imageLightbox.querySelector('.lightbox-close');
+    const lightboxPrev = document.getElementById('lightboxPrev');
+    const lightboxNext = document.getElementById('lightboxNext');
+    const lightboxCounter = document.getElementById('lightboxCounter');
+    let lightboxTrigger = null;
+    let lightboxPreviousOverflow = '';
+    let galleryImages = [];
+    let galleryIndex = 0;
+
+    function updateLightboxNav() {
+      if (!lightboxPrev || !lightboxNext || !lightboxCounter) return;
+      if (galleryImages.length > 1) {
+        lightboxPrev.style.display = 'flex';
+        lightboxNext.style.display = 'flex';
+        lightboxCounter.style.display = 'block';
+        lightboxCounter.textContent = `${galleryIndex + 1} / ${galleryImages.length}`;
+      } else {
+        lightboxPrev.style.display = 'none';
+        lightboxNext.style.display = 'none';
+        lightboxCounter.style.display = 'none';
+      }
+    }
+
+    function showLightboxIndex(idx) {
+      if (galleryImages.length === 0) return;
+      if (idx < 0) idx = galleryImages.length - 1;
+      if (idx >= galleryImages.length) idx = 0;
+      galleryIndex = idx;
+      const targetImg = galleryImages[galleryIndex];
+      if (targetImg) {
+        lightboxImg.src = targetImg.currentSrc || targetImg.src;
+        lightboxImg.alt = targetImg.alt || '';
+      }
+      updateLightboxNav();
+    }
+
+    function openPostImage(image) {
+      if (!image || image.hidden) return;
+      lightboxTrigger = image;
+      lightboxPreviousOverflow = document.body.style.overflow;
+
+      const postMedia = image.closest('.post-image');
+      if (postMedia) {
+        galleryImages = Array.from(postMedia.querySelectorAll('img:not([hidden])'));
+        galleryIndex = Math.max(0, galleryImages.indexOf(image));
+      } else {
+        galleryImages = [image];
+        galleryIndex = 0;
+      }
+
+      showLightboxIndex(galleryIndex);
+      document.body.style.overflow = 'hidden';
+      imageLightbox.classList.remove('hidden');
+      lightboxClose.focus();
+    }
+
+    function closePostImage() {
+      imageLightbox.classList.add('hidden');
+      lightboxImg.removeAttribute('src');
+      galleryImages = [];
+      galleryIndex = 0;
+      updateLightboxNav();
+      document.body.style.overflow = lightboxPreviousOverflow;
+      if (lightboxTrigger?.isConnected) lightboxTrigger.focus();
+      lightboxTrigger = null;
+    }
+
+    document.getElementById('realFiles').addEventListener('click', (event) => {
+      const moreOverlay = event.target.closest('.post-media-more-overlay');
+      if (moreOverlay) {
+        const postMedia = moreOverlay.closest('.post-image');
+        const imgs = postMedia ? Array.from(postMedia.querySelectorAll('img:not([hidden])')) : [];
+        if (imgs.length >= 4) openPostImage(imgs[3]);
+        return;
+      }
+      if (event.target.matches('.post-image img')) openPostImage(event.target);
+    });
+    document.getElementById('realFiles').addEventListener('keydown', (event) => {
+      if (event.target.matches('.post-image img, .post-media-more-overlay') && ['Enter', ' '].includes(event.key)) {
+        event.preventDefault();
+        if (event.target.matches('.post-media-more-overlay')) {
+          const postMedia = event.target.closest('.post-image');
+          const imgs = postMedia ? Array.from(postMedia.querySelectorAll('img:not([hidden])')) : [];
+          if (imgs.length >= 4) openPostImage(imgs[3]);
+        } else {
+          openPostImage(event.target);
+        }
+      }
+    });
+
+    if (lightboxPrev) {
+      lightboxPrev.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showLightboxIndex(galleryIndex - 1);
+      });
+    }
+    if (lightboxNext) {
+      lightboxNext.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showLightboxIndex(galleryIndex + 1);
+      });
+    }
+
+    lightboxClose.addEventListener('click', closePostImage);
+    imageLightbox.addEventListener('click', (event) => {
+      if (event.target === imageLightbox) closePostImage();
+    });
+    document.addEventListener('keydown', (event) => {
+      if (imageLightbox.classList.contains('hidden')) return;
+      if (event.key === 'Escape') closePostImage();
+      if (event.key === 'ArrowLeft' && galleryImages.length > 1) showLightboxIndex(galleryIndex - 1);
+      if (event.key === 'ArrowRight' && galleryImages.length > 1) showLightboxIndex(galleryIndex + 1);
+      if (event.key === 'Tab') {
+        event.preventDefault();
+        lightboxClose.focus();
+      }
+    });
+  </script>
   <!-- PWA Service Worker Registration -->
   <script>
     if ('serviceWorker' in navigator) {

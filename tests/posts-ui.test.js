@@ -169,11 +169,11 @@ test('uploaded images render below content and above actions; text-only posts om
     attachment_url: '/uploads/posts/photo.png'
   };
   const output = vm.runInContext('renderPost(post)', context);
-  assert.match(output, /<div class="post-image post-single-image"><img src="https:\/\/example.com\/uploads\/posts\/photo.png"/);
-  assert.ok(output.indexOf('A class photo') < output.indexOf('<div class="post-image post-single-image">'));
-  assert.ok(output.indexOf('<div class="post-image post-single-image">') < output.indexOf('<footer'));
+  assert.match(output, /<div class="post-image"><img src="https:\/\/example.com\/uploads\/posts\/photo.png"/);
+  assert.ok(output.indexOf('A class photo') < output.indexOf('<div class="post-image">'));
+  assert.ok(output.indexOf('<div class="post-image">') < output.indexOf('<footer'));
   context.post.attachment_url = null;
-  assert.ok(!vm.runInContext('renderPost(post)', context).includes('<div class="post-image post-single-image">'));
+  assert.ok(!vm.runInContext('renderPost(post)', context).includes('<div class="post-image">'));
 });
 
 test('Code Lab assignments preserve the Lab embed, badges, question counts and links', () => {

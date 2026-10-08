@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, PanResponder, StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
 
@@ -7,17 +7,17 @@ export function ZoomablePostImage({ uri, width, onZoomChange }: {
   uri: string; width: number; onZoomChange: (zoomed: boolean) => void;
 }) {
   const [height, setHeight] = useState(1);
-  const scale = useRef(new Animated.Value(1)).current;
-  const x = useRef(new Animated.Value(0)).current;
-  const y = useRef(new Animated.Value(0)).current;
+  const [scale] = useState(() => new Animated.Value(1));
+  const [x] = useState(() => new Animated.Value(0));
+  const [y] = useState(() => new Animated.Value(0));
   const state = useRef({ scale: 1, x: 0, y: 0, distance: 0, startScale: 1, startX: 0, startY: 0, anchorX: 0, anchorY: 0, lastTap: 0, multi: false, panDX: 0, panDY: 0 });
   const callback = useRef(onZoomChange);
-  callback.current = onZoomChange;
+  useEffect(() => { callback.current = onZoomChange; }, [onZoomChange]);
   const responder = useMemo(() => {
-    const s = state.current;
-    const clamp = (v: number, size: number, zoom = s.scale) => Math.max(-size * (zoom - 1) / 2, Math.min(size * (zoom - 1) / 2, v));
-    const paint = () => { scale.setValue(s.scale); x.setValue(s.x); y.setValue(s.y); };
+    const clamp = (v: number, size: number, zoom = state.current.scale) => Math.max(-size * (zoom - 1) / 2, Math.min(size * (zoom - 1) / 2, v));
+    const paint = () => { const s = state.current; scale.setValue(s.scale); x.setValue(s.x); y.setValue(s.y); };
     const finish = () => {
+      const s = state.current;
       s.distance = 0;
       s.x = clamp(s.x, width); s.y = clamp(s.y, height);
       callback.current(s.scale > 1.01);
@@ -26,19 +26,23 @@ export function ZoomablePostImage({ uri, width, onZoomChange }: {
         Animated.spring(y, { toValue: s.y, useNativeDriver: true, overshootClamping: true }),
       ]).start();
     };
+    // PanResponder stores these callbacks; gesture refs are read only when events fire.
+    // eslint-disable-next-line react-hooks/refs
     return PanResponder.create({
-      onStartShouldSetPanResponder: () => s.scale > 1.01,
+      onStartShouldSetPanResponder: () => state.current.scale > 1.01,
       onStartShouldSetPanResponderCapture: e => e.nativeEvent.touches.length > 1,
-      onMoveShouldSetPanResponder: e => e.nativeEvent.touches.length > 1 || s.scale > 1.01,
+      onMoveShouldSetPanResponder: e => e.nativeEvent.touches.length > 1 || state.current.scale > 1.01,
       onMoveShouldSetPanResponderCapture: e => e.nativeEvent.touches.length > 1,
       onPanResponderTerminationRequest: () => false,
       onPanResponderGrant: e => {
+        const s = state.current;
         x.stopAnimation(); y.stopAnimation(); scale.stopAnimation();
         s.distance = 0; s.multi = e.nativeEvent.touches.length > 1;
         s.startX = s.x; s.startY = s.y; s.panDX = 0; s.panDY = 0;
         callback.current(true);
       },
       onPanResponderMove: (e, g) => {
+        const s = state.current;
         const t = e.nativeEvent.touches;
         if (t.length > 1) {
           const distance = Math.hypot(t[0].pageX - t[1].pageX, t[0].pageY - t[1].pageY);

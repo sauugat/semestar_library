@@ -20,7 +20,7 @@ import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import { Image } from 'expo-image';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect, useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { fetchUnseenCount } from '@/services/notifications';
 import * as ImagePicker from 'expo-image-picker';
@@ -28,7 +28,6 @@ import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Clipboard from 'expo-clipboard';
 import { useAuth } from '@/context/AuthContext';
-import { useAcademicContext } from '@/hooks/useAcademicContext';
 import { useTheme } from '@/constants/useTheme';
 import { Text, Heading, Subheading, Caption } from '@/components/ui/Typography';
 import { Card } from '@/components/ui/Card';
@@ -59,7 +58,7 @@ import {
   deletePostAttachment,
   UploadedAttachment,
 } from '@/services/posts';
-import { getBaseUrl, getAutoDetectedServerUrl, DEFAULT_SERVER_URL } from '@/services/api';
+import { apiFetch, getBaseUrl, getAutoDetectedServerUrl, DEFAULT_SERVER_URL } from '@/services/api';
 import { SearchOverlay } from '@/components/SearchOverlay';
 import { UploadNoteModal } from '@/components/UploadNoteModal';
 import { PostMediaGallery } from '@/components/PostMediaGallery';
@@ -174,7 +173,10 @@ function getFileType(filename: string): 'pdf' | 'pptx' | 'docx' | 'zip' | 'file'
   return 'file';
 }
 
+type FeedAssignment = { id: number; title: string; description?: string; teacherName?: string; subject?: string; createdAt: string; deadline?: string };
+
 export type FeedItem =
+  | { feedType: 'assignment'; assignment: FeedAssignment; time: number }
   | { feedType: 'post'; post: Post; time: number }
   | { feedType: 'file'; file: LibraryFile; time: number };
 
@@ -521,7 +523,10 @@ export default function HomeScreen() {
   const { user, token } = useAuth();
   const { colors, spacing, radii } = useTheme();
   const queryClient = useQueryClient();
-  const { displayLabel, isUnassigned } = useAcademicContext();
+  const navigation = useNavigation();
+  const feedRef = useRef<FlatList<FeedItem>>(null);
+  const swipeStart = useRef({ x: 0, y: 0, time: 0, valid: false });
+  const [assignments, setAssignments] = useState<FeedAssignment[]>([]);
 
   const [unseenNotifCount, setUnseenNotifCount] = useState(0);
 
@@ -567,15 +572,20 @@ export default function HomeScreen() {
     error: feedQueryError,
     refetch: refetchFeed,
   } = useQuery({
-    queryKey: ['campus-feed'],
+    queryKey: ['campus-feed', user?.studentId],
     queryFn: async () => {
-      const [postsRes, filesRes] = await Promise.all([
+      const [postsRes, filesRes, assignmentsRes] = await Promise.all([
         getPosts(null, 20),
         getFeedFiles(),
+        apiFetch('/api/code-lab/assignments').then(async response => {
+          if (!response.ok) throw new Error('Could not load assignments. Pull to refresh.');
+          return response.json() as Promise<FeedAssignment[]>;
+        }),
       ]);
       return {
         posts: postsRes.posts,
         files: filesRes,
+        assignments: assignmentsRes,
         nextCursor: postsRes.nextCursor,
         fetchedAt: new Date(),
       };
@@ -588,6 +598,7 @@ export default function HomeScreen() {
     if (feedData) {
       setPosts(feedData.posts);
       setFiles(feedData.files);
+      setAssignments(feedData.assignments || []);
       setNextCursor(feedData.nextCursor);
       setLastFetchedAt(feedData.fetchedAt);
     }
@@ -608,26 +619,14 @@ export default function HomeScreen() {
       file: f,
       time: new Date(f.uploadedAt || (f as any).createdAt || 0).getTime() || 0,
     }));
-    return [...postItems, ...fileItems].sort((a, b) => {
+    const assignmentItems: FeedItem[] = assignments.map(assignment => ({ feedType: 'assignment', assignment, time: new Date(assignment.createdAt).getTime() || 0 }));
+    return [...postItems, ...fileItems, ...assignmentItems].sort((a, b) => {
       if (b.time !== a.time) return b.time - a.time;
-      const bId = b.feedType === 'post' ? b.post.id : b.file.id;
-      const aId = a.feedType === 'post' ? a.post.id : a.file.id;
+      const bId = b.feedType === 'post' ? b.post.id : b.feedType === 'file' ? b.file.id : b.assignment.id;
+      const aId = a.feedType === 'post' ? a.post.id : a.feedType === 'file' ? a.file.id : a.assignment.id;
       return bId - aId;
     });
-  }, [posts, files]);
-
-  // Feed Filter Tab state
-  const [feedFilter, setFeedFilter] = useState<'all' | 'notes' | 'notices'>('all');
-
-  const filteredFeedItems = useMemo<FeedItem[]>(() => {
-    if (feedFilter === 'notes') {
-      return feedItems.filter((i) => i.feedType === 'file');
-    }
-    if (feedFilter === 'notices') {
-      return feedItems.filter((i) => i.feedType === 'post' && i.post.type === 'notice');
-    }
-    return feedItems;
-  }, [feedItems, feedFilter]);
+  }, [posts, files, assignments]);
 
   // Post Comments bottom-sheet state
   const [activeCommentPost, setActiveCommentPost] = useState<Post | null>(null);
@@ -1039,6 +1038,15 @@ export default function HomeScreen() {
     setRefreshing(false);
   };
 
+  const refreshFromTop = useCallback(() => {
+    feedRef.current?.scrollToOffset({ offset: 0, animated: true });
+    void refetchFeed();
+  }, [refetchFeed]);
+
+  useEffect(() => {
+    return navigation.addListener('tabPress' as any, refreshFromTop);
+  }, [navigation, refreshFromTop]);
+
   const handleLoadMore = async () => {
     if (loadingMore || !nextCursor) return;
     setLoadingMore(true);
@@ -1049,7 +1057,7 @@ export default function HomeScreen() {
         const existingIds = new Set(prev.map((p) => p.id));
         const newPosts = res.posts.filter((p) => !existingIds.has(p.id));
         const updated = [...prev, ...newPosts];
-        queryClient.setQueryData(['campus-feed'], (old: any) =>
+        queryClient.setQueryData(['campus-feed', user?.studentId], (old: any) =>
           old ? { ...old, posts: updated, nextCursor: res.nextCursor } : old
         );
         return updated;
@@ -1099,7 +1107,7 @@ export default function HomeScreen() {
             : p
         )
       );
-      queryClient.setQueryData(['campus-feed'], (old: any) =>
+      queryClient.setQueryData(['campus-feed', user?.studentId], (old: any) =>
         old
           ? {
               ...old,
@@ -1166,7 +1174,7 @@ export default function HomeScreen() {
             : f
         )
       );
-      queryClient.setQueryData(['campus-feed'], (old: any) =>
+      queryClient.setQueryData(['campus-feed', user?.studentId], (old: any) =>
         old
           ? {
               ...old,
@@ -1455,7 +1463,7 @@ export default function HomeScreen() {
 
       setPosts((prev) => [newPost, ...prev]);
       setLastFetchedAt(new Date());
-      queryClient.setQueryData(['campus-feed'], (old: any) =>
+      queryClient.setQueryData(['campus-feed', user?.studentId], (old: any) =>
         old ? { ...old, posts: [newPost, ...(old.posts || [])], fetchedAt: new Date() } : old
       );
 
@@ -1531,7 +1539,7 @@ export default function HomeScreen() {
             setDeletingPostId(postId);
             const prevPosts = [...posts];
             setPosts((current) => current.filter((p) => p.id !== postId));
-            queryClient.setQueryData(['campus-feed'], (old: any) =>
+            queryClient.setQueryData(['campus-feed', user?.studentId], (old: any) =>
               old ? { ...old, posts: old.posts ? old.posts.filter((p: Post) => p.id !== postId) : [] } : old
             );
 
@@ -1540,7 +1548,7 @@ export default function HomeScreen() {
               showToast('Post deleted');
             } catch (err: any) {
               setPosts(prevPosts);
-              queryClient.setQueryData(['campus-feed'], (old: any) =>
+              queryClient.setQueryData(['campus-feed', user?.studentId], (old: any) =>
                 old ? { ...old, posts: prevPosts } : old
               );
               Alert.alert('Delete Failed', err.message || 'Could not delete the post.');
@@ -1565,7 +1573,7 @@ export default function HomeScreen() {
         ]}
       >
         {/* Left: "Semester Library" Wordmark and Academic Context Badge */}
-        <View style={{ flex: 1, marginRight: 12 }}>
+        <TouchableOpacity onPress={refreshFromTop} accessibilityLabel="Refresh home feed" style={{ flex: 1, marginRight: 12 }}>
           <Text
             style={[
               styles.headerWordmark,
@@ -1574,28 +1582,7 @@ export default function HomeScreen() {
           >
             Semester Library
           </Text>
-          {Boolean(displayLabel) && (
-            <View
-              style={[
-                styles.academicBadge,
-                {
-                  backgroundColor: colors.surfaceRaised,
-                  borderColor: colors.border,
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.academicBadgeText,
-                  { color: isUnassigned ? colors.textMuted : colors.textSecondary },
-                ]}
-                numberOfLines={1}
-              >
-                {isUnassigned ? 'Unassigned' : displayLabel}
-              </Text>
-            </View>
-          )}
-        </View>
+        </TouchableOpacity>
 
         {/* Right: Search, Create (+), and Profile */}
         <View style={styles.headerRightActions}>
@@ -1806,39 +1793,6 @@ export default function HomeScreen() {
 
           <TouchableOpacity
             activeOpacity={0.7}
-            onPress={() => router.push('/(tabs)/library')}
-            style={{
-              flex: 1,
-              backgroundColor: colors.surface,
-              borderColor: colors.border,
-              borderWidth: 1,
-              borderRadius: radii.md,
-              paddingVertical: 10,
-              paddingHorizontal: 6,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <View
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 16,
-                backgroundColor: colors.surfaceRaised,
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: 4,
-              }}
-            >
-              <Ionicons name="book-outline" size={17} color={colors.primary} />
-            </View>
-            <Text variant="xs" weight="700" numberOfLines={1}>
-              Library
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            activeOpacity={0.7}
             onPress={() => setUploadModalOpen(true)}
             style={{
               flex: 1,
@@ -1905,49 +1859,7 @@ export default function HomeScreen() {
         )}
       </View>
 
-      {/* Feed Category Filter Tabs (Matching Website Feed) */}
-      <View style={{ flexDirection: 'row', gap: 8, marginTop: 4, marginBottom: 8, paddingHorizontal: 2 }}>
-        {[
-          { id: 'all', label: 'All Feed', icon: 'grid-outline' },
-          { id: 'notes', label: 'Notes & Study', icon: 'document-text-outline' },
-          { id: 'notices', label: 'Notices', icon: 'megaphone-outline' },
-        ].map((tab) => {
-          const active = feedFilter === tab.id;
-          return (
-            <TouchableOpacity
-              key={tab.id}
-              activeOpacity={0.7}
-              onPress={() => setFeedFilter(tab.id as any)}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 5,
-                paddingHorizontal: 12,
-                paddingVertical: 6,
-                borderRadius: radii.full,
-                backgroundColor: active ? colors.text : colors.surfaceRaised,
-                borderWidth: 1,
-                borderColor: active ? colors.text : colors.border,
-              }}
-            >
-              <Ionicons
-                name={tab.icon as any}
-                size={13}
-                color={active ? colors.background : colors.textSecondary}
-              />
-              <Text
-                variant="xs"
-                weight="700"
-                style={{
-                  color: active ? colors.background : colors.textSecondary,
-                }}
-              >
-                {tab.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+
     </View>
   );
 };
@@ -2179,6 +2091,19 @@ export default function HomeScreen() {
   };
 
   const renderFeedItem = ({ item }: { item: FeedItem }) => {
+    if (item.feedType === 'assignment') {
+      const a = item.assignment;
+      return <Card variant="elevated" padding="md" style={{ marginBottom: spacing.md }}>
+        <Text weight="700">{a.teacherName || 'Faculty'} · Assignment</Text>
+        <Caption color="muted">{formatTimeAgo(a.createdAt)}{a.subject ? ` · ${a.subject}` : ''}</Caption>
+        <Subheading style={{ marginTop: 12 }}>{a.title}</Subheading>
+        {!!a.description && <Text variant="sm" numberOfLines={4} style={{ marginVertical: 8 }}>{a.description}</Text>}
+        {!!a.deadline && <Caption color="secondary">Due {new Date(a.deadline).toLocaleDateString()}</Caption>}
+        <Button title="Do assignment on website" variant="secondary" size="sm" onPress={() => {
+          void Linking.openURL(`${baseUrl}/code-lab/assignment.html?id=${a.id}`).catch(() => showToast('Could not open the website.'));
+        }} />
+      </Card>;
+    }
     if (item.feedType === 'file') {
       return renderFileItem(item.file);
     }
@@ -2239,7 +2164,7 @@ export default function HomeScreen() {
     if (feedItems.length > 0 && !nextCursor) {
       return (
         <View style={styles.footerLoader}>
-          <Caption color="muted">You're all caught up! ✨</Caption>
+          <Caption color="muted">You reached Bedrock :)</Caption>
         </View>
       );
     }
@@ -2266,8 +2191,19 @@ export default function HomeScreen() {
       {renderBrandHeader()}
 
       <FlatList
-        data={filteredFeedItems}
-        keyExtractor={(item) => (item.feedType === 'post' ? `post-${item.post.id}` : `file-${item.file.id}`)}
+        ref={feedRef}
+        data={feedItems}
+        onTouchStart={event => {
+          const t = event.nativeEvent;
+          swipeStart.current = { x: t.pageX, y: t.pageY, time: Date.now(), valid: t.touches.length === 1 };
+        }}
+        onTouchMove={event => { if (event.nativeEvent.touches.length > 1) swipeStart.current.valid = false; }}
+        onTouchEnd={event => {
+          const start = swipeStart.current, t = event.nativeEvent;
+          if (start.valid && Date.now() - start.time < 600 && t.pageX - start.x > 100 && Math.abs(t.pageY - start.y) < 45) router.push('/(tabs)/library');
+          start.valid = false;
+        }}
+        keyExtractor={(item) => (item.feedType === 'post' ? `post-${item.post.id}` : item.feedType === 'file' ? `file-${item.file.id}` : `assignment-${item.assignment.id}`)}
         renderItem={renderFeedItem}
         ListHeaderComponent={renderFeedHeader}
         ListEmptyComponent={renderEmpty}
@@ -2983,7 +2919,7 @@ export default function HomeScreen() {
         onClose={() => setEditingPost(null)}
         onPostUpdated={(updatedPost) => {
           setPosts((prev) => prev.map((p) => (p.id === updatedPost.id ? { ...p, ...updatedPost } : p)));
-          queryClient.setQueryData(['campus-feed'], (old: any) =>
+          queryClient.setQueryData(['campus-feed', user?.studentId], (old: any) =>
             old
               ? {
                   ...old,

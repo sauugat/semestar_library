@@ -46,7 +46,7 @@ export function PostMediaGallery({
   const { width: viewerWidth } = useWindowDimensions();
   const [zoomed, setZoomed] = useState(false);
   const [aspect, setAspect] = useState(1);
-  const heart = useRef(new Animated.Value(0)).current;
+  const [heart] = useState(() => new Animated.Value(0));
   const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (tapTimer.current) clearTimeout(tapTimer.current); }, []);
 

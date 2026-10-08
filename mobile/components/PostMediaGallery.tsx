@@ -10,12 +10,16 @@ import {
   BackHandler,
   StatusBar,
   Share,
+  Animated,
+  ScrollView,
+  useWindowDimensions,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/ui/Typography';
 import { useTheme } from '@/constants/useTheme';
+import { ZoomablePostImage } from '@/components/ZoomablePostImage';
 import { PostMediaItem } from '@/services/posts';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -25,6 +29,9 @@ interface PostMediaGalleryProps {
   imageUrl?: string | null;
   getFullUrl?: (path: string | null) => string | null;
   onDoubleTap?: () => void;
+  postDetails?: { name: string; caption: string; uploadedAt: string; liked: boolean; likes: number; comments: number };
+  onLike?: () => void;
+  onComments?: () => void;
 }
 
 export function PostMediaGallery({
@@ -32,9 +39,16 @@ export function PostMediaGallery({
   imageUrl,
   getFullUrl,
   onDoubleTap,
+  postDetails, onLike, onComments,
 }: PostMediaGalleryProps) {
   const { colors, radii } = useTheme();
   const insets = useSafeAreaInsets();
+  const { width: viewerWidth } = useWindowDimensions();
+  const [zoomed, setZoomed] = useState(false);
+  const [aspect, setAspect] = useState(1);
+  const heart = useRef(new Animated.Value(0)).current;
+  const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (tapTimer.current) clearTimeout(tapTimer.current); }, []);
 
   const resolveUrl = useCallback(
     (path?: string | null): string | null => {
@@ -64,7 +78,7 @@ export function PostMediaGallery({
   const [modalVisible, setModalVisible] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const flatListRef = useRef<FlatList<string>>(null);
-  const lastTapRef = useRef<number>(0);
+  
 
   // Android Back Handler for Fullscreen Modal
   useEffect(() => {
@@ -78,6 +92,7 @@ export function PostMediaGallery({
   }, [modalVisible]);
 
   const openFullscreen = (index: number) => {
+    setZoomed(false);
     setActiveIndex(index);
     setModalVisible(true);
   };
@@ -99,27 +114,33 @@ export function PostMediaGallery({
     }
   };
 
-  const handleViewerTouchEnd = () => {
-    const now = Date.now();
-    if (now - lastTapRef.current < 280) {
-      lastTapRef.current = 0;
+  const handlePhotoPress = () => {
+    if (tapTimer.current) {
+      clearTimeout(tapTimer.current); tapTimer.current = null;
       onDoubleTap?.();
+      heart.setValue(0);
+      Animated.sequence([
+        Animated.spring(heart, { toValue: 1, friction: 5, useNativeDriver: true }),
+        Animated.delay(400),
+        Animated.timing(heart, { toValue: 0, duration: 220, useNativeDriver: true }),
+      ]).start();
     } else {
-      lastTapRef.current = now;
+      tapTimer.current = setTimeout(() => { tapTimer.current = null; openFullscreen(0); }, 280);
     }
   };
 
   if (urls.length === 0) return null;
 
-  // Single Image Layout (Natural / Capped 16:10 aspect ratio)
+  // Preserve natural proportions, capping tall portraits at 4:5.
   if (urls.length === 1) {
     return (
       <View style={styles.container}>
         <TouchableOpacity
           activeOpacity={0.9}
-          onPress={() => openFullscreen(0)}
+          onPress={handlePhotoPress}
           style={[
             styles.singleImageContainer,
+            { aspectRatio: Math.max(4 / 5, aspect) },
             {
               borderRadius: radii.md,
               borderColor: colors.border,
@@ -130,9 +151,13 @@ export function PostMediaGallery({
           <Image
             source={{ uri: urls[0] }}
             style={styles.singleImage}
+            onLoad={({ source }) => { if (source.width && source.height) setAspect(source.width / source.height); }}
             contentFit="cover"
             transition={150}
           />
+          <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', opacity: heart, transform: [{ scale: heart.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] }) }] }]}>
+            <Ionicons name="heart" size={100} color="#fff" style={{ textShadowColor: '#0006', textShadowRadius: 16, textShadowOffset: { width: 0, height: 3 } }} />
+          </Animated.View>
         </TouchableOpacity>
         {renderFullscreenModal()}
       </View>
@@ -404,35 +429,43 @@ export function PostMediaGallery({
             data={urls}
             keyExtractor={(_, idx) => `gallery-item-${idx}`}
             horizontal
+            scrollEnabled={!zoomed}
+            extraData={activeIndex}
             pagingEnabled
             showsHorizontalScrollIndicator={false}
             initialScrollIndex={activeIndex}
             getItemLayout={(_, index) => ({
-              length: SCREEN_WIDTH,
-              offset: SCREEN_WIDTH * index,
+              length: viewerWidth,
+              offset: viewerWidth * index,
               index,
             })}
             onMomentumScrollEnd={(e) => {
-              const newIdx = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
+              const newIdx = Math.round(e.nativeEvent.contentOffset.x / viewerWidth);
               if (newIdx >= 0 && newIdx < urls.length) {
                 setActiveIndex(newIdx);
               }
             }}
-            renderItem={({ item }) => (
-              <View
-                style={styles.slideContainer}
-                onTouchEnd={handleViewerTouchEnd}
-              >
-                <Image
-                  source={{ uri: item }}
-                  style={styles.slideImage}
-                  contentFit="contain"
-                  priority="high"
-                />
-              </View>
+            renderItem={({ item, index }) => (
+              <ZoomablePostImage key={`${item}-${index === activeIndex}`} uri={item} width={viewerWidth} onZoomChange={setZoomed} />
             )}
             style={{ flex: 1 }}
           />
+          {postDetails && <View style={{ padding: 16, paddingBottom: Math.max(insets.bottom, 16), maxHeight: '32%', backgroundColor: '#111' }}>
+            <ScrollView>
+              <Text style={{ color: '#fff', fontWeight: '700' }}>{postDetails.name}</Text>
+              <Text style={{ color: '#bbb', fontSize: 12, marginVertical: 4 }}>{postDetails.uploadedAt}</Text>
+              <Text style={{ color: '#fff', lineHeight: 21 }}>{postDetails.caption}</Text>
+            </ScrollView>
+            <View style={{ flexDirection: 'row', gap: 24, paddingTop: 12 }}>
+              <TouchableOpacity onPress={onLike} accessibilityLabel={postDetails.liked ? 'Unlike post' : 'Like post'} style={{ flexDirection: 'row', gap: 8 }}>
+                <Ionicons name={postDetails.liked ? 'heart' : 'heart-outline'} size={22} color={postDetails.liked ? '#ef4444' : '#fff'} />
+                <Text style={{ color: '#fff' }}>{postDetails.likes}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => { closeFullscreen(); onComments?.(); }} accessibilityLabel="Open comments">
+                <Text style={{ color: '#fff' }}>{postDetails.comments} comments</Text>
+              </TouchableOpacity>
+            </View>
+          </View>}
         </View>
       </Modal>
     );
@@ -451,7 +484,7 @@ const styles = StyleSheet.create({
   },
   singleImageContainer: {
     width: '100%',
-    aspectRatio: 16 / 10,
+    aspectRatio: 1,
     overflow: 'hidden',
     borderWidth: 1,
   },

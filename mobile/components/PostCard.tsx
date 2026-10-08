@@ -313,7 +313,10 @@ export function PostCard({
           media={post.media ? post.media.filter((m) => (m.media_type || 'image') === 'image') : null}
           imageUrl={post.attachment_url}
           getFullUrl={getFullImageUrl}
-          onDoubleTap={() => onDoubleTapLike && onDoubleTapLike(post.id)}
+          onDoubleTap={() => onDoubleTapLike ? onDoubleTapLike(post.id) : !post.liked_by_me && onLike?.(post.id)}
+          postDetails={{ name: post.name, caption: post.content, uploadedAt: new Date(post.created_at).toLocaleString(), liked: Boolean(post.liked_by_me), likes: post.like_count || 0, comments: post.comment_count || 0 }}
+          onLike={() => onLike?.(post.id)}
+          onComments={defaultOpenDetail}
         />
       )}
 

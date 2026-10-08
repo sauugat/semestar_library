@@ -2,6 +2,7 @@
 
 const express = require('express');
 const { DmError } = require('../lib/dm-service');
+const { isDmAllowedForUser } = require('../lib/dm-config');
 
 /**
  * Express Router for Universal One-to-One Private Messaging.
@@ -25,6 +26,9 @@ module.exports = function directMessagingRouter(service) {
     }
     if (!req.student?.studentId) {
       return res.status(401).json({ message: 'Authentication required.' });
+    }
+    if (!isDmAllowedForUser(req.student.studentId)) {
+      return res.status(403).json({ message: 'Private messaging is currently restricted to authorized test accounts.' });
     }
     next();
   });
@@ -164,7 +168,8 @@ module.exports = function directMessagingRouter(service) {
     });
   }));
 
-  // 16. Outbox Drain Trigger (Background / Maintenance / Testing)
+  // 16. Outbox Drain Trigger (Background Worker / Maintenance Only)
+  // Strictly restricted to authenticated internal workers using CRON_SECRET.
   router.post('/outbox/drain', asyncRoute(async (req, res) => {
     const cronSecret = process.env.CRON_SECRET;
     const authHeader = req.headers['authorization'] || '';
@@ -173,10 +178,9 @@ module.exports = function directMessagingRouter(service) {
       authHeader === `Bearer ${cronSecret}` ||
       cronHeader === cronSecret
     );
-    const isAdmin = req.student?.role === 'admin';
 
-    if (!isCron && !isAdmin) {
-      return res.status(403).json({ message: 'Forbidden: administrative or internal worker authorization required.' });
+    if (!isCron) {
+      return res.status(403).json({ message: 'Forbidden: internal worker authorization required.' });
     }
 
     return service.drain();
@@ -193,8 +197,10 @@ module.exports = function directMessagingRouter(service) {
     if (status === 500) {
       console.error('[DM ROUTE ERROR]:', err);
     }
+    const msg = status === 500 ? 'Direct messaging request failed.' : err.message;
     res.status(status).json({
-      message: status === 500 ? 'Direct messaging request failed.' : err.message,
+      message: msg,
+      error: msg,
     });
   });
 

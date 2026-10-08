@@ -3,6 +3,8 @@ import * as SecureStore from 'expo-secure-store';
 import { router } from 'expo-router';
 import { clearChatDb } from '@/services/chat-db';
 import { disconnectChatRealtime } from '@/services/chat-realtime';
+import { clearAllDmCache } from '@/services/dm-db';
+import { disconnectAllDmRealtime } from '@/services/dm-realtime';
 import { invalidateChatSession } from '@/services/chat-session';
 import { clearAppQueryCache } from '@/services/query-client';
 import { getAutoDetectedServerUrl, getBaseUrl, DEFAULT_SERVER_URL } from '@/services/api';
@@ -410,6 +412,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     invalidateChatSession();
     resetNotificationNavigationState();
     void disconnectChatRealtime();
+    disconnectAllDmRealtime();
     try {
       // 1. Unregister Expo Push Token with backend while Supabase authentication is STILL valid
       await unregisterPushToken().catch((pushErr) => {
@@ -431,7 +434,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Clean up local chat database and query caches so next user sees fresh data
       invalidateChatSession();
       await disconnectChatRealtime();
+      disconnectAllDmRealtime();
       await clearChatDb();
+      await clearAllDmCache();
       await clearAppQueryCache();
       resetNotificationNavigationState();
     } catch (e) {

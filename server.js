@@ -743,11 +743,23 @@ app.use('/api/admin', require('./routes/admin-teachers')(db, requireLogin));
 app.use('/api/admin', require('./routes/admin-cohorts')(db, requireLogin));
 app.use('/api/teacher/onboarding', require('./routes/teacher-onboarding'));
 
-// Direct Messaging Router (Conditionally mounted behind DM_ENABLED feature flag, disabled by default)
-const { isDmEnabled } = require('./lib/dm-config');
-if (isDmEnabled()) {
+// Direct Messaging Router (Feature flag DM_ENABLED or controlled tester allowlist DM_TEST_USER_IDS)
+const { isDmEnabled, isDmAllowedForUser, getDmTestUserIds } = require('./lib/dm-config');
+app.get('/api/dm-status', (req, res) => {
+  const callerId = req.session?.studentId || req.student?.studentId;
+  res.json({ enabled: isDmAllowedForUser(callerId) });
+});
+if (isDmEnabled() || getDmTestUserIds().length > 0) {
   const dmService = require('./lib/dm-service').createDmService(db);
   app.use('/api/dm', requireLogin, require('./routes/direct-messaging')(dmService));
+
+  // Background worker to periodically drain pending DM Realtime and Push outbox events
+  if (process.env.NODE_ENV !== 'test') {
+    const dmWorkerInterval = setInterval(() => {
+      dmService.drain().catch(() => {});
+    }, 2000);
+    dmWorkerInterval.unref?.();
+  }
 }
 
 // --- Code Lab Rate Limiting ---

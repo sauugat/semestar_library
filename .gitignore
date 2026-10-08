@@ -14,4 +14,4 @@ mobile-test/
 *service-account*.json
 *credentials*.json
 fcm*.json
-
+backups/

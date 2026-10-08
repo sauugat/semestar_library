@@ -57,6 +57,7 @@ async function createRealtimeTestHarness(t, options = {}) {
 
   // Captured provider events
   const broadcastMessages = [];
+  const projectionSyncCalls = [];
   const pushBatches = [];
 
   const testSigningSecret = 'test_secret_32_characters_minimum_length_for_signing_jwt';
@@ -68,6 +69,23 @@ async function createRealtimeTestHarness(t, options = {}) {
   };
 
   const mockTransport = async (url, reqOptions) => {
+    if (url.includes('/rest/v1/rpc/sync_dm_conversation_projection')) {
+      const body = JSON.parse(reqOptions.body);
+      projectionSyncCalls.push(body.snapshot);
+      if (options.failProjection) {
+        return {
+          ok: false,
+          status: 500,
+          text: async () => 'Simulated projection sync failure',
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ ok: true, snapshot: body.snapshot }),
+        text: async () => JSON.stringify({ ok: true }),
+      };
+    }
     if (url.includes('/realtime/v1/api/broadcast')) {
       const body = JSON.parse(reqOptions.body);
       if (options.failBroadcast) {
@@ -163,6 +181,7 @@ async function createRealtimeTestHarness(t, options = {}) {
     providers,
     testSigningSecret,
     broadcastMessages,
+    projectionSyncCalls,
     pushBatches,
     request,
   };
@@ -590,12 +609,12 @@ test('DM Step 3D: 27. Internal worker security: Ordinary users rejected with 403
   });
   assert.equal(teacherRes.status, 403);
 
-  // 4. Admin -> 200
+  // 4. Admin without CRON_SECRET -> 403
   const adminRes = await h.request('/api/dm/outbox/drain', {
     method: 'POST',
     caller: 'admin_rt1',
   });
-  assert.equal(adminRes.status, 200);
+  assert.equal(adminRes.status, 403);
 
   // 5. Worker using x-cron-secret -> 200
   const workerRes = await h.request('/api/dm/outbox/drain', {
@@ -668,4 +687,128 @@ test('DM Step 3D: 28. Comprehensive /sync: Recovers mixed edits, deletes, and re
   // Check read cursor: peer read cursor is m3
   assert.equal(syncRes.data.readCursor.peerLastReadMessageId, m3.message.id);
 });
+
+test('DM Realtime: 29. Full projection synchronization lifecycle: creation, config, block rotation/revocation & unblock restoration', async t => {
+  const h = await createRealtimeTestHarness(t);
+
+  // 1. Conversation creation triggers initial projection
+  const createRes = await h.request('/api/dm/conversations', {
+    method: 'POST',
+    caller: 'student_rt1',
+    body: { targetUserId: 'student_rt2' },
+  });
+  assert.ok([200, 201].includes(createRes.status));
+  const convId = createRes.data.conversationId;
+  assert.ok(convId);
+
+  // Initial creation projection was sent
+  assert.ok(h.projectionSyncCalls.length >= 1);
+  const initialSync = h.projectionSyncCalls[0];
+  assert.equal(initialSync.conversationId, convId);
+  assert.equal(initialSync.realtimeEpoch, 1);
+  assert.equal(initialSync.status, 'active');
+  assert.equal(initialSync.participants.length, 2);
+
+  // 2. Fetching realtime-config synchronizes projection before issuing credentials
+  const preConfigCalls = h.projectionSyncCalls.length;
+  const configRes = await h.request(`/api/dm/conversations/${convId}/realtime-config`, {
+    caller: 'student_rt1',
+  });
+  assert.equal(configRes.status, 200);
+  assert.ok(configRes.data.token);
+  assert.equal(configRes.data.realtimeEpoch, 1);
+  assert.ok(h.projectionSyncCalls.length > preConfigCalls);
+
+  // 3. Blocking: rotates epoch, cancels outbox, and synchronizes status: 'blocked' with empty participants
+  const preBlockCalls = h.projectionSyncCalls.length;
+  const blockRes = await h.request(`/api/dm/users/student_rt2/block`, {
+    method: 'POST',
+    caller: 'student_rt1',
+  });
+  assert.equal(blockRes.status, 200);
+
+  // Verify epoch incremented in database
+  const convRow = await h.db.get('SELECT realtime_epoch FROM dm_conversations WHERE id = ?', convId);
+  assert.equal(Number(convRow.realtime_epoch), 2);
+
+  // Verify blocked projection synchronized
+  const blockSync = h.projectionSyncCalls[h.projectionSyncCalls.length - 1];
+  assert.equal(blockSync.conversationId, convId);
+  assert.equal(blockSync.realtimeEpoch, 2);
+  assert.equal(blockSync.status, 'blocked');
+  assert.deepEqual(blockSync.participants, []);
+
+  // Blocked user attempting to get realtime-config is rejected with 403
+  const blockedConfigRes = await h.request(`/api/dm/conversations/${convId}/realtime-config`, {
+    caller: 'student_rt2',
+  });
+  assert.equal(blockedConfigRes.status, 403);
+
+  // 4. Unblocking: restores active status, rotates epoch, and synchronizes both participants
+  const unblockRes = await h.request(`/api/dm/users/student_rt2/block`, {
+    method: 'DELETE',
+    caller: 'student_rt1',
+  });
+  assert.equal(unblockRes.status, 200);
+
+  const unblockedConvRow = await h.db.get('SELECT realtime_epoch FROM dm_conversations WHERE id = ?', convId);
+  assert.equal(Number(unblockedConvRow.realtime_epoch), 3);
+
+  const unblockSync = h.projectionSyncCalls[h.projectionSyncCalls.length - 1];
+  assert.equal(unblockSync.conversationId, convId);
+  assert.equal(unblockSync.realtimeEpoch, 3);
+  assert.equal(unblockSync.status, 'active');
+  assert.equal(unblockSync.participants.length, 2);
+
+  // Unblocked user can now get realtime-config with new epoch 3
+  const restoredConfigRes = await h.request(`/api/dm/conversations/${convId}/realtime-config`, {
+    caller: 'student_rt1',
+  });
+  assert.equal(restoredConfigRes.status, 200);
+  assert.equal(restoredConfigRes.data.realtimeEpoch, 3);
+  assert.equal(restoredConfigRes.data.topic, `dm:${convId}:3`);
+});
+
+test('DM Realtime: 30. Canonical Supabase Auth UUID preference in JWT subject & projection', async t => {
+  const h = await createRealtimeTestHarness(t);
+
+  // Link student_rt1 to a canonical Supabase Auth UUID
+  const canonicalUid = 'a0000000-0000-4000-8000-000000000001';
+  await h.db.run('UPDATE students SET supabase_uid = ? WHERE studentId = ?', canonicalUid, 'student_rt1');
+
+  const convRes = await h.service.getOrCreateConversation('student_rt1', 'student_rt2');
+  const convId = convRes.conversationId;
+
+  const cfg = await h.service.getRealtimeConfig('student_rt1', convId);
+  assert.ok(cfg.token);
+
+  // Decode token payload
+  const [, payloadB64] = cfg.token.split('.');
+  const tokenPayload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString('utf8'));
+
+  // Token sub MUST match the canonical supabase_uid
+  assert.equal(tokenPayload.sub, canonicalUid);
+  assert.equal(tokenPayload.dm_conversation_id, convId);
+
+  // Projection participant subject MUST also match canonical supabase_uid
+  const lastSync = h.projectionSyncCalls[h.projectionSyncCalls.length - 1];
+  const participantSubjects = lastSync.participants.map(p => p.subject);
+  assert.ok(participantSubjects.includes(canonicalUid), 'Canonical UUID must be present in projection participants');
+});
+
+test('DM Realtime: 31. Fail-closed behavior when Supabase projection synchronization fails', async t => {
+  // Harness configured with failProjection: true and requireProjectionSync: true
+  const h = await createRealtimeTestHarness(t, { failProjection: true, requireProjectionSync: true });
+
+  const convRes = await h.service.getOrCreateConversation('student_rt1', 'student_rt2');
+  const convId = convRes.conversationId;
+
+  // Realtime config request must fail closed with 502
+  const res = await h.request(`/api/dm/conversations/${convId}/realtime-config`, {
+    caller: 'student_rt1',
+  });
+  assert.equal(res.status, 502);
+  assert.match(res.data.error, /Realtime authorization synchronization failed/);
+});
+
 

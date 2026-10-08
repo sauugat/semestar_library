@@ -813,3 +813,32 @@ test('DM API: 23. Transaction rollback guarantees no orphan conversations or mes
   );
   assert.equal(conv, null, 'Failed conversation creation must not leave orphaned database rows');
 });
+
+test('DM API: 24. Tester allowlist (DM_TEST_USER_IDS): Permits allowlisted accounts and rejects others with 403', async t => {
+  const origDm = process.env.DM_ENABLED;
+  const origAllow = process.env.DM_TEST_USER_IDS;
+  process.env.DM_ENABLED = '0';
+  process.env.DM_TEST_USER_IDS = 'student1,teacher1';
+
+  t.after(() => {
+    process.env.DM_ENABLED = origDm;
+    process.env.DM_TEST_USER_IDS = origAllow;
+  });
+
+  const { request } = await createTestHarness(t);
+
+  // student1 is allowlisted: can access
+  const allowedRes = await request('/api/dm/conversations', {
+    method: 'GET',
+    caller: 'student1',
+  });
+  assert.equal(allowedRes.status, 200);
+
+  // student2 is NOT allowlisted: rejected with 403
+  const forbiddenRes = await request('/api/dm/conversations', {
+    method: 'GET',
+    caller: 'student2',
+  });
+  assert.equal(forbiddenRes.status, 403);
+  assert.ok(forbiddenRes.body.message.includes('restricted to authorized test accounts'));
+});

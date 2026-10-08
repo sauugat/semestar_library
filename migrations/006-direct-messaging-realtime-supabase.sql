@@ -25,13 +25,17 @@ REVOKE ALL ON ALL TABLES IN SCHEMA dm_chat_private FROM PUBLIC, anon, authentica
 CREATE OR REPLACE FUNCTION public.sync_dm_conversation_projection(snapshot jsonb)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 DECLARE
-  conv_id uuid := (snapshot->>'conversationId')::uuid;
-  target_epoch integer := (snapshot->>'realtimeEpoch')::integer;
-  conv_status text := coalesce(snapshot->>'status', 'active');
+  payload jsonb := CASE
+    WHEN snapshot ? 'snapshot' AND (snapshot->'snapshot') ? 'conversationId' THEN snapshot->'snapshot'
+    ELSE snapshot
+  END;
+  conv_id uuid := (payload->>'conversationId')::uuid;
+  target_epoch integer := (payload->>'realtimeEpoch')::integer;
+  conv_status text := coalesce(payload->>'status', 'active');
   old_epoch integer;
 BEGIN
   IF conv_id IS NULL OR target_epoch IS NULL OR target_epoch < 1 OR conv_status NOT IN ('active', 'closed', 'blocked')
-     OR jsonb_typeof(snapshot->'participants') IS DISTINCT FROM 'array' THEN
+     OR jsonb_typeof(payload->'participants') IS DISTINCT FROM 'array' THEN
     RAISE EXCEPTION 'Invalid DM projection snapshot';
   END IF;
 
@@ -53,10 +57,10 @@ BEGIN
   IF conv_status = 'active' THEN
     INSERT INTO dm_chat_private.participants(subject, conversation_id)
     SELECT (p->>'subject')::uuid, conv_id
-    FROM jsonb_array_elements(snapshot->'participants') p;
+    FROM jsonb_array_elements(payload->'participants') p;
   END IF;
 
-  RETURN snapshot;
+  RETURN payload;
 END;
 $$;
 

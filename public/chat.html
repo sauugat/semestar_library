@@ -22,6 +22,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/group-chat.css">
+  <link rel="stylesheet" href="/dm-chat.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="/auth.js"></script>
   <script>SemesterAuth.protectPage();</script>
@@ -32,8 +33,22 @@
 <body>
 
   <div class="im-app">
+    <!-- Chat Mode Navigation Bar (Class Chat vs Direct Messages) -->
+    <nav class="chat-mode-bar" id="chatModeBar" aria-label="Chat Mode Navigation" style="display: none;">
+      <div class="chat-mode-segmented" role="tablist">
+        <button type="button" role="tab" class="chat-mode-btn active" id="modeBtnCohort" aria-selected="true" title="Switch to Class Chat">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span>Class Chat</span>
+        </button>
+        <button type="button" role="tab" class="chat-mode-btn" id="modeBtnDm" aria-selected="false" title="Switch to Direct Messages">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span>Direct Messages</span>
+          <span class="dm-unread-badge" id="dmGlobalUnreadBadge" style="display: none;">0</span>
+        </button>
+      </div>
+    </nav>
 
-    <section class="chat-main" aria-label="Class conversation">
+    <section class="chat-main" id="cohortChatMain" aria-label="Class conversation">
 
     <header class="im-header">
       <div class="im-header-side">
@@ -275,6 +290,273 @@
       </div>
     </footer>
     </section>
+
+    <!-- Universal Direct Messages (DM) Section -->
+    <section class="dm-main" id="dmMain" aria-label="Direct Messages" style="display: none;">
+      <div class="dm-layout" id="dmLayout">
+        <!-- Sidebar: Conversation Inbox -->
+        <aside class="dm-sidebar" aria-label="Conversations">
+          <div class="dm-sidebar-header">
+            <div class="dm-sidebar-title-row">
+              <h2 class="dm-sidebar-title">Messages</h2>
+            </div>
+            <div class="dm-sidebar-actions">
+              <button type="button" class="dm-icon-btn" id="dmNewMsgBtn" title="New Message" aria-label="New Message">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="dm-search-bar">
+            <div class="dm-search-box">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <input type="text" id="dmConvSearchInput" placeholder="Search conversations..." aria-label="Search conversations">
+            </div>
+          </div>
+
+          <div class="dm-conv-list" id="dmConvList" role="region" aria-label="Conversation list">
+            <!-- Populated dynamically by dmClient -->
+          </div>
+        </aside>
+
+        <!-- Right Panel: Conversation Thread & Composer -->
+        <div class="dm-content">
+          <!-- Desktop Placeholder (When no conversation is selected) -->
+          <div class="dm-no-conv-placeholder" id="dmNoConvPlaceholder">
+            <div class="dm-no-conv-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+              </svg>
+            </div>
+            <h3 style="font-size: 18px; font-weight: 600; color: #f1f1f1; margin: 0 0 8px 0;">Your Messages</h3>
+            <p style="font-size: 13px; color: #888888; margin: 0 0 20px 0; max-width: 300px;">
+              Send private messages to students, CRs, teachers, and administrators.
+            </p>
+            <button type="button" class="dm-btn-primary" onclick="window.dmClient.openUserSearchModal()">
+              Start a Conversation
+            </button>
+          </div>
+
+          <!-- Active Conversation Screen -->
+          <div id="dmActiveChatWrap" style="display: none; flex-direction: column; height: 100%; width: 100%; min-height: 0;">
+            <!-- Subtle Reconnection / Status Banner -->
+            <div class="dm-conn-banner" id="dmConnBanner" role="status">
+              Connecting to real-time updates...
+            </div>
+
+            <!-- Header -->
+            <header class="dm-header">
+              <div class="dm-header-left">
+                <button type="button" class="dm-back-btn" id="dmHeaderBackBtn" title="Back to messages" aria-label="Back to messages">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                  </svg>
+                </button>
+                <div class="dm-avatar-wrap" id="dmPeerAvatar">
+                  <!-- Avatar inserted dynamically -->
+                </div>
+                <div class="dm-peer-info">
+                  <div class="dm-peer-title-row">
+                    <span class="dm-peer-name" id="dmPeerName">Conversation</span>
+                    <span class="dm-role-badge" id="dmPeerRoleBadge" style="display: none;">STUDENT</span>
+                  </div>
+                  <div class="dm-peer-status">
+                    <span class="dm-status-dot online" id="dmPeerStatusDot"></span>
+                    <span id="dmPeerStatusText">Online</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="dm-header-actions">
+                <button type="button" class="dm-icon-btn" id="dmHeaderMenuBtn" title="Options" aria-label="Conversation options">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="1"></circle>
+                    <circle cx="12" cy="5" r="1"></circle>
+                    <circle cx="12" cy="19" r="1"></circle>
+                  </svg>
+                </button>
+                <div class="dm-dropdown-menu" id="dmHeaderDropdown" role="menu">
+                  <button type="button" class="dm-dropdown-item" id="dmMenuMuteBtn" role="menuitem">Mute Conversation</button>
+                  <button type="button" class="dm-dropdown-item" id="dmMenuClearBtn" role="menuitem">Clear Conversation</button>
+                  <div class="dm-dropdown-divider"></div>
+                  <button type="button" class="dm-dropdown-item" id="dmMenuReportBtn" role="menuitem">Report User</button>
+                  <button type="button" class="dm-dropdown-item danger" id="dmMenuBlockBtn" role="menuitem">Block User</button>
+                </div>
+              </div>
+            </header>
+
+            <!-- Message Timeline -->
+            <main class="dm-timeline" id="dmTimeline" aria-label="Private message thread">
+              <div class="dm-timeline-loader" id="dmTimelineLoader" style="display: none;">
+                <span>Loading earlier messages...</span>
+              </div>
+            </main>
+
+            <!-- Composer Area -->
+            <footer class="dm-composer-wrap" id="dmComposerWrap">
+              <!-- Blocked Notice Banner -->
+              <div class="dm-blocked-banner" id="dmBlockedBanner" style="display: none;">
+                <span>You cannot reply to this conversation.</span>
+                <button type="button" class="dm-btn-secondary" id="dmUnblockBtn" style="padding: 4px 10px; font-size: 12px;">Unblock</button>
+              </div>
+
+              <!-- Reply / Edit Context Preview Bar -->
+              <div class="dm-composer-context-bar" id="dmComposerContextBar" style="display: none;">
+                <div class="dm-composer-context-left">
+                  <span class="dm-composer-context-title" id="dmComposerContextTitle">Replying</span>
+                  <span class="dm-composer-context-snippet" id="dmComposerContextSnippet">Preview...</span>
+                </div>
+                <button type="button" class="dm-action-btn" id="dmComposerContextCancelBtn" title="Cancel" aria-label="Cancel">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                </button>
+              </div>
+
+              <!-- Main Input Row -->
+              <div class="dm-composer-bar">
+                <button type="button" class="dm-action-btn" id="dmEmojiToggleBtn" title="Emoji" aria-label="Choose emoji" style="width: 28px; height: 28px;">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+                    <line x1="9" y1="9" x2="9.01" y2="9"></line>
+                    <line x1="15" y1="9" x2="15.01" y2="9"></line>
+                  </svg>
+                </button>
+                <textarea id="dmTextarea" class="dm-composer-textarea" rows="1" maxlength="2000" placeholder="Write a message... (Shift+Enter for newline)" aria-label="Message text"></textarea>
+                <span class="dm-char-counter" id="dmCharCounter" style="display: none;">0/2000</span>
+                <button type="button" class="dm-send-btn" id="dmSendBtn" title="Send" aria-label="Send message" disabled>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                  </svg>
+                </button>
+              </div>
+
+              <!-- Emoji Drawer -->
+              <div class="dm-emoji-drawer" id="dmEmojiDrawer" role="region" aria-label="Emoji picker">
+                <!-- Emojis populated dynamically -->
+              </div>
+            </footer>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- DM USER SEARCH MODAL -->
+  <div class="dm-modal-backdrop" id="dmUserSearchModal" role="dialog" aria-modal="true" aria-label="New Message User Search" style="display: none;">
+    <div class="dm-modal-card">
+      <div class="dm-modal-header">
+        <h3 class="dm-modal-title">New Message</h3>
+        <button type="button" class="dm-icon-btn" id="dmUserSearchCloseBtn" aria-label="Close user search">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="dm-modal-body">
+        <div class="dm-search-box">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" id="dmUserSearchInput" placeholder="Search students, teachers, admins..." aria-label="Search users">
+        </div>
+        <div class="dm-search-results-list" id="dmUserSearchResults">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DM MESSAGE DELETE CONFIRMATION MODAL -->
+  <div class="dm-modal-backdrop" id="dmDeleteModal" role="dialog" aria-modal="true" aria-label="Delete message" style="display: none;">
+    <div class="dm-modal-card">
+      <div class="dm-modal-header">
+        <h3 class="dm-modal-title">Delete message?</h3>
+      </div>
+      <div class="dm-modal-body">
+        <p style="margin: 0; font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
+          Choose whether to remove this message for everyone or only from your device.
+        </p>
+      </div>
+      <div class="dm-modal-footer">
+        <button type="button" class="dm-btn-secondary" id="dmDeleteCancelBtn">Cancel</button>
+        <button type="button" class="dm-btn-secondary" id="dmDeleteForMeBtn">Delete for me</button>
+        <button type="button" class="dm-btn-danger" id="dmDeleteForEveryoneBtn">Delete for everyone</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DM CLEAR CONVERSATION MODAL -->
+  <div class="dm-modal-backdrop" id="dmClearModal" role="dialog" aria-modal="true" aria-label="Clear conversation" style="display: none;">
+    <div class="dm-modal-card">
+      <div class="dm-modal-header">
+        <h3 class="dm-modal-title">Clear conversation?</h3>
+      </div>
+      <div class="dm-modal-body">
+        <p style="margin: 0; font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
+          This will clear all messages in this conversation for you. Messages will remain visible to the other participant.
+        </p>
+      </div>
+      <div class="dm-modal-footer">
+        <button type="button" class="dm-btn-secondary" id="dmClearCancelBtn">Cancel</button>
+        <button type="button" class="dm-btn-danger" id="dmClearConfirmBtn">Clear Conversation</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DM BLOCK USER MODAL -->
+  <div class="dm-modal-backdrop" id="dmBlockModal" role="dialog" aria-modal="true" aria-label="Block user" style="display: none;">
+    <div class="dm-modal-card">
+      <div class="dm-modal-header">
+        <h3 class="dm-modal-title">Block user?</h3>
+      </div>
+      <div class="dm-modal-body">
+        <p style="margin: 0; font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
+          Blocked users cannot send you private messages. Existing conversation history will be preserved. You can unblock them at any time.
+        </p>
+      </div>
+      <div class="dm-modal-footer">
+        <button type="button" class="dm-btn-secondary" id="dmBlockCancelBtn">Cancel</button>
+        <button type="button" class="dm-btn-danger" id="dmBlockConfirmBtn">Block User</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DM REPORT USER MODAL -->
+  <div class="dm-modal-backdrop" id="dmReportModal" role="dialog" aria-modal="true" aria-label="Report user" style="display: none;">
+    <div class="dm-modal-card">
+      <div class="dm-modal-header">
+        <h3 class="dm-modal-title">Report conversation</h3>
+      </div>
+      <div class="dm-modal-body">
+        <label for="dmReportReasonSelect" style="font-size: 12px; color: var(--text-secondary);">Reason for report</label>
+        <select id="dmReportReasonSelect" style="background: #222; border: 1px solid var(--border); color: #fff; padding: 8px 10px; border-radius: 6px; font-size: 13px;">
+          <option value="spam">Spam or advertising</option>
+          <option value="harassment">Harassment or bullying</option>
+          <option value="inappropriate_content">Inappropriate content</option>
+          <option value="impersonation">Impersonation</option>
+          <option value="other">Other</option>
+        </select>
+
+        <label for="dmReportDescInput" style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Additional details (optional)</label>
+        <textarea id="dmReportDescInput" rows="3" placeholder="Provide extra context for moderators..." style="background: #222; border: 1px solid var(--border); color: #fff; padding: 8px 10px; border-radius: 6px; font-size: 13px; font-family: inherit; resize: none;"></textarea>
+      </div>
+      <div class="dm-modal-footer">
+        <button type="button" class="dm-btn-secondary" id="dmReportCancelBtn">Cancel</button>
+        <button type="button" class="dm-btn-primary" id="dmReportSubmitBtn">Submit Report</button>
+      </div>
+    </div>
   </div>
 
   <!-- ADVANCED LIGHTBOX MODAL WITH ZOOM & SAVE -->
@@ -387,6 +669,7 @@
 
   <script src="/chat-cache.js"></script>
   <script src="/cohort-chat-client.js"></script>
+  <script src="/dm-chat-client.js"></script>
   <script>
     let currentStudent = null;
     let messageCache = null;
@@ -588,6 +871,9 @@
       .then(data => {
         if (!data) return;
         currentStudent = data;
+        if (window.dmClient && typeof window.dmClient.init === 'function') {
+          window.dmClient.init(data);
+        }
         window.roomClient = roomClient = createCohortClient({
           fetch: window.fetch.bind(window), server: location.origin, account: data.studentId,
           storage: localStorage, createCache: createChatCache,

@@ -44,6 +44,8 @@ import { StickyComposer, KeyboardContentBoundary } from "@/components/ui/StickyC
 import { ChatMessageItem } from "@/components/chat/ChatMessageItem";
 import { ChatMessageActionsSheet } from "@/components/chat/ChatMessageActionsSheet";
 import { FullScreenImageViewer } from "@/components/FullScreenImageViewer";
+import { DmInboxView } from "@/components/dm/DmInboxView";
+import { fetchDmStatus } from "@/services/dm";
 import { useClassChat } from "@/hooks/useClassChat";
 import {
   mergeChatMessages,
@@ -264,7 +266,42 @@ export default function ChatScreen() {
     roomGeneration,
   } = useClassChat(user?.studentId, serverUrl, chatOptions);
 
-  const { targetMessageId, targetChatGroupId } = useLocalSearchParams<{ targetMessageId?: string; targetChatGroupId?: string }>();
+  const { targetMessageId, targetChatGroupId, dmConversationId } = useLocalSearchParams<{
+    targetMessageId?: string;
+    targetChatGroupId?: string;
+    dmConversationId?: string;
+  }>();
+
+  const [dmEnabled, setDmEnabled] = useState(false);
+  const [activeSection, setActiveSection] = useState<'class' | 'messages'>('class');
+
+  // Check DM feature flag
+  useEffect(() => {
+    let isMounted = true;
+    void (async () => {
+      try {
+        const status = await fetchDmStatus();
+        if (isMounted) {
+          setDmEnabled(Boolean(status?.enabled));
+        }
+      } catch {
+        if (isMounted) setDmEnabled(false);
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Handle incoming DM deep-link navigation
+  useEffect(() => {
+    if (dmConversationId) {
+      router.push({
+        pathname: '/dm/[id]',
+        params: { id: dmConversationId, targetMessageId },
+      });
+    }
+  }, [dmConversationId, targetMessageId]);
 
   useEffect(() => {
     if (targetChatGroupId && isAdmin && !selectedAdminRoom && adminRooms.length > 0) {
@@ -1238,6 +1275,71 @@ export default function ChatScreen() {
     ]
   );
 
+  if (dmEnabled && activeSection === 'messages') {
+    return (
+      <View style={styles.screenContainer}>
+        <StatusBar barStyle="light-content" />
+        <View
+          style={[
+            styles.customHeader,
+            {
+              paddingTop: Math.max(insets.top, 10),
+              justifyContent: "space-between",
+            },
+          ]}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <TouchableOpacity
+              onPress={() => router.navigate("/(tabs)")}
+              style={styles.headerBackBtn}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityLabel="Go back"
+            >
+              <Ionicons name="arrow-back" size={22} color="#f5f5f5" />
+            </TouchableOpacity>
+            <View style={{ marginLeft: 8 }}>
+              <Text variant="lg" weight="700" style={{ color: "#f5f5f5" }}>
+                Messages
+              </Text>
+              <Text variant="xs" style={{ color: "#71717a" }}>
+                Direct Conversations
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.sectionTabRow}>
+          <TouchableOpacity
+            style={styles.sectionTabBtn}
+            onPress={() => setActiveSection('class')}
+          >
+            <Text
+              variant="xs"
+              weight="700"
+              style={[styles.sectionTabText, styles.sectionTabTextInactive]}
+            >
+              CLASS CHAT
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.sectionTabBtn, styles.sectionTabBtnActive]}
+            onPress={() => setActiveSection('messages')}
+          >
+            <Text
+              variant="xs"
+              weight="700"
+              style={[styles.sectionTabText, styles.sectionTabTextActive]}
+            >
+              MESSAGES
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <DmInboxView />
+      </View>
+    );
+  }
+
   if (isAdmin && !selectedAdminRoom) {
     return (
       <View style={styles.screenContainer}>
@@ -1270,6 +1372,41 @@ export default function ChatScreen() {
             </View>
           </View>
         </View>
+
+        {dmEnabled && (
+          <View style={styles.sectionTabRow}>
+            <TouchableOpacity
+              style={[styles.sectionTabBtn, activeSection === 'class' && styles.sectionTabBtnActive]}
+              onPress={() => setActiveSection('class')}
+            >
+              <Text
+                variant="xs"
+                weight="700"
+                style={[
+                  styles.sectionTabText,
+                  activeSection === 'class' ? styles.sectionTabTextActive : styles.sectionTabTextInactive,
+                ]}
+              >
+                CLASS CHAT
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.sectionTabBtn, activeSection === 'messages' && styles.sectionTabBtnActive]}
+              onPress={() => setActiveSection('messages')}
+            >
+              <Text
+                variant="xs"
+                weight="700"
+                style={[
+                  styles.sectionTabText,
+                  activeSection === 'messages' ? styles.sectionTabTextActive : styles.sectionTabTextInactive,
+                ]}
+              >
+                MESSAGES
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {adminRoomsLoading && adminRooms.length === 0 ? (
           <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
@@ -1431,6 +1568,41 @@ export default function ChatScreen() {
           <Ionicons name="search-outline" size={21} color="#f5f5f5" />
         </TouchableOpacity>
       </View>
+
+      {dmEnabled && (
+        <View style={styles.sectionTabRow}>
+          <TouchableOpacity
+            style={[styles.sectionTabBtn, activeSection === 'class' && styles.sectionTabBtnActive]}
+            onPress={() => setActiveSection('class')}
+          >
+            <Text
+              variant="xs"
+              weight="700"
+              style={[
+                styles.sectionTabText,
+                activeSection === 'class' ? styles.sectionTabTextActive : styles.sectionTabTextInactive,
+              ]}
+            >
+              CLASS CHAT
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.sectionTabBtn, activeSection === 'messages' && styles.sectionTabBtnActive]}
+            onPress={() => setActiveSection('messages')}
+          >
+            <Text
+              variant="xs"
+              weight="700"
+              style={[
+                styles.sectionTabText,
+                activeSection === 'messages' ? styles.sectionTabTextActive : styles.sectionTabTextInactive,
+              ]}
+            >
+              MESSAGES
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Archived Banner */}
       {isArchived && (
@@ -2506,5 +2678,36 @@ const styles = StyleSheet.create({
   skeletonBubbleRight: {
     alignSelf: "flex-end",
     backgroundColor: "#2c2c30",
+  },
+  sectionTabRow: {
+    flexDirection: "row",
+    backgroundColor: "#09090b",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#27272a",
+    gap: 8,
+  },
+  sectionTabBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 8,
+    backgroundColor: "#18181b",
+  },
+  sectionTabBtnActive: {
+    backgroundColor: "#27272a",
+    borderWidth: 1,
+    borderColor: "#3f3f46",
+  },
+  sectionTabText: {
+    letterSpacing: 0.5,
+  },
+  sectionTabTextActive: {
+    color: "#ffffff",
+  },
+  sectionTabTextInactive: {
+    color: "#a1a1aa",
   },
 });

@@ -202,6 +202,8 @@ function RootLayoutNav() {
       <Stack.Screen name="routine" options={{ title: 'Class Routine', headerBackTitle: 'Back' }} />
       <Stack.Screen name="material/[id]" options={{ title: 'Material Details', headerBackTitle: 'Back' }} />
       <Stack.Screen name="notifications" options={{ title: 'Notifications', headerBackTitle: 'Back' }} />
+      <Stack.Screen name="dm/[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="dm/new" options={{ headerShown: false }} />
       <Stack.Screen name="notification-settings" options={{ title: 'Notification Settings', headerBackTitle: 'Notifications' }} />
       <Stack.Screen
         name="edit-profile"

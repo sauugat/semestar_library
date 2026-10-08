@@ -837,14 +837,24 @@ export function navigateFromNotification(
         case 'dm': {
           try {
             router.push({
-              pathname: '/(tabs)/chat',
+              pathname: '/dm/[id]',
               params: {
-                dmConversationId: payload.conversationId,
+                id: payload.conversationId,
                 targetMessageId: payload.messageId ? String(payload.messageId) : undefined,
               },
             });
           } catch {
-            router.push('/(tabs)');
+            try {
+              router.push({
+                pathname: '/(tabs)/chat',
+                params: {
+                  dmConversationId: payload.conversationId,
+                  targetMessageId: payload.messageId ? String(payload.messageId) : undefined,
+                },
+              });
+            } catch {
+              router.push('/(tabs)');
+            }
           }
           break;
         }

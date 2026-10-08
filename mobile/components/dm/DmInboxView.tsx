@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -49,7 +49,11 @@ function formatRelativeTime(iso?: string | null): string {
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
-export function DmInboxView() {
+export interface DmInboxViewProps {
+  onUnreadCountChange?: (count: number) => void;
+}
+
+export function DmInboxView({ onUnreadCountChange }: DmInboxViewProps = {}) {
   const { colors, spacing, radii } = useTheme();
   const { user } = useAuth();
   const router = useRouter();
@@ -59,6 +63,8 @@ export function DmInboxView() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const navigatingRef = useRef(false);
 
   const accountId = user?.studentId || '';
 
@@ -97,10 +103,49 @@ export function DmInboxView() {
     void refreshConversations();
   }, [loadCached, refreshConversations]);
 
+  // Report total unread count upward for segmented tab badge
+  useEffect(() => {
+    const total = conversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
+    onUnreadCountChange?.(total);
+  }, [conversations, onUnreadCountChange]);
+
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     void refreshConversations();
   }, [refreshConversations]);
+
+  // Guard against rapid duplicate taps
+  const handleOpenConversation = useCallback(
+    (item: DmConversationItem) => {
+      if (navigatingRef.current) return;
+      navigatingRef.current = true;
+      setTimeout(() => {
+        navigatingRef.current = false;
+      }, 400);
+
+      const peer = item.participant;
+      router.push({
+        pathname: '/dm/[id]',
+        params: {
+          id: item.id,
+          peerName: peer?.name || 'Conversation',
+          peerRole: peer?.role || 'Student',
+          peerAvatar: peer?.avatarUrl || '',
+        },
+      });
+    },
+    [router]
+  );
+
+  const handleNewMessage = useCallback(() => {
+    if (navigatingRef.current) return;
+    navigatingRef.current = true;
+    setTimeout(() => {
+      navigatingRef.current = false;
+    }, 400);
+
+    router.push('/dm/new');
+  }, [router]);
 
   // Filter conversations by participant name, username, or preview text
   const filteredConversations = useMemo(() => {
@@ -141,17 +186,7 @@ export function DmInboxView() {
               borderBottomColor: colors.borderSubtle,
             },
           ]}
-          onPress={() => {
-            router.push({
-              pathname: '/dm/[id]',
-              params: {
-                id: item.id,
-                peerName: peer.name,
-                peerRole: peer.role,
-                peerAvatar: peer.avatarUrl || '',
-              },
-            });
-          }}
+          onPress={() => handleOpenConversation(item)}
         >
           {/* Avatar */}
           <View style={[styles.avatarContainer, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
@@ -239,7 +274,7 @@ export function DmInboxView() {
 
         <TouchableOpacity
           style={[styles.newMessageBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
-          onPress={() => router.push('/dm/new')}
+          onPress={handleNewMessage}
           accessibilityLabel="New Message"
         >
           <Ionicons name="create-outline" size={20} color={colors.text} />

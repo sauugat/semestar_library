@@ -101,9 +101,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           activeUrl = await getBaseUrl();
         } else {
           const savedUrl = await SecureStore.getItemAsync(SERVER_URL_KEY);
-          activeUrl = savedUrl ? savedUrl.trim().replace(/\/+$/, '') : '';
-          if (!activeUrl) {
+          if (savedUrl && savedUrl.includes('vercel.app')) {
+            await SecureStore.deleteItemAsync(SERVER_URL_KEY).catch(() => {});
             activeUrl = await getBaseUrl();
+          } else {
+            activeUrl = savedUrl ? savedUrl.trim().replace(/\/+$/, '') : '';
+            if (!activeUrl) {
+              activeUrl = await getBaseUrl();
+            }
           }
         }
         if (isMounted) setServerUrl(activeUrl);

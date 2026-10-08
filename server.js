@@ -746,7 +746,7 @@ app.use('/api/teacher/onboarding', require('./routes/teacher-onboarding'));
 // Direct Messaging Router (Feature flag DM_ENABLED or controlled tester allowlist DM_TEST_USER_IDS)
 const { isDmEnabled, isDmAllowedForUser, getDmTestUserIds } = require('./lib/dm-config');
 app.get('/api/dm-status', (req, res) => {
-  const callerId = req.session?.studentId || req.student?.studentId;
+  const callerId = req.user?.studentId || req.student?.studentId || req.session?.studentId || (req.query?.studentId ? String(req.query.studentId).trim() : null);
   res.json({ enabled: isDmAllowedForUser(callerId) });
 });
 if (isDmEnabled() || getDmTestUserIds().length > 0) {

@@ -45,6 +45,7 @@ import { ChatMessageItem } from "@/components/chat/ChatMessageItem";
 import { ChatMessageActionsSheet } from "@/components/chat/ChatMessageActionsSheet";
 import { FullScreenImageViewer } from "@/components/FullScreenImageViewer";
 import { DmInboxView } from "@/components/dm/DmInboxView";
+import { SegmentedControl, type SegmentItem } from "@/components/ui/SegmentedControl";
 import { fetchDmStatus } from "@/services/dm";
 import { useClassChat } from "@/hooks/useClassChat";
 import {
@@ -223,18 +224,6 @@ export default function ChatScreen() {
     }, [isAdmin, selectedAdminRoom, loadAdminRooms])
   );
 
-  useEffect(() => {
-    const onBackPress = () => {
-      if (isAdmin && selectedAdminRoom) {
-        setSelectedAdminRoom(null);
-        return true;
-      }
-      return false;
-    };
-    const sub = BackHandler.addEventListener("hardwareBackPress", onBackPress);
-    return () => sub.remove();
-  }, [isAdmin, selectedAdminRoom]);
-
   const chatOptions = useMemo(
     () => ({
       onNewIncomingMessage: handleNewIncomingMessage,
@@ -266,21 +255,37 @@ export default function ChatScreen() {
     roomGeneration,
   } = useClassChat(user?.studentId, serverUrl, chatOptions);
 
-  const { targetMessageId, targetChatGroupId, dmConversationId } = useLocalSearchParams<{
+  const { targetMessageId, targetChatGroupId, dmConversationId, section, tab } = useLocalSearchParams<{
     targetMessageId?: string;
     targetChatGroupId?: string;
     dmConversationId?: string;
+    section?: string;
+    tab?: string;
   }>();
 
   const [dmEnabled, setDmEnabled] = useState(false);
   const [activeSection, setActiveSection] = useState<'class' | 'messages'>('class');
+  const [dmUnreadCount, setDmUnreadCount] = useState(0);
+
+  const segmentItems: SegmentItem[] = useMemo(() => [
+    { key: 'class', label: 'CLASS CHAT' },
+    { key: 'messages', label: 'MESSAGES', count: dmUnreadCount },
+  ], [dmUnreadCount]);
+
+  useEffect(() => {
+    if (section === 'messages' || tab === 'dm' || tab === 'messages') {
+      setActiveSection('messages');
+    } else if (section === 'class' || tab === 'cohort' || tab === 'class') {
+      setActiveSection('class');
+    }
+  }, [section, tab]);
 
   // Check DM feature flag
   useEffect(() => {
     let isMounted = true;
     void (async () => {
       try {
-        const status = await fetchDmStatus();
+        const status = await fetchDmStatus(user?.studentId);
         if (isMounted) {
           setDmEnabled(Boolean(status?.enabled));
         }
@@ -291,7 +296,7 @@ export default function ChatScreen() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [user?.studentId]);
 
   // Handle incoming DM deep-link navigation
   useEffect(() => {
@@ -492,14 +497,7 @@ export default function ChatScreen() {
   }, [scrollToBottomIfNeeded]);
 
   // Handle Android hardware back press when attachment overlay is open
-  useEffect(() => {
-    if (!showAttachModal) return;
-    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-      setShowAttachModal(false);
-      return true;
-    });
-    return () => sub.remove();
-  }, [showAttachModal]);
+
 
   useEffect(() => {
     const newestConfirmed = messages.find(m => m.id > 0);
@@ -525,13 +523,63 @@ export default function ChatScreen() {
     }
   };
 
-  useFocusEffect(useCallback(() => {
-    const back = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (showAttachModal || viewerImage || Keyboard.isVisible()) return false;
-      router.navigate('/(tabs)'); return true;
-    });
-    return () => back.remove();
-  }, [router, showAttachModal, viewerImage]));
+  // Centralized Android hardware back press handler
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        // 1. Modals & overlays first
+        if (viewerImage) {
+          setViewerImage(null);
+          return true;
+        }
+        if (showAttachModal) {
+          setShowAttachModal(false);
+          return true;
+        }
+        if (actionMessage) {
+          setActionMessage(null);
+          return true;
+        }
+        if (panel) {
+          setPanel(null);
+          return true;
+        }
+
+        // 2. Allow native Android keyboard dismissal if keyboard is visible
+        if (Keyboard.isVisible()) {
+          return false;
+        }
+
+        // 3. If in Messages (DM inbox), switch back to Class Chat
+        if (activeSection === 'messages') {
+          setActiveSection('class');
+          return true;
+        }
+
+        // 4. If in Class Chat as Admin with a room selected, return to room list
+        if (isAdmin && selectedAdminRoom) {
+          setSelectedAdminRoom(null);
+          return true;
+        }
+
+        // 5. Default tab exit to home
+        router.navigate('/(tabs)');
+        return true;
+      };
+
+      const back = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => back.remove();
+    }, [
+      viewerImage,
+      showAttachModal,
+      actionMessage,
+      panel,
+      activeSection,
+      isAdmin,
+      selectedAdminRoom,
+      router,
+    ])
+  );
 
   const jumpToMessage = useCallback((id: number) => {
     const index = messages.findIndex((m) => m.id === id);
@@ -1275,71 +1323,6 @@ export default function ChatScreen() {
     ]
   );
 
-  if (dmEnabled && activeSection === 'messages') {
-    return (
-      <View style={styles.screenContainer}>
-        <StatusBar barStyle="light-content" />
-        <View
-          style={[
-            styles.customHeader,
-            {
-              paddingTop: Math.max(insets.top, 10),
-              justifyContent: "space-between",
-            },
-          ]}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <TouchableOpacity
-              onPress={() => router.navigate("/(tabs)")}
-              style={styles.headerBackBtn}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              accessibilityLabel="Go back"
-            >
-              <Ionicons name="arrow-back" size={22} color="#f5f5f5" />
-            </TouchableOpacity>
-            <View style={{ marginLeft: 8 }}>
-              <Text variant="lg" weight="700" style={{ color: "#f5f5f5" }}>
-                Messages
-              </Text>
-              <Text variant="xs" style={{ color: "#71717a" }}>
-                Direct Conversations
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.sectionTabRow}>
-          <TouchableOpacity
-            style={styles.sectionTabBtn}
-            onPress={() => setActiveSection('class')}
-          >
-            <Text
-              variant="xs"
-              weight="700"
-              style={[styles.sectionTabText, styles.sectionTabTextInactive]}
-            >
-              CLASS CHAT
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.sectionTabBtn, styles.sectionTabBtnActive]}
-            onPress={() => setActiveSection('messages')}
-          >
-            <Text
-              variant="xs"
-              weight="700"
-              style={[styles.sectionTabText, styles.sectionTabTextActive]}
-            >
-              MESSAGES
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        <DmInboxView />
-      </View>
-    );
-  }
-
   if (isAdmin && !selectedAdminRoom) {
     return (
       <View style={styles.screenContainer}>
@@ -1355,58 +1338,46 @@ export default function ChatScreen() {
         >
           <View style={{ flexDirection: "row", alignItems: "center" }}>
             <TouchableOpacity
-              onPress={() => router.navigate("/(tabs)")}
+              onPress={() => {
+                if (activeSection === 'messages') {
+                  setActiveSection('class');
+                } else {
+                  router.navigate("/(tabs)");
+                }
+              }}
               style={styles.headerBackBtn}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              accessibilityLabel="Go back"
+              accessibilityLabel={activeSection === 'messages' ? "Back to cohorts" : "Go back"}
             >
               <Ionicons name="arrow-back" size={22} color="#f5f5f5" />
             </TouchableOpacity>
             <View style={{ marginLeft: 8 }}>
               <Text variant="lg" weight="700" style={{ color: "#f5f5f5" }}>
-                Cohorts
+                {activeSection === 'messages' ? 'Messages' : 'Cohorts'}
               </Text>
               <Text variant="xs" style={{ color: "#71717a" }}>
-                {adminRooms.length ? `${adminRooms.length} active classes` : "Class conversations"}
+                {activeSection === 'messages'
+                  ? 'Direct Conversations'
+                  : adminRooms.length
+                  ? `${adminRooms.length} active classes`
+                  : "Class conversations"}
               </Text>
             </View>
           </View>
         </View>
 
         {dmEnabled && (
-          <View style={styles.sectionTabRow}>
-            <TouchableOpacity
-              style={[styles.sectionTabBtn, activeSection === 'class' && styles.sectionTabBtnActive]}
-              onPress={() => setActiveSection('class')}
-            >
-              <Text
-                variant="xs"
-                weight="700"
-                style={[
-                  styles.sectionTabText,
-                  activeSection === 'class' ? styles.sectionTabTextActive : styles.sectionTabTextInactive,
-                ]}
-              >
-                CLASS CHAT
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.sectionTabBtn, activeSection === 'messages' && styles.sectionTabBtnActive]}
-              onPress={() => setActiveSection('messages')}
-            >
-              <Text
-                variant="xs"
-                weight="700"
-                style={[
-                  styles.sectionTabText,
-                  activeSection === 'messages' ? styles.sectionTabTextActive : styles.sectionTabTextInactive,
-                ]}
-              >
-                MESSAGES
-              </Text>
-            </TouchableOpacity>
+          <View style={styles.segmentContainer}>
+            <SegmentedControl
+              items={segmentItems}
+              selectedKey={activeSection}
+              onSelect={(key) => setActiveSection(key as 'class' | 'messages')}
+            />
           </View>
         )}
+
+        {/* Cohort Rooms Container */}
+        <View style={{ flex: 1, display: activeSection === 'class' ? 'flex' : 'none' }}>
 
         {adminRoomsLoading && adminRooms.length === 0 ? (
           <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
@@ -1501,6 +1472,14 @@ export default function ChatScreen() {
             }}
           />
         )}
+        </View>
+
+        {/* DM Inbox Container */}
+        {dmEnabled && (
+          <View style={{ flex: 1, display: activeSection === 'messages' ? 'flex' : 'none' }}>
+            <DmInboxView onUnreadCountChange={setDmUnreadCount} />
+          </View>
+        )}
       </View>
     );
   }
@@ -1509,100 +1488,109 @@ export default function ChatScreen() {
     <View style={styles.screenContainer}>
       <StatusBar barStyle="light-content" />
 
-      {/* Overhauled WhatsApp-styled Header (Requirement 14 & 15) */}
-      <View
-        style={[
-          styles.customHeader,
-          {
-            paddingTop: Math.max(insets.top, 10),
-          },
-        ]}
-      >
-        <TouchableOpacity
-          onPress={() => {
-            if (isAdmin && selectedAdminRoom) {
-              setSelectedAdminRoom(null);
-            } else {
-              router.navigate("/(tabs)");
-            }
-          }}
-          style={styles.headerBackBtn}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          accessibilityLabel="Go back"
+      {/* Header — Dynamic between Messages inbox and Cohort Class Chat */}
+      {activeSection === 'messages' ? (
+        <View
+          style={[
+            styles.customHeader,
+            {
+              paddingTop: Math.max(insets.top, 10),
+              justifyContent: "space-between",
+            },
+          ]}
         >
-          <Ionicons name="arrow-back" size={22} color="#f5f5f5" />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.headerTitleContainer}
-          onPress={() => void openMembers()}
-          activeOpacity={0.7}
-          accessibilityLabel="View class members"
-        >
-          {/* Circular group icon */}
-          <View style={styles.groupAvatarCircle}>
-            <Ionicons name="people" size={17} color="#e4e4e7" />
-          </View>
-
-          <View style={styles.headerTextGroup}>
-            <Text variant="md" weight="700" style={styles.headerGroupName} numberOfLines={1}>
-              {context
-                ? `${context.cohortDisplayName || (context.groupCode.charAt(0) + context.groupCode.slice(1).toLowerCase())} • ${context.cohortStatus === "graduated" ? "Graduated" : `Semester ${context.currentSemester}`}`
-                : "Class Chat"}
-            </Text>
-            <Text variant="xs" style={styles.headerSubtitle} numberOfLines={1}>
-              {headerSubtitle}
-            </Text>
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          accessibilityLabel="Search loaded messages"
-          style={styles.headerSearchBtn}
-          onPress={() => {
-            setQuery("");
-            setPanel("search");
-          }}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Ionicons name="search-outline" size={21} color="#f5f5f5" />
-        </TouchableOpacity>
-      </View>
-
-      {dmEnabled && (
-        <View style={styles.sectionTabRow}>
-          <TouchableOpacity
-            style={[styles.sectionTabBtn, activeSection === 'class' && styles.sectionTabBtnActive]}
-            onPress={() => setActiveSection('class')}
-          >
-            <Text
-              variant="xs"
-              weight="700"
-              style={[
-                styles.sectionTabText,
-                activeSection === 'class' ? styles.sectionTabTextActive : styles.sectionTabTextInactive,
-              ]}
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <TouchableOpacity
+              onPress={() => setActiveSection('class')}
+              style={styles.headerBackBtn}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityLabel="Back to class chat"
             >
-              CLASS CHAT
-            </Text>
+              <Ionicons name="arrow-back" size={22} color="#f5f5f5" />
+            </TouchableOpacity>
+            <View style={{ marginLeft: 8 }}>
+              <Text variant="lg" weight="700" style={{ color: "#f5f5f5" }}>
+                Messages
+              </Text>
+              <Text variant="xs" style={{ color: "#71717a" }}>
+                Direct Conversations
+              </Text>
+            </View>
+          </View>
+        </View>
+      ) : (
+        <View
+          style={[
+            styles.customHeader,
+            {
+              paddingTop: Math.max(insets.top, 10),
+            },
+          ]}
+        >
+          <TouchableOpacity
+            onPress={() => {
+              if (isAdmin && selectedAdminRoom) {
+                setSelectedAdminRoom(null);
+              } else {
+                router.navigate("/(tabs)");
+              }
+            }}
+            style={styles.headerBackBtn}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityLabel="Go back"
+          >
+            <Ionicons name="arrow-back" size={22} color="#f5f5f5" />
           </TouchableOpacity>
+
           <TouchableOpacity
-            style={[styles.sectionTabBtn, activeSection === 'messages' && styles.sectionTabBtnActive]}
-            onPress={() => setActiveSection('messages')}
+            style={styles.headerTitleContainer}
+            onPress={() => void openMembers()}
+            activeOpacity={0.7}
+            accessibilityLabel="View class members"
           >
-            <Text
-              variant="xs"
-              weight="700"
-              style={[
-                styles.sectionTabText,
-                activeSection === 'messages' ? styles.sectionTabTextActive : styles.sectionTabTextInactive,
-              ]}
-            >
-              MESSAGES
-            </Text>
+            {/* Circular group icon */}
+            <View style={styles.groupAvatarCircle}>
+              <Ionicons name="people" size={17} color="#e4e4e7" />
+            </View>
+
+            <View style={styles.headerTextGroup}>
+              <Text variant="md" weight="700" style={styles.headerGroupName} numberOfLines={1}>
+                {context
+                  ? `${context.cohortDisplayName || (context.groupCode.charAt(0) + context.groupCode.slice(1).toLowerCase())} • ${context.cohortStatus === "graduated" ? "Graduated" : `Semester ${context.currentSemester}`}`
+                  : "Class Chat"}
+              </Text>
+              <Text variant="xs" style={styles.headerSubtitle} numberOfLines={1}>
+                {headerSubtitle}
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            accessibilityLabel="Search loaded messages"
+            style={styles.headerSearchBtn}
+            onPress={() => {
+              setQuery("");
+              setPanel("search");
+            }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="search-outline" size={21} color="#f5f5f5" />
           </TouchableOpacity>
         </View>
       )}
+
+      {dmEnabled && (
+        <View style={styles.segmentContainer}>
+          <SegmentedControl
+            items={segmentItems}
+            selectedKey={activeSection}
+            onSelect={(key) => setActiveSection(key as 'class' | 'messages')}
+          />
+        </View>
+      )}
+
+      {/* Class Chat Container */}
+      <View style={{ flex: 1, display: activeSection === 'class' ? 'flex' : 'none' }}>
 
       {/* Archived Banner */}
       {isArchived && (
@@ -2106,6 +2094,14 @@ export default function ChatScreen() {
           </View>
         </View>
       )}
+      </View>
+
+      {/* DM Inbox Container */}
+      {dmEnabled && (
+        <View style={{ flex: 1, display: activeSection === 'messages' ? 'flex' : 'none' }}>
+          <DmInboxView onUnreadCountChange={setDmUnreadCount} />
+        </View>
+      )}
 
       {/* Shared Full-Screen Image Viewer (Requirement 4: Same viewer as feed, zoom, swipe-down, tap to close) */}
       <FullScreenImageViewer
@@ -2123,6 +2119,13 @@ const styles = StyleSheet.create({
   screenContainer: {
     flex: 1,
     backgroundColor: "#0a0a0a", // Strict black background
+  },
+  segmentContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: "#121214",
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#1f1f21",
   },
   customHeader: {
     flexDirection: "row",

@@ -228,13 +228,24 @@
     bindEvents() {
       const el = this.elements;
 
-      // Mode Switcher Buttons
+      // Mode Switcher Buttons with Keyboard ARIA Navigation
       if (el.modeBtnCohort) {
         el.modeBtnCohort.addEventListener('click', () => this.switchMode('cohort'));
       }
       if (el.modeBtnDm) {
         el.modeBtnDm.addEventListener('click', () => this.switchMode('dm'));
       }
+      const modeTabs = [el.modeBtnCohort, el.modeBtnDm].filter(Boolean);
+      modeTabs.forEach((btn, idx) => {
+        btn.addEventListener('keydown', (e) => {
+          if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+            e.preventDefault();
+            const nextIdx = (idx + (e.key === 'ArrowRight' ? 1 : -1) + modeTabs.length) % modeTabs.length;
+            modeTabs[nextIdx].focus();
+            modeTabs[nextIdx].click();
+          }
+        });
+      });
 
       // Inbox Search
       if (el.convSearchInput) {
@@ -246,10 +257,22 @@
         el.newMsgBtn.addEventListener('click', () => this.openUserSearchModal());
       }
 
-      // Mobile Back Button
+      // Mobile Back Button & Popstate History Support
       if (el.headerBackBtn) {
-        el.headerBackBtn.addEventListener('click', () => this.closeActiveConversationMobile());
+        el.headerBackBtn.addEventListener('click', () => {
+          if (window.history && window.history.state && window.history.state.dmConversation) {
+            window.history.back();
+          } else {
+            this.closeActiveConversationMobile();
+          }
+        });
       }
+
+      window.addEventListener('popstate', (e) => {
+        if (this.elements.dmLayout && this.elements.dmLayout.classList.contains('in-conversation')) {
+          this.closeActiveConversationMobile({ fromPopState: true });
+        }
+      });
 
       // Header Dropdown Toggle
       if (el.headerMenuBtn) {
@@ -342,8 +365,14 @@
 
       const el = this.elements;
       if (mode === 'dm') {
-        if (el.modeBtnCohort) el.modeBtnCohort.classList.remove('active');
-        if (el.modeBtnDm) el.modeBtnDm.classList.add('active');
+        if (el.modeBtnCohort) {
+          el.modeBtnCohort.classList.remove('active');
+          el.modeBtnCohort.setAttribute('aria-selected', 'false');
+        }
+        if (el.modeBtnDm) {
+          el.modeBtnDm.classList.add('active');
+          el.modeBtnDm.setAttribute('aria-selected', 'true');
+        }
         if (el.cohortChatMain) el.cohortChatMain.style.display = 'none';
         if (el.dmMain) el.dmMain.style.display = 'flex';
 
@@ -352,8 +381,14 @@
         }
         this.open();
       } else {
-        if (el.modeBtnCohort) el.modeBtnCohort.classList.add('active');
-        if (el.modeBtnDm) el.modeBtnDm.classList.remove('active');
+        if (el.modeBtnCohort) {
+          el.modeBtnCohort.classList.add('active');
+          el.modeBtnCohort.setAttribute('aria-selected', 'true');
+        }
+        if (el.modeBtnDm) {
+          el.modeBtnDm.classList.remove('active');
+          el.modeBtnDm.setAttribute('aria-selected', 'false');
+        }
         if (el.cohortChatMain) el.cohortChatMain.style.display = 'flex';
         if (el.dmMain) el.dmMain.style.display = 'none';
 
@@ -522,9 +557,14 @@
       this.activeConversation = conv;
       this.peerLastReadMessageId = Number(conv.participant?.lastReadMessageId || 0);
 
-      // Mobile view update
+      // Mobile view update & browser history
       if (this.elements.dmLayout) {
         this.elements.dmLayout.classList.add('in-conversation');
+      }
+      if (typeof window !== 'undefined' && window.innerWidth <= 768 && window.history && window.history.pushState) {
+        try {
+          window.history.pushState({ dmConversation: conv.id }, '', `?tab=dm&dm=${encodeURIComponent(conv.id)}`);
+        } catch {}
       }
 
       // Re-render conversation list items to update active highlight
@@ -550,7 +590,7 @@
       return this.selectConversation(convId);
     }
 
-    closeActiveConversationMobile() {
+    closeActiveConversationMobile(options = {}) {
       if (this.elements.dmLayout) {
         this.elements.dmLayout.classList.remove('in-conversation');
       }
@@ -558,6 +598,12 @@
       this.activeConversation = null;
       if (this.elements.noConvPlaceholder) this.elements.noConvPlaceholder.style.display = 'flex';
       if (this.elements.activeChatWrap) this.elements.activeChatWrap.style.display = 'none';
+
+      if (!options.fromPopState && typeof window !== 'undefined' && window.history && window.history.replaceState) {
+        try {
+          window.history.replaceState({ tab: 'dm' }, '', '?tab=dm');
+        } catch {}
+      }
     }
 
     renderActiveHeader(conv) {

@@ -8,8 +8,9 @@ import {
   ActivityIndicator,
   Pressable,
   Keyboard,
+  BackHandler,
 } from 'react-native';
-import { useRouter, Stack } from 'expo-router';
+import { useRouter, Stack, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -36,6 +37,33 @@ export default function NewDmScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const startingRef = useRef(false);
+
+  const handleBack = useCallback(() => {
+    Keyboard.dismiss();
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)/chat');
+    }
+  }, [router]);
+
+  // Android hardware back button handler
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        if (Keyboard.isVisible()) {
+          // Allow default Android keyboard dismissal
+          return false;
+        }
+        handleBack();
+        return true;
+      };
+
+      const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => sub.remove();
+    }, [handleBack])
+  );
 
   const doSearch = useCallback(async (text: string) => {
     const q = text.trim();
@@ -65,7 +93,8 @@ export default function NewDmScreen() {
   };
 
   const handleSelectUser = async (targetUser: DmParticipant) => {
-    if (starting) return;
+    if (starting || startingRef.current) return;
+    startingRef.current = true;
     setStarting(true);
     Keyboard.dismiss();
     try {
@@ -81,6 +110,7 @@ export default function NewDmScreen() {
       });
     } catch (err: any) {
       alert(err.message || 'Could not start conversation');
+      startingRef.current = false;
       setStarting(false);
     }
   };
@@ -145,10 +175,22 @@ export default function NewDmScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Stack.Screen
         options={{
+          headerShown: true,
           title: 'New Message',
+          headerBackTitle: 'Messages',
           headerStyle: { backgroundColor: colors.surface },
           headerTintColor: colors.text,
           headerShadowVisible: false,
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={handleBack}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={{ marginRight: 16 }}
+              accessibilityLabel="Go back"
+            >
+              <Ionicons name="arrow-back" size={24} color={colors.text} />
+            </TouchableOpacity>
+          ),
         }}
       />
 

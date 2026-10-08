@@ -67,9 +67,10 @@ export interface DmSyncDelta {
   deletions: Array<{ messageId: number; deletedAt: string }>;
 }
 
-export async function fetchDmStatus(): Promise<{ enabled: boolean }> {
+export async function fetchDmStatus(studentId?: string): Promise<{ enabled: boolean }> {
   try {
-    const res = await apiFetch('/api/dm-status', { cache: 'no-store' });
+    const query = studentId ? `?studentId=${encodeURIComponent(studentId)}` : '';
+    const res = await apiFetch(`/api/dm-status${query}`, { cache: 'no-store' });
     if (!res.ok) return { enabled: false };
     const data = await res.json();
     return { enabled: Boolean(data?.enabled) };

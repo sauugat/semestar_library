@@ -12,8 +12,9 @@ import {
   Keyboard,
   Platform,
   StatusBar,
+  BackHandler,
 } from 'react-native';
-import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
+import { useLocalSearchParams, useRouter, Stack, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -160,6 +161,48 @@ export default function DmConversationScreen() {
   const [submittingReport, setSubmittingReport] = useState(false);
 
   const flatListRef = useRef<FlatList<DmMessage>>(null);
+
+  const handleBack = useCallback(() => {
+    Keyboard.dismiss();
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)/chat');
+    }
+  }, [router]);
+
+  // Android hardware back press handler
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        // 1. Modals have top priority
+        if (reportModalVisible) {
+          setReportModalVisible(false);
+          return true;
+        }
+        if (settingsModalVisible) {
+          setSettingsModalVisible(false);
+          return true;
+        }
+        if (selectedActionMessage) {
+          setSelectedActionMessage(null);
+          return true;
+        }
+
+        // 2. Allow native Android keyboard dismissal if open
+        if (Keyboard.isVisible()) {
+          return false;
+        }
+
+        // 3. Navigate back to inbox
+        handleBack();
+        return true;
+      };
+
+      const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => sub.remove();
+    }, [reportModalVisible, settingsModalVisible, selectedActionMessage, handleBack])
+  );
 
   // 1. Identify peer information from cached conversation or load
   useEffect(() => {
@@ -855,6 +898,29 @@ export default function DmConversationScreen() {
     );
   };
 
+  if (!conversationId) {
+    return (
+      <View style={[styles.container, styles.centerContainer, { backgroundColor: colors.background, paddingHorizontal: 32 }]}>
+        <StatusBar barStyle="light-content" />
+        <Ionicons name="alert-circle-outline" size={54} color={colors.textMuted} />
+        <Text variant="lg" weight="700" style={{ color: colors.text, marginTop: 16 }}>
+          Conversation Not Found
+        </Text>
+        <Text variant="sm" color="secondary" align="center" style={{ marginTop: 8, lineHeight: 20 }}>
+          This conversation could not be loaded because the conversation ID is missing or invalid.
+        </Text>
+        <TouchableOpacity
+          onPress={handleBack}
+          style={[styles.retryBtn, { backgroundColor: colors.surfaceRaised, marginTop: 24 }]}
+        >
+          <Text variant="sm" weight="600" style={{ color: colors.text }}>
+            Back to Messages
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar barStyle="light-content" />
@@ -871,7 +937,7 @@ export default function DmConversationScreen() {
         ]}
       >
         <TouchableOpacity
-          onPress={() => router.back()}
+          onPress={handleBack}
           style={styles.backButton}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           accessibilityLabel="Go back"

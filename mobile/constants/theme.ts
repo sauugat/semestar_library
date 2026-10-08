@@ -44,6 +44,24 @@ export const Colors = {
     inputFocusBorder: '#f5f5f5',
     skeleton: '#1e1e1e',
     overlay: 'rgba(0, 0, 0, 0.75)',
+
+    // Semantic messaging tokens (Dark mode)
+    textDisabled: '#525252',
+    interactivePressed: 'rgba(255, 255, 255, 0.06)',
+    bubbleOutgoingBg: '#f5f5f5',
+    bubbleOutgoingText: '#0a0a0a',
+    bubbleIncomingBg: '#1c1c1c',
+    bubbleIncomingText: '#f5f5f5',
+    bubbleIncomingBorder: 'rgba(255, 255, 255, 0.08)',
+    timestampText: '#737373',
+    receiptSent: '#737373',
+    receiptSeen: '#60a5fa',
+    unreadBadgeBg: '#f5f5f5',
+    unreadBadgeText: '#0a0a0a',
+    offlineBannerBg: '#1c1c1c',
+    offlineBannerText: '#a3a3a3',
+    blockedBannerBg: '#181818',
+    blockedBannerText: '#737373',
   },
   // Light monochrome variant
   light: {
@@ -85,6 +103,24 @@ export const Colors = {
     inputFocusBorder: '#0a0a0a',
     skeleton: '#e5e5e5',
     overlay: 'rgba(0, 0, 0, 0.5)',
+
+    // Semantic messaging tokens (Light mode)
+    textDisabled: '#a3a3a3',
+    interactivePressed: 'rgba(0, 0, 0, 0.05)',
+    bubbleOutgoingBg: '#0a0a0a',
+    bubbleOutgoingText: '#ffffff',
+    bubbleIncomingBg: '#f0f0f0',
+    bubbleIncomingText: '#0a0a0a',
+    bubbleIncomingBorder: 'rgba(0, 0, 0, 0.06)',
+    timestampText: '#737373',
+    receiptSent: '#737373',
+    receiptSeen: '#2563eb',
+    unreadBadgeBg: '#0a0a0a',
+    unreadBadgeText: '#ffffff',
+    offlineBannerBg: '#f0f0f0',
+    offlineBannerText: '#525252',
+    blockedBannerBg: '#f5f5f5',
+    blockedBannerText: '#737373',
   },
 };
 
@@ -126,6 +162,24 @@ export const Typography = {
 };
 
 /**
+ * Semantic Messaging Typography Tokens
+ * Standardized typography scale for conversations, threads, inputs, and badges.
+ */
+export const MessagingTypography = {
+  pageTitle: { fontSize: 18, lineHeight: 24, fontWeight: '700' as const, letterSpacing: -0.2 },
+  sectionHeading: { fontSize: 12, lineHeight: 16, fontWeight: '700' as const, letterSpacing: 0.5 },
+  conversationTitle: { fontSize: 16, lineHeight: 22, fontWeight: '700' as const },
+  inboxUsername: { fontSize: 15, lineHeight: 20, fontWeight: '600' as const },
+  messageBody: { fontSize: 15, lineHeight: 21, fontWeight: '400' as const },
+  messagePreview: { fontSize: 13, lineHeight: 18, fontWeight: '400' as const },
+  timestamp: { fontSize: 11, lineHeight: 15, fontWeight: '400' as const },
+  roleMetadata: { fontSize: 10, lineHeight: 13, fontWeight: '700' as const, letterSpacing: 0.4 },
+  inputText: { fontSize: 15, lineHeight: 20, fontWeight: '400' as const },
+  buttonLabel: { fontSize: 14, lineHeight: 18, fontWeight: '600' as const },
+  statusLabel: { fontSize: 12, lineHeight: 16, fontWeight: '500' as const },
+} as const;
+
+/**
  * Standardized Radii
  * Inputs: 10-12
  * Buttons: 10-12
@@ -147,6 +201,21 @@ export const Radii = {
   lg: 16,
   xl: 24,
 };
+
+/**
+ * Semantic Messaging Radii
+ */
+export const MessagingRadii = {
+  controlSm: 6,
+  input: 11,
+  button: 11,
+  card: 16,
+  bubble: 16,
+  bubbleConsecutive: 4,
+  sheet: 24,
+  pill: 9999,
+  avatar: 9999,
+} as const;
 
 export const TouchTarget = {
   min: 44,
@@ -185,3 +254,8 @@ export const Shadows = {
     elevation: 4,
   },
 };
+
+// Re-export shared messaging tokens
+export * from './motion';
+export * from './messagingGeometry';
+

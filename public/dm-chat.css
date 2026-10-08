@@ -3,6 +3,56 @@
    Minimalist, Modern, Black/White/Grayscale Design System
    ========================================================================== */
 
+:root {
+  /* Semantic Color Tokens */
+  --msg-bg: #111111;
+  --msg-bg-surface: #141414;
+  --msg-bg-surface-raised: #1c1c1c;
+  --msg-bg-surface-hover: rgba(255, 255, 255, 0.04);
+  --msg-bg-surface-active: #2c2c2c;
+
+  --msg-border: #2e2e2e;
+  --msg-border-subtle: rgba(255, 255, 255, 0.06);
+  --msg-border-strong: rgba(255, 255, 255, 0.16);
+
+  --msg-text-primary: #f1f1f1;
+  --msg-text-secondary: #a3a3a3;
+  --msg-text-muted: #737373;
+  --msg-text-disabled: #525252;
+  --msg-text-inverse: #111111;
+
+  --msg-bubble-out-bg: #262626;
+  --msg-bubble-out-text: #ffffff;
+  --msg-bubble-in-bg: #191919;
+  --msg-bubble-in-text: #f1f1f1;
+
+  --msg-receipt-sent: #737373;
+  --msg-receipt-seen: #60a5fa;
+
+  --msg-danger: #ef4444;
+  --msg-danger-hover: #dc2626;
+  --msg-danger-bg: rgba(239, 68, 68, 0.12);
+
+  --msg-input-bg: #181818;
+  --msg-input-border: #333333;
+  --msg-input-focus-border: #f1f1f1;
+
+  /* Semantic Radii Tokens */
+  --msg-radius-sm: 6px;
+  --msg-radius-input: 10px;
+  --msg-radius-btn: 10px;
+  --msg-radius-bubble: 14px;
+  --msg-radius-bubble-group: 4px;
+  --msg-radius-card: 16px;
+  --msg-radius-pill: 9999px;
+
+  /* Motion Design Tokens */
+  --msg-motion-fast: 90ms;
+  --msg-motion-normal: 150ms;
+  --msg-motion-slow: 240ms;
+  --msg-motion-ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 .im-app {
   flex-direction: column;
 }

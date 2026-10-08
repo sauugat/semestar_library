@@ -61,12 +61,21 @@ export async function getBaseUrl(): Promise<string> {
   try {
     const saved = await SecureStore.getItemAsync(SERVER_URL_STORAGE_KEY);
     if (saved && saved.trim()) {
-      return saved.trim().replace(/\/+$/, '');
+      if (saved.includes('vercel.app')) {
+        await SecureStore.deleteItemAsync(SERVER_URL_STORAGE_KEY).catch(() => {});
+      } else {
+        return saved.trim().replace(/\/+$/, '');
+      }
     }
   } catch {}
 
   if (process.env.EXPO_PUBLIC_API_URL && process.env.EXPO_PUBLIC_API_URL.trim()) {
     return process.env.EXPO_PUBLIC_API_URL.trim().replace(/\/+$/, '');
+  }
+
+  const autoUrl = getAutoDetectedServerUrl();
+  if (autoUrl && autoUrl !== 'https://semestar-library.vercel.app') {
+    return autoUrl;
   }
 
   const extraUrl = (Constants.expoConfig?.extra as any)?.apiUrl;

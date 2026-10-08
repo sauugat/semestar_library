@@ -59,9 +59,9 @@ export default function PostDetailScreen() {
 
   const cachedInitialPost = React.useMemo(() => {
     if (!postId || isNaN(postId)) return null;
-    const feed = queryClient.getQueryData<{ posts: Post[] }>(['campus-feed']);
+    const feed = queryClient.getQueryData<{ posts: Post[] }>(['campus-feed', user?.studentId]);
     return feed?.posts?.find((p) => Number(p.id) === postId) || null;
-  }, [postId]);
+  }, [postId, user?.studentId]);
 
   const [post, setPost] = useState<Post | null>(cachedInitialPost);
   const [comments, setComments] = useState<PostComment[]>([]);
@@ -771,7 +771,7 @@ export default function PostDetailScreen() {
         onClose={() => setShowEditModal(false)}
         onPostUpdated={(updatedPost) => {
           setPost((prev) => (prev ? { ...prev, ...updatedPost } : updatedPost));
-          queryClient.setQueryData(['campus-feed'], (old: any) =>
+          queryClient.setQueryData(['campus-feed', user?.studentId], (old: any) =>
             old
               ? {
                   ...old,

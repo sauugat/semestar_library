@@ -164,7 +164,7 @@
       like.setAttribute('aria-label', liked ? 'Unlike post' : 'Like post');
       like.textContent = `${liked ? '♥' : '♡'} ${sourceButton?.querySelector('.like-count')?.textContent || 0}`;
       like.disabled = pendingPostLikes.has(Number(post.id));
-      like.onclick = async () => { await toggleStatusLike(Number(post.id), sourceButton); renderViewerDetails(); };
+      like.onclick = async () => { const pending = toggleStatusLike(Number(post.id), sourceButton); renderViewerDetails(); await pending; if (!imageLightbox.classList.contains('hidden')) renderViewerDetails(); };
       const comments = document.createElement('button'); comments.textContent = `${post.comment_count || 0} comments`;
       comments.onclick = () => { closePostImage(); togglePostComments(Number(post.id), card); };
       actions.append(like, comments); details.append(author, time, caption, actions);
@@ -172,7 +172,7 @@
 
     const stage = document.getElementById('lightboxStage');
     const pointers = new Map();
-    let photoZoom = 1, photoX = 0, photoY = 0, pinch = null, drag = null, moved = false, lastPhotoTap = 0;
+    let photoZoom = 1, photoX = 0, photoY = 0, pinch = null, drag = null, moved = false, usedPinch = false, lastPhotoTap = 0;
     function paintPhoto(animate = false) {
       const maxX = Math.max(0, (lightboxImg.clientWidth * photoZoom - stage.clientWidth) / 2);
       const maxY = Math.max(0, (lightboxImg.clientHeight * photoZoom - stage.clientHeight) / 2);
@@ -192,9 +192,9 @@
     stage.addEventListener('pointerdown', event => {
       event.preventDefault(); stage.setPointerCapture(event.pointerId);
       pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-      if (pointers.size === 1) { moved = false; drag = { x: event.clientX, y: event.clientY, px: photoX, py: photoY }; }
+      if (pointers.size === 1) { moved = false; usedPinch = false; drag = { x: event.clientX, y: event.clientY, px: photoX, py: photoY }; }
       if (pointers.size === 2) {
-        moved = true; lastPhotoTap = 0;
+        moved = true; usedPinch = true; lastPhotoTap = 0;
         const [a, b] = [...pointers.values()];
         pinch = { distance: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)), zoom: photoZoom };
       }
@@ -219,7 +219,7 @@
         const now = Date.now();
         if (now - lastPhotoTap < 300) { zoomPhoto(photoZoom > 1 ? 1 : 2.5, event.clientX, event.clientY, true); lastPhotoTap = 0; }
         else lastPhotoTap = now;
-      } else if (!cancelled && !pinch && photoZoom === 1 && drag && !pointers.size && galleryImages.length > 1) {
+      } else if (!cancelled && !usedPinch && photoZoom === 1 && drag && !pointers.size && galleryImages.length > 1) {
         const dx = event.clientX - drag.x, dy = event.clientY - drag.y;
         if (Math.abs(dx) > 60 && Math.abs(dy) < 50) showLightboxIndex(galleryIndex + (dx < 0 ? 1 : -1));
       }

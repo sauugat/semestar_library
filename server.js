@@ -743,6 +743,13 @@ app.use('/api/admin', require('./routes/admin-teachers')(db, requireLogin));
 app.use('/api/admin', require('./routes/admin-cohorts')(db, requireLogin));
 app.use('/api/teacher/onboarding', require('./routes/teacher-onboarding'));
 
+// Direct Messaging Router (Conditionally mounted behind DM_ENABLED feature flag, disabled by default)
+const { isDmEnabled } = require('./lib/dm-config');
+if (isDmEnabled()) {
+  const dmService = require('./lib/dm-service').createDmService(db);
+  app.use('/api/dm', requireLogin, require('./routes/direct-messaging')(dmService));
+}
+
 // --- Code Lab Rate Limiting ---
 const rateLimit = require('express-rate-limit');
 

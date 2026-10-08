@@ -31,13 +31,13 @@ export default function NoticeDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colors, spacing, radii } = useTheme();
-  const { serverUrl } = useAuth();
+  const { user, serverUrl } = useAuth();
 
   const cachedInitialNotice = React.useMemo(() => {
     if (!noticeId || isNaN(noticeId)) return null;
-    const feed = queryClient.getQueryData<{ posts: Post[] }>(['campus-feed']);
+    const feed = queryClient.getQueryData<{ posts: Post[] }>(['campus-feed', user?.studentId]);
     return feed?.posts?.find((p) => Number(p.id) === noticeId) || null;
-  }, [noticeId]);
+  }, [noticeId, user?.studentId]);
 
   const [notice, setNotice] = useState<Post | null>(cachedInitialNotice);
   const [loading, setLoading] = useState(!cachedInitialNotice);

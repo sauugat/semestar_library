@@ -531,6 +531,10 @@ app.get('/dashboard', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
 });
 
+app.get(['/create-post', '/create-post.html', '/new-post'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'create-post.html'));
+});
+
 app.get('/files', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'files.html'));
 });

@@ -904,10 +904,68 @@
           <input type="text" id="postTitle" name="title" maxlength="200" placeholder="Title your post" class="composer-input">
         </div>
 
-        <!-- Content Field -->
+        <!-- Content Field with Rich Formatting Toolbar -->
         <div class="form-group">
-          <label for="postContent" class="form-label">Description / Content</label>
-          <textarea id="postContent" name="content" rows="7" maxlength="5000" required placeholder="What's on your mind? Share study resources, discuss topics, or ask questions..." class="composer-textarea"></textarea>
+          <div class="composer-toolbar-header">
+            <label for="postContent" class="form-label" style="margin-bottom: 0;">Description / Content</label>
+            <div class="composer-view-tabs" role="tablist">
+              <button type="button" class="composer-tab-btn active" id="tabWriteBtn" role="tab" aria-selected="true">Write</button>
+              <button type="button" class="composer-tab-btn" id="tabPreviewBtn" role="tab" aria-selected="false">Preview</button>
+            </div>
+          </div>
+
+          <!-- Markdown Formatting Toolbar -->
+          <div class="markdown-toolbar" id="markdownToolbar" role="toolbar" aria-label="Text formatting">
+            <div class="toolbar-group">
+              <button type="button" class="md-tool-btn" data-format="bold" title="Bold (Ctrl+B)" aria-label="Bold"><b>B</b></button>
+              <button type="button" class="md-tool-btn" data-format="italic" title="Italic (Ctrl+I)" aria-label="Italic"><i>I</i></button>
+              <button type="button" class="md-tool-btn" data-format="underline" title="Underline (Ctrl+U)" aria-label="Underline"><u>U</u></button>
+              <button type="button" class="md-tool-btn" data-format="strike" title="Strikethrough" aria-label="Strikethrough"><s>S</s></button>
+            </div>
+            <div class="toolbar-divider"></div>
+            <div class="toolbar-group">
+              <button type="button" class="md-tool-btn" data-format="h1" title="Heading 1" aria-label="Heading 1">H1</button>
+              <button type="button" class="md-tool-btn" data-format="h2" title="Heading 2" aria-label="Heading 2">H2</button>
+              <button type="button" class="md-tool-btn" data-format="h3" title="Heading 3" aria-label="Heading 3">H3</button>
+            </div>
+            <div class="toolbar-divider"></div>
+            <div class="toolbar-group">
+              <button type="button" class="md-tool-btn" data-format="bullet-list" title="Bullet list" aria-label="Bullet list">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M4 6h2v2H4zm0 5h2v2H4zm0 5h2v2H4zm5-9h11v2H9zm0 5h11v2H9zm0 5h11v2H9z"/></svg>
+              </button>
+              <button type="button" class="md-tool-btn" data-format="number-list" title="Numbered list" aria-label="Numbered list">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M3 5h2v4H4V6H3zm0 6h2v1h-1v1h1v1H3zm0 5h2v3H3zm6-10h11v2H9zm0 5h11v2H9zm0 5h11v2H9z"/></svg>
+              </button>
+              <button type="button" class="md-tool-btn" data-format="quote" title="Quote" aria-label="Quote">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M6 17h3l2-4V7H5v6h3zm8 0h3l2-4V7h-6v6h3z"/></svg>
+              </button>
+            </div>
+            <div class="toolbar-divider"></div>
+            <div class="toolbar-group">
+              <button type="button" class="md-tool-btn" data-format="code-inline" title="Inline code" aria-label="Inline code">
+                <code>&lt;&gt;</code>
+              </button>
+              <button type="button" class="md-tool-btn" data-format="code-block" title="Code block" aria-label="Code block">
+                <code>{ }</code>
+              </button>
+              <button type="button" class="md-tool-btn" data-format="link" title="Link (Ctrl+K)" aria-label="Link">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+              </button>
+              <button type="button" class="md-tool-btn" data-format="divider" title="Horizontal divider" aria-label="Horizontal divider">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><rect x="3" y="11" width="18" height="2" rx="1"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="composer-editor-wrap">
+            <textarea id="postContent" name="content" rows="7" maxlength="5000" required placeholder="What's on your mind? Format with Markdown or paste directly from ChatGPT..." class="composer-textarea"></textarea>
+            <div id="postPreviewArea" class="composer-preview-area post-markdown-content" style="display: none;" tabindex="0" role="region" aria-label="Post preview"></div>
+          </div>
+
+          <div class="composer-footer-hints">
+            <span class="composer-hint-text">Markdown &amp; smart paste enabled</span>
+            <span id="charCounter" class="composer-char-count">0 / 5,000</span>
+          </div>
         </div>
 
         <!-- Attachments Toolbar -->

@@ -1248,6 +1248,214 @@
       if (semContainer && !semContainer.contains(e.target)) toggleSemesterMenu(false);
     });
 
+    // Markdown Editor Toolbar, Live Preview & Smart Paste
+    const postContent = document.getElementById('postContent');
+    const postPreviewArea = document.getElementById('postPreviewArea');
+    const tabWriteBtn = document.getElementById('tabWriteBtn');
+    const tabPreviewBtn = document.getElementById('tabPreviewBtn');
+    const charCounter = document.getElementById('charCounter');
+    const markdownToolbar = document.getElementById('markdownToolbar');
+
+    function updateCharCounter() {
+      if (!postContent || !charCounter) return;
+      const len = postContent.value.length;
+      charCounter.textContent = `${len.toLocaleString()} / 5,000`;
+      if (len > 5000) {
+        charCounter.style.color = '#ef4444';
+      } else {
+        charCounter.style.color = 'var(--text-muted)';
+      }
+    }
+
+    if (postContent) {
+      postContent.addEventListener('input', updateCharCounter);
+      updateCharCounter();
+    }
+
+    // Tab Switching (Write vs Preview)
+    if (tabWriteBtn && tabPreviewBtn && postContent && postPreviewArea) {
+      tabWriteBtn.addEventListener('click', () => {
+        tabWriteBtn.classList.add('active');
+        tabPreviewBtn.classList.remove('active');
+        tabWriteBtn.setAttribute('aria-selected', 'true');
+        tabPreviewBtn.setAttribute('aria-selected', 'false');
+        postContent.style.display = 'block';
+        postPreviewArea.style.display = 'none';
+        if (markdownToolbar) {
+          markdownToolbar.style.opacity = '1';
+          markdownToolbar.style.pointerEvents = 'auto';
+        }
+        postContent.focus();
+      });
+
+      tabPreviewBtn.addEventListener('click', () => {
+        tabPreviewBtn.classList.add('active');
+        tabWriteBtn.classList.remove('active');
+        tabPreviewBtn.setAttribute('aria-selected', 'true');
+        tabWriteBtn.setAttribute('aria-selected', 'false');
+        const text = (postContent.value || '').trim();
+        if (typeof renderPostMarkdown === 'function') {
+          postPreviewArea.innerHTML = text
+            ? renderPostMarkdown(text)
+            : '<p style="color: var(--text-muted); font-style: italic;">Nothing to preview yet. Start typing to see formatted output.</p>';
+        } else {
+          postPreviewArea.textContent = text;
+        }
+        postContent.style.display = 'none';
+        postPreviewArea.style.display = 'block';
+        if (markdownToolbar) {
+          markdownToolbar.style.opacity = '0.4';
+          markdownToolbar.style.pointerEvents = 'none';
+        }
+      });
+    }
+
+    // Markdown Toolbar Formatting Action
+    function applyMarkdownFormat(format) {
+      if (!postContent) return;
+      const start = postContent.selectionStart;
+      const end = postContent.selectionEnd;
+      const val = postContent.value;
+      const selected = val.substring(start, end);
+
+      let replacement = '';
+      let cursorOffset = 0;
+
+      switch (format) {
+        case 'bold':
+          replacement = `**${selected || 'bold text'}**`;
+          cursorOffset = selected ? replacement.length : 2;
+          break;
+        case 'italic':
+          replacement = `*${selected || 'italic text'}*`;
+          cursorOffset = selected ? replacement.length : 1;
+          break;
+        case 'underline':
+          replacement = `<u>${selected || 'underlined text'}</u>`;
+          cursorOffset = selected ? replacement.length : 3;
+          break;
+        case 'strike':
+          replacement = `~~${selected || 'strikethrough text'}~~`;
+          cursorOffset = selected ? replacement.length : 2;
+          break;
+        case 'h1':
+          replacement = `\n# ${selected || 'Heading 1'}\n`;
+          cursorOffset = replacement.length;
+          break;
+        case 'h2':
+          replacement = `\n## ${selected || 'Heading 2'}\n`;
+          cursorOffset = replacement.length;
+          break;
+        case 'h3':
+          replacement = `\n### ${selected || 'Heading 3'}\n`;
+          cursorOffset = replacement.length;
+          break;
+        case 'bullet-list': {
+          const items = selected ? selected.split('\n') : ['List item'];
+          replacement = '\n' + items.map(it => `- ${it.replace(/^[-*]\s*/, '')}`).join('\n') + '\n';
+          cursorOffset = replacement.length;
+          break;
+        }
+        case 'number-list': {
+          const items = selected ? selected.split('\n') : ['List item'];
+          replacement = '\n' + items.map((it, i) => `${i + 1}. ${it.replace(/^\d+\.\s*/, '')}`).join('\n') + '\n';
+          cursorOffset = replacement.length;
+          break;
+        }
+        case 'quote': {
+          const items = selected ? selected.split('\n') : ['Blockquote'];
+          replacement = '\n' + items.map(it => `> ${it.replace(/^>\s*/, '')}`).join('\n') + '\n';
+          cursorOffset = replacement.length;
+          break;
+        }
+        case 'code-inline':
+          replacement = `\`${selected || 'code'}\``;
+          cursorOffset = selected ? replacement.length : 1;
+          break;
+        case 'code-block':
+          replacement = `\n\`\`\`javascript\n${selected || '// code here'}\n\`\`\`\n`;
+          cursorOffset = replacement.length;
+          break;
+        case 'link':
+          if (selected && /^https?:\/\//i.test(selected)) {
+            replacement = `[link title](${selected})`;
+          } else {
+            replacement = `[${selected || 'link title'}](https://)`;
+          }
+          cursorOffset = replacement.length;
+          break;
+        case 'divider':
+          replacement = `\n\n---\n\n`;
+          cursorOffset = replacement.length;
+          break;
+        default:
+          return;
+      }
+
+      postContent.focus();
+      if (typeof postContent.setRangeText === 'function') {
+        postContent.setRangeText(replacement, start, end, 'end');
+        if (!selected) {
+          postContent.setSelectionRange(start + cursorOffset, start + cursorOffset);
+        }
+      } else {
+        postContent.value = val.substring(0, start) + replacement + val.substring(end);
+        postContent.setSelectionRange(start + cursorOffset, start + cursorOffset);
+      }
+      updateCharCounter();
+    }
+
+    // Attach click events to all toolbar buttons
+    document.querySelectorAll('.md-tool-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const fmt = btn.getAttribute('data-format');
+        if (fmt) applyMarkdownFormat(fmt);
+      });
+    });
+
+    // Keyboard Shortcuts: Ctrl+B/Cmd+B, Ctrl+I/Cmd+I, Ctrl+U/Cmd+U, Ctrl+K/Cmd+K
+    if (postContent) {
+      postContent.addEventListener('keydown', (e) => {
+        const isMod = e.ctrlKey || e.metaKey;
+        if (!isMod) return;
+
+        if (e.key === 'b' || e.key === 'B') {
+          e.preventDefault();
+          applyMarkdownFormat('bold');
+        } else if (e.key === 'i' || e.key === 'I') {
+          e.preventDefault();
+          applyMarkdownFormat('italic');
+        } else if (e.key === 'u' || e.key === 'U') {
+          e.preventDefault();
+          applyMarkdownFormat('underline');
+        } else if (e.key === 'k' || e.key === 'K') {
+          e.preventDefault();
+          applyMarkdownFormat('link');
+        }
+      });
+
+      // Smart Paste: ChatGPT / Notion / Google Docs / Rich HTML to Markdown
+      postContent.addEventListener('paste', (e) => {
+        const html = e.clipboardData?.getData('text/html');
+        if (html && typeof htmlToMarkdown === 'function') {
+          const hasRichHtml = /<(strong|b|em|i|u|s|strike|del|h[1-6]|ul|ol|li|blockquote|pre|code|a|p|hr)[\s>]/i.test(html);
+          if (hasRichHtml) {
+            e.preventDefault();
+            const md = htmlToMarkdown(html);
+            const start = postContent.selectionStart;
+            const end = postContent.selectionEnd;
+            if (typeof postContent.setRangeText === 'function') {
+              postContent.setRangeText(md, start, end, 'end');
+            } else {
+              postContent.value = postContent.value.substring(0, start) + md + postContent.value.substring(end);
+            }
+            updateCharCounter();
+          }
+        }
+      });
+    }
+
     // Image Uploads
     const imageInput = document.getElementById('imageInput');
     const addImageBtn = document.getElementById('addImageBtn');

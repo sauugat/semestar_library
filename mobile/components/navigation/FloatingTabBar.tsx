@@ -148,9 +148,7 @@ export function FloatingTabBar({
   const focusedRoute = state.routes[state.index];
   const focusedDescriptor = descriptors[focusedRoute?.key];
   const tabBarStyle = focusedDescriptor?.options?.tabBarStyle as any;
-  if (tabBarStyle?.display === 'none') {
-    return null;
-  }
+  const isTabBarHidden = tabBarStyle?.display === 'none';
 
   // Reset avatar load error on user or avatarUrl update
   useEffect(() => {
@@ -474,6 +472,11 @@ export function FloatingTabBar({
   const avatarSize = effectiveIsCompact ? 22 : 24;
   const iconActiveSize = effectiveIsCompact ? 22 : 24;
   const iconInactiveSize = effectiveIsCompact ? 21 : 23;
+
+  // Render null strictly after all hooks have executed unconditionally
+  if (isTabBarHidden) {
+    return null;
+  }
 
   return (
     <View

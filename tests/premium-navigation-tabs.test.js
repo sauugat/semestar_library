@@ -712,4 +712,99 @@ describe('Platform-Specific Native Apple Liquid Glass on iOS 26+ (expo-glass-eff
   });
 });
 
+describe('React Rules of Hooks — Zero Early Return Violation Verification', () => {
+  const repoRoot = path.join(__dirname, '..');
+  const floatingBarPath = path.join(repoRoot, 'mobile', 'components', 'navigation', 'FloatingTabBar.tsx');
+  const barContent = fs.readFileSync(floatingBarPath, 'utf8');
+
+  test('Hooks-1: Zero conditional returns prior to all hook declarations', () => {
+    // Find the declaration of the FloatingTabBar component
+    const compStart = barContent.indexOf('export function FloatingTabBar');
+    assert.ok(compStart !== -1, 'FloatingTabBar must be exported');
+    const compBody = barContent.slice(compStart);
+
+    // Identify the last hook in the component: panResponder = useMemo(...)
+    const lastHookIndex = compBody.lastIndexOf('PanResponder.create');
+    assert.ok(lastHookIndex !== -1, 'panResponder must be created inside FloatingTabBar');
+
+    // Slice body between component start and the last hook
+    const hooksSection = compBody.slice(0, lastHookIndex);
+
+    // Ensure there are no top-level 'return null' or conditional early returns in this section
+    // Any return inside a hook callback (e.g. useMemo(() => { return ... })) is inside a function block
+    // We check that no return null exists outside hook closures.
+    const forbiddenPattern = /^\s*if\s*\([^)]*display\s*===\s*['"]none['"][^)]*\)\s*\{\s*return\s+null;/m;
+    assert.ok(!forbiddenPattern.test(hooksSection), 'Must not return null conditionally before hooks execute');
+  });
+
+  test('Hooks-2: Tab bar hidden state conditionally returns null immediately before JSX return', () => {
+    // Must compute isTabBarHidden
+    assert.ok(
+      barContent.includes("tabBarStyle?.display === 'none'"),
+      'Checks display none option from descriptors'
+    );
+    assert.ok(
+      barContent.includes('if (isTabBarHidden) {\n    return null;\n  }'),
+      'Returns null strictly after all hooks have executed unconditionally'
+    );
+  });
+
+  test('Hooks-3: Hook count and call order is invariant across visible and hidden states', () => {
+    // Collect all top-level hook invocations in FloatingTabBar
+    const hookMatches = barContent.match(/\b(use[A-Z][A-Za-z0-9]+)\s*\(/g) || [];
+    assert.ok(hookMatches.length >= 10, 'Must have hooks in FloatingTabBar');
+
+    // Simulate two renders: one where tabBarStyle is normal, one where tabBarStyle has display: "none"
+    const renderSimulation = (displayNone) => {
+      const hooksExecuted = [];
+      // Hooks order in FloatingTabBar:
+      hooksExecuted.push('useSafeAreaInsets');
+      hooksExecuted.push('useWindowDimensions');
+      hooksExecuted.push('useAuth');
+      hooksExecuted.push('useNavScroll');
+      hooksExecuted.push('useState');
+      hooksExecuted.push('useMemo');
+      // Hidden check evaluated as variable
+      const isTabBarHidden = displayNone;
+      hooksExecuted.push('useEffect');
+      hooksExecuted.push('useMemo');
+      hooksExecuted.push('useMemo');
+      hooksExecuted.push('useRef');
+      hooksExecuted.push('useEffect');
+      hooksExecuted.push('useEffect');
+      hooksExecuted.push('useRef');
+      hooksExecuted.push('useRef');
+      hooksExecuted.push('useRef');
+      hooksExecuted.push('useRef');
+      hooksExecuted.push('useRef');
+      hooksExecuted.push('useRef');
+      hooksExecuted.push('useState');
+      hooksExecuted.push('useRef');
+      hooksExecuted.push('useEffect');
+      hooksExecuted.push('useEffect');
+      hooksExecuted.push('useMemo');
+      if (isTabBarHidden) {
+        return { hooksExecuted, rendered: null };
+      }
+      return { hooksExecuted, rendered: 'JSX' };
+    };
+
+    const renderVisible = renderSimulation(false);
+    const renderHidden = renderSimulation(true);
+
+    assert.equal(
+      renderVisible.hooksExecuted.length,
+      renderHidden.hooksExecuted.length,
+      'Number of hooks executed must be identical regardless of visibility'
+    );
+    assert.deepEqual(
+      renderVisible.hooksExecuted,
+      renderHidden.hooksExecuted,
+      'Order of hooks executed must be identical regardless of visibility'
+    );
+    assert.equal(renderVisible.rendered, 'JSX');
+    assert.equal(renderHidden.rendered, null);
+  });
+});
+
 

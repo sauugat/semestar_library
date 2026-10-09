@@ -3,6 +3,7 @@ import { fetchRealtimeConfig, type ChatMessage, type ChatReadReceipt } from './c
 import { applyCachedChatEvent } from './chat-db';
 import { CHAT_EVENTS, decodeChatEvent } from './chat-events';
 import { assertLocalChatServer, getChatSession, isCurrentChatSession, subscribeChatSession } from './chat-session';
+import { ApiError } from './api';
 
 type Subscriber = {
   onNewMessage?: (message: ChatMessage) => void; onDeleteMessage?: (id: number) => void;
@@ -17,6 +18,8 @@ export const subscribeChatRealtime = (sub: Subscriber) => { subscribers.add(sub)
 let client: SupabaseClient | null = null, channel: RealtimeChannel | null = null;
 let attempt = 0, topic = '', expiry = 0;
 let renewal: ReturnType<typeof setTimeout> | undefined;
+let reconnect: ReturnType<typeof setTimeout> | undefined;
+let retryCount = 0;
 let connected = false;
 let pending: Promise<void> | null = null;
 const connection = (value: boolean) => { connected = value; subscribers.forEach(s => s.onConnectionChange?.(value)); };
@@ -36,6 +39,13 @@ export async function initChatRealtime(_studentId?: string, _serverUrl?: string)
     await disconnectChatRealtime();
     const mine = ++attempt;
     const current = () => mine === attempt && isCurrentChatSession(start) && getChatSession().context?.realtimeEpoch === start.context?.realtimeEpoch;
+    const retry = () => {
+      if (!current()) return;
+      clearTimeout(reconnect);
+      reconnect = setTimeout(() => {
+        if (current()) void initChatRealtime();
+      }, Math.min(30000, 1000 * 2 ** Math.min(retryCount++, 5)));
+    };
     try {
       const config = await fetchRealtimeConfig();
       if (!current()) return;
@@ -72,15 +82,27 @@ export async function initChatRealtime(_studentId?: string, _serverUrl?: string)
       receiving.subscribe(status => {
         if (!current()) return;
         connection(status === 'SUBSCRIBED');
-        if (['CHANNEL_ERROR','TIMED_OUT','CLOSED'].includes(status)) subscribers.forEach(s => s.onRefreshNeeded?.());
+        if (status === 'SUBSCRIBED') {
+          retryCount = 0;
+          clearTimeout(reconnect);
+          subscribers.forEach(s => s.onRefreshNeeded?.());
+        } else if (['CHANNEL_ERROR','TIMED_OUT','CLOSED'].includes(status)) {
+          retry();
+          subscribers.forEach(s => s.onRefreshNeeded?.());
+        }
       });
-      renewal = setTimeout(() => { if (current()) subscribers.forEach(s => s.onRefreshNeeded?.()); },Math.max(1000,expiry-Date.now()-30000));
-    } catch { if (current()) connection(false); }
+      renewal = setTimeout(() => { if (current()) void initChatRealtime(); },Math.max(1000,expiry-Date.now()-30000));
+    } catch (error) {
+      if (current()) {
+        connection(false);
+        if (!(error instanceof ApiError && [401, 403, 404].includes(error.status))) retry();
+      }
+    }
   };
   pending = work().finally(() => { pending = null; }); return pending;
 }
 export async function disconnectChatRealtime() {
-  attempt++; clearTimeout(renewal); topic = ''; expiry = 0; connection(false);
+  attempt++; clearTimeout(renewal); clearTimeout(reconnect); topic = ''; expiry = 0; connection(false);
   const old = client, oldChannel = channel; client = null; channel = null;
   if (old && oldChannel) { try { await old.removeChannel(oldChannel); } catch {} }
 }

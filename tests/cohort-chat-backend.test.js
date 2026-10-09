@@ -43,7 +43,7 @@ async function http(t, f) {
 
 // Both engines run the same functional suite. PostgreSQL is mandatory when
 // COHORT_TEST_POSTGRES=1; a missing server is a failure, never a skipped test.
-const engines = process.env.COHORT_TEST_POSTGRES === '1' ? ['sqlite','postgres'] : ['sqlite'];
+const engines = process.env.COHORT_TEST_POSTGRES === '1' ? ['sqlite','pglite','postgres'] : ['sqlite','pglite'];
 for (const engine of engines) {
   test(`${engine}: additive migration, rollback, legacy quarantine and stable cohort assignment`, async t => {
     const f = await fixture(engine, { migrate: false }); t.after(f.close);

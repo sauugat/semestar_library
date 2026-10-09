@@ -27,6 +27,7 @@ import {
   useWindowDimensions,
   Dimensions,
   RefreshControl,
+  AppState,
 } from "react-native";
 import { KeyboardStickyView, useKeyboardHandler } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -627,9 +628,10 @@ export default function ChatScreen() {
 
 
   useEffect(() => {
+    if (!selectedCohortRoom || showScrollToBottom || !isNearBottomRef.current || AppState.currentState !== "active") return;
     const newestConfirmed = messages.find(m => m.id > 0);
-    if (!showScrollToBottom && newestConfirmed) void markRead(newestConfirmed.id);
-  }, [messages, showScrollToBottom, markRead]);
+    if (newestConfirmed) void markRead(newestConfirmed.id);
+  }, [messages, showScrollToBottom, selectedCohortRoom, markRead]);
 
   const openMembers = async () => {
     const start = getChatSession();
@@ -1324,6 +1326,10 @@ export default function ChatScreen() {
         if (m.id > 0) seenMessageIdsRef.current.add(m.id);
         if (m.clientId) seenMessageIdsRef.current.add(m.clientId);
       });
+      if (selectedCohortRoom && AppState.currentState === "active") {
+        const newestConfirmed = messages.find(m => m.id > 0);
+        if (newestConfirmed) void markRead(newestConfirmed.id);
+      }
     }
   };
 
@@ -1336,7 +1342,11 @@ export default function ChatScreen() {
       if (m.id > 0) seenMessageIdsRef.current.add(m.id);
       if (m.clientId) seenMessageIdsRef.current.add(m.clientId);
     });
-  }, [messages]);
+    if (selectedCohortRoom && AppState.currentState === "active") {
+      const newestConfirmed = messages.find(m => m.id > 0);
+      if (newestConfirmed) void markRead(newestConfirmed.id);
+    }
+  }, [messages, selectedCohortRoom, markRead]);
 
   // Document Download & Open Handler
   const handleDownloadAttachment = useCallback(async (msg: ChatMessage) => {

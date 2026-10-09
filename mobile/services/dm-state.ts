@@ -90,10 +90,10 @@ export function createReadCoalescer(
   let consecutiveFailures = 0;
   const maxRetries = options.maxRetries ?? 5;
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let activePromise: Promise<void> | null = null;
 
-  const flush = async () => {
-    timer = undefined;
-    if (stopped || inFlight !== null) return;
+  const runFlush = async () => {
+    if (stopped) return;
     if (compareMessageCursors(lastRequested, lastAcknowledged) <= 0) return;
 
     const target = lastRequested;
@@ -101,7 +101,9 @@ export function createReadCoalescer(
 
     try {
       await send(target);
-      lastAcknowledged = Math.max(lastAcknowledged, target);
+      if (compareMessageCursors(target, lastAcknowledged) > 0) {
+        lastAcknowledged = target;
+      }
       consecutiveFailures = 0;
       options.onSuccess?.(lastAcknowledged);
     } catch (err: any) {
@@ -109,19 +111,46 @@ export function createReadCoalescer(
       options.onError?.(err, target);
 
       // Do not retry indefinitely on authorization or not-found errors
-      const isAuthError = err?.status === 401 || err?.status === 403 || err?.status === 404;
+      const status = Number(err?.status || err?.statusCode || (typeof err?.message === 'string' && (err.message.includes('401') ? 401 : err.message.includes('403') ? 403 : err.message.includes('404') ? 404 : 0)));
+      const isAuthError = status === 401 || status === 403 || status === 404;
       if (!isAuthError && consecutiveFailures <= maxRetries && !stopped) {
         // Bounded exponential backoff: min(10000ms, max(delay, delay * 2^failures))
         const backoffMs = Math.min(10000, Math.max(delay, delay * Math.pow(2, consecutiveFailures)));
-        if (!timer) {
-          timer = setTimeout(flush, backoffMs);
-        }
+        scheduleFlush(backoffMs);
       }
     } finally {
       inFlight = null;
       // If a newer cursor was requested while in flight, schedule next flush
-      if (!stopped && compareMessageCursors(lastRequested, lastAcknowledged) > 0 && !timer) {
-        timer = setTimeout(flush, delay);
+      if (!stopped && compareMessageCursors(lastRequested, target) > 0 && !timer) {
+        scheduleFlush(delay);
+      }
+    }
+  };
+
+  const scheduleFlush = (ms: number) => {
+    if (timer || stopped) return;
+    timer = setTimeout(() => {
+      timer = undefined;
+      activePromise = runFlush().finally(() => {
+        activePromise = null;
+      });
+    }, ms);
+  };
+
+  const flush = async () => {
+    if (timer) {
+      clearTimeout(timer);
+      timer = undefined;
+    }
+    if (activePromise) {
+      await activePromise;
+    }
+    if (!stopped && compareMessageCursors(lastRequested, lastAcknowledged) > 0) {
+      activePromise = runFlush();
+      try {
+        await activePromise;
+      } finally {
+        activePromise = null;
       }
     }
   };
@@ -131,17 +160,19 @@ export function createReadCoalescer(
       stopped = false;
       consecutiveFailures = 0;
       if (compareMessageCursors(lastRequested, lastAcknowledged) > 0 && !timer && inFlight === null) {
-        timer = setTimeout(flush, delay);
+        scheduleFlush(delay);
       }
     },
     request(id: number) {
-      if (stopped || !Number.isSafeInteger(id) || id <= 0) return;
+      if (!Number.isSafeInteger(id) || id <= 0) return;
       if (compareMessageCursors(id, lastAcknowledged) <= 0) return;
 
-      lastRequested = Math.max(lastRequested, id);
+      if (compareMessageCursors(id, lastRequested) > 0) {
+        lastRequested = id;
+      }
 
-      if (!timer && inFlight === null) {
-        timer = setTimeout(flush, delay);
+      if (!stopped && !timer && inFlight === null) {
+        scheduleFlush(delay);
       }
     },
     stop() {
@@ -156,9 +187,11 @@ export function createReadCoalescer(
     getLastRequested: () => lastRequested,
     getInFlight: () => inFlight,
     setAcknowledged(id: number) {
-      if (Number.isSafeInteger(id) && id > lastAcknowledged) {
+      if (Number.isSafeInteger(id) && compareMessageCursors(id, lastAcknowledged) > 0) {
         lastAcknowledged = id;
-        lastRequested = Math.max(lastRequested, id);
+        if (compareMessageCursors(id, lastRequested) > 0) {
+          lastRequested = id;
+        }
       }
     },
     reset() {

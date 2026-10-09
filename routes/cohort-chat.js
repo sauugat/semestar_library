@@ -54,8 +54,7 @@ module.exports = function cohortChatRouter(service) {
     res.type(file.mimeType || 'application/octet-stream').send(file.buffer);
   }));
   router.get('/admin/rooms', route(async req => {
-    await service.requireAdmin(id(req));
-    return service.adminRooms(id(req));
+    return service.adminRooms(id(req), req.student || req.user || null);
   }));
   router.get('/admin/rooms/:chatGroupId/config', route(async req => {
     await service.requireAdmin(id(req));

@@ -29,6 +29,7 @@ import {
   disconnectChatRealtime,
 } from "@/services/chat-realtime";
 import { beginChatSession, getChatSession, subscribeChatSession, chatScope, type ChatContext } from '@/services/chat-session';
+import { createReadCoalescer, type ReadReceiptCoalescer } from "@/services/dm-state";
 
 type Typer = { studentId: string; name: string; expiresAt: number };
 
@@ -57,6 +58,23 @@ export function useClassChat(
   const [roomGeneration, setRoomGeneration] = useState(0);
   const onlineExpiry = useRef(new Map<string, number>());
   const lastHeartbeat = useRef(0);
+
+  const readCoalescerRef = useRef<ReadReceiptCoalescer | null>(null);
+  useEffect(() => {
+    const coalescer = createReadCoalescer(
+      async (id: number) => {
+        if (!active.current || AppState.currentState !== "active") {
+          throw new Error("Class chat is inactive");
+        }
+        await markChatRead(id);
+      },
+      350
+    );
+    readCoalescerRef.current = coalescer;
+    return () => {
+      coalescer.stop();
+    };
+  }, [options?.selectedChatGroupId, studentId]);
 
   const optionsRef = useRef(options);
   useEffect(() => {
@@ -121,7 +139,13 @@ export function useClassChat(
       if (reset || (incoming.length > 0 && Math.min(...incoming.map(m => m.id)) > previousSnapshotId)) {
         setHasMore(incoming.length >= CHAT_PAGE_SIZE);
       }
-      if (data.readReceipts) setReadReceipts(data.readReceipts);
+      if (data.readReceipts) {
+        setReadReceipts(data.readReceipts);
+        const myReceipt = data.readReceipts.find(r => String(r.studentId) === String(studentId));
+        if (myReceipt && typeof myReceipt.lastReadMessageId === "number" && myReceipt.lastReadMessageId > 0) {
+          readCoalescerRef.current?.setAcknowledged(myReceipt.lastReadMessageId);
+        }
+      }
       if (data.typing) {
         setActiveTypers(new Map(data.typing
           .filter(t => String(t.studentId) !== String(studentId))
@@ -159,6 +183,7 @@ export function useClassChat(
 
       ++generation.current;
       active.current = true;
+      readCoalescerRef.current?.start();
       syncing.current = false;
       paging.current = false;
 
@@ -181,6 +206,7 @@ export function useClassChat(
         if (lastScope !== nextScope) {
           lastScope = nextScope; generation.current++; setRoomGeneration(session.generation);
           hydrated.current = false; snapshotCursor.current = null; syncing.current = false; paging.current = false;
+          readCoalescerRef.current?.reset();
           setMessages([]); setPinned(null); setReadReceipts([]); setActiveTypers(new Map()); setOnlineIds([]);
           onlineExpiry.current.clear(); setHasMore(true); setLoadingMore(false);
           lastHeartbeat.current=0;
@@ -278,10 +304,15 @@ export function useClassChat(
         },
         onPin: () => { void refreshPinned(); },
         onRead: (receipt) => {
-          if (active.current) setReadReceipts(previous => [
-            ...previous.filter(r => String(r.studentId) !== String(receipt.studentId)),
-            { ...receipt, lastReadMessageId: Math.max(receipt.lastReadMessageId, previous.find(r => String(r.studentId) === String(receipt.studentId))?.lastReadMessageId || 0) },
-          ]);
+          if (active.current) {
+            setReadReceipts(previous => [
+              ...previous.filter(r => String(r.studentId) !== String(receipt.studentId)),
+              { ...receipt, lastReadMessageId: Math.max(receipt.lastReadMessageId, previous.find(r => String(r.studentId) === String(receipt.studentId))?.lastReadMessageId || 0) },
+            ]);
+            if (String(receipt.studentId) === String(studentId) && typeof receipt.lastReadMessageId === "number" && receipt.lastReadMessageId > 0) {
+              readCoalescerRef.current?.setAcknowledged(receipt.lastReadMessageId);
+            }
+          }
         },
         onOnlineUsers: (members) => {
           if (active.current) { onlineExpiry.current = new Map(members.map(m => [m.studentId,Date.parse(m.expiresAt)])); setOnlineIds(members.filter(m => Date.parse(m.expiresAt)>Date.now()).map(m=>m.studentId)); }
@@ -323,13 +354,19 @@ export function useClassChat(
       // AppState foreground listener
       const appStateSub = AppState.addEventListener("change", (state) => {
         if (state === "active") {
+          readCoalescerRef.current?.start();
           void refresh().then(heartbeat);
-        } else { void disconnectChatRealtime(); setOnlineIds([]); }
+        } else {
+          readCoalescerRef.current?.stop();
+          void disconnectChatRealtime();
+          setOnlineIds([]);
+        }
       });
 
       return () => {
         active.current = false;
         generation.current++;
+        readCoalescerRef.current?.stop();
         stopSession();
         unsubscribe();
         clearInterval(pruneInterval);
@@ -393,13 +430,9 @@ export function useClassChat(
     }
   }, [hasMore, messages]);
 
-  const markRead = useCallback(async (lastReadMessageId: number) => {
-    if (!active.current || AppState.currentState === "background" || lastReadMessageId <= 0) return;
-    try {
-      await markChatRead(lastReadMessageId);
-    } catch {
-      // Non-critical, ignore read receipt errors
-    }
+  const markRead = useCallback((lastReadMessageId: number) => {
+    if (!active.current || AppState.currentState !== "active" || !Number.isSafeInteger(lastReadMessageId) || lastReadMessageId <= 0) return;
+    readCoalescerRef.current?.request(lastReadMessageId);
   }, []);
 
   return {

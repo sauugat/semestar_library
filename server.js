@@ -161,7 +161,9 @@ if (process.env.NODE_ENV !== 'production' || process.env.ENABLE_TIMING_LOGS === 
     const start = Date.now();
     res.on('finish', () => {
       const duration = Date.now() - start;
-      console.log(`[SERVER HTTP] ${req.method} ${req.originalUrl || req.url} ${res.statusCode} (${duration}ms)`);
+      const rawUrl = req.originalUrl || req.url;
+      const safeUrl = rawUrl.replace(/([?&])token=[^&]+/gi, '$1token=[REDACTED]');
+      console.log(`[SERVER HTTP] ${req.method} ${safeUrl} ${res.statusCode} (${duration}ms)`);
     });
     next();
   });
@@ -277,7 +279,7 @@ if (cleanupTimer && typeof cleanupTimer.unref === 'function') {
 
 app.set('trust proxy', 1);
 
-app.use(session({
+const sessionMiddleware = session({
   store: sessionStore,
   name: '__gu_session',
   secret: process.env.SESSION_SECRET || 'gu_semester_lib_sec_9938b849204018247df4382',
@@ -289,7 +291,18 @@ app.use(session({
     secure: process.env.NODE_ENV === 'production',
     maxAge: 1000 * 60 * 60 * 24 * 7 // 7 days persistent session
   }
-}));
+});
+
+app.use((req, res, next) => {
+  // Stateless Bearer token requests bypass session store operations to eliminate redundant DB writes.
+  // Browser requests (carrying __gu_session cookie) always run sessionMiddleware.
+  const hasSessionCookie = Boolean(req.headers.cookie && req.headers.cookie.includes('__gu_session'));
+  const authHeader = req.headers['authorization'];
+  if (!hasSessionCookie && authHeader && authHeader.startsWith('Bearer ')) {
+    return next();
+  }
+  sessionMiddleware(req, res, next);
+});
 
 // Ensure schema is fully initialized before serving requests
 let isDbReady = false;
@@ -759,7 +772,7 @@ if (isDmEnabled() || getDmTestUserIds().length > 0) {
   app.use('/api/dm', requireLogin, require('./routes/direct-messaging')(dmService));
 
   // Background worker to periodically drain pending DM Realtime and Push outbox events
-  if (process.env.NODE_ENV !== 'test') {
+  if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
     const dmWorkerInterval = setInterval(() => {
       dmService.drain().catch(() => {});
     }, 2000);
@@ -3933,7 +3946,7 @@ app.get('/api/search', requireLogin, async (req, res) => {
   const cleanQ = q.replace(/^@/, '').trim();
   const likeQuery = `%${q}%`;
   const cleanLikeQuery = `%${cleanQ}%`;
-  const viewerIsAdmin = currentStudentId ? await isStudentAdmin(currentStudentId) : false;
+  const viewerIsAdmin = req.user?.role === 'admin' || req.session?.role === 'admin' || (currentStudentId ? await isStudentAdmin(currentStudentId) : false);
 
   const context = await getAcademicContext(db, req);
   const fileFilter = buildAcademicContentFilter(context, { tableAlias: 'files' });
@@ -3953,20 +3966,6 @@ app.get('/api/search', requireLogin, async (req, res) => {
     ORDER BY files.uploadedAt DESC
     LIMIT 50
   `;
-  const files = await db.all(filesQuery, currentStudentId || '', ...fileFilter.params, likeQuery, likeQuery, likeQuery, likeQuery, likeQuery, cleanLikeQuery, cleanLikeQuery);
-
-  const processedFiles = files.map(f => ({
-    ...f,
-    cohortId: f.cohort_id || f.cohortId || null,
-    cohort_id: f.cohort_id || f.cohortId || null,
-    semesterNo: f.semester_no !== undefined ? f.semester_no : (f.semesterNo !== undefined ? f.semesterNo : null),
-    semester_no: f.semester_no !== undefined ? f.semester_no : (f.semesterNo !== undefined ? f.semesterNo : null),
-    audienceScope: f.audience_scope || f.audienceScope || 'cohort',
-    audience_scope: f.audience_scope || f.audienceScope || 'cohort',
-    uploaderRole: f.uploaderRole || 'student',
-    isOfficial: f.uploaderRole === 'admin',
-    canDelete: viewerIsAdmin || f.uploadedBy === req.session.studentId
-  }));
 
   // Search subjects
   const subjectsQuery = `
@@ -3977,7 +3976,6 @@ app.get('/api/search', requireLogin, async (req, res) => {
     ORDER BY subject ASC
     LIMIT 20
   `;
-  const subjects = await db.all(subjectsQuery, ...fileFilter.params, likeQuery);
 
   // Search students (by studentId, name, department)
   const studentsQuery = `
@@ -3988,26 +3986,43 @@ app.get('/api/search', requireLogin, async (req, res) => {
     ORDER BY (role = 'admin') DESC, (role = 'cr') DESC, name ASC
     LIMIT 10
   `;
-  const students = await db.all(studentsQuery, cleanLikeQuery, cleanLikeQuery);
 
   // Search assignments (by title, subject, semester, createdBy, teacher name)
-  let assignments = [];
-  try {
-    const assignmentsQuery = `
-      SELECT a.*, s.name AS teacherName,
-        (SELECT COUNT(*) FROM assignment_questions aq WHERE aq.assignmentId = a.id) AS questionCount,
-        (SELECT COUNT(DISTINCT studentId) FROM submissions sub WHERE sub.assignmentId = a.id) AS submissionCount,
-        (SELECT COUNT(DISTINCT COALESCE(sub.questionId, sub.id)) FROM submissions sub WHERE sub.assignmentId = a.id AND sub.studentId = ?) AS mySubmissionCount
-      FROM assignments a
-      JOIN students s ON s.studentId = a.createdBy
-      WHERE (${assignmentFilter.sql}) AND (LOWER(a.title) LIKE LOWER(?) OR LOWER(a.subject) LIKE LOWER(?) OR LOWER(a.semester) LIKE LOWER(?) OR LOWER(a.createdBy) LIKE LOWER(?) OR LOWER(s.name) LIKE LOWER(?))
-      ORDER BY a.createdAt DESC
-      LIMIT 15
-    `;
-    assignments = await db.all(assignmentsQuery, currentStudentId || '', ...assignmentFilter.params, likeQuery, likeQuery, likeQuery, cleanLikeQuery, cleanLikeQuery);
-  } catch (err) {
-    console.error('Assignment search error:', err);
-  }
+  const assignmentsQuery = `
+    SELECT a.*, s.name AS teacherName,
+      (SELECT COUNT(*) FROM assignment_questions aq WHERE aq.assignmentId = a.id) AS questionCount,
+      (SELECT COUNT(DISTINCT studentId) FROM submissions sub WHERE sub.assignmentId = a.id) AS submissionCount,
+      (SELECT COUNT(DISTINCT COALESCE(sub.questionId, sub.id)) FROM submissions sub WHERE sub.assignmentId = a.id AND sub.studentId = ?) AS mySubmissionCount
+    FROM assignments a
+    JOIN students s ON s.studentId = a.createdBy
+    WHERE (${assignmentFilter.sql}) AND (LOWER(a.title) LIKE LOWER(?) OR LOWER(a.subject) LIKE LOWER(?) OR LOWER(a.semester) LIKE LOWER(?) OR LOWER(a.createdBy) LIKE LOWER(?) OR LOWER(s.name) LIKE LOWER(?))
+    ORDER BY a.createdAt DESC
+    LIMIT 15
+  `;
+
+  // Execute independent search queries in parallel to minimize WAN latency
+  const [files, subjects, students, assignments] = await Promise.all([
+    db.all(filesQuery, currentStudentId || '', ...fileFilter.params, likeQuery, likeQuery, likeQuery, likeQuery, likeQuery, cleanLikeQuery, cleanLikeQuery),
+    db.all(subjectsQuery, ...fileFilter.params, likeQuery),
+    db.all(studentsQuery, cleanLikeQuery, cleanLikeQuery),
+    db.all(assignmentsQuery, currentStudentId || '', ...assignmentFilter.params, likeQuery, likeQuery, likeQuery, cleanLikeQuery, cleanLikeQuery).catch(err => {
+      console.error('Assignment search error:', err);
+      return [];
+    })
+  ]);
+
+  const processedFiles = (files || []).map(f => ({
+    ...f,
+    cohortId: f.cohort_id || f.cohortId || null,
+    cohort_id: f.cohort_id || f.cohortId || null,
+    semesterNo: f.semester_no !== undefined ? f.semester_no : (f.semesterNo !== undefined ? f.semesterNo : null),
+    semester_no: f.semester_no !== undefined ? f.semester_no : (f.semesterNo !== undefined ? f.semesterNo : null),
+    audienceScope: f.audience_scope || f.audienceScope || 'cohort',
+    audience_scope: f.audience_scope || f.audienceScope || 'cohort',
+    uploaderRole: f.uploaderRole || 'student',
+    isOfficial: f.uploaderRole === 'admin',
+    canDelete: viewerIsAdmin || f.uploadedBy === (req.session?.studentId || req.user?.studentId)
+  }));
 
   res.json({ files: processedFiles, subjects, students, assignments });
 });
@@ -4074,7 +4089,7 @@ if (isCohortChatEnabled) {
       if (req.path.startsWith('/admin/rooms')) return next();
       try {
         const ctx = await runtime.prepare(req.student.studentId, { ...req.query, ...req.body });
-        if (req.method === 'GET') await runtime.drain(ctx.chatGroupId).catch(() => {});
+        if (req.method === 'GET') runtime.scheduleDrain(ctx.chatGroupId);
         next();
       } catch (error) {
         res.status(error.status || 503).json({ message: error.status === 404 ? 'This conversation is no longer available.' : 'Chat is temporarily unavailable.' });

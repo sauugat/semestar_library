@@ -34,10 +34,14 @@ module.exports = function directMessagingRouter(service) {
   });
 
   const getCallerId = req => req.student.studentId;
+  const getCallerUser = req => req.student || req.user || null;
 
   const asyncRoute = fn => async (req, res, next) => {
     try {
       const result = await fn(req, res);
+      if (req.method === 'GET' && (req.path === '/conversations' || /^\/conversations\/[^/]+\/(messages|sync)$/.test(req.path))) {
+        service.scheduleDelivery?.();
+      }
       if (!res.headersSent) {
         res.json(result);
       }
@@ -52,6 +56,7 @@ module.exports = function directMessagingRouter(service) {
       q: req.query.q,
       limit: req.query.limit,
       offset: req.query.offset,
+      callerUser: getCallerUser(req),
     });
   }));
 
@@ -61,7 +66,9 @@ module.exports = function directMessagingRouter(service) {
     if (!targetUserId || typeof targetUserId !== 'string') {
       throw new DmError(400, 'targetUserId is required.');
     }
-    const result = await service.getOrCreateConversation(getCallerId(req), targetUserId.trim());
+    const result = await service.getOrCreateConversation(getCallerId(req), targetUserId.trim(), {
+      callerUser: getCallerUser(req),
+    });
     if (result.isNew) {
       res.status(201);
     }
@@ -73,6 +80,7 @@ module.exports = function directMessagingRouter(service) {
     return service.listConversations(getCallerId(req), {
       limit: req.query.limit,
       offset: req.query.offset,
+      callerUser: getCallerUser(req),
     });
   }));
 
@@ -82,6 +90,7 @@ module.exports = function directMessagingRouter(service) {
       before: req.query.before,
       since: req.query.since || req.query.after,
       limit: req.query.limit,
+      callerUser: getCallerUser(req),
     });
   }));
 
@@ -92,6 +101,7 @@ module.exports = function directMessagingRouter(service) {
       clientId,
       text,
       replyToId,
+      callerUser: getCallerUser(req),
     });
     if (!result.duplicate) {
       res.status(201);
@@ -102,24 +112,35 @@ module.exports = function directMessagingRouter(service) {
   // 6. Edit Message
   router.patch('/conversations/:id/messages/:messageId', asyncRoute(async req => {
     const { text } = req.body || {};
-    return service.editMessage(getCallerId(req), req.params.id, req.params.messageId, { text });
+    return service.editMessage(getCallerId(req), req.params.id, req.params.messageId, {
+      text,
+      callerUser: getCallerUser(req),
+    });
   }));
 
   // 7. Delete Message
   router.delete('/conversations/:id/messages/:messageId', asyncRoute(async req => {
     const mode = req.query.mode || req.body?.mode || 'for_me';
-    return service.deleteMessage(getCallerId(req), req.params.id, req.params.messageId, { mode });
+    return service.deleteMessage(getCallerId(req), req.params.id, req.params.messageId, {
+      mode,
+      callerUser: getCallerUser(req),
+    });
   }));
 
   // 8. Clear Conversation
   router.post('/conversations/:id/clear', asyncRoute(async req => {
-    return service.clearConversation(getCallerId(req), req.params.id);
+    return service.clearConversation(getCallerId(req), req.params.id, {
+      callerUser: getCallerUser(req),
+    });
   }));
 
   // 9. Mark Messages Read
   router.post('/conversations/:id/read', asyncRoute(async req => {
     const lastReadMessageId = req.body?.lastReadMessageId;
-    return service.markRead(getCallerId(req), req.params.id, { lastReadMessageId });
+    return service.markRead(getCallerId(req), req.params.id, {
+      lastReadMessageId,
+      callerUser: getCallerUser(req),
+    });
   }));
 
   // 10. Block User
@@ -151,13 +172,18 @@ module.exports = function directMessagingRouter(service) {
 
   // 13. Scoped Realtime Credentials
   router.get('/conversations/:id/realtime-config', asyncRoute(async req => {
-    return service.getRealtimeConfig(getCallerId(req), req.params.id);
+    return service.getRealtimeConfig(getCallerId(req), req.params.id, {
+      callerUser: getCallerUser(req),
+    });
   }));
 
   // 14. Ephemeral Typing Indicator
   router.post('/conversations/:id/typing', asyncRoute(async req => {
     const isTyping = req.body?.isTyping !== false;
-    return service.sendTyping(getCallerId(req), req.params.id, { isTyping });
+    return service.sendTyping(getCallerId(req), req.params.id, {
+      isTyping,
+      callerUser: getCallerUser(req),
+    });
   }));
 
   // 15. Reconnection & Multi-Device Sync
@@ -165,6 +191,7 @@ module.exports = function directMessagingRouter(service) {
     return service.syncConversation(getCallerId(req), req.params.id, {
       sinceMessageId: req.query.sinceMessageId,
       sinceTimestamp: req.query.sinceTimestamp,
+      callerUser: getCallerUser(req),
     });
   }));
 

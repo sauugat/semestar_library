@@ -118,7 +118,7 @@ export async function searchDmUsers(query: string, limit = 20): Promise<DmPartic
 export async function fetchDmMessages(
   conversationId: string,
   options: { before?: number; limit?: number } = {}
-): Promise<{ messages: DmMessage[]; hasMore: boolean; peerLastReadMessageId: number }> {
+): Promise<{ messages: DmMessage[]; hasMore: boolean; peerLastReadMessageId: number; lastReadMessageId?: number }> {
   const { before, limit = 40 } = options;
   let url = `/api/dm/conversations/${encodeURIComponent(conversationId)}/messages?limit=${limit}`;
   if (before) {
@@ -134,6 +134,7 @@ export async function fetchDmMessages(
     messages: data.messages || [],
     hasMore: Boolean(data.hasMore),
     peerLastReadMessageId: Number(data.peerLastReadMessageId || 0),
+    lastReadMessageId: typeof data.lastReadMessageId === 'number' ? data.lastReadMessageId : undefined,
   };
 }
 

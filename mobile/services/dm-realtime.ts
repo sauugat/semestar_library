@@ -21,6 +21,7 @@ export function subscribeDmConversationRealtime(
   let timer: ReturnType<typeof setTimeout> | null = null;
   let connecting = false;
   let retry = 0;
+  let connectionAttempt = 0;
   const schedule = (ms: number) => {
     if (isCancelled) return;
     if (timer) clearTimeout(timer);
@@ -30,25 +31,28 @@ export function subscribeDmConversationRealtime(
   async function connect() {
     if (isCancelled || connecting) return;
     connecting = true;
+    const mine = ++connectionAttempt;
+    const current = () => !isCancelled && mine === connectionAttempt;
     try {
       const previousClient = client;
       client = null;
       channel = null;
       if (previousClient) await previousClient.removeAllChannels();
       const config = await fetchDmRealtimeConfig(conversationId);
-      if (isCancelled) return;
+      if (!current()) return;
 
-      client = createClient(config.supabaseUrl, config.key, {
+      const local = createClient(config.supabaseUrl, config.key, {
         auth: { persistSession: false, autoRefreshToken: false },
       });
-      await client.realtime.setAuth(config.token);
+      client = local;
+      await local.realtime.setAuth(config.token);
 
-      if (isCancelled) {
-        await client.removeAllChannels();
+      if (!current()) {
+        await local.removeAllChannels();
         return;
       }
 
-      const receiving = client.channel(config.topic, {
+      const receiving = local.channel(config.topic, {
         config: {
           broadcast: { self: false, ack: false },
           private: true,
@@ -58,33 +62,33 @@ export function subscribeDmConversationRealtime(
       receiving
         .on('broadcast', { event: 'dm:message:new' }, ({ payload }) => {
           const message = payload?.message || (payload?.messageId ? { ...payload, id: Number(payload.messageId) } : null);
-          if (!isCancelled && message?.conversationId === conversationId) {
+          if (current() && message?.conversationId === conversationId) {
             callbacks.onNewMessage?.(message);
           }
         })
         .on('broadcast', { event: 'dm:message:edited' }, ({ payload }) => {
-          if (!isCancelled && payload) {
+          if (current() && payload) {
             callbacks.onEditedMessage?.(payload);
           }
         })
         .on('broadcast', { event: 'dm:message:deleted' }, ({ payload }) => {
-          if (!isCancelled && payload) {
+          if (current() && payload) {
             callbacks.onDeletedMessage?.(payload);
           }
         })
         .on('broadcast', { event: 'dm:read:updated' }, ({ payload }) => {
-          if (!isCancelled && payload) {
+          if (current() && payload) {
             callbacks.onReadReceipt?.({ ...payload, readerId: payload.readerId || payload.studentId });
           }
         })
         .on('broadcast', { event: 'dm:typing' }, ({ payload }) => {
-          if (!isCancelled && payload) {
+          if (current() && payload) {
             callbacks.onTyping?.(payload);
           }
         });
 
       receiving.subscribe((status) => {
-        if (isCancelled) return;
+        if (!current()) return;
         callbacks.onConnectionChange?.(status === 'SUBSCRIBED');
         if (status === 'SUBSCRIBED') {
           retry = 0;
@@ -96,7 +100,7 @@ export function subscribeDmConversationRealtime(
 
       channel = receiving;
     } catch (err) {
-      if (!isCancelled) {
+      if (current()) {
         console.warn('[DM Realtime] Connection unavailable:', err instanceof ApiError ? err.status : 'network');
         callbacks.onConnectionChange?.(false);
         // Authorization failures need account action; do not hammer the server.
@@ -111,6 +115,7 @@ export function subscribeDmConversationRealtime(
 
   const unsubscribe = () => {
     isCancelled = true;
+    connectionAttempt++;
     if (timer) clearTimeout(timer);
     activeSubscriptions.delete(unsubscribe);
     if (channel && client) {

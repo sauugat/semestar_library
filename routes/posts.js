@@ -15,13 +15,21 @@ const {
 } = require('../lib/comments');
 const {
   ensurePostsSchema,
-  cleanupAbandonedStagedAttachments
+  cleanupAbandonedStagedAttachments,
+  VALID_POST_CATEGORIES,
+  DEFAULT_POST_CATEGORY,
+  CATEGORY_LABELS,
+  VALID_SEMESTERS,
+  normalizeCategory,
+  parseAndValidateTargetSemesters,
+  formatSemesterDisplay
 } = require('../lib/posts');
 const {
   getAcademicContext,
   buildAcademicContentFilter,
   resolvePublishScope,
-  assertContentAccess
+  assertContentAccess,
+  parseSemesterNumber
 } = require('../lib/academic-context');
 
 const POST_UPLOAD_DIR = process.env.VERCEL
@@ -108,7 +116,7 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
   router.use(async (req, res, next) => {
     try {
       await db.initSchema();
-      req.postUser = req.student || await db.get('SELECT studentId, name, role FROM students WHERE studentId = ?', req.session.studentId);
+      req.postUser = req.student || await db.get('SELECT * FROM students WHERE studentId = ?', req.session.studentId);
       if (!req.postUser && req.method !== 'GET') {
         return res.status(403).json({ message: 'Sign in with a student account to post or like.' });
       }
@@ -335,13 +343,61 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
     return posts;
   }
 
+  async function attachTargetSemestersToPosts(posts) {
+    if (!Array.isArray(posts) || posts.length === 0) return posts;
+    const postIds = posts.map(p => Number(p.id)).filter(id => Number.isInteger(id) && id > 0);
+    if (postIds.length === 0) return posts;
+
+    const placeholders = postIds.map(() => '?').join(',');
+    let semesterRows = [];
+    try {
+      semesterRows = await db.all(
+        `SELECT post_id, semester FROM post_target_semesters WHERE post_id IN (${placeholders}) ORDER BY semester ASC`,
+        ...postIds
+      );
+    } catch (_) { }
+
+    const semestersByPost = new Map();
+    for (const row of semesterRows) {
+      const pid = Number(row.post_id);
+      if (!semestersByPost.has(pid)) semestersByPost.set(pid, []);
+      semestersByPost.get(pid).push(Number(row.semester));
+    }
+
+    for (const post of posts) {
+      const pid = Number(post.id);
+      const isAllSem = post.target_all_semesters === undefined || post.target_all_semesters === null || Number(post.target_all_semesters) === 1;
+      const sems = isAllSem ? [] : (semestersByPost.get(pid) || []);
+      post.targetSemesters = sems;
+      post.target_semesters = sems;
+      post.allSemesters = isAllSem;
+      post.target_all_semesters = isAllSem ? 1 : 0;
+      post.category = post.category || DEFAULT_POST_CATEGORY;
+      post.category_label = CATEGORY_LABELS[post.category] || 'General';
+      post.semester_display = formatSemesterDisplay(sems, isAllSem);
+    }
+    return posts;
+  }
+
   function formatPost(post, req) {
     const isOfficialNotice = post.type === 'notice' && ['admin', 'cr', 'teacher'].includes(post.role);
     const isAuthor = post.user_id === req.postUser?.studentId;
     const isAdmin = req.postUser?.role === 'admin';
+    const categoryKey = post.category || DEFAULT_POST_CATEGORY;
+    const isAllSemesters = post.target_all_semesters === undefined || post.target_all_semesters === null || Number(post.target_all_semesters) === 1;
+    const targetSemesters = Array.isArray(post.targetSemesters) ? post.targetSemesters : (Array.isArray(post.target_semesters) ? post.target_semesters : []);
+
     return {
       ...post,
       id: Number(post.id),
+      title: post.title || null,
+      category: categoryKey,
+      category_label: CATEGORY_LABELS[categoryKey] || 'General',
+      targetSemesters: isAllSemesters ? [] : targetSemesters,
+      target_semesters: isAllSemesters ? [] : targetSemesters,
+      allSemesters: isAllSemesters,
+      target_all_semesters: isAllSemesters ? 1 : 0,
+      semester_display: formatSemesterDisplay(targetSemesters, isAllSemesters),
       edited_at: post.edited_at || null,
       edited: Boolean(post.edited_at),
       like_count: Number(post.like_count),
@@ -357,8 +413,8 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       cohort_id: post.cohort_id || post.cohortId || null,
       semesterNo: post.semester_no !== undefined ? post.semester_no : (post.semesterNo !== undefined ? post.semesterNo : null),
       semester_no: post.semester_no !== undefined ? post.semester_no : (post.semesterNo !== undefined ? post.semesterNo : null),
-      audienceScope: post.audience_scope || post.audienceScope || 'cohort',
-      audience_scope: post.audience_scope || post.audienceScope || 'cohort',
+      audienceScope: post.audience_scope || post.audienceScope || 'all_students',
+      audience_scope: post.audience_scope || post.audienceScope || 'all_students',
       is_official: isOfficialNotice,
       canDelete: isAuthor || isAdmin,
       canEdit: isAuthor || isAdmin,
@@ -366,9 +422,22 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
     };
   }
 
+  router.get('/meta', (req, res) => {
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.json({
+      categories: VALID_POST_CATEGORIES.map(cat => ({
+        id: cat,
+        label: CATEGORY_LABELS[cat]
+      })),
+      defaultCategory: DEFAULT_POST_CATEGORY,
+      semesters: VALID_SEMESTERS,
+      defaultTargetSemesters: 'all'
+    });
+  });
+
   router.get('/', async (req, res, next) => {
     try {
-      const { limit = '20', before, type, official, studentId, authorStudentId } = req.query;
+      const { limit = '20', before, type, official, studentId, authorStudentId, category, semester, targetSemester } = req.query;
       if (!positiveId(limit) || Number(limit) > 100 || (before !== undefined && !positiveId(before))) {
         return res.status(400).json({ message: 'Use a limit from 1 to 100 and a positive before ID.' });
       }
@@ -388,6 +457,37 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       });
       whereConditions.push(academicFilter.sql);
       params.push(...academicFilter.params);
+
+      // Category filter
+      if (category !== undefined && category !== 'all' && category !== '') {
+        const cat = normalizeCategory(category);
+        if (!cat) {
+          return res.status(400).json({ message: 'Invalid category filter. Choose Notice, General, Announcement, News, Complaints, or Feedback.' });
+        }
+        whereConditions.push('p.category = ?');
+        params.push(cat);
+      }
+
+      // Semester targeting visibility
+      const isStaff = ['admin', 'teacher'].includes(req.postUser?.role);
+      const requestedSemester = semester || req.query.semester_no || targetSemester;
+      if (requestedSemester && requestedSemester !== 'all') {
+        const parsedSem = parseSemesterNumber(requestedSemester);
+        if (parsedSem) {
+          whereConditions.push('(p.target_all_semesters = 1 OR EXISTS (SELECT 1 FROM post_target_semesters pts WHERE pts.post_id = p.id AND pts.semester = ?))');
+          params.push(parsedSem);
+        }
+      } else if (!isStaff) {
+        // Enforce semester visibility on students/CRs
+        const studentSem = parseSemesterNumber(context.cohort?.currentSemester || context.semester || req.postUser?.semester);
+        if (studentSem) {
+          whereConditions.push('((p.target_all_semesters = 1) OR (EXISTS (SELECT 1 FROM post_target_semesters pts WHERE pts.post_id = p.id AND pts.semester = ?)) OR (p.user_id = ?))');
+          params.push(studentSem, viewerStudentId);
+        } else {
+          whereConditions.push('((p.target_all_semesters = 1) OR (p.user_id = ?))');
+          params.push(viewerStudentId);
+        }
+      }
 
       const targetAuthor = studentId || authorStudentId;
       if (targetAuthor) {
@@ -415,6 +515,7 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       const hasMore = rows.length > Number(limit);
       const posts = rows.slice(0, Number(limit)).map(row => formatPost(row, req));
       await attachMediaToPosts(posts);
+      await attachTargetSemestersToPosts(posts);
       res.setHeader('Cache-Control', 'no-store');
       res.json({ posts, nextCursor: hasMore ? posts[posts.length - 1].id : null });
     } catch (err) {
@@ -699,6 +800,32 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
         }
       }
 
+      // Category validation
+      let validatedCategory = DEFAULT_POST_CATEGORY;
+      if (req.body?.category !== undefined && req.body?.category !== null && req.body?.category !== '') {
+        const cat = normalizeCategory(req.body.category);
+        if (!cat) {
+          return rejectPost('Invalid category. Choose Notice, General, Announcement, News, Complaints, or Feedback.', 400);
+        }
+        validatedCategory = cat;
+      }
+
+      // Target semesters validation
+      let parsedSemesters = { allSemesters: true, semesters: [] };
+      try {
+        parsedSemesters = parseAndValidateTargetSemesters(
+          req.body?.targetSemesters !== undefined ? req.body.targetSemesters : (req.body?.target_semesters !== undefined ? req.body.target_semesters : req.body?.semesters),
+          req.body?.allSemesters !== undefined ? req.body.allSemesters : req.body?.target_all_semesters
+        );
+      } catch (semErr) {
+        return rejectPost(semErr.message, 400);
+      }
+
+      const passedTitle = (req.body?.title || req.body?.heading || '').trim();
+      if (passedTitle.length > 200) {
+        return rejectPost('Post title cannot exceed 200 characters.', 400);
+      }
+
       let newPostId = null;
       let postRow = null;
 
@@ -706,14 +833,37 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       const isNotice = type === 'notice';
       const publishScope = await resolvePublishScope(db, academicCtx, req.body, { isNotice });
 
+      let postAudienceScope = publishScope.audienceScope;
+      let postCohortId = publishScope.cohortId;
+      let postSemesterNo = publishScope.semesterNo;
+      // Feed posts with semester targeting or targeting all semesters apply across cohorts to the specified semesters
+      if (!req.body?.cohort_id && !req.body?.cohortId) {
+        postAudienceScope = 'all_students';
+        postCohortId = null;
+      }
+
+      if (parsedSemesters.allSemesters) {
+        postSemesterNo = null;
+      } else if (parsedSemesters.semesters.length === 1) {
+        postSemesterNo = parsedSemesters.semesters[0];
+      } else {
+        postSemesterNo = null;
+      }
+
       // Atomic DB Transaction for post creation, attachment insertion, and staging commitment
       await runTransaction(async (tx) => {
         const result = await tx.run(
-          `INSERT INTO posts (user_id, content, type, attachment_url, cohort_id, semester_no, audience_scope, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-          req.postUser.studentId, trimmedContent, type, attachment_url, publishScope.cohortId, publishScope.semesterNo, publishScope.audienceScope, new Date().toISOString()
+          `INSERT INTO posts (user_id, title, content, type, category, target_all_semesters, attachment_url, cohort_id, semester_no, audience_scope, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          req.postUser.studentId, passedTitle || null, trimmedContent, type, validatedCategory, parsedSemesters.allSemesters ? 1 : 0, attachment_url, postCohortId, postSemesterNo, postAudienceScope, new Date().toISOString()
         );
         newPostId = result.lastInsertRowid;
+
+        if (!parsedSemesters.allSemesters && parsedSemesters.semesters.length > 0) {
+          for (const s of parsedSemesters.semesters) {
+            await tx.run('INSERT INTO post_target_semesters (post_id, semester) VALUES (?, ?)', newPostId, s);
+          }
+        }
 
         for (let i = 0; i < allAttachments.length; i++) {
           const media = allAttachments[i];
@@ -743,11 +893,11 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
 
       const formatted = formatPost(postRow, req);
       await attachMediaToPosts([formatted]);
+      await attachTargetSemestersToPosts([formatted]);
 
       // Push notification outbox enqueue and bounded synchronous dispatch (isolated failure)
       try {
         const { enqueuePostOrNoticePush, dispatchImmediateOutbox } = require('../lib/push-notifications');
-        const passedTitle = (req.body?.title || req.body?.heading || '').trim();
         const enqueueResult = await enqueuePostOrNoticePush(db, {
           postId: newPostId,
           authorStudentId: req.postUser.studentId,
@@ -760,7 +910,10 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
           semester: req.postUser.semester,
           cohortId: publishScope.cohortId,
           semesterNo: publishScope.semesterNo,
-          audienceScope: publishScope.audienceScope
+          audienceScope: publishScope.audienceScope,
+          category: validatedCategory,
+          targetSemesters: parsedSemesters.semesters,
+          targetAllSemesters: parsedSemesters.allSemesters
         });
         if (enqueueResult && enqueueResult.enqueuedCount > 0) {
           const isOfficialNotice = type === 'notice' && (Boolean(isOfficial) || ['admin', 'cr', 'teacher'].includes(req.postUser.role));
@@ -808,8 +961,26 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
         return res.status(404).json({ message: 'Post not found.' });
       }
 
+      // Check semester targeting visibility
+      const isStaff = ['admin', 'teacher'].includes(req.postUser?.role);
+      const isAuthor = row.user_id === currentUserId;
+      if (!isStaff && !isAuthor && Number(row.target_all_semesters) !== 1) {
+        const studentSem = parseSemesterNumber(context.cohort?.currentSemester || context.semester || req.postUser?.semester);
+        if (!studentSem) {
+          return res.status(404).json({ message: 'Post not found.' });
+        }
+        const hasMatch = await db.get(
+          'SELECT 1 AS ok FROM post_target_semesters WHERE post_id = ? AND semester = ?',
+          postId, studentSem
+        );
+        if (!hasMatch) {
+          return res.status(404).json({ message: 'Post not found.' });
+        }
+      }
+
       const formatted = formatPost(row, req);
       await attachMediaToPosts([formatted]);
+      await attachTargetSemestersToPosts([formatted]);
       res.setHeader('Cache-Control', 'no-store');
       res.json(formatted);
     } catch (err) {
@@ -817,13 +988,31 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
     }
   });
 
+  async function assertSemesterAccess(req, post) {
+    if (!post) return false;
+    const isStaff = ['admin', 'teacher'].includes(req.postUser?.role);
+    const isAuthor = post.user_id === req.postUser?.studentId;
+    if (isStaff || isAuthor) return true;
+    if (post.target_all_semesters === undefined || post.target_all_semesters === null || Number(post.target_all_semesters) === 1) {
+      return true;
+    }
+    const context = await getAcademicContext(db, req);
+    const studentSem = parseSemesterNumber(context.cohort?.currentSemester || context.semester || req.postUser?.semester);
+    if (!studentSem) return false;
+    const hasMatch = await db.get(
+      'SELECT 1 AS ok FROM post_target_semesters WHERE post_id = ? AND semester = ?',
+      post.id, studentSem
+    );
+    return Boolean(hasMatch);
+  }
+
   async function setLike(req, res, next) {
     try {
-      const post = await db.get('SELECT id, user_id, content, cohort_id, semester_no, audience_scope FROM posts WHERE id = ?', Number(req.params.id));
+      const post = await db.get('SELECT id, user_id, content, cohort_id, semester_no, audience_scope, target_all_semesters FROM posts WHERE id = ?', Number(req.params.id));
       if (!post) return res.status(404).json({ message: 'Post not found.' });
 
       const context = await getAcademicContext(db, req);
-      if (!assertContentAccess(context, post)) {
+      if (!assertContentAccess(context, post) || !(await assertSemesterAccess(req, post))) {
         return res.status(404).json({ message: 'Post not found.' });
       }
 
@@ -881,11 +1070,11 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
   router.get('/:id/comments', async (req, res, next) => {
     try {
       const postId = Number(req.params.id);
-      const post = await db.get('SELECT id, cohort_id, semester_no, audience_scope FROM posts WHERE id = ?', postId);
+      const post = await db.get('SELECT id, user_id, cohort_id, semester_no, audience_scope, target_all_semesters FROM posts WHERE id = ?', postId);
       if (!post) return res.status(404).json({ message: 'Post not found.' });
 
       const context = await getAcademicContext(db, req);
-      if (!assertContentAccess(context, post)) {
+      if (!assertContentAccess(context, post) || !(await assertSemesterAccess(req, post))) {
         return res.status(404).json({ message: 'Post not found.' });
       }
 
@@ -901,11 +1090,11 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
   router.post('/:id/comments', async (req, res, next) => {
     try {
       const postId = Number(req.params.id);
-      const post = await db.get('SELECT id, user_id, content, cohort_id, semester_no, audience_scope FROM posts WHERE id = ?', postId);
+      const post = await db.get('SELECT id, user_id, content, cohort_id, semester_no, audience_scope, target_all_semesters FROM posts WHERE id = ?', postId);
       if (!post) return res.status(404).json({ message: 'Post not found.' });
 
       const context = await getAcademicContext(db, req);
-      if (!assertContentAccess(context, post)) {
+      if (!assertContentAccess(context, post) || !(await assertSemesterAccess(req, post))) {
         return res.status(404).json({ message: 'Post not found.' });
       }
 
@@ -1065,6 +1254,44 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
           return res.status(400).json({ message: 'Post content cannot exceed 5,000 characters.' });
         }
         newContent = content.trim();
+      }
+
+      // Category update
+      let updatedCategory = post.category || DEFAULT_POST_CATEGORY;
+      if (req.body?.category !== undefined && req.body?.category !== null && req.body?.category !== '') {
+        const cat = normalizeCategory(req.body.category);
+        if (!cat) {
+          for (const f of uploadedFiles) await removeUploadedImage(f.path);
+          return res.status(400).json({ message: 'Invalid category. Choose Notice, General, Announcement, News, Complaints, or Feedback.' });
+        }
+        updatedCategory = cat;
+      }
+
+      // Target semesters update
+      let updateSemesters = false;
+      let parsedSemesters = null;
+      if (req.body?.targetSemesters !== undefined || req.body?.target_semesters !== undefined || req.body?.allSemesters !== undefined || req.body?.target_all_semesters !== undefined) {
+        try {
+          parsedSemesters = parseAndValidateTargetSemesters(
+            req.body?.targetSemesters !== undefined ? req.body.targetSemesters : req.body?.target_semesters,
+            req.body?.allSemesters !== undefined ? req.body.allSemesters : req.body?.target_all_semesters
+          );
+          updateSemesters = true;
+        } catch (semErr) {
+          for (const f of uploadedFiles) await removeUploadedImage(f.path);
+          return res.status(400).json({ message: semErr.message });
+        }
+      }
+
+      // Title update
+      let updatedTitle = post.title || null;
+      if (req.body?.title !== undefined) {
+        const t = String(req.body.title).trim();
+        if (t.length > 200) {
+          for (const f of uploadedFiles) await removeUploadedImage(f.path);
+          return res.status(400).json({ message: 'Post title cannot exceed 200 characters.' });
+        }
+        updatedTitle = t || null;
       }
 
       // Parse keepMediaUrls and keepMediaIds
@@ -1279,10 +1506,23 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
           }
 
           // 5. Update post in place with edited_at timestamp
+          const finalTargetAllSem = updateSemesters ? (parsedSemesters.allSemesters ? 1 : 0) : (post.target_all_semesters ?? 1);
+          const finalSemesterNo = updateSemesters
+            ? (parsedSemesters.allSemesters ? null : (parsedSemesters.semesters.length === 1 ? parsedSemesters.semesters[0] : null))
+            : post.semester_no;
           await tx.run(
-            'UPDATE posts SET content = ?, attachment_url = ?, edited_at = CURRENT_TIMESTAMP WHERE id = ?',
-            newContent, updatedAttachmentUrl, postId
+            'UPDATE posts SET content = ?, attachment_url = ?, category = ?, target_all_semesters = ?, semester_no = ?, title = ?, edited_at = CURRENT_TIMESTAMP WHERE id = ?',
+            newContent, updatedAttachmentUrl, updatedCategory, finalTargetAllSem, finalSemesterNo, updatedTitle, postId
           );
+
+          if (updateSemesters) {
+            await tx.run('DELETE FROM post_target_semesters WHERE post_id = ?', postId);
+            if (!parsedSemesters.allSemesters && parsedSemesters.semesters.length > 0) {
+              for (const s of parsedSemesters.semesters) {
+                await tx.run('INSERT INTO post_target_semesters (post_id, semester) VALUES (?, ?)', postId, s);
+              }
+            }
+          }
         });
       } catch (txErr) {
         // If final update fails, clean up newly uploaded unattached blobs safely (Requirement 8)
@@ -1307,6 +1547,7 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       const updatedRow = await db.get(`${selectPosts} WHERE p.id = ?`, req.postUser.studentId, postId);
       const formatted = formatPost(updatedRow, req);
       await attachMediaToPosts([formatted]);
+      await attachTargetSemestersToPosts([formatted]);
       res.json(formatted);
     } catch (err) {
       next(err);

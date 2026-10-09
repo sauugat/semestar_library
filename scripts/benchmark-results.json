@@ -1,0 +1,273 @@
+{
+  "timestamp": "2026-10-09T11:17:45.703Z",
+  "local": [
+    {
+      "name": "POST /api/dm/conversations/:id/messages",
+      "samples": 5,
+      "p50": 2390.174417,
+      "p95": 4507.045709,
+      "errorRate": "0.0%",
+      "avgAuth": 261.2,
+      "avgDb": 1846.5,
+      "queries": 7,
+      "bytes": 280
+    },
+    {
+      "name": "GET /api/dm/conversations",
+      "samples": 5,
+      "p50": 510.272417,
+      "p95": 708.3605,
+      "errorRate": "0.0%",
+      "avgAuth": 252.9,
+      "avgDb": 506.4,
+      "queries": 2,
+      "bytes": 1372
+    },
+    {
+      "name": "GET /api/dm/conversations/:id/messages",
+      "samples": 5,
+      "p50": 866.923292,
+      "p95": 1179.873584,
+      "errorRate": "0.0%",
+      "avgAuth": 256.1,
+      "avgDb": 862.6,
+      "queries": 3,
+      "bytes": 2471
+    },
+    {
+      "name": "POST /api/dm/conversations/:id/typing",
+      "samples": 5,
+      "p50": 285.166666,
+      "p95": 370.273959,
+      "errorRate": "0.0%",
+      "avgAuth": 279.9,
+      "avgDb": 279.7,
+      "queries": 1,
+      "bytes": 34
+    },
+    {
+      "name": "GET /api/chat/admin/rooms",
+      "samples": 5,
+      "p50": 609.001417,
+      "p95": 944.583,
+      "errorRate": "0.0%",
+      "avgAuth": 258.1,
+      "avgDb": 605.4,
+      "queries": 2,
+      "bytes": 1197
+    },
+    {
+      "name": "GET /api/search",
+      "samples": 5,
+      "p50": 1089.190417,
+      "p95": 4286.413333,
+      "errorRate": "0.0%",
+      "avgAuth": null,
+      "avgDb": null,
+      "queries": null,
+      "bytes": 31068
+    },
+    {
+      "name": "GET /api/files/:id/view (Small PDF #56)",
+      "samples": 3,
+      "p50": 615.546833,
+      "p95": 783.5375,
+      "errorRate": "0.0%",
+      "avgAuth": null,
+      "avgDb": null,
+      "queries": null,
+      "bytes": 32315
+    },
+    {
+      "name": "GET /api/files/:id/view (Large PDF #166)",
+      "samples": 3,
+      "p50": 8527.36875,
+      "p95": 10369.813,
+      "errorRate": "0.0%",
+      "avgAuth": null,
+      "avgDb": null,
+      "queries": null,
+      "bytes": 14938675
+    }
+  ],
+  "lan": [
+    {
+      "name": "POST /api/dm/conversations/:id/messages",
+      "samples": 5,
+      "p50": 2532.931125,
+      "p95": 4592.833959,
+      "errorRate": "0.0%",
+      "avgAuth": 289.1,
+      "avgDb": 1913.6,
+      "queries": 7,
+      "bytes": 280
+    },
+    {
+      "name": "GET /api/dm/conversations",
+      "samples": 5,
+      "p50": 677.497875,
+      "p95": 976.339458,
+      "errorRate": "0.0%",
+      "avgAuth": 359,
+      "avgDb": 673.4,
+      "queries": 2,
+      "bytes": 1372
+    },
+    {
+      "name": "GET /api/dm/conversations/:id/messages",
+      "samples": 5,
+      "p50": 802.349583,
+      "p95": 892.103833,
+      "errorRate": "0.0%",
+      "avgAuth": 259.2,
+      "avgDb": 797.8,
+      "queries": 3,
+      "bytes": 4481
+    },
+    {
+      "name": "POST /api/dm/conversations/:id/typing",
+      "samples": 5,
+      "p50": 262.339417,
+      "p95": 275.25225,
+      "errorRate": "0.0%",
+      "avgAuth": 258.9,
+      "avgDb": 258.7,
+      "queries": 1,
+      "bytes": 34
+    },
+    {
+      "name": "GET /api/chat/admin/rooms",
+      "samples": 5,
+      "p50": 569.577667,
+      "p95": 823.582709,
+      "errorRate": "0.0%",
+      "avgAuth": 257.6,
+      "avgDb": 567.1,
+      "queries": 2,
+      "bytes": 1197
+    },
+    {
+      "name": "GET /api/search",
+      "samples": 5,
+      "p50": 828.657208,
+      "p95": 1201.015792,
+      "errorRate": "0.0%",
+      "avgAuth": null,
+      "avgDb": null,
+      "queries": null,
+      "bytes": 31068
+    },
+    {
+      "name": "GET /api/files/:id/view (Small PDF #56)",
+      "samples": 3,
+      "p50": 556.101708,
+      "p95": 604.713791,
+      "errorRate": "0.0%",
+      "avgAuth": null,
+      "avgDb": null,
+      "queries": null,
+      "bytes": 32315
+    },
+    {
+      "name": "GET /api/files/:id/view (Large PDF #166)",
+      "samples": 3,
+      "p50": 4395.237584,
+      "p95": 4593.797625,
+      "errorRate": "0.0%",
+      "avgAuth": null,
+      "avgDb": null,
+      "queries": null,
+      "bytes": 14938675
+    }
+  ],
+  "vercel": [
+    {
+      "name": "POST /api/dm/conversations/:id/messages",
+      "samples": 5,
+      "p50": 497.107875,
+      "p95": 577.288708,
+      "errorRate": "100.0%",
+      "avgAuth": null,
+      "avgDb": null,
+      "queries": null,
+      "bytes": 32
+    },
+    {
+      "name": "GET /api/dm/conversations",
+      "samples": 5,
+      "p50": 473.875125,
+      "p95": 670.261792,
+      "errorRate": "100.0%",
+      "avgAuth": null,
+      "avgDb": null,
+      "queries": null,
+      "bytes": 32
+    },
+    {
+      "name": "GET /api/dm/conversations/:id/messages",
+      "samples": 5,
+      "p50": 460.101167,
+      "p95": 472.750875,
+      "errorRate": "100.0%",
+      "avgAuth": null,
+      "avgDb": null,
+      "queries": null,
+      "bytes": 32
+    },
+    {
+      "name": "POST /api/dm/conversations/:id/typing",
+      "samples": 5,
+      "p50": 459.9305,
+      "p95": 616.487916,
+      "errorRate": "100.0%",
+      "avgAuth": null,
+      "avgDb": null,
+      "queries": null,
+      "bytes": 32
+    },
+    {
+      "name": "GET /api/chat/admin/rooms",
+      "samples": 5,
+      "p50": 511.104958,
+      "p95": 1095.530041,
+      "errorRate": "0.0%",
+      "avgAuth": null,
+      "avgDb": null,
+      "queries": null,
+      "bytes": 1197
+    },
+    {
+      "name": "GET /api/search",
+      "samples": 5,
+      "p50": 481.992833,
+      "p95": 513.070042,
+      "errorRate": "0.0%",
+      "avgAuth": null,
+      "avgDb": null,
+      "queries": null,
+      "bytes": 31068
+    },
+    {
+      "name": "GET /api/files/:id/view (Small PDF #56)",
+      "samples": 3,
+      "p50": 676.083166,
+      "p95": 706.459833,
+      "errorRate": "0.0%",
+      "avgAuth": null,
+      "avgDb": null,
+      "queries": null,
+      "bytes": 32315
+    },
+    {
+      "name": "GET /api/files/:id/view (Large PDF #166)",
+      "samples": 3,
+      "p50": 4610.869167,
+      "p95": 4775.546458,
+      "errorRate": "0.0%",
+      "avgAuth": null,
+      "avgDb": null,
+      "queries": null,
+      "bytes": 14938675
+    }
+  ]
+}

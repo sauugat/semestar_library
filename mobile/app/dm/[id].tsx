@@ -46,7 +46,7 @@ import {
   deleteCachedDmMessage,
   getCachedDmConversations,
 } from '@/services/dm-db';
-import { mergeDmMessages, failDmMessage, createReadCoalescer } from '@/services/dm-state';
+import { mergeDmMessages, failDmMessage, createReadCoalescer, getConversationReadCoalescer } from '@/services/dm-state';
 import { readDmOutbox, updateDmOutbox, dmOutboxGeneration } from '@/services/dm-outbox';
 import { subscribeDmConversationRealtime } from '@/services/dm-realtime';
 
@@ -140,8 +140,12 @@ function DmConversation() {
   const readQueueRef = useRef<ReturnType<typeof createReadCoalescer> | null>(null);
   const markIncomingRead = useCallback((items: DmMessage[]) => {
     if (!activeRef.current || !nearBottomRef.current || AppState.currentState !== 'active') return;
-    const newest = Math.max(0, ...items.filter(m => m.senderId !== currentUserId && typeof m.id === 'number').map(m => Number(m.id)));
-    readQueueRef.current?.request(newest);
+    const incomingItems = items.filter(m => m.senderId !== currentUserId && typeof m.id === 'number' && Number.isSafeInteger(m.id) && m.id > 0);
+    if (incomingItems.length === 0) return;
+    const newest = Math.max(0, ...incomingItems.map(m => Number(m.id)));
+    if (newest > 0) {
+      readQueueRef.current?.request(newest);
+    }
   }, [currentUserId]);
 
   // Participant info state
@@ -258,6 +262,9 @@ function DmConversation() {
         const match = cachedConvs.find((c) => c.id === conversationId);
         if (match && isMounted) {
           setConversation(match);
+          if (typeof match.lastReadMessageId === 'number' && match.lastReadMessageId > 0) {
+            readQueueRef.current?.setAcknowledged(match.lastReadMessageId);
+          }
           if (match.participant) {
             setPeerInfo({
               id: match.participant.studentId,
@@ -272,6 +279,9 @@ function DmConversation() {
           const found = fresh.find((c) => c.id === conversationId);
           if (found && isMounted) {
             setConversation(found);
+            if (typeof found.lastReadMessageId === 'number' && found.lastReadMessageId > 0) {
+              readQueueRef.current?.setAcknowledged(found.lastReadMessageId);
+            }
             if (found.participant) {
               setPeerInfo({
                 id: found.participant.studentId,
@@ -309,6 +319,9 @@ function DmConversation() {
       if (cached.length || restored.length) setLoading(false);
       const res = await fetchDmMessages(conversationId, { limit: 50 });
       if (!activeRef.current) return;
+      if (typeof res.lastReadMessageId === 'number' && res.lastReadMessageId > 0) {
+        readQueueRef.current?.setAcknowledged(res.lastReadMessageId);
+      }
       setMessages(prev => mergeDmMessages(prev, res.messages));
       setHasMore(res.hasMore);
       setPeerLastReadId(prev => Math.max(prev, res.peerLastReadMessageId));
@@ -325,17 +338,38 @@ function DmConversation() {
     }
   }, [conversationId, currentUserId, markIncomingRead]);
 
+  useEffect(() => {
+    if (!conversationId) return;
+    const coalescer = getConversationReadCoalescer(
+      conversationId,
+      (id) => (activeRef.current && AppState.currentState === 'active'
+        ? markDmConversationRead(conversationId, id)
+        : Promise.reject(new Error('Conversation is inactive')))
+    );
+    readQueueRef.current = coalescer;
+    return () => {
+      coalescer.stop();
+    };
+  }, [conversationId]);
+
   useFocusEffect(useCallback(() => {
     activeRef.current = true;
-    const readQueue = createReadCoalescer(id => activeRef.current && AppState.currentState === 'active'
-      ? markDmConversationRead(conversationId, id) : Promise.reject(new Error('Conversation is inactive')));
-    readQueueRef.current = readQueue;
+    readQueueRef.current?.start();
     void loadMessages();
     const sub = AppState.addEventListener('change', state => {
-      if (state === 'active') void loadMessages();
+      if (state === 'active') {
+        readQueueRef.current?.start();
+        void loadMessages();
+      } else {
+        readQueueRef.current?.stop();
+      }
     });
-    return () => { activeRef.current = false; readQueue.stop(); readQueueRef.current = null; sub.remove(); };
-  }, [loadMessages, conversationId]));
+    return () => {
+      activeRef.current = false;
+      readQueueRef.current?.stop();
+      sub.remove();
+    };
+  }, [loadMessages]));
 
   // 3. Load older messages (cursor pagination)
   const loadOlderMessages = useCallback(async () => {
@@ -418,6 +452,8 @@ function DmConversation() {
       onReadReceipt: ({ readerId, lastReadMessageId }) => {
         if (readerId !== currentUserId) {
           setPeerLastReadId((prev) => Math.max(prev, lastReadMessageId));
+        } else if (typeof lastReadMessageId === 'number' && lastReadMessageId > 0) {
+          readQueueRef.current?.setAcknowledged(lastReadMessageId);
         }
       },
 

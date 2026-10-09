@@ -95,6 +95,7 @@ test('realtime requires a validated room; an account ID alone cannot subscribe',
   const { mobile, realtime: transport, load } = require('./helpers/cohort-client-fixture');
   const f=mobile(), rt=transport();
   const service=load('services/chat-realtime.ts',{
+    './api':{ApiError:class extends Error {}},
     './chat-session':f.session,'./chat-db':f.cache,'./chat-events':f.events,
     './chat':{fetchRealtimeConfig:async()=>{throw Error('must not request config before room validation');}},
     '@supabase/supabase-js':rt,

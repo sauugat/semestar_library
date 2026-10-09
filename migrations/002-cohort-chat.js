@@ -15,13 +15,19 @@ async function migrateCohortChat(db, { disposable = false } = {}) {
         CREATE TABLE IF NOT EXISTS cohorts (
           id TEXT PRIMARY KEY, intake_year INTEGER CHECK(intake_year BETWEEN 1900 AND 2300),
           group_code TEXT CHECK(group_code IN ('MERCURY','VENUS','EARTH','MARS')),
+          slot_code TEXT, display_name TEXT,
           current_semester INTEGER CHECK(current_semester BETWEEN 1 AND 8),
           status TEXT CHECK(status IN ('active','graduated','archived')), version INTEGER NOT NULL DEFAULT 1,
           created_at TEXT NOT NULL, graduated_at TEXT
         );
         ALTER TABLE cohorts ADD COLUMN IF NOT EXISTS group_code TEXT;
         ALTER TABLE cohorts ADD COLUMN IF NOT EXISTS version INTEGER NOT NULL DEFAULT 1;
-        UPDATE cohorts SET group_code = UPPER(slot_code) WHERE group_code IS NULL AND slot_code IS NOT NULL;
+        DO $$ BEGIN
+          IF EXISTS (SELECT 1 FROM information_schema.columns
+                     WHERE table_schema = current_schema() AND table_name = 'cohorts' AND column_name = 'slot_code') THEN
+            UPDATE cohorts SET group_code = UPPER(slot_code) WHERE group_code IS NULL AND slot_code IS NOT NULL;
+          END IF;
+        END $$;
         CREATE TABLE IF NOT EXISTS chat_groups (
           id TEXT PRIMARY KEY, cohort_id TEXT UNIQUE REFERENCES cohorts(id),
           kind TEXT NOT NULL DEFAULT 'cohort' CHECK(kind IN ('cohort','legacy')),

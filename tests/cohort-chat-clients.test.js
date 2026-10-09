@@ -77,7 +77,7 @@ test('mobile: delayed HTTP ignored, DTO room checked, stable send ID, stale atta
 
 test('mobile: private auth before subscribe, epoch recovery, duplicate/late callbacks, no client writes',async t=>{
   const f=mobile();t.after(()=>f.sql.close());f.enter();const rt=realtime(),received=[];
-  const module=load('services/chat-realtime.ts',{'@supabase/supabase-js':rt,'./chat-session':f.session,'./chat-db':f.cache,'./chat-events':f.events,
+  const module=load('services/chat-realtime.ts',{'./api':{ApiError:class extends Error {}},'@supabase/supabase-js':rt,'./chat-session':f.session,'./chat-db':f.cache,'./chat-events':f.events,
     './chat':{fetchRealtimeConfig:async()=>{const c=f.session.getChatSession().context;return {...c,topic:`chat:${c.chatGroupId}:${c.realtimeEpoch}`,expiry:new Date(Date.now()+120000).toISOString(),token:'fixture',url:'http://127.0.0.1:54321',key:'local-public'};}}});
   t.after(()=>module.disconnectChatRealtime());
   module.subscribeChatRealtime({onNewMessage:m=>received.push(m)});
@@ -220,6 +220,7 @@ test('mobile hook: periodic/foreground epoch recovery, heartbeat cadence/backgro
   const hooks=load('hooks/useClassChat.ts',{
     react,'react-native':{AppState:app},'expo-router':{useFocusEffect:fn=>{focusCleanup=fn();}},
     '@/services/chat':chat,'@/services/chat-state':f.state,'@/services/chat-db':f.cache,'@/services/chat-session':f.session,
+    '@/services/dm-state':load('services/dm-state.ts'),
     '@/services/chat-realtime':{initChatRealtime:async()=>topics.push(f.session.getChatSession().context?.realtimeEpoch),disconnectChatRealtime:async()=>{},subscribeChatRealtime:()=>()=>{}},
   },{setInterval:(fn,ms)=>{intervals.push({fn,ms});return intervals.length;},clearInterval:()=>{},Date:class extends NativeDate{static now(){return clock;}}});
   hooks.useClassChat('a','http://127.0.0.1:3000',{authToken:'fixture-token-a'});

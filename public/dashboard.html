@@ -1913,6 +1913,365 @@
       }
     }
 
+    /* Monochrome Post Composer Fields & Dropdowns */
+    .modal-composer-input {
+      width: 100%;
+      box-sizing: border-box;
+      background: #f4f4f5;
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      border-radius: 8px;
+      padding: 9px 12px;
+      font-size: 14px;
+      font-family: inherit;
+      color: #18181b;
+      outline: none;
+      transition: border-color 0.15s ease, background 0.15s ease;
+    }
+    .modal-composer-input:focus {
+      border-color: rgba(0, 0, 0, 0.4);
+    }
+    [data-theme="dark"] .modal-composer-input,
+    body.dark-mode .modal-composer-input {
+      background: #18181b;
+      border-color: rgba(255, 255, 255, 0.14);
+      color: #f4f4f5;
+    }
+    [data-theme="dark"] .modal-composer-input:focus,
+    body.dark-mode .modal-composer-input:focus {
+      border-color: rgba(255, 255, 255, 0.4);
+    }
+
+    .composer-meta-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 10px;
+      margin-bottom: 6px;
+    }
+    @media (max-width: 520px) {
+      .composer-meta-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .composer-meta-field {
+      position: relative;
+    }
+
+    .category-dropdown-wrap,
+    .semester-dropdown-wrap {
+      position: relative;
+      width: 100%;
+    }
+
+    .monochrome-select-trigger {
+      width: 100%;
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      background: #f4f4f5;
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      border-radius: 8px;
+      padding: 9px 12px;
+      font-size: 13.5px;
+      font-weight: 500;
+      color: #18181b;
+      cursor: pointer;
+      text-align: left;
+      font-family: inherit;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    .monochrome-select-trigger:hover {
+      border-color: rgba(0, 0, 0, 0.25);
+    }
+    [data-theme="dark"] .monochrome-select-trigger,
+    body.dark-mode .monochrome-select-trigger {
+      background: #18181b;
+      border-color: rgba(255, 255, 255, 0.14);
+      color: #f4f4f5;
+    }
+    [data-theme="dark"] .monochrome-select-trigger:hover,
+    body.dark-mode .monochrome-select-trigger:hover {
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    .monochrome-dropdown-menu {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      width: 100%;
+      min-width: 220px;
+      background: #ffffff;
+      border: 1px solid rgba(0, 0, 0, 0.14);
+      border-radius: 10px;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.16);
+      z-index: 1000;
+      padding: 6px;
+      box-sizing: border-box;
+      overflow: hidden;
+    }
+    [data-theme="dark"] .monochrome-dropdown-menu,
+    body.dark-mode .monochrome-dropdown-menu {
+      background: #141416;
+      border-color: rgba(255, 255, 255, 0.14);
+      box-shadow: 0 10px 32px rgba(0, 0, 0, 0.6);
+    }
+
+    .category-option {
+      width: 100%;
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      border-radius: 6px;
+      background: transparent;
+      border: none;
+      font-size: 13.5px;
+      font-weight: 500;
+      color: #27272a;
+      cursor: pointer;
+      font-family: inherit;
+      text-align: left;
+      transition: background 0.12s ease;
+    }
+    .category-option:hover {
+      background: #f4f4f5;
+    }
+    .category-option.selected {
+      background: #18181b;
+      color: #ffffff;
+    }
+    .category-option .opt-check {
+      display: none;
+    }
+    .category-option.selected .opt-check {
+      display: block;
+    }
+    [data-theme="dark"] .category-option,
+    body.dark-mode .category-option {
+      color: #d4d4d8;
+    }
+    [data-theme="dark"] .category-option:hover,
+    body.dark-mode .category-option:hover {
+      background: #242427;
+      color: #ffffff;
+    }
+    [data-theme="dark"] .category-option.selected,
+    body.dark-mode .category-option.selected {
+      background: #ffffff;
+      color: #000000;
+    }
+
+    .semester-multi-menu {
+      min-width: 260px;
+      padding: 10px;
+    }
+    .semester-menu-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+      font-weight: 600;
+      color: #18181b;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+      margin-bottom: 6px;
+    }
+    [data-theme="dark"] .semester-menu-header,
+    body.dark-mode .semester-menu-header {
+      color: #f4f4f5;
+      border-bottom-color: rgba(255, 255, 255, 0.1);
+    }
+    .menu-close-btn {
+      background: transparent;
+      border: none;
+      font-size: 18px;
+      line-height: 1;
+      color: #71717a;
+      cursor: pointer;
+      padding: 0 4px;
+    }
+    .semester-options-list {
+      max-height: 220px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 2px 0;
+    }
+    .semester-check-label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      color: #27272a;
+      user-select: none;
+      transition: background 0.12s ease;
+    }
+    .semester-check-label:hover {
+      background: #f4f4f5;
+    }
+    [data-theme="dark"] .semester-check-label,
+    body.dark-mode .semester-check-label {
+      color: #d4d4d8;
+    }
+    [data-theme="dark"] .semester-check-label:hover,
+    body.dark-mode .semester-check-label:hover {
+      background: #242427;
+      color: #ffffff;
+    }
+    .semester-check-label input {
+      accent-color: #18181b;
+      width: 15px;
+      height: 15px;
+      cursor: pointer;
+    }
+    [data-theme="dark"] .semester-check-label input,
+    body.dark-mode .semester-check-label input {
+      accent-color: #ffffff;
+    }
+    .semester-menu-divider {
+      height: 1px;
+      background: rgba(0, 0, 0, 0.08);
+      margin: 4px 0;
+    }
+    [data-theme="dark"] .semester-menu-divider,
+    body.dark-mode .semester-menu-divider {
+      background: rgba(255, 255, 255, 0.1);
+    }
+    .semester-menu-footer {
+      padding-top: 8px;
+      margin-top: 6px;
+      border-top: 1px solid rgba(0, 0, 0, 0.08);
+    }
+    [data-theme="dark"] .semester-menu-footer,
+    body.dark-mode .semester-menu-footer {
+      border-top-color: rgba(255, 255, 255, 0.1);
+    }
+    .semester-apply-btn {
+      width: 100%;
+      padding: 7px 0;
+      border-radius: 6px;
+      background: #18181b;
+      color: #ffffff;
+      border: none;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+    .semester-apply-btn:hover {
+      background: #000000;
+    }
+    [data-theme="dark"] .semester-apply-btn,
+    body.dark-mode .semester-apply-btn {
+      background: #ffffff;
+      color: #000000;
+    }
+    [data-theme="dark"] .semester-apply-btn:hover,
+    body.dark-mode .semester-apply-btn:hover {
+      background: #e4e4e7;
+    }
+
+    /* Feed Category Filter Bar */
+    .feed-category-filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      overflow-x: auto;
+      padding: 10px 0 16px 0;
+      margin-bottom: 4px;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    .feed-category-filter-bar::-webkit-scrollbar {
+      display: none;
+    }
+    .feed-filter-pill {
+      flex-shrink: 0;
+      padding: 6px 14px;
+      border-radius: 100px;
+      font-size: 12.5px;
+      font-weight: 600;
+      background: transparent;
+      border: 1px solid rgba(0, 0, 0, 0.14);
+      color: #52525b;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+    .feed-filter-pill:hover {
+      border-color: rgba(0, 0, 0, 0.3);
+      color: #18181b;
+    }
+    .feed-filter-pill.active {
+      background: #18181b;
+      border-color: #18181b;
+      color: #ffffff;
+    }
+    [data-theme="dark"] .feed-filter-pill,
+    body.dark-mode .feed-filter-pill {
+      border-color: rgba(255, 255, 255, 0.15);
+      color: #a1a1aa;
+    }
+    [data-theme="dark"] .feed-filter-pill:hover,
+    body.dark-mode .feed-filter-pill:hover {
+      border-color: rgba(255, 255, 255, 0.35);
+      color: #ffffff;
+    }
+    [data-theme="dark"] .feed-filter-pill.active,
+    body.dark-mode .feed-filter-pill.active {
+      background: #ffffff;
+      border-color: #ffffff;
+      color: #000000;
+    }
+
+    /* Monochrome Feed Post Badges */
+    .post-tags-row {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+    .post-monochrome-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      background: #f4f4f5;
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      color: #3f3f46;
+    }
+    [data-theme="dark"] .post-monochrome-badge,
+    body.dark-mode .post-monochrome-badge {
+      background: #1c1c1f;
+      border-color: rgba(255, 255, 255, 0.14);
+      color: #d4d4d8;
+    }
+    .post-card-title {
+      margin: 0 0 6px 0;
+      font-size: 16px;
+      font-weight: 700;
+      color: #18181b;
+      line-height: 1.35;
+    }
+    [data-theme="dark"] .post-card-title,
+    body.dark-mode .post-card-title {
+      color: #f4f4f5;
+    }
+
     /* Resource and Lab embeds share a compact attachment layout. */
     .post-card .file-attachment {
       display: flex;
@@ -2164,6 +2523,16 @@
   </div>
 
   <main class="feed">
+    <!-- Feed Category Filter Bar -->
+    <div class="feed-category-filter-bar" id="feedCategoryFilterBar" role="tablist" aria-label="Filter posts by category">
+      <button type="button" class="feed-filter-pill active" data-category="all" role="tab" aria-selected="true">All Posts</button>
+      <button type="button" class="feed-filter-pill" data-category="general" role="tab" aria-selected="false">General</button>
+      <button type="button" class="feed-filter-pill" data-category="notice" role="tab" aria-selected="false">Notices</button>
+      <button type="button" class="feed-filter-pill" data-category="announcement" role="tab" aria-selected="false">Announcements</button>
+      <button type="button" class="feed-filter-pill" data-category="news" role="tab" aria-selected="false">News</button>
+      <button type="button" class="feed-filter-pill" data-category="complaints" role="tab" aria-selected="false">Complaints</button>
+      <button type="button" class="feed-filter-pill" data-category="feedback" role="tab" aria-selected="false">Feedback</button>
+    </div>
     <div id="searchResults" style="display: none;"></div>
     <div id="realFiles">
       <!-- Skeleton Loading Feed Layout -->
@@ -4165,6 +4534,8 @@
     const feedHeading = document.querySelector('.feed-heading');
 
     let searchTimeout = null;
+    let searchAbortController = null;
+    let searchRequestId = 0;
 
     function renderSubjectCard(s) {
       return `
@@ -4215,8 +4586,13 @@
       searchInput.addEventListener('input', (e) => {
         const q = e.target.value.trim();
         clearTimeout(searchTimeout);
+        if (searchAbortController) {
+          try { searchAbortController.abort(); } catch {}
+          searchAbortController = null;
+        }
 
         if (!q) {
+          searchRequestId++;
           // Restore default view
           searchResults.style.display = 'none';
           dashHero.style.display = 'flex'; // .dash-hero is flex
@@ -4230,10 +4606,15 @@
         }
 
         searchTimeout = setTimeout(async () => {
+          const thisReqId = ++searchRequestId;
+          searchAbortController = typeof AbortController !== 'undefined' ? new AbortController() : null;
           try {
-            const res = await fetch('/api/search?q=' + encodeURIComponent(q));
+            const fetchOpts = searchAbortController ? { signal: searchAbortController.signal } : {};
+            const res = await fetch('/api/search?q=' + encodeURIComponent(q), fetchOpts);
+            if (thisReqId !== searchRequestId) return;
             if (!res.ok) return;
             const data = await res.json();
+            if (thisReqId !== searchRequestId) return;
 
             dashHero.style.display = 'none';
             feedHeading.style.display = 'none';
@@ -4285,6 +4666,7 @@
             searchResults.innerHTML = html;
             setTimeout(initDashboardCardPhysics, 50);
           } catch (err) {
+            if (err && err.name === 'AbortError') return;
             console.error("Search error:", err);
           }
         }, 300);

@@ -9,7 +9,18 @@ const push = require('../../lib/push-notifications');
 // to the disposable Docker fixture documented in the Phase 2A report.
 async function fixture(engine, { migrate = true } = {}) {
   let db, close;
-  if (engine === 'postgres') {
+  if (engine === 'pglite') {
+    const { PGlite } = require('@electric-sql/pglite');
+    const pg = new PGlite();
+    const row = value => value && Object.fromEntries(Object.entries(value).map(([key, val]) => [key, val instanceof Date ? val.toISOString() : val]));
+    const adapter = client => createTransactionAdapter({ query: async (sql, args) => {
+      const result = args ? await client.query(sql, args) : (await client.exec(sql)).at(-1);
+      return { ...result, rowCount: result.affectedRows };
+    } }, true, row, rows => rows.map(row));
+    db = adapter(pg);
+    db.withTransaction = fn => pg.transaction(tx => fn(adapter(tx)));
+    close = () => pg.close();
+  } else if (engine === 'postgres') {
     const { Pool } = require('pg');
     const config = { host: '127.0.0.1', port: 55442, database: 'cohort_fixture', user: 'postgres', password: 'cohort-local-fixture', connectionTimeoutMillis: 5000 };
     const root = new Pool(config), schema = `cohort_${randomUUID().replaceAll('-', '')}`;
@@ -60,6 +71,7 @@ async function fixture(engine, { migrate = true } = {}) {
       CREATE TABLE chat_typing(studentId TEXT PRIMARY KEY,lastTypedAt ${timestamp});
       CREATE TABLE chat_pinned(id ${serial},messageId INTEGER);
       CREATE TABLE fixture_client_events(id TEXT PRIMARY KEY);
+      CREATE TABLE cohort_semester_history(id TEXT PRIMARY KEY,cohort_id TEXT,semester_no INTEGER,started_at TEXT,created_at TEXT);
     `);
     await push.ensurePushNotificationSchema(db);
     const ids = ['admin','m1','m2','v1','v2','e1','s1','s2','new1','new2','none','outsider'];

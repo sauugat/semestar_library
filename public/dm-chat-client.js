@@ -1344,6 +1344,14 @@
       const el = this.elements;
       if (!el.userSearchResults) return;
 
+      if (this.searchAbortController) {
+        try { this.searchAbortController.abort(); } catch {}
+        this.searchAbortController = null;
+      }
+
+      this.searchRequestId = (this.searchRequestId || 0) + 1;
+      const reqId = this.searchRequestId;
+
       if (!query) {
         el.userSearchResults.innerHTML = `
           <div class="dm-empty-desc" style="text-align: center; padding: 20px;">
@@ -1357,10 +1365,18 @@
         <div class="dm-timeline-loader"><span>Searching...</span></div>
       `;
 
+      this.searchAbortController = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const fetchOpts = {
+        cache: 'no-store',
+        signal: this.searchAbortController ? this.searchAbortController.signal : undefined,
+      };
+
       try {
-        const res = await fetch(`/api/dm/users/search?q=${encodeURIComponent(query)}&limit=20`, { cache: 'no-store' });
+        const res = await fetch(`/api/dm/users/search?q=${encodeURIComponent(query)}&limit=20`, fetchOpts);
+        if (reqId !== this.searchRequestId) return;
         if (!res.ok) throw new Error('Search failed');
         const data = await res.json();
+        if (reqId !== this.searchRequestId) return;
         const users = data.users || [];
 
         if (users.length === 0) {
@@ -1393,6 +1409,8 @@
           `;
         }).join('');
       } catch (err) {
+        if (err.name === 'AbortError') return;
+        if (reqId !== this.searchRequestId) return;
         console.error('[DM] User search error:', err);
         el.userSearchResults.innerHTML = `
           <div class="dm-empty-desc" style="text-align: center; padding: 20px; color: #ff8888;">

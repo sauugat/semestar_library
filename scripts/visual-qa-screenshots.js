@@ -132,36 +132,41 @@ const fs = require('node:fs/promises');
   await page.screenshot({ path: path.join(screenshotsDir, 'web_feed_presentation.png') });
   console.log('Saved web_feed_presentation.png');
 
-  // Open Create Post modal
+  // Click Create Post button on dashboard -> navigates directly to /create-post page
   await page.click('#openPostModalBtn');
-  await page.waitForSelector('#postModalOverlay.open');
+  await page.waitForURL('**/create-post**');
+  await page.waitForLoadState('networkidle');
+  await page.evaluate(() => {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    document.body.classList.add('dark-mode');
+  });
   await page.waitForTimeout(300);
 
-  // 2. Screenshot Composer in General mode (Title field hidden, Audience visible)
+  // 2. Screenshot Composer on full page in General mode
   await page.screenshot({ path: path.join(screenshotsDir, 'web_composer_general.png') });
   console.log('Saved web_composer_general.png');
 
-  // 3. Open Category dropdown
-  await page.click('#composerCategoryBtn');
+  // 3. Open Category dropdown on /create-post
+  await page.click('#categoryBtn');
   await page.waitForTimeout(200);
   await page.screenshot({ path: path.join(screenshotsDir, 'web_category_dropdown.png') });
   console.log('Saved web_category_dropdown.png');
 
   // Select Announcement to show Title field
-  const annOption = await page.locator('#composerCategoryMenu button[data-value="announcement"]');
+  const annOption = await page.locator('#categoryMenu button[data-value="announcement"]');
   await annOption.click();
   await page.waitForTimeout(200);
   await page.screenshot({ path: path.join(screenshotsDir, 'web_composer_announcement.png') });
   console.log('Saved web_composer_announcement.png');
 
   // 4. Open Audience dropdown
-  await page.click('#composerAudienceBtn');
+  await page.click('#audienceBtn');
   await page.waitForTimeout(200);
   await page.screenshot({ path: path.join(screenshotsDir, 'web_audience_dropdown.png') });
   console.log('Saved web_audience_dropdown.png');
 
   // Select Students Only
-  const soOption = await page.locator('#composerAudienceMenu button[data-value="students_only"]');
+  const soOption = await page.locator('#audienceMenu button[data-value="students_only"]');
   await soOption.click();
   await page.waitForTimeout(200);
   await page.screenshot({ path: path.join(screenshotsDir, 'web_composer_students_only.png') });

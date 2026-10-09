@@ -3766,61 +3766,23 @@
       }
     });
 
-    // --- Create Post Modal Dialog Controls ---
-    const postModalOverlay = document.getElementById('postModalOverlay');
+    // --- Create Post Controls ---
     const openPostModalBtn = document.getElementById('openPostModalBtn');
-    const closePostModalBtn = document.getElementById('closePostModalBtn');
 
     function openPostModal() {
-      const modal = document.getElementById('postModalOverlay') || postModalOverlay;
-      if (!modal) return;
-      const message = document.getElementById('postComposerMessage');
-      if (message) message.textContent = '';
-      modal.removeAttribute('hidden');
-      modal.hidden = false;
-      modal.classList.add('open');
-      document.body.style.overflow = 'hidden';
-      const contentEl = document.getElementById('postContent');
-      if (typeof updatePostButtonState === 'function') updatePostButtonState();
-      if (contentEl) setTimeout(() => contentEl.focus(), 60);
+      window.location.href = '/create-post';
     }
 
     function closePostModal() {
-      const modal = document.getElementById('postModalOverlay') || postModalOverlay;
-      if (!modal) return;
-      modal.classList.remove('open');
-      modal.setAttribute('hidden', '');
-      modal.hidden = true;
-      document.body.style.overflow = '';
-      const openBtn = document.getElementById('openPostModalBtn') || openPostModalBtn;
-      if (openBtn) openBtn.focus();
+      // No-op fallback
     }
 
     if (openPostModalBtn) {
       openPostModalBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        openPostModal();
+        // Direct navigation to dedicated /create-post page
+        window.location.href = '/create-post';
       });
     }
-    if (closePostModalBtn) {
-      closePostModalBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        closePostModal();
-      });
-    }
-    if (postModalOverlay) {
-      postModalOverlay.addEventListener('click', (event) => {
-        if (event.target === postModalOverlay) closePostModal();
-      });
-    }
-    document.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape') {
-        const modal = document.getElementById('postModalOverlay') || postModalOverlay;
-        if (modal && !modal.hidden && modal.classList.contains('open')) {
-          closePostModal();
-        }
-      }
-    });
 
     const postContentInput = document.getElementById('postContent');
     if (postContentInput) {

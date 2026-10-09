@@ -258,6 +258,7 @@ body.dark-mode {
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   color: var(--ap-text-primary);
+  text-decoration: none;
   cursor: pointer;
   padding: 0;
   margin: 0 4px 0 0;

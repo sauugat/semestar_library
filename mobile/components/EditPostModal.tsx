@@ -139,6 +139,8 @@ export function EditPostModal({
   const [semesterSheetVisible, setSemesterSheetVisible] = useState(false);
 
   const [content, setContent] = useState('');
+  const [contentSelection, setContentSelection] = useState<{ start: number; end: number }>({ start: 0, end: 0 });
+  const [previewMode, setPreviewMode] = useState(false);
   const [existingImages, setExistingImages] = useState<string[]>([]);
   const [existingFiles, setExistingFiles] = useState<PostMediaItem[]>([]);
   const [newAttachments, setNewAttachments] = useState<ModalNewAttachment[]>([]);
@@ -767,28 +769,60 @@ export function EditPostModal({
             )}
           </View>
 
-          {/* Caption Input */}
+          {/* Caption Input with Rich Text Markdown Toolbar */}
           <Text variant="xs" weight="700" color="muted" style={{ marginBottom: 6, textTransform: 'uppercase' }}>
-            Caption / Text
+            Caption / Text (Markdown)
           </Text>
-          <TextInput
-            value={content}
-            onChangeText={setContent}
-            placeholder="What's on your mind?"
-            placeholderTextColor={colors.textMuted}
-            multiline
-            maxLength={5000}
-            editable={!saving}
-            style={[
-              styles.textInput,
-              {
-                backgroundColor: colors.surfaceRaised,
-                color: colors.text,
-                borderColor: colors.border,
-                borderRadius: radii.md,
-              },
-            ]}
-          />
+
+          <View style={{ marginBottom: 6, borderRadius: radii.md, overflow: 'hidden', borderWidth: 1, borderColor: colors.border }}>
+            <RichTextToolbar
+              value={content}
+              onChangeText={setContent}
+              selection={contentSelection}
+              onSelectionChange={setContentSelection}
+              isPreviewing={previewMode}
+              onTogglePreview={() => setPreviewMode(!previewMode)}
+            />
+          </View>
+
+          {previewMode ? (
+            <View
+              style={[
+                styles.textInput,
+                {
+                  backgroundColor: colors.surfaceRaised,
+                  borderColor: colors.border,
+                  borderRadius: radii.md,
+                  minHeight: 120,
+                  padding: spacing.md,
+                },
+              ]}
+            >
+              <MarkdownText
+                content={content.trim() ? content : '*No content to preview yet*'}
+              />
+            </View>
+          ) : (
+            <TextInput
+              value={content}
+              onChangeText={setContent}
+              onSelectionChange={(e) => setContentSelection(e.nativeEvent.selection)}
+              placeholder="What's on your mind? (Markdown supported)"
+              placeholderTextColor={colors.textMuted}
+              multiline
+              maxLength={5000}
+              editable={!saving}
+              style={[
+                styles.textInput,
+                {
+                  backgroundColor: colors.surfaceRaised,
+                  color: colors.text,
+                  borderColor: colors.border,
+                  borderRadius: radii.md,
+                },
+              ]}
+            />
+          )}
 
           {/* Photos Section */}
           <View style={{ marginTop: spacing.lg }}>

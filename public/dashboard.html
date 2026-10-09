@@ -2708,8 +2708,114 @@
       <!-- 2. Composer Form -->
       <form id="postComposer" class="post-composer modal-post-composer">
         <div class="modal-composer-field">
-          <label for="postContent" class="modal-field-label">Share with your class</label>
+          <label for="postTitle" class="modal-field-label">Title <span style="font-weight:400; opacity:0.6; font-size:12px;">(optional)</span></label>
+          <input type="text" id="postTitle" name="title" maxlength="200" placeholder="Title your post" class="modal-composer-input">
+        </div>
+        <div class="modal-composer-field">
+          <label for="postContent" class="modal-field-label">Description / Content</label>
           <textarea id="postContent" name="content" rows="4" maxlength="5000" required placeholder="What's on your mind?"></textarea>
+        </div>
+
+        <div class="composer-meta-grid">
+          <!-- Category Selector -->
+          <div class="composer-meta-field">
+            <label class="modal-field-label" id="composerCategoryLabel">Category</label>
+            <div class="category-dropdown-wrap" id="composerCategoryWrap">
+              <button type="button" class="monochrome-select-trigger" id="composerCategoryBtn" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="composerCategoryLabel composerCategoryValue">
+                <span id="composerCategoryValue">General</span>
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </button>
+              <div class="monochrome-dropdown-menu" id="composerCategoryMenu" role="listbox" hidden>
+                <button type="button" role="option" class="category-option selected" data-value="general">
+                  <span>General</span>
+                  <svg class="opt-check" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                </button>
+                <button type="button" role="option" class="category-option" data-value="notice">
+                  <span>Notice</span>
+                  <svg class="opt-check" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                </button>
+                <button type="button" role="option" class="category-option" data-value="announcement">
+                  <span>Announcement</span>
+                  <svg class="opt-check" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                </button>
+                <button type="button" role="option" class="category-option" data-value="news">
+                  <span>News</span>
+                  <svg class="opt-check" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                </button>
+                <button type="button" role="option" class="category-option" data-value="complaints">
+                  <span>Complaints</span>
+                  <svg class="opt-check" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                </button>
+                <button type="button" role="option" class="category-option" data-value="feedback">
+                  <span>Feedback</span>
+                  <svg class="opt-check" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Target Semesters Multi-Select -->
+          <div class="composer-meta-field">
+            <label class="modal-field-label" id="composerSemestersLabel">Target Semesters</label>
+            <div class="semester-dropdown-wrap" id="composerSemestersWrap">
+              <button type="button" class="monochrome-select-trigger" id="composerSemestersBtn" aria-haspopup="dialog" aria-expanded="false" aria-labelledby="composerSemestersLabel composerSemestersValue">
+                <span id="composerSemestersValue">All Semesters</span>
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </button>
+              <div class="monochrome-dropdown-menu semester-multi-menu" id="composerSemestersMenu" hidden>
+                <div class="semester-menu-header">
+                  <span>Select Semesters</span>
+                  <button type="button" class="menu-close-btn" id="closeSemesterMenuBtn" aria-label="Close dialog">&times;</button>
+                </div>
+                <div class="semester-options-list">
+                  <label class="semester-check-label">
+                    <input type="checkbox" id="semAllCheck" checked>
+                    <span class="checkbox-text-label">All Semesters</span>
+                  </label>
+                  <div class="semester-menu-divider"></div>
+                  <label class="semester-check-label">
+                    <input type="checkbox" class="sem-indiv-check" value="1">
+                    <span class="checkbox-text-label">Semester 1</span>
+                  </label>
+                  <label class="semester-check-label">
+                    <input type="checkbox" class="sem-indiv-check" value="2">
+                    <span class="checkbox-text-label">Semester 2</span>
+                  </label>
+                  <label class="semester-check-label">
+                    <input type="checkbox" class="sem-indiv-check" value="3">
+                    <span class="checkbox-text-label">Semester 3</span>
+                  </label>
+                  <label class="semester-check-label">
+                    <input type="checkbox" class="sem-indiv-check" value="4">
+                    <span class="checkbox-text-label">Semester 4</span>
+                  </label>
+                  <label class="semester-check-label">
+                    <input type="checkbox" class="sem-indiv-check" value="5">
+                    <span class="checkbox-text-label">Semester 5</span>
+                  </label>
+                  <label class="semester-check-label">
+                    <input type="checkbox" class="sem-indiv-check" value="6">
+                    <span class="checkbox-text-label">Semester 6</span>
+                  </label>
+                  <label class="semester-check-label">
+                    <input type="checkbox" class="sem-indiv-check" value="7">
+                    <span class="checkbox-text-label">Semester 7</span>
+                  </label>
+                  <label class="semester-check-label">
+                    <input type="checkbox" class="sem-indiv-check" value="8">
+                    <span class="checkbox-text-label">Semester 8</span>
+                  </label>
+                </div>
+                <div class="semester-menu-footer">
+                  <button type="button" class="semester-apply-btn" id="applySemesterBtn">Apply Selection</button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- 3. Media & File Inputs -->

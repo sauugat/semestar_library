@@ -998,6 +998,8 @@ export default function HomeScreen() {
   const [composerOpen, setComposerOpen] = useState(false);
   const [postTitle, setPostTitle] = useState('');
   const [postContent, setPostContent] = useState('');
+  const [composerSelection, setComposerSelection] = useState<{ start: number; end: number }>({ start: 0, end: 0 });
+  const [composerPreview, setComposerPreview] = useState(false);
   const [postCategory, setPostCategory] = useState<string>('general');
   const [postAudience, setPostAudience] = useState<'everyone' | 'students_only'>('everyone');
   const [postAllSemesters, setPostAllSemesters] = useState(true);

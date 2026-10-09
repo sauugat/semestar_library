@@ -14,7 +14,6 @@ import { useAuth } from '@/context/AuthContext';
 import { Text, Heading, Caption } from '@/components/ui/Typography';
 import { SurfaceCard } from '@/components/ui/SurfaceCard';
 import { Avatar } from '@/components/ui/Avatar';
-import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { apiFetch } from '@/services/api';
@@ -22,6 +21,7 @@ import { formatDate, formatTimeAgo } from '@/utils/date';
 
 interface NoticeItem {
   id: number;
+  title?: string | null;
   content: string;
   createdAt: string;
   created_at?: string;

@@ -106,7 +106,7 @@ test('2. Default post creation assigns General category and All Semesters target
 
 test('3. Custom category creation and case-insensitivity validation', async (t) => {
   const { request } = await fixture(t);
-  for (const cat of ['Notice', 'ANNOUNCEMENT', 'news', 'Complaints', 'Feedback']) {
+  for (const cat of ['ANNOUNCEMENT', 'news', 'Complaints', 'Feedback']) {
     const res = await request('POST', '', {
       content: `Testing category ${cat}`,
       category: cat
@@ -115,6 +115,14 @@ test('3. Custom category creation and case-insensitivity validation', async (t) 
     assert.equal(res.body.category, cat.toLowerCase());
     assert.equal(res.body.category_label, CATEGORY_LABELS[cat.toLowerCase()]);
   }
+  // Notice category by authorized role
+  const noticeRes = await request('POST', '', {
+    content: 'Testing category Notice',
+    category: 'Notice'
+  }, 'admin_user');
+  assert.equal(noticeRes.status, 201);
+  assert.equal(noticeRes.body.category, 'notice');
+  assert.equal(noticeRes.body.category_label, CATEGORY_LABELS['notice']);
 });
 
 test('4. Invalid category is rejected with HTTP 400', async (t) => {
@@ -314,16 +322,22 @@ test('12. Category filter in feed (GET /api/posts?category=...)', async (t) => {
   assert.ok(newsFeed.body.posts.every(p => p.category === 'news'));
 });
 
-test('13. Role permissions: Student posting category=Notice does NOT make it an official university notice', async (t) => {
+test('13. Role permissions: Ordinary student posting category=Notice is rejected with 403; admin/teacher succeeds', async (t) => {
   const { request } = await fixture(t);
-  // Student creates post with category "notice"
+  // Ordinary student receives 403 Forbidden
   const studentPost = await request('POST', '', {
     content: 'Classmates reminder: bring calculators',
     category: 'notice'
   }, 'student_s1');
-  assert.equal(studentPost.status, 201);
-  assert.equal(studentPost.body.category, 'notice');
-  // Must NOT be official notice
-  assert.equal(studentPost.body.type, 'status');
-  assert.equal(studentPost.body.is_official, false);
+  assert.equal(studentPost.status, 403);
+
+  // Admin creates notice successfully
+  const adminPost = await request('POST', '', {
+    content: 'Official exam schedule',
+    category: 'notice'
+  }, 'admin_user');
+  assert.equal(adminPost.status, 201);
+  assert.equal(adminPost.body.category, 'notice');
+  assert.equal(adminPost.body.type, 'notice');
+  assert.equal(adminPost.body.is_official, true);
 });

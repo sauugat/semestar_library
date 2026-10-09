@@ -31,15 +31,6 @@ export interface PostCardProps {
 }
 
 function getTypeBadgeProps(type: string, isOfficial: boolean | undefined, colors: any) {
-  if (type === 'notice' || isOfficial) {
-    return {
-      label: isOfficial ? 'OFFICIAL NOTICE' : 'NOTICE',
-      bgColor: colors.surfaceRaised,
-      borderColor: colors.border,
-      textColor: colors.textSecondary,
-      icon: isOfficial ? ('shield-checkmark-outline' as const) : ('megaphone-outline' as const),
-    };
-  }
   if (type === 'assignment') {
     return {
       label: 'ASSIGNMENT',

@@ -41,6 +41,7 @@
   <script src="auth-modal.js"></script>
   <script src="notifications.js"></script>
   <script src="/academic-context.js"></script>
+  <script src="/markdown.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
@@ -3623,12 +3624,12 @@
             <div class="post-content">
               ${shouldTruncate ? `
                 <div class="post-content-clamped">
-                  <p class="status-post-text">${escapeHtml(cleanContent)}</p>
+                  <div class="status-post-text post-markdown-content">${typeof renderPostMarkdown === 'function' ? renderPostMarkdown(cleanContent) : escapeHtml(cleanContent)}</div>
                 </div>
                 <button type="button" class="show-more-link post-expand-btn" onclick="togglePostExpand(this)">Show more</button>
               ` : `
                 <div class="post-content-unclamped">
-                  <p class="status-post-text">${escapeHtml(cleanContent)}</p>
+                  <div class="status-post-text post-markdown-content">${typeof renderPostMarkdown === 'function' ? renderPostMarkdown(cleanContent) : escapeHtml(cleanContent)}</div>
                 </div>
               `}
             </div>

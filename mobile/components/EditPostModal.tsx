@@ -19,7 +19,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { Text } from '@/components/ui/Typography';
 import { useTheme } from '@/constants/useTheme';
 import { useAuth } from '@/context/AuthContext';
-import { SelectionSheet, SelectionOption, SemesterMultiSelectSheet } from '@/components/ui';
+import { SelectionSheet, SelectionOption, SemesterMultiSelectSheet, RichTextToolbar, MarkdownText } from '@/components/ui';
 import {
   Post,
   PostMediaItem,

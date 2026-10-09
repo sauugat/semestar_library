@@ -571,17 +571,14 @@ export default function PostDetailScreen() {
             </View>
           </View>
 
-          {/* Post Content Body */}
-          <Text
-            variant="md"
-            style={[
-              styles.postBody,
-              { color: colors.text, marginTop: spacing.md, marginBottom: spacing.md },
-            ]}
-            selectable
-          >
-            {post.content}
-          </Text>
+          {/* Post Content Body with Rich Markdown Support */}
+          {Boolean(post.content && post.content.trim()) && (
+            <MarkdownText
+              content={post.content}
+              selectable
+              style={{ marginTop: spacing.md, marginBottom: spacing.md }}
+            />
+          )}
 
           {/* Attached Images: responsive grid with swipeable fullscreen gallery */}
           {((Array.isArray(post.media) && post.media.some((m) => (m.media_type || 'image') === 'image')) || post.attachment_url) && (

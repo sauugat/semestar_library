@@ -152,9 +152,9 @@ export default function NoticeDetailScreen() {
       >
         {/* Notice Card */}
         <Card variant="elevated" padding="lg" style={styles.noticeCard}>
-          {/* Header Row: Publisher & Badge */}
+          {/* Header Row: Publisher */}
           <View style={styles.headerRow}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
               <Avatar
                 url={authorAvatar}
                 name={notice.name}
@@ -168,31 +168,37 @@ export default function NoticeDetailScreen() {
                 <Caption color="muted">{formatFullDate(notice.created_at || (notice as any).createdAt || (notice as any).timestamp)}</Caption>
               </View>
             </View>
-
-            <Badge
-              label={isAdmin ? 'Official' : isCR ? 'CR Circular' : 'Official Notice'}
-              variant={isAdmin ? 'official' : 'neutral'}
-              size="md"
-              icon={isAdmin ? 'shield-checkmark' : isCR ? 'ribbon' : 'megaphone'}
-            />
           </View>
 
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
-          {/* Official Seal / Pill */}
-          <View style={styles.officialPill}>
-            <Ionicons name="checkmark-circle" size={15} color={colors.primary} style={{ marginRight: 5 }} />
-            <Text variant="xs" weight="700" style={{ color: colors.primary, letterSpacing: 0.3 }}>
-              VERIFIED UNIVERSITY CIRCULAR
+          {/* Notice Title (Bold & Big) */}
+          {Boolean(notice.title && notice.title.trim()) && (
+            <Text
+              style={{
+                fontSize: 22,
+                fontWeight: '800',
+                color: colors.text,
+                lineHeight: 28,
+                letterSpacing: -0.3,
+                marginBottom: spacing.xs,
+              }}
+              selectable
+            >
+              {notice.title}
             </Text>
-          </View>
+          )}
 
           {/* Full Notice Content */}
           <Text
             variant="md"
             style={[
               styles.noticeBody,
-              { color: colors.text, marginTop: spacing.sm, marginBottom: spacing.lg },
+              {
+                color: colors.text,
+                marginTop: notice.title && notice.title.trim() ? spacing.xs : spacing.sm,
+                marginBottom: spacing.lg,
+              },
             ]}
             selectable
           >

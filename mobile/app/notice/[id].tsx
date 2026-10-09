@@ -151,7 +151,24 @@ export default function NoticeDetailScreen() {
       >
         {/* Notice Card */}
         <Card variant="elevated" padding="lg" style={styles.noticeCard}>
-          {/* Header Row: Publisher */}
+          {/* 1. Notice Title FIRST (Bold & Big) */}
+          {Boolean(notice.title && notice.title.trim()) && (
+            <Text
+              style={{
+                fontSize: 24,
+                fontWeight: '800',
+                color: colors.text,
+                lineHeight: 32,
+                letterSpacing: -0.4,
+                marginBottom: spacing.normal,
+              }}
+              selectable
+            >
+              {notice.title}
+            </Text>
+          )}
+
+          {/* 2. Profile Things (Publisher Avatar, Name, Timestamp) */}
           <View style={styles.headerRow}>
             <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
               <Avatar
@@ -171,31 +188,14 @@ export default function NoticeDetailScreen() {
 
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
-          {/* Notice Title (Bold & Big) */}
-          {Boolean(notice.title && notice.title.trim()) && (
-            <Text
-              style={{
-                fontSize: 22,
-                fontWeight: '800',
-                color: colors.text,
-                lineHeight: 28,
-                letterSpacing: -0.3,
-                marginBottom: spacing.xs,
-              }}
-              selectable
-            >
-              {notice.title}
-            </Text>
-          )}
-
-          {/* Full Notice Content */}
+          {/* 3. Full Notice Body Content */}
           <Text
             variant="md"
             style={[
               styles.noticeBody,
               {
                 color: colors.text,
-                marginTop: notice.title && notice.title.trim() ? spacing.xs : spacing.sm,
+                marginTop: spacing.xs,
                 marginBottom: spacing.lg,
               },
             ]}

@@ -22,6 +22,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/constants/useTheme';
 import { useAuth } from '@/context/AuthContext';
 import { Text, Heading, Caption } from '@/components/ui/Typography';
+import { MarkdownText } from '@/components/ui/MarkdownText';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Avatar } from '@/components/ui/Avatar';

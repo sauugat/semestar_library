@@ -103,7 +103,9 @@ const fs = require('node:fs/promises');
   }));
   app.get('/api/posts', (_, res) => res.json({ posts: samplePosts, nextCursor: null }));
   app.get('/api/code-lab/assignments', (_, res) => res.json([]));
-  app.get('/api/files', (_, res) => res.json([]));
+  app.get(['/create-post', '/create-post.html'], (_, res) => {
+    res.sendFile(path.join(__dirname, '../public/create-post.html'));
+  });
   app.use(express.static(path.join(__dirname, '../public')));
 
   const server = app.listen(0, '127.0.0.1');

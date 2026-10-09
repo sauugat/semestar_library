@@ -38,8 +38,14 @@ export interface PostMediaItem {
 }
 
 export interface CreatePostParams {
+  title?: string;
   content?: string;
   type?: 'status' | 'assignment' | 'notice';
+  category?: string;
+  targetSemesters?: number[] | 'all';
+  allSemesters?: boolean;
+  audience?: 'everyone' | 'students_only';
+  visibility?: 'everyone' | 'students_only';
   imageUri?: string | null;
   image?: RawFileAsset | null;
   images?: RawFileAsset[];
@@ -51,8 +57,18 @@ export interface CreatePostParams {
 export interface Post {
   id: number;
   user_id: string;
+  title?: string | null;
   content: string;
   type: 'status' | 'assignment' | 'notice';
+  category?: string;
+  category_label?: string;
+  visibility?: 'everyone' | 'students_only';
+  audience?: 'everyone' | 'students_only';
+  target_all_semesters?: number;
+  allSemesters?: boolean;
+  targetSemesters?: number[];
+  target_semesters?: number[];
+  semester_display?: string;
   attachment_url: string | null;
   created_at: string;
   edited_at?: string | null;
@@ -119,7 +135,8 @@ export interface ToggleLikeResult {
 export async function getPosts(
   cursor?: number | null,
   limit: number = 20,
-  type?: 'status' | 'assignment' | 'notice'
+  type?: 'status' | 'assignment' | 'notice',
+  category?: string
 ): Promise<PostsResponse> {
   const query = new URLSearchParams();
   query.append('limit', String(limit));
@@ -128,6 +145,9 @@ export async function getPosts(
   }
   if (type) {
     query.append('type', type);
+  }
+  if (category && category !== 'all') {
+    query.append('category', category);
   }
 
   const res = await api.get<PostsResponse>(`/api/posts?${query.toString()}`);
@@ -460,8 +480,13 @@ export async function createPost(params: CreatePostParams): Promise<Post> {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        title: params.title?.trim() || undefined,
         content: (params.content || '').trim(),
         type: params.type || 'status',
+        category: params.category || 'general',
+        targetSemesters: params.targetSemesters !== undefined ? params.targetSemesters : (params.allSemesters ? 'all' : undefined),
+        visibility: params.visibility || params.audience,
+        audience: params.audience || params.visibility,
         official: Boolean(params.official),
         attachments: uploadedAttachments,
       }),
@@ -483,7 +508,13 @@ export async function createPost(params: CreatePostParams): Promise<Post> {
 }
 
 export interface UpdatePostParams {
+  title?: string;
   content?: string;
+  category?: string;
+  targetSemesters?: number[] | 'all';
+  allSemesters?: boolean;
+  audience?: 'everyone' | 'students_only';
+  visibility?: 'everyone' | 'students_only';
   keepMediaUrls?: string[];
   keepMediaIds?: number[];
   newImages?: (RawFileAsset | { uri: string; name?: string; type?: string; size?: number; fileName?: string; mimeType?: string })[];
@@ -534,7 +565,12 @@ export async function updatePost(postId: number, params: UpdatePostParams): Prom
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        title: params.title !== undefined ? params.title.trim() : undefined,
         content: params.content !== undefined ? params.content.trim() : undefined,
+        category: params.category,
+        targetSemesters: params.targetSemesters !== undefined ? params.targetSemesters : (params.allSemesters ? 'all' : undefined),
+        visibility: params.visibility || params.audience,
+        audience: params.audience || params.visibility,
         keepMediaUrls: params.keepMediaUrls,
         keepMediaIds: params.keepMediaIds,
         newAttachments: uploadedAttachments,

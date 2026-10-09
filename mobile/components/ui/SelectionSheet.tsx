@@ -197,15 +197,16 @@ export function SelectionSheet<T = string>({
                       style={[
                         styles.row,
                         {
-                          borderBottomColor: colors.border,
-                          backgroundColor: isSelected ? colors.surfaceRaised || '#242426' : 'transparent',
+                          backgroundColor: isSelected ? '#262626' : '#141414',
+                          borderColor: isSelected ? '#3f3f46' : '#222222',
+                          borderWidth: 1,
                         },
                       ]}
                     >
                       <View style={styles.rowTextContainer}>
                         {item.badge && (
-                          <View style={[styles.badge, { backgroundColor: colors.surfaceRaised || '#27272a' }]}>
-                            <Text variant="xs" weight="700" color="muted">
+                          <View style={[styles.badge, { backgroundColor: isSelected ? '#333333' : '#1f1f1f' }]}>
+                            <Text variant="xs" weight="700" style={{ color: '#a1a1aa' }}>
                               {item.badge}
                             </Text>
                           </View>
@@ -215,13 +216,13 @@ export function SelectionSheet<T = string>({
                             variant="sm"
                             weight={isSelected ? '700' : '500'}
                             style={{
-                              color: isSelected ? colors.primaryText || '#ffffff' : colors.text,
+                              color: isSelected ? '#FFFFFF' : '#F5F5F5',
                             }}
                           >
                             {item.label}
                           </Text>
                           {item.sublabel ? (
-                            <Text variant="xs" color="muted" style={{ marginTop: 2 }}>
+                            <Text variant="xs" style={{ color: isSelected ? '#d4d4d8' : '#a1a1aa', marginTop: 2 }}>
                               {item.sublabel}
                             </Text>
                           ) : null}
@@ -229,11 +230,11 @@ export function SelectionSheet<T = string>({
                       </View>
 
                       {isSelected ? (
-                        <View style={[styles.checkCircle, { backgroundColor: colors.primary }]}>
-                          <Ionicons name="checkmark" size={14} color={colors.primaryText || '#ffffff'} />
+                        <View style={[styles.checkCircle, { backgroundColor: '#383838' }]}>
+                          <Ionicons name="checkmark" size={14} color="#FFFFFF" />
                         </View>
                       ) : (
-                        <View style={[styles.emptyCircle, { borderColor: colors.border }]} />
+                        <View style={[styles.emptyCircle, { borderColor: '#3f3f46' }]} />
                       )}
                     </TouchableOpacity>
                   );

@@ -1959,6 +1959,7 @@
     }
 
     .category-dropdown-wrap,
+    .audience-dropdown-wrap,
     .semester-dropdown-wrap {
       position: relative;
       width: 100%;
@@ -2019,7 +2020,8 @@
       box-shadow: 0 10px 32px rgba(0, 0, 0, 0.6);
     }
 
-    .category-option {
+    .category-option,
+    .audience-option {
       width: 100%;
       box-sizing: border-box;
       display: flex;
@@ -2027,8 +2029,8 @@
       justify-content: space-between;
       padding: 8px 12px;
       border-radius: 6px;
-      background: transparent;
-      border: none;
+      background: #ffffff;
+      border: 1px solid transparent;
       font-size: 13.5px;
       font-weight: 500;
       color: #27272a;
@@ -2037,32 +2039,45 @@
       text-align: left;
       transition: background 0.12s ease;
     }
-    .category-option:hover {
+    .category-option:hover,
+    .audience-option:hover {
       background: #f4f4f5;
     }
-    .category-option.selected {
+    .category-option.selected,
+    .audience-option.selected {
       background: #18181b;
       color: #ffffff;
     }
-    .category-option .opt-check {
+    .category-option .opt-check,
+    .audience-option .opt-check {
       display: none;
     }
-    .category-option.selected .opt-check {
+    .category-option.selected .opt-check,
+    .audience-option.selected .opt-check {
       display: block;
     }
     [data-theme="dark"] .category-option,
-    body.dark-mode .category-option {
-      color: #d4d4d8;
+    body.dark-mode .category-option,
+    [data-theme="dark"] .audience-option,
+    body.dark-mode .audience-option {
+      background: #181818;
+      color: #F5F5F5;
+      border-color: transparent;
     }
     [data-theme="dark"] .category-option:hover,
-    body.dark-mode .category-option:hover {
+    body.dark-mode .category-option:hover,
+    [data-theme="dark"] .audience-option:hover,
+    body.dark-mode .audience-option:hover {
       background: #242427;
       color: #ffffff;
     }
     [data-theme="dark"] .category-option.selected,
-    body.dark-mode .category-option.selected {
-      background: #ffffff;
-      color: #000000;
+    body.dark-mode .category-option.selected,
+    [data-theme="dark"] .audience-option.selected,
+    body.dark-mode .audience-option.selected {
+      background: #262626;
+      color: #FFFFFF;
+      border-color: rgba(255, 255, 255, 0.18);
     }
 
     .semester-multi-menu {
@@ -2707,7 +2722,7 @@
 
       <!-- 2. Composer Form -->
       <form id="postComposer" class="post-composer modal-post-composer">
-        <div class="modal-composer-field">
+        <div class="modal-composer-field" id="postTitleWrap" style="display: none;">
           <label for="postTitle" class="modal-field-label">Title <span style="font-weight:400; opacity:0.6; font-size:12px;">(optional)</span></label>
           <input type="text" id="postTitle" name="title" maxlength="200" placeholder="Title your post" class="modal-composer-input">
         </div>
@@ -2754,6 +2769,30 @@
                 </button>
               </div>
             </div>
+          </div>
+
+          <!-- Audience Selector (Students / CRs only) -->
+          <div class="composer-meta-field" id="composerAudienceField" style="display: none;">
+            <label class="modal-field-label" id="composerAudienceLabel">Audience</label>
+            <div class="audience-dropdown-wrap" id="composerAudienceWrap">
+              <button type="button" class="monochrome-select-trigger" id="composerAudienceBtn" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="composerAudienceLabel composerAudienceValue">
+                <span id="composerAudienceValue">Everyone</span>
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </button>
+              <div class="monochrome-dropdown-menu" id="composerAudienceMenu" role="listbox" hidden>
+                <button type="button" role="option" class="audience-option selected" data-value="everyone">
+                  <span>Everyone</span>
+                  <svg class="opt-check" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                </button>
+                <button type="button" role="option" class="audience-option" data-value="students_only">
+                  <span>Students Only</span>
+                  <svg class="opt-check" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                </button>
+              </div>
+            </div>
+            <p class="composer-audience-helper" id="composerAudienceHelper" style="display: none; font-size: 11px; color: #71717a; margin-top: 5px; line-height: 1.35;">Students Only &mdash; This post won't appear in teacher or university staff feeds.</p>
           </div>
 
           <!-- Target Semesters Multi-Select -->
@@ -2881,7 +2920,7 @@
               </svg>
               <span class="post-file-label" id="choosePostFilesLabel">Attach files</span>
             </button>
-            <div class="modal-type-selector-wrap">
+            <div class="modal-type-selector-wrap" style="display: none;">
               <select id="postType" name="type" aria-label="Post type">
                 <option value="status">Status</option>
                 <option value="notice">Notice</option>
@@ -2943,6 +2982,25 @@
             headerAvatar.innerHTML = `<img src="${p.avatarUrl}" alt="${p.name}">`;
           }
         }).catch(() => { });
+
+        // Initialize role-based composer permissions
+        const userRole = (data.role || 'student').toLowerCase();
+        const isCrUser = !!data.isCR || userRole === 'cr' || userRole === 'class_rep';
+        const isStudentOrCr = userRole === 'student' || isCrUser;
+        const canPostNotice = userRole === 'admin' || userRole === 'superadmin' || userRole === 'teacher' || userRole === 'faculty';
+
+        window.canSelectAudience = isStudentOrCr;
+        window.canPostNotice = canPostNotice;
+
+        const audienceField = document.getElementById('composerAudienceField');
+        if (audienceField) {
+          audienceField.style.display = isStudentOrCr ? 'block' : 'none';
+        }
+
+        if (!canPostNotice) {
+          const noticeOpt = document.querySelector('#composerCategoryMenu [data-value="notice"]');
+          if (noticeOpt) noticeOpt.style.display = 'none';
+        }
       })
       .catch(() => {
         const toast = document.getElementById('minimalAuthToast');
@@ -3765,12 +3823,39 @@
         `;
       }
 
+      const categoryLabel = (post.category_label || post.category || 'General').toUpperCase();
+      let semDisplay = post.semester_display;
+      if (!semDisplay) {
+        if (post.allSemesters || post.target_all_semesters === 1 || !post.targetSemesters || post.targetSemesters.length === 0) {
+          semDisplay = 'All Semesters';
+        } else {
+          semDisplay = 'Semester ' + post.targetSemesters.join(', ');
+        }
+      }
+
+      const isStudentsOnly = post.visibility === 'students_only' || post.audience === 'students_only';
+      const audienceBadgeHtml = isStudentsOnly
+        ? `<span class="post-monochrome-badge post-audience-tag">STUDENTS ONLY</span>`
+        : '';
+
+      const tagsHtml = `
+        <div class="post-tags-row">
+          <span class="post-monochrome-badge post-category-tag">${escapeHtml(categoryLabel)}</span>
+          ${audienceBadgeHtml}
+          <span class="post-monochrome-badge post-semester-tag">${escapeHtml(semDisplay)}</span>
+        </div>
+      `;
+      const isGeneral = (post.category === 'general' || post.category_key === 'general');
+      const titleHtml = (!isGeneral && post.title) ? `<h3 class="post-card-title">${escapeHtml(post.title)}</h3>` : '';
+
       return renderPostShell({
         kind: 'post', id: post.id, className: 'status-post-card' + noticeClass,
         profileUrl, avatar, name: post.name, badge: roleBadgeHtml,
         meta: `${handleHtml}<time class="post-timestamp" datetime="${escapeHtml(post.created_at)}">${timeAgo(post.created_at)}</time>`,
         controls: post.canDelete ? `<button type="button" class="post-delete-btn" onclick="deleteStatusPost(${post.id}, this)" aria-label="Delete post" title="Delete post"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14H5V6m3 0V3h8v3"/></svg></button>` : '',
         body: `
+            ${tagsHtml}
+            ${titleHtml}
             <div class="post-content">
               ${shouldTruncate ? `
                 <div class="post-content-clamped">
@@ -3808,13 +3893,25 @@
       });
     }
 
+    let currentFeedCategoryFilter = 'all';
+
     function renderFeed() {
       const container = document.getElementById('realFiles');
       feedItems = feedItems.filter(item => item._feedType !== 'assignment' && item.type !== 'assignment');
       feedItems.sort((a, b) => b._feedTime - a._feedTime || b.id - a.id);
+
+      let visibleItems = feedItems;
+      if (currentFeedCategoryFilter && currentFeedCategoryFilter !== 'all') {
+        visibleItems = feedItems.filter(item => {
+          if (item._feedType !== 'post') return false;
+          const cat = (item.category || 'general').toLowerCase();
+          return cat === currentFeedCategoryFilter.toLowerCase();
+        });
+      }
+
       // Reuse existing cards so paging or publishing preserves open comments and pending likes.
       const fragment = document.createDocumentFragment();
-      feedItems.forEach(item => {
+      visibleItems.forEach(item => {
         const attribute = { post: 'post', assignment: 'assignment', file: 'file' }[item._feedType];
         const existing = container.querySelector(`[data-${attribute}-id="${item.id}"]`);
         if (existing) {
@@ -3826,13 +3923,31 @@
         }
       });
       container.replaceChildren(fragment);
-      if (!feedItems.length) {
-        container.innerHTML = `<div class="post-feed-empty"><p>No posts shared yet</p><p>Share a status above or upload notes in Library.</p></div>`;
+      if (!visibleItems.length) {
+        if (currentFeedCategoryFilter && currentFeedCategoryFilter !== 'all') {
+          container.innerHTML = `<div class="post-feed-empty"><p>No ${escapeHtml(currentFeedCategoryFilter)} posts found</p><p>Share a post in this category or switch back to All Posts.</p></div>`;
+        } else {
+          container.innerHTML = `<div class="post-feed-empty"><p>No posts shared yet</p><p>Share a status above or upload notes in Library.</p></div>`;
+        }
       }
       loadMorePostsBtn.hidden = postsLoaded && postsCursor === null;
       loadMorePostsBtn.textContent = postsLoaded ? 'Load older posts' : 'Retry loading posts';
       initDashboardCardPhysics();
     }
+
+    const filterPills = document.querySelectorAll('#feedCategoryFilterBar .feed-filter-pill');
+    filterPills.forEach(pill => {
+      pill.addEventListener('click', () => {
+        filterPills.forEach(p => {
+          p.classList.remove('active');
+          p.setAttribute('aria-selected', 'false');
+        });
+        pill.classList.add('active');
+        pill.setAttribute('aria-selected', 'true');
+        currentFeedCategoryFilter = pill.dataset.category || 'all';
+        renderFeed();
+      });
+    });
 
     function addFeedPosts(posts) {
       const existing = new Set(feedItems.filter(item => item._feedType === 'post').map(item => item.id));
@@ -4295,6 +4410,225 @@
       });
     }
 
+    // --- Category, Audience, and Semester Selector Controls ---
+    let selectedComposerCategory = 'general';
+    let selectedComposerAudience = 'everyone';
+    let isComposerAllSemesters = true;
+    let selectedComposerSemesters = [];
+
+    const composerCategoryWrap = document.getElementById('composerCategoryWrap');
+    const composerCategoryBtn = document.getElementById('composerCategoryBtn');
+    const composerCategoryMenu = document.getElementById('composerCategoryMenu');
+    const composerCategoryValue = document.getElementById('composerCategoryValue');
+    const categoryOptions = document.querySelectorAll('#composerCategoryMenu .category-option');
+
+    function updateComposerCategoryUI(cat) {
+      selectedComposerCategory = cat || 'general';
+      const postTitleWrap = document.getElementById('postTitleWrap');
+      if (postTitleWrap) {
+        postTitleWrap.style.display = selectedComposerCategory === 'general' ? 'none' : 'block';
+      }
+      const postTypeEl = document.getElementById('postType');
+      if (postTypeEl) {
+        postTypeEl.value = selectedComposerCategory === 'notice' ? 'notice' : 'status';
+      }
+    }
+
+    function toggleCategoryMenu(forceOpen) {
+      if (!composerCategoryMenu) return;
+      const willOpen = forceOpen !== undefined ? forceOpen : composerCategoryMenu.hidden;
+      composerCategoryMenu.hidden = !willOpen;
+      if (composerCategoryBtn) composerCategoryBtn.setAttribute('aria-expanded', String(willOpen));
+      if (willOpen) {
+        if (composerAudienceMenu) toggleAudienceMenu(false);
+        if (composerSemestersMenu) toggleSemesterMenu(false);
+      }
+    }
+
+    if (composerCategoryBtn) {
+      composerCategoryBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleCategoryMenu();
+      });
+    }
+
+    categoryOptions.forEach(opt => {
+      opt.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        categoryOptions.forEach(o => o.classList.remove('selected'));
+        opt.classList.add('selected');
+        selectedComposerCategory = opt.dataset.value || 'general';
+        const label = opt.querySelector('span')?.textContent || 'General';
+        if (composerCategoryValue) composerCategoryValue.textContent = label;
+        updateComposerCategoryUI(selectedComposerCategory);
+        toggleCategoryMenu(false);
+      });
+    });
+
+    // --- Audience Selector Controls (Students / CRs only) ---
+    const composerAudienceWrap = document.getElementById('composerAudienceWrap');
+    const composerAudienceBtn = document.getElementById('composerAudienceBtn');
+    const composerAudienceMenu = document.getElementById('composerAudienceMenu');
+    const composerAudienceValue = document.getElementById('composerAudienceValue');
+    const composerAudienceHelper = document.getElementById('composerAudienceHelper');
+    const audienceOptions = document.querySelectorAll('#composerAudienceMenu .audience-option');
+
+    function toggleAudienceMenu(forceOpen) {
+      if (!composerAudienceMenu) return;
+      const willOpen = forceOpen !== undefined ? forceOpen : composerAudienceMenu.hidden;
+      composerAudienceMenu.hidden = !willOpen;
+      if (composerAudienceBtn) composerAudienceBtn.setAttribute('aria-expanded', String(willOpen));
+      if (willOpen) {
+        if (composerCategoryMenu) toggleCategoryMenu(false);
+        if (composerSemestersMenu) toggleSemesterMenu(false);
+      }
+    }
+
+    if (composerAudienceBtn) {
+      composerAudienceBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleAudienceMenu();
+      });
+    }
+
+    audienceOptions.forEach(opt => {
+      opt.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        audienceOptions.forEach(o => o.classList.remove('selected'));
+        opt.classList.add('selected');
+        selectedComposerAudience = opt.dataset.value || 'everyone';
+        const label = opt.querySelector('span')?.textContent || 'Everyone';
+        if (composerAudienceValue) composerAudienceValue.textContent = label;
+        if (composerAudienceHelper) {
+          composerAudienceHelper.style.display = selectedComposerAudience === 'students_only' ? 'block' : 'none';
+        }
+        toggleAudienceMenu(false);
+      });
+    });
+
+    const composerSemestersWrap = document.getElementById('composerSemestersWrap');
+    const composerSemestersBtn = document.getElementById('composerSemestersBtn');
+    const composerSemestersMenu = document.getElementById('composerSemestersMenu');
+    const composerSemestersValue = document.getElementById('composerSemestersValue');
+    const closeSemesterMenuBtn = document.getElementById('closeSemesterMenuBtn');
+    const applySemesterBtn = document.getElementById('applySemesterBtn');
+    const semAllCheck = document.getElementById('semAllCheck');
+    const semIndivChecks = document.querySelectorAll('.sem-indiv-check');
+
+    function toggleSemesterMenu(forceOpen) {
+      if (!composerSemestersMenu) return;
+      const willOpen = forceOpen !== undefined ? forceOpen : composerSemestersMenu.hidden;
+      composerSemestersMenu.hidden = !willOpen;
+      if (composerSemestersBtn) composerSemestersBtn.setAttribute('aria-expanded', String(willOpen));
+      if (willOpen) {
+        if (composerCategoryMenu) toggleCategoryMenu(false);
+        if (composerAudienceMenu) toggleAudienceMenu(false);
+      }
+    }
+
+    if (composerSemestersBtn) {
+      composerSemestersBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleSemesterMenu();
+      });
+    }
+
+    if (closeSemesterMenuBtn) {
+      closeSemesterMenuBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleSemesterMenu(false);
+      });
+    }
+
+    if (semAllCheck) {
+      semAllCheck.addEventListener('change', () => {
+        if (semAllCheck.checked) {
+          semIndivChecks.forEach(chk => { chk.checked = false; });
+        } else {
+          // Prevent empty selection
+          semAllCheck.checked = true;
+        }
+      });
+    }
+
+    semIndivChecks.forEach(chk => {
+      chk.addEventListener('change', () => {
+        if (chk.checked) {
+          if (semAllCheck) semAllCheck.checked = false;
+        } else {
+          // If all individual are unchecked, revert to All Semesters
+          const anyChecked = Array.from(semIndivChecks).some(c => c.checked);
+          if (!anyChecked && semAllCheck) {
+            semAllCheck.checked = true;
+          }
+        }
+      });
+    });
+
+    if (applySemesterBtn) {
+      applySemesterBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const checkedVals = Array.from(semIndivChecks).filter(c => c.checked).map(c => Number(c.value)).sort((a,b) => a - b);
+        if (checkedVals.length === 0 || (semAllCheck && semAllCheck.checked)) {
+          isComposerAllSemesters = true;
+          selectedComposerSemesters = [];
+          if (composerSemestersValue) composerSemestersValue.textContent = 'All Semesters';
+        } else {
+          isComposerAllSemesters = false;
+          selectedComposerSemesters = checkedVals;
+          if (composerSemestersValue) composerSemestersValue.textContent = 'Semester ' + checkedVals.join(', ');
+        }
+        toggleSemesterMenu(false);
+      });
+    }
+
+    document.addEventListener('click', (e) => {
+      if (composerCategoryWrap && !composerCategoryWrap.contains(e.target)) {
+        toggleCategoryMenu(false);
+      }
+      if (composerAudienceWrap && !composerAudienceWrap.contains(e.target)) {
+        toggleAudienceMenu(false);
+      }
+      if (composerSemestersWrap && !composerSemestersWrap.contains(e.target)) {
+        toggleSemesterMenu(false);
+      }
+    });
+
+    function resetComposerCategory() {
+      selectedComposerCategory = 'general';
+      if (composerCategoryValue) composerCategoryValue.textContent = 'General';
+      categoryOptions.forEach(opt => {
+        if (opt.dataset.value === 'general') opt.classList.add('selected');
+        else opt.classList.remove('selected');
+      });
+      updateComposerCategoryUI('general');
+    }
+
+    function resetComposerAudience() {
+      selectedComposerAudience = 'everyone';
+      if (composerAudienceValue) composerAudienceValue.textContent = 'Everyone';
+      if (composerAudienceHelper) composerAudienceHelper.style.display = 'none';
+      audienceOptions.forEach(opt => {
+        if (opt.dataset.value === 'everyone') opt.classList.add('selected');
+        else opt.classList.remove('selected');
+      });
+    }
+
+    function resetComposerSemesters() {
+      isComposerAllSemesters = true;
+      selectedComposerSemesters = [];
+      if (composerSemestersValue) composerSemestersValue.textContent = 'All Semesters';
+      if (semAllCheck) semAllCheck.checked = true;
+      semIndivChecks.forEach(chk => { chk.checked = false; });
+    }
+
     document.getElementById('postComposer').addEventListener('submit', async (event) => {
       event.preventDefault();
       const content = document.getElementById('postContent');
@@ -4327,8 +4661,20 @@
       try {
         await feedReady;
         const formData = new FormData();
+        const postTitleInput = document.getElementById('postTitle');
+        if (selectedComposerCategory !== 'general' && postTitleInput && postTitleInput.value.trim()) {
+          formData.append('title', postTitleInput.value.trim());
+        }
         formData.append('content', content.value);
         formData.append('type', type.value);
+        formData.append('category', selectedComposerCategory || 'general');
+        formData.append('audience', (window.canSelectAudience && selectedComposerAudience) ? selectedComposerAudience : 'everyone');
+        formData.append('visibility', (window.canSelectAudience && selectedComposerAudience) ? selectedComposerAudience : 'everyone');
+        if (isComposerAllSemesters || !selectedComposerSemesters || selectedComposerSemesters.length === 0) {
+          formData.append('targetSemesters', 'all');
+        } else {
+          formData.append('targetSemesters', JSON.stringify(selectedComposerSemesters));
+        }
 
         // Append images: first image with key 'image' for compatibility, subsequent with 'images'
         imagesToSend.forEach((file, index) => {
@@ -4350,6 +4696,10 @@
         addFeedPosts([data]);
         renderFeed();
         content.value = '';
+        if (postTitleInput) postTitleInput.value = '';
+        resetComposerCategory();
+        resetComposerAudience();
+        resetComposerSemesters();
         clearPostImage();
         clearPostFiles();
         message.textContent = 'Post shared with your class.';

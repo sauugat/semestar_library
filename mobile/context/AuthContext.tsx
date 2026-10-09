@@ -7,7 +7,7 @@ import { clearAllDmCache } from '@/services/dm-db';
 import { disconnectAllDmRealtime } from '@/services/dm-realtime';
 import { invalidateChatSession } from '@/services/chat-session';
 import { clearAppQueryCache } from '@/services/query-client';
-import { getAutoDetectedServerUrl, getBaseUrl, DEFAULT_SERVER_URL } from '@/services/api';
+import { getAutoDetectedServerUrl, getBaseUrl, isTrustedServerUrl, DEFAULT_SERVER_URL } from '@/services/api';
 import {
   registerPushToken,
   unregisterPushToken,
@@ -94,23 +94,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     async function initializeAuth() {
       try {
-        // 1. In production (!__DEV__), purge stored server URL key and force getBaseUrl()
-        let activeUrl = '';
-        if (!__DEV__) {
-          await SecureStore.deleteItemAsync(SERVER_URL_KEY).catch(() => {});
-          activeUrl = await getBaseUrl();
-        } else {
-          const savedUrl = await SecureStore.getItemAsync(SERVER_URL_KEY);
-          if (savedUrl && savedUrl.includes('vercel.app')) {
-            await SecureStore.deleteItemAsync(SERVER_URL_KEY).catch(() => {});
-            activeUrl = await getBaseUrl();
-          } else {
-            activeUrl = savedUrl ? savedUrl.trim().replace(/\/+$/, '') : '';
-            if (!activeUrl) {
-              activeUrl = await getBaseUrl();
-            }
-          }
-        }
+        // 1. Resolve active backend URL (honors trusted override, env var, or production default)
+        const activeUrl = await getBaseUrl();
         if (isMounted) setServerUrl(activeUrl);
 
         // 2. Load stored token & cached user profile
@@ -459,9 +444,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     const sanitized = newUrl.trim().replace(/\/+$/, '');
+    if (!isTrustedServerUrl(sanitized)) {
+      throw new Error(`Untrusted server URL: ${sanitized}. Must be an approved local address or *.vercel.app deployment.`);
+    }
+
+    // Isolate environment state: purge session, tokens, and caches so environments do not mix
+    disconnectChatRealtime();
+    disconnectAllDmRealtime();
     invalidateChatSession();
-    await SecureStore.setItemAsync(SERVER_URL_KEY, sanitized);
+    clearAppQueryCache();
+    await Promise.allSettled([
+      SecureStore.deleteItemAsync(TOKEN_KEY),
+      SecureStore.deleteItemAsync(USER_KEY),
+      clearChatDb(),
+      clearAllDmCache(),
+      SecureStore.setItemAsync(SERVER_URL_KEY, sanitized),
+    ]);
+
     setServerUrl(sanitized);
+    setToken(null);
+    setUser(null);
   };
 
   const setSession = async (newToken: string, newUser: StudentUser) => {

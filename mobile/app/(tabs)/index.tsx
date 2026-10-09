@@ -37,6 +37,7 @@ import { Button } from '@/components/ui/Button';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
 import { KeyboardAwareForm } from '@/components/ui/KeyboardAwareForm';
+import { SelectionSheet, SelectionOption, SemesterMultiSelectSheet } from '@/components/ui';
 import { formatTimeAgo } from '@/utils/date';
 import {
   getPosts,
@@ -202,6 +203,47 @@ function formatLastUpdated(date: Date | string | null): string {
     return '';
   }
 }
+
+const CATEGORY_OPTIONS: SelectionOption<string>[] = [
+  { id: 'notice', label: 'Notice' },
+  { id: 'general', label: 'General' },
+  { id: 'announcement', label: 'Announcement' },
+  { id: 'news', label: 'News' },
+  { id: 'complaints', label: 'Complaints' },
+  { id: 'feedback', label: 'Feedback' },
+];
+
+const AUDIENCE_OPTIONS: SelectionOption<'everyone' | 'students_only'>[] = [
+  {
+    id: 'everyone',
+    label: 'Everyone',
+    sublabel: 'Visible to students, CRs, teachers, and university officials',
+  },
+  {
+    id: 'students_only',
+    label: 'Students Only',
+    sublabel: "Won't appear in teacher or university staff feeds",
+  },
+];
+
+const CATEGORY_DISPLAY_MAP: Record<string, string> = {
+  notice: 'Notice',
+  general: 'General',
+  announcement: 'Announcement',
+  news: 'News',
+  complaints: 'Complaints',
+  feedback: 'Feedback',
+};
+
+const FEED_CATEGORY_FILTERS = [
+  { id: 'all', label: 'All Posts' },
+  { id: 'general', label: 'General' },
+  { id: 'notice', label: 'Notices' },
+  { id: 'announcement', label: 'Announcements' },
+  { id: 'news', label: 'News' },
+  { id: 'complaints', label: 'Complaints' },
+  { id: 'feedback', label: 'Feedback' },
+];
 
 // Only show badges for Notice or Assignment types; omit for regular status/discussion
 function getTypeBadgeProps(type: string, isOfficial: boolean | undefined, colors: any) {
@@ -610,26 +652,41 @@ export default function HomeScreen() {
   const loadingInitial = isFeedLoading && !feedData;
   const error = feedQueryError ? (feedQueryError as any).message || 'Error loading dashboard feed.' : null;
 
+  // Horizontal feed category filter state
+  const [feedCategoryFilter, setFeedCategoryFilter] = useState<string>('all');
+
   // Merge posts and uploaded files into a unified chronological feed
   const feedItems = useMemo<FeedItem[]>(() => {
-    const postItems: FeedItem[] = posts.map((p) => ({
+    const visiblePosts = feedCategoryFilter === 'all'
+      ? posts
+      : posts.filter((p) => (p.category || 'general').toLowerCase() === feedCategoryFilter.toLowerCase());
+
+    const postItems: FeedItem[] = visiblePosts.map((p) => ({
       feedType: 'post',
       post: p,
       time: new Date(p.created_at).getTime() || 0,
     }));
-    const fileItems: FeedItem[] = files.map((f) => ({
-      feedType: 'file',
-      file: f,
-      time: new Date(f.uploadedAt || (f as any).createdAt || 0).getTime() || 0,
-    }));
-    const assignmentItems: FeedItem[] = assignments.map(assignment => ({ feedType: 'assignment', assignment, time: new Date(assignment.createdAt).getTime() || 0 }));
+    const fileItems: FeedItem[] = feedCategoryFilter === 'all'
+      ? files.map((f) => ({
+          feedType: 'file',
+          file: f,
+          time: new Date(f.uploadedAt || (f as any).createdAt || 0).getTime() || 0,
+        }))
+      : [];
+    const assignmentItems: FeedItem[] = feedCategoryFilter === 'all'
+      ? assignments.map((assignment) => ({
+          feedType: 'assignment',
+          assignment,
+          time: new Date(assignment.createdAt).getTime() || 0,
+        }))
+      : [];
     return [...postItems, ...fileItems, ...assignmentItems].sort((a, b) => {
       if (b.time !== a.time) return b.time - a.time;
       const bId = b.feedType === 'post' ? b.post.id : b.feedType === 'file' ? b.file.id : b.assignment.id;
       const aId = a.feedType === 'post' ? a.post.id : a.feedType === 'file' ? a.file.id : a.assignment.id;
       return bId - aId;
     });
-  }, [posts, files, assignments]);
+  }, [posts, files, assignments, feedCategoryFilter]);
 
   // Post Comments bottom-sheet state
   const [activeCommentPost, setActiveCommentPost] = useState<Post | null>(null);
@@ -960,7 +1017,15 @@ export default function HomeScreen() {
 
   // Create Post Composer states
   const [composerOpen, setComposerOpen] = useState(false);
+  const [postTitle, setPostTitle] = useState('');
   const [postContent, setPostContent] = useState('');
+  const [postCategory, setPostCategory] = useState<string>('general');
+  const [postAudience, setPostAudience] = useState<'everyone' | 'students_only'>('everyone');
+  const [postAllSemesters, setPostAllSemesters] = useState(true);
+  const [postTargetSemesters, setPostTargetSemesters] = useState<number[]>([]);
+  const [categorySheetVisible, setCategorySheetVisible] = useState(false);
+  const [audienceSheetVisible, setAudienceSheetVisible] = useState(false);
+  const [semesterSheetVisible, setSemesterSheetVisible] = useState(false);
   const [postType, setPostType] = useState<'status' | 'notice' | 'assignment'>('status');
   const [isOfficialNotice, setIsOfficialNotice] = useState(false);
   const [composerAttachments, setComposerAttachments] = useState<{
@@ -1029,7 +1094,16 @@ export default function HomeScreen() {
     });
   };
 
-  const isPrivileged = ['admin', 'cr', 'teacher'].includes((user?.role || '').toLowerCase());
+  const userRole = (user?.role || '').toLowerCase();
+  const isPrivileged = ['admin', 'cr', 'teacher'].includes(userRole);
+  const canSelectAudience = ['student', 'cr'].includes(userRole) || (!['admin', 'teacher'].includes(userRole));
+  const canPostNotice = ['admin', 'cr', 'teacher'].includes(userRole);
+
+  const availableCategoryOptions = useMemo(() => {
+    return canPostNotice
+      ? CATEGORY_OPTIONS
+      : CATEGORY_OPTIONS.filter((c) => c.id !== 'notice');
+  }, [canPostNotice]);
 
   useEffect(() => {
     getBaseUrl().then(setBaseUrl);
@@ -1458,9 +1532,15 @@ export default function HomeScreen() {
         .filter(Boolean);
 
       const newPost = await createPost({
+        title: postCategory === 'general' ? undefined : (postTitle.trim() || undefined),
         content: postContent,
-        type: isPrivileged ? postType : 'status',
-        official: isPrivileged && postType === 'notice' && isOfficialNotice,
+        category: postCategory,
+        targetSemesters: postAllSemesters ? [] : postTargetSemesters,
+        allSemesters: postAllSemesters,
+        type: postCategory === 'notice' && canPostNotice ? 'notice' : (isPrivileged ? postType : 'status'),
+        audience: canSelectAudience ? postAudience : 'everyone',
+        visibility: canSelectAudience ? postAudience : 'everyone',
+        official: postCategory === 'notice' && canPostNotice,
         attachments,
       });
 
@@ -1470,10 +1550,14 @@ export default function HomeScreen() {
         old ? { ...old, posts: [newPost, ...(old.posts || [])], fetchedAt: new Date() } : old
       );
 
+      setPostTitle('');
       setPostContent('');
+      setPostCategory('general');
+      setPostAudience('everyone');
+      setPostAllSemesters(true);
+      setPostTargetSemesters([]);
       setComposerAttachments([]);
       setPostType('status');
-      setIsOfficialNotice(false);
       setComposerOpen(false);
     } catch (err: any) {
       setComposerError(err.message || 'Could not publish your post. Please try again.');
@@ -1862,6 +1946,43 @@ export default function HomeScreen() {
         )}
       </View>
 
+      {/* Category Filter Pills (Strict Monochrome) */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingVertical: 6, gap: 6 }}
+        style={{ marginBottom: spacing.xs }}
+      >
+        {FEED_CATEGORY_FILTERS.map((cat) => {
+          const isSelected = feedCategoryFilter === cat.id;
+          return (
+            <TouchableOpacity
+              key={cat.id}
+              activeOpacity={0.7}
+              onPress={() => setFeedCategoryFilter(cat.id)}
+              style={{
+                backgroundColor: isSelected ? colors.text : colors.surfaceRaised,
+                borderColor: isSelected ? colors.text : colors.border,
+                borderWidth: 1,
+                borderRadius: radii.full,
+                paddingHorizontal: 12,
+                paddingVertical: 5,
+              }}
+            >
+              <Text
+                variant="xs"
+                weight={isSelected ? '700' : '500'}
+                style={{
+                  color: isSelected ? colors.background : colors.textSecondary,
+                }}
+              >
+                {cat.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+
 
     </View>
   );
@@ -2241,10 +2362,11 @@ export default function HomeScreen() {
               <TouchableOpacity
                 onPress={() => setComposerOpen(false)}
                 disabled={submittingPost}
-                style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 }}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={styles.modalCloseBtn}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                accessibilityLabel="Close create post"
               >
-                <Text variant="sm" color="secondary">Cancel</Text>
+                <Ionicons name="close" size={22} color={colors.text} />
               </TouchableOpacity>
 
               <Text variant="md" weight="700" color="primary">Create Post</Text>
@@ -2337,71 +2459,132 @@ export default function HomeScreen() {
                 </View>
               </View>
 
-              {/* Type Selection (Restricted by Role) */}
-              <View style={{ marginVertical: spacing.sm }}>
-                {isPrivileged ? (
-                  <View>
-                    <Caption color="muted" style={{ marginBottom: 6 }}>
-                      Post Category
-                    </Caption>
-                    <View style={styles.typeSegmentRow}>
-                      {(['status', 'notice', 'assignment'] as const).map((t) => {
-                        const isSelected = postType === t;
-                        return (
-                          <TouchableOpacity
-                            key={t}
-                            onPress={() => setPostType(t)}
-                            style={[
-                              styles.typeSegmentPill,
-                              {
-                                backgroundColor: isSelected ? colors.primary : colors.surfaceRaised,
-                                borderColor: isSelected ? colors.primary : colors.border,
-                                borderRadius: radii.full,
-                              },
-                            ]}
-                          >
-                            <Text
-                              variant="xs"
-                              weight="700"
-                              style={{
-                                color: isSelected ? colors.primaryText : colors.textSecondary,
-                                textTransform: 'uppercase',
-                              }}
-                            >
-                              {t}
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
+              {/* Title Input (Hidden for General posts) */}
+              {postCategory !== 'general' && (
+                <TextInput
+                  placeholder="Title (optional)"
+                  placeholderTextColor={colors.textMuted}
+                  value={postTitle}
+                  onChangeText={setPostTitle}
+                  maxLength={200}
+                  style={[
+                    styles.titleInput,
+                    {
+                      color: colors.text,
+                      backgroundColor: colors.surface,
+                      borderColor: colors.border,
+                      borderRadius: radii.md,
+                      paddingHorizontal: spacing.md,
+                      paddingVertical: 10,
+                      marginBottom: spacing.sm,
+                    },
+                  ]}
+                />
+              )}
 
-                    {/* Official Notice Toggle for privileged users */}
-                    {postType === 'notice' && (
-                      <View style={[styles.officialRow, { borderColor: colors.border, borderRadius: radii.md, backgroundColor: colors.surfaceRaised }]}>
-                        <View style={{ flex: 1 }}>
-                          <Text variant="xs" weight="700" color="primary">
-                            Publish as Official Notice
-                          </Text>
-                          <Caption color="muted">
-                            Marks post with verified official banner
-                          </Caption>
-                        </View>
-                        <Switch
-                          value={isOfficialNotice}
-                          onValueChange={setIsOfficialNotice}
-                          thumbColor={isOfficialNotice ? colors.primary : colors.textMuted}
-                          trackColor={{ false: colors.border, true: colors.borderStrong }}
-                        />
-                      </View>
-                    )}
-                  </View>
-                ) : (
-                  <View style={styles.studentTypePill}>
-                    <Ionicons name="chatbubble-ellipses-outline" size={14} color={colors.textSecondary} style={{ marginRight: 4 }} />
-                    <Text variant="xs" color="secondary" weight="600">
-                      Category: General Discussion & Status
-                    </Text>
-                  </View>
+              {/* Category, Audience, & Target Semesters Selectors */}
+              <View style={{ gap: spacing.sm, marginBottom: spacing.sm }}>
+                <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                  {/* Category Button */}
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={() => setCategorySheetVisible(true)}
+                    style={[
+                      styles.selectorButton,
+                      {
+                        flex: 1,
+                        backgroundColor: colors.surfaceRaised,
+                        borderColor: colors.border,
+                        borderRadius: radii.md,
+                        paddingHorizontal: spacing.sm,
+                        paddingVertical: 10,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        borderWidth: 1,
+                      },
+                    ]}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Caption color="muted" style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 }}>
+                        Category
+                      </Caption>
+                      <Text variant="xs" weight="700" color="primary" numberOfLines={1}>
+                        {CATEGORY_DISPLAY_MAP[postCategory] || 'General'}
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-down" size={14} color={colors.textSecondary} />
+                  </TouchableOpacity>
+
+                  {/* Target Semesters Button */}
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={() => setSemesterSheetVisible(true)}
+                    style={[
+                      styles.selectorButton,
+                      {
+                        flex: 1,
+                        backgroundColor: colors.surfaceRaised,
+                        borderColor: colors.border,
+                        borderRadius: radii.md,
+                        paddingHorizontal: spacing.sm,
+                        paddingVertical: 10,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        borderWidth: 1,
+                      },
+                    ]}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Caption color="muted" style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 }}>
+                        Target Semesters
+                      </Caption>
+                      <Text variant="xs" weight="700" color="primary" numberOfLines={1}>
+                        {postAllSemesters || postTargetSemesters.length === 0
+                          ? 'All Semesters'
+                          : `Sem ${postTargetSemesters.join(', ')}`}
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-down" size={14} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Audience Selector (Students and CRs only) */}
+                {canSelectAudience && (
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={() => setAudienceSheetVisible(true)}
+                    style={[
+                      styles.selectorButton,
+                      {
+                        backgroundColor: colors.surfaceRaised,
+                        borderColor: colors.border,
+                        borderRadius: radii.md,
+                        paddingHorizontal: spacing.sm,
+                        paddingVertical: 10,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        borderWidth: 1,
+                      },
+                    ]}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Caption color="muted" style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 }}>
+                        Audience
+                      </Caption>
+                      <Text variant="xs" weight="700" color="primary" numberOfLines={1}>
+                        {postAudience === 'students_only' ? 'Students Only' : 'Everyone'}
+                      </Text>
+                      {postAudience === 'students_only' && (
+                        <Caption color="muted" style={{ fontSize: 11, marginTop: 2 }}>
+                          This post won't appear in teacher or university staff feeds.
+                        </Caption>
+                      )}
+                    </View>
+                    <Ionicons name="chevron-down" size={14} color={colors.textSecondary} />
+                  </TouchableOpacity>
                 )}
               </View>
 
@@ -2747,6 +2930,44 @@ export default function HomeScreen() {
                 )}
               </View>
             </KeyboardAwareForm>
+
+            <SelectionSheet
+              visible={categorySheetVisible}
+              onClose={() => setCategorySheetVisible(false)}
+              title="Select Category"
+              options={availableCategoryOptions}
+              selectedId={postCategory}
+              onSelect={(opt) => {
+                setPostCategory(opt.id);
+                setCategorySheetVisible(false);
+              }}
+            />
+
+            {canSelectAudience && (
+              <SelectionSheet<'everyone' | 'students_only'>
+                visible={audienceSheetVisible}
+                onClose={() => setAudienceSheetVisible(false)}
+                title="Select Audience"
+                options={AUDIENCE_OPTIONS}
+                selectedId={postAudience}
+                onSelect={(opt) => {
+                  setPostAudience(opt.id);
+                  setAudienceSheetVisible(false);
+                }}
+              />
+            )}
+
+            <SemesterMultiSelectSheet
+              visible={semesterSheetVisible}
+              onClose={() => setSemesterSheetVisible(false)}
+              selectedSemesters={postTargetSemesters}
+              allSemesters={postAllSemesters}
+              onApply={(res) => {
+                setPostAllSemesters(res.allSemesters);
+                setPostTargetSemesters(res.semesters);
+                setSemesterSheetVisible(false);
+              }}
+            />
           </SafeAreaView>
         </View>
       </Modal>
@@ -3364,6 +3585,13 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
+  modalCloseBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   modalAuthorRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -3404,6 +3632,13 @@ const styles = StyleSheet.create({
     minHeight: 140,
     fontSize: 15,
     borderWidth: 1,
+  },
+  titleInput: {
+    fontSize: 15,
+    borderWidth: 1,
+  },
+  selectorButton: {
+    minHeight: 48,
   },
   characterCounterRow: {
     flexDirection: 'row',

@@ -17,7 +17,11 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { KeyboardAwareForm } from '@/components/ui/KeyboardAwareForm';
-import { getAutoDetectedServerUrl, DEFAULT_SERVER_URL } from '@/services/api';
+import {
+  getAutoDetectedServerUrl,
+  DEFAULT_SERVER_URL,
+  PRODUCTION_SERVER_URL,
+} from '@/services/api';
 
 export default function DeveloperSettingsScreen() {
   const router = useRouter();
@@ -119,13 +123,19 @@ export default function DeveloperSettingsScreen() {
   const handleResetToAuto = async () => {
     setCustomUrl(autoDetected);
     await updateServerUrl(autoDetected);
-    Alert.alert('Reset', `Server URL reset to auto-detected LAN:\n${autoDetected}`);
+    Alert.alert('Reset', `Server URL reset to auto-detected LAN:\n${autoDetected}\n\nSession credentials and local message cache have been isolated.`);
+  };
+
+  const handleSetToProduction = async () => {
+    setCustomUrl(PRODUCTION_SERVER_URL);
+    await updateServerUrl(PRODUCTION_SERVER_URL);
+    Alert.alert('Preset Applied', `Server URL set to Production Vercel:\n${PRODUCTION_SERVER_URL}\n\nSession credentials and local message cache have been isolated.`);
   };
 
   const handleResetToDefault = async () => {
     setCustomUrl(DEFAULT_SERVER_URL);
     await updateServerUrl(DEFAULT_SERVER_URL);
-    Alert.alert('Reset', `Server URL reset to production default:\n${DEFAULT_SERVER_URL}`);
+    Alert.alert('Reset', `Server URL reset to configured default:\n${DEFAULT_SERVER_URL}\n\nSession credentials and local message cache have been isolated.`);
   };
 
   return (
@@ -148,7 +158,7 @@ export default function DeveloperSettingsScreen() {
               Developer Settings
             </Text>
             <Caption color="muted">
-              Internal network diagnostics. Normal users do not see this menu.
+              Internal network diagnostics. Switching servers securely isolates cached sessions and messages.
             </Caption>
           </View>
         </View>
@@ -182,10 +192,21 @@ export default function DeveloperSettingsScreen() {
 
           <View style={styles.endpointRow}>
             <Text variant="xs" color="muted">
-              Production Default:
+              Configured Default:
             </Text>
             <Text variant="xs" weight="500">
               {DEFAULT_SERVER_URL}
+            </Text>
+          </View>
+
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+          <View style={styles.endpointRow}>
+            <Text variant="xs" color="muted">
+              Production Vercel:
+            </Text>
+            <Text variant="xs" weight="500">
+              {PRODUCTION_SERVER_URL}
             </Text>
           </View>
         </Card>
@@ -266,16 +287,27 @@ export default function DeveloperSettingsScreen() {
 
           <View style={[styles.divider, { backgroundColor: colors.border, marginTop: 16 }]} />
 
-          <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+          <Caption color="muted" style={{ marginBottom: 8 }}>
+            Quick Presets (Switching purges tokens & caches):
+          </Caption>
+
+          <View style={{ flexDirection: 'row', gap: 8 }}>
             <Button
-              title="Reset to LAN"
+              title="LAN Dev"
               variant="outline"
               size="sm"
               onPress={handleResetToAuto}
               style={{ flex: 1 }}
             />
             <Button
-              title="Reset to Prod"
+              title="Prod Vercel"
+              variant="outline"
+              size="sm"
+              onPress={handleSetToProduction}
+              style={{ flex: 1 }}
+            />
+            <Button
+              title="Reset Default"
               variant="outline"
               size="sm"
               onPress={handleResetToDefault}

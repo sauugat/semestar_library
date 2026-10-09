@@ -24,3 +24,4 @@ export * from './UserRow';
 export * from './SearchSuggestionRow';
 export * from './ResourceCard';
 export * from './SelectionSheet';
+export * from './SemesterMultiSelectSheet';

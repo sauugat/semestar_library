@@ -3,10 +3,11 @@ import { router } from 'expo-router';
 import Constants from 'expo-constants';
 import { invalidateChatSession } from './chat-session';
 
+export const PRODUCTION_SERVER_URL = 'https://semestar-library.vercel.app';
 export const DEFAULT_SERVER_URL =
   process.env.EXPO_PUBLIC_API_URL ||
   (Constants.expoConfig?.extra as any)?.apiUrl ||
-  'https://semestar-library.vercel.app';
+  PRODUCTION_SERVER_URL;
 export const TOKEN_STORAGE_KEY = 'semester_library_mobile_token';
 export const SERVER_URL_STORAGE_KEY = 'semester_library_server_url';
 
@@ -24,15 +25,66 @@ export class ApiError extends Error {
 
 export function isLocalAddress(url: string): boolean {
   if (!url) return false;
-  const lower = url.toLowerCase().trim();
-  return (
-    lower.startsWith('http://') ||
-    lower.includes('localhost') ||
-    lower.includes('127.0.0.1') ||
-    lower.includes('192.168.') ||
-    lower.includes('10.') ||
-    lower.includes('172.16.')
-  );
+  try {
+    const parsed = new URL(url.trim());
+    const hostname = parsed.hostname.toLowerCase();
+    return (
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname.endsWith('.local') ||
+      hostname.startsWith('192.168.') ||
+      hostname.startsWith('10.') ||
+      /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname)
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Validates whether a target backend URL belongs to an approved/trusted origin.
+ * Rules:
+ * - Production builds (!__DEV__): strictly requires HTTPS and must be either the production
+ *   domain or an approved vercel.app deployment origin. Insecure HTTP is forbidden.
+ * - Development builds (__DEV__): allows local development LAN/loopback HTTP addresses,
+ *   as well as approved remote HTTPS deployment origins (Vercel staging/preview/production).
+ */
+export function isTrustedServerUrl(url: string): boolean {
+  if (!url || typeof url !== 'string') return false;
+  const clean = url.trim();
+  try {
+    const parsed = new URL(clean);
+    const protocol = parsed.protocol.toLowerCase();
+    const hostname = parsed.hostname.toLowerCase();
+
+    if (!__DEV__) {
+      if (protocol !== 'https:') return false;
+      return (
+        hostname === 'semestar-library.vercel.app' ||
+        hostname.endsWith('.vercel.app')
+      );
+    }
+
+    // In development mode:
+    if (protocol === 'http:') {
+      return isLocalAddress(clean);
+    }
+
+    if (protocol === 'https:') {
+      return (
+        hostname === 'semestar-library.vercel.app' ||
+        hostname.endsWith('.vercel.app') ||
+        Boolean(
+          process.env.EXPO_PUBLIC_API_URL &&
+          new URL(process.env.EXPO_PUBLIC_API_URL).hostname.toLowerCase() === hostname
+        )
+      );
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
 }
 
 export function getAutoDetectedServerUrl(): string {
@@ -60,45 +112,53 @@ export async function getBaseUrl(): Promise<string> {
     } catch {}
 
     const envUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
-    if (envUrl && !isLocalAddress(envUrl)) {
+    if (envUrl && isTrustedServerUrl(envUrl)) {
       return envUrl.replace(/\/+$/, '');
     }
 
     const extraUrl = (Constants.expoConfig?.extra as any)?.apiUrl;
-    if (extraUrl && typeof extraUrl === 'string' && extraUrl.trim() && !isLocalAddress(extraUrl)) {
+    if (extraUrl && typeof extraUrl === 'string' && extraUrl.trim() && isTrustedServerUrl(extraUrl)) {
       return extraUrl.trim().replace(/\/+$/, '');
     }
 
-    return 'https://semestar-library.vercel.app';
+    return PRODUCTION_SERVER_URL;
   }
 
-  // Development builds: allow developer override from SecureStore
+  // Development builds (__DEV__):
+  // 1. Allow developer override from SecureStore if it is a valid and trusted origin
   try {
     const saved = await SecureStore.getItemAsync(SERVER_URL_STORAGE_KEY);
     if (saved && saved.trim()) {
-      if (saved.includes('vercel.app')) {
-        await SecureStore.deleteItemAsync(SERVER_URL_STORAGE_KEY).catch(() => {});
-      } else {
-        return saved.trim().replace(/\/+$/, '');
+      const cleanSaved = saved.trim().replace(/\/+$/, '');
+      if (isTrustedServerUrl(cleanSaved)) {
+        return cleanSaved;
       }
+      // If stored key is untrusted or invalid, purge it safely
+      await SecureStore.deleteItemAsync(SERVER_URL_STORAGE_KEY).catch(() => {});
     }
   } catch {}
 
+  // 2. Explicit environment variable EXPO_PUBLIC_API_URL (e.g. from mobile/.env or EAS build env)
   if (process.env.EXPO_PUBLIC_API_URL && process.env.EXPO_PUBLIC_API_URL.trim()) {
-    return process.env.EXPO_PUBLIC_API_URL.trim().replace(/\/+$/, '');
+    const envUrl = process.env.EXPO_PUBLIC_API_URL.trim().replace(/\/+$/, '');
+    if (isTrustedServerUrl(envUrl)) {
+      return envUrl;
+    }
   }
 
+  // 3. Auto-detected LAN server from Expo development bundler host (Expo Go on Wi-Fi)
   const autoUrl = getAutoDetectedServerUrl();
-  if (autoUrl && autoUrl !== 'https://semestar-library.vercel.app') {
+  if (autoUrl && isTrustedServerUrl(autoUrl)) {
     return autoUrl;
   }
 
+  // 4. Fallback to extra.apiUrl from app.json
   const extraUrl = (Constants.expoConfig?.extra as any)?.apiUrl;
-  if (extraUrl && typeof extraUrl === 'string' && extraUrl.trim()) {
+  if (extraUrl && typeof extraUrl === 'string' && extraUrl.trim() && isTrustedServerUrl(extraUrl)) {
     return extraUrl.trim().replace(/\/+$/, '');
   }
 
-  return DEFAULT_SERVER_URL;
+  return PRODUCTION_SERVER_URL;
 }
 
 export async function getAuthToken(): Promise<string | null> {
@@ -266,7 +326,9 @@ export async function apiFetch(
     if (netErr instanceof ApiError) throw netErr;
     const msg = netErr?.message || 'Network request failed';
     const errorText = __DEV__
-      ? `${msg} (Cannot connect to server at ${baseUrl}. Ensure your phone and computer are on the same Wi-Fi.)`
+      ? isLocalAddress(baseUrl)
+        ? `${msg} (Cannot connect to local server at ${baseUrl}. Ensure your phone and computer are on the same Wi-Fi and the Express server is running.)`
+        : `${msg} (Cannot connect to remote server at ${baseUrl}. Verify the deployment URL is active, reachable, and has no CORS/network issues.)`
       : 'Unable to connect to Semester Library. Check your internet connection and try again.';
     throw new ApiError(errorText, 0);
   }

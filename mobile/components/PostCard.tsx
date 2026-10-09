@@ -31,31 +31,22 @@ export interface PostCardProps {
 }
 
 function getTypeBadgeProps(type: string, isOfficial: boolean | undefined, colors: any) {
-  if (type === 'notice') {
+  if (type === 'notice' || isOfficial) {
     return {
-      label: 'NOTICE',
-      bgColor: '#FEF3C7',
-      borderColor: '#F59E0B',
-      textColor: '#B45309',
-      icon: 'megaphone-outline' as const,
+      label: isOfficial ? 'OFFICIAL NOTICE' : 'NOTICE',
+      bgColor: colors.surfaceRaised,
+      borderColor: colors.border,
+      textColor: colors.textSecondary,
+      icon: isOfficial ? ('shield-checkmark-outline' as const) : ('megaphone-outline' as const),
     };
   }
   if (type === 'assignment') {
     return {
       label: 'ASSIGNMENT',
-      bgColor: '#EDE9FE',
-      borderColor: '#8B5CF6',
-      textColor: '#6D28D9',
-      icon: 'document-text-outline' as const,
-    };
-  }
-  if (isOfficial) {
-    return {
-      label: 'OFFICIAL',
       bgColor: colors.surfaceRaised,
       borderColor: colors.border,
       textColor: colors.textSecondary,
-      icon: 'shield-checkmark-outline' as const,
+      icon: 'document-text-outline' as const,
     };
   }
   return null;
@@ -278,6 +269,36 @@ export function PostCard({
         </View>
       </View>
 
+      {/* Category, Audience, and Target Semester Monochrome Tags */}
+      <View style={styles.postTagsRow}>
+        <View style={[styles.monochromeBadge, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+          <Text variant="xs" weight="700" style={{ color: colors.textSecondary, fontSize: 10, textTransform: 'uppercase' }}>
+            {post.category_label || (post.category ? post.category.toUpperCase() : 'GENERAL')}
+          </Text>
+        </View>
+        {(post.visibility === 'students_only' || post.audience === 'students_only') && (
+          <View style={[styles.monochromeBadge, { backgroundColor: colors.surfaceRaised, borderColor: colors.borderStrong || colors.border }]}>
+            <Text variant="xs" weight="700" style={{ color: colors.text, fontSize: 10, textTransform: 'uppercase' }}>
+              STUDENTS ONLY
+            </Text>
+          </View>
+        )}
+        <View style={[styles.monochromeBadge, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+          <Text variant="xs" weight="600" style={{ color: colors.textMuted, fontSize: 10 }}>
+            {post.semester_display || (post.allSemesters || post.target_all_semesters === 1 || !post.targetSemesters?.length ? 'All Semesters' : `Semester ${post.targetSemesters.join(', ')}`)}
+          </Text>
+        </View>
+      </View>
+
+      {/* Post Title (if present and NOT a General post) */}
+      {post.category !== 'general' && Boolean(post.title && post.title.trim()) && (
+        <TouchableOpacity activeOpacity={0.8} onPress={defaultOpenDetail} style={{ marginTop: 4 }}>
+          <Text variant="sm" weight="700" style={{ color: colors.text, lineHeight: 20 }}>
+            {post.title}
+          </Text>
+        </TouchableOpacity>
+      )}
+
       {/* Post Text Content */}
       {Boolean(post.content && post.content.trim()) && (
         <TouchableOpacity
@@ -454,5 +475,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 4,
+  },
+  postTagsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+    marginBottom: 4,
+    flexWrap: 'wrap',
+  },
+  monochromeBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
   },
 });

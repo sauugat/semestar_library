@@ -20,7 +20,10 @@ const {
   DEFAULT_POST_CATEGORY,
   CATEGORY_LABELS,
   VALID_SEMESTERS,
+  VALID_POST_VISIBILITIES,
+  DEFAULT_POST_VISIBILITY,
   normalizeCategory,
+  normalizeVisibility,
   parseAndValidateTargetSemesters,
   formatSemesterDisplay
 } = require('../lib/posts');
@@ -384,15 +387,18 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
     const isAuthor = post.user_id === req.postUser?.studentId;
     const isAdmin = req.postUser?.role === 'admin';
     const categoryKey = post.category || DEFAULT_POST_CATEGORY;
+    const visibilityKey = post.visibility || DEFAULT_POST_VISIBILITY;
     const isAllSemesters = post.target_all_semesters === undefined || post.target_all_semesters === null || Number(post.target_all_semesters) === 1;
     const targetSemesters = Array.isArray(post.targetSemesters) ? post.targetSemesters : (Array.isArray(post.target_semesters) ? post.target_semesters : []);
 
     return {
       ...post,
       id: Number(post.id),
-      title: post.title || null,
+      title: categoryKey === 'general' ? null : (post.title || null),
       category: categoryKey,
       category_label: CATEGORY_LABELS[categoryKey] || 'General',
+      visibility: visibilityKey,
+      audience: visibilityKey,
       targetSemesters: isAllSemesters ? [] : targetSemesters,
       target_semesters: isAllSemesters ? [] : targetSemesters,
       allSemesters: isAllSemesters,
@@ -422,8 +428,47 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
     };
   }
 
+  function assertAudienceAccess(req, post) {
+    if (!post) return false;
+    const visibility = post.visibility || DEFAULT_POST_VISIBILITY;
+    if (visibility === 'everyone') return true;
+
+    if (visibility === 'students_only') {
+      const viewerId = req.postUser?.studentId || req.student?.studentId || req.user?.studentId || req.session?.studentId;
+      if (!viewerId) return false;
+
+      // Author can always see their own post
+      if (post.user_id === viewerId) return true;
+
+      const viewerRole = req.postUser?.role || req.student?.role || req.user?.role || 'student';
+
+      // Audited moderation path for authorized administrators
+      if (viewerRole === 'admin' && (req.query?.moderation === 'true' || req.query?.moderation === '1')) {
+        return true;
+      }
+
+      // Teachers are blocked from students_only posts in normal feeds and direct links
+      if (viewerRole === 'teacher') return false;
+
+      // Admins in normal feed / direct link without explicit ?moderation=true are blocked
+      if (viewerRole === 'admin') return false;
+
+      // Eligible students and CRs are allowed
+      if (['student', 'cr'].includes(viewerRole) || (!['admin', 'teacher'].includes(viewerRole))) {
+        return true;
+      }
+
+      return false;
+    }
+
+    return true;
+  }
+
   router.get('/meta', (req, res) => {
-    res.setHeader('Cache-Control', 'public, max-age=3600');
+    const userRole = req.postUser?.role || 'student';
+    const canPostNotice = ['admin', 'cr', 'teacher'].includes(userRole);
+    const canSelectAudience = ['student', 'cr'].includes(userRole) || (!['admin', 'teacher'].includes(userRole));
+    res.setHeader('Cache-Control', 'private, no-cache');
     res.json({
       categories: VALID_POST_CATEGORIES.map(cat => ({
         id: cat,
@@ -431,7 +476,11 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       })),
       defaultCategory: DEFAULT_POST_CATEGORY,
       semesters: VALID_SEMESTERS,
-      defaultTargetSemesters: 'all'
+      defaultTargetSemesters: 'all',
+      visibilities: VALID_POST_VISIBILITIES,
+      defaultVisibility: DEFAULT_POST_VISIBILITY,
+      canPostNotice,
+      canSelectAudience
     });
   });
 
@@ -487,6 +536,38 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
           whereConditions.push('((p.target_all_semesters = 1) OR (p.user_id = ?))');
           params.push(viewerStudentId);
         }
+      }
+
+      // Audience visibility filtering
+      const viewerRole = req.postUser?.role || 'student';
+      const isStaffViewer = ['admin', 'teacher'].includes(viewerRole);
+      const isModerationView = viewerRole === 'admin' && (req.query.moderation === 'true' || req.query.moderation === '1');
+
+      const filterVisibility = req.query.visibility || req.query.audience;
+      if (filterVisibility && filterVisibility !== 'all') {
+        const normVis = normalizeVisibility(filterVisibility);
+        if (normVis) {
+          if (normVis === 'students_only') {
+            if (isStaffViewer && !isModerationView) {
+              whereConditions.push('1 = 0');
+            } else {
+              whereConditions.push('p.visibility = ?');
+              params.push('students_only');
+            }
+          } else {
+            whereConditions.push("(p.visibility = 'everyone' OR p.visibility IS NULL OR p.visibility = '')");
+          }
+        }
+      } else if (isStaffViewer && !isModerationView) {
+        // In normal feeds, teachers and admins only see everyone posts or their own posts
+        whereConditions.push("(p.visibility = 'everyone' OR p.visibility IS NULL OR p.visibility = '' OR p.user_id = ?)");
+        params.push(viewerStudentId);
+      }
+
+      const searchQuery = (req.query.q || req.query.search || '').trim();
+      if (searchQuery) {
+        whereConditions.push('(p.content LIKE ? OR p.title LIKE ?)');
+        params.push(`%${searchQuery}%`, `%${searchQuery}%`);
       }
 
       const targetAuthor = studentId || authorStudentId;
@@ -662,7 +743,7 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
     let allAttachments = [];
 
     try {
-      const { content, type = 'status' } = req.body || {};
+      let { content, type = 'status' } = req.body || {};
       let attachment_url = req.body?.attachment_url ?? null;
 
       // 1. Collect pre-uploaded attachments from JSON body
@@ -810,6 +891,34 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
         validatedCategory = cat;
       }
 
+      if (validatedCategory === 'notice') {
+        const canPostNotice = ['admin', 'cr', 'teacher'].includes(req.postUser?.role);
+        if (!canPostNotice) {
+          return rejectPost('Only authorized roles (admin, CR, teacher) can publish notices.', 403);
+        }
+        type = 'notice';
+      }
+      if (type === 'notice') {
+        validatedCategory = 'notice';
+      }
+
+      // Audience / Visibility validation
+      let validatedVisibility = DEFAULT_POST_VISIBILITY;
+      const requestedVisibility = req.body?.visibility !== undefined ? req.body.visibility : (req.body?.audience !== undefined ? req.body.audience : undefined);
+      if (requestedVisibility !== undefined && requestedVisibility !== null && requestedVisibility !== '') {
+        const normVis = normalizeVisibility(requestedVisibility);
+        if (!normVis) {
+          return rejectPost('Invalid audience visibility. Choose everyone or students_only.', 400);
+        }
+        if (normVis === 'students_only') {
+          const isStudentOrCr = ['student', 'cr'].includes(req.postUser?.role) || (!['admin', 'teacher'].includes(req.postUser?.role));
+          if (!isStudentOrCr) {
+            return rejectPost('Only students and CRs can set audience visibility to students_only.', 403);
+          }
+        }
+        validatedVisibility = normVis;
+      }
+
       // Target semesters validation
       let parsedSemesters = { allSemesters: true, semesters: [] };
       try {
@@ -821,8 +930,9 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
         return rejectPost(semErr.message, 400);
       }
 
-      const passedTitle = (req.body?.title || req.body?.heading || '').trim();
-      if (passedTitle.length > 200) {
+      const rawTitle = (req.body?.title || req.body?.heading || '').trim();
+      const passedTitle = validatedCategory === 'general' ? null : (rawTitle.length > 0 ? rawTitle : null);
+      if (passedTitle && passedTitle.length > 200) {
         return rejectPost('Post title cannot exceed 200 characters.', 400);
       }
 
@@ -853,9 +963,9 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       // Atomic DB Transaction for post creation, attachment insertion, and staging commitment
       await runTransaction(async (tx) => {
         const result = await tx.run(
-          `INSERT INTO posts (user_id, title, content, type, category, target_all_semesters, attachment_url, cohort_id, semester_no, audience_scope, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          req.postUser.studentId, passedTitle || null, trimmedContent, type, validatedCategory, parsedSemesters.allSemesters ? 1 : 0, attachment_url, postCohortId, postSemesterNo, postAudienceScope, new Date().toISOString()
+          `INSERT INTO posts (user_id, title, content, type, category, visibility, target_all_semesters, attachment_url, cohort_id, semester_no, audience_scope, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          req.postUser.studentId, passedTitle, trimmedContent, type, validatedCategory, validatedVisibility, parsedSemesters.allSemesters ? 1 : 0, attachment_url, postCohortId, postSemesterNo, postAudienceScope, new Date().toISOString()
         );
         newPostId = result.lastInsertRowid;
 
@@ -912,6 +1022,8 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
           semesterNo: publishScope.semesterNo,
           audienceScope: publishScope.audienceScope,
           category: validatedCategory,
+          visibility: validatedVisibility,
+          audience: validatedVisibility,
           targetSemesters: parsedSemesters.semesters,
           targetAllSemesters: parsedSemesters.allSemesters
         });
@@ -957,7 +1069,7 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       if (!row) return res.status(404).json({ message: 'Post not found.' });
 
       const context = await getAcademicContext(db, req);
-      if (!assertContentAccess(context, row)) {
+      if (!assertContentAccess(context, row) || !assertAudienceAccess(req, row)) {
         return res.status(404).json({ message: 'Post not found.' });
       }
 
@@ -1006,15 +1118,20 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
     return Boolean(hasMatch);
   }
 
+  async function getAndAuthorizePost(req, postId) {
+    const post = await db.get('SELECT id, user_id, content, cohort_id, semester_no, audience_scope, target_all_semesters, visibility FROM posts WHERE id = ?', postId);
+    if (!post) return null;
+    const context = await getAcademicContext(db, req);
+    if (!assertContentAccess(context, post)) return null;
+    if (!(await assertSemesterAccess(req, post))) return null;
+    if (!assertAudienceAccess(req, post)) return null;
+    return post;
+  }
+
   async function setLike(req, res, next) {
     try {
-      const post = await db.get('SELECT id, user_id, content, cohort_id, semester_no, audience_scope, target_all_semesters FROM posts WHERE id = ?', Number(req.params.id));
+      const post = await getAndAuthorizePost(req, Number(req.params.id));
       if (!post) return res.status(404).json({ message: 'Post not found.' });
-
-      const context = await getAcademicContext(db, req);
-      if (!assertContentAccess(context, post) || !(await assertSemesterAccess(req, post))) {
-        return res.status(404).json({ message: 'Post not found.' });
-      }
 
       const liked = req.method === 'POST';
       if (liked) {
@@ -1070,13 +1187,8 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
   router.get('/:id/comments', async (req, res, next) => {
     try {
       const postId = Number(req.params.id);
-      const post = await db.get('SELECT id, user_id, cohort_id, semester_no, audience_scope, target_all_semesters FROM posts WHERE id = ?', postId);
+      const post = await getAndAuthorizePost(req, postId);
       if (!post) return res.status(404).json({ message: 'Post not found.' });
-
-      const context = await getAcademicContext(db, req);
-      if (!assertContentAccess(context, post) || !(await assertSemesterAccess(req, post))) {
-        return res.status(404).json({ message: 'Post not found.' });
-      }
 
       const comments = await fetchPostComments(db, postId, req);
       res.setHeader('Cache-Control', 'no-store');
@@ -1090,13 +1202,8 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
   router.post('/:id/comments', async (req, res, next) => {
     try {
       const postId = Number(req.params.id);
-      const post = await db.get('SELECT id, user_id, content, cohort_id, semester_no, audience_scope, target_all_semesters FROM posts WHERE id = ?', postId);
+      const post = await getAndAuthorizePost(req, postId);
       if (!post) return res.status(404).json({ message: 'Post not found.' });
-
-      const context = await getAcademicContext(db, req);
-      if (!assertContentAccess(context, post) || !(await assertSemesterAccess(req, post))) {
-        return res.status(404).json({ message: 'Post not found.' });
-      }
 
       const { content, parent_comment_id, parentCommentId, reply_to_user_id, replyToUserId } = req.body || {};
       const result = await createCommentOrReply(db, {
@@ -1115,6 +1222,9 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
 
   router.get('/:id/comments/:commentId/replies', async (req, res, next) => {
     try {
+      const post = await getAndAuthorizePost(req, Number(req.params.id));
+      if (!post) return res.status(404).json({ message: 'Post not found.' });
+
       const { limit = '50', offset = '0' } = req.query;
       const replies = await fetchCommentReplies(db, req.params.commentId, req, { limit, offset });
       res.setHeader('Cache-Control', 'no-store');
@@ -1127,6 +1237,9 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
 
   router.post('/:id/comments/:commentId/replies', async (req, res, next) => {
     try {
+      const post = await getAndAuthorizePost(req, Number(req.params.id));
+      if (!post) return res.status(404).json({ message: 'Post not found.' });
+
       const { content, reply_to_user_id, replyToUserId } = req.body || {};
       const result = await createCommentOrReply(db, {
         postId: Number(req.params.id),
@@ -1144,6 +1257,9 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
 
   const handleEditCommentRoute = async (req, res, next) => {
     try {
+      const post = await getAndAuthorizePost(req, Number(req.params.id));
+      if (!post) return res.status(404).json({ message: 'Post not found.' });
+
       const { content } = req.body || {};
       const result = await editComment(db, {
         commentId: req.params.commentId,
@@ -1162,6 +1278,9 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
 
   router.delete('/:id/comments/:commentId', async (req, res, next) => {
     try {
+      const post = await getAndAuthorizePost(req, Number(req.params.id));
+      if (!post) return res.status(404).json({ message: 'Post not found.' });
+
       const result = await deleteComment(db, {
         commentId: req.params.commentId,
         postId: Number(req.params.id),
@@ -1176,6 +1295,9 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
 
   router.post('/:id/comments/:commentId/reactions', async (req, res, next) => {
     try {
+      const post = await getAndAuthorizePost(req, Number(req.params.id));
+      if (!post) return res.status(404).json({ message: 'Post not found.' });
+
       const reactionType = req.body?.reaction_type || req.body?.reactionType || req.body?.type || 'like';
       const result = await addCommentReaction(db, {
         commentId: req.params.commentId,
@@ -1191,6 +1313,9 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
 
   const handleRemoveCommentReaction = async (req, res, next) => {
     try {
+      const post = await getAndAuthorizePost(req, Number(req.params.id));
+      if (!post) return res.status(404).json({ message: 'Post not found.' });
+
       const reactionType = req.params.reactionType || req.body?.reaction_type || req.body?.reactionType || 'like';
       const result = await removeCommentReaction(db, {
         commentId: req.params.commentId,
@@ -1209,6 +1334,9 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
 
   router.post('/:id/comments/:commentId/like', async (req, res, next) => {
     try {
+      const post = await getAndAuthorizePost(req, Number(req.params.id));
+      if (!post) return res.status(404).json({ message: 'Post not found.' });
+
       const result = await toggleCommentReaction(db, {
         commentId: req.params.commentId,
         reactionType: 'like',
@@ -1267,6 +1395,33 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
         updatedCategory = cat;
       }
 
+      if (updatedCategory === 'notice') {
+        const canPostNotice = ['admin', 'cr', 'teacher'].includes(req.postUser?.role);
+        if (!canPostNotice) {
+          for (const f of uploadedFiles) await removeUploadedImage(f.path);
+          return res.status(403).json({ message: 'Only authorized roles (admin, CR, teacher) can publish notices.' });
+        }
+      }
+
+      // Audience / Visibility update
+      let updatedVisibility = post.visibility || DEFAULT_POST_VISIBILITY;
+      const requestedVisibility = req.body?.visibility !== undefined ? req.body.visibility : (req.body?.audience !== undefined ? req.body.audience : undefined);
+      if (requestedVisibility !== undefined && requestedVisibility !== null && requestedVisibility !== '') {
+        const normVis = normalizeVisibility(requestedVisibility);
+        if (!normVis) {
+          for (const f of uploadedFiles) await removeUploadedImage(f.path);
+          return res.status(400).json({ message: 'Invalid audience visibility. Choose everyone or students_only.' });
+        }
+        if (normVis === 'students_only') {
+          const isStudentOrCr = ['student', 'cr'].includes(req.postUser?.role) || (!['admin', 'teacher'].includes(req.postUser?.role));
+          if (!isStudentOrCr) {
+            for (const f of uploadedFiles) await removeUploadedImage(f.path);
+            return res.status(403).json({ message: 'Only students and CRs can set audience visibility to students_only.' });
+          }
+        }
+        updatedVisibility = normVis;
+      }
+
       // Target semesters update
       let updateSemesters = false;
       let parsedSemesters = null;
@@ -1283,9 +1438,11 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
         }
       }
 
-      // Title update
+      // Title update: General category NEVER has a title
       let updatedTitle = post.title || null;
-      if (req.body?.title !== undefined) {
+      if (updatedCategory === 'general') {
+        updatedTitle = null;
+      } else if (req.body?.title !== undefined) {
         const t = String(req.body.title).trim();
         if (t.length > 200) {
           for (const f of uploadedFiles) await removeUploadedImage(f.path);
@@ -1511,8 +1668,8 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
             ? (parsedSemesters.allSemesters ? null : (parsedSemesters.semesters.length === 1 ? parsedSemesters.semesters[0] : null))
             : post.semester_no;
           await tx.run(
-            'UPDATE posts SET content = ?, attachment_url = ?, category = ?, target_all_semesters = ?, semester_no = ?, title = ?, edited_at = CURRENT_TIMESTAMP WHERE id = ?',
-            newContent, updatedAttachmentUrl, updatedCategory, finalTargetAllSem, finalSemesterNo, updatedTitle, postId
+            'UPDATE posts SET content = ?, attachment_url = ?, category = ?, visibility = ?, target_all_semesters = ?, semester_no = ?, title = ?, edited_at = CURRENT_TIMESTAMP WHERE id = ?',
+            newContent, updatedAttachmentUrl, updatedCategory, updatedVisibility, finalTargetAllSem, finalSemesterNo, updatedTitle, postId
           );
 
           if (updateSemesters) {

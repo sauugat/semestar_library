@@ -18,6 +18,8 @@ import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { Text } from '@/components/ui/Typography';
 import { useTheme } from '@/constants/useTheme';
+import { useAuth } from '@/context/AuthContext';
+import { SelectionSheet, SelectionOption, SemesterMultiSelectSheet } from '@/components/ui';
 import {
   Post,
   PostMediaItem,
@@ -36,6 +38,29 @@ interface EditPostModalProps {
   onPostUpdated: (updatedPost: Post) => void;
   getFullUrl?: (path: string | null) => string | null;
 }
+
+const CATEGORY_OPTIONS: SelectionOption<string>[] = [
+  { id: 'notice', label: 'Notice' },
+  { id: 'general', label: 'General' },
+  { id: 'announcement', label: 'Announcement' },
+  { id: 'news', label: 'News' },
+  { id: 'complaints', label: 'Complaints' },
+  { id: 'feedback', label: 'Feedback' },
+];
+
+const AUDIENCE_OPTIONS: SelectionOption<'everyone' | 'students_only'>[] = [
+  { id: 'everyone', label: 'Everyone', sublabel: 'Visible to students, CRs, teachers, and university officials' },
+  { id: 'students_only', label: 'Students Only', sublabel: "Won't appear in teacher or university staff feeds" },
+];
+
+const CATEGORY_DISPLAY_MAP: Record<string, string> = {
+  notice: 'Notice',
+  general: 'General',
+  announcement: 'Announcement',
+  news: 'News',
+  complaints: 'Complaints',
+  feedback: 'Feedback',
+};
 
 interface ModalNewAttachment {
   id: string;
@@ -93,6 +118,26 @@ export function EditPostModal({
     [getFullUrl]
   );
 
+  const { user } = useAuth();
+  const userRole = (user?.role || '').toLowerCase();
+  const canSelectAudience = ['student', 'cr'].includes(userRole) || (!['admin', 'teacher'].includes(userRole));
+  const canPostNotice = ['admin', 'cr', 'teacher'].includes(userRole);
+
+  const availableCategoryOptions = useMemo(() => {
+    return canPostNotice
+      ? CATEGORY_OPTIONS
+      : CATEGORY_OPTIONS.filter((c) => c.id !== 'notice');
+  }, [canPostNotice]);
+
+  const [title, setTitle] = useState('');
+  const [category, setCategory] = useState('general');
+  const [audience, setAudience] = useState<'everyone' | 'students_only'>('everyone');
+  const [allSemesters, setAllSemesters] = useState(true);
+  const [targetSemesters, setTargetSemesters] = useState<number[]>([]);
+  const [categorySheetVisible, setCategorySheetVisible] = useState(false);
+  const [audienceSheetVisible, setAudienceSheetVisible] = useState(false);
+  const [semesterSheetVisible, setSemesterSheetVisible] = useState(false);
+
   const [content, setContent] = useState('');
   const [existingImages, setExistingImages] = useState<string[]>([]);
   const [existingFiles, setExistingFiles] = useState<PostMediaItem[]>([]);
@@ -148,6 +193,12 @@ export function EditPostModal({
   // Initialize modal state when post or visibility changes
   useEffect(() => {
     if (post && visible) {
+      setTitle(post.title || '');
+      setCategory(post.category || 'general');
+      setAudience(post.visibility === 'students_only' || post.audience === 'students_only' ? 'students_only' : 'everyone');
+      const isAll = post.allSemesters ?? (!post.targetSemesters || post.targetSemesters.length === 0);
+      setAllSemesters(isAll);
+      setTargetSemesters(post.targetSemesters || []);
       setContent(post.content || '');
       setErrorMessage(null);
       setNewAttachments([]);
@@ -170,6 +221,17 @@ export function EditPostModal({
   }, [post, visible]);
 
   // Initial state calculation for dirty checking
+  const initialTitle = useMemo(() => (post?.title || '').trim(), [post]);
+  const initialCategory = useMemo(() => post?.category || 'general', [post]);
+  const initialAudience = useMemo(
+    () => (post?.visibility === 'students_only' || post?.audience === 'students_only' ? 'students_only' : 'everyone'),
+    [post]
+  );
+  const initialAllSemesters = useMemo(
+    () => post?.allSemesters ?? (!post?.targetSemesters || post.targetSemesters.length === 0),
+    [post]
+  );
+  const initialTargetSemesters = useMemo(() => post?.targetSemesters || [], [post]);
   const initialContent = useMemo(() => (post?.content || '').trim(), [post]);
   const initialImages = useMemo(() => {
     if (Array.isArray(post?.media) && post.media.length > 0) {
@@ -187,12 +249,36 @@ export function EditPostModal({
   }, [post]);
 
   const isDirty = useMemo(() => {
+    if (category !== 'general' && title.trim() !== initialTitle) return true;
+    if (category !== initialCategory) return true;
+    if (canSelectAudience && audience !== initialAudience) return true;
+    if (allSemesters !== initialAllSemesters) return true;
+    if (JSON.stringify(targetSemesters) !== JSON.stringify(initialTargetSemesters)) return true;
     if (content.trim() !== initialContent) return true;
     if (newAttachments.length > 0) return true;
     if (JSON.stringify(existingImages) !== JSON.stringify(initialImages)) return true;
     if (JSON.stringify(existingFiles.map((f) => f.url)) !== JSON.stringify(initialFiles)) return true;
     return false;
-  }, [content, initialContent, newAttachments, existingImages, initialImages, existingFiles, initialFiles]);
+  }, [
+    title,
+    initialTitle,
+    category,
+    initialCategory,
+    audience,
+    initialAudience,
+    canSelectAudience,
+    allSemesters,
+    initialAllSemesters,
+    targetSemesters,
+    initialTargetSemesters,
+    content,
+    initialContent,
+    newAttachments,
+    existingImages,
+    initialImages,
+    existingFiles,
+    initialFiles,
+  ]);
 
   const totalImagesCount = existingImages.length + newImages.length;
   const totalFilesCount = existingFiles.length + newFiles.length;
@@ -436,7 +522,13 @@ export function EditPostModal({
         .filter(Boolean);
 
       const updated = await updatePost(post.id, {
+        title: category === 'general' ? undefined : (title.trim() || undefined),
         content: content.trim(),
+        category,
+        targetSemesters: allSemesters ? [] : targetSemesters,
+        allSemesters,
+        audience: canSelectAudience ? audience : undefined,
+        visibility: canSelectAudience ? audience : undefined,
         keepMediaUrls,
         newAttachments: uploadedList,
       });
@@ -559,6 +651,122 @@ export function EditPostModal({
           contentContainerStyle={{ padding: spacing.md, paddingBottom: 60 }}
           keyboardShouldPersistTaps="handled"
         >
+          {/* Title Input (Hidden for General posts) */}
+          {category !== 'general' && (
+            <>
+              <Text variant="xs" weight="700" color="muted" style={{ marginBottom: 6, textTransform: 'uppercase' }}>
+                Title (Optional)
+              </Text>
+              <TextInput
+                value={title}
+                onChangeText={setTitle}
+                placeholder="Post title..."
+                placeholderTextColor={colors.textMuted}
+                maxLength={200}
+                editable={!saving}
+                style={[
+                  styles.singleLineInput,
+                  {
+                    backgroundColor: colors.surfaceRaised,
+                    color: colors.text,
+                    borderColor: colors.border,
+                    borderRadius: radii.md,
+                    marginBottom: spacing.md,
+                  },
+                ]}
+              />
+            </>
+          )}
+
+          {/* Category, Audience, & Semester Selectors */}
+          <View style={{ gap: spacing.sm, marginBottom: spacing.md }}>
+            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => setCategorySheetVisible(true)}
+                disabled={saving}
+                style={[
+                  styles.selectorBtn,
+                  {
+                    flex: 1,
+                    backgroundColor: colors.surfaceRaised,
+                    borderColor: colors.border,
+                    borderRadius: radii.md,
+                  },
+                ]}
+              >
+                <Text variant="xs" color="muted" style={{ fontSize: 10, textTransform: 'uppercase', marginBottom: 2 }}>
+                  Category
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Text variant="xs" weight="700" color="primary" numberOfLines={1}>
+                    {CATEGORY_DISPLAY_MAP[category] || 'General'}
+                  </Text>
+                  <Ionicons name="chevron-down" size={13} color={colors.textSecondary} />
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => setSemesterSheetVisible(true)}
+                disabled={saving}
+                style={[
+                  styles.selectorBtn,
+                  {
+                    flex: 1,
+                    backgroundColor: colors.surfaceRaised,
+                    borderColor: colors.border,
+                    borderRadius: radii.md,
+                  },
+                ]}
+              >
+                <Text variant="xs" color="muted" style={{ fontSize: 10, textTransform: 'uppercase', marginBottom: 2 }}>
+                  Target Semesters
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Text variant="xs" weight="700" color="primary" numberOfLines={1}>
+                    {allSemesters || targetSemesters.length === 0 ? 'All Semesters' : `Sem ${targetSemesters.join(', ')}`}
+                  </Text>
+                  <Ionicons name="chevron-down" size={13} color={colors.textSecondary} />
+                </View>
+              </TouchableOpacity>
+            </View>
+
+            {/* Audience Selector for Students and CRs */}
+            {canSelectAudience && (
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => setAudienceSheetVisible(true)}
+                disabled={saving}
+                style={[
+                  styles.selectorBtn,
+                  {
+                    backgroundColor: colors.surfaceRaised,
+                    borderColor: colors.border,
+                    borderRadius: radii.md,
+                  },
+                ]}
+              >
+                <Text variant="xs" color="muted" style={{ fontSize: 10, textTransform: 'uppercase', marginBottom: 2 }}>
+                  Audience
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <View style={{ flex: 1 }}>
+                    <Text variant="xs" weight="700" color="primary" numberOfLines={1}>
+                      {audience === 'students_only' ? 'Students Only' : 'Everyone'}
+                    </Text>
+                    {audience === 'students_only' && (
+                      <Text variant="xs" color="muted" style={{ fontSize: 11, marginTop: 2 }}>
+                        Won't appear in teacher or university staff feeds
+                      </Text>
+                    )}
+                  </View>
+                  <Ionicons name="chevron-down" size={13} color={colors.textSecondary} />
+                </View>
+              </TouchableOpacity>
+            )}
+          </View>
+
           {/* Caption Input */}
           <Text variant="xs" weight="700" color="muted" style={{ marginBottom: 6, textTransform: 'uppercase' }}>
             Caption / Text
@@ -937,6 +1145,44 @@ export function EditPostModal({
             )}
           </View>
         </ScrollView>
+
+        <SelectionSheet
+          visible={categorySheetVisible}
+          onClose={() => setCategorySheetVisible(false)}
+          title="Select Category"
+          options={availableCategoryOptions}
+          selectedId={category}
+          onSelect={(opt) => {
+            setCategory(opt.id);
+            setCategorySheetVisible(false);
+          }}
+        />
+
+        {canSelectAudience && (
+          <SelectionSheet<'everyone' | 'students_only'>
+            visible={audienceSheetVisible}
+            onClose={() => setAudienceSheetVisible(false)}
+            title="Select Audience"
+            options={AUDIENCE_OPTIONS}
+            selectedId={audience}
+            onSelect={(opt) => {
+              setAudience(opt.id);
+              setAudienceSheetVisible(false);
+            }}
+          />
+        )}
+
+        <SemesterMultiSelectSheet
+          visible={semesterSheetVisible}
+          onClose={() => setSemesterSheetVisible(false)}
+          selectedSemesters={targetSemesters}
+          allSemesters={allSemesters}
+          onApply={(res) => {
+            setAllSemesters(res.allSemesters);
+            setTargetSemesters(res.semesters);
+            setSemesterSheetVisible(false);
+          }}
+        />
       </View>
     </Modal>
   );
@@ -983,6 +1229,17 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
     textAlignVertical: 'top',
+  },
+  singleLineInput: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+    borderWidth: 1,
+  },
+  selectorBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
   },
   actionBtn: {
     flexDirection: 'row',

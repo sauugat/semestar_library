@@ -19,7 +19,6 @@ import { Text, Heading, Subheading, Caption } from '@/components/ui/Typography';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Avatar } from '@/components/ui/Avatar';
-import { Badge } from '@/components/ui/Badge';
 import { queryClient } from '@/services/query-client';
 import { getPostById, Post } from '@/services/posts';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

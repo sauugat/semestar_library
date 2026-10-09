@@ -1,0 +1,1258 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+  <script src="/theme.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Create Post — Semester Library</title>
+
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/logo.jpg">
+  <link rel="icon" type="image/png" sizes="192x192" href="/logo.jpg">
+  <meta name="theme-color" content="#121214">
+
+  <!-- Anti-flash inline script: executes before paint to prevent FOUC -->
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('theme');
+        if (!t) {
+          t = 'dark';
+          try { localStorage.setItem('theme', 'dark'); } catch (e) { }
+        }
+        var d = t === 'dark';
+        document.documentElement.setAttribute('data-theme', t);
+        if (d) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      } catch (e) { }
+    })();
+  </script>
+
+  <script src="/auth.js"></script>
+  <script>SemesterAuth.protectPage();</script>
+  <script src="/academic-context.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.v4.css?v=4.2">
+
+  <style>
+    /* Strict Monochrome Palette Tokens */
+    :root {
+      --page-bg: #f5f5f7;
+      --card-bg: #ffffff;
+      --border-color: rgba(0, 0, 0, 0.12);
+      --border-strong: rgba(0, 0, 0, 0.25);
+      --text-main: #111113;
+      --text-muted: #52525b;
+      --text-faint: #71717a;
+      --input-bg: #f9f9fb;
+      --select-hover: #f0f0f2;
+      --btn-bg: #18181b;
+      --btn-text: #ffffff;
+      --btn-hover: #000000;
+      --badge-bg: #ededf0;
+    }
+
+    [data-theme="dark"],
+    body.dark-mode {
+      --page-bg: #09090b;
+      --card-bg: #141416;
+      --border-color: rgba(255, 255, 255, 0.12);
+      --border-strong: rgba(255, 255, 255, 0.28);
+      --text-main: #f4f4f6;
+      --text-muted: #a1a1aa;
+      --text-faint: #71717a;
+      --input-bg: #19191c;
+      --select-hover: #222226;
+      --btn-bg: #ffffff;
+      --btn-text: #09090b;
+      --btn-hover: #e4e4e7;
+      --badge-bg: #222226;
+    }
+
+    body {
+      background: var(--page-bg);
+      color: var(--text-main);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Navigation Header */
+    .create-page-header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--page-bg);
+      border-bottom: 1px solid var(--border-color);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    .header-inner {
+      max-width: 840px;
+      margin: 0 auto;
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 12px;
+      border-radius: 8px;
+      background: transparent;
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      text-decoration: none;
+      font-size: 13.5px;
+      font-weight: 500;
+      transition: all 0.15s ease;
+    }
+
+    .back-link:hover {
+      background: var(--select-hover);
+      border-color: var(--border-strong);
+    }
+
+    .header-brand {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+      color: var(--text-muted);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .theme-toggle-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      background: transparent;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    .theme-toggle-btn:hover {
+      background: var(--select-hover);
+    }
+
+    /* Main Container */
+    .create-page-main {
+      flex: 1;
+      max-width: 840px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 30px 20px 60px 20px;
+      box-sizing: border-box;
+    }
+
+    .composer-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 28px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+    }
+
+    @media (max-width: 600px) {
+      .composer-card {
+        padding: 20px 16px;
+      }
+    }
+
+    .composer-header {
+      margin-bottom: 22px;
+    }
+
+    .composer-title {
+      font-size: 22px;
+      font-weight: 700;
+      margin: 0 0 6px 0;
+      color: var(--text-main);
+      letter-spacing: -0.3px;
+    }
+
+    .composer-subtitle {
+      font-size: 13.5px;
+      color: var(--text-muted);
+      margin: 0;
+    }
+
+    /* Author info strip */
+    .author-strip {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      background: var(--input-bg);
+      border: 1px solid var(--border-color);
+      margin-bottom: 20px;
+    }
+
+    .author-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--btn-bg);
+      color: var(--btn-text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 15px;
+      flex-shrink: 0;
+    }
+
+    .author-details {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .author-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .author-role-badge {
+      display: inline-block;
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    /* Form Fields */
+    .form-group {
+      margin-bottom: 18px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-main);
+      margin-bottom: 7px;
+    }
+
+    .label-optional {
+      font-size: 11.5px;
+      font-weight: 400;
+      color: var(--text-faint);
+    }
+
+    .composer-input,
+    .composer-textarea {
+      width: 100%;
+      box-sizing: border-box;
+      background: var(--input-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 14.5px;
+      font-family: inherit;
+      color: var(--text-main);
+      outline: none;
+      transition: border-color 0.15s ease, background 0.15s ease;
+    }
+
+    .composer-input:focus,
+    .composer-textarea:focus {
+      border-color: var(--border-strong);
+      background: var(--card-bg);
+    }
+
+    .composer-textarea {
+      resize: vertical;
+      min-height: 160px;
+      line-height: 1.55;
+    }
+
+    /* Metadata Controls Grid */
+    .meta-controls-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .dropdown-container {
+      position: relative;
+      width: 100%;
+    }
+
+    .dropdown-trigger {
+      width: 100%;
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      background: var(--input-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 13.5px;
+      font-weight: 500;
+      color: var(--text-main);
+      cursor: pointer;
+      font-family: inherit;
+      text-align: left;
+      transition: border-color 0.15s ease;
+    }
+
+    .dropdown-trigger:hover {
+      border-color: var(--border-strong);
+    }
+
+    .dropdown-menu {
+      position: absolute;
+      top: calc(100% + 5px);
+      left: 0;
+      width: 100%;
+      min-width: 230px;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+      z-index: 1000;
+      padding: 6px;
+      box-sizing: border-box;
+      overflow: hidden;
+    }
+
+    .dropdown-option {
+      width: 100%;
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 9px 12px;
+      border-radius: 6px;
+      background: transparent;
+      border: 1px solid transparent;
+      font-size: 13.5px;
+      font-weight: 500;
+      color: var(--text-main);
+      cursor: pointer;
+      font-family: inherit;
+      text-align: left;
+      transition: background 0.12s ease;
+    }
+
+    .dropdown-option:hover {
+      background: var(--select-hover);
+    }
+
+    .dropdown-option.selected {
+      background: #262626;
+      color: #ffffff;
+      border-color: rgba(255, 255, 255, 0.18);
+    }
+
+    [data-theme="light"] .dropdown-option.selected {
+      background: #18181b;
+      color: #ffffff;
+    }
+
+    .dropdown-option .opt-check {
+      display: none;
+    }
+
+    .dropdown-option.selected .opt-check {
+      display: block;
+    }
+
+    /* Semester Multi-select Menu */
+    .semester-options-list {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      max-height: 240px;
+      overflow-y: auto;
+      padding: 4px 0;
+    }
+
+    .semester-check-label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      color: var(--text-main);
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.12s ease;
+    }
+
+    .semester-check-label:hover {
+      background: var(--select-hover);
+    }
+
+    .semester-check-label input {
+      accent-color: var(--text-main);
+      cursor: pointer;
+    }
+
+    .semester-menu-footer {
+      padding-top: 8px;
+      margin-top: 6px;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .semester-apply-btn {
+      width: 100%;
+      padding: 8px 0;
+      border-radius: 6px;
+      background: var(--btn-bg);
+      color: var(--btn-text);
+      border: none;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* Attachments Preview */
+    .attachments-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 0;
+      border-top: 1px solid var(--border-color);
+      border-bottom: 1px solid var(--border-color);
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .tool-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-radius: 8px;
+      background: var(--input-bg);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.15s ease;
+    }
+
+    .tool-btn:hover {
+      background: var(--select-hover);
+      border-color: var(--border-strong);
+    }
+
+    /* Thumbnails Container */
+    .preview-section {
+      margin-bottom: 16px;
+    }
+
+    .preview-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .clear-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-faint);
+      font-size: 12px;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    .thumbnails-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 10px;
+    }
+
+    .thumbnail-card {
+      position: relative;
+      aspect-ratio: 1;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border-color);
+      background: var(--input-bg);
+    }
+
+    .thumbnail-card img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .remove-thumb-btn {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.7);
+      color: #ffffff;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .files-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .file-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      border-radius: 8px;
+      background: var(--input-bg);
+      border: 1px solid var(--border-color);
+      font-size: 13px;
+    }
+
+    .file-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      overflow: hidden;
+    }
+
+    .file-name {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 320px;
+    }
+
+    /* Actions Bottom Bar */
+    .composer-actions-bar {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .cancel-btn {
+      padding: 10px 18px;
+      border-radius: 8px;
+      background: transparent;
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.15s ease;
+    }
+
+    .cancel-btn:hover {
+      background: var(--select-hover);
+    }
+
+    .submit-post-btn {
+      padding: 10px 24px;
+      border-radius: 8px;
+      background: var(--btn-bg);
+      color: var(--btn-text);
+      border: none;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s ease, background 0.15s ease;
+    }
+
+    .submit-post-btn:hover:not(:disabled) {
+      background: var(--btn-hover);
+    }
+
+    .submit-post-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .feedback-message {
+      margin-top: 14px;
+      font-size: 13.5px;
+      color: #ef4444;
+      text-align: right;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Header -->
+  <header class="create-page-header">
+    <div class="header-inner">
+      <div class="header-left">
+        <a href="/dashboard.html" class="back-link" title="Return to feed">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+          <span>Feed</span>
+        </a>
+        <span class="header-brand">Semester Library</span>
+      </div>
+      <div class="header-actions">
+        <button type="button" class="theme-toggle-btn" id="themeToggleBtn" aria-label="Toggle theme" title="Toggle theme">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="create-page-main">
+    <div class="composer-card">
+      <div class="composer-header">
+        <h1 class="composer-title">Create Post</h1>
+        <p class="composer-subtitle">Share an update, notes, or announcement with your semester</p>
+      </div>
+
+      <!-- Author Strip -->
+      <div class="author-strip" id="authorStrip">
+        <div class="author-avatar" id="authorAvatar">·</div>
+        <div class="author-details">
+          <span class="author-name" id="authorName">Student</span>
+          <span class="author-role-badge" id="authorRole">STUDENT</span>
+        </div>
+      </div>
+
+      <form id="standalonePostForm">
+        <!-- Metadata Controls: Category, Audience, Target Semesters -->
+        <div class="meta-controls-grid">
+          <!-- Category Selector -->
+          <div class="dropdown-container" id="categoryContainer">
+            <label class="form-label">Category</label>
+            <button type="button" class="dropdown-trigger" id="categoryBtn" aria-haspopup="listbox" aria-expanded="false">
+              <span id="categoryValue">General</span>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
+            <div class="dropdown-menu" id="categoryMenu" role="listbox" hidden>
+              <button type="button" role="option" class="dropdown-option selected" data-value="general">
+                <span>General</span>
+                <svg class="opt-check" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              </button>
+              <button type="button" role="option" class="dropdown-option" data-value="notice" id="optNotice">
+                <span>Notice</span>
+                <svg class="opt-check" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              </button>
+              <button type="button" role="option" class="dropdown-option" data-value="announcement">
+                <span>Announcement</span>
+                <svg class="opt-check" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              </button>
+              <button type="button" role="option" class="dropdown-option" data-value="news">
+                <span>News</span>
+                <svg class="opt-check" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              </button>
+              <button type="button" role="option" class="dropdown-option" data-value="complaints">
+                <span>Complaints</span>
+                <svg class="opt-check" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              </button>
+              <button type="button" role="option" class="dropdown-option" data-value="feedback">
+                <span>Feedback</span>
+                <svg class="opt-check" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Audience Selector (Students / CRs only) -->
+          <div class="dropdown-container" id="audienceContainer" style="display: none;">
+            <label class="form-label">Audience</label>
+            <button type="button" class="dropdown-trigger" id="audienceBtn" aria-haspopup="listbox" aria-expanded="false">
+              <span id="audienceValue">Everyone</span>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
+            <div class="dropdown-menu" id="audienceMenu" role="listbox" hidden>
+              <button type="button" role="option" class="dropdown-option selected" data-value="everyone">
+                <span>Everyone</span>
+                <svg class="opt-check" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              </button>
+              <button type="button" role="option" class="dropdown-option" data-value="students_only">
+                <span>Students Only</span>
+                <svg class="opt-check" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              </button>
+            </div>
+            <p id="audienceHelperText" style="display: none; font-size: 11px; color: var(--text-muted); margin: 4px 0 0 0; line-height: 1.35;">Students Only &mdash; This post won't appear in teacher or university staff feeds.</p>
+          </div>
+
+          <!-- Target Semesters Multi-Select -->
+          <div class="dropdown-container" id="semesterContainer">
+            <label class="form-label">Target Semesters</label>
+            <button type="button" class="dropdown-trigger" id="semesterBtn" aria-haspopup="dialog" aria-expanded="false">
+              <span id="semesterValue">All Semesters</span>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
+            <div class="dropdown-menu" id="semesterMenu" hidden style="min-width: 260px; padding: 10px;">
+              <div class="semester-options-list">
+                <label class="semester-check-label">
+                  <input type="checkbox" id="semAllCheck" checked>
+                  <span>All Semesters</span>
+                </label>
+                <div style="height: 1px; background: var(--border-color); margin: 4px 0;"></div>
+                <label class="semester-check-label"><input type="checkbox" class="sem-indiv-check" value="1"><span>Semester 1</span></label>
+                <label class="semester-check-label"><input type="checkbox" class="sem-indiv-check" value="2"><span>Semester 2</span></label>
+                <label class="semester-check-label"><input type="checkbox" class="sem-indiv-check" value="3"><span>Semester 3</span></label>
+                <label class="semester-check-label"><input type="checkbox" class="sem-indiv-check" value="4"><span>Semester 4</span></label>
+                <label class="semester-check-label"><input type="checkbox" class="sem-indiv-check" value="5"><span>Semester 5</span></label>
+                <label class="semester-check-label"><input type="checkbox" class="sem-indiv-check" value="6"><span>Semester 6</span></label>
+                <label class="semester-check-label"><input type="checkbox" class="sem-indiv-check" value="7"><span>Semester 7</span></label>
+                <label class="semester-check-label"><input type="checkbox" class="sem-indiv-check" value="8"><span>Semester 8</span></label>
+              </div>
+              <div class="semester-menu-footer">
+                <button type="button" class="semester-apply-btn" id="applySemesterBtn">Apply Selection</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Title Field (Hidden for General posts) -->
+        <div class="form-group" id="titleGroup" style="display: none;">
+          <label for="postTitle" class="form-label">Title <span class="label-optional">(optional)</span></label>
+          <input type="text" id="postTitle" name="title" maxlength="200" placeholder="Title your post" class="composer-input">
+        </div>
+
+        <!-- Content Field -->
+        <div class="form-group">
+          <label for="postContent" class="form-label">Description / Content</label>
+          <textarea id="postContent" name="content" rows="7" maxlength="5000" required placeholder="What's on your mind? Share study resources, discuss topics, or ask questions..." class="composer-textarea"></textarea>
+        </div>
+
+        <!-- Attachments Toolbar -->
+        <input type="file" id="imageInput" accept="image/*" multiple hidden>
+        <input type="file" id="fileInput" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip" multiple hidden>
+
+        <div class="attachments-toolbar">
+          <button type="button" class="tool-btn" id="addImageBtn">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+              <circle cx="8.5" cy="8.5" r="1.5"></circle>
+              <polyline points="21 15 16 10 5 21"></polyline>
+            </svg>
+            <span id="addImageLabel">Add Photos</span>
+          </button>
+          <button type="button" class="tool-btn" id="addFileBtn">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+            </svg>
+            <span id="addFileLabel">Attach Files</span>
+          </button>
+        </div>
+
+        <!-- Images Preview Grid -->
+        <div class="preview-section" id="imagesPreviewSection" style="display: none;">
+          <div class="preview-header-row">
+            <span id="imagesCountLabel">Photos (0/10)</span>
+            <button type="button" class="clear-btn" id="clearImagesBtn">Clear all</button>
+          </div>
+          <div class="thumbnails-grid" id="thumbnailsGrid"></div>
+        </div>
+
+        <!-- Files Preview List -->
+        <div class="preview-section" id="filesPreviewSection" style="display: none;">
+          <div class="preview-header-row">
+            <span id="filesCountLabel">Attached Documents (0/5)</span>
+            <button type="button" class="clear-btn" id="clearFilesBtn">Clear all</button>
+          </div>
+          <div class="files-list" id="filesList"></div>
+        </div>
+
+        <!-- Bottom Actions -->
+        <div class="composer-actions-bar">
+          <a href="/dashboard.html" class="cancel-btn">Cancel</a>
+          <button type="submit" class="submit-post-btn" id="submitBtn">Post</button>
+        </div>
+
+        <p id="formFeedback" class="feedback-message" role="status" aria-live="polite"></p>
+      </form>
+    </div>
+  </main>
+
+  <script>
+    // Theme toggle
+    const themeToggleBtn = document.getElementById('themeToggleBtn');
+    if (themeToggleBtn) {
+      themeToggleBtn.addEventListener('click', () => {
+        const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', newTheme);
+        if (newTheme === 'dark') {
+          document.documentElement.classList.add('dark');
+          document.body.classList.add('dark-mode');
+        } else {
+          document.documentElement.classList.remove('dark');
+          document.body.classList.remove('dark-mode');
+        }
+        try { localStorage.setItem('theme', newTheme); } catch (_) {}
+      });
+    }
+
+    // State
+    let selectedCategory = 'general';
+    let selectedAudience = 'everyone';
+    let isAllSemesters = true;
+    let selectedSemesters = [];
+    let composerImages = [];
+    let composerFiles = [];
+    let canPostNotice = false;
+    let canSelectAudience = false;
+
+    // Load User and Meta Info
+    Promise.all([
+      fetch('/api/me').then(r => r.ok ? r.json() : null),
+      fetch('/api/posts/meta').then(r => r.ok ? r.json() : null)
+    ]).then(([userData, metaData]) => {
+      if (userData) {
+        const nameEl = document.getElementById('authorName');
+        const roleEl = document.getElementById('authorRole');
+        const avatarEl = document.getElementById('authorAvatar');
+        if (nameEl) nameEl.textContent = userData.name || 'Student';
+        if (roleEl) roleEl.textContent = (userData.role || 'STUDENT').toUpperCase();
+        if (avatarEl) avatarEl.textContent = (userData.name || 'S').charAt(0).toUpperCase();
+      }
+
+      if (metaData) {
+        canPostNotice = Boolean(metaData.canPostNotice);
+        canSelectAudience = Boolean(metaData.canSelectAudience);
+      } else if (userData) {
+        const role = (userData.role || 'student').toLowerCase();
+        canPostNotice = ['admin', 'superadmin', 'teacher', 'faculty'].includes(role);
+        canSelectAudience = ['student', 'cr'].includes(role) || userData.isCR;
+      }
+
+      // Hide Notice if not authorized
+      const optNotice = document.getElementById('optNotice');
+      if (optNotice && !canPostNotice) {
+        optNotice.style.display = 'none';
+      }
+
+      // Show audience selector if authorized
+      const audienceContainer = document.getElementById('audienceContainer');
+      if (audienceContainer) {
+        audienceContainer.style.display = canSelectAudience ? 'block' : 'none';
+      }
+    }).catch(() => {});
+
+    // Category dropdown controls
+    const categoryBtn = document.getElementById('categoryBtn');
+    const categoryMenu = document.getElementById('categoryMenu');
+    const categoryValue = document.getElementById('categoryValue');
+    const titleGroup = document.getElementById('titleGroup');
+    const categoryOptions = document.querySelectorAll('#categoryMenu .dropdown-option');
+
+    function toggleCategoryMenu(forceOpen) {
+      if (!categoryMenu) return;
+      const willOpen = forceOpen !== undefined ? forceOpen : categoryMenu.hidden;
+      categoryMenu.hidden = !willOpen;
+      categoryBtn.setAttribute('aria-expanded', String(willOpen));
+      if (willOpen) {
+        toggleAudienceMenu(false);
+        toggleSemesterMenu(false);
+      }
+    }
+
+    if (categoryBtn) {
+      categoryBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleCategoryMenu();
+      });
+    }
+
+    categoryOptions.forEach(opt => {
+      opt.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        categoryOptions.forEach(o => o.classList.remove('selected'));
+        opt.classList.add('selected');
+        selectedCategory = opt.dataset.value || 'general';
+        const label = opt.querySelector('span')?.textContent || 'General';
+        if (categoryValue) categoryValue.textContent = label;
+        
+        // Hide Title field for General posts, show for others
+        if (titleGroup) {
+          titleGroup.style.display = selectedCategory === 'general' ? 'none' : 'block';
+        }
+        toggleCategoryMenu(false);
+      });
+    });
+
+    // Audience dropdown controls
+    const audienceBtn = document.getElementById('audienceBtn');
+    const audienceMenu = document.getElementById('audienceMenu');
+    const audienceValue = document.getElementById('audienceValue');
+    const audienceHelperText = document.getElementById('audienceHelperText');
+    const audienceOptions = document.querySelectorAll('#audienceMenu .dropdown-option');
+
+    function toggleAudienceMenu(forceOpen) {
+      if (!audienceMenu) return;
+      const willOpen = forceOpen !== undefined ? forceOpen : audienceMenu.hidden;
+      audienceMenu.hidden = !willOpen;
+      if (audienceBtn) audienceBtn.setAttribute('aria-expanded', String(willOpen));
+      if (willOpen) {
+        toggleCategoryMenu(false);
+        toggleSemesterMenu(false);
+      }
+    }
+
+    if (audienceBtn) {
+      audienceBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleAudienceMenu();
+      });
+    }
+
+    audienceOptions.forEach(opt => {
+      opt.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        audienceOptions.forEach(o => o.classList.remove('selected'));
+        opt.classList.add('selected');
+        selectedAudience = opt.dataset.value || 'everyone';
+        const label = opt.querySelector('span')?.textContent || 'Everyone';
+        if (audienceValue) audienceValue.textContent = label;
+        if (audienceHelperText) {
+          audienceHelperText.style.display = selectedAudience === 'students_only' ? 'block' : 'none';
+        }
+        toggleAudienceMenu(false);
+      });
+    });
+
+    // Semester dropdown controls
+    const semesterBtn = document.getElementById('semesterBtn');
+    const semesterMenu = document.getElementById('semesterMenu');
+    const semesterValue = document.getElementById('semesterValue');
+    const semAllCheck = document.getElementById('semAllCheck');
+    const semIndivChecks = document.querySelectorAll('.sem-indiv-check');
+    const applySemesterBtn = document.getElementById('applySemesterBtn');
+
+    function toggleSemesterMenu(forceOpen) {
+      if (!semesterMenu) return;
+      const willOpen = forceOpen !== undefined ? forceOpen : semesterMenu.hidden;
+      semesterMenu.hidden = !willOpen;
+      if (semesterBtn) semesterBtn.setAttribute('aria-expanded', String(willOpen));
+      if (willOpen) {
+        toggleCategoryMenu(false);
+        toggleAudienceMenu(false);
+      }
+    }
+
+    if (semesterBtn) {
+      semesterBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleSemesterMenu();
+      });
+    }
+
+    if (semAllCheck) {
+      semAllCheck.addEventListener('change', () => {
+        if (semAllCheck.checked) {
+          semIndivChecks.forEach(c => { c.checked = false; });
+        } else {
+          semAllCheck.checked = true;
+        }
+      });
+    }
+
+    semIndivChecks.forEach(c => {
+      c.addEventListener('change', () => {
+        if (c.checked) {
+          if (semAllCheck) semAllCheck.checked = false;
+        } else {
+          const anyChecked = Array.from(semIndivChecks).some(chk => chk.checked);
+          if (!anyChecked && semAllCheck) semAllCheck.checked = true;
+        }
+      });
+    });
+
+    if (applySemesterBtn) {
+      applySemesterBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const checkedVals = Array.from(semIndivChecks).filter(chk => chk.checked).map(chk => Number(chk.value)).sort((a,b) => a - b);
+        if (checkedVals.length === 0 || (semAllCheck && semAllCheck.checked)) {
+          isAllSemesters = true;
+          selectedSemesters = [];
+          if (semesterValue) semesterValue.textContent = 'All Semesters';
+        } else {
+          isAllSemesters = false;
+          selectedSemesters = checkedVals;
+          if (semesterValue) semesterValue.textContent = 'Semester ' + checkedVals.join(', ');
+        }
+        toggleSemesterMenu(false);
+      });
+    }
+
+    // Close dropdowns on outside click
+    document.addEventListener('click', (e) => {
+      const catContainer = document.getElementById('categoryContainer');
+      const audContainer = document.getElementById('audienceContainer');
+      const semContainer = document.getElementById('semesterContainer');
+      if (catContainer && !catContainer.contains(e.target)) toggleCategoryMenu(false);
+      if (audContainer && !audContainer.contains(e.target)) toggleAudienceMenu(false);
+      if (semContainer && !semContainer.contains(e.target)) toggleSemesterMenu(false);
+    });
+
+    // Image Uploads
+    const imageInput = document.getElementById('imageInput');
+    const addImageBtn = document.getElementById('addImageBtn');
+    const imagesPreviewSection = document.getElementById('imagesPreviewSection');
+    const thumbnailsGrid = document.getElementById('thumbnailsGrid');
+    const imagesCountLabel = document.getElementById('imagesCountLabel');
+    const clearImagesBtn = document.getElementById('clearImagesBtn');
+
+    if (addImageBtn && imageInput) {
+      addImageBtn.addEventListener('click', () => imageInput.click());
+      imageInput.addEventListener('change', () => {
+        const files = Array.from(imageInput.files || []);
+        for (const file of files) {
+          if (composerImages.length >= 10) break;
+          if (!file.type.startsWith('image/')) continue;
+          if (file.size > 5 * 1024 * 1024) continue;
+          composerImages.push(file);
+        }
+        imageInput.value = '';
+        renderImagePreviews();
+      });
+    }
+
+    function renderImagePreviews() {
+      if (!thumbnailsGrid || !imagesPreviewSection) return;
+      if (composerImages.length === 0) {
+        imagesPreviewSection.style.display = 'none';
+        thumbnailsGrid.innerHTML = '';
+        return;
+      }
+      imagesPreviewSection.style.display = 'block';
+      if (imagesCountLabel) imagesCountLabel.textContent = `Photos (${composerImages.length}/10)`;
+      thumbnailsGrid.innerHTML = '';
+      composerImages.forEach((file, index) => {
+        const card = document.createElement('div');
+        card.className = 'thumbnail-card';
+        const img = document.createElement('img');
+        img.src = URL.createObjectURL(file);
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.className = 'remove-thumb-btn';
+        delBtn.innerHTML = '&times;';
+        delBtn.title = 'Remove image';
+        delBtn.onclick = () => {
+          composerImages.splice(index, 1);
+          renderImagePreviews();
+        };
+        card.appendChild(img);
+        card.appendChild(delBtn);
+        thumbnailsGrid.appendChild(card);
+      });
+    }
+
+    if (clearImagesBtn) {
+      clearImagesBtn.addEventListener('click', () => {
+        composerImages = [];
+        renderImagePreviews();
+      });
+    }
+
+    // Document File Uploads
+    const fileInput = document.getElementById('fileInput');
+    const addFileBtn = document.getElementById('addFileBtn');
+    const filesPreviewSection = document.getElementById('filesPreviewSection');
+    const filesList = document.getElementById('filesList');
+    const filesCountLabel = document.getElementById('filesCountLabel');
+    const clearFilesBtn = document.getElementById('clearFilesBtn');
+
+    if (addFileBtn && fileInput) {
+      addFileBtn.addEventListener('click', () => fileInput.click());
+      fileInput.addEventListener('change', () => {
+        const files = Array.from(fileInput.files || []);
+        for (const file of files) {
+          if (composerFiles.length >= 5) break;
+          if (file.size > 4 * 1024 * 1024) continue;
+          composerFiles.push(file);
+        }
+        fileInput.value = '';
+        renderFilePreviews();
+      });
+    }
+
+    function renderFilePreviews() {
+      if (!filesList || !filesPreviewSection) return;
+      if (composerFiles.length === 0) {
+        filesPreviewSection.style.display = 'none';
+        filesList.innerHTML = '';
+        return;
+      }
+      filesPreviewSection.style.display = 'block';
+      if (filesCountLabel) filesCountLabel.textContent = `Attached Documents (${composerFiles.length}/5)`;
+      filesList.innerHTML = '';
+      composerFiles.forEach((file, index) => {
+        const item = document.createElement('div');
+        item.className = 'file-item';
+        const info = document.createElement('div');
+        info.className = 'file-info';
+        info.innerHTML = `<span class="file-name">${escapeHtml(file.name)}</span> <span style="font-size:11.5px; opacity:0.6;">(${formatBytes(file.size)})</span>`;
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.style.background = 'transparent';
+        delBtn.style.border = 'none';
+        delBtn.style.color = 'var(--text-faint)';
+        delBtn.style.cursor = 'pointer';
+        delBtn.style.fontSize = '18px';
+        delBtn.innerHTML = '&times;';
+        delBtn.onclick = () => {
+          composerFiles.splice(index, 1);
+          renderFilePreviews();
+        };
+        item.appendChild(info);
+        item.appendChild(delBtn);
+        filesList.appendChild(item);
+      });
+    }
+
+    if (clearFilesBtn) {
+      clearFilesBtn.addEventListener('click', () => {
+        composerFiles = [];
+        renderFilePreviews();
+      });
+    }
+
+    function formatBytes(bytes) {
+      if (!bytes) return '0 B';
+      const k = 1024;
+      const dm = 1;
+      const sizes = ['B', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    }
+
+    function escapeHtml(str) {
+      return (str || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+    }
+
+    // Form Submit
+    const form = document.getElementById('standalonePostForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const feedback = document.getElementById('formFeedback');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const contentEl = document.getElementById('postContent');
+      const titleEl = document.getElementById('postTitle');
+      const text = (contentEl?.value || '').trim();
+      const hasMedia = composerImages.length > 0 || composerFiles.length > 0;
+
+      if (!text && !hasMedia) {
+        if (feedback) feedback.textContent = 'Write something before publishing.';
+        contentEl.focus();
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Publishing…';
+      if (feedback) feedback.textContent = '';
+
+      try {
+        const formData = new FormData();
+        if (selectedCategory !== 'general' && titleEl && titleEl.value.trim()) {
+          formData.append('title', titleEl.value.trim());
+        }
+        formData.append('content', text);
+        formData.append('type', selectedCategory === 'notice' ? 'notice' : 'status');
+        formData.append('category', selectedCategory);
+        formData.append('audience', (canSelectAudience && selectedAudience) ? selectedAudience : 'everyone');
+        formData.append('visibility', (canSelectAudience && selectedAudience) ? selectedAudience : 'everyone');
+        
+        if (isAllSemesters || !selectedSemesters || selectedSemesters.length === 0) {
+          formData.append('targetSemesters', 'all');
+        } else {
+          formData.append('targetSemesters', JSON.stringify(selectedSemesters));
+        }
+
+        composerImages.forEach((file, idx) => {
+          if (idx === 0) formData.append('image', file);
+          else formData.append('images', file);
+        });
+
+        composerFiles.forEach(file => {
+          formData.append('files', file);
+        });
+
+        const res = await fetch('/api/posts', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Could not publish post.');
+
+        // Successfully published - redirect back to feed
+        window.location.href = '/dashboard.html';
+      } catch (err) {
+        if (feedback) feedback.textContent = err.message || 'Error publishing post. Please try again.';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Post';
+      }
+    });
+  </script>
+</body>
+
+</html>

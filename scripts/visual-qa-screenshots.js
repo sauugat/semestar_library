@@ -165,6 +165,25 @@ const fs = require('node:fs/promises');
   await page.screenshot({ path: path.join(screenshotsDir, 'web_composer_students_only.png') });
   console.log('Saved web_composer_students_only.png');
 
+  // --- Dedicated /create-post page Visual QA ---
+  await page.goto(`http://127.0.0.1:${port}/create-post`);
+  await page.waitForLoadState('networkidle');
+  await page.evaluate(() => {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    document.body.classList.add('dark-mode');
+  });
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: path.join(screenshotsDir, 'dedicated_create_post_page.png') });
+  console.log('Saved dedicated_create_post_page.png');
+
+  // Switch category on full page to Announcement
+  await page.click('#categoryBtn');
+  await page.waitForTimeout(200);
+  await page.click('#categoryMenu button[data-value="announcement"]');
+  await page.waitForTimeout(200);
+  await page.screenshot({ path: path.join(screenshotsDir, 'dedicated_create_post_announcement.png') });
+  console.log('Saved dedicated_create_post_announcement.png');
+
   await browser.close();
   await new Promise(r => server.close(r));
   console.log('Visual QA completed successfully.');

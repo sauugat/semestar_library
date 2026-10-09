@@ -6297,6 +6297,188 @@ body.dash .dash-id::before {
   line-height: 1.6;
 }
 
+/* Rich Markdown Content Styling for Posts */
+.post-markdown-content {
+  overflow-wrap: anywhere;
+  color: var(--text-primary);
+  line-height: 1.6;
+}
+
+.post-markdown-content .md-p {
+  margin: 0 0 10px 0;
+  line-height: 1.6;
+}
+
+.post-markdown-content .md-p:last-child {
+  margin-bottom: 0;
+}
+
+.post-markdown-content .md-h1 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin: 12px 0 6px 0;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+.post-markdown-content .md-h2 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin: 10px 0 5px 0;
+  color: var(--text-primary);
+  letter-spacing: -0.015em;
+}
+
+.post-markdown-content .md-h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 8px 0 4px 0;
+  color: var(--text-primary);
+}
+
+.post-markdown-content .md-blockquote {
+  border-left: 3px solid #52525b;
+  margin: 10px 0;
+  padding: 6px 14px;
+  color: var(--text-secondary, #a1a1aa);
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 0 6px 6px 0;
+  font-style: italic;
+}
+
+[data-theme="light"] .post-markdown-content .md-blockquote {
+  border-left-color: #71717a;
+  background: rgba(0, 0, 0, 0.02);
+  color: #52525b;
+}
+
+.post-markdown-content .md-ul,
+.post-markdown-content .md-ol {
+  margin: 6px 0 10px 0;
+  padding-left: 22px;
+}
+
+.post-markdown-content .md-li {
+  margin-bottom: 4px;
+  line-height: 1.55;
+}
+
+.post-markdown-content .md-inline-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.88em;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-primary);
+}
+
+[data-theme="light"] .post-markdown-content .md-inline-code {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: #18181b;
+}
+
+.post-markdown-content .md-code-block-wrapper {
+  margin: 10px 0;
+  border-radius: 9px;
+  background: #141416;
+  border: 1px solid #27272a;
+  overflow: hidden;
+}
+
+[data-theme="light"] .post-markdown-content .md-code-block-wrapper {
+  background: #f4f4f5;
+  border-color: #e4e4e7;
+}
+
+.post-markdown-content .md-code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid #27272a;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #a1a1aa;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+[data-theme="light"] .post-markdown-content .md-code-header {
+  background: rgba(0, 0, 0, 0.03);
+  border-bottom-color: #e4e4e7;
+  color: #71717a;
+}
+
+.post-markdown-content .md-code-copy-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #d4d4d8;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.post-markdown-content .md-code-copy-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.post-markdown-content .md-code-copy-btn.copied {
+  background: #27272a;
+  color: #ffffff;
+  border-color: #52525b;
+}
+
+[data-theme="light"] .post-markdown-content .md-code-copy-btn {
+  border-color: rgba(0, 0, 0, 0.15);
+  color: #52525b;
+}
+
+[data-theme="light"] .post-markdown-content .md-code-copy-btn:hover {
+  background: rgba(0, 0, 0, 0.08);
+  color: #18181b;
+}
+
+.post-markdown-content .md-code-block {
+  margin: 0;
+  padding: 12px 14px;
+  overflow-x: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #f4f4f5;
+  tab-size: 2;
+}
+
+[data-theme="light"] .post-markdown-content .md-code-block {
+  color: #18181b;
+}
+
+.post-markdown-content .md-link {
+  color: var(--text-primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-weight: 500;
+  transition: opacity 0.15s ease;
+}
+
+.post-markdown-content .md-link:hover {
+  opacity: 0.8;
+}
+
+.post-markdown-content .md-divider {
+  border: none;
+  border-top: 1px solid var(--border-color, #27272a);
+  margin: 16px 0;
+}
+
+
 .status-post-attachment {
   color: var(--text-primary);
   text-decoration: underline;

@@ -3608,11 +3608,9 @@
         <div class="post-tags-row">
           <span class="post-monochrome-badge post-category-tag">${escapeHtml(categoryLabel)}</span>
           ${audienceBadgeHtml}
-          <span class="post-monochrome-badge post-semester-tag">${escapeHtml(semDisplay)}</span>
         </div>
       `;
-      const isGeneral = (post.category === 'general' || post.category_key === 'general');
-      const titleHtml = (!isGeneral && post.title) ? `<h3 class="post-card-title">${escapeHtml(post.title)}</h3>` : '';
+      const titleHtml = '';
 
       return renderPostShell({
         kind: 'post', id: post.id, className: 'status-post-card' + noticeClass,

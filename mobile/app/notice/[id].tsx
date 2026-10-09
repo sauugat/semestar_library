@@ -295,22 +295,9 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
-    borderWidth: 1,
-  },
   divider: {
     height: 1,
     marginVertical: 14,
-  },
-  officialPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
   },
   noticeBody: {
     fontSize: 16,

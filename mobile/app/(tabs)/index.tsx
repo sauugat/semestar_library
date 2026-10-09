@@ -2579,26 +2579,57 @@ export default function HomeScreen() {
                 </View>
               )}
 
-              {/* Main Content Input with subtle "Write something..." placeholder */}
-              <TextInput
-                placeholder="Write something..."
-                placeholderTextColor={colors.textMuted}
-                value={postContent}
-                onChangeText={setPostContent}
-                multiline
-                maxLength={5000}
-                style={[
-                  styles.contentInput,
-                  {
-                    color: colors.text,
-                    backgroundColor: colors.surface,
-                    borderColor: colors.border,
-                    borderRadius: radii.md,
-                    padding: spacing.md,
-                  },
-                ]}
-                textAlignVertical="top"
-              />
+              {/* Rich Text Markdown Toolbar */}
+              <View style={{ marginBottom: 6, borderRadius: radii.md, overflow: 'hidden', borderWidth: 1, borderColor: colors.border }}>
+                <RichTextToolbar
+                  value={postContent}
+                  onChangeText={setPostContent}
+                  selection={composerSelection}
+                  onSelectionChange={setComposerSelection}
+                  isPreviewing={composerPreview}
+                  onTogglePreview={() => setComposerPreview(!composerPreview)}
+                />
+              </View>
+
+              {composerPreview ? (
+                <View
+                  style={[
+                    styles.contentInput,
+                    {
+                      backgroundColor: colors.surface,
+                      borderColor: colors.border,
+                      borderRadius: radii.md,
+                      padding: spacing.md,
+                      minHeight: 120,
+                    },
+                  ]}
+                >
+                  <MarkdownText
+                    content={postContent.trim() ? postContent : '*No content to preview yet*'}
+                  />
+                </View>
+              ) : (
+                <TextInput
+                  placeholder="Write something... (Markdown supported)"
+                  placeholderTextColor={colors.textMuted}
+                  value={postContent}
+                  onChangeText={setPostContent}
+                  onSelectionChange={(e) => setComposerSelection(e.nativeEvent.selection)}
+                  multiline
+                  maxLength={5000}
+                  style={[
+                    styles.contentInput,
+                    {
+                      color: colors.text,
+                      backgroundColor: colors.surface,
+                      borderColor: colors.border,
+                      borderRadius: radii.md,
+                      padding: spacing.md,
+                    },
+                  ]}
+                  textAlignVertical="top"
+                />
+              )}
 
               <View style={styles.characterCounterRow}>
                 <Caption color="muted">

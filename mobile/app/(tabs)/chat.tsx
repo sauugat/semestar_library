@@ -2037,7 +2037,7 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   screenContainer: {
     flex: 1,
-    backgroundColor: "#0a0a0a", // Strict black background
+    backgroundColor: "#090909",
   },
   segmentContainer: {
     paddingHorizontal: 16,
@@ -2051,9 +2051,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 12,
     paddingBottom: 10,
-    backgroundColor: "#121214",
+    backgroundColor: "#101010",
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#1f1f21",
+    borderBottomColor: "#282828",
   },
   headerBackBtn: {
     width: 38,
@@ -2072,7 +2072,9 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "#242426",
+    backgroundColor: "#1C1C1C",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "#282828",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 10,

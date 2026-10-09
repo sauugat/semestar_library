@@ -64,16 +64,16 @@ export function ChatSendButton({
         <View
           style={[
             styles.button,
-            { backgroundColor: disabled ? "#242426" : "#ffffff" },
+            { backgroundColor: disabled ? "#242424" : "#F5F5F5" },
           ]}
         >
           {sending ? (
-            <ActivityIndicator size="small" color="#0a0a0a" />
+            <ActivityIndicator size="small" color="#111111" />
           ) : (
             <Ionicons
               name="arrow-up"
               size={20}
-              color={disabled ? "#71717a" : "#0a0a0a"}
+              color={disabled ? "#737373" : "#111111"}
             />
           )}
         </View>

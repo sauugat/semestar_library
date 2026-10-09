@@ -24,6 +24,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
 import * as Haptics from 'expo-haptics';
 import { Text } from '@/components/ui/Typography';
+import { Monochrome } from '@/constants/theme';
 import { ChatMessage, ChatReadReceipt } from '@/services/chat';
 import { parseChatDate, formatFileSubtitle, formatFileExtension } from '@/services/chat-state';
 import { formatMessageTime as safeFormatTime, formatChatDateSeparator as safeFormatSeparator } from '@/utils/date';
@@ -176,7 +177,7 @@ function renderMessageTextWithLinks(
               style={[
                 baseStyle,
                 styles.urlLink,
-                { color: isMe ? '#ffffff' : '#f5f5f5' },
+                { color: isMe ? '#111111' : '#F5F5F5' },
               ]}
               onPress={() => Linking.openURL(token.value).catch(() => {})}
             >
@@ -227,7 +228,21 @@ function MessageStatusMeta({
 }) {
   const isPending = status === 'pending';
   const isFailed = status === 'failed';
-  const iconColor = overlay ? '#ffffff' : '#8e8e93';
+  const timeStyle = overlay
+    ? styles.imageOverlayTimeText
+    : isMe
+    ? styles.timestampTextMe
+    : styles.timestampTextOther;
+  const editedStyle = overlay
+    ? styles.imageOverlayEditedText
+    : isMe
+    ? styles.editedLabelMe
+    : styles.editedLabelOther;
+  const iconColor = overlay
+    ? '#ffffff'
+    : isMe
+    ? (isRead ? Monochrome.bubbleOutgoingText : Monochrome.bubbleOutgoingMeta)
+    : Monochrome.bubbleIncomingMeta;
 
   if (isFailed) {
     return (
@@ -237,7 +252,7 @@ function MessageStatusMeta({
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
         {Boolean(timeString) && (
-          <Text style={[overlay ? styles.imageOverlayTimeText : styles.timestampText, { color: '#ef4444' }]}>
+          <Text style={[timeStyle, { color: '#ef4444' }]}>
             {timeString}
           </Text>
         )}
@@ -249,11 +264,11 @@ function MessageStatusMeta({
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
       {Boolean(isEdited) && (
-        <Text style={overlay ? styles.imageOverlayEditedText : styles.editedLabel}>
+        <Text style={editedStyle}>
           Edited{' '}
         </Text>
       )}
-      <Text style={overlay ? styles.imageOverlayTimeText : styles.timestampText}>
+      <Text style={timeStyle}>
         {timeString}
       </Text>
       {isMe && (
@@ -261,6 +276,13 @@ function MessageStatusMeta({
           <Ionicons
             name="time-outline"
             size={11}
+            color={iconColor}
+            style={{ marginLeft: 3 }}
+          />
+        ) : isRead ? (
+          <Ionicons
+            name="checkmark-done"
+            size={13}
             color={iconColor}
             style={{ marginLeft: 3 }}
           />
@@ -761,7 +783,7 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
             styles.bubbleRowAnimated,
             isMe ? styles.bubbleRowRight : styles.bubbleRowLeft,
             {
-              marginTop: isConsecutive ? 3 : 12,
+              marginTop: isConsecutive ? 2 : 10,
               transform: [{ translateX }],
             },
           ]}
@@ -810,9 +832,19 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
               style={[
                 styles.messageBubble,
                 isMe ? styles.bubbleMe : styles.bubbleOther,
-                // Tail corner radius: 4px on bottom corner when last in group
-                isMe && isLastInGroup && { borderBottomRightRadius: 4 },
-                !isMe && isLastInGroup && { borderBottomLeftRadius: 4 },
+                isMe
+                  ? {
+                      borderTopRightRadius: isFirstInGroup ? 18 : 4,
+                      borderBottomRightRadius: isLastInGroup ? (isFirstInGroup ? 18 : 4) : 4,
+                      borderTopLeftRadius: 18,
+                      borderBottomLeftRadius: 18,
+                    }
+                  : {
+                      borderTopLeftRadius: isFirstInGroup ? 18 : 4,
+                      borderBottomLeftRadius: isLastInGroup ? (isFirstInGroup ? 18 : 4) : 4,
+                      borderTopRightRadius: 18,
+                      borderBottomRightRadius: 18,
+                    },
                 isImageOnly && styles.imageBubbleTightPadding,
                 isImg && { width: renderedImageDims.width + 6 },
               ]}
@@ -860,12 +892,27 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
                 <TouchableOpacity
                   activeOpacity={0.75}
                   onPress={() => onJumpToReply(item.replyToId!)}
-                  style={styles.replyQuoteBlock}
+                  style={[
+                    styles.replyQuoteBlock,
+                    isMe ? styles.replyQuoteMe : styles.replyQuoteOther,
+                  ]}
                 >
-                  <Text style={styles.replySenderText} numberOfLines={1}>
+                  <Text
+                    style={[
+                      styles.replySenderText,
+                      { color: isMe ? '#111111' : '#F5F5F5' },
+                    ]}
+                    numberOfLines={1}
+                  >
                     {item.replySender || 'Someone'}
                   </Text>
-                  <Text style={styles.replyPreviewText} numberOfLines={1}>
+                  <Text
+                    style={[
+                      styles.replyPreviewText,
+                      { color: isMe ? '#555555' : '#A1A1A1' },
+                    ]}
+                    numberOfLines={1}
+                  >
                     {item.replyText || 'Attachment'}
                   </Text>
                 </TouchableOpacity>
@@ -1122,19 +1169,20 @@ const styles = StyleSheet.create({
   },
   dateSeparatorRow: {
     alignItems: 'center',
-    marginVertical: 12,
+    marginVertical: 10,
   },
   dateSeparatorPill: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    paddingHorizontal: 9,
-    paddingVertical: 3,
-    borderRadius: 10,
-    borderWidth: 0,
+    backgroundColor: '#141414',
+    paddingHorizontal: 10,
+    paddingVertical: 3.5,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#282828',
   },
   dateSeparatorText: {
     fontSize: 11,
     fontWeight: '500',
-    color: '#8e8e93',
+    color: '#737373',
   },
   swipeRowWrapper: {
     width: '100%',
@@ -1193,18 +1241,20 @@ const styles = StyleSheet.create({
     height: 1,
   },
   messageBubble: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 13,
     paddingTop: 8,
     paddingBottom: 7,
-    borderRadius: 16,
-    borderWidth: 0, // STRICTLY NO BORDER
+    borderRadius: 18,
+    borderWidth: 0,
     overflow: 'hidden',
   },
   bubbleMe: {
-    backgroundColor: '#2c2c2e', // own: refined dark gray
+    backgroundColor: '#EAEAEA',
   },
   bubbleOther: {
-    backgroundColor: '#1c1c1e', // others: subtle dark gray
+    backgroundColor: '#242424',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#282828',
   },
   imageBubbleTightPadding: {
     paddingHorizontal: 0,
@@ -1214,23 +1264,28 @@ const styles = StyleSheet.create({
   },
   highlightOverlay: {
     backgroundColor: 'rgba(255, 255, 255, 0.16)',
-    borderRadius: 16,
+    borderRadius: 18,
   },
   senderNameText: {
     fontSize: 11.5,
     fontWeight: '600',
-    color: '#a1a1aa', // Semibold light gray, strictly no colors
+    color: '#A1A1A1',
     marginBottom: 4,
   },
   replyQuoteBlock: {
     borderLeftWidth: 3,
-    borderLeftColor: '#8e8e93',
-    backgroundColor: 'rgba(0, 0, 0, 0.28)',
-    borderRadius: 4,
+    borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 5,
     marginBottom: 6,
-    borderWidth: 0,
+  },
+  replyQuoteMe: {
+    backgroundColor: 'rgba(0, 0, 0, 0.06)',
+    borderLeftColor: '#111111',
+  },
+  replyQuoteOther: {
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderLeftColor: '#737373',
   },
   replySenderText: {
     fontSize: 11,
@@ -1408,12 +1463,12 @@ const styles = StyleSheet.create({
   bubbleTextMe: {
     fontSize: 14.5,
     lineHeight: 20,
-    color: '#f5f5f5',
+    color: '#111111',
   },
   bubbleTextOther: {
     fontSize: 14.5,
     lineHeight: 20,
-    color: '#e4e4e7',
+    color: '#F5F5F5',
   },
   urlLink: {
     textDecorationLine: 'underline',
@@ -1430,13 +1485,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  timestampText: {
+  timestampTextMe: {
     fontSize: 10,
-    color: '#8e8e93',
+    color: '#555555',
   },
-  editedLabel: {
+  timestampTextOther: {
+    fontSize: 10,
+    color: '#737373',
+  },
+  editedLabelMe: {
     fontSize: 9.5,
-    color: '#8e8e93',
+    color: '#555555',
+  },
+  editedLabelOther: {
+    fontSize: 9.5,
+    color: '#737373',
   },
   reactionPillsContainer: {
     flexDirection: 'row',
@@ -1458,41 +1521,41 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#222224',
-    borderWidth: 1,
-    borderColor: '#333336',
-    borderRadius: 14,
-    paddingHorizontal: 8,
-    paddingVertical: 3.5,
-    minHeight: 28,
-    minWidth: 32,
+    backgroundColor: '#1C1C1C',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#282828',
+    borderRadius: 12,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    minHeight: 24,
+    minWidth: 28,
     overflow: 'visible',
   },
   reactionPillActive: {
-    backgroundColor: '#2c2c30',
-    borderColor: '#4b4b50',
+    backgroundColor: '#242424',
+    borderColor: '#383838',
   },
   reactionPillEmojiText: {
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 12,
+    lineHeight: 16,
     textAlign: 'center',
   },
   reactionPillCountText: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: '600',
-    color: '#d4d4d8',
-    marginLeft: 4,
+    color: '#A1A1A1',
+    marginLeft: 3,
     includeFontPadding: false,
   },
   mentionText: {
     fontWeight: '700',
   },
   mentionTextMe: {
-    color: '#ffffff',
+    color: '#111111',
     textDecorationLine: 'underline',
   },
   mentionTextOther: {
-    color: '#f4f4f5',
+    color: '#F5F5F5',
     textDecorationLine: 'underline',
   },
 });

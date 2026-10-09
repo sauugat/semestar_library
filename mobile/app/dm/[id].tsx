@@ -20,6 +20,7 @@ import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { useTheme } from '@/constants/useTheme';
+import { Monochrome } from '@/constants/theme';
 import { Text } from '@/components/ui/Typography';
 import { useAuth } from '@/context/AuthContext';
 import { StickyComposer, KeyboardContentBoundary } from '@/components/ui/StickyComposer';
@@ -161,6 +162,25 @@ export default function DmConversationScreen() {
   const [submittingReport, setSubmittingReport] = useState(false);
 
   const flatListRef = useRef<FlatList<DmMessage>>(null);
+  const [highlightedMessageId, setHighlightedMessageId] = useState<number | string | null>(null);
+
+  const handleJumpToReply = useCallback((replyId: number | string) => {
+    const idx = messages.findIndex((m) => m.id === replyId || m.clientId === replyId);
+    if (idx >= 0 && flatListRef.current) {
+      flatListRef.current.scrollToIndex({ index: idx, animated: true, viewPosition: 0.5 });
+      setHighlightedMessageId(replyId);
+      setTimeout(() => {
+        setHighlightedMessageId(null);
+      }, 1400);
+    }
+  }, [messages]);
+
+  useEffect(() => {
+    if (params.targetMessageId && messages.length > 0) {
+      const target = Number(params.targetMessageId) || params.targetMessageId;
+      handleJumpToReply(target);
+    }
+  }, [params.targetMessageId, messages.length, handleJumpToReply]);
 
   const handleBack = useCallback(() => {
     Keyboard.dismiss();
@@ -745,13 +765,16 @@ export default function DmConversationScreen() {
     // Seen / Sent read receipt
     const numericId = typeof item.id === 'number' ? item.id : 0;
     const isSeen = isSelf && numericId > 0 && peerLastReadId >= numericId;
+    const isFirstInGroup = !isSameSenderAbove;
+    const isLastInGroup = !isSameSenderBelow;
+    const isHighlighted = highlightedMessageId !== null && (item.id === highlightedMessageId || item.clientId === highlightedMessageId);
 
     return (
       <View>
         {showDateSeparator && (
           <View style={styles.dateSeparatorContainer}>
-            <View style={[styles.dateSeparatorPill, { backgroundColor: colors.surfaceRaised, borderColor: colors.borderSubtle }]}>
-              <Text variant="xs" weight="500" style={{ color: colors.textMuted }}>
+            <View style={[styles.dateSeparatorPill, { backgroundColor: '#141414', borderColor: '#282828' }]}>
+              <Text variant="xs" weight="500" style={{ color: '#737373' }}>
                 {formatDateSeparator(item.createdAt)}
               </Text>
             </View>
@@ -765,8 +788,8 @@ export default function DmConversationScreen() {
             styles.bubbleRow,
             isSelf ? styles.bubbleRowSelf : styles.bubbleRowPeer,
             {
-              marginTop: isSameSenderAbove ? 2 : 5,
-              marginBottom: isSameSenderBelow ? 2 : 5,
+              marginTop: isFirstInGroup ? 10 : 2,
+              marginBottom: 2,
             },
           ]}
         >
@@ -777,48 +800,65 @@ export default function DmConversationScreen() {
                 ? [
                     styles.bubbleSelf,
                     {
-                      backgroundColor: colors.text, // crisp dark/contrast bubble matching minimal mobile theme
-                      borderTopRightRadius: isSameSenderAbove ? 4 : 16,
-                      borderBottomRightRadius: isSameSenderBelow ? 4 : 4,
+                      backgroundColor: Monochrome.outgoingBubble,
+                      borderTopRightRadius: isFirstInGroup ? 18 : 4,
+                      borderBottomRightRadius: isLastInGroup ? (isFirstInGroup ? 18 : 4) : 4,
+                      borderTopLeftRadius: 18,
+                      borderBottomLeftRadius: 18,
                     },
                   ]
                 : [
                     styles.bubblePeer,
                     {
-                      backgroundColor: colors.surfaceRaised,
-                      borderColor: colors.borderSubtle,
-                      borderTopLeftRadius: isSameSenderAbove ? 4 : 16,
-                      borderBottomLeftRadius: isSameSenderBelow ? 4 : 4,
+                      backgroundColor: Monochrome.incomingBubble,
+                      borderColor: Monochrome.border,
+                      borderTopLeftRadius: isFirstInGroup ? 18 : 4,
+                      borderBottomLeftRadius: isLastInGroup ? (isFirstInGroup ? 18 : 4) : 4,
+                      borderTopRightRadius: 18,
+                      borderBottomRightRadius: 18,
                     },
                   ],
             ]}
           >
+            {/* Highlight Flash Overlay */}
+            {isHighlighted && (
+              <View
+                pointerEvents="none"
+                style={[
+                  StyleSheet.absoluteFill,
+                  { backgroundColor: 'rgba(255, 255, 255, 0.18)', borderRadius: 18, zIndex: 5 },
+                ]}
+              />
+            )}
+
             {/* Reply Quote Banner */}
             {item.replyTo && (
-              <View
+              <TouchableOpacity
+                activeOpacity={0.75}
+                onPress={() => item.replyTo && handleJumpToReply(item.replyTo.id)}
                 style={[
                   styles.replyQuote,
                   {
-                    backgroundColor: isSelf ? 'rgba(255,255,255,0.12)' : colors.surface,
-                    borderLeftColor: isSelf ? '#ffffff' : colors.primary,
+                    backgroundColor: isSelf ? 'rgba(0,0,0,0.06)' : Monochrome.surface,
+                    borderLeftColor: isSelf ? Monochrome.outgoingText : Monochrome.textTertiary,
                   },
                 ]}
               >
                 <Text
                   variant="xs"
                   weight="600"
-                  style={{ color: isSelf ? '#ffffff' : colors.text, marginBottom: 2 }}
+                  style={{ color: isSelf ? Monochrome.outgoingText : Monochrome.text, marginBottom: 2 }}
                 >
                   {item.replyTo.senderName || 'Replying'}
                 </Text>
                 <Text
                   variant="xs"
                   numberOfLines={1}
-                  style={{ color: isSelf ? 'rgba(255,255,255,0.8)' : colors.textMuted }}
+                  style={{ color: isSelf ? Monochrome.outgoingMeta : Monochrome.textTertiary }}
                 >
                   {item.replyTo.deletedForAll ? 'Original message deleted' : item.replyTo.text || 'Message'}
                 </Text>
-              </View>
+              </TouchableOpacity>
             )}
 
             {/* Message Body */}
@@ -827,14 +867,14 @@ export default function DmConversationScreen() {
                 <Ionicons
                   name="trash-outline"
                   size={14}
-                  color={isSelf ? 'rgba(255,255,255,0.6)' : colors.textMuted}
+                  color={isSelf ? Monochrome.outgoingMeta : Monochrome.textTertiary}
                   style={{ marginRight: 6 }}
                 />
                 <Text
                   variant="sm"
                   style={[
                     styles.deletedText,
-                    { color: isSelf ? 'rgba(255,255,255,0.6)' : colors.textMuted },
+                    { color: isSelf ? Monochrome.outgoingMeta : Monochrome.textTertiary },
                   ]}
                 >
                   This message was deleted
@@ -845,7 +885,7 @@ export default function DmConversationScreen() {
                 variant="sm"
                 style={[
                   styles.bubbleText,
-                  { color: isSelf ? '#ffffff' : colors.text },
+                  { color: isSelf ? Monochrome.outgoingText : Monochrome.incomingText },
                 ]}
               >
                 {item.text}
@@ -859,7 +899,7 @@ export default function DmConversationScreen() {
                   variant="xs"
                   style={[
                     styles.editedTag,
-                    { color: isSelf ? 'rgba(255,255,255,0.6)' : colors.textMuted },
+                    { color: isSelf ? Monochrome.outgoingMeta : Monochrome.textTertiary },
                   ]}
                 >
                   edited ·{' '}
@@ -869,7 +909,7 @@ export default function DmConversationScreen() {
                 variant="xs"
                 style={[
                   styles.timestampText,
-                  { color: isSelf ? 'rgba(255,255,255,0.7)' : colors.textMuted },
+                  { color: isSelf ? Monochrome.outgoingMeta : Monochrome.incomingMeta },
                 ]}
               >
                 {formatBubbleTime(item.createdAt)}
@@ -879,15 +919,15 @@ export default function DmConversationScreen() {
               {isSelf && (
                 <View style={styles.receiptContainer}>
                   {item.status === 'pending' ? (
-                    <Ionicons name="time-outline" size={12} color="rgba(255,255,255,0.6)" />
+                    <Ionicons name="time-outline" size={12} color={Monochrome.outgoingMeta} />
                   ) : item.status === 'failed' ? (
                     <TouchableOpacity onPress={() => void handleRetry(item)} hitSlop={6}>
-                      <Ionicons name="alert-circle" size={13} color="#ef4444" />
+                      <Ionicons name="alert-circle" size={13} color={Monochrome.outgoingText} />
                     </TouchableOpacity>
                   ) : isSeen ? (
-                    <Ionicons name="checkmark-done" size={14} color="#60a5fa" />
+                    <Ionicons name="checkmark-done" size={14} color={Monochrome.outgoingText} />
                   ) : (
-                    <Ionicons name="checkmark" size={13} color="rgba(255,255,255,0.7)" />
+                    <Ionicons name="checkmark" size={13} color={Monochrome.outgoingMeta} />
                   )}
                 </View>
               )}
@@ -922,7 +962,7 @@ export default function DmConversationScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: Monochrome.background }]}>
       <StatusBar barStyle="light-content" />
 
       {/* Top Header */}
@@ -930,9 +970,9 @@ export default function DmConversationScreen() {
         style={[
           styles.header,
           {
-            paddingTop: Math.max(insets.top, 12),
-            backgroundColor: colors.surface,
-            borderBottomColor: colors.borderSubtle,
+            paddingTop: Math.max(insets.top, 10),
+            backgroundColor: Monochrome.header,
+            borderBottomColor: Monochrome.border,
           },
         ]}
       >
@@ -974,8 +1014,8 @@ export default function DmConversationScreen() {
             <Text variant="md" weight="700" numberOfLines={1} style={{ color: colors.text }}>
               {peerInfo.name}
             </Text>
-            <View style={[styles.roleBadge, { backgroundColor: colors.surfaceRaised }]}>
-              <Text variant="xs" weight="600" style={{ color: colors.textMuted }}>
+            <View style={[styles.roleBadge, { backgroundColor: Monochrome.surfaceElevated, borderColor: Monochrome.border, borderWidth: StyleSheet.hairlineWidth }]}>
+              <Text variant="xs" weight="600" style={{ color: Monochrome.textSecondary }}>
                 {peerInfo.role}
               </Text>
             </View>
@@ -1003,7 +1043,7 @@ export default function DmConversationScreen() {
       <KeyboardContentBoundary style={styles.timelineBoundary}>
         {loading ? (
           <View style={styles.centerContainer}>
-            <ActivityIndicator size="large" color={colors.primary} />
+            <ActivityIndicator size="large" color={Monochrome.textSecondary} />
           </View>
         ) : error ? (
           <View style={styles.centerContainer}>
@@ -1013,7 +1053,7 @@ export default function DmConversationScreen() {
             </Text>
             <TouchableOpacity
               onPress={() => void loadMessages()}
-              style={[styles.retryBtn, { backgroundColor: colors.surfaceRaised }]}
+              style={[styles.retryBtn, { backgroundColor: Monochrome.surfaceElevated, borderColor: Monochrome.border, borderWidth: StyleSheet.hairlineWidth }]}
             >
               <Text variant="sm" weight="600" style={{ color: colors.text }}>
                 Retry
@@ -1042,7 +1082,7 @@ export default function DmConversationScreen() {
             ListFooterComponent={
               loadingOlder ? (
                 <View style={{ paddingVertical: 12 }}>
-                  <ActivityIndicator size="small" color={colors.primary} />
+                  <ActivityIndicator size="small" color={Monochrome.textSecondary} />
                 </View>
               ) : null
             }
@@ -1072,7 +1112,7 @@ export default function DmConversationScreen() {
           </Text>
           {isBlockedByMe && (
             <TouchableOpacity onPress={handleToggleBlock} style={styles.unblockBannerBtn}>
-              <Text variant="sm" weight="700" style={{ color: colors.primary }}>
+              <Text variant="sm" weight="700" style={{ color: colors.text }}>
                 Unblock
               </Text>
             </TouchableOpacity>
@@ -1082,29 +1122,29 @@ export default function DmConversationScreen() {
         <StickyComposer bordered>
           {/* Replying Banner */}
           {replyingTo && (
-            <View style={[styles.contextBanner, { backgroundColor: colors.surfaceRaised }]}>
+            <View style={[styles.contextBanner, { backgroundColor: Monochrome.surfaceElevated, borderColor: Monochrome.border, borderWidth: StyleSheet.hairlineWidth }]}>
               <View style={{ flex: 1 }}>
-                <Text variant="xs" weight="600" style={{ color: colors.primary }}>
+                <Text variant="xs" weight="600" style={{ color: Monochrome.text }}>
                   Replying to {replyingTo.senderId === currentUserId ? 'yourself' : peerInfo.name}
                 </Text>
-                <Text variant="xs" numberOfLines={1} style={{ color: colors.textMuted }}>
+                <Text variant="xs" numberOfLines={1} style={{ color: Monochrome.textSecondary }}>
                   {replyingTo.text}
                 </Text>
               </View>
               <TouchableOpacity onPress={() => setReplyingTo(null)} hitSlop={8}>
-                <Ionicons name="close" size={18} color={colors.textMuted} />
+                <Ionicons name="close" size={18} color={Monochrome.textTertiary} />
               </TouchableOpacity>
             </View>
           )}
 
           {/* Editing Banner */}
           {editingMessage && (
-            <View style={[styles.contextBanner, { backgroundColor: colors.surfaceRaised }]}>
+            <View style={[styles.contextBanner, { backgroundColor: Monochrome.surfaceElevated, borderColor: Monochrome.border, borderWidth: StyleSheet.hairlineWidth }]}>
               <View style={{ flex: 1 }}>
-                <Text variant="xs" weight="600" style={{ color: colors.primary }}>
+                <Text variant="xs" weight="600" style={{ color: Monochrome.text }}>
                   Editing message
                 </Text>
-                <Text variant="xs" numberOfLines={1} style={{ color: colors.textMuted }}>
+                <Text variant="xs" numberOfLines={1} style={{ color: Monochrome.textSecondary }}>
                   {editingMessage.text}
                 </Text>
               </View>
@@ -1115,7 +1155,7 @@ export default function DmConversationScreen() {
                 }}
                 hitSlop={8}
               >
-                <Ionicons name="close" size={18} color={colors.textMuted} />
+                <Ionicons name="close" size={18} color={Monochrome.textTertiary} />
               </TouchableOpacity>
             </View>
           )}
@@ -1145,7 +1185,7 @@ export default function DmConversationScreen() {
                 variant="xs"
                 style={[
                   styles.charCounter,
-                  { color: inputText.length > 1950 ? '#ef4444' : colors.textMuted },
+                  { color: inputText.length > 1950 ? Monochrome.text : Monochrome.textTertiary },
                 ]}
               >
                 {inputText.length}/2000
@@ -1158,19 +1198,19 @@ export default function DmConversationScreen() {
               style={[
                 styles.sendButton,
                 {
-                  backgroundColor: inputText.trim() ? colors.text : colors.surfaceRaised,
+                  backgroundColor: inputText.trim() ? Monochrome.outgoingBubble : Monochrome.surfaceRaised,
                   opacity: inputText.trim() ? 1 : 0.4,
                 },
               ]}
               accessibilityLabel={editingMessage ? 'Save edited message' : 'Send message'}
             >
               {sending ? (
-                <ActivityIndicator size="small" color="#ffffff" />
+                <ActivityIndicator size="small" color={Monochrome.outgoingText} />
               ) : (
                 <Ionicons
                   name={editingMessage ? 'checkmark' : 'arrow-up'}
                   size={20}
-                  color={inputText.trim() ? '#ffffff' : colors.textMuted}
+                  color={inputText.trim() ? Monochrome.outgoingText : Monochrome.textTertiary}
                 />
               )}
             </TouchableOpacity>
@@ -1234,8 +1274,8 @@ export default function DmConversationScreen() {
             {selectedActionMessage?.senderId === currentUserId &&
               !selectedActionMessage?.deletedForAll && (
                 <TouchableOpacity style={styles.actionSheetRow} onPress={handleDeleteForEveryone}>
-                  <Ionicons name="trash" size={20} color="#ef4444" />
-                  <Text variant="sm" weight="600" style={[styles.actionRowText, { color: '#ef4444' }]}>
+                  <Ionicons name="trash" size={20} color={Monochrome.text} />
+                  <Text variant="sm" weight="600" style={[styles.actionRowText, { color: Monochrome.text }]}>
                     Delete for Everyone
                   </Text>
                 </TouchableOpacity>
@@ -1244,8 +1284,8 @@ export default function DmConversationScreen() {
             {/* Peer-only: Report message */}
             {selectedActionMessage?.senderId !== currentUserId && (
               <TouchableOpacity style={styles.actionSheetRow} onPress={handleOpenReportModal}>
-                <Ionicons name="flag-outline" size={20} color="#ef4444" />
-                <Text variant="sm" weight="600" style={[styles.actionRowText, { color: '#ef4444' }]}>
+                <Ionicons name="flag-outline" size={20} color={Monochrome.textSecondary} />
+                <Text variant="sm" weight="600" style={[styles.actionRowText, { color: Monochrome.textSecondary }]}>
                   Report Message
                 </Text>
               </TouchableOpacity>
@@ -1286,14 +1326,14 @@ export default function DmConversationScreen() {
               <Ionicons
                 name={isBlockedByMe ? 'shield-checkmark-outline' : 'ban-outline'}
                 size={20}
-                color={isBlockedByMe ? colors.primary : '#ef4444'}
+                color={colors.text}
               />
               <Text
                 variant="sm"
                 weight="600"
                 style={[
                   styles.actionRowText,
-                  { color: isBlockedByMe ? colors.primary : '#ef4444' },
+                  { color: colors.text },
                 ]}
               >
                 {isBlockedByMe ? 'Unblock User' : 'Block User'}
@@ -1301,8 +1341,8 @@ export default function DmConversationScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.actionSheetRow} onPress={handleOpenReportModal}>
-              <Ionicons name="flag-outline" size={20} color="#ef4444" />
-              <Text variant="sm" weight="600" style={[styles.actionRowText, { color: '#ef4444' }]}>
+              <Ionicons name="flag-outline" size={20} color={Monochrome.textSecondary} />
+              <Text variant="sm" weight="600" style={[styles.actionRowText, { color: Monochrome.textSecondary }]}>
                 Report User
               </Text>
             </TouchableOpacity>
@@ -1392,14 +1432,25 @@ export default function DmConversationScreen() {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.reportSubmitBtn, { backgroundColor: '#ef4444' }]}
+                style={[
+                  styles.reportSubmitBtn,
+                  {
+                    backgroundColor: reportDescription.trim() ? Monochrome.outgoingBubble : Monochrome.surfaceRaised,
+                  },
+                ]}
                 onPress={handleSubmitReport}
-                disabled={submittingReport}
+                disabled={submittingReport || !reportDescription.trim()}
               >
                 {submittingReport ? (
-                  <ActivityIndicator size="small" color="#ffffff" />
+                  <ActivityIndicator size="small" color={Monochrome.outgoingText} />
                 ) : (
-                  <Text variant="sm" weight="700" style={{ color: '#ffffff' }}>
+                  <Text
+                    variant="sm"
+                    weight="700"
+                    style={{
+                      color: reportDescription.trim() ? Monochrome.outgoingText : Monochrome.textTertiary,
+                    }}
+                  >
                     Submit Report
                   </Text>
                 )}
@@ -1455,7 +1506,7 @@ const styles = StyleSheet.create({
   },
   typingIndicator: {
     fontSize: 11,
-    color: '#10b981',
+    color: Monochrome.textSecondary,
     marginTop: 1,
   },
   headerActionBtn: {
@@ -1482,16 +1533,17 @@ const styles = StyleSheet.create({
   },
   dateSeparatorContainer: {
     alignItems: 'center',
-    marginVertical: 12,
+    marginVertical: 10,
   },
   dateSeparatorPill: {
     paddingHorizontal: 10,
-    paddingVertical: 3,
+    paddingVertical: 3.5,
     borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
+    backgroundColor: '#141414',
+    borderColor: '#282828',
   },
   bubbleRow: {
-    marginVertical: 3,
     flexDirection: 'row',
   },
   bubbleRowSelf: {
@@ -1502,10 +1554,10 @@ const styles = StyleSheet.create({
   },
   bubbleContainer: {
     maxWidth: '78%',
-    borderRadius: 16,
-    paddingHorizontal: 12,
+    borderRadius: 18,
+    paddingHorizontal: 13,
     paddingTop: 8,
-    paddingBottom: 6,
+    paddingBottom: 7,
   },
   bubbleSelf: {
     borderBottomRightRadius: 4,

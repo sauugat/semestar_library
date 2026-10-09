@@ -12,8 +12,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTheme } from '@/constants/useTheme';
 import { Text } from '@/components/ui/Typography';
+import { Monochrome } from '@/constants/theme';
 import {
   type UnifiedConversationItem,
   type CohortConversationItem,
@@ -49,11 +49,11 @@ function formatRelativeTime(iso?: string | null): string {
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
-const COHORT_COLORS: Record<string, { bg: string; border: string; text: string; icon: string }> = {
-  mercury: { bg: 'rgba(59, 130, 246, 0.15)', border: 'rgba(59, 130, 246, 0.3)', text: '#60a5fa', icon: 'planet-outline' },
-  venus: { bg: 'rgba(168, 85, 247, 0.15)', border: 'rgba(168, 85, 247, 0.3)', text: '#c084fc', icon: 'sparkles-outline' },
-  earth: { bg: 'rgba(16, 185, 129, 0.15)', border: 'rgba(16, 185, 129, 0.3)', text: '#34d399', icon: 'globe-outline' },
-  mars: { bg: 'rgba(249, 115, 22, 0.15)', border: 'rgba(249, 115, 22, 0.3)', text: '#fb923c', icon: 'flame-outline' },
+const COHORT_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
+  mercury: 'planet-outline',
+  venus: 'sparkles-outline',
+  earth: 'globe-outline',
+  mars: 'flame-outline',
 };
 
 export interface UnifiedChatInboxProps {
@@ -85,7 +85,6 @@ export function UnifiedChatInbox({
   onSelectDm,
   onNewMessage,
 }: UnifiedChatInboxProps) {
-  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [activeFilter, setActiveFilter] = useState<InboxFilterTab>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -118,7 +117,7 @@ export function UnifiedChatInbox({
       if (isCohort) {
         const cohortItem = item as CohortConversationItem;
         const slot = (cohortItem.groupCode || '').toLowerCase();
-        const theme = COHORT_COLORS[slot] || COHORT_COLORS.mercury;
+        const iconName = COHORT_ICONS[slot] || 'planet-outline';
         const time = formatRelativeTime(cohortItem.timestamp);
 
         return (
@@ -131,23 +130,18 @@ export function UnifiedChatInbox({
             accessibilityRole="button"
             accessibilityLabel={`${cohortItem.title} class cohort`}
           >
-            {/* Avatar Badge */}
-            <View style={[styles.cohortAvatar, { backgroundColor: theme.bg, borderColor: theme.border }]}>
-              <Ionicons name={theme.icon as any} size={22} color={theme.text} />
+            {/* Charcoal monochrome cohort avatar */}
+            <View style={styles.cohortAvatar}>
+              <Ionicons name={iconName} size={20} color={Monochrome.cohortAvatarIcon} />
             </View>
 
             {/* Conversation Details */}
             <View style={styles.itemContent}>
               <View style={styles.itemHeaderRow}>
                 <View style={styles.titleWithBadge}>
-                  <Text variant="md" weight="700" style={styles.itemTitle} numberOfLines={1}>
+                  <Text variant="md" weight="600" style={styles.itemTitle} numberOfLines={1}>
                     {cohortItem.title}
                   </Text>
-                  <View style={[styles.typeBadge, { backgroundColor: theme.bg }]}>
-                    <Text variant="xs" weight="600" style={{ color: theme.text, fontSize: 10 }}>
-                      CLASS
-                    </Text>
-                  </View>
                 </View>
                 {time ? (
                   <Text variant="xs" style={styles.itemTime}>
@@ -198,14 +192,14 @@ export function UnifiedChatInbox({
               <Image source={{ uri: dmItem.peerAvatarUrl }} style={styles.dmAvatarImage} />
             ) : (
               <View style={styles.dmAvatarFallback}>
-                <Text variant="sm" weight="700" style={{ color: '#e4e4e7' }}>
+                <Text style={styles.dmAvatarInitialText}>
                   {getInitials(dmItem.title)}
                 </Text>
               </View>
             )}
             {dmItem.isBlocked && (
               <View style={styles.blockedBadge}>
-                <Ionicons name="ban" size={10} color="#ef4444" />
+                <Ionicons name="ban" size={10} color={Monochrome.textTertiary} />
               </View>
             )}
           </View>
@@ -218,9 +212,9 @@ export function UnifiedChatInbox({
                   {dmItem.title}
                 </Text>
                 {isPeerSpecial && (
-                  <View style={styles.staffBadge}>
-                    <Text variant="xs" weight="600" style={styles.staffBadgeText}>
-                      {dmItem.peerRole.toUpperCase()}
+                  <View style={styles.roleChip}>
+                    <Text style={styles.roleChipText}>
+                      {dmItem.peerRole.toLowerCase()}
                     </Text>
                   </View>
                 )}
@@ -259,15 +253,15 @@ export function UnifiedChatInbox({
   if (!loading && cohortError && dmError && items.length === 0) {
     return (
       <View style={styles.centerErrorContainer}>
-        <Ionicons name="cloud-offline-outline" size={48} color="#ef4444" style={{ marginBottom: 12 }} />
-        <Text variant="lg" weight="700" style={{ color: '#f5f5f5', textAlign: 'center', marginBottom: 8 }}>
+        <Ionicons name="cloud-offline-outline" size={44} color={Monochrome.textTertiary} style={{ marginBottom: 12 }} />
+        <Text variant="lg" weight="700" style={{ color: Monochrome.textPrimary, textAlign: 'center', marginBottom: 8 }}>
           Could not load chats
         </Text>
-        <Text variant="sm" style={{ color: '#a1a1aa', textAlign: 'center', marginBottom: 20 }}>
+        <Text variant="sm" style={{ color: Monochrome.textSecondary, textAlign: 'center', marginBottom: 20 }}>
           {cohortError || dmError}
         </Text>
         <TouchableOpacity style={styles.retryBtn} onPress={onRefresh}>
-          <Text variant="sm" weight="600" style={{ color: '#f5f5f5' }}>
+          <Text variant="sm" weight="600" style={{ color: Monochrome.textPrimary }}>
             Try Again
           </Text>
         </TouchableOpacity>
@@ -277,16 +271,11 @@ export function UnifiedChatInbox({
 
   return (
     <View style={styles.container}>
-      {/* Top Header Row with Title and New Message Action */}
-      <View style={[styles.inboxHeader, { paddingTop: Math.max(insets.top, 12) }]}>
-        <View>
-          <Text variant="xl" weight="800" style={{ color: '#f5f5f5' }}>
-            Chats
-          </Text>
-          <Text variant="xs" style={{ color: '#71717a' }}>
-            {items.length ? `${items.length} conversation${items.length === 1 ? '' : 's'}` : 'Messages & Groups'}
-          </Text>
-        </View>
+      {/* Top Header Row with Minimalist Title and Outline New Message Action */}
+      <View style={[styles.inboxHeader, { paddingTop: Math.max(insets.top, 14) }]}>
+        <Text style={styles.inboxTitle}>
+          Chats
+        </Text>
 
         {dmEnabled && (
           <TouchableOpacity
@@ -296,18 +285,18 @@ export function UnifiedChatInbox({
             accessibilityLabel="Start new conversation"
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Ionicons name="create-outline" size={20} color="#f5f5f5" />
+            <Ionicons name="create-outline" size={20} color={Monochrome.textPrimary} />
           </TouchableOpacity>
         )}
       </View>
 
-      {/* Single Search Bar */}
+      {/* Compact Monochrome Search Bar */}
       <View style={styles.searchBar}>
-        <Ionicons name="search" size={16} color="#71717a" style={{ marginRight: 8 }} />
+        <Ionicons name="search" size={15} color={Monochrome.textTertiary} style={{ marginRight: 8 }} />
         <TextInput
           style={styles.searchInput}
           placeholder="Search conversations..."
-          placeholderTextColor="#71717a"
+          placeholderTextColor={Monochrome.textTertiary}
           value={searchQuery}
           onChangeText={setSearchQuery}
           returnKeyType="search"
@@ -317,40 +306,32 @@ export function UnifiedChatInbox({
         />
         {searchQuery.length > 0 && (
           <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Ionicons name="close-circle" size={16} color="#71717a" />
+            <Ionicons name="close-circle" size={15} color={Monochrome.textTertiary} />
           </TouchableOpacity>
         )}
       </View>
 
-      {/* Filter Tabs: All, Unread, Groups */}
+      {/* Understated Filter Controls: All, Unread, Groups */}
       <View style={styles.filterRow}>
         <TouchableOpacity
-          style={[styles.filterChip, activeFilter === 'all' && styles.filterChipActive]}
+          style={[styles.filterChip, activeFilter === 'all' ? styles.filterChipActive : styles.filterChipInactive]}
           onPress={() => setActiveFilter('all')}
         >
-          <Text
-            variant="xs"
-            weight={activeFilter === 'all' ? '700' : '500'}
-            style={[styles.filterChipText, activeFilter === 'all' && styles.filterChipTextActive]}
-          >
+          <Text style={[styles.filterChipText, activeFilter === 'all' && styles.filterChipTextActive]}>
             All
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.filterChip, activeFilter === 'unread' && styles.filterChipActive]}
+          style={[styles.filterChip, activeFilter === 'unread' ? styles.filterChipActive : styles.filterChipInactive]}
           onPress={() => setActiveFilter('unread')}
         >
-          <Text
-            variant="xs"
-            weight={activeFilter === 'unread' ? '700' : '500'}
-            style={[styles.filterChipText, activeFilter === 'unread' && styles.filterChipTextActive]}
-          >
+          <Text style={[styles.filterChipText, activeFilter === 'unread' && styles.filterChipTextActive]}>
             Unread
           </Text>
           {totalUnread > 0 && (
             <View style={styles.filterBadge}>
-              <Text variant="xs" weight="700" style={{ color: '#fff', fontSize: 10 }}>
+              <Text style={styles.filterBadgeText}>
                 {totalUnread}
               </Text>
             </View>
@@ -358,29 +339,25 @@ export function UnifiedChatInbox({
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.filterChip, activeFilter === 'groups' && styles.filterChipActive]}
+          style={[styles.filterChip, activeFilter === 'groups' ? styles.filterChipActive : styles.filterChipInactive]}
           onPress={() => setActiveFilter('groups')}
         >
-          <Text
-            variant="xs"
-            weight={activeFilter === 'groups' ? '700' : '500'}
-            style={[styles.filterChipText, activeFilter === 'groups' && styles.filterChipTextActive]}
-          >
+          <Text style={[styles.filterChipText, activeFilter === 'groups' && styles.filterChipTextActive]}>
             Groups
           </Text>
         </TouchableOpacity>
       </View>
 
-      {/* Partial Failure Banners */}
+      {/* Partial Failure Banners (Monochrome) */}
       {cohortError && items.length > 0 && (
         <View style={styles.partialErrorBanner}>
-          <Ionicons name="alert-circle-outline" size={16} color="#ef4444" style={{ marginRight: 6 }} />
-          <Text variant="xs" style={{ color: '#fca5a5', flex: 1 }} numberOfLines={1}>
+          <Ionicons name="alert-circle-outline" size={15} color={Monochrome.textSecondary} />
+          <Text style={styles.partialErrorText} numberOfLines={1}>
             Could not refresh cohorts.
           </Text>
           {onRetryCohort && (
             <TouchableOpacity onPress={onRetryCohort} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-              <Text variant="xs" weight="700" style={{ color: '#60a5fa' }}>
+              <Text style={styles.partialErrorRetryText}>
                 Retry
               </Text>
             </TouchableOpacity>
@@ -390,13 +367,13 @@ export function UnifiedChatInbox({
 
       {dmError && items.length > 0 && (
         <View style={styles.partialErrorBanner}>
-          <Ionicons name="alert-circle-outline" size={16} color="#ef4444" style={{ marginRight: 6 }} />
-          <Text variant="xs" style={{ color: '#fca5a5', flex: 1 }} numberOfLines={1}>
+          <Ionicons name="alert-circle-outline" size={15} color={Monochrome.textSecondary} />
+          <Text style={styles.partialErrorText} numberOfLines={1}>
             Could not refresh direct messages.
           </Text>
           {onRetryDm && (
             <TouchableOpacity onPress={onRetryDm} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-              <Text variant="xs" weight="700" style={{ color: '#60a5fa' }}>
+              <Text style={styles.partialErrorRetryText}>
                 Retry
               </Text>
             </TouchableOpacity>
@@ -404,20 +381,19 @@ export function UnifiedChatInbox({
         </View>
       )}
 
-      {/* Conversation List */}
+      {/* Continuous Conversation List */}
       {loading && items.length === 0 ? (
         <View style={styles.centerLoadingContainer}>
-          <ActivityIndicator size="large" color="#3b82f6" />
+          <ActivityIndicator size="large" color={Monochrome.textPrimary} />
         </View>
       ) : displayedItems.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Ionicons
             name={searchQuery ? 'search-outline' : activeFilter === 'unread' ? 'mail-open-outline' : 'chatbubbles-outline'}
-            size={42}
-            color="#52525b"
-            style={{ marginBottom: 12 }}
+            size={40}
+            color={Monochrome.textTertiary}
           />
-          <Text variant="md" weight="600" style={{ color: '#e4e4e7', marginBottom: 4 }}>
+          <Text style={styles.emptyTitle}>
             {searchQuery
               ? 'No matching conversations'
               : activeFilter === 'unread'
@@ -426,11 +402,11 @@ export function UnifiedChatInbox({
               ? 'No class groups found'
               : 'No conversations yet'}
           </Text>
-          <Text variant="xs" style={{ color: '#71717a', textAlign: 'center', maxWidth: 260 }}>
+          <Text style={styles.emptySubtitle}>
             {searchQuery
               ? `No chats found for "${searchQuery}"`
               : activeFilter === 'unread'
-              ? 'You are all caught up!'
+              ? 'You are all caught up.'
               : dmEnabled
               ? 'Start a direct message with a classmate or check back for class announcements.'
               : 'Your class announcements and cohort discussions will appear here.'}
@@ -445,7 +421,7 @@ export function UnifiedChatInbox({
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              tintColor="#3b82f6"
+              tintColor={Monochrome.textPrimary}
             />
           }
           contentContainerStyle={styles.listContent}
@@ -460,47 +436,53 @@ export function UnifiedChatInbox({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#09090b',
+    backgroundColor: Monochrome.background,
   },
   inboxHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 8,
+    paddingBottom: 12,
+  },
+  inboxTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    letterSpacing: -0.5,
+    color: Monochrome.textPrimary,
   },
   newChatBtn: {
-    backgroundColor: '#27272a',
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: Monochrome.surface,
+    borderWidth: 1,
+    borderColor: Monochrome.border,
     justifyContent: 'center',
     alignItems: 'center',
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#18181b',
+    backgroundColor: Monochrome.surface,
     borderRadius: 10,
     marginHorizontal: 16,
-    marginTop: 6,
     marginBottom: 10,
     paddingHorizontal: 12,
-    height: 40,
+    height: 38,
     borderWidth: 1,
-    borderColor: '#27272a',
+    borderColor: Monochrome.border,
   },
   searchInput: {
     flex: 1,
-    color: '#f5f5f5',
+    color: Monochrome.textPrimary,
     fontSize: 14,
     padding: 0,
   },
   filterRow: {
     flexDirection: 'row',
     paddingHorizontal: 16,
-    marginBottom: 8,
+    marginBottom: 10,
     gap: 8,
   },
   filterChip: {
@@ -509,32 +491,42 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     paddingHorizontal: 12,
     borderRadius: 16,
-    backgroundColor: '#18181b',
     borderWidth: 1,
-    borderColor: '#27272a',
   },
   filterChipActive: {
-    backgroundColor: '#27272a',
-    borderColor: '#3b82f6',
+    backgroundColor: '#242424',
+    borderColor: '#383838',
+  },
+  filterChipInactive: {
+    backgroundColor: 'transparent',
+    borderColor: 'transparent',
   },
   filterChipText: {
-    color: '#71717a',
+    color: Monochrome.textTertiary,
+    fontSize: 13,
+    fontWeight: '500',
   },
   filterChipTextActive: {
-    color: '#f5f5f5',
+    color: Monochrome.textPrimary,
+    fontWeight: '600',
   },
   filterBadge: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: Monochrome.borderStrong,
     borderRadius: 8,
     paddingHorizontal: 5,
     paddingVertical: 1,
     marginLeft: 5,
   },
+  filterBadgeText: {
+    color: Monochrome.textPrimary,
+    fontSize: 10,
+    fontWeight: '700',
+  },
   partialErrorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(239, 68, 68, 0.12)',
-    borderColor: 'rgba(239, 68, 68, 0.25)',
+    backgroundColor: Monochrome.surfaceElevated,
+    borderColor: Monochrome.border,
     borderWidth: 1,
     marginHorizontal: 16,
     marginBottom: 8,
@@ -542,8 +534,20 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 8,
   },
+  partialErrorText: {
+    color: Monochrome.textSecondary,
+    fontSize: 12,
+    flex: 1,
+    marginLeft: 6,
+  },
+  partialErrorRetryText: {
+    color: Monochrome.textPrimary,
+    fontSize: 12,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
   listContent: {
-    paddingVertical: 4,
+    paddingVertical: 2,
   },
   itemRow: {
     flexDirection: 'row',
@@ -551,47 +555,55 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#18181b',
+    borderBottomColor: Monochrome.borderSubtle,
   },
   itemRowPressed: {
-    backgroundColor: '#18181b',
+    backgroundColor: Monochrome.surface,
   },
   cohortAvatar: {
-    width: 48,
-    height: 48,
+    width: 44,
+    height: 44,
     borderRadius: 12,
+    backgroundColor: Monochrome.cohortAvatarBg,
     borderWidth: 1,
+    borderColor: Monochrome.cohortAvatarBorder,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   dmAvatarContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     marginRight: 12,
     position: 'relative',
   },
   dmAvatarImage: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Monochrome.surfaceElevated,
   },
   dmAvatarFallback: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#27272a',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Monochrome.surfaceElevated,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#3f3f46',
+    borderColor: Monochrome.border,
+  },
+  dmAvatarInitialText: {
+    color: Monochrome.textPrimary,
+    fontSize: 14,
+    fontWeight: '600',
   },
   blockedBadge: {
     position: 'absolute',
     bottom: -2,
     right: -2,
-    backgroundColor: '#18181b',
+    backgroundColor: Monochrome.surface,
     borderRadius: 6,
     padding: 2,
   },
@@ -603,35 +615,38 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 3,
   },
   titleWithBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
     marginRight: 8,
+    gap: 6,
   },
   itemTitle: {
-    color: '#f5f5f5',
-    marginRight: 6,
+    color: Monochrome.textPrimary,
+    fontSize: 15.5,
+    fontWeight: '600',
   },
-  typeBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 4,
-  },
-  staffBadge: {
-    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+  roleChip: {
+    backgroundColor: Monochrome.surfaceSubtle,
+    borderWidth: 1,
+    borderColor: Monochrome.border,
     paddingHorizontal: 5,
     paddingVertical: 1,
     borderRadius: 4,
   },
-  staffBadgeText: {
-    color: '#60a5fa',
-    fontSize: 9,
+  roleChipText: {
+    color: Monochrome.textSecondary,
+    fontSize: 10,
+    fontWeight: '500',
+    textTransform: 'capitalize',
   },
   itemTime: {
-    color: '#71717a',
+    color: Monochrome.textTertiary,
+    fontSize: 12,
+    fontWeight: '400',
   },
   itemFooterRow: {
     flexDirection: 'row',
@@ -639,26 +654,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   itemSubtitle: {
-    color: '#a1a1aa',
+    color: Monochrome.textSecondary,
+    fontSize: 13.5,
+    fontWeight: '400',
     flex: 1,
     marginRight: 8,
   },
   itemSubtitleUnread: {
-    color: '#f5f5f5',
-    fontWeight: '600',
+    color: Monochrome.textPrimary,
+    fontWeight: '500',
   },
   unreadBadge: {
-    backgroundColor: '#3b82f6',
-    borderRadius: 10,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    backgroundColor: Monochrome.unreadBadgeBg,
+    borderRadius: 9,
     minWidth: 18,
+    height: 18,
+    paddingHorizontal: 5,
     justifyContent: 'center',
     alignItems: 'center',
   },
   unreadBadgeText: {
-    color: '#ffffff',
-    fontSize: 11,
+    color: Monochrome.unreadBadgeText,
+    fontSize: 10.5,
+    fontWeight: '700',
   },
   centerLoadingContainer: {
     flex: 1,
@@ -670,20 +688,35 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
-    backgroundColor: '#09090b',
+    backgroundColor: Monochrome.background,
   },
   retryBtn: {
-    backgroundColor: '#27272a',
+    backgroundColor: Monochrome.surfaceElevated,
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#3f3f46',
+    borderColor: Monochrome.border,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    paddingHorizontal: 32,
+    marginTop: 60,
+  },
+  emptyTitle: {
+    color: Monochrome.textPrimary,
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 14,
+    marginBottom: 6,
+  },
+  emptySubtitle: {
+    color: Monochrome.textSecondary,
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 18,
+    maxWidth: 260,
   },
 });

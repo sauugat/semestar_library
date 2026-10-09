@@ -3,6 +3,50 @@
  * Standardized 8-point spacing rhythm, normalized radii, touch targets, and typography.
  */
 
+/**
+ * Strict Monochrome Messaging Palette
+ * Dedicated tokens for Step 5B.4A premium minimalist aesthetic.
+ */
+export const Monochrome = {
+  background: '#090909',
+  header: '#101010',
+  surface: '#141414',
+  surfaceElevated: '#1C1C1C',
+  surfaceSubtle: '#181818',
+  border: '#282828',
+  borderSubtle: '#1F1F1F',
+  borderStrong: '#383838',
+
+  text: '#F5F5F5',
+  textPrimary: '#F5F5F5',
+  textSecondary: '#A1A1A1',
+  textTertiary: '#737373',
+  textDisabled: '#525252',
+
+  surfaceRaised: '#242424',
+
+  bubbleOutgoing: '#EAEAEA',
+  bubbleOutgoingText: '#111111',
+  bubbleOutgoingMeta: '#555555',
+  outgoingBubble: '#EAEAEA',
+  outgoingText: '#111111',
+  outgoingMeta: '#555555',
+
+  bubbleIncoming: '#242424',
+  bubbleIncomingText: '#F5F5F5',
+  bubbleIncomingMeta: '#737373',
+  incomingBubble: '#242424',
+  incomingText: '#F5F5F5',
+  incomingMeta: '#737373',
+
+  cohortAvatarBg: '#1C1C1C',
+  cohortAvatarBorder: '#282828',
+  cohortAvatarIcon: '#E5E5E5',
+
+  unreadBadgeBg: '#F5F5F5',
+  unreadBadgeText: '#111111',
+} as const;
+
 export const Colors = {
   // Dark mode is the primary / default aesthetic (monochrome black/charcoal)
   dark: {
@@ -13,22 +57,22 @@ export const Colors = {
     card: '#141414',
     cardElevated: '#1c1c1c',
     cardSubtle: '#111111',
-    border: 'rgba(255, 255, 255, 0.08)',
-    borderSubtle: 'rgba(255, 255, 255, 0.04)',
-    borderStrong: 'rgba(255, 255, 255, 0.16)',
+    border: '#282828',
+    borderSubtle: '#1f1f1f',
+    borderStrong: '#383838',
     text: '#f5f5f5',
     textSecondary: '#a3a3a3',
     textMuted: '#737373',
     textTertiary: '#525252',
     primary: '#f5f5f5',
-    primaryText: '#0a0a0a',
+    primaryText: '#090909',
     primaryLight: '#262626',
     primaryDark: '#d4d4d4',
     accent: '#f5f5f5',
     tabIconDefault: '#737373',
     tabIconSelected: '#f5f5f5',
     tabBarBackground: '#0d0d0d',
-    tabBarBorder: 'rgba(255, 255, 255, 0.08)',
+    tabBarBorder: '#282828',
     liked: '#ef4444',
     likedBg: 'rgba(239, 68, 68, 0.12)',
     success: '#22c55e',
@@ -40,26 +84,26 @@ export const Colors = {
     badgeNotice: '#ffffff',
     badgeNoticeBg: 'rgba(255, 255, 255, 0.1)',
     inputBackground: '#161616',
-    inputBorder: 'rgba(255, 255, 255, 0.1)',
+    inputBorder: '#282828',
     inputFocusBorder: '#f5f5f5',
     skeleton: '#1e1e1e',
     overlay: 'rgba(0, 0, 0, 0.75)',
 
-    // Semantic messaging tokens (Dark mode)
+    // Semantic messaging tokens (Strict Monochrome)
     textDisabled: '#525252',
     interactivePressed: 'rgba(255, 255, 255, 0.06)',
-    bubbleOutgoingBg: '#f5f5f5',
-    bubbleOutgoingText: '#0a0a0a',
-    bubbleIncomingBg: '#1c1c1c',
+    bubbleOutgoingBg: '#eaeaea',
+    bubbleOutgoingText: '#111111',
+    bubbleIncomingBg: '#242424',
     bubbleIncomingText: '#f5f5f5',
-    bubbleIncomingBorder: 'rgba(255, 255, 255, 0.08)',
+    bubbleIncomingBorder: '#282828',
     timestampText: '#737373',
-    receiptSent: '#737373',
-    receiptSeen: '#60a5fa',
+    receiptSent: '#555555',
+    receiptSeen: '#111111',
     unreadBadgeBg: '#f5f5f5',
-    unreadBadgeText: '#0a0a0a',
+    unreadBadgeText: '#111111',
     offlineBannerBg: '#1c1c1c',
-    offlineBannerText: '#a3a3a3',
+    offlineBannerText: '#a1a1a1',
     blockedBannerBg: '#181818',
     blockedBannerText: '#737373',
   },

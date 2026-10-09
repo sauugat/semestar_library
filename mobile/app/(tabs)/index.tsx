@@ -245,28 +245,7 @@ const FEED_CATEGORY_FILTERS = [
   { id: 'feedback', label: 'Feedback' },
 ];
 
-// Only show badges for Notice or Assignment types; omit for regular status/discussion
-function getTypeBadgeProps(type: string, isOfficial: boolean | undefined, colors: any) {
-  if (type === 'notice' || isOfficial) {
-    return {
-      label: isOfficial ? 'OFFICIAL NOTICE' : 'NOTICE',
-      textColor: colors.text,
-      bgColor: colors.surfaceRaised,
-      borderColor: colors.borderStrong,
-      icon: 'megaphone-outline' as const,
-    };
-  }
-  if (type === 'assignment') {
-    return {
-      label: 'ASSIGNMENT',
-      textColor: colors.textSecondary,
-      bgColor: colors.surfaceSubtle,
-      borderColor: colors.border,
-      icon: 'clipboard-outline' as const,
-    };
-  }
-  return null;
-}
+
 
 // Animated Like Button with scale pop bounce and red state
 function LikeButton({

@@ -193,7 +193,7 @@ function RootLayoutNav() {
       <Stack.Screen name="login" options={{ headerShown: false }} />
       <Stack.Screen name="teacher-onboarding" options={{ headerShown: false, gestureEnabled: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="notices" options={{ title: 'Official Notices', headerBackTitle: 'Back' }} />
+      <Stack.Screen name="notices" options={{ title: 'Notices', headerBackTitle: 'Back' }} />
       <Stack.Screen name="notice/[id]" options={{ title: 'Notice Details', headerBackTitle: 'Notices' }} />
       <Stack.Screen name="post/[id]" options={{ title: 'Post', headerBackTitle: 'Back' }} />
       <Stack.Screen name="settings" options={{ title: 'Settings', headerBackTitle: 'Profile' }} />

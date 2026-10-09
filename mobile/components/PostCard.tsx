@@ -260,7 +260,7 @@ export function PostCard({
         </View>
       </View>
 
-      {/* Category, Audience, and Target Semester Monochrome Tags */}
+      {/* Category and Audience Monochrome Tags */}
       <View style={styles.postTagsRow}>
         <View style={[styles.monochromeBadge, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
           <Text variant="xs" weight="700" style={{ color: colors.textSecondary, fontSize: 10, textTransform: 'uppercase' }}>
@@ -274,21 +274,7 @@ export function PostCard({
             </Text>
           </View>
         )}
-        <View style={[styles.monochromeBadge, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
-          <Text variant="xs" weight="600" style={{ color: colors.textMuted, fontSize: 10 }}>
-            {post.semester_display || (post.allSemesters || post.target_all_semesters === 1 || !post.targetSemesters?.length ? 'All Semesters' : `Semester ${post.targetSemesters.join(', ')}`)}
-          </Text>
-        </View>
       </View>
-
-      {/* Post Title (if present and NOT a General post) */}
-      {post.category !== 'general' && Boolean(post.title && post.title.trim()) && (
-        <TouchableOpacity activeOpacity={0.8} onPress={defaultOpenDetail} style={{ marginTop: 4 }}>
-          <Text variant="sm" weight="700" style={{ color: colors.text, lineHeight: 20 }}>
-            {post.title}
-          </Text>
-        </TouchableOpacity>
-      )}
 
       {/* Post Text Content */}
       {Boolean(post.content && post.content.trim()) && (

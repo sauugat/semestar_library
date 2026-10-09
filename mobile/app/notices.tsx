@@ -102,7 +102,7 @@ export default function NoticesScreen() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
     >
       <View style={{ marginBottom: spacing.normal }}>
-        <Heading style={{ fontSize: 22 }}>Official Notices</Heading>
+        <Heading style={{ fontSize: 22 }}>Notices</Heading>
         <Caption color="muted">Gandaki University Announcements & Circulars</Caption>
       </View>
 
@@ -116,18 +116,18 @@ export default function NoticesScreen() {
         <EmptyState
           icon="megaphone-outline"
           title="No Notices Published Yet"
-          description="Official announcements, exam schedules, and circulars from university administration and CRs will appear here."
+          description="Announcements, exam schedules, and circulars from university administration and CRs will appear here."
         />
       ) : (
         notices.map((notice) => {
           const authorAvatar = getFullUrl(notice.avatarUrl);
           const noticeImage = getFullUrl(notice.imageUrl);
-          const isAdmin = notice.role === 'admin';
-          const isCR = notice.role === 'cr';
           const isTarget = Boolean(targetNoticeId && String(notice.id) === String(targetNoticeId));
           const noticeDate = notice.createdAt || notice.created_at || notice.timestamp;
 
-          const { title, preview } = extractNoticeTitleAndBody(notice.content);
+          const { title: fallbackTitle, preview: fallbackPreview } = extractNoticeTitleAndBody(notice.content);
+          const displayTitle = (notice.title && notice.title.trim()) || fallbackTitle;
+          const displayPreview = (notice.title && notice.title.trim()) ? (notice.content || '') : fallbackPreview;
 
           return (
             <SurfaceCard
@@ -161,7 +161,7 @@ export default function NoticesScreen() {
                 </View>
               )}
 
-              {/* Publisher & Metadata Header */}
+              {/* 1. Publisher & Metadata Header (Profile things) */}
               <View style={styles.headerRow}>
                 <View style={styles.publisherInfo}>
                   <Avatar
@@ -180,33 +180,26 @@ export default function NoticesScreen() {
                     </View>
                   </View>
                 </View>
-
-                <Badge
-                  label={isAdmin ? 'Official' : isCR ? 'CR Notice' : 'Notice'}
-                  variant={isAdmin ? 'official' : 'neutral'}
-                  size="sm"
-                  icon={isAdmin ? 'shield-checkmark' : isCR ? 'ribbon' : 'megaphone'}
-                />
               </View>
 
-              {/* Notice Title */}
+              {/* 2. Notice Title */}
               <Text
                 variant="md"
                 weight="700"
                 numberOfLines={2}
                 style={[styles.noticeTitle, { color: colors.text, marginTop: spacing.compact }]}
               >
-                {title}
+                {displayTitle}
               </Text>
 
-              {/* 2-3 Line Content Preview */}
+              {/* 3. 2-3 Line Content Preview */}
               <Text
                 variant="sm"
                 color="secondary"
                 numberOfLines={3}
                 style={[styles.noticePreview, { marginTop: spacing.micro + 2 }]}
               >
-                {preview}
+                {displayPreview}
               </Text>
 
               {/* Attachment Indicator / Image */}

@@ -250,7 +250,7 @@ describe('Step 4B: React Native Private Messaging Mobile UI & Services', () => {
     const content = fs.readFileSync(chatPath, 'utf8');
 
     assert.ok(content.includes('fetchDmStatus'), 'Must check feature flag status');
-    assert.ok(content.includes('dmEnabled &&'), 'Must hide DM section when disabled');
+    assert.ok(content.includes('dmEnabled'), 'Must gate DM features using dmEnabled');
   });
 
   // 25. Existing cohort chat regression
@@ -260,7 +260,8 @@ describe('Step 4B: React Native Private Messaging Mobile UI & Services', () => {
 
     assert.ok(content.includes('useClassChat'), 'Must preserve useClassChat hook');
     assert.ok(content.includes('adminRooms'), 'Must preserve adminRooms');
-    assert.ok(content.includes('CLASS CHAT'), 'Must retain CLASS CHAT section');
+    assert.ok(content.includes('selectedCohortRoom'), 'Must preserve cohort room selection');
+    assert.ok(content.includes('Class Chat') || content.includes('Class conversation'), 'Must retain Class Chat header');
   });
 
 });

@@ -16,18 +16,14 @@ describe('Step 5B.3.2: Secure DM Feature Gating & Navigation Architecture', () =
   const serverPath = path.join(repoRoot, 'server.js');
   const { isDmAllowedForUser } = require('../lib/dm-config');
 
-  // 1. Admin cohort-picker navigation retains DM SegmentedControl & DmInboxView
-  test('1. Admin cohort picker view renders SegmentedControl and DmInboxView', () => {
+  // 1. Admin view renders UnifiedChatInbox with authorized cohort rooms and DMs
+  test('1. Admin view renders UnifiedChatInbox combining authorized cohort rooms and DMs', () => {
     assert.ok(fs.existsSync(chatScreenPath), 'chat.tsx must exist');
     const content = fs.readFileSync(chatScreenPath, 'utf8');
 
-    const adminPickerSegmentIdx = content.indexOf('active classes');
-    assert.ok(adminPickerSegmentIdx !== -1, 'Admin cohort screen must identify active classes');
-
-    const adminSegmentMatches = content.slice(adminPickerSegmentIdx, adminPickerSegmentIdx + 500);
-    assert.ok(adminSegmentMatches.includes('<SegmentedControl'), 'Admin screen must render SegmentedControl');
-
-    assert.ok(content.includes('<DmInboxView onUnreadCountChange={setDmUnreadCount} />'), 'DmInboxView must be rendered in chat.tsx');
+    assert.ok(content.includes('<UnifiedChatInbox'), 'Chat screen must render UnifiedChatInbox');
+    assert.ok(content.includes('normalizeUnifiedConversations'), 'Chat screen must normalize unified conversations');
+    assert.ok(content.includes('fetchAdminChatRooms'), 'Chat screen must fetch admin cohort rooms');
   });
 
   // 2. DM Feature flag check in chat.tsx does NOT pass studentId param, preserves user lifecycle

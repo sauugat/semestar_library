@@ -15,29 +15,24 @@ describe('Step 5B.3: Chat Navigation Architecture and Smooth Screen Transitions'
   const dmRealtimePath = path.join(repoRoot, 'mobile', 'services', 'dm-realtime.ts');
   const webClientPath = path.join(repoRoot, 'public', 'dm-chat-client.js');
 
-  // Test 1: Class Chat -> Messages
-  test('1. Class Chat -> Messages: switches activeSection to messages without unmounting views', () => {
+  // Test 1: Unified Chat Inbox renders both Cohorts and DMs
+  test('1. Unified Chat Inbox: renders both Cohort and DM items together without segmented control', () => {
     assert.ok(fs.existsSync(chatScreenPath), 'chat.tsx must exist');
     const content = fs.readFileSync(chatScreenPath, 'utf8');
 
-    // Uses SegmentedControl component for switching
-    assert.ok(content.includes('SegmentedControl'), 'chat.tsx must render SegmentedControl');
-    assert.ok(content.includes("key === 'class' | 'messages'") || content.includes("setActiveSection(key as 'class' | 'messages')"), 'chat.tsx must toggle activeSection via onSelect');
-
-    // Persistent layout: uses display style instead of early conditional unmount return
-    assert.ok(content.includes("display: activeSection === 'class' ? 'flex' : 'none'"), 'Class chat view must remain mounted with display toggle');
-    assert.ok(content.includes("display: activeSection === 'messages' ? 'flex' : 'none'"), 'Messages view must remain mounted with display toggle');
-    assert.ok(!content.includes("if (dmEnabled && activeSection === 'messages') {\n    return"), 'chat.tsx must not early return and unmount class chat');
+    assert.ok(content.includes('<UnifiedChatInbox'), 'chat.tsx must render UnifiedChatInbox');
+    assert.ok(content.includes('normalizeUnifiedConversations'), 'chat.tsx must normalize unified items');
+    assert.ok(content.includes('handleSelectCohort'), 'chat.tsx must provide cohort selection handler');
+    assert.ok(content.includes('handleSelectDm'), 'chat.tsx must provide DM selection handler');
   });
 
-  // Test 2: Messages -> Class Chat
-  test('2. Messages -> Class Chat: returns seamlessly to class chat preserving state and subscriptions', () => {
+  // Test 2: Cohort Conversation -> Inbox
+  test('2. Cohort Conversation -> Inbox: back navigation safely returns to unified inbox', () => {
     const content = fs.readFileSync(chatScreenPath, 'utf8');
 
-    // Header back button in messages switches back to class
-    assert.ok(content.includes("setActiveSection('class')"), 'Messages header back button must call setActiveSection to return to class');
-    // Class chat socket hook useClassChat remains continuously alive
-    assert.ok(content.includes('useClassChat('), 'useClassChat hook must remain in main component scope');
+    assert.ok(content.includes('handleBackToInbox'), 'chat.tsx must provide handleBackToInbox');
+    assert.ok(content.includes('setSelectedCohortRoom(null)'), 'handleBackToInbox must reset selectedCohortRoom');
+    assert.ok(content.includes('useClassChat('), 'useClassChat hook must remain in component scope');
   });
 
   // Test 3: Inbox -> Conversation
@@ -76,7 +71,7 @@ describe('Step 5B.3: Chat Navigation Architecture and Smooth Screen Transitions'
     const newContent = fs.readFileSync(dmNewPath, 'utf8');
 
     assert.ok(chatContent.includes("BackHandler.addEventListener('hardwareBackPress'"), 'chat.tsx must register hardwareBackPress');
-    assert.ok(chatContent.includes("if (activeSection === 'messages') {\n          setActiveSection('class');\n          return true;"), 'chat.tsx must return to class chat when pressing Back in messages');
+    assert.ok(chatContent.includes('if (selectedCohortRoom) {\n          handleBackToInbox();\n          return true;'), 'chat.tsx must return to unified inbox when pressing Back in cohort conversation');
 
     assert.ok(convContent.includes("BackHandler.addEventListener('hardwareBackPress'"), '[id].tsx must register hardwareBackPress');
     assert.ok(newContent.includes("BackHandler.addEventListener('hardwareBackPress'"), 'new.tsx must register hardwareBackPress');
@@ -112,14 +107,13 @@ describe('Step 5B.3: Chat Navigation Architecture and Smooth Screen Transitions'
   });
 
   // Test 9: Deep Links
-  test('9. Deep links: chat tab inspects section, tab, dmConversationId, and targetChatGroupId params', () => {
+  test('9. Deep links: chat tab inspects dmConversationId and targetChatGroupId params', () => {
     const content = fs.readFileSync(chatScreenPath, 'utf8');
 
     assert.ok(content.includes('useLocalSearchParams'), 'chat.tsx must use useLocalSearchParams');
-    assert.ok(content.includes('section?: string'), 'chat.tsx params must include section');
-    assert.ok(content.includes('tab?: string'), 'chat.tsx params must include tab');
     assert.ok(content.includes('dmConversationId?: string'), 'chat.tsx params must include dmConversationId');
-    assert.ok(content.includes("section === 'messages' || tab === 'dm' || tab === 'messages'"), 'chat.tsx must activate messages section on deep-link');
+    assert.ok(content.includes('targetChatGroupId?: string'), 'chat.tsx params must include targetChatGroupId');
+    assert.ok(content.includes("pathname: '/dm/[id]'"), 'chat.tsx must navigate to target DM on deep link');
   });
 
   // Test 10: Invalid Conversation Route
@@ -153,15 +147,11 @@ describe('Step 5B.3: Chat Navigation Architecture and Smooth Screen Transitions'
   });
 
   // Test 13: Navigation State Retention
-  test('13. Navigation state retention: segment switching retains scroll and form draft states', () => {
+  test('13. Navigation state retention: Unified inbox and cohort room preserve composers and navigation hierarchy', () => {
     const content = fs.readFileSync(chatScreenPath, 'utf8');
 
-    // Both views stay in the DOM with display toggles
-    assert.ok(content.includes("display: activeSection === 'class' ? 'flex' : 'none'"));
-    assert.ok(content.includes("display: activeSection === 'messages' ? 'flex' : 'none'"));
-    // StickyComposer and FlatList remain mounted inside the persistent container
-    assert.ok(content.includes('<StickyComposer'));
-    assert.ok(content.includes('<DmInboxView'));
+    assert.ok(content.includes('<UnifiedChatInbox'), 'chat.tsx must render UnifiedChatInbox');
+    assert.ok(content.includes('<StickyComposer'), 'StickyComposer must remain mounted in cohort room view');
   });
 
   // Test 14: Reduced-Motion Behavior & Segment Indicator Animation

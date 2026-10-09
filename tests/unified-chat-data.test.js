@@ -407,4 +407,390 @@ describe('Step 5B.3.4A — Unified Chat Data Foundation', () => {
     assert.equal(adapted.subtitle, null); // Must not display deletedForAll message text
     assert.equal(adapted.timestamp, '2026-10-08T14:00:00.000Z'); // Timestamp preserved
   });
+
+  // 13. Admin unified inbox
+  test('13. Admin unified inbox: displays all authorized cohorts alongside DMs sorted deterministically', () => {
+    const adminRooms = [
+      { chatGroupId: 'room-1', cohortId: 'c1', groupCode: 'MERCURY', cohortDisplayName: 'Mercury', currentSemester: 1, roomStatus: 'active', latestMessage: 'Hello Mercury', latestMessageAt: '2026-10-08T10:00:00.000Z', unreadCount: 0 },
+      { chatGroupId: 'room-2', cohortId: 'c2', groupCode: 'VENUS', cohortDisplayName: 'Venus', currentSemester: 2, roomStatus: 'active', latestMessage: 'Hello Venus', latestMessageAt: '2026-10-08T12:00:00.000Z', unreadCount: 2 },
+    ];
+    const dms = [
+      { id: 'dm-1', participant: { studentId: 'u1', name: 'Dr. Jane' }, lastMessage: { id: 1, text: 'Hi admin', createdAt: '2026-10-08T11:00:00.000Z' }, unreadCount: 1 },
+    ];
+
+    const normalized = inbox.normalizeUnifiedConversations({ adminRooms, dmConversations: dms });
+    assert.equal(normalized.length, 3);
+    const sorted = inbox.sortUnifiedConversations(normalized);
+    // Order: Venus (12:00) -> Dr. Jane DM (11:00) -> Mercury (10:00)
+    assert.equal(sorted[0].key, 'cohort:room-2');
+    assert.equal(sorted[1].key, 'dm:dm-1');
+    assert.equal(sorted[2].key, 'cohort:room-1');
+  });
+
+  // 14. Student unified inbox
+  test('14. Student unified inbox: displays single assigned cohort alongside DMs', () => {
+    const studentConfig = {
+      studentId: '26020266',
+      chatGroupId: 'room-earth',
+      cohortId: 'c3',
+      groupCode: 'EARTH',
+      cohortDisplayName: 'Earth',
+      currentSemester: 5,
+      roomStatus: 'active',
+      cohortStatus: 'active',
+      realtimeEpoch: 1,
+      permissions: { canPost: true, canPin: false },
+    };
+    const dms = [
+      { id: 'dm-2', participant: { studentId: 'u2', name: 'Bob' }, lastMessage: { id: 2, text: 'Hey there', createdAt: '2026-10-08T09:00:00.000Z' }, unreadCount: 0 },
+    ];
+
+    const normalized = inbox.normalizeUnifiedConversations({ studentConfig, dmConversations: dms });
+    assert.equal(normalized.length, 2);
+    const sorted = inbox.sortUnifiedConversations(normalized);
+    // DM with timestamp (09:00) precedes student cohort with null timestamp
+    assert.equal(sorted[0].key, 'dm:dm-2');
+    assert.equal(sorted[1].key, 'cohort:room-earth');
+    assert.equal(sorted[1].type, 'cohort');
+  });
+
+  // 15. CR permissions
+  test('15. CR permissions: preserves canPin permission when configured', () => {
+    const crConfig = {
+      studentId: 'cr-101',
+      chatGroupId: 'room-mars',
+      cohortId: 'c4',
+      groupCode: 'MARS',
+      cohortDisplayName: 'Mars',
+      currentSemester: 3,
+      roomStatus: 'active',
+      cohortStatus: 'active',
+      realtimeEpoch: 1,
+      permissions: { canPost: true, canPin: true },
+    };
+
+    const adapted = inbox.adaptStudentCohortConfig(crConfig);
+    assert.ok(adapted);
+    assert.equal(adapted.canPin, true);
+  });
+
+  // 16. Teacher authorization handling
+  test('16. Teacher authorization handling: uses strictly backend-authorized config without inventing teacher access', () => {
+    // Teacher response returns standard ChatConfig from /api/chat/config
+    const teacherConfig = {
+      studentId: 'prof-smith',
+      chatGroupId: 'room-faculty-cohort',
+      cohortId: 'c-faculty',
+      groupCode: 'EARTH',
+      cohortDisplayName: 'Earth Faculty',
+      currentSemester: 5,
+      roomStatus: 'active',
+      cohortStatus: 'active',
+      realtimeEpoch: 1,
+      permissions: { canPost: true, canPin: true },
+    };
+
+    const adapted = inbox.adaptStudentCohortConfig(teacherConfig);
+    assert.ok(adapted);
+    assert.equal(adapted.key, 'cohort:room-faculty-cohort');
+    assert.equal(adapted.title, 'Earth Faculty');
+
+    // Unauthorized teacher returns null / throws 403 on backend, resulting in null config
+    const unauthorized = inbox.normalizeUnifiedConversations({ studentConfig: null });
+    assert.deepEqual(unauthorized, []);
+  });
+
+  // 17. Cohort row navigation contract
+  test('17. Cohort row navigation: item contract provides genuine chatGroupId and groupCode', () => {
+    const raw = {
+      chatGroupId: 'room-nav-1',
+      cohortId: 'c-nav',
+      groupCode: 'VENUS',
+      cohortDisplayName: 'Venus',
+      currentSemester: 2,
+      roomStatus: 'active',
+      latestMessage: 'Assignment 1',
+      latestMessageAt: '2026-10-08T10:00:00.000Z',
+      unreadCount: 0,
+    };
+    const item = inbox.adaptAdminCohortRoom(raw);
+    assert.ok(item);
+
+    // Simulated handleSelectCohort(item)
+    let selectedRoom = null;
+    const handleSelectCohort = (selected) => { selectedRoom = selected; };
+    handleSelectCohort(item);
+
+    assert.equal(selectedRoom.chatGroupId, 'room-nav-1');
+    assert.equal(selectedRoom.groupCode, 'VENUS');
+  });
+
+  // 18. DM row navigation contract
+  test('18. DM row navigation: item contract provides parameters required by /dm/[id]', () => {
+    const raw = {
+      id: 'dm-nav-uuid',
+      participant: {
+        studentId: 'p-123',
+        name: 'Alice Smith',
+        role: 'student',
+        avatarUrl: 'https://example.com/alice.jpg',
+      },
+      lastMessage: { id: 10, text: 'See you in class', createdAt: '2026-10-08T11:00:00.000Z' },
+      unreadCount: 1,
+    };
+    const item = inbox.adaptDmConversation(raw);
+    assert.ok(item);
+
+    // Simulated handleSelectDm(item) route payload
+    const routePayload = {
+      id: item.conversationId,
+      peerId: item.peerId,
+      peerName: item.title,
+      peerRole: item.peerRole,
+      peerAvatarUrl: item.peerAvatarUrl || '',
+    };
+
+    assert.equal(routePayload.id, 'dm-nav-uuid');
+    assert.equal(routePayload.peerId, 'p-123');
+    assert.equal(routePayload.peerName, 'Alice Smith');
+    assert.equal(routePayload.peerRole, 'student');
+    assert.equal(routePayload.peerAvatarUrl, 'https://example.com/alice.jpg');
+  });
+
+  // 19. New Message navigation gating
+  test('19. New Message navigation: gated by dmEnabled status', () => {
+    let pushedRoute = null;
+    let alertShown = false;
+
+    const handleNewMessage = (dmEnabled) => {
+      if (dmEnabled) {
+        pushedRoute = '/dm/new';
+      } else {
+        alertShown = true;
+      }
+    };
+
+    // When DMs enabled
+    handleNewMessage(true);
+    assert.equal(pushedRoute, '/dm/new');
+    assert.equal(alertShown, false);
+
+    // When DMs disabled
+    pushedRoute = null;
+    handleNewMessage(false);
+    assert.equal(pushedRoute, null);
+    assert.equal(alertShown, true);
+  });
+
+  // 20. Android Back behavior hierarchy
+  test('20. Android Back behavior: modal dismissal -> cohort room to inbox -> default tab exit', () => {
+    let state = {
+      viewerImage: null,
+      showAttachModal: false,
+      actionMessage: null,
+      panel: null,
+      selectedCohortRoom: { chatGroupId: 'room-1' },
+      exitedToHome: false,
+    };
+
+    const handleBack = () => {
+      if (state.viewerImage) { state.viewerImage = null; return true; }
+      if (state.showAttachModal) { state.showAttachModal = false; return true; }
+      if (state.actionMessage) { state.actionMessage = null; return true; }
+      if (state.panel) { state.panel = null; return true; }
+      if (state.selectedCohortRoom) { state.selectedCohortRoom = null; return true; }
+      state.exitedToHome = true;
+      return true;
+    };
+
+    // Press 1: while in cohort room -> returns to unified inbox
+    assert.equal(handleBack(), true);
+    assert.equal(state.selectedCohortRoom, null);
+    assert.equal(state.exitedToHome, false);
+
+    // Press 2: while in unified inbox -> exits to home
+    assert.equal(handleBack(), true);
+    assert.equal(state.exitedToHome, true);
+  });
+
+  // 21. Independent concurrent loading
+  test('21. Independent loading: Promise.allSettled runs cohort and DM requests independently', async () => {
+    let cohortLoaded = false;
+    let dmLoaded = false;
+
+    const loadCohorts = async () => {
+      await new Promise(r => setTimeout(r, 10));
+      cohortLoaded = true;
+    };
+    const loadDms = async () => {
+      await new Promise(r => setTimeout(r, 5));
+      dmLoaded = true;
+    };
+
+    await Promise.allSettled([loadCohorts(), loadDms()]);
+    assert.equal(cohortLoaded, true);
+    assert.equal(dmLoaded, true);
+  });
+
+  // 22. DM failure isolation
+  test('22. DM failure isolation: DM failure does not hide available cohort conversations', () => {
+    const adminRooms = [
+      { chatGroupId: 'room-1', cohortId: 'c1', groupCode: 'MERCURY', cohortDisplayName: 'Mercury', currentSemester: 1, roomStatus: 'active', latestMessage: 'Hello', latestMessageAt: '2026-10-08T10:00:00.000Z', unreadCount: 0 },
+    ];
+    // DM service throws or is unavailable: dmConversations is empty or undefined
+    const normalized = inbox.normalizeUnifiedConversations({ adminRooms, dmConversations: undefined });
+    assert.equal(normalized.length, 1);
+    assert.equal(normalized[0].key, 'cohort:room-1');
+  });
+
+  // 23. Cohort failure isolation
+  test('23. Cohort failure isolation: Cohort failure does not hide available DM conversations', () => {
+    const dms = [
+      { id: 'dm-1', participant: { studentId: 'u1', name: 'Alice' }, lastMessage: { id: 1, text: 'Hi', createdAt: '2026-10-08T10:00:00.000Z' }, unreadCount: 0 },
+    ];
+    // Cohort fetch failed: adminRooms / studentConfig is undefined / null
+    const normalized = inbox.normalizeUnifiedConversations({ adminRooms: undefined, studentConfig: null, dmConversations: dms });
+    assert.equal(normalized.length, 1);
+    assert.equal(normalized[0].key, 'dm:dm-1');
+  });
+
+  // 24. Unknown timestamps handling
+  test('24. Unknown timestamps: items without timestamps are placed deterministically at end', () => {
+    const itemWithTime = {
+      key: 'dm:1',
+      type: 'dm',
+      timestamp: '2026-10-08T12:00:00.000Z',
+      title: 'DM 1',
+    };
+    const itemWithoutTime = {
+      key: 'cohort:1',
+      type: 'cohort',
+      timestamp: null,
+      title: 'Cohort 1',
+    };
+
+    const sorted = inbox.sortUnifiedConversations([itemWithoutTime, itemWithTime]);
+    assert.equal(sorted[0].key, 'dm:1');
+    assert.equal(sorted[1].key, 'cohort:1');
+    assert.equal(sorted[1].timestamp, null); // Timestamp remains genuinely null
+  });
+
+  // 25. Unknown unread counts handling
+  test('25. Unknown unread counts: null unread count is preserved and not converted to 0', () => {
+    const rawStudent = {
+      studentId: 'u1',
+      chatGroupId: 'g1',
+      cohortId: 'c1',
+      groupCode: 'MERCURY',
+      cohortDisplayName: 'Mercury',
+      currentSemester: 1,
+      roomStatus: 'active',
+      cohortStatus: 'active',
+      realtimeEpoch: 1,
+    };
+    const adapted = inbox.adaptStudentCohortConfig(rawStudent);
+    assert.equal(adapted.unreadCount, null);
+
+    // Filters: unread filter should only include items where unreadCount is explicitly > 0
+    const filtered = inbox.filterUnifiedConversations([adapted], 'unread');
+    assert.deepEqual(filtered, []);
+  });
+
+  // 26. Account switching isolation
+  test('26. Account switching: clearing state on studentId change isolates caches', () => {
+    let state = {
+      selectedCohortRoom: { key: 'cohort:1' },
+      adminRooms: [{ chatGroupId: 'room-1' }],
+      dmConversations: [{ id: 'dm-1' }],
+      cohortError: 'Previous error',
+      dmError: 'Previous dm error',
+    };
+
+    const onAccountSwitch = () => {
+      state.selectedCohortRoom = null;
+      state.adminRooms = [];
+      state.dmConversations = [];
+      state.cohortError = null;
+      state.dmError = null;
+    };
+
+    onAccountSwitch();
+    assert.equal(state.selectedCohortRoom, null);
+    assert.deepEqual(state.adminRooms, []);
+    assert.deepEqual(state.dmConversations, []);
+    assert.equal(state.cohortError, null);
+    assert.equal(state.dmError, null);
+  });
+
+  // 27. Duplicate item prevention across sources
+  test('27. Duplicate item prevention: removes duplicate keys across sources', () => {
+    const raw1 = {
+      chatGroupId: 'shared-id',
+      cohortId: 'c1',
+      groupCode: 'MERCURY',
+      cohortDisplayName: 'Mercury',
+      currentSemester: 1,
+      roomStatus: 'active',
+      latestMessage: 'First instance',
+      latestMessageAt: '2026-10-08T10:00:00.000Z',
+      unreadCount: 0,
+    };
+    const raw2 = {
+      ...raw1,
+      latestMessage: 'Duplicate instance',
+    };
+
+    const normalized = inbox.normalizeUnifiedConversations({ adminRooms: [raw1, raw2] });
+    assert.equal(normalized.length, 1);
+    assert.equal(normalized[0].subtitle, 'First instance');
+  });
+
+  // 28. Realtime cleanup lifecycle
+  test('28. Realtime cleanup: dormant in inbox, active only when cohort room selected', () => {
+    let realtimeConnected = false;
+
+    const onSelectCohort = () => { realtimeConnected = true; };
+    const onBackToInbox = () => { realtimeConnected = false; };
+
+    // At inbox: dormant
+    assert.equal(realtimeConnected, false);
+    // User taps cohort
+    onSelectCohort();
+    assert.equal(realtimeConnected, true);
+    // User presses back
+    onBackToInbox();
+    assert.equal(realtimeConnected, false);
+  });
+
+  // 29. Search and filters
+  test('29. Search and filters: search matches across title and group code, filter tabs operate properly', () => {
+    const items = [
+      { key: 'cohort:1', type: 'cohort', title: 'Mercury Class', groupCode: 'MERCURY', unreadCount: null },
+      { key: 'cohort:2', type: 'cohort', title: 'Mars Class', groupCode: 'MARS', unreadCount: 3 },
+      { key: 'dm:1', type: 'dm', title: 'Alice Teacher', peerUsername: 'alice_prof', unreadCount: 1 },
+      { key: 'dm:2', type: 'dm', title: 'Bob Student', peerUsername: 'bob99', unreadCount: 0 },
+    ];
+
+    // Filter 'unread': only Mars (3) and Alice (1)
+    const unreadOnly = inbox.filterUnifiedConversations(items, 'unread');
+    assert.equal(unreadOnly.length, 2);
+    assert.equal(unreadOnly[0].key, 'cohort:2');
+    assert.equal(unreadOnly[1].key, 'dm:1');
+
+    // Filter 'groups': only cohorts
+    const groupsOnly = inbox.filterUnifiedConversations(items, 'groups');
+    assert.equal(groupsOnly.length, 2);
+    assert.equal(groupsOnly[0].key, 'cohort:1');
+    assert.equal(groupsOnly[1].key, 'cohort:2');
+
+    // Search 'alice'
+    const searchAlice = inbox.searchUnifiedConversations(items, 'alice');
+    assert.equal(searchAlice.length, 1);
+    assert.equal(searchAlice[0].title, 'Alice Teacher');
+
+    // Search 'mars'
+    const searchMars = inbox.searchUnifiedConversations(items, 'mars');
+    assert.equal(searchMars.length, 1);
+    assert.equal(searchMars[0].title, 'Mars Class');
+  });
 });

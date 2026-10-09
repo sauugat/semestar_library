@@ -274,8 +274,7 @@ export default function ChatScreen() {
         }
       }
 
-      const res = await fetchDmConversations(40, 0);
-      const conversations = res.conversations || [];
+      const conversations = await fetchDmConversations(40, 0);
       setDmConversations(conversations);
 
       try {
@@ -1435,163 +1434,24 @@ export default function ChatScreen() {
     ]
   );
 
-  if (isAdmin && !selectedAdminRoom) {
+  if (!selectedCohortRoom) {
     return (
       <View style={styles.screenContainer}>
         <StatusBar barStyle="light-content" />
-        <View
-          style={[
-            styles.customHeader,
-            {
-              paddingTop: Math.max(insets.top, 10),
-              justifyContent: "space-between",
-            },
-          ]}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <TouchableOpacity
-              onPress={() => {
-                if (activeSection === 'messages') {
-                  setActiveSection('class');
-                } else {
-                  router.navigate("/(tabs)");
-                }
-              }}
-              style={styles.headerBackBtn}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              accessibilityLabel={activeSection === 'messages' ? "Back to cohorts" : "Go back"}
-            >
-              <Ionicons name="arrow-back" size={22} color="#f5f5f5" />
-            </TouchableOpacity>
-            <View style={{ marginLeft: 8 }}>
-              <Text variant="lg" weight="700" style={{ color: "#f5f5f5" }}>
-                {activeSection === 'messages' ? 'Messages' : 'Cohorts'}
-              </Text>
-              <Text variant="xs" style={{ color: "#71717a" }}>
-                {activeSection === 'messages'
-                  ? 'Direct Conversations'
-                  : adminRooms.length
-                  ? `${adminRooms.length} active classes`
-                  : "Class conversations"}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {dmEnabled && (
-          <View style={styles.segmentContainer}>
-            <SegmentedControl
-              items={segmentItems}
-              selectedKey={activeSection}
-              onSelect={(key) => setActiveSection(key as 'class' | 'messages')}
-            />
-          </View>
-        )}
-
-        {/* Cohort Rooms Container */}
-        <View style={{ flex: 1, display: activeSection === 'class' ? 'flex' : 'none' }}>
-
-        {adminRoomsLoading && adminRooms.length === 0 ? (
-          <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-            <ActivityIndicator size="large" color="#3b82f6" />
-          </View>
-        ) : adminRoomsError && adminRooms.length === 0 ? (
-          <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 24 }}>
-            <Ionicons name="alert-circle-outline" size={48} color="#ef4444" style={{ marginBottom: 12 }} />
-            <Text variant="md" weight="600" style={{ color: "#f5f5f5", textAlign: "center" }}>
-              {adminRoomsError}
-            </Text>
-            <TouchableOpacity
-              onPress={() => void loadAdminRooms()}
-              style={{ marginTop: 16, backgroundColor: "#27272a", paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 }}
-            >
-              <Text variant="sm" weight="600" style={{ color: "#3b82f6" }}>Retry</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <FlatList
-            data={adminRooms}
-            keyExtractor={(item) => item.chatGroupId}
-            refreshControl={
-              <RefreshControl
-                refreshing={adminRoomsRefreshing}
-                onRefresh={() => void loadAdminRooms(true)}
-                tintColor="#3b82f6"
-              />
-            }
-            contentContainerStyle={{ paddingVertical: 8 }}
-            renderItem={({ item }) => {
-              const slot = (item.groupCode || "").toLowerCase();
-              const badgeColors: Record<string, { bg: string; border: string; text: string; icon: string }> = {
-                mercury: { bg: "rgba(59, 130, 246, 0.15)", border: "rgba(59, 130, 246, 0.3)", text: "#60a5fa", icon: "planet-outline" },
-                venus: { bg: "rgba(168, 85, 247, 0.15)", border: "rgba(168, 85, 247, 0.3)", text: "#c084fc", icon: "sparkles-outline" },
-                earth: { bg: "rgba(16, 185, 129, 0.15)", border: "rgba(16, 185, 129, 0.3)", text: "#34d399", icon: "globe-outline" },
-                mars: { bg: "rgba(249, 115, 22, 0.15)", border: "rgba(249, 115, 22, 0.3)", text: "#fb923c", icon: "flame-outline" },
-              };
-              const theme = badgeColors[slot] || badgeColors.mercury;
-              const formattedTime = formatRoomTime(item.latestMessageAt);
-
-              return (
-                <TouchableOpacity
-                  style={styles.adminRoomCard}
-                  activeOpacity={0.7}
-                  onPress={() => setSelectedAdminRoom(item)}
-                >
-                  <View style={[styles.adminRoomAvatar, { backgroundColor: theme.bg, borderColor: theme.border }]}>
-                    <Ionicons name={theme.icon as any} size={22} color={theme.text} />
-                  </View>
-
-                  <View style={styles.adminRoomContent}>
-                    <View style={styles.adminRoomRow}>
-                      <View style={{ flexDirection: "row", alignItems: "center", flex: 1, marginRight: 8 }}>
-                        <Text variant="md" weight="700" style={styles.adminRoomTitle}>
-                          {item.cohortDisplayName}
-                        </Text>
-                      </View>
-                      {formattedTime ? (
-                        <Text variant="xs" style={styles.adminRoomTime}>
-                          {formattedTime}
-                        </Text>
-                      ) : null}
-                    </View>
-
-                    <Text variant="xs" style={styles.adminRoomSemester}>
-                      {`Semester ${item.currentSemester}`}
-                    </Text>
-
-                    <View style={styles.adminRoomRow}>
-                      <Text
-                        variant="sm"
-                        numberOfLines={1}
-                        style={[
-                          styles.adminRoomPreview,
-                          !item.latestMessage && styles.adminRoomPreviewEmpty,
-                        ]}
-                      >
-                        {item.latestMessage || "No messages yet"}
-                      </Text>
-                      {item.unreadCount > 0 && (
-                        <View style={styles.adminRoomBadge}>
-                          <Text style={styles.adminRoomBadgeText}>
-                            {item.unreadCount > 99 ? "99+" : item.unreadCount}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              );
-            }}
-          />
-        )}
-        </View>
-
-        {/* DM Inbox Container */}
-        {dmEnabled && (
-          <View style={{ flex: 1, display: activeSection === 'messages' ? 'flex' : 'none' }}>
-            <DmInboxView onUnreadCountChange={setDmUnreadCount} />
-          </View>
-        )}
+        <UnifiedChatInbox
+          items={unifiedItems}
+          loading={(cohortsLoading || dmsLoading) && unifiedItems.length === 0}
+          refreshing={cohortsRefreshing || dmsRefreshing}
+          cohortError={cohortError}
+          dmError={dmError}
+          dmEnabled={dmEnabled}
+          onRefresh={() => void loadAll(true)}
+          onRetryCohort={() => void loadCohorts(false)}
+          onRetryDm={() => void loadDms(false)}
+          onSelectCohort={handleSelectCohort}
+          onSelectDm={handleSelectDm}
+          onNewMessage={handleNewMessage}
+        />
       </View>
     );
   }
@@ -1600,109 +1460,62 @@ export default function ChatScreen() {
     <View style={styles.screenContainer}>
       <StatusBar barStyle="light-content" />
 
-      {/* Header — Dynamic between Messages inbox and Cohort Class Chat */}
-      {activeSection === 'messages' ? (
-        <View
-          style={[
-            styles.customHeader,
-            {
-              paddingTop: Math.max(insets.top, 10),
-              justifyContent: "space-between",
-            },
-          ]}
+      {/* Header — Cohort Class Chat */}
+      <View
+        style={[
+          styles.customHeader,
+          {
+            paddingTop: Math.max(insets.top, 10),
+          },
+        ]}
+      >
+        <TouchableOpacity
+          onPress={handleBackToInbox}
+          style={styles.headerBackBtn}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityLabel="Back to inbox"
         >
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <TouchableOpacity
-              onPress={() => setActiveSection('class')}
-              style={styles.headerBackBtn}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              accessibilityLabel="Back to class chat"
-            >
-              <Ionicons name="arrow-back" size={22} color="#f5f5f5" />
-            </TouchableOpacity>
-            <View style={{ marginLeft: 8 }}>
-              <Text variant="lg" weight="700" style={{ color: "#f5f5f5" }}>
-                Messages
-              </Text>
-              <Text variant="xs" style={{ color: "#71717a" }}>
-                Direct Conversations
-              </Text>
-            </View>
+          <Ionicons name="arrow-back" size={22} color="#f5f5f5" />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.headerTitleContainer}
+          onPress={() => void openMembers()}
+          activeOpacity={0.7}
+          accessibilityLabel="View class members"
+        >
+          {/* Circular group icon */}
+          <View style={styles.groupAvatarCircle}>
+            <Ionicons name="people" size={17} color="#e4e4e7" />
           </View>
-        </View>
-      ) : (
-        <View
-          style={[
-            styles.customHeader,
-            {
-              paddingTop: Math.max(insets.top, 10),
-            },
-          ]}
+
+          <View style={styles.headerTextGroup}>
+            <Text variant="md" weight="700" style={styles.headerGroupName} numberOfLines={1}>
+              {context
+                ? `${context.cohortDisplayName || (context.groupCode.charAt(0) + context.groupCode.slice(1).toLowerCase())} • ${context.cohortStatus === "graduated" ? "Graduated" : `Semester ${context.currentSemester}`}`
+                : (selectedCohortRoom?.title || "Class Chat")}
+            </Text>
+            <Text variant="xs" style={styles.headerSubtitle} numberOfLines={1}>
+              {headerSubtitle}
+            </Text>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          accessibilityLabel="Search loaded messages"
+          style={styles.headerSearchBtn}
+          onPress={() => {
+            setQuery("");
+            setPanel("search");
+          }}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <TouchableOpacity
-            onPress={() => {
-              if (isAdmin && selectedAdminRoom) {
-                setSelectedAdminRoom(null);
-              } else {
-                router.navigate("/(tabs)");
-              }
-            }}
-            style={styles.headerBackBtn}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            accessibilityLabel="Go back"
-          >
-            <Ionicons name="arrow-back" size={22} color="#f5f5f5" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.headerTitleContainer}
-            onPress={() => void openMembers()}
-            activeOpacity={0.7}
-            accessibilityLabel="View class members"
-          >
-            {/* Circular group icon */}
-            <View style={styles.groupAvatarCircle}>
-              <Ionicons name="people" size={17} color="#e4e4e7" />
-            </View>
-
-            <View style={styles.headerTextGroup}>
-              <Text variant="md" weight="700" style={styles.headerGroupName} numberOfLines={1}>
-                {context
-                  ? `${context.cohortDisplayName || (context.groupCode.charAt(0) + context.groupCode.slice(1).toLowerCase())} • ${context.cohortStatus === "graduated" ? "Graduated" : `Semester ${context.currentSemester}`}`
-                  : "Class Chat"}
-              </Text>
-              <Text variant="xs" style={styles.headerSubtitle} numberOfLines={1}>
-                {headerSubtitle}
-              </Text>
-            </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            accessibilityLabel="Search loaded messages"
-            style={styles.headerSearchBtn}
-            onPress={() => {
-              setQuery("");
-              setPanel("search");
-            }}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons name="search-outline" size={21} color="#f5f5f5" />
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {dmEnabled && (
-        <View style={styles.segmentContainer}>
-          <SegmentedControl
-            items={segmentItems}
-            selectedKey={activeSection}
-            onSelect={(key) => setActiveSection(key as 'class' | 'messages')}
-          />
-        </View>
-      )}
+          <Ionicons name="search-outline" size={21} color="#f5f5f5" />
+        </TouchableOpacity>
+      </View>
 
       {/* Class Chat Container */}
-      <View style={{ flex: 1, display: activeSection === 'class' ? 'flex' : 'none' }}>
+      <View style={{ flex: 1 }}>
 
       {/* Archived Banner */}
       {isArchived && (
@@ -2208,12 +2021,6 @@ export default function ChatScreen() {
       )}
       </View>
 
-      {/* DM Inbox Container */}
-      {dmEnabled && (
-        <View style={{ flex: 1, display: activeSection === 'messages' ? 'flex' : 'none' }}>
-          <DmInboxView onUnreadCountChange={setDmUnreadCount} />
-        </View>
-      )}
 
       {/* Shared Full-Screen Image Viewer (Requirement 4: Same viewer as feed, zoom, swipe-down, tap to close) */}
       <FullScreenImageViewer

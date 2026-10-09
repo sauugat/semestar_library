@@ -174,11 +174,6 @@ export function useClassChat(
       setOnlineIds([]);
       setActiveTypers(new Map());
       let lastScope = '', validating = false, lastRefresh = 0;
-      const skeletonTimer = setTimeout(() => {
-        if (active.current) {
-          setLoadingInitial(false);
-        }
-      }, 5000);
       const reset = () => {
         const session = getChatSession();
         const nextScope = chatScope(session);
@@ -340,7 +335,6 @@ export function useClassChat(
         clearInterval(pruneInterval);
         clearInterval(pollInterval);
         appStateSub.remove();
-        clearTimeout(skeletonTimer);
         void disconnectChatRealtime();
       };
     }, [studentId, serverUrl, options?.authToken, options?.selectedChatGroupId, sync, refreshPinned]),

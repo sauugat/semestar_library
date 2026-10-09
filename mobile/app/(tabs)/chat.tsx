@@ -44,9 +44,17 @@ import { StickyComposer, KeyboardContentBoundary } from "@/components/ui/StickyC
 import { ChatMessageItem } from "@/components/chat/ChatMessageItem";
 import { ChatMessageActionsSheet } from "@/components/chat/ChatMessageActionsSheet";
 import { FullScreenImageViewer } from "@/components/FullScreenImageViewer";
-import { DmInboxView } from "@/components/dm/DmInboxView";
-import { SegmentedControl, type SegmentItem } from "@/components/ui/SegmentedControl";
-import { fetchDmStatus } from "@/services/dm";
+import { UnifiedChatInbox } from "@/components/chat/UnifiedChatInbox";
+import { fetchDmStatus, fetchDmConversations, type DmConversationItem as RawDmItem } from "@/services/dm";
+import { getCachedDmConversations, saveCachedDmConversations } from "@/services/dm-db";
+import {
+  normalizeUnifiedConversations,
+  adaptAdminCohortRoom,
+  adaptStudentCohortConfig,
+  type CohortConversationItem,
+  type DmConversationItem,
+  type UnifiedConversationItem,
+} from "@/services/unified-inbox";
 import { useClassChat } from "@/hooks/useClassChat";
 import {
   mergeChatMessages,
@@ -71,7 +79,9 @@ import {
   ChatMessage,
   ChatMember,
   AdminChatRoom,
+  ChatConfig,
   fetchAdminChatRooms,
+  fetchChatConfig,
   fetchChatMembers,
   fetchChatMessages,
   fetchExactChatMessage,
@@ -84,7 +94,7 @@ import {
 } from "@/services/chat";
 import { formatMessageTime, formatDate, safeParseDate } from "@/utils/date";
 import { setChatScreenActive, clearAppBadge } from "@/services/notifications";
-import { captureChatSession, getChatSession, isCurrentChatSession, subscribeChatSession } from '@/services/chat-session';
+import { captureChatSession, getChatSession, isCurrentChatSession, subscribeChatSession, beginChatSession, invalidateChatSession } from '@/services/chat-session';
 
 function formatRoomTime(isoString?: string | null): string {
   if (!isoString) return "";
@@ -194,43 +204,146 @@ export default function ChatScreen() {
   );
 
   const isAdmin = Boolean(user?.isAdmin || user?.role === "admin");
-  const [selectedAdminRoom, setSelectedAdminRoom] = useState<AdminChatRoom | null>(null);
+  const [selectedCohortRoom, setSelectedCohortRoom] = useState<CohortConversationItem | null>(null);
+
+  // Cohort state
   const [adminRooms, setAdminRooms] = useState<AdminChatRoom[]>([]);
-  const [adminRoomsLoading, setAdminRoomsLoading] = useState(false);
-  const [adminRoomsRefreshing, setAdminRoomsRefreshing] = useState(false);
-  const [adminRoomsError, setAdminRoomsError] = useState<string | null>(null);
+  const [studentConfig, setStudentConfig] = useState<ChatConfig | null>(null);
+  const [cohortsLoading, setCohortsLoading] = useState(false);
+  const [cohortsRefreshing, setCohortsRefreshing] = useState(false);
+  const [cohortError, setCohortError] = useState<string | null>(null);
 
-  const loadAdminRooms = useCallback(async (isRefresh = false) => {
-    if (!isAdmin) return;
-    if (isRefresh) setAdminRoomsRefreshing(true);
-    else setAdminRoomsLoading(true);
-    setAdminRoomsError(null);
+  // DM state
+  const [dmConversations, setDmConversations] = useState<RawDmItem[]>([]);
+  const [dmsLoading, setDmsLoading] = useState(false);
+  const [dmsRefreshing, setDmsRefreshing] = useState(false);
+  const [dmError, setDmError] = useState<string | null>(null);
+  const [dmEnabled, setDmEnabled] = useState(false);
+
+  // 1. Independent cohort loader
+  const loadCohorts = useCallback(async (isRefresh = false) => {
+    if (!user?.studentId || !serverUrl) return;
+    beginChatSession(serverUrl, user.studentId, token);
+
+    if (isRefresh) setCohortsRefreshing(true);
+    else setCohortsLoading(true);
+    setCohortError(null);
+
     try {
-      const rooms = await fetchAdminChatRooms();
-      setAdminRooms(rooms);
+      if (isAdmin) {
+        const rooms = await fetchAdminChatRooms();
+        setAdminRooms(rooms);
+      } else {
+        const config = await fetchChatConfig();
+        setStudentConfig(config);
+      }
     } catch (err: any) {
-      setAdminRoomsError(err?.message || "Failed to load cohort rooms.");
+      setCohortError(err?.message || "Failed to load cohort conversations.");
     } finally {
-      setAdminRoomsLoading(false);
-      setAdminRoomsRefreshing(false);
+      setCohortsLoading(false);
+      setCohortsRefreshing(false);
     }
-  }, [isAdmin]);
+  }, [isAdmin, user?.studentId, serverUrl, token]);
 
+  // 2. Independent DM loader
+  const loadDms = useCallback(async (isRefresh = false) => {
+    if (!user?.studentId) return;
+
+    if (isRefresh) setDmsRefreshing(true);
+    else setDmsLoading(true);
+    setDmError(null);
+
+    try {
+      const status = await fetchDmStatus();
+      const enabled = Boolean(status?.enabled);
+      setDmEnabled(enabled);
+
+      if (!enabled) {
+        setDmConversations([]);
+        return;
+      }
+
+      if (!isRefresh && dmConversations.length === 0) {
+        try {
+          const cached = await getCachedDmConversations(user.studentId);
+          if (cached && cached.length > 0) {
+            setDmConversations(cached);
+          }
+        } catch {
+          // Cache read is non-fatal
+        }
+      }
+
+      const res = await fetchDmConversations(40, 0);
+      const conversations = res.conversations || [];
+      setDmConversations(conversations);
+
+      try {
+        await saveCachedDmConversations(user.studentId, conversations);
+      } catch {
+        // Cache save is non-fatal
+      }
+    } catch (err: any) {
+      const status = err?.status;
+      if (status === 401 || status === 403) {
+        setDmError("Private messaging requires account verification.");
+      } else {
+        setDmError(err?.message || "Failed to load direct messages.");
+      }
+    } finally {
+      setDmsLoading(false);
+      setDmsRefreshing(false);
+    }
+  }, [user?.studentId, dmConversations.length]);
+
+  // 3. Combined loader (concurrent, independent)
+  const loadAll = useCallback(async (isRefresh = false) => {
+    await Promise.allSettled([
+      loadCohorts(isRefresh),
+      loadDms(isRefresh),
+    ]);
+  }, [loadCohorts, loadDms]);
+
+  // Reset state on account switch or logout
+  useEffect(() => {
+    setSelectedCohortRoom(null);
+    setAdminRooms([]);
+    setStudentConfig(null);
+    setDmConversations([]);
+    setCohortError(null);
+    setDmError(null);
+    if (user?.studentId && serverUrl) {
+      beginChatSession(serverUrl, user.studentId, token);
+    } else {
+      invalidateChatSession();
+    }
+  }, [user?.studentId, serverUrl, token]);
+
+  // Load inbox data on screen focus when at inbox level
   useFocusEffect(
     useCallback(() => {
-      if (isAdmin && !selectedAdminRoom) {
-        void loadAdminRooms();
+      if (!selectedCohortRoom && user?.studentId) {
+        void loadAll();
       }
-    }, [isAdmin, selectedAdminRoom, loadAdminRooms])
+    }, [selectedCohortRoom, user?.studentId, loadAll])
   );
+
+  // Normalize unified inbox items
+  const unifiedItems = useMemo(() => {
+    return normalizeUnifiedConversations({
+      adminRooms: isAdmin ? adminRooms : undefined,
+      studentConfig: !isAdmin ? studentConfig : null,
+      dmConversations: dmEnabled ? dmConversations : undefined,
+    });
+  }, [isAdmin, adminRooms, studentConfig, dmEnabled, dmConversations]);
 
   const chatOptions = useMemo(
     () => ({
       onNewIncomingMessage: handleNewIncomingMessage,
       authToken: token,
-      selectedChatGroupId: isAdmin ? selectedAdminRoom?.chatGroupId : null,
+      selectedChatGroupId: isAdmin ? selectedCohortRoom?.chatGroupId : null,
     }),
-    [handleNewIncomingMessage, token, isAdmin, selectedAdminRoom?.chatGroupId]
+    [handleNewIncomingMessage, token, isAdmin, selectedCohortRoom?.chatGroupId]
   );
 
   // State
@@ -253,50 +366,13 @@ export default function ChatScreen() {
     markRead,
     context,
     roomGeneration,
-  } = useClassChat(user?.studentId, serverUrl, chatOptions);
+  } = useClassChat(selectedCohortRoom ? user?.studentId : undefined, serverUrl, chatOptions);
 
-  const { targetMessageId, targetChatGroupId, dmConversationId, section, tab } = useLocalSearchParams<{
+  const { targetMessageId, targetChatGroupId, dmConversationId } = useLocalSearchParams<{
     targetMessageId?: string;
     targetChatGroupId?: string;
     dmConversationId?: string;
-    section?: string;
-    tab?: string;
   }>();
-
-  const [dmEnabled, setDmEnabled] = useState(false);
-  const [activeSection, setActiveSection] = useState<'class' | 'messages'>('class');
-  const [dmUnreadCount, setDmUnreadCount] = useState(0);
-
-  const segmentItems: SegmentItem[] = useMemo(() => [
-    { key: 'class', label: 'CLASS CHAT' },
-    { key: 'messages', label: 'MESSAGES', count: dmUnreadCount },
-  ], [dmUnreadCount]);
-
-  useEffect(() => {
-    if (section === 'messages' || tab === 'dm' || tab === 'messages') {
-      setActiveSection('messages');
-    } else if (section === 'class' || tab === 'cohort' || tab === 'class') {
-      setActiveSection('class');
-    }
-  }, [section, tab]);
-
-  // Check DM feature flag
-  useEffect(() => {
-    let isMounted = true;
-    void (async () => {
-      try {
-        const status = await fetchDmStatus();
-        if (isMounted) {
-          setDmEnabled(Boolean(status?.enabled));
-        }
-      } catch {
-        if (isMounted) setDmEnabled(false);
-      }
-    })();
-    return () => {
-      isMounted = false;
-    };
-  }, [user?.studentId]);
 
   // Handle incoming DM deep-link navigation
   useEffect(() => {
@@ -306,14 +382,57 @@ export default function ChatScreen() {
         params: { id: dmConversationId, targetMessageId },
       });
     }
-  }, [dmConversationId, targetMessageId]);
+  }, [dmConversationId, targetMessageId, router]);
 
+  // Deep-link to target cohort if specified
   useEffect(() => {
-    if (targetChatGroupId && isAdmin && !selectedAdminRoom && adminRooms.length > 0) {
-      const match = adminRooms.find(r => r.chatGroupId === targetChatGroupId);
-      if (match) setSelectedAdminRoom(match);
+    if (targetChatGroupId && !selectedCohortRoom) {
+      if (isAdmin && adminRooms.length > 0) {
+        const match = adminRooms.find(r => r.chatGroupId === targetChatGroupId);
+        if (match) {
+          const adapted = adaptAdminCohortRoom(match);
+          if (adapted) setSelectedCohortRoom(adapted);
+        }
+      } else if (!isAdmin && studentConfig) {
+        if (studentConfig.chatGroupId === targetChatGroupId) {
+          const adapted = adaptStudentCohortConfig(studentConfig);
+          if (adapted) setSelectedCohortRoom(adapted);
+        }
+      }
     }
-  }, [targetChatGroupId, isAdmin, selectedAdminRoom, adminRooms]);
+  }, [targetChatGroupId, isAdmin, selectedCohortRoom, adminRooms, studentConfig]);
+
+  const handleSelectCohort = useCallback((item: CohortConversationItem) => {
+    setSelectedCohortRoom(item);
+  }, []);
+
+  const handleSelectDm = useCallback((item: DmConversationItem) => {
+    router.push({
+      pathname: '/dm/[id]',
+      params: {
+        id: item.conversationId,
+        peerId: item.peerId,
+        peerName: item.title,
+        peerRole: item.peerRole,
+        peerAvatarUrl: item.peerAvatarUrl || '',
+      },
+    });
+  }, [router]);
+
+  const handleNewMessage = useCallback(() => {
+    if (dmEnabled) {
+      router.push('/dm/new');
+    } else {
+      Alert.alert(
+        'Direct Messaging Unavailable',
+        'Direct messaging is currently unavailable or requires account verification.'
+      );
+    }
+  }, [dmEnabled, router]);
+
+  const handleBackToInbox = useCallback(() => {
+    setSelectedCohortRoom(null);
+  }, []);
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const [actionMessage, setActionMessage] = useState<ChatMessage | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
@@ -550,19 +669,13 @@ export default function ChatScreen() {
           return false;
         }
 
-        // 3. If in Messages (DM inbox), switch back to Class Chat
-        if (activeSection === 'messages') {
-          setActiveSection('class');
+        // 3. If in Cohort Chat room, return to Unified Inbox
+        if (selectedCohortRoom) {
+          handleBackToInbox();
           return true;
         }
 
-        // 4. If in Class Chat as Admin with a room selected, return to room list
-        if (isAdmin && selectedAdminRoom) {
-          setSelectedAdminRoom(null);
-          return true;
-        }
-
-        // 5. Default tab exit to home
+        // 4. Default tab exit to home
         router.navigate('/(tabs)');
         return true;
       };
@@ -574,9 +687,8 @@ export default function ChatScreen() {
       showAttachModal,
       actionMessage,
       panel,
-      activeSection,
-      isAdmin,
-      selectedAdminRoom,
+      selectedCohortRoom,
+      handleBackToInbox,
       router,
     ])
   );

@@ -812,3 +812,54 @@ test('DM Realtime: 31. Fail-closed behavior when Supabase projection synchroniza
 });
 
 
+
+test('DM stabilization: unlinked identity returns actionable 403 without issuing credentials or exposing account IDs', async t => {
+  const h = await createRealtimeTestHarness(t);
+  const conversation = await h.service.getOrCreateConversation('student_rt1', 'student_rt2');
+  h.providers.credentials.subject = async () => {
+    const error = new Error('private account identifier must not escape');
+    error.code = 'SUPABASE_UID_REQUIRED';
+    error.status = 403;
+    throw error;
+  };
+  const response = await h.request(`/api/dm/conversations/${conversation.conversationId}/realtime-config`, { caller: 'student_rt1' });
+  assert.equal(response.status, 403);
+  assert.equal(response.data.code, 'SUPABASE_UID_REQUIRED');
+  assert.equal(response.data.token, undefined);
+  assert.ok(!JSON.stringify(response.data).includes('private account identifier'));
+});
+
+test('DM stabilization: duplicate read receipt does not enqueue another broadcast or regress cursor', async t => {
+  const h = await createRealtimeTestHarness(t);
+  const { conversationId } = await h.service.getOrCreateConversation('student_rt1', 'student_rt2');
+  const { message } = await h.service.sendMessage('student_rt1', conversationId, { clientId: 'read-stable', text: 'Read once' });
+  await h.service.markRead('student_rt2', conversationId, { lastReadMessageId: message.id });
+  await h.service.markRead('student_rt2', conversationId, { lastReadMessageId: message.id });
+  const row = await h.db.get("SELECT COUNT(*) AS count FROM dm_realtime_outbox WHERE event_type = 'dm:read:updated'");
+  assert.equal(Number(row.count), 1);
+});
+
+test('DM stabilization: crashed outbox claims are recovered after lease expiry', async t => {
+  const h = await createRealtimeTestHarness(t);
+  const { conversationId } = await h.service.getOrCreateConversation('student_rt1', 'student_rt2');
+  await h.service.sendMessage('student_rt1', conversationId, { clientId: 'lease', text: 'recover me' });
+  await h.db.run("UPDATE dm_realtime_outbox SET status = 'processing', next_attempt_at = ?", new Date(Date.now() - 1000).toISOString());
+  await h.service.drain();
+  assert.equal(h.broadcastMessages.length, 1);
+  const row = await h.db.get('SELECT status FROM dm_realtime_outbox LIMIT 1');
+  assert.equal(row.status, 'sent');
+});
+
+test('DM stabilization: deletion does not cancel its own tombstone broadcast', async t => {
+  const h = await createRealtimeTestHarness(t);
+  const { conversationId } = await h.service.getOrCreateConversation('student_rt1', 'student_rt2');
+  const { message } = await h.service.sendMessage('student_rt1', conversationId, { clientId: 'delete-event', text: 'remove me' });
+  await h.service.deleteMessage('student_rt1', conversationId, message.id, { mode: 'for_everyone' });
+  await h.service.drain();
+  assert.equal(h.broadcastMessages.length, 1);
+  assert.equal(h.broadcastMessages[0].event, 'dm:message:deleted');
+  const retry = await h.service.sendMessage('student_rt1', conversationId, { clientId: 'delete-event', text: 'remove me' });
+  assert.equal(retry.duplicate, true);
+  assert.equal(retry.message.text, null);
+  assert.equal(retry.message.deletedForAll, true);
+});

@@ -22,6 +22,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect, useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { TabSwipeContainer } from '@/components/navigation/TabSwipeContainer';
+import { useAdaptiveNavScroll } from '@/context/NavScrollContext';
 import { fetchUnseenCount } from '@/services/notifications';
 import * as ImagePicker from 'expo-image-picker';
 import * as Sharing from 'expo-sharing';
@@ -525,6 +527,7 @@ export default function HomeScreen() {
   const queryClient = useQueryClient();
   const navigation = useNavigation();
   const feedRef = useRef<FlatList<FeedItem>>(null);
+  const { onScroll: handleNavScroll, scrollEventThrottle } = useAdaptiveNavScroll();
   const swipeStart = useRef({ x: 0, y: 0, time: 0, valid: false });
   const [assignments, setAssignments] = useState<FeedAssignment[]>([]);
 
@@ -2186,40 +2189,33 @@ export default function HomeScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top']}>
-      {/* Fixed / Pinned Brand Header (stays visible while feed scrolls) */}
-      {renderBrandHeader()}
+    <TabSwipeContainer tabIndex={0} disabled={Boolean(commentsModalOpen || uploadModalOpen)}>
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top']}>
+        {/* Fixed / Pinned Brand Header (stays visible while feed scrolls) */}
+        {renderBrandHeader()}
 
-      <FlatList
-        ref={feedRef}
-        data={feedItems}
-        onTouchStart={event => {
-          const t = event.nativeEvent;
-          swipeStart.current = { x: t.pageX, y: t.pageY, time: Date.now(), valid: t.touches.length === 1 };
-        }}
-        onTouchMove={event => { if (event.nativeEvent.touches.length > 1) swipeStart.current.valid = false; }}
-        onTouchEnd={event => {
-          const start = swipeStart.current, t = event.nativeEvent;
-          if (start.valid && Date.now() - start.time < 600 && t.pageX - start.x > 100 && Math.abs(t.pageY - start.y) < 45) router.push('/(tabs)/library');
-          start.valid = false;
-        }}
-        keyExtractor={(item) => (item.feedType === 'post' ? `post-${item.post.id}` : item.feedType === 'file' ? `file-${item.file.id}` : `assignment-${item.assignment.id}`)}
-        renderItem={renderFeedItem}
-        ListHeaderComponent={renderFeedHeader}
-        ListEmptyComponent={renderEmpty}
-        ListFooterComponent={renderFooter}
-        onEndReached={handleLoadMore}
-        onEndReachedThreshold={0.4}
-        contentContainerStyle={styles.container}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            colors={[colors.text]}
-            tintColor={colors.text}
-          />
-        }
-      />
+        <FlatList
+          ref={feedRef}
+          data={feedItems}
+          keyExtractor={(item) => (item.feedType === 'post' ? `post-${item.post.id}` : item.feedType === 'file' ? `file-${item.file.id}` : `assignment-${item.assignment.id}`)}
+          renderItem={renderFeedItem}
+          ListHeaderComponent={renderFeedHeader}
+          ListEmptyComponent={renderEmpty}
+          ListFooterComponent={renderFooter}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.4}
+          onScroll={handleNavScroll}
+          scrollEventThrottle={scrollEventThrottle}
+          contentContainerStyle={[styles.container, { paddingBottom: 90 }]}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={[colors.text]}
+              tintColor={colors.text}
+            />
+          }
+        />
 
       {/* Live Campus Search Overlay */}
       <SearchOverlay
@@ -3157,7 +3153,8 @@ export default function HomeScreen() {
         }}
       />
     </SafeAreaView>
-  );
+  </TabSwipeContainer>
+);
 }
 
 const styles = StyleSheet.create({

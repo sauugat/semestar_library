@@ -30,7 +30,8 @@ import {
 } from "react-native";
 import { KeyboardStickyView, useKeyboardHandler } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRouter, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useRouter, useFocusEffect, useLocalSearchParams, useNavigation } from "expo-router";
+import { TabSwipeContainer } from "@/components/navigation/TabSwipeContainer";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
@@ -205,6 +206,14 @@ export default function ChatScreen() {
 
   const isAdmin = Boolean(user?.isAdmin || user?.role === "admin");
   const [selectedCohortRoom, setSelectedCohortRoom] = useState<CohortConversationItem | null>(null);
+  const navigation = useNavigation();
+
+  // Dynamically hide bottom navigation bar when inside a cohort conversation
+  useEffect(() => {
+    navigation.setOptions({
+      tabBarStyle: selectedCohortRoom ? { display: "none" } : undefined,
+    });
+  }, [navigation, selectedCohortRoom]);
 
   // Cohort state
   const [adminRooms, setAdminRooms] = useState<AdminChatRoom[]>([]);
@@ -1436,28 +1445,31 @@ export default function ChatScreen() {
 
   if (!selectedCohortRoom) {
     return (
-      <View style={styles.screenContainer}>
-        <StatusBar barStyle="light-content" />
-        <UnifiedChatInbox
-          items={unifiedItems}
-          loading={(cohortsLoading || dmsLoading) && unifiedItems.length === 0}
-          refreshing={cohortsRefreshing || dmsRefreshing}
-          cohortError={cohortError}
-          dmError={dmError}
-          dmEnabled={dmEnabled}
-          onRefresh={() => void loadAll(true)}
-          onRetryCohort={() => void loadCohorts(false)}
-          onRetryDm={() => void loadDms(false)}
-          onSelectCohort={handleSelectCohort}
-          onSelectDm={handleSelectDm}
-          onNewMessage={handleNewMessage}
-        />
-      </View>
+      <TabSwipeContainer tabIndex={2} disabled={false}>
+        <View style={styles.screenContainer}>
+          <StatusBar barStyle="light-content" />
+          <UnifiedChatInbox
+            items={unifiedItems}
+            loading={(cohortsLoading || dmsLoading) && unifiedItems.length === 0}
+            refreshing={cohortsRefreshing || dmsRefreshing}
+            cohortError={cohortError}
+            dmError={dmError}
+            dmEnabled={dmEnabled}
+            onRefresh={() => void loadAll(true)}
+            onRetryCohort={() => void loadCohorts(false)}
+            onRetryDm={() => void loadDms(false)}
+            onSelectCohort={handleSelectCohort}
+            onSelectDm={handleSelectDm}
+            onNewMessage={handleNewMessage}
+          />
+        </View>
+      </TabSwipeContainer>
     );
   }
 
   return (
-    <View style={styles.screenContainer}>
+    <TabSwipeContainer tabIndex={2} disabled={true}>
+      <View style={styles.screenContainer}>
       <StatusBar barStyle="light-content" />
 
       {/* Header — Cohort Class Chat */}
@@ -2030,14 +2042,15 @@ export default function ChatScreen() {
         headers={imageAuthHeaders}
         onClose={() => setViewerImage(null)}
       />
-    </View>
+      </View>
+    </TabSwipeContainer>
   );
 }
 
 const styles = StyleSheet.create({
   screenContainer: {
     flex: 1,
-    backgroundColor: "#090909",
+    backgroundColor: "#080808",
   },
   segmentContainer: {
     paddingHorizontal: 16,

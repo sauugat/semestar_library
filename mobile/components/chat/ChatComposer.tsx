@@ -270,7 +270,7 @@ export const ChatComposer = React.memo(function ChatComposer({
             inputFocused && { borderColor: "#383838" },
           ]}
           placeholder="Message…"
-          placeholderTextColor="#737373"
+          placeholderTextColor="#808080"
           multiline
           maxLength={2000}
           value={inputText}
@@ -310,9 +310,9 @@ export const ChatComposer = React.memo(function ChatComposer({
 const styles = StyleSheet.create({
   outerContainer: {
     width: "100%",
-    backgroundColor: "#101010",
+    backgroundColor: "#171717",
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "#282828",
+    borderTopColor: "#303030",
   },
   composerContainer: {
     flexDirection: "row",
@@ -324,10 +324,10 @@ const styles = StyleSheet.create({
   },
   pillTextInput: {
     flex: 1,
-    backgroundColor: "#1C1C1C",
+    backgroundColor: "#242424",
     borderRadius: COMPOSER_GEOMETRY.borderRadius,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "#282828",
+    borderColor: "#303030",
     paddingHorizontal: COMPOSER_GEOMETRY.inputPaddingHorizontal,
     paddingTop: COMPOSER_GEOMETRY.inputPaddingTop,
     paddingBottom: COMPOSER_GEOMETRY.inputPaddingBottom,
@@ -348,9 +348,9 @@ const styles = StyleSheet.create({
     width: COMPOSER_GEOMETRY.actionButtonSize,
     height: COMPOSER_GEOMETRY.actionButtonSize,
     borderRadius: COMPOSER_GEOMETRY.actionButtonRadius,
-    backgroundColor: "#1C1C1C",
+    backgroundColor: "#242424",
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "#282828",
+    borderColor: "#303030",
     alignItems: "center",
     justifyContent: "center",
   },

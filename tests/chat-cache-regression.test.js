@@ -146,6 +146,16 @@ test('native photo/file controls expose long-press actions and visible actions; 
       formatTimeAgo: () => 'Just now',
     },
     'react-native-safe-area-context': { useSafeAreaInsets: () => ({ bottom: 0 }) },
+    '@/constants/theme': {
+      Monochrome: {
+        bubbleOutgoing: '#EAEAEA',
+        bubbleOutgoingText: '#111111',
+        bubbleOutgoingMeta: '#555555',
+        bubbleIncoming: '#242424',
+        bubbleIncomingText: '#F5F5F5',
+        bubbleIncomingMeta: '#737373',
+      },
+    },
   };
   function nodes(tree) {
     if (!tree || typeof tree !== 'object') return [];

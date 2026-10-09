@@ -76,6 +76,8 @@ async function sendBroadcast(event, payload) {
 }
 
 const app = express();
+const { messagingTiming, measure: measureRequest } = require('./lib/request-timing');
+app.use(messagingTiming);
 
 // --- Uploads folder setup (use /tmp on Vercel read-only serverless runtime) ---
 const UPLOAD_DIR = process.env.VERCEL ? path.join('/tmp', 'uploads') : path.join(__dirname, 'uploads');
@@ -313,7 +315,9 @@ app.use(async (req, res, next) => {
 // and preserves legacy mobile Bearer tokens for the mobile app.
 const { createAuthMiddleware } = require('./lib/auth-middleware');
 const auth = createAuthMiddleware(db);
-app.use(auth.authenticate);
+app.use((req, res, next) => {
+  measureRequest('auth', () => auth.authenticate(req, res, () => {})).then(() => next(), next);
+});
 
 // CSRF / Origin Guard on state-changing requests
 app.use((req, res, next) => {

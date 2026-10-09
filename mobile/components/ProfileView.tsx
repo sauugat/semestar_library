@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth, StudentUser } from '@/context/AuthContext';
 import { useTheme } from '@/constants/useTheme';
+import { useAdaptiveNavScroll } from '@/context/NavScrollContext';
 import { Text, Heading, Caption } from '@/components/ui/Typography';
 import { Button } from '@/components/ui/Button';
 import { Avatar } from '@/components/ui/Avatar';
@@ -99,6 +100,7 @@ export function ProfileView({ targetStudentId, isTab = false }: ProfileViewProps
   const queryClient = useQueryClient();
   const { user: currentUser, serverUrl, refreshProfile } = useAuth();
   const { colors, spacing, radii } = useTheme();
+  const { onScroll: handleNavScroll, scrollEventThrottle } = useAdaptiveNavScroll();
 
   const effectiveStudentId = targetStudentId || currentUser?.studentId;
   const isSelf = Boolean(
@@ -634,6 +636,8 @@ export function ProfileView({ targetStudentId, isTab = false }: ProfileViewProps
       )}
 
       <ScrollView
+        onScroll={isTab ? handleNavScroll : undefined}
+        scrollEventThrottle={isTab ? scrollEventThrottle : undefined}
         contentContainerStyle={[
           styles.scrollContent,
           {

@@ -272,7 +272,7 @@ export function UnifiedChatInbox({
   return (
     <View style={styles.container}>
       {/* Top Header Row with Minimalist Title and Outline New Message Action */}
-      <View style={[styles.inboxHeader, { paddingTop: Math.max(insets.top, 14) }]}>
+      <View style={[styles.inboxHeader, { paddingTop: insets.top + 14 }]}>
         <Text style={styles.inboxTitle}>
           Chats
         </Text>
@@ -447,6 +447,7 @@ const styles = StyleSheet.create({
   },
   inboxTitle: {
     fontSize: 28,
+    lineHeight: 36,
     fontWeight: '700',
     letterSpacing: -0.5,
     color: Monochrome.textPrimary,
@@ -548,6 +549,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingVertical: 2,
+    paddingBottom: 90,
   },
   itemRow: {
     flexDirection: 'row',

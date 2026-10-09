@@ -72,7 +72,7 @@ describe('Step 4B: React Native Private Messaging Mobile UI & Services', () => {
     const content = fs.readFileSync(dmConvPath, 'utf8');
 
     assert.ok(
-      content.includes('m.id === newMsg.id') || content.includes('m.clientId === newMsg.clientId'),
+      content.includes('mergeDmMessages(prev, [newMsg])'),
       'Must deduplicate by server id and clientId'
     );
   });

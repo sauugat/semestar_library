@@ -1249,10 +1249,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   bubbleMe: {
-    backgroundColor: '#EAEAEA',
+    backgroundColor: '#626262',
   },
   bubbleOther: {
-    backgroundColor: '#242424',
+    backgroundColor: '#171717',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: '#282828',
   },
@@ -1280,8 +1280,8 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   replyQuoteMe: {
-    backgroundColor: 'rgba(0, 0, 0, 0.06)',
-    borderLeftColor: '#111111',
+    backgroundColor: 'rgba(0, 0, 0, 0.20)',
+    borderLeftColor: '#FFFFFF',
   },
   replyQuoteOther: {
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
@@ -1463,12 +1463,12 @@ const styles = StyleSheet.create({
   bubbleTextMe: {
     fontSize: 14.5,
     lineHeight: 20,
-    color: '#111111',
+    color: '#FFFFFF',
   },
   bubbleTextOther: {
     fontSize: 14.5,
     lineHeight: 20,
-    color: '#F5F5F5',
+    color: '#FFFFFF',
   },
   urlLink: {
     textDecorationLine: 'underline',
@@ -1487,7 +1487,7 @@ const styles = StyleSheet.create({
   },
   timestampTextMe: {
     fontSize: 10,
-    color: '#555555',
+    color: '#D4D4D4',
   },
   timestampTextOther: {
     fontSize: 10,
@@ -1495,7 +1495,7 @@ const styles = StyleSheet.create({
   },
   editedLabelMe: {
     fontSize: 9.5,
-    color: '#555555',
+    color: '#D4D4D4',
   },
   editedLabelOther: {
     fontSize: 9.5,

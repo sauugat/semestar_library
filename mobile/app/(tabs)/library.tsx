@@ -8,6 +8,8 @@ import {
   Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { TabSwipeContainer } from '@/components/navigation/TabSwipeContainer';
+import { useAdaptiveNavScroll } from '@/context/NavScrollContext';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -130,6 +132,7 @@ function SkeletonCard({ colors, radii, spacing }: { colors: any; radii: any; spa
 export default function LibraryScreen() {
   const { colors, spacing, radii } = useTheme();
   const { user } = useAuth();
+  const { onScroll: handleNavScroll, scrollEventThrottle } = useAdaptiveNavScroll();
   const params = useLocalSearchParams<{ subject?: string; semester?: string; chapter?: string }>();
   const {
     cohort,
@@ -457,9 +460,10 @@ export default function LibraryScreen() {
   );
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
-      {/* Pinned Brand Header (matching Home style) */}
-      {renderBrandHeader()}
+    <TabSwipeContainer tabIndex={1} disabled={Boolean(searchOpen || uploadModalOpen)}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
+        {/* Pinned Brand Header (matching Home style) */}
+        {renderBrandHeader()}
 
       {/* ─────────────────────────────────────────────────────────────
           LEVEL 3: NOTES / FILES VIEW (When Chapter is Selected)
@@ -467,6 +471,8 @@ export default function LibraryScreen() {
       {selectedSubject && selectedChapter && (
         <ScrollView
           contentContainerStyle={[styles.container, { padding: spacing.md }]}
+          onScroll={handleNavScroll}
+          scrollEventThrottle={scrollEventThrottle}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -669,7 +675,11 @@ export default function LibraryScreen() {
           LEVEL 2: CHAPTERS VIEW (When Subject is Selected)
           ───────────────────────────────────────────────────────────── */}
       {selectedSubject && !selectedChapter && (
-        <ScrollView contentContainerStyle={[styles.container, { padding: spacing.md }]}>
+        <ScrollView
+          contentContainerStyle={[styles.container, { padding: spacing.md }]}
+          onScroll={handleNavScroll}
+          scrollEventThrottle={scrollEventThrottle}
+        >
           {/* Breadcrumb Navigation Bar */}
           <View style={[styles.navHeader, { marginBottom: spacing.md }]}>
             <TouchableOpacity
@@ -802,6 +812,8 @@ export default function LibraryScreen() {
       {!selectedSubject && (
         <ScrollView
           contentContainerStyle={[styles.container, { padding: spacing.md }]}
+          onScroll={handleNavScroll}
+          scrollEventThrottle={scrollEventThrottle}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -980,7 +992,8 @@ export default function LibraryScreen() {
         </Animated.View>
       )}
     </SafeAreaView>
-  );
+  </TabSwipeContainer>
+);
 }
 
 const styles = StyleSheet.create({

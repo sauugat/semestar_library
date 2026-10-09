@@ -8,7 +8,7 @@
  * Dedicated tokens for Step 5B.4A premium minimalist aesthetic.
  */
 export const Monochrome = {
-  background: '#090909',
+  background: '#080808',
   header: '#101010',
   surface: '#141414',
   surfaceElevated: '#1C1C1C',
@@ -17,27 +17,42 @@ export const Monochrome = {
   borderSubtle: '#1F1F1F',
   borderStrong: '#383838',
 
-  text: '#F5F5F5',
-  textPrimary: '#F5F5F5',
+  // Floating Navigation Bar tokens (Apple Liquid Glass-inspired monochrome capsule)
+  navSurface: 'rgba(23, 23, 23, 0.70)',
+  navSurfaceOpaque: '#171717',
+  navBorder: 'rgba(255, 255, 255, 0.12)',
+  navIconInactive: '#B0B0B0',
+  navIconActive: '#FFFFFF',
+  navActiveIndicator: 'rgba(255, 255, 255, 0.14)',
+
+  text: '#FFFFFF',
+  textPrimary: '#FFFFFF',
   textSecondary: '#A1A1A1',
   textTertiary: '#737373',
   textDisabled: '#525252',
 
   surfaceRaised: '#242424',
 
-  bubbleOutgoing: '#EAEAEA',
-  bubbleOutgoingText: '#111111',
-  bubbleOutgoingMeta: '#555555',
-  outgoingBubble: '#EAEAEA',
-  outgoingText: '#111111',
-  outgoingMeta: '#555555',
+  // Message Bubbles: Gray #626262 outgoing, Black/Charcoal #171717 incoming
+  bubbleOutgoing: '#626262',
+  bubbleOutgoingText: '#FFFFFF',
+  bubbleOutgoingMeta: '#D4D4D4',
+  outgoingBubble: '#626262',
+  outgoingText: '#FFFFFF',
+  outgoingMeta: '#D4D4D4',
 
-  bubbleIncoming: '#242424',
-  bubbleIncomingText: '#F5F5F5',
+  bubbleIncoming: '#171717',
+  bubbleIncomingText: '#FFFFFF',
   bubbleIncomingMeta: '#737373',
-  incomingBubble: '#242424',
-  incomingText: '#F5F5F5',
+  incomingBubble: '#171717',
+  incomingText: '#FFFFFF',
   incomingMeta: '#737373',
+
+  // Composer tokens
+  composerSurface: '#171717',
+  composerInput: '#242424',
+  composerText: '#F5F5F5',
+  composerPlaceholder: '#808080',
 
   cohortAvatarBg: '#1C1C1C',
   cohortAvatarBorder: '#282828',

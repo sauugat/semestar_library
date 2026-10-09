@@ -120,8 +120,9 @@ export async function apiFetch(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<Response> {
-  const baseUrl = await getBaseUrl();
-  const token = await getAuthToken();
+  const preparationStart = Date.now();
+  const [baseUrl, token] = await Promise.all([getBaseUrl(), getAuthToken()]);
+  const preparationMs = Date.now() - preparationStart;
 
   const url = endpoint.startsWith('http') ? endpoint : `${baseUrl}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
 
@@ -255,7 +256,7 @@ export async function apiFetch(
 
     const duration = Date.now() - startTime;
     if (__DEV__) {
-      console.log(`[CLIENT API] ${options.method || 'GET'} ${endpoint} -> ${response.status} (${duration}ms)`);
+      console.log(`[CLIENT API] ${options.method || 'GET'} ${endpoint} -> ${response.status} (${duration}ms; prepare=${preparationMs}ms; request=${response.headers.get('X-Request-ID') || 'n/a'}; server=${response.headers.get('Server-Timing') || 'n/a'})`);
     }
   } catch (netErr: any) {
     const duration = Date.now() - startTime;

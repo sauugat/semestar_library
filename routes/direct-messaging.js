@@ -201,6 +201,7 @@ module.exports = function directMessagingRouter(service) {
     res.status(status).json({
       message: msg,
       error: msg,
+      ...(err instanceof DmError && err.code ? { code: err.code } : {}),
     });
   });
 

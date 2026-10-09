@@ -1,3 +1,4 @@
+const { measure } = require('./lib/request-timing');
 const path = require('path');
 const fs = require('fs');
 const bcrypt = require('bcryptjs');
@@ -148,10 +149,10 @@ async function query(sql, ...params) {
   const normParams = normalizeParams(params);
   if (isPostgres && pgPool) {
     const pgSql = toPostgresSql(sql);
-    const res = await pgPool.query(pgSql, normParams);
+    const res = await measure('db', () => pgPool.query(pgSql, normParams));
     return formatRows(res.rows);
   } else if (libsqlClient) {
-    const res = await libsqlClient.execute({ sql, args: normParams });
+    const res = await measure('db', () => libsqlClient.execute({ sql, args: normParams }));
     return formatRows(res.rows);
   }
   throw new Error('Database client is not initialized.');
@@ -161,10 +162,10 @@ async function get(sql, ...params) {
   const normParams = normalizeParams(params);
   if (isPostgres && pgPool) {
     const pgSql = toPostgresSql(sql);
-    const res = await pgPool.query(pgSql, normParams);
+    const res = await measure('db', () => pgPool.query(pgSql, normParams));
     return formatRow(res.rows[0] || null);
   } else if (libsqlClient) {
-    const res = await libsqlClient.execute({ sql, args: normParams });
+    const res = await measure('db', () => libsqlClient.execute({ sql, args: normParams }));
     return formatRow(res.rows[0] || null);
   }
   throw new Error('Database client is not initialized.');
@@ -174,10 +175,10 @@ async function all(sql, ...params) {
   const normParams = normalizeParams(params);
   if (isPostgres && pgPool) {
     const pgSql = toPostgresSql(sql);
-    const res = await pgPool.query(pgSql, normParams);
+    const res = await measure('db', () => pgPool.query(pgSql, normParams));
     return formatRows(res.rows);
   } else if (libsqlClient) {
-    const res = await libsqlClient.execute({ sql, args: normParams });
+    const res = await measure('db', () => libsqlClient.execute({ sql, args: normParams }));
     return formatRows(res.rows);
   }
   throw new Error('Database client is not initialized.');
@@ -199,7 +200,7 @@ async function run(sql, ...params) {
     }
 
     const convertedSql = toPostgresSql(pgSql);
-    const res = await pgPool.query(convertedSql, normParams);
+    const res = await measure('db', () => pgPool.query(convertedSql, normParams));
 
     const lastInsertRowid = res.rows && res.rows[0] && res.rows[0].id ? res.rows[0].id : null;
     return {
@@ -207,7 +208,7 @@ async function run(sql, ...params) {
       changes: res.rowCount || 0
     };
   } else if (libsqlClient) {
-    const res = await libsqlClient.execute({ sql, args: normParams });
+    const res = await measure('db', () => libsqlClient.execute({ sql, args: normParams }));
     return {
       lastInsertRowid: res.lastInsertRowid !== undefined ? Number(res.lastInsertRowid) : null,
       changes: res.rowsAffected || 0
@@ -235,7 +236,7 @@ function prepare(sql) {
 function transaction(fn) {
   return async (...args) => {
     if (isPostgres && pgPool) {
-      const client = await pgPool.connect();
+      const client = await measure('pool', () => pgPool.connect());
       try {
         await client.query('BEGIN');
         const res = await fn(...args);
@@ -257,7 +258,7 @@ function transaction(fn) {
 // The older transaction(fn) API above is retained for existing callers.
 async function withTransaction(callback) {
   const { createTransactionAdapter } = require('./lib/db-transaction');
-  const client = isPostgres ? await pgPool.connect() : await libsqlClient.transaction('write');
+  const client = isPostgres ? await measure('pool', () => pgPool.connect()) : await libsqlClient.transaction('write');
   try {
     if (isPostgres) await client.query('BEGIN');
     const result = await callback(createTransactionAdapter(client, isPostgres, formatRow, formatRows));

@@ -1,3 +1,5 @@
+import { mergeDmMessages } from './dm-state';
+import { clearDmOutbox } from './dm-outbox';
 import { openDatabaseAsync, SQLiteDatabase } from 'expo-sqlite';
 import type { DmConversationItem, DmMessage } from './dm';
 
@@ -143,18 +145,10 @@ export async function saveCachedDmMessages(
   const key = `${accountId}:${conversationId}`;
   const existing = memoryMessages.get(key) || [];
 
-  // Merge deduplicated messages
-  const map = new Map<number | string, DmMessage>();
-  for (const m of existing) {
-    map.set(m.id, m);
-  }
-  for (const m of newOrUpdatedMessages) {
-    map.set(m.id, m);
-  }
-
-  const merged = Array.from(map.values()).sort(
-    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-  );
+  // Only confirmed messages belong in this cache; pending/failed messages live
+  // in the durable outbox and must never reappear as cached ghost bubbles.
+  const merged = mergeDmMessages(existing.filter(m => typeof m.id === 'number'),
+    newOrUpdatedMessages.filter(m => typeof m.id === 'number')).reverse();
   // Cap cached messages at 300 per conversation
   const retained = merged.slice(-300);
   memoryMessages.set(key, retained);
@@ -212,6 +206,7 @@ export async function deleteCachedDmMessage(
 export async function clearDmAccountCache(accountId: string): Promise<void> {
   if (!accountId) return;
 
+  await clearDmOutbox(accountId);
   memoryConversations.delete(accountId);
   for (const k of memoryMessages.keys()) {
     if (k.startsWith(`${accountId}:`)) {
@@ -233,6 +228,7 @@ export async function clearDmAccountCache(accountId: string): Promise<void> {
 }
 
 export async function clearAllDmCache(): Promise<void> {
+  await clearDmOutbox();
   memoryConversations.clear();
   memoryMessages.clear();
   writeQueue = writeQueue.then(async () => {

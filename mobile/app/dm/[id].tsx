@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -10,11 +10,11 @@ import {
   Alert,
   Pressable,
   Keyboard,
-  Platform,
   StatusBar,
+  AppState,
   BackHandler,
 } from 'react-native';
-import { useLocalSearchParams, useRouter, Stack, useFocusEffect } from 'expo-router';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -35,7 +35,6 @@ import {
   blockDmUser,
   unblockDmUser,
   reportDm,
-  syncDmConversation,
   fetchDmConversations,
   type DmMessage,
   type DmConversationItem,
@@ -47,7 +46,13 @@ import {
   deleteCachedDmMessage,
   getCachedDmConversations,
 } from '@/services/dm-db';
+import { mergeDmMessages, failDmMessage, createReadCoalescer } from '@/services/dm-state';
+import { readDmOutbox, updateDmOutbox, dmOutboxGeneration } from '@/services/dm-outbox';
 import { subscribeDmConversationRealtime } from '@/services/dm-realtime';
+
+function createDmClientId() {
+  return `dm_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
+}
 
 function getInitials(name?: string): string {
   if (!name) return '?';
@@ -104,7 +109,13 @@ function isSameDay(iso1?: string | null, iso2?: string | null): boolean {
 }
 
 export default function DmConversationScreen() {
-  const { colors, spacing, radii } = useTheme();
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const { user } = useAuth();
+  return <DmConversation key={`${user?.studentId || ''}:${id}`} />;
+}
+
+function DmConversation() {
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user } = useAuth();
@@ -120,6 +131,18 @@ export default function DmConversationScreen() {
   }>();
 
   const conversationId = params.id;
+  const activeRef = useRef(false);
+  const nearBottomRef = useRef(true);
+  const messagesRef = useRef<DmMessage[]>([]);
+  const loadInFlight = useRef(false);
+  const sendsInFlight = useRef(new Set<string>());
+  const acknowledgedSends = useRef(new Set<string>());
+  const readQueueRef = useRef<ReturnType<typeof createReadCoalescer> | null>(null);
+  const markIncomingRead = useCallback((items: DmMessage[]) => {
+    if (!activeRef.current || !nearBottomRef.current || AppState.currentState !== 'active') return;
+    const newest = Math.max(0, ...items.filter(m => m.senderId !== currentUserId && typeof m.id === 'number').map(m => Number(m.id)));
+    readQueueRef.current?.request(newest);
+  }, [currentUserId]);
 
   // Participant info state
   const [peerInfo, setPeerInfo] = useState<{
@@ -136,12 +159,14 @@ export default function DmConversationScreen() {
 
   const [conversation, setConversation] = useState<DmConversationItem | null>(null);
   const [messages, setMessages] = useState<DmMessage[]>([]);
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
   const [loading, setLoading] = useState(true);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Realtime & typing states
+  const [realtimeConnected, setRealtimeConnected] = useState(false);
   const [peerIsTyping, setPeerIsTyping] = useState(false);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const outgoingTypingThrottlerRef = useRef<number>(0);
@@ -233,9 +258,6 @@ export default function DmConversationScreen() {
         const match = cachedConvs.find((c) => c.id === conversationId);
         if (match && isMounted) {
           setConversation(match);
-          if (match.lastReadMessageId) {
-            setPeerLastReadId(match.lastReadMessageId);
-          }
           if (match.participant) {
             setPeerInfo({
               id: match.participant.studentId,
@@ -250,9 +272,6 @@ export default function DmConversationScreen() {
           const found = fresh.find((c) => c.id === conversationId);
           if (found && isMounted) {
             setConversation(found);
-            if (found.lastReadMessageId) {
-              setPeerLastReadId(found.lastReadMessageId);
-            }
             if (found.participant) {
               setPeerInfo({
                 id: found.participant.studentId,
@@ -271,51 +290,58 @@ export default function DmConversationScreen() {
     };
   }, [conversationId, currentUserId]);
 
-  // 2. Load cached messages and fetch fresh messages
+  // Load once on focus, and refresh after reconnect/resume. Never depend on list length.
   const loadMessages = useCallback(async () => {
-    if (!conversationId || !currentUserId) return;
+    if (!conversationId || !currentUserId || loadInFlight.current) return;
+    loadInFlight.current = true;
     setError(null);
-
-    // Fast-path: Load from local SQLite cache
     try {
-      const cached = await getCachedDmMessages(currentUserId, conversationId, 50);
-      if (cached && cached.length > 0) {
-        setMessages(cached);
-        setLoading(false);
-      }
-    } catch {}
-
-    // Network-path: Fetch from server
-    try {
+      const [cached, outbox] = await Promise.all([
+        getCachedDmMessages(currentUserId, conversationId, 50),
+        readDmOutbox(currentUserId, conversationId).catch(() => {
+          if (activeRef.current) setError('Saved pending messages could not be loaded. Please reopen the conversation.');
+          return [];
+        }),
+      ]);
+      if (!activeRef.current) return;
+      const restored = outbox.map(m => ({ ...m, status: sendsInFlight.current.has(m.clientId || '') ? 'pending' as const : 'failed' as const }));
+      setMessages(prev => mergeDmMessages(mergeDmMessages(cached, restored), prev));
+      if (cached.length || restored.length) setLoading(false);
       const res = await fetchDmMessages(conversationId, { limit: 50 });
-      setMessages(res.messages);
+      if (!activeRef.current) return;
+      setMessages(prev => mergeDmMessages(prev, res.messages));
       setHasMore(res.hasMore);
+      setPeerLastReadId(prev => Math.max(prev, res.peerLastReadMessageId));
       void saveCachedDmMessages(currentUserId, conversationId, res.messages);
-
-      // Advance read cursor if there are messages
-      if (res.messages.length > 0) {
-        const newest = res.messages[0];
-        if (typeof newest.id === 'number') {
-          void markDmConversationRead(conversationId, newest.id);
-        }
+      for (const m of res.messages) if (m.senderId === currentUserId && m.clientId) {
+        void updateDmOutbox(currentUserId, conversationId, m, dmOutboxGeneration()).catch(() => {});
       }
+      markIncomingRead(res.messages);
     } catch (err: any) {
-      if (messages.length === 0) {
-        setError(err.message || 'Failed to load messages');
-      }
+      if (activeRef.current) setError(err.message || 'Failed to load messages');
     } finally {
-      setLoading(false);
+      loadInFlight.current = false;
+      if (activeRef.current) setLoading(false);
     }
-  }, [conversationId, currentUserId, messages.length]);
+  }, [conversationId, currentUserId, markIncomingRead]);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
+    activeRef.current = true;
+    const readQueue = createReadCoalescer(id => activeRef.current && AppState.currentState === 'active'
+      ? markDmConversationRead(conversationId, id) : Promise.reject(new Error('Conversation is inactive')));
+    readQueueRef.current = readQueue;
     void loadMessages();
-  }, [loadMessages]);
+    const sub = AppState.addEventListener('change', state => {
+      if (state === 'active') void loadMessages();
+    });
+    return () => { activeRef.current = false; readQueue.stop(); readQueueRef.current = null; sub.remove(); };
+  }, [loadMessages, conversationId]));
 
   // 3. Load older messages (cursor pagination)
   const loadOlderMessages = useCallback(async () => {
     if (loadingOlder || !hasMore || messages.length === 0) return;
-    const oldest = messages[messages.length - 1];
+    const oldest = [...messages].reverse().find(m => typeof m.id === 'number');
+    if (!oldest) return;
     if (typeof oldest.id !== 'number') return;
 
     setLoadingOlder(true);
@@ -328,12 +354,13 @@ export default function DmConversationScreen() {
         setMessages((prev) => {
           const existingIds = new Set(prev.map((m) => m.id));
           const filtered = res.messages.filter((m) => !existingIds.has(m.id));
-          const combined = [...prev, ...filtered];
+          const combined = mergeDmMessages(prev, filtered);
           void saveCachedDmMessages(currentUserId, conversationId, combined);
           return combined;
         });
       }
       setHasMore(res.hasMore);
+      setPeerLastReadId(prev => Math.max(prev, res.peerLastReadMessageId));
     } catch (err) {
       console.warn('[DM] Load older messages error:', err);
     } finally {
@@ -341,34 +368,27 @@ export default function DmConversationScreen() {
     }
   }, [conversationId, currentUserId, hasMore, loadingOlder, messages]);
 
-  // 4. Realtime subscription
-  useEffect(() => {
-    if (!conversationId) return;
-
+  // Realtime is active only while this conversation is focused.
+  useFocusEffect(useCallback(() => {
+    if (!conversationId || !currentUserId) return;
+    let connectedNow = false;
+    const poll = setInterval(() => {
+      if (!connectedNow && AppState.currentState === 'active') void loadMessages();
+    }, 15000);
     const unsubscribe = subscribeDmConversationRealtime(conversationId, {
+      onConnectionChange: connected => {
+        connectedNow = connected;
+        setRealtimeConnected(connected);
+        if (connected) void loadMessages();
+      },
       onNewMessage: (newMsg) => {
-        setMessages((prev) => {
-          // Deduplicate by server ID or clientId
-          const existingIndex = prev.findIndex(
-            (m) =>
-              m.id === newMsg.id ||
-              (newMsg.clientId && m.clientId && m.clientId === newMsg.clientId)
-          );
-          let updated: DmMessage[];
-          if (existingIndex >= 0) {
-            updated = [...prev];
-            updated[existingIndex] = newMsg;
-          } else {
-            updated = [newMsg, ...prev];
-          }
-          void saveCachedDmMessages(currentUserId, conversationId, updated);
-          return updated;
-        });
-
-        // Mark read if incoming from peer
-        if (newMsg.senderId !== currentUserId && typeof newMsg.id === 'number') {
-          void markDmConversationRead(conversationId, newMsg.id);
+        if (newMsg.senderId === currentUserId && newMsg.clientId) acknowledgedSends.current.add(newMsg.clientId);
+        setMessages(prev => mergeDmMessages(prev, [newMsg]));
+        void saveCachedDmMessages(currentUserId, conversationId, [newMsg]);
+        if (newMsg.senderId === currentUserId && newMsg.clientId) {
+          void updateDmOutbox(currentUserId, conversationId, newMsg, dmOutboxGeneration()).catch(() => {});
         }
+        markIncomingRead([newMsg]);
       },
 
       onEditedMessage: ({ messageId, text, editedAt }) => {
@@ -417,12 +437,13 @@ export default function DmConversationScreen() {
     });
 
     return () => {
+      clearInterval(poll);
       unsubscribe();
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       // Clean up typing indicator on exit
       void sendDmTyping(conversationId, false);
     };
-  }, [conversationId, currentUserId]);
+  }, [conversationId, currentUserId, loadMessages, markIncomingRead]));
 
   // 5. Handling outgoing typing indicator (throttled to 2.5s)
   const handleInputChange = (text: string) => {
@@ -461,7 +482,7 @@ export default function DmConversationScreen() {
     }
 
     // Normal Send: Generate optimistic clientId
-    const clientId = `dm_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    const clientId = createDmClientId();
     const tempMessage: DmMessage = {
       id: clientId,
       conversationId,
@@ -483,72 +504,48 @@ export default function DmConversationScreen() {
     // Optimistically insert to list
     setMessages((prev) => [tempMessage, ...prev]);
     setInputText('');
-    const replyTargetId = replyingTo
-      ? typeof replyingTo.id === 'number'
-        ? replyingTo.id
-        : parseInt(String(replyingTo.id), 10)
-      : null;
     setReplyingTo(null);
+    requestAnimationFrame(() => flatListRef.current?.scrollToOffset({ offset: 0, animated: true }));
 
-    try {
-      const confirmed = await sendDmMessage(conversationId, {
-        clientId,
-        text,
-        replyToId: replyTargetId,
-      });
-
-      // Replace optimistic message with confirmed server message
-      setMessages((prev) => {
-        const updated = prev.map((m) =>
-          m.clientId === clientId || m.id === clientId ? confirmed : m
-        );
-        void saveCachedDmMessages(currentUserId, conversationId, updated);
-        return updated;
-      });
-    } catch (err: any) {
-      // Mark as failed
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.clientId === clientId || m.id === clientId
-            ? { ...m, status: 'failed' }
-            : m
-        )
-      );
-    }
+    void transmitMessage(tempMessage);
   };
 
-  // 7. Retry a failed message
-  const handleRetry = async (failedMsg: DmMessage) => {
-    if (!failedMsg.text || !failedMsg.clientId) return;
-    setMessages((prev) =>
-      prev.map((m) =>
-        m.id === failedMsg.id ? { ...m, status: 'pending' } : m
-      )
-    );
+  // Persist before dispatch. Retries reuse the exact client ID and original content.
+  const transmitMessage = async (message: DmMessage) => {
+    const clientId = message.clientId;
+    if (!clientId || !message.text || sendsInFlight.current.has(clientId)) return;
+    sendsInFlight.current.add(clientId);
+    const generation = dmOutboxGeneration();
+    const pending = { ...message, status: 'pending' as const };
+    setMessages(prev => mergeDmMessages(prev, [pending]));
     try {
+      await updateDmOutbox(currentUserId, conversationId, pending, generation);
+      if (generation !== dmOutboxGeneration()) return;
       const confirmed = await sendDmMessage(conversationId, {
-        clientId: failedMsg.clientId,
-        text: failedMsg.text,
-        replyToId: failedMsg.replyTo?.id || null,
+        clientId, text: message.text, replyToId: message.replyTo?.id || null,
       });
-      setMessages((prev) => {
-        const updated = prev.map((m) =>
-          m.id === failedMsg.id ? confirmed : m
-        );
-        void saveCachedDmMessages(currentUserId, conversationId, updated);
-        return updated;
-      });
+      if (generation !== dmOutboxGeneration()) return;
+      acknowledgedSends.current.add(clientId);
+      if (activeRef.current) setMessages(prev => mergeDmMessages(prev, [confirmed]));
+      void saveCachedDmMessages(currentUserId, conversationId, [confirmed]);
+      await updateDmOutbox(currentUserId, conversationId, confirmed, generation);
     } catch {
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === failedMsg.id ? { ...m, status: 'failed' } : m
-        )
-      );
+      if (generation !== dmOutboxGeneration()) return;
+      const acknowledged = acknowledgedSends.current.has(clientId) || messagesRef.current.some(m => m.clientId === clientId && typeof m.id === 'number');
+      if (!acknowledged) {
+        if (activeRef.current) setMessages(prev => failDmMessage(prev, clientId));
+        await updateDmOutbox(currentUserId, conversationId, { ...message, status: 'failed' }, generation).catch(() => {});
+      }
+    } finally {
+      sendsInFlight.current.delete(clientId);
     }
   };
+
+  const handleRetry = (message: DmMessage) => transmitMessage(message);
 
   // 8. Message actions: Copy, Reply, Edit, Delete for me, Delete for everyone, Report
   const handleOpenActionSheet = (msg: DmMessage) => {
+    if (typeof msg.id !== 'number') return;
     setSelectedActionMessage(msg);
   };
 
@@ -921,8 +918,8 @@ export default function DmConversationScreen() {
                   {item.status === 'pending' ? (
                     <Ionicons name="time-outline" size={12} color={Monochrome.outgoingMeta} />
                   ) : item.status === 'failed' ? (
-                    <TouchableOpacity onPress={() => void handleRetry(item)} hitSlop={6}>
-                      <Ionicons name="alert-circle" size={13} color={Monochrome.outgoingText} />
+                    <TouchableOpacity accessibilityLabel="Retry failed message" onPress={() => void handleRetry(item)} hitSlop={6}>
+                      <Text variant="xs" style={{ color: Monochrome.outgoingText }}>Retry</Text>
                     </TouchableOpacity>
                   ) : isSeen ? (
                     <Ionicons name="checkmark-done" size={14} color={Monochrome.outgoingText} />
@@ -1025,6 +1022,8 @@ export default function DmConversationScreen() {
             <Text variant="xs" weight="600" style={styles.typingIndicator}>
               typing...
             </Text>
+          ) : !realtimeConnected ? (
+            <Text variant="xs" style={{ color: Monochrome.textSecondary }}>Live updates unavailable · checking periodically</Text>
           ) : null}
         </View>
 
@@ -1041,11 +1040,11 @@ export default function DmConversationScreen() {
 
       {/* Main Timeline wrapped in KeyboardContentBoundary */}
       <KeyboardContentBoundary style={styles.timelineBoundary}>
-        {loading ? (
+        {loading && messages.length === 0 ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color={Monochrome.textSecondary} />
           </View>
-        ) : error ? (
+        ) : error && messages.length === 0 ? (
           <View style={styles.centerContainer}>
             <Ionicons name="cloud-offline-outline" size={40} color={colors.textMuted} />
             <Text variant="sm" style={{ color: colors.textMuted, marginTop: 8, textAlign: 'center' }}>
@@ -1075,8 +1074,17 @@ export default function DmConversationScreen() {
             ref={flatListRef}
             data={messages}
             renderItem={renderMessageItem}
-            keyExtractor={(item) => String(item.id || item.clientId)}
+            keyExtractor={(item) => item.clientId ? `${item.senderId}:${item.clientId}` : String(item.id)}
             inverted
+            scrollEventThrottle={100}
+            onScroll={event => {
+              nearBottomRef.current = event.nativeEvent.contentOffset.y < 80;
+              if (nearBottomRef.current) markIncomingRead(messagesRef.current);
+            }}
+            maintainVisibleContentPosition={{ minIndexForVisible: 0, autoscrollToTopThreshold: 80 }}
+            onScrollToIndexFailed={({ averageItemLength, index }) => {
+              flatListRef.current?.scrollToOffset({ offset: averageItemLength * index, animated: true });
+            }}
             onEndReached={loadOlderMessages}
             onEndReachedThreshold={0.3}
             ListFooterComponent={
@@ -1166,13 +1174,13 @@ export default function DmConversationScreen() {
               style={[
                 styles.composerInput,
                 {
-                  backgroundColor: colors.surfaceRaised,
-                  color: colors.text,
-                  borderColor: colors.borderSubtle,
+                  backgroundColor: Monochrome.composerInput,
+                  color: Monochrome.composerText,
+                  borderColor: Monochrome.border,
                 },
               ]}
               placeholder="Message..."
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={Monochrome.composerPlaceholder}
               value={inputText}
               onChangeText={handleInputChange}
               multiline

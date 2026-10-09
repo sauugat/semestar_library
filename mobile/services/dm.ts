@@ -1,4 +1,4 @@
-import { apiFetch } from './api';
+import { apiFetch, ApiError } from './api';
 
 export interface DmParticipant {
   studentId: string;
@@ -53,6 +53,7 @@ export interface DmConversationItem {
 export interface DmRealtimeConfig {
   topic: string;
   token: string;
+  key: string;
   supabaseUrl: string;
   conversationId: string;
   epoch: number;
@@ -63,8 +64,8 @@ export interface DmSyncDelta {
   conversationId: string;
   peerLastReadMessageId: number;
   messages: DmMessage[];
-  edits: Array<{ messageId: number; text: string; editedAt: string }>;
-  deletions: Array<{ messageId: number; deletedAt: string }>;
+  edits: { messageId: number; text: string; editedAt: string }[];
+  deletions: { messageId: number; deletedAt: string }[];
 }
 
 export async function fetchDmStatus(): Promise<{ enabled: boolean }> {
@@ -85,7 +86,9 @@ export async function fetchDmConversations(limit = 40, offset = 0): Promise<DmCo
     throw new Error(err.message || 'Failed to load conversations');
   }
   const data = await res.json();
-  return data.conversations || [];
+  return (data.conversations || []).map((item: any) => ({ ...item,
+    blocked: Boolean(item.isBlocked), blockedByMe: Boolean(item.isBlockedByCaller), blockedByPeer: Boolean(item.isBlockedByPeer),
+  }));
 }
 
 export async function createOrGetDmConversation(targetUserId: string): Promise<{ conversation: DmConversationItem; isNew: boolean }> {
@@ -115,7 +118,7 @@ export async function searchDmUsers(query: string, limit = 20): Promise<DmPartic
 export async function fetchDmMessages(
   conversationId: string,
   options: { before?: number; limit?: number } = {}
-): Promise<{ messages: DmMessage[]; hasMore: boolean }> {
+): Promise<{ messages: DmMessage[]; hasMore: boolean; peerLastReadMessageId: number }> {
   const { before, limit = 40 } = options;
   let url = `/api/dm/conversations/${encodeURIComponent(conversationId)}/messages?limit=${limit}`;
   if (before) {
@@ -130,6 +133,7 @@ export async function fetchDmMessages(
   return {
     messages: data.messages || [],
     hasMore: Boolean(data.hasMore),
+    peerLastReadMessageId: Number(data.peerLastReadMessageId || 0),
   };
 }
 
@@ -137,10 +141,16 @@ export async function sendDmMessage(
   conversationId: string,
   payload: { clientId: string; text: string; replyToId?: number | null }
 ): Promise<DmMessage> {
-  const res = await apiFetch(`/api/dm/conversations/${encodeURIComponent(conversationId)}/messages`, {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  let res: Response;
+  try {
+    res = await apiFetch(`/api/dm/conversations/${encodeURIComponent(conversationId)}/messages`, {
+    signal: controller.signal,
     method: 'POST',
     body: JSON.stringify(payload),
-  });
+    });
+  } finally { clearTimeout(timeout); }
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.message || 'Failed to send message');
@@ -210,13 +220,17 @@ export async function markDmConversationRead(
   return await res.json();
 }
 
+const typingRequests = new Set<string>();
+
 export async function sendDmTyping(conversationId: string, isTyping = true): Promise<void> {
+  if (typingRequests.has(conversationId)) return;
+  typingRequests.add(conversationId);
   try {
     await apiFetch(`/api/dm/conversations/${encodeURIComponent(conversationId)}/typing`, {
       method: 'POST',
       body: JSON.stringify({ isTyping }),
     });
-  } catch {}
+  } catch {} finally { typingRequests.delete(conversationId); }
 }
 
 export async function blockDmUser(userId: string): Promise<{ blocked: boolean }> {
@@ -265,7 +279,7 @@ export async function fetchDmRealtimeConfig(conversationId: string): Promise<DmR
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || 'Failed to get realtime configuration');
+    throw new ApiError(err.message || 'Failed to get realtime configuration', res.status, err);
   }
   return await res.json();
 }

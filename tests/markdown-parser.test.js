@@ -118,10 +118,10 @@ test('public/markdown.js - Markdown parser and rich text converter', async (t) =
     assert.match(html, /<table class="md-table">/);
     assert.match(html, /<thead><tr><th style="text-align: left;">Feature<\/th><th style="text-align: left;">Traditional Learning<\/th><th style="text-align: left;">AI-Assisted Learning<\/th><\/tr><\/thead>/);
     assert.match(html, /<tbody>/);
-    assert.match(html, /<td>Information access<\/td>/);
-    assert.match(html, /<td>Books, teachers, and AI<\/td>/);
-    assert.match(html, /<td>Often available 24\/7<\/td>/);
-    assert.match(html, /<td>Requires verification<\/td>/);
+    assert.match(html, /<td style="text-align: left;">Information access<\/td>/);
+    assert.match(html, /<td style="text-align: left;">Books, teachers, and AI<\/td>/);
+    assert.match(html, /<td style="text-align: left;">Often available 24\/7<\/td>/);
+    assert.match(html, /<td style="text-align: left;">Requires verification<\/td>/);
     assert.match(html, /<\/tbody><\/table><\/div>/);
   });
 });

@@ -1711,14 +1711,13 @@
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const contentEl = document.getElementById('postContent');
+      const text = syncEditorToMarkdown();
       const titleEl = document.getElementById('postTitle');
-      const text = (contentEl?.value || '').trim();
       const hasMedia = composerImages.length > 0 || composerFiles.length > 0;
 
       if (!text && !hasMedia) {
         if (feedback) feedback.textContent = 'Write something before publishing.';
-        contentEl.focus();
+        if (postEditor) postEditor.focus();
         return;
       }
 

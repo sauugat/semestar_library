@@ -61,7 +61,10 @@ const fs = require('node:fs/promises');
     });
   });
 
-  app.post('/api/posts', express.urlencoded({ extended: true }), (req, res) => {
+  const multer = require('multer');
+  const upload = multer();
+
+  app.post('/api/posts', upload.any(), (req, res) => {
     const newPost = {
       id: Date.now(),
       type: req.body.type || 'status',

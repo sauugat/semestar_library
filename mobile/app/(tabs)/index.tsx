@@ -1729,6 +1729,13 @@ export default function HomeScreen() {
     const feedAvatarUri = user?.avatarUrl ? getFullImageUrl(user.avatarUrl) : null;
     return (
       <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.md, marginBottom: spacing.xs }}>
+        {Boolean(academicDisplayLabel) && (
+          <View style={[styles.academicBadge, { backgroundColor: colors.surfaceRaised, borderColor: colors.border, marginBottom: spacing.sm }]}>
+            <Text style={[styles.academicBadgeText, { color: colors.textSecondary }]}>
+              {academicDisplayLabel}
+            </Text>
+          </View>
+        )}
 
         {/* Create Post Composer Trigger Card with clean placeholder */}
         <Card

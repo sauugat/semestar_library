@@ -3610,7 +3610,9 @@
         `;
       }
 
-      const categoryLabel = (post.category_label || post.category || 'General').toUpperCase();
+      const rawCategory = (post.category_label || post.category || '').trim();
+      const isGeneral = !rawCategory || rawCategory.toLowerCase() === 'general';
+      const categoryLabel = rawCategory ? rawCategory.toUpperCase() : '';
       let semDisplay = post.semester_display;
       if (!semDisplay) {
         if (post.allSemesters || post.target_all_semesters === 1 || !post.targetSemesters || post.targetSemesters.length === 0) {
@@ -3621,16 +3623,19 @@
       }
 
       const isStudentsOnly = post.visibility === 'students_only' || post.audience === 'students_only';
+      const categoryBadgeHtml = (!isGeneral && categoryLabel)
+        ? `<span class="post-monochrome-badge post-category-tag">${escapeHtml(categoryLabel)}</span>`
+        : '';
       const audienceBadgeHtml = isStudentsOnly
         ? `<span class="post-monochrome-badge post-audience-tag">STUDENTS ONLY</span>`
         : '';
 
-      const tagsHtml = `
+      const tagsHtml = (categoryBadgeHtml || audienceBadgeHtml) ? `
         <div class="post-tags-row">
-          <span class="post-monochrome-badge post-category-tag">${escapeHtml(categoryLabel)}</span>
+          ${categoryBadgeHtml}
           ${audienceBadgeHtml}
         </div>
-      `;
+      ` : '';
       const titleHtml = '';
 
       return renderPostShell({

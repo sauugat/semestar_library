@@ -121,6 +121,13 @@
       }
     }
 
+    function isTableDelimiter(str) {
+      if (!str || !str.includes('|')) return false;
+      const cells = str.trim().replace(/^\||\|$/g, '').split('|');
+      if (cells.length === 0) return false;
+      return cells.every(c => /^\s*:?-{1,}:?\s*$/.test(c));
+    }
+
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       const trimmed = line.trim();

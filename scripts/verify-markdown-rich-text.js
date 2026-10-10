@@ -156,6 +156,13 @@ const fs = require('node:fs/promises');
   await page.screenshot({ path: `${screenshotsDir}/feed_post_markdown_rendered.png` });
   console.log('✓ Captured feed_post_markdown_rendered.png');
 
+  const noticeCard = page.locator('.status-post-card').nth(1);
+  if (await noticeCard.count() > 0) {
+    await noticeCard.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: `${screenshotsDir}/feed_post_notice_rendered.png` });
+    console.log('✓ Captured feed_post_notice_rendered.png');
+  }
+
   // Test 2: Verify /create-post Professional WYSIWYG Formatting
   await page.goto(`http://127.0.0.1:${port}/create-post`);
   await page.waitForSelector('#postEditor', { timeout: 8000 });

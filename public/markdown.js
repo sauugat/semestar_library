@@ -87,14 +87,14 @@
 
     // Extract fenced code blocks first to protect their raw code
     const codeBlocks = [];
-    const textWithoutCode = normalized.replace(/```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g, (_, lang, code) => {
+    const textWithoutCode = normalized.replace(/```([a-zA-Z0-9_#-]*)[ \t]*\n([\s\S]*?)```/g, (_, lang, code) => {
       const index = codeBlocks.length;
       const cleanLang = (lang || '').trim().toLowerCase();
       codeBlocks.push({
         lang: cleanLang || 'code',
         code: code.replace(/\n+$/, '') // trim trailing newline
       });
-      return `\n\x01BLOCK_CODE_${index}\x02\n`;
+      return `\x01BLOCK_CODE_${index}\x02`;
     });
 
     // Split into lines

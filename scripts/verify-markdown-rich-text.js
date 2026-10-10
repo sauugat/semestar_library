@@ -222,8 +222,54 @@ const fs = require('node:fs/promises');
   }
   console.log('✓ PASS: Selected text was formatted with italics');
 
+  // Step 8: Paste user's markdown table directly into postEditor
+  const tableMarkdown = `| Feature | Traditional Learning | AI-Assisted Learning |
+|---|---|---|
+| Information access | Books and teachers | Books, teachers, and AI |
+| Availability | Limited hours | Often available 24/7 |
+| Personalization | Depends on instruction | Can adapt explanations |
+| Feedback | Sometimes delayed | Often immediate |
+| Accuracy | Depends on source | Requires verification |`;
+
+  await page.evaluate((tableText) => {
+    const editor = document.getElementById('postEditor');
+    editor.focus();
+    const dt = new DataTransfer();
+    dt.setData('text/plain', tableText);
+    const pasteEvent = new ClipboardEvent('paste', {
+      clipboardData: dt,
+      bubbles: true,
+      cancelable: true
+    });
+    editor.dispatchEvent(pasteEvent);
+  }, tableMarkdown);
+
+  await page.waitForTimeout(100);
+
+  const tableHtml = await page.evaluate(() => document.getElementById('postEditor').innerHTML);
+  console.log('--- Editor HTML After Table Paste ---');
+  console.log(tableHtml);
+
+  if (!tableHtml.includes('class="md-table-wrapper"') || !tableHtml.includes('<table class="md-table">')) {
+    throw new Error('FAIL: Pasted markdown table was not converted into .md-table-wrapper table!');
+  }
+  if (!tableHtml.includes('Information access') || !tableHtml.includes('Books, teachers, and AI')) {
+    throw new Error('FAIL: Table content is missing from editor!');
+  }
+  console.log('✓ PASS: Markdown table paste was successfully converted to live styled table in editor');
+
   await page.screenshot({ path: `${screenshotsDir}/composer_wysiwyg_direct.png` });
   console.log('✓ Captured composer_wysiwyg_direct.png');
+
+  // Submit the post
+  await page.click('#submitPostBtn');
+  await page.waitForTimeout(800);
+
+  // Navigate to dashboard and verify the table rendered on feed
+  await page.goto(`http://127.0.0.1:${port}/dashboard.html`);
+  await page.waitForSelector('.status-post-card', { timeout: 8000 });
+  await page.screenshot({ path: `${screenshotsDir}/feed_post_table_rendered.png` });
+  console.log('✓ Captured feed_post_table_rendered.png');
 
   await browser.close();
   server.close();

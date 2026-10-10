@@ -6306,6 +6306,10 @@ body.dash .dash-id::before {
   line-height: 1.5;
 }
 
+.post-markdown-content > :first-child {
+  margin-top: 0 !important;
+}
+
 .post-markdown-content .md-p {
   margin: 0 0 6px 0;
   line-height: 1.5;

@@ -22,7 +22,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/constants/useTheme';
 import { useAuth } from '@/context/AuthContext';
 import { Text, Heading, Caption } from '@/components/ui/Typography';
-import { MarkdownText } from '@/components/ui/MarkdownText';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Avatar } from '@/components/ui/Avatar';
@@ -571,14 +570,17 @@ export default function PostDetailScreen() {
             </View>
           </View>
 
-          {/* Post Content Body with Rich Markdown Support */}
-          {Boolean(post.content && post.content.trim()) && (
-            <MarkdownText
-              content={post.content}
-              selectable
-              style={{ marginTop: spacing.md, marginBottom: spacing.md }}
-            />
-          )}
+          {/* Post Content Body */}
+          <Text
+            variant="md"
+            style={[
+              styles.postBody,
+              { color: colors.text, marginTop: spacing.md, marginBottom: spacing.md },
+            ]}
+            selectable
+          >
+            {post.content}
+          </Text>
 
           {/* Attached Images: responsive grid with swipeable fullscreen gallery */}
           {((Array.isArray(post.media) && post.media.some((m) => (m.media_type || 'image') === 'image')) || post.attachment_url) && (

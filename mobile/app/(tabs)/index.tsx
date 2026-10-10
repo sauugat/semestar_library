@@ -30,7 +30,6 @@ import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Clipboard from 'expo-clipboard';
 import { useAuth } from '@/context/AuthContext';
-import { useAcademicContext } from '@/hooks/useAcademicContext';
 import { useTheme } from '@/constants/useTheme';
 import { Text, Heading, Subheading, Caption } from '@/components/ui/Typography';
 import { Card } from '@/components/ui/Card';
@@ -38,7 +37,7 @@ import { Button } from '@/components/ui/Button';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
 import { KeyboardAwareForm } from '@/components/ui/KeyboardAwareForm';
-import { SelectionSheet, SelectionOption, SemesterMultiSelectSheet, RichTextToolbar, MarkdownText } from '@/components/ui';
+import { SelectionSheet, SelectionOption, SemesterMultiSelectSheet } from '@/components/ui';
 import { formatTimeAgo } from '@/utils/date';
 import {
   getPosts,
@@ -545,7 +544,6 @@ export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
-  const { displayLabel: academicDisplayLabel } = useAcademicContext();
   const { colors, spacing, radii } = useTheme();
   const queryClient = useQueryClient();
   const navigation = useNavigation();
@@ -1000,8 +998,6 @@ export default function HomeScreen() {
   const [composerOpen, setComposerOpen] = useState(false);
   const [postTitle, setPostTitle] = useState('');
   const [postContent, setPostContent] = useState('');
-  const [composerSelection, setComposerSelection] = useState<{ start: number; end: number }>({ start: 0, end: 0 });
-  const [composerPreview, setComposerPreview] = useState(false);
   const [postCategory, setPostCategory] = useState<string>('general');
   const [postAudience, setPostAudience] = useState<'everyone' | 'students_only'>('everyone');
   const [postAllSemesters, setPostAllSemesters] = useState(true);
@@ -1729,13 +1725,6 @@ export default function HomeScreen() {
     const feedAvatarUri = user?.avatarUrl ? getFullImageUrl(user.avatarUrl) : null;
     return (
       <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.md, marginBottom: spacing.xs }}>
-        {Boolean(academicDisplayLabel) && (
-          <View style={[styles.academicBadge, { backgroundColor: colors.surfaceRaised, borderColor: colors.border, marginBottom: spacing.sm }]}>
-            <Text style={[styles.academicBadgeText, { color: colors.textSecondary }]}>
-              {academicDisplayLabel}
-            </Text>
-          </View>
-        )}
 
         {/* Create Post Composer Trigger Card with clean placeholder */}
         <Card
@@ -2588,57 +2577,26 @@ export default function HomeScreen() {
                 </View>
               )}
 
-              {/* Rich Text Markdown Toolbar */}
-              <View style={{ marginBottom: 6, borderRadius: radii.md, overflow: 'hidden', borderWidth: 1, borderColor: colors.border }}>
-                <RichTextToolbar
-                  value={postContent}
-                  onChangeText={setPostContent}
-                  selection={composerSelection}
-                  onSelectionChange={setComposerSelection}
-                  isPreviewing={composerPreview}
-                  onTogglePreview={() => setComposerPreview(!composerPreview)}
-                />
-              </View>
-
-              {composerPreview ? (
-                <View
-                  style={[
-                    styles.contentInput,
-                    {
-                      backgroundColor: colors.surface,
-                      borderColor: colors.border,
-                      borderRadius: radii.md,
-                      padding: spacing.md,
-                      minHeight: 120,
-                    },
-                  ]}
-                >
-                  <MarkdownText
-                    content={postContent.trim() ? postContent : '*No content to preview yet*'}
-                  />
-                </View>
-              ) : (
-                <TextInput
-                  placeholder="Write something... (Markdown supported)"
-                  placeholderTextColor={colors.textMuted}
-                  value={postContent}
-                  onChangeText={setPostContent}
-                  onSelectionChange={(e) => setComposerSelection(e.nativeEvent.selection)}
-                  multiline
-                  maxLength={5000}
-                  style={[
-                    styles.contentInput,
-                    {
-                      color: colors.text,
-                      backgroundColor: colors.surface,
-                      borderColor: colors.border,
-                      borderRadius: radii.md,
-                      padding: spacing.md,
-                    },
-                  ]}
-                  textAlignVertical="top"
-                />
-              )}
+              {/* Main Content Input with subtle "Write something..." placeholder */}
+              <TextInput
+                placeholder="Write something..."
+                placeholderTextColor={colors.textMuted}
+                value={postContent}
+                onChangeText={setPostContent}
+                multiline
+                maxLength={5000}
+                style={[
+                  styles.contentInput,
+                  {
+                    color: colors.text,
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                    borderRadius: radii.md,
+                    padding: spacing.md,
+                  },
+                ]}
+                textAlignVertical="top"
+              />
 
               <View style={styles.characterCounterRow}>
                 <Caption color="muted">

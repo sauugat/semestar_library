@@ -10,7 +10,6 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/constants/useTheme';
 import { Text, Caption } from '@/components/ui/Typography';
-import { MarkdownText } from '@/components/ui/MarkdownText';
 import { Avatar } from '@/components/ui/Avatar';
 import { PostMediaGallery } from '@/components/PostMediaGallery';
 import { PostFileAttachments } from '@/components/PostFileAttachments';
@@ -277,34 +276,32 @@ export function PostCard({
         )}
       </View>
 
-      {/* Post Text Content with Rich Markdown Support */}
+      {/* Post Text Content */}
       {Boolean(post.content && post.content.trim()) && (
         <TouchableOpacity
           activeOpacity={0.8}
           onPress={defaultOpenDetail}
           style={{ marginTop: spacing.sm }}
         >
-          {expanded ? (
-            <MarkdownText content={post.content} selectable={false} />
-          ) : (
-            <MarkdownText
-              content={post.content}
-              numberOfLines={4}
-              selectable={false}
-            />
-          )}
-          {(post.content || '').length > 200 && (
-            <Text
-              variant="sm"
-              weight="700"
-              color="secondary"
-              onPress={() => setExpanded(!expanded)}
-              suppressHighlighting
-              style={{ marginTop: 4 }}
-            >
-              {expanded ? 'See less' : 'See more'}
-            </Text>
-          )}
+          <Text
+            variant="sm"
+            style={[styles.postContent, { color: colors.text, lineHeight: 22 }]}
+          >
+            {(post.content || '').length > 240 && !expanded
+              ? `${(post.content || '').slice(0, 240).trim()}... `
+              : post.content}
+            {(post.content || '').length > 240 && (
+              <Text
+                variant="sm"
+                weight="700"
+                color="secondary"
+                onPress={() => setExpanded(!expanded)}
+                suppressHighlighting
+              >
+                {expanded ? '  See less' : '  See more'}
+              </Text>
+            )}
+          </Text>
         </TouchableOpacity>
       )}
 

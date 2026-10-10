@@ -93,7 +93,9 @@ const fs = require('node:fs/promises');
 
   app.use(express.static(path.join(__dirname, '../public')));
 
-  const server = app.listen(0, '127.0.0.1');
+  const server = await new Promise(resolve => {
+    const s = app.listen(0, '127.0.0.1', () => resolve(s));
+  });
   const port = server.address().port;
   console.log(`Test server running at http://127.0.0.1:${port}`);
 

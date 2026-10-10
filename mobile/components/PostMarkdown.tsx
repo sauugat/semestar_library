@@ -13,11 +13,12 @@ import {
 import * as Clipboard from 'expo-clipboard';
 import { useTheme } from '@/constants/useTheme';
 
-interface PostMarkdownProps {
+export interface PostMarkdownProps {
   content: string;
   isExpanded?: boolean;
   onToggleExpand?: () => void;
   maxPreviewLength?: number;
+  onPressText?: () => void;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -26,25 +27,200 @@ interface CodeBlock {
   code: string;
 }
 
-export function PostMarkdown({
+/**
+ * Robust Error Boundary to guarantee that malformed markdown or edge cases
+ * NEVER crash the application. Falls back safely to plain text.
+ */
+class MarkdownErrorBoundary extends React.Component<
+  { fallbackText: string; color?: string; onPress?: () => void; children: React.ReactNode },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(err: any) {
+    console.warn('PostMarkdown caught error in render:', err);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={this.props.onPress}
+          disabled={!this.props.onPress}
+        >
+          <Text style={[styles.paragraph, { color: this.props.color || '#FFFFFF' }]}>
+            {this.props.fallbackText}
+          </Text>
+        </TouchableOpacity>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+/**
+ * Linear, non-recursive inline tokenizer that splits by markdown formatting.
+ */
+function renderInlineTokens(
+  text: string,
+  keyPrefix: string,
+  textColor: string,
+  isDark: boolean,
+  borderColor: string,
+  onPressText?: () => void
+): React.ReactNode[] {
+  if (!text) return [];
+
+  // Split with capturing group to keep matched tokens in parts array
+  const parts = text.split(
+    /(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*|<u>.*?<\/u>|~~[^~]+~~|\[[^\]]+\]\(https?:\/\/[^\s\)]+\)|https?:\/\/[^\s<)]+)/g
+  );
+
+  return parts
+    .map((part, idx) => {
+      if (!part) return null;
+      const key = `${keyPrefix}-${idx}`;
+
+      // 1. Inline code: `code`
+      if (part.startsWith('`') && part.endsWith('`') && part.length >= 2) {
+        return (
+          <Text
+            key={key}
+            style={[
+              styles.inlineCode,
+              {
+                backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+                borderColor: borderColor,
+                color: textColor,
+              },
+            ]}
+          >
+            {part.slice(1, -1)}
+          </Text>
+        );
+      }
+
+      // 2. Bold: **text**
+      if (part.startsWith('**') && part.endsWith('**') && part.length >= 4) {
+        return (
+          <Text
+            key={key}
+            style={{ fontWeight: '700', color: textColor }}
+            onPress={onPressText}
+          >
+            {part.slice(2, -2)}
+          </Text>
+        );
+      }
+
+      // 3. Italic: *text*
+      if (part.startsWith('*') && part.endsWith('*') && part.length >= 2) {
+        return (
+          <Text
+            key={key}
+            style={{ fontStyle: 'italic', color: textColor }}
+            onPress={onPressText}
+          >
+            {part.slice(1, -1)}
+          </Text>
+        );
+      }
+
+      // 4. Underline: <u>text</u>
+      if (part.startsWith('<u>') && part.endsWith('</u>') && part.length >= 7) {
+        return (
+          <Text
+            key={key}
+            style={{ textDecorationLine: 'underline', color: textColor }}
+            onPress={onPressText}
+          >
+            {part.slice(3, -4)}
+          </Text>
+        );
+      }
+
+      // 5. Strikethrough: ~~text~~
+      if (part.startsWith('~~') && part.endsWith('~~') && part.length >= 4) {
+        return (
+          <Text
+            key={key}
+            style={{ textDecorationLine: 'line-through', color: textColor }}
+            onPress={onPressText}
+          >
+            {part.slice(2, -2)}
+          </Text>
+        );
+      }
+
+      // 6. Link: [title](url)
+      if (part.startsWith('[') && part.includes('](')) {
+        const linkMatch = part.match(/^\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)$/);
+        if (linkMatch) {
+          const [, title, url] = linkMatch;
+          return (
+            <Text
+              key={key}
+              style={[styles.link, { color: textColor }]}
+              onPress={() => {
+                Linking.openURL(url).catch(() => {});
+              }}
+            >
+              {title}
+            </Text>
+          );
+        }
+      }
+
+      // 7. Direct URL: https://...
+      if (/^https?:\/\//.test(part)) {
+        return (
+          <Text
+            key={key}
+            style={[styles.link, { color: textColor }]}
+            onPress={() => {
+              Linking.openURL(part).catch(() => {});
+            }}
+          >
+            {part}
+          </Text>
+        );
+      }
+
+      // 8. Plain text segment
+      return (
+        <Text key={key} style={{ color: textColor }} onPress={onPressText}>
+          {part}
+        </Text>
+      );
+    })
+    .filter(Boolean);
+}
+
+function PostMarkdownInternal({
   content,
   isExpanded = true,
   onToggleExpand,
   maxPreviewLength,
+  onPressText,
   style,
 }: PostMarkdownProps) {
   const { colors, isDark } = useTheme();
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
-  if (!content || !content.trim()) return null;
+  if (!content || typeof content !== 'string' || !content.trim()) return null;
 
-  const shouldTruncate = Boolean(
+  const isTruncated = Boolean(
     maxPreviewLength &&
     !isExpanded &&
     content.length > maxPreviewLength
   );
 
-  const displayContent = shouldTruncate
+  const displayContent = isTruncated
     ? content.slice(0, maxPreviewLength).trim()
     : content;
 
@@ -56,8 +232,8 @@ export function PostMarkdown({
     (_, lang, code) => {
       const idx = codeBlocks.length;
       codeBlocks.push({
-        lang: (lang || 'code').trim().toUpperCase(),
-        code: code.replace(/\n+$/, ''),
+        lang: (lang || 'CODE').trim().toUpperCase(),
+        code: (code || '').replace(/\n+$/, ''),
       });
       return `\x01CODE_BLOCK_${idx}\x02`;
     }
@@ -73,133 +249,16 @@ export function PostMarkdown({
     return cells.every((c) => /^\s*:?-{1,}:?\s*$/.test(c));
   }
 
-  function handleCopyCode(code: string, index: number) {
-    Clipboard.setStringAsync(code);
-    setCopiedIndex(index);
-    setTimeout(() => {
-      setCopiedIndex((cur) => (cur === index ? null : cur));
-    }, 2000);
-  }
-
-  // Parse inline Markdown tokens
-  function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
-    if (!text) return [];
-
-    // Tokenize text into segments
-    // Patterns: `code`, **bold**, *italic*, <u>underline</u>, ~~strike~~, [title](url), URLs
-    const tokens: React.ReactNode[] = [];
-    let remaining = text;
-    let tokenIndex = 0;
-
-    // Combined inline regex pattern
-    const inlineRegex = /(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*|<u>.*?<\/u>|~~[^~]+~~|\[[^\]]+\]\(https?:\/\/[^\s\)]+\)|https?:\/\/[^\s<)]+)/;
-
-    while (remaining.length > 0) {
-      const match = remaining.match(inlineRegex);
-      if (!match || match.index === undefined) {
-        tokens.push(
-          <Text key={`${keyPrefix}-t-${tokenIndex++}`} style={{ color: colors.text }}>
-            {remaining}
-          </Text>
-        );
-        break;
-      }
-
-      if (match.index > 0) {
-        tokens.push(
-          <Text key={`${keyPrefix}-t-${tokenIndex++}`} style={{ color: colors.text }}>
-            {remaining.slice(0, match.index)}
-          </Text>
-        );
-      }
-
-      const matchText = match[0];
-      remaining = remaining.slice(match.index + matchText.length);
-
-      // Inline Code: `code`
-      if (matchText.startsWith('`') && matchText.endsWith('`')) {
-        const codeContent = matchText.slice(1, -1);
-        tokens.push(
-          <Text
-            key={`${keyPrefix}-code-${tokenIndex++}`}
-            style={[
-              styles.inlineCode,
-              {
-                backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
-                borderColor: colors.border,
-                color: colors.text,
-              },
-            ]}
-          >
-            {codeContent}
-          </Text>
-        );
-      }
-      // Bold: **text**
-      else if (matchText.startsWith('**') && matchText.endsWith('**')) {
-        tokens.push(
-          <Text key={`${keyPrefix}-b-${tokenIndex++}`} style={{ fontWeight: '700', color: colors.text }}>
-            {renderInline(matchText.slice(2, -2), `${keyPrefix}-b-${tokenIndex}`)}
-          </Text>
-        );
-      }
-      // Italic: *text*
-      else if (matchText.startsWith('*') && matchText.endsWith('*')) {
-        tokens.push(
-          <Text key={`${keyPrefix}-i-${tokenIndex++}`} style={{ fontStyle: 'italic', color: colors.text }}>
-            {renderInline(matchText.slice(1, -1), `${keyPrefix}-i-${tokenIndex}`)}
-          </Text>
-        );
-      }
-      // Underline: <u>text</u>
-      else if (matchText.startsWith('<u>') && matchText.endsWith('</u>')) {
-        tokens.push(
-          <Text key={`${keyPrefix}-u-${tokenIndex++}`} style={{ textDecorationLine: 'underline', color: colors.text }}>
-            {renderInline(matchText.slice(3, -4), `${keyPrefix}-u-${tokenIndex}`)}
-          </Text>
-        );
-      }
-      // Strikethrough: ~~text~~
-      else if (matchText.startsWith('~~') && matchText.endsWith('~~')) {
-        tokens.push(
-          <Text key={`${keyPrefix}-s-${tokenIndex++}`} style={{ textDecorationLine: 'line-through', color: colors.textSecondary }}>
-            {renderInline(matchText.slice(2, -2), `${keyPrefix}-s-${tokenIndex}`)}
-          </Text>
-        );
-      }
-      // Link: [title](url)
-      else if (matchText.startsWith('[') && matchText.includes('](')) {
-        const linkMatch = matchText.match(/^\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)$/);
-        if (linkMatch) {
-          const [, title, url] = linkMatch;
-          tokens.push(
-            <Text
-              key={`${keyPrefix}-link-${tokenIndex++}`}
-              style={[styles.link, { color: colors.text }]}
-              onPress={() => Linking.openURL(url)}
-            >
-              {title}
-            </Text>
-          );
-        } else {
-          tokens.push(<Text key={`${keyPrefix}-t-${tokenIndex++}`}>{matchText}</Text>);
-        }
-      }
-      // Direct URL
-      else if (/^https?:\/\//.test(matchText)) {
-        tokens.push(
-          <Text
-            key={`${keyPrefix}-url-${tokenIndex++}`}
-            style={[styles.link, { color: colors.text }]}
-            onPress={() => Linking.openURL(matchText)}
-          >
-            {matchText}
-          </Text>
-        );
-      }
+  async function handleCopyCode(code: string, index: number) {
+    try {
+      await Clipboard.setStringAsync(code);
+      setCopiedIndex(index);
+      setTimeout(() => {
+        setCopiedIndex((cur) => (cur === index ? null : cur));
+      }, 2000);
+    } catch {
+      // Ignore clipboard write failure
     }
-
-    return tokens;
   }
 
   let paraBuffer: string[] = [];
@@ -207,8 +266,8 @@ export function PostMarkdown({
     if (paraBuffer.length > 0) {
       const fullPara = paraBuffer.join('\n');
       renderedElements.push(
-        <Text key={key} style={[styles.paragraph, { color: colors.text }]}>
-          {renderInline(fullPara, key)}
+        <Text key={key} style={[styles.paragraph, { color: colors.text }]} onPress={onPressText}>
+          {renderInlineTokens(fullPara, key, colors.text, isDark, colors.border, onPressText)}
         </Text>
       );
       paraBuffer = [];
@@ -260,6 +319,7 @@ export function PostMarkdown({
                   },
                 ]}
                 activeOpacity={0.7}
+                accessibilityLabel="Copy code"
               >
                 <Text style={[styles.copyBtnText, { color: colors.text }]}>
                   {isCopied ? 'Copied!' : 'Copy'}
@@ -268,6 +328,7 @@ export function PostMarkdown({
             </View>
             <ScrollView
               horizontal
+              nestedScrollEnabled={true}
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ padding: 10 }}
             >
@@ -278,7 +339,6 @@ export function PostMarkdown({
                     color: isDark ? '#f4f4f5' : '#18181b',
                   },
                 ]}
-                selectable
               >
                 {block.code}
               </Text>
@@ -320,7 +380,7 @@ export function PostMarkdown({
         dataRows.push(rowCells);
         j++;
       }
-      i = j - 1; // Advance loop
+      i = j - 1;
 
       renderedElements.push(
         <View
@@ -333,7 +393,11 @@ export function PostMarkdown({
             },
           ]}
         >
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <ScrollView
+            horizontal
+            nestedScrollEnabled={true}
+            showsHorizontalScrollIndicator={false}
+          >
             <View>
               {/* Header Row */}
               <View
@@ -341,8 +405,8 @@ export function PostMarkdown({
                   styles.tableRow,
                   styles.tableHeaderRow,
                   {
-                    backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#f4f4f5',
                     borderBottomColor: colors.border,
+                    backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)',
                   },
                 ]}
               >
@@ -415,8 +479,8 @@ export function PostMarkdown({
       const level = hMatch[1].length;
       const headingStyle = level === 1 ? styles.h1 : level === 2 ? styles.h2 : styles.h3;
       renderedElements.push(
-        <Text key={`h-${i}`} style={[headingStyle, { color: colors.text }]}>
-          {renderInline(hMatch[2], `h-${i}`)}
+        <Text key={`h-${i}`} style={[headingStyle, { color: colors.text }]} onPress={onPressText}>
+          {renderInlineTokens(hMatch[2], `h-${i}`, colors.text, isDark, colors.border, onPressText)}
         </Text>
       );
       continue;
@@ -437,8 +501,8 @@ export function PostMarkdown({
             },
           ]}
         >
-          <Text style={[styles.blockquoteText, { color: colors.textSecondary }]}>
-            {renderInline(qMatch[1], `q-${i}`)}
+          <Text style={[styles.blockquoteText, { color: colors.textSecondary }]} onPress={onPressText}>
+            {renderInlineTokens(qMatch[1], `q-${i}`, colors.textSecondary, isDark, colors.border, onPressText)}
           </Text>
         </View>
       );
@@ -453,8 +517,8 @@ export function PostMarkdown({
       renderedElements.push(
         <View key={`li-${i}`} style={styles.listItemRow}>
           <Text style={[styles.listBullet, { color: colors.textSecondary }]}>{bullet}</Text>
-          <Text style={[styles.listContent, { color: colors.text }]}>
-            {renderInline(listMatch[3], `li-${i}`)}
+          <Text style={[styles.listContent, { color: colors.text }]} onPress={onPressText}>
+            {renderInlineTokens(listMatch[3], `li-${i}`, colors.text, isDark, colors.border, onPressText)}
           </Text>
         </View>
       );
@@ -477,7 +541,7 @@ export function PostMarkdown({
     <View style={[styles.container, style]}>
       {renderedElements}
 
-      {shouldTruncate && onToggleExpand && (
+      {isTruncated && onToggleExpand && (
         <TouchableOpacity
           onPress={onToggleExpand}
           activeOpacity={0.7}
@@ -490,7 +554,7 @@ export function PostMarkdown({
         </TouchableOpacity>
       )}
 
-      {!shouldTruncate && maxPreviewLength && isExpanded && onToggleExpand && content.length > maxPreviewLength && (
+      {!isTruncated && maxPreviewLength && isExpanded && onToggleExpand && content.length > maxPreviewLength && (
         <TouchableOpacity
           onPress={onToggleExpand}
           activeOpacity={0.7}
@@ -506,13 +570,26 @@ export function PostMarkdown({
   );
 }
 
+export function PostMarkdown(props: PostMarkdownProps) {
+  const { colors } = useTheme();
+  return (
+    <MarkdownErrorBoundary
+      fallbackText={props.content}
+      color={colors.text}
+      onPress={props.onPressText}
+    >
+      <PostMarkdownInternal {...props} />
+    </MarkdownErrorBoundary>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     width: '100%',
   },
   paragraph: {
     fontSize: 14,
-    lineHeight: 20,
+    lineHeight: 21,
     marginBottom: 6,
   },
   h1: {
@@ -546,7 +623,7 @@ const styles = StyleSheet.create({
   },
   link: {
     textDecorationLine: 'underline',
-    fontWeight: '500',
+    fontWeight: '600',
   },
   codeBlockContainer: {
     marginVertical: 8,

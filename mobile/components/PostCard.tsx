@@ -284,25 +284,12 @@ export function PostCard({
           onPress={defaultOpenDetail}
           style={{ marginTop: spacing.sm }}
         >
-          <Text
-            variant="sm"
-            style={[styles.postContent, { color: colors.text, lineHeight: 22 }]}
-          >
-            {(post.content || '').length > 240 && !expanded
-              ? `${(post.content || '').slice(0, 240).trim()}... `
-              : post.content}
-            {(post.content || '').length > 240 && (
-              <Text
-                variant="sm"
-                weight="700"
-                color="secondary"
-                onPress={() => setExpanded(!expanded)}
-                suppressHighlighting
-              >
-                {expanded ? '  See less' : '  See more'}
-              </Text>
-            )}
-          </Text>
+          <PostMarkdown
+            content={post.content}
+            isExpanded={expanded}
+            onToggleExpand={() => setExpanded(!expanded)}
+            maxPreviewLength={240}
+          />
         </TouchableOpacity>
       )}
 

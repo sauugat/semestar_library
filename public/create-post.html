@@ -308,52 +308,25 @@
       margin-bottom: 8px;
     }
 
-    .composer-view-tabs {
-      display: flex;
-      gap: 2px;
-      background: var(--input-bg);
-      border: 1px solid var(--border-color);
-      padding: 3px;
-      border-radius: 8px;
-    }
-
-    .composer-tab-btn {
-      background: transparent;
-      border: none;
-      font-size: 12px;
-      font-weight: 600;
+    .composer-live-hint {
+      font-size: 11.5px;
       color: var(--text-muted);
-      padding: 4px 10px;
-      border-radius: 6px;
-      cursor: pointer;
-      transition: all 0.15s ease;
-      font-family: inherit;
-    }
-
-    .composer-tab-btn.active {
-      background: var(--card-bg);
-      color: var(--text-main);
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-    }
-
-    [data-theme="dark"] .composer-tab-btn.active {
-      background: #27272a;
-      color: #ffffff;
+      font-weight: 500;
     }
 
     .markdown-toolbar {
       display: flex;
       align-items: center;
       gap: 3px;
-      padding: 6px 8px;
+      padding: 6px 10px;
       background: var(--input-bg);
       border: 1px solid var(--border-color);
-      border-bottom: none;
+      border-bottom: 1px solid var(--border-color);
       border-top-left-radius: 10px;
       border-top-right-radius: 10px;
       overflow-x: auto;
       scrollbar-width: thin;
-      transition: opacity 0.15s ease;
+      user-select: none;
     }
 
     .toolbar-group {
@@ -364,9 +337,9 @@
 
     .toolbar-divider {
       width: 1px;
-      height: 16px;
+      height: 18px;
       background: var(--border-color);
-      margin: 0 3px;
+      margin: 0 4px;
       flex-shrink: 0;
     }
 
@@ -384,7 +357,7 @@
       font-size: 12.5px;
       font-weight: 600;
       cursor: pointer;
-      transition: background 0.12s ease, border-color 0.12s ease;
+      transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
       user-select: none;
       font-family: inherit;
     }
@@ -392,6 +365,22 @@
     .md-tool-btn:hover {
       background: var(--select-hover);
       border-color: var(--border-color);
+    }
+
+    .md-tool-btn.active,
+    .md-tool-btn[aria-pressed="true"] {
+      background: #27272a;
+      color: #fafafa;
+      border-color: #52525b;
+    }
+
+    [data-theme="light"] .md-tool-btn.active,
+    body.light-mode .md-tool-btn.active,
+    [data-theme="light"] .md-tool-btn[aria-pressed="true"],
+    body.light-mode .md-tool-btn[aria-pressed="true"] {
+      background: #18181b;
+      color: #ffffff;
+      border-color: #09090b;
     }
 
     .md-tool-btn svg {
@@ -402,22 +391,90 @@
       position: relative;
     }
 
-    .composer-editor-wrap .composer-textarea {
-      border-top-left-radius: 0;
-      border-top-right-radius: 0;
-    }
-
-    .composer-preview-area {
-      min-height: 160px;
+    .composer-wysiwyg-editor {
+      min-height: 180px;
       max-height: 480px;
       overflow-y: auto;
       padding: 14px 16px;
       background: var(--input-bg);
       border: 1px solid var(--border-color);
+      border-top: none;
       border-bottom-left-radius: 10px;
       border-bottom-right-radius: 10px;
       line-height: 1.6;
       box-sizing: border-box;
+      outline: none;
+      font-family: inherit;
+      font-size: 14px;
+      color: var(--text-main);
+      transition: border-color 0.15s ease;
+      word-break: break-word;
+    }
+
+    .composer-wysiwyg-editor:focus {
+      border-color: var(--border-hover);
+    }
+
+    .composer-wysiwyg-editor:empty:before,
+    .composer-wysiwyg-editor[data-empty="true"]:before {
+      content: attr(data-placeholder);
+      color: var(--text-muted);
+      pointer-events: none;
+      display: block;
+    }
+
+    .composer-wysiwyg-editor p {
+      margin: 0 0 0.8em 0;
+    }
+
+    .composer-wysiwyg-editor p:last-child {
+      margin-bottom: 0;
+    }
+
+    .composer-wysiwyg-editor h1,
+    .composer-wysiwyg-editor h2,
+    .composer-wysiwyg-editor h3 {
+      margin-top: 0.6em;
+      margin-bottom: 0.4em;
+      line-height: 1.3;
+    }
+
+    .composer-wysiwyg-editor blockquote {
+      border-left: 3px solid var(--border-color);
+      padding-left: 12px;
+      margin: 0.6em 0;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    .composer-wysiwyg-editor pre {
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 13px;
+      margin: 0.6em 0;
+      overflow-x: auto;
+    }
+
+    .composer-wysiwyg-editor code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12.5px;
+      background: rgba(125, 125, 125, 0.15);
+      padding: 2px 5px;
+      border-radius: 4px;
+    }
+
+    .composer-wysiwyg-editor pre code {
+      background: transparent;
+      padding: 0;
+    }
+
+    .composer-wysiwyg-editor ul,
+    .composer-wysiwyg-editor ol {
+      padding-left: 24px;
+      margin: 0.5em 0;
     }
 
     .composer-footer-hints {

@@ -1552,28 +1552,21 @@
 
       // Collapsed cursor: format for UPCOMING text without altering written text
       if (cmd) {
-        const isActive = document.queryCommandState(cmd);
-        if (isActive) {
-          // Turning OFF for upcoming text
-          document.execCommand(cmd, false, null);
-          escapeInlineTag(tagName, range, sel);
-        } else {
-          // Turning ON for upcoming text
-          document.execCommand(cmd, false, null);
+        document.execCommand(cmd, false, null);
+      } else if (tagName === 'code') {
+        const parentCode = findClosestElement(range.startContainer, ['code']);
+        if (parentCode) {
           const zws = document.createTextNode('\u200B');
-          const inlineEl = document.createElement(tagName);
-          inlineEl.appendChild(zws);
-          range.insertNode(inlineEl);
+          if (parentCode.nextSibling) {
+            parentCode.parentNode.insertBefore(zws, parentCode.nextSibling);
+          } else {
+            parentCode.parentNode.appendChild(zws);
+          }
           const newRange = document.createRange();
           newRange.setStart(zws, 1);
           newRange.collapse(true);
           sel.removeAllRanges();
           sel.addRange(newRange);
-        }
-      } else if (tagName === 'code') {
-        const parentCode = findClosestElement(range.startContainer, ['code']);
-        if (parentCode) {
-          escapeInlineTag('code', range, sel);
         } else {
           const codeEl = document.createElement('code');
           const zws = document.createTextNode('\u200B');

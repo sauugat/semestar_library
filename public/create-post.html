@@ -1340,8 +1340,8 @@
       if (!postEditor || !charCounter) return;
       const md = syncEditorToMarkdown();
       const plainLen = (postEditor.innerText || '').replace(/[\r\n\u200B]/g, '').trim().length;
-      charCounter.textContent = `${plainLen.toLocaleString()} / 5,000`;
-      if (plainLen > 5000) {
+      charCounter.textContent = `${plainLen.toLocaleString()} / 1,000,000`;
+      if (plainLen > 1000000) {
         charCounter.style.color = '#ef4444';
       } else {
         charCounter.style.color = 'var(--text-muted)';

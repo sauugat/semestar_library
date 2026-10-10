@@ -1314,8 +1314,20 @@
     const charCounter = document.getElementById('charCounter');
     const markdownToolbar = document.getElementById('markdownToolbar');
 
+    function cleanZeroWidthSpaces() {
+      if (!postEditor) return;
+      const walker = document.createTreeWalker(postEditor, NodeFilter.SHOW_TEXT, null);
+      let node;
+      while ((node = walker.nextNode())) {
+        if (node.nodeValue && node.nodeValue.length > 1 && node.nodeValue.includes('\u200B')) {
+          node.nodeValue = node.nodeValue.replace(/\u200B/g, '');
+        }
+      }
+    }
+
     function syncEditorToMarkdown() {
       if (!postEditor) return '';
+      cleanZeroWidthSpaces();
       const html = postEditor.innerHTML;
       const md = (typeof htmlToMarkdown === 'function')
         ? htmlToMarkdown(html).trim()
@@ -1327,7 +1339,7 @@
     function updateCharCounter() {
       if (!postEditor || !charCounter) return;
       const md = syncEditorToMarkdown();
-      const plainLen = (postEditor.innerText || '').replace(/\r\n/g, '\n').trim().length;
+      const plainLen = (postEditor.innerText || '').replace(/[\r\n\u200B]/g, '').trim().length;
       charCounter.textContent = `${plainLen.toLocaleString()} / 5,000`;
       if (plainLen > 5000) {
         charCounter.style.color = '#ef4444';
@@ -1336,7 +1348,8 @@
       }
 
       // Check placeholder visibility
-      if (!postEditor.textContent.trim()) {
+      const hasRealContent = !!(postEditor.innerText || '').replace(/[\r\n\u200B]/g, '').trim();
+      if (!hasRealContent) {
         postEditor.setAttribute('data-empty', 'true');
       } else {
         postEditor.removeAttribute('data-empty');
@@ -1370,20 +1383,39 @@
 
     function getCurrentBlock(node) {
       if (!node) return null;
-      let cur = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
       const blockTags = ['p', 'h1', 'h2', 'h3', 'blockquote', 'pre', 'ul', 'ol', 'li', 'div'];
+
+      // First check if already inside a block element
+      let cur = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
       while (cur && cur !== postEditor) {
         if (blockTags.includes(cur.tagName.toLowerCase())) {
           return cur;
         }
         cur = cur.parentElement;
       }
+
+      // If not, find the direct child of postEditor
+      let topChild = node;
+      while (topChild && topChild.parentNode && topChild.parentNode !== postEditor) {
+        topChild = topChild.parentNode;
+      }
+
+      if (topChild && topChild.parentNode === postEditor) {
+        if (topChild.nodeType === Node.TEXT_NODE || !blockTags.includes(topChild.tagName.toLowerCase())) {
+          const p = document.createElement('p');
+          postEditor.insertBefore(p, topChild);
+          p.appendChild(topChild);
+          return p;
+        }
+        return topChild;
+      }
+
       return null;
     }
 
     function isBlockEmpty(block) {
       if (!block) return true;
-      const text = (block.textContent || '').replace(/\u200B/g, '').trim();
+      const text = (block.textContent || '').replace(/[\u200B\r\n]/g, '').trim();
       return text.length === 0;
     }
 
@@ -1459,10 +1491,19 @@
 
     function ensureEditorFocus() {
       if (!postEditor) return;
+      if (!postEditor.innerHTML.trim() || postEditor.innerHTML === '<br>') {
+        postEditor.innerHTML = '<p><br></p>';
+      }
       postEditor.focus();
       const sel = window.getSelection();
       if (!sel || sel.rangeCount === 0 || !postEditor.contains(sel.anchorNode)) {
         const range = document.createRange();
+        range.selectNodeContents(postEditor.lastElementChild || postEditor);
+        range.collapse(false);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+    }
         range.selectNodeContents(postEditor);
         range.collapse(false);
         sel.removeAllRanges();

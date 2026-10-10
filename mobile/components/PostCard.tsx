@@ -16,6 +16,7 @@ import { PostFileAttachments } from '@/components/PostFileAttachments';
 import { Post } from '@/services/posts';
 import { formatTimeAgo } from '@/utils/date';
 import { FullScreenImageViewer } from '@/components/FullScreenImageViewer';
+import { PostMarkdown } from '@/components/PostMarkdown';
 
 export interface PostCardProps {
   post: Post;

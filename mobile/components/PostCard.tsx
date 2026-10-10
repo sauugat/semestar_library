@@ -261,21 +261,35 @@ export function PostCard({
         </View>
       </View>
 
-      {/* Category and Audience Monochrome Tags */}
-      <View style={styles.postTagsRow}>
-        <View style={[styles.monochromeBadge, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
-          <Text variant="xs" weight="700" style={{ color: colors.textSecondary, fontSize: 10, textTransform: 'uppercase' }}>
-            {post.category_label || (post.category ? post.category.toUpperCase() : 'GENERAL')}
-          </Text>
-        </View>
-        {(post.visibility === 'students_only' || post.audience === 'students_only') && (
-          <View style={[styles.monochromeBadge, { backgroundColor: colors.surfaceRaised, borderColor: colors.borderStrong || colors.border }]}>
-            <Text variant="xs" weight="700" style={{ color: colors.text, fontSize: 10, textTransform: 'uppercase' }}>
-              STUDENTS ONLY
-            </Text>
+      {/* Category and Audience Monochrome Tags (omits General) */}
+      {(() => {
+        const cat = (post.category_label || post.category || '').trim();
+        const isGeneral = !cat || cat.toLowerCase() === 'general';
+        const isStudentsOnly = post.visibility === 'students_only' || post.audience === 'students_only';
+
+        if (isGeneral && !isStudentsOnly) {
+          return null;
+        }
+
+        return (
+          <View style={styles.postTagsRow}>
+            {!isGeneral && (
+              <View style={[styles.monochromeBadge, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+                <Text variant="xs" weight="700" style={{ color: colors.textSecondary, fontSize: 10, textTransform: 'uppercase' }}>
+                  {post.category_label || (post.category ? post.category.toUpperCase() : '')}
+                </Text>
+              </View>
+            )}
+            {isStudentsOnly && (
+              <View style={[styles.monochromeBadge, { backgroundColor: colors.surfaceRaised, borderColor: colors.borderStrong || colors.border }]}>
+                <Text variant="xs" weight="700" style={{ color: colors.text, fontSize: 10, textTransform: 'uppercase' }}>
+                  STUDENTS ONLY
+                </Text>
+              </View>
+            )}
           </View>
-        )}
-      </View>
+        );
+      })()}
 
       {/* Post Text Content */}
       {Boolean(post.content && post.content.trim()) && (

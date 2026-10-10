@@ -29,6 +29,7 @@ import { Badge } from '@/components/ui/Badge';
 import { StickyComposer, KeyboardContentBoundary } from '@/components/ui/StickyComposer';
 import { COMPOSER_GEOMETRY } from '@/constants/composerGeometry';
 import { formatTimeAgo } from '@/utils/date';
+import { PostMarkdown } from '@/components/PostMarkdown';
 import { queryClient } from '@/services/query-client';
 import {
   getPostById,
@@ -571,16 +572,10 @@ export default function PostDetailScreen() {
           </View>
 
           {/* Post Content Body */}
-          <Text
-            variant="md"
-            style={[
-              styles.postBody,
-              { color: colors.text, marginTop: spacing.md, marginBottom: spacing.md },
-            ]}
-            selectable
-          >
-            {post.content}
-          </Text>
+          <PostMarkdown
+            content={post.content}
+            style={{ marginTop: spacing.md, marginBottom: spacing.md }}
+          />
 
           {/* Attached Images: responsive grid with swipeable fullscreen gallery */}
           {((Array.isArray(post.media) && post.media.some((m) => (m.media_type || 'image') === 'image')) || post.attachment_url) && (

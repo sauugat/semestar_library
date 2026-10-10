@@ -3783,11 +3783,429 @@
       });
     }
 
-    // Dedicated composer is hosted at /create-post. Stubs for window methods:
-    window.removeComposerImageAt = () => {};
-    window.removeComposerFileAt = () => {};
-    window.addComposerImages = () => {};
-    window.addComposerFiles = () => {};
+    const postImageInput = document.getElementById('postImageInput');
+    const postFileInput = document.getElementById('postFileInput');
+    const postImagePreview = document.getElementById('postImagePreview');
+    const postImagePreviewImg = document.getElementById('postImagePreviewImg');
+    const postImageError = document.getElementById('postImageError');
+    const choosePostImageBtn = document.getElementById('choosePostImage');
+    const choosePostFilesBtn = document.getElementById('choosePostFiles');
+    const removePostImageBtn = document.getElementById('removePostImage');
+    const retryPostImageBtn = document.getElementById('retryPostImage');
+    const clearAllImagesBtn = document.getElementById('clearAllImagesBtn');
+    const clearAllFilesBtn = document.getElementById('clearAllFilesBtn');
+    const postSingleImagePreviewCard = document.getElementById('postSingleImagePreviewCard');
+    const postMultiImagesGrid = document.getElementById('postMultiImagesGrid');
+    const postImagesPreviewHeader = document.getElementById('postImagesPreviewHeader');
+    const postImagesCount = document.getElementById('postImagesCount');
+    const postFilesPreview = document.getElementById('postFilesPreview');
+    const postFilesList = document.getElementById('postFilesList');
+    const postFilesCount = document.getElementById('postFilesCount');
+    const choosePostImageLabel = document.getElementById('choosePostImageLabel');
+    const choosePostFilesLabel = document.getElementById('choosePostFilesLabel');
+
+    let postImagePreviewUrl = null;
+    let composerImages = [];
+    let composerFiles = [];
+    const composerImageUrls = new Map();
+
+    function updateLabelsAndButtons() {
+      if (choosePostImageLabel) {
+        choosePostImageLabel.textContent = composerImages.length > 0 ? `Photos (${composerImages.length})` : 'Add photos';
+      }
+      if (choosePostFilesLabel) {
+        choosePostFilesLabel.textContent = composerFiles.length > 0 ? `Files (${composerFiles.length})` : 'Attach files';
+      }
+      if (choosePostImageBtn && choosePostImageBtn.classList) {
+        if (composerImages.length > 0 || (postImageInput && postImageInput.files && postImageInput.files.length > 0)) {
+          choosePostImageBtn.classList.add('has-attachment');
+        } else {
+          choosePostImageBtn.classList.remove('has-attachment');
+        }
+      }
+      if (choosePostFilesBtn && choosePostFilesBtn.classList) {
+        if (composerFiles.length > 0 || (postFileInput && postFileInput.files && postFileInput.files.length > 0)) {
+          choosePostFilesBtn.classList.add('has-attachment');
+        } else {
+          choosePostFilesBtn.classList.remove('has-attachment');
+        }
+      }
+    }
+
+    function updatePostButtonState() {
+      const content = document.getElementById('postContent');
+      const fileInput = document.getElementById('postImageInput');
+      const docInput = document.getElementById('postFileInput');
+      const button = document.getElementById('publishPost');
+      if (!content || !button) return;
+      const hasText = content.value.trim().length > 0;
+      const hasImage = !!((fileInput && fileInput.files && fileInput.files.length > 0) || composerImages.length > 0);
+      const hasFiles = !!((docInput && docInput.files && docInput.files.length > 0) || composerFiles.length > 0);
+      button.disabled = !hasText && !hasImage && !hasFiles;
+    }
+
+    function renderComposerImagesPreview() {
+      if (composerImages.length === 0) {
+        clearPostImage();
+        return;
+      }
+
+      if (postImagePreview) {
+        postImagePreview.hidden = false;
+        if (postImagePreview.classList) postImagePreview.classList.add('has-image');
+      }
+
+      if (composerImages.length === 1) {
+        const file = composerImages[0];
+        let url = composerImageUrls.get(file);
+        if (!url) {
+          url = URL.createObjectURL(file);
+          composerImageUrls.set(file, url);
+        }
+        if (postImagePreviewUrl && postImagePreviewUrl !== url) {
+          URL.revokeObjectURL(postImagePreviewUrl);
+        }
+        postImagePreviewUrl = url;
+
+        if (postImagePreviewImg) {
+          postImagePreviewImg.src = postImagePreviewUrl;
+          if (postImagePreviewImg.style) postImagePreviewImg.style.display = 'block';
+        }
+        if (postImageError && postImageError.style) postImageError.style.display = 'none';
+        if (postSingleImagePreviewCard && postSingleImagePreviewCard.style) postSingleImagePreviewCard.style.display = 'flex';
+        if (postMultiImagesGrid && postMultiImagesGrid.style) postMultiImagesGrid.style.display = 'none';
+        if (postImagesPreviewHeader && postImagesPreviewHeader.style) postImagesPreviewHeader.style.display = 'none';
+      } else {
+        if (postSingleImagePreviewCard && postSingleImagePreviewCard.style) postSingleImagePreviewCard.style.display = 'none';
+        if (postImagesPreviewHeader && postImagesPreviewHeader.style) postImagesPreviewHeader.style.display = 'flex';
+        if (postImagesCount) postImagesCount.textContent = `Photos (${composerImages.length}/10)`;
+
+        const firstUrl = composerImageUrls.get(composerImages[0]);
+        if (firstUrl && postImagePreviewImg) postImagePreviewImg.src = firstUrl;
+
+        if (postMultiImagesGrid) {
+          postMultiImagesGrid.style.display = 'flex';
+          postMultiImagesGrid.innerHTML = composerImages.map((f, idx) => {
+            const u = composerImageUrls.get(f) || '';
+            return `
+              <div class="composer-thumb-card">
+                <img src="${u}" alt="Photo ${idx + 1}" class="composer-thumb-img">
+                <span class="composer-thumb-idx">${idx + 1}</span>
+                <button type="button" class="composer-thumb-remove" onclick="removeComposerImageAt(${idx})" aria-label="Remove photo ${idx + 1}" title="Remove photo">
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+              </div>
+            `;
+          }).join('');
+        }
+      }
+
+      updateLabelsAndButtons();
+      if (typeof updatePostButtonState === 'function') updatePostButtonState();
+    }
+
+    function removeComposerImageAt(index) {
+      if (index < 0 || index >= composerImages.length) return;
+      const [removed] = composerImages.splice(index, 1);
+      if (removed) {
+        const u = composerImageUrls.get(removed);
+        if (u) {
+          URL.revokeObjectURL(u);
+          composerImageUrls.delete(removed);
+        }
+      }
+      if (composerImages.length === 0) {
+        clearPostImage();
+      } else {
+        renderComposerImagesPreview();
+      }
+    }
+    if (typeof window !== 'undefined') window.removeComposerImageAt = removeComposerImageAt;
+
+    function clearPostImage() {
+      if (postImagePreviewUrl) URL.revokeObjectURL(postImagePreviewUrl);
+
+      composerImages.forEach(f => {
+        const u = composerImageUrls.get(f);
+        if (u && u !== postImagePreviewUrl) URL.revokeObjectURL(u);
+      });
+      postImagePreviewUrl = null;
+      composerImages = [];
+      composerImageUrls.clear();
+
+      if (postImageInput) postImageInput.value = '';
+      if (postImagePreviewImg) {
+        postImagePreviewImg.removeAttribute('src');
+        if (postImagePreviewImg.style) postImagePreviewImg.style.display = 'none';
+      }
+      if (postImageError && postImageError.style) postImageError.style.display = 'none';
+      if (postSingleImagePreviewCard && postSingleImagePreviewCard.style) postSingleImagePreviewCard.style.display = 'none';
+      if (postMultiImagesGrid) {
+        postMultiImagesGrid.innerHTML = '';
+        if (postMultiImagesGrid.style) postMultiImagesGrid.style.display = 'none';
+      }
+      if (postImagesPreviewHeader && postImagesPreviewHeader.style) postImagesPreviewHeader.style.display = 'none';
+      if (postImagePreview) {
+        postImagePreview.hidden = true;
+        if (postImagePreview.classList) postImagePreview.classList.remove('has-image');
+      }
+      if (choosePostImageBtn && choosePostImageBtn.classList) choosePostImageBtn.classList.remove('has-attachment');
+      updateLabelsAndButtons();
+      if (typeof updatePostButtonState === 'function') updatePostButtonState();
+    }
+
+    function renderComposerFilesPreview() {
+      if (composerFiles.length === 0) {
+        clearPostFiles();
+        return;
+      }
+
+      if (postFilesPreview) postFilesPreview.hidden = false;
+      if (postFilesCount) postFilesCount.textContent = `Attached Files (${composerFiles.length}/5)`;
+
+      if (postFilesList) {
+        postFilesList.innerHTML = composerFiles.map((f, idx) => {
+          const ext = (f.name || '').split('.').pop().toUpperCase();
+          const sizeStr = (typeof formatSize === 'function' && f.size) ? formatSize(f.size) : '';
+          return `
+            <div class="composer-file-card">
+              <div class="composer-file-icon ${getFileColorClass(ext)}">
+                ${getFileIconSvg(ext)}
+              </div>
+              <div class="composer-file-info">
+                <span class="composer-file-name" title="${escapeHtml(f.name)}">${escapeHtml(f.name)}</span>
+                <span class="composer-file-meta">${escapeHtml(ext)}${sizeStr ? ` &middot; ${sizeStr}` : ''}</span>
+              </div>
+              <button type="button" class="composer-file-remove" onclick="removeComposerFileAt(${idx})" aria-label="Remove ${escapeHtml(f.name)}" title="Remove file">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              </button>
+            </div>
+          `;
+        }).join('');
+      }
+
+      updateLabelsAndButtons();
+      if (typeof updatePostButtonState === 'function') updatePostButtonState();
+    }
+
+    function removeComposerFileAt(index) {
+      if (index < 0 || index >= composerFiles.length) return;
+      composerFiles.splice(index, 1);
+      if (composerFiles.length === 0) {
+        clearPostFiles();
+      } else {
+        renderComposerFilesPreview();
+      }
+    }
+    if (typeof window !== 'undefined') {
+      window.removeComposerFileAt = removeComposerFileAt;
+      window.addComposerImages = function(newFiles) {
+        composerImages = [...composerImages, ...newFiles].slice(0, 10);
+        composerImages.forEach(f => {
+          if (!composerImageUrls.has(f)) {
+            composerImageUrls.set(f, f.previewUrl || (typeof URL !== 'undefined' && URL.createObjectURL ? URL.createObjectURL(f) : ''));
+          }
+        });
+        renderComposerImagesPreview();
+      };
+      window.addComposerFiles = function(newFiles) {
+        composerFiles = [...composerFiles, ...newFiles].slice(0, 5);
+        renderComposerFilesPreview();
+      };
+    }
+
+    function clearPostFiles() {
+      composerFiles = [];
+      if (postFileInput) postFileInput.value = '';
+      if (postFilesPreview) postFilesPreview.hidden = true;
+      if (postFilesList) postFilesList.innerHTML = '';
+      if (choosePostFilesBtn && choosePostFilesBtn.classList) choosePostFilesBtn.classList.remove('has-attachment');
+      updateLabelsAndButtons();
+      if (typeof updatePostButtonState === 'function') updatePostButtonState();
+    }
+
+    if (choosePostImageBtn) choosePostImageBtn.addEventListener('click', () => postImageInput && postImageInput.click());
+    if (choosePostFilesBtn) choosePostFilesBtn.addEventListener('click', () => postFileInput && postFileInput.click());
+    if (removePostImageBtn) removePostImageBtn.addEventListener('click', clearPostImage);
+    if (clearAllImagesBtn) clearAllImagesBtn.addEventListener('click', clearPostImage);
+    if (clearAllFilesBtn) clearAllFilesBtn.addEventListener('click', clearPostFiles);
+    if (retryPostImageBtn) retryPostImageBtn.addEventListener('click', () => postImageInput && postImageInput.click());
+
+    if (postImageInput) {
+      postImageInput.addEventListener('change', () => {
+        const fileList = postImageInput.files;
+        const message = document.getElementById('postComposerMessage');
+        if (message) message.textContent = '';
+        if (!fileList || fileList.length === 0) return clearPostImage();
+
+        const incoming = Array.from(fileList);
+        for (const file of incoming) {
+          if (!file.type || !file.type.startsWith('image/')) {
+            clearPostImage();
+            if (message) message.textContent = 'Please choose a valid image file.';
+            return;
+          }
+          if (file.size > 5 * 1024 * 1024) {
+            clearPostImage();
+            if (message) message.textContent = 'Images must be 5 MB or smaller.';
+            return;
+          }
+        }
+
+        // When selecting 1 image, replace single image preview and revoke previous URLs
+        if (incoming.length === 1) {
+          const file = incoming[0];
+          if (postImagePreviewUrl) URL.revokeObjectURL(postImagePreviewUrl);
+          composerImages.forEach(f => {
+            const u = composerImageUrls.get(f);
+            if (u && u !== postImagePreviewUrl) URL.revokeObjectURL(u);
+          });
+          composerImages = [file];
+          composerImageUrls.clear();
+
+          postImagePreviewUrl = URL.createObjectURL(file);
+          composerImageUrls.set(file, postImagePreviewUrl);
+
+          if (postImagePreviewImg) {
+            postImagePreviewImg.src = postImagePreviewUrl;
+            if (postImagePreviewImg.style) postImagePreviewImg.style.display = 'block';
+            postImagePreviewImg.onerror = () => {
+              if (postImagePreviewImg.style) postImagePreviewImg.style.display = 'none';
+              if (postImageError && postImageError.style) postImageError.style.display = 'flex';
+            };
+          }
+          if (postImageError && postImageError.style) postImageError.style.display = 'none';
+          if (postSingleImagePreviewCard && postSingleImagePreviewCard.style) postSingleImagePreviewCard.style.display = 'flex';
+          if (postMultiImagesGrid && postMultiImagesGrid.style) postMultiImagesGrid.style.display = 'none';
+          if (postImagesPreviewHeader && postImagesPreviewHeader.style) postImagesPreviewHeader.style.display = 'none';
+          if (postImagePreview) {
+            postImagePreview.hidden = false;
+            if (postImagePreview.classList) postImagePreview.classList.add('has-image');
+          }
+          if (choosePostImageBtn && choosePostImageBtn.classList) choosePostImageBtn.classList.add('has-attachment');
+        } else {
+          // Multiple images selection
+          const existingKeys = new Set(composerImages.map(f => `${f.name}_${f.size}`));
+          const toAdd = incoming.filter(f => !existingKeys.has(`${f.name}_${f.size}`));
+          if (composerImages.length + toAdd.length > 10) {
+            if (message) message.textContent = 'Maximum 10 images allowed per post.';
+            toAdd.splice(10 - composerImages.length);
+          }
+          toAdd.forEach(f => {
+            const url = URL.createObjectURL(f);
+            composerImageUrls.set(f, url);
+            composerImages.push(f);
+          });
+          renderComposerImagesPreview();
+        }
+
+        updateLabelsAndButtons();
+        if (typeof updatePostButtonState === 'function') updatePostButtonState();
+      });
+    }
+
+    if (postFileInput) {
+      postFileInput.addEventListener('change', () => {
+        const fileList = postFileInput.files;
+        const message = document.getElementById('postComposerMessage');
+        if (message) message.textContent = '';
+        if (!fileList || fileList.length === 0) return;
+
+        const incoming = Array.from(fileList);
+        for (const file of incoming) {
+          if (file.size > 4 * 1024 * 1024) {
+            if (message) message.textContent = 'Files must be 4 MB or smaller. For larger study materials, upload to Semester Library.';
+            return;
+          }
+        }
+
+        const existingKeys = new Set(composerFiles.map(f => `${f.name}_${f.size}`));
+        const toAdd = incoming.filter(f => !existingKeys.has(`${f.name}_${f.size}`));
+        if (composerFiles.length + toAdd.length > 5) {
+          if (message) message.textContent = 'Maximum 5 files allowed per post.';
+          toAdd.splice(5 - composerFiles.length);
+        }
+        toAdd.forEach(f => composerFiles.push(f));
+        renderComposerFilesPreview();
+      });
+    }
+
+    const postComposerForm = document.getElementById('postComposer');
+    if (postComposerForm) {
+      postComposerForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const content = document.getElementById('postContent');
+        const type = document.getElementById('postType');
+        const button = document.getElementById('publishPost');
+        const message = document.getElementById('postComposerMessage');
+        if (button.disabled) return;
+        const hasText = content.value.trim().length > 0;
+        const imagesToSend = composerImages.length > 0
+          ? composerImages
+          : (postImageInput && postImageInput.files && postImageInput.files.length > 0 ? Array.from(postImageInput.files) : []);
+        const filesToSend = composerFiles.length > 0
+          ? composerFiles
+          : (postFileInput && postFileInput.files && postFileInput.files.length > 0 ? Array.from(postFileInput.files) : []);
+
+        const hasMedia = imagesToSend.length > 0 || filesToSend.length > 0;
+        if (!hasText && !hasMedia) {
+          message.textContent = 'Write something before posting.';
+          content.focus();
+          return;
+        }
+        button.disabled = content.disabled = type.disabled = true;
+        if (postImageInput) postImageInput.disabled = true;
+        if (postFileInput) postFileInput.disabled = true;
+        if (choosePostImageBtn) choosePostImageBtn.disabled = true;
+        if (choosePostFilesBtn) choosePostFilesBtn.disabled = true;
+        if (removePostImageBtn) removePostImageBtn.disabled = true;
+        button.textContent = 'Posting…';
+        message.textContent = '';
+        try {
+          await feedReady;
+          const formData = new FormData();
+          formData.append('content', content.value);
+          formData.append('type', type.value);
+
+          // Append images: first image with key 'image' for compatibility, subsequent with 'images'
+          imagesToSend.forEach((file, index) => {
+            if (index === 0) formData.append('image', file);
+            else formData.append('images', file);
+          });
+
+          // Append files
+          filesToSend.forEach(file => {
+            formData.append('files', file);
+          });
+
+          const response = await fetch('/api/posts', {
+            method: 'POST',
+            body: formData
+          });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.message || 'Could not publish your post.');
+          addFeedPosts([data]);
+          renderFeed();
+          content.value = '';
+          clearPostImage();
+          clearPostFiles();
+          message.textContent = 'Post shared with your class.';
+          if (typeof showToast === 'function') showToast('Post shared with your class.');
+          if (typeof closePostModal === 'function') closePostModal();
+        } catch (err) {
+          message.textContent = err.message || 'Could not publish your post. Please try again.';
+        } finally {
+          button.disabled = false;
+          content.disabled = type.disabled = false;
+          if (postImageInput) postImageInput.disabled = false;
+          if (postFileInput) postFileInput.disabled = false;
+          if (choosePostImageBtn) choosePostImageBtn.disabled = false;
+          if (choosePostFilesBtn) choosePostFilesBtn.disabled = false;
+          if (removePostImageBtn) removePostImageBtn.disabled = false;
+          button.textContent = 'Post';
+        }
+      });
+    }
 
     const pendingPostLikes = new Set();
 

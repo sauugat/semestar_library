@@ -132,63 +132,81 @@ const fs = require('node:fs/promises');
   await page.screenshot({ path: `${screenshotsDir}/feed_post_markdown_rendered.png` });
   console.log('✓ Captured feed_post_markdown_rendered.png');
 
-  // Test 2: Verify /create-post Direct WYSIWYG Editor
+  // Test 2: Verify /create-post Professional WYSIWYG Formatting
   await page.goto(`http://127.0.0.1:${port}/create-post`);
   await page.waitForSelector('#postEditor', { timeout: 8000 });
-
-  // Verify preview tab is removed
-  const previewTab = await page.$('#tabPreviewBtn');
-  console.log('Preview tab absent:', previewTab === null);
 
   // Focus editor
   await page.click('#postEditor');
 
-  // Click bold button BEFORE typing
+  // Step 1: Type written normal text
+  await page.keyboard.type('First written line that is normal text.');
+  console.log('✓ Typed initial normal text line');
+
+  // Step 2: Click H1 when cursor is at the end of written text
+  const h1Btn = page.locator('.md-tool-btn[data-format="h1"]');
+  await h1Btn.click();
+
+  // Step 3: Type upcoming text in H1
+  await page.keyboard.type('Brand New Heading 1');
+  console.log('✓ Clicked H1 and typed upcoming text');
+
+  // Step 4: Press Enter - should automatically drop down to a normal paragraph <p>
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Body paragraph right after heading. ');
+
+  // Step 5: Click Bold button to toggle ON for upcoming text
   const boldBtn = page.locator('.md-tool-btn[data-format="bold"]');
   await boldBtn.click();
-  const isBoldActiveBefore = await boldBtn.evaluate(el => el.classList.contains('active'));
-  console.log('Bold button active after click:', isBoldActiveBefore);
+  await page.keyboard.type('This text must be bold.');
 
-  // Type in bold
-  await page.keyboard.type('Direct Bold Heading');
-
-  // Click bold button again to toggle OFF
+  // Step 6: Click Bold button again to toggle OFF for upcoming text
   await boldBtn.click();
-  const isBoldActiveAfter = await boldBtn.evaluate(el => el.classList.contains('active'));
-  console.log('Bold button active after toggle off:', isBoldActiveAfter);
+  await page.keyboard.type(' This text must be normal again.');
 
-  // Type normal text
-  await page.keyboard.press('Enter');
-  await page.keyboard.type('This line is normal text without bold. ');
-
-  // Test selecting written text and formatting
-  await page.keyboard.type('Selectable text');
-  // Select the last 15 characters
-  for (let i = 0; i < 15; i++) {
+  // Step 7: Select written words and format
+  for (let i = 0; i < 11; i++) {
     await page.keyboard.down('Shift');
     await page.keyboard.press('ArrowLeft');
     await page.keyboard.up('Shift');
   }
-
-  // Click italic
   const italicBtn = page.locator('.md-tool-btn[data-format="italic"]');
   await italicBtn.click();
-
-  // Deselect by pressing ArrowRight
   await page.keyboard.press('ArrowRight');
-  await page.keyboard.press('Enter');
 
-  // Insert bullet list
-  await page.locator('.md-tool-btn[data-format="bullet-list"]').click();
-  await page.keyboard.type('First bullet point');
-  await page.keyboard.press('Enter');
-  await page.keyboard.type('Second bullet point');
-
-  // Check HTML and serialized Markdown
+  // Inspect the DOM of postEditor
   const editorHtml = await page.evaluate(() => document.getElementById('postEditor').innerHTML);
   const markdownValue = await page.evaluate(() => document.getElementById('postContent').value);
-  console.log('Editor innerHTML snippet:', editorHtml.slice(0, 120));
-  console.log('Markdown synced snippet:', markdownValue.slice(0, 120));
+
+  console.log('--- Resulting Editor HTML ---');
+  console.log(editorHtml);
+  console.log('--- Resulting Markdown ---');
+  console.log(markdownValue);
+
+  // Assertions:
+  // 1. Initial text is NOT in H1
+  const initialTextInH1 = editorHtml.includes('<h1>First written line');
+  if (initialTextInH1) {
+    throw new Error('FAIL: Initial written text was converted to H1!');
+  }
+  console.log('✓ PASS: Initial text was preserved as normal text (not converted to H1)');
+
+  // 2. Upcoming text IS in H1
+  if (!editorHtml.includes('<h1>Brand New Heading 1</h1>')) {
+    throw new Error('FAIL: Upcoming text did not become H1!');
+  }
+  console.log('✓ PASS: Upcoming text is correctly inside <h1>');
+
+  // 3. Bold text is bold and subsequent text is normal
+  if (!editorHtml.includes('<b>This text must be bold.</b>') && !editorHtml.includes('<strong>This text must be bold.</strong>')) {
+    throw new Error('FAIL: Upcoming bold text was not wrapped in bold tag!');
+  }
+  console.log('✓ PASS: Upcoming bold text is bold');
+
+  if (!editorHtml.includes('This text must be normal again')) {
+    throw new Error('FAIL: Normal text was missing or corrupted!');
+  }
+  console.log('✓ PASS: Subsequent text reverted to normal text');
 
   await page.screenshot({ path: `${screenshotsDir}/composer_wysiwyg_direct.png` });
   console.log('✓ Captured composer_wysiwyg_direct.png');

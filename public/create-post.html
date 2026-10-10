@@ -961,17 +961,14 @@
           <input type="text" id="postTitle" name="title" maxlength="200" placeholder="Title your post" class="composer-input">
         </div>
 
-        <!-- Content Field with Rich Formatting Toolbar -->
+        <!-- Content Field with Direct WYSIWYG Formatting Toolbar -->
         <div class="form-group">
           <div class="composer-toolbar-header">
-            <label for="postContent" class="form-label" style="margin-bottom: 0;">Description / Content</label>
-            <div class="composer-view-tabs" role="tablist">
-              <button type="button" class="composer-tab-btn active" id="tabWriteBtn" role="tab" aria-selected="true">Write</button>
-              <button type="button" class="composer-tab-btn" id="tabPreviewBtn" role="tab" aria-selected="false">Preview</button>
-            </div>
+            <label for="postEditor" class="form-label" style="margin-bottom: 0;">Description / Content</label>
+            <span class="composer-live-hint">Format directly &bull; Shortcuts enabled</span>
           </div>
 
-          <!-- Markdown Formatting Toolbar -->
+          <!-- Formatting Toolbar -->
           <div class="markdown-toolbar" id="markdownToolbar" role="toolbar" aria-label="Text formatting">
             <div class="toolbar-group">
               <button type="button" class="md-tool-btn" data-format="bold" title="Bold (Ctrl+B)" aria-label="Bold"><b>B</b></button>
@@ -1015,12 +1012,18 @@
           </div>
 
           <div class="composer-editor-wrap">
-            <textarea id="postContent" name="content" rows="7" maxlength="5000" required placeholder="What's on your mind? Format with Markdown or paste directly from ChatGPT..." class="composer-textarea"></textarea>
-            <div id="postPreviewArea" class="composer-preview-area post-markdown-content" style="display: none;" tabindex="0" role="region" aria-label="Post preview"></div>
+            <div id="postEditor"
+                 contenteditable="true"
+                 role="textbox"
+                 aria-multiline="true"
+                 aria-label="Post description or content"
+                 class="composer-wysiwyg-editor post-markdown-content"
+                 data-placeholder="What's on your mind? Format directly or paste from ChatGPT..."></div>
+            <input type="hidden" id="postContent" name="content">
           </div>
 
           <div class="composer-footer-hints">
-            <span class="composer-hint-text">Markdown &amp; smart paste enabled</span>
+            <span class="composer-hint-text">Rich text &bull; Live WYSIWYG</span>
             <span id="charCounter" class="composer-char-count">0 / 5,000</span>
           </div>
         </div>

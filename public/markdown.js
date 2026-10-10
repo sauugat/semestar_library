@@ -326,6 +326,7 @@
 
       const result = traverse(body);
       return result
+        .replace(/\u200B/g, '')
         .replace(/\n{3,}/g, '\n\n')
         .trim();
     } catch (e) {

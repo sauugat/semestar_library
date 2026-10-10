@@ -75,7 +75,7 @@ test('posts require login; guests and stale accounts cannot mutate', async t => 
 
 test('create validates content, type and attachment and derives identity from the session', async t => {
   const { request } = await fixture(t);
-  for (const body of [{}, { content: '   ' }, { content: 42 }, { content: 'x'.repeat(5001) },
+  for (const body of [{}, { content: '   ' }, { content: 42 }, { content: 'x'.repeat(1000001) },
     { content: 'ok', type: 'invalid' }, { content: 'ok', attachment_url: 'javascript:alert(1)' },
     { content: 'ok', attachment_url: {} }]) {
     assert.equal((await request('POST', '', body)).status, 400);

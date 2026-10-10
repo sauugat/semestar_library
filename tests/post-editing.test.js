@@ -437,8 +437,8 @@ test('13. edit failure preserves old post content and attachments cleanly', asyn
   const initialMediaUrl = created.body.media[0].url;
   const initialFilename = path.basename(initialMediaUrl);
 
-  // Attempt edit with content exceeding 5,000 characters
-  const badEdit = await request('PUT', `/${postId}`, { content: 'A'.repeat(5001) }, 'author1');
+  // Attempt edit with content exceeding 1,000,000 characters
+  const badEdit = await request('PUT', `/${postId}`, { content: 'A'.repeat(1000001) }, 'author1');
   assert.equal(badEdit.status, 400);
 
   // Verify old post and blobs are completely intact

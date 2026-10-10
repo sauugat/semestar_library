@@ -293,18 +293,15 @@ export function PostCard({
 
       {/* Post Text Content */}
       {Boolean(post.content && post.content.trim()) && (
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={defaultOpenDetail}
-          style={{ marginTop: spacing.sm }}
-        >
+        <View style={{ marginTop: spacing.sm }}>
           <PostMarkdown
             content={post.content}
             isExpanded={expanded}
             onToggleExpand={() => setExpanded(!expanded)}
             maxPreviewLength={240}
+            onPressText={defaultOpenDetail}
           />
-        </TouchableOpacity>
+        </View>
       )}
 
       {/* Attached Images: Multi-photo gallery */}

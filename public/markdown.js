@@ -104,6 +104,15 @@
     let inList = null; // 'ul' or 'ol'
     let inQuote = false;
     let quoteLines = [];
+    let paraLines = [];
+
+    function flushPara() {
+      if (paraLines.length > 0) {
+        const text = paraLines.map(l => parseInlineMarkdown(escapeHtml(l))).join('<br/>');
+        output.push(`<p class="md-p">${text}</p>`);
+        paraLines = [];
+      }
+    }
 
     function flushQuote() {
       if (inQuote) {
@@ -137,6 +146,7 @@
       if (codeMatch) {
         flushQuote();
         flushList();
+        flushPara();
         const block = codeBlocks[Number(codeMatch[1])];
         if (block) {
           const escapedCode = escapeHtml(block.code);
@@ -158,6 +168,7 @@
       if (/^(-{3,}|\*{3,}|_{3,})$/.test(trimmed)) {
         flushQuote();
         flushList();
+        flushPara();
         output.push('<hr class="md-divider" />');
         continue;
       }
@@ -166,6 +177,7 @@
       if (line.includes('|') && i + 1 < lines.length && isTableDelimiter(lines[i + 1])) {
         flushQuote();
         flushList();
+        flushPara();
 
         function splitTableRow(rowStr) {
           const safe = (rowStr || '').trim().replace(/\\\|/g, '\x00PIPE\x00');
@@ -222,6 +234,7 @@
       if (hMatch) {
         flushQuote();
         flushList();
+        flushPara();
         const level = hMatch[1].length;
         const headingText = parseInlineMarkdown(escapeHtml(hMatch[2]));
         output.push(`<h${level} class="md-h${level}">${headingText}</h${level}>`);
@@ -232,6 +245,7 @@
       const qMatch = line.match(/^>\s?(.*)$/);
       if (qMatch) {
         flushList();
+        flushPara();
         inQuote = true;
         quoteLines.push(qMatch[1]);
         continue;
@@ -243,6 +257,7 @@
       const ulMatch = line.match(/^[\*\-]\s+(.*)$/);
       if (ulMatch) {
         flushQuote();
+        flushPara();
         if (inList !== 'ul') {
           flushList();
           output.push('<ul class="md-ul">');
@@ -256,6 +271,7 @@
       const olMatch = line.match(/^\d+\.\s+(.*)$/);
       if (olMatch) {
         flushQuote();
+        flushPara();
         if (inList !== 'ol') {
           flushList();
           output.push('<ol class="md-ol">');
@@ -268,20 +284,21 @@
       // Non-list line, so flush any open list
       flushList();
 
-      // Empty line
+      // Empty line breaks paragraphs
       if (!trimmed) {
+        flushPara();
         continue;
       }
 
-      // Regular paragraph line
-      const parsedText = parseInlineMarkdown(escapeHtml(line));
-      output.push(`<p class="md-p">${parsedText}</p>`);
+      // Regular paragraph line - grouped with consecutive lines
+      paraLines.push(line);
     }
 
     flushQuote();
     flushList();
+    flushPara();
 
-    return output.join('\n');
+    return output.join('');
   }
 
   /**

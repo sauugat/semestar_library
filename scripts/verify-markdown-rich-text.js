@@ -87,6 +87,26 @@ const fs = require('node:fs/promises');
     res.status(201).json(newPost);
   });
 
+  app.get('/auth.js', (_, res) => res.type('js').send('window.SemesterAuth = {protectPage(){}, signOut(){}};'));
+  app.get(['/notifications.js', '/chatbot.js'], (_, res) => res.type('js').send(''));
+  app.get('/api/posts/meta', (_, res) => res.json({
+    categories: [
+      { id: 'notice', label: 'Notice' },
+      { id: 'general', label: 'General' },
+      { id: 'announcement', label: 'Announcement' },
+      { id: 'news', label: 'News' },
+      { id: 'complaints', label: 'Complaints' },
+      { id: 'feedback', label: 'Feedback' }
+    ],
+    defaultCategory: 'general',
+    visibilities: ['everyone', 'students_only'],
+    defaultVisibility: 'everyone',
+    canPostNotice: false,
+    canSelectAudience: true,
+    role: 'student'
+  }));
+  app.get('/api/code-lab/assignments', (_, res) => res.json([]));
+
   app.get(['/create-post', '/create-post.html'], (_, res) => {
     res.sendFile(path.join(__dirname, '../public/create-post.html'));
   });
@@ -101,7 +121,7 @@ const fs = require('node:fs/promises');
 
   const browser = await chromium.launch({
     headless: true,
-    executablePath: '/Users/sauu_gat/Library/Caches/ms-playwright/chromium-1243/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing'
+    channel: 'chrome'
   });
   const context = await browser.newContext({ viewport: { width: 1200, height: 900 } });
   const page = await context.newPage();

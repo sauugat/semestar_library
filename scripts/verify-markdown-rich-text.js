@@ -183,27 +183,35 @@ const fs = require('node:fs/promises');
   console.log('--- Resulting Markdown ---');
   console.log(markdownValue);
 
+  const cleanHtml = editorHtml.replace(/\u200B/g, '');
+
   // Assertions:
   // 1. Initial text is NOT in H1
-  const initialTextInH1 = editorHtml.includes('<h1>First written line');
+  const initialTextInH1 = cleanHtml.includes('<h1>First written line');
   if (initialTextInH1) {
     throw new Error('FAIL: Initial written text was converted to H1!');
   }
   console.log('✓ PASS: Initial text was preserved as normal text (not converted to H1)');
 
-  // 2. Upcoming text IS in H1
-  if (!editorHtml.includes('<h1>Brand New Heading 1</h1>')) {
+  // 2. Initial text IS preserved in the editor
+  if (!cleanHtml.includes('First written line that is normal text.')) {
+    throw new Error('FAIL: Initial written text was lost or wiped!');
+  }
+  console.log('✓ PASS: Initial written text is fully preserved in the editor');
+
+  // 3. Upcoming text IS in H1
+  if (!cleanHtml.includes('<h1>Brand New Heading 1</h1>')) {
     throw new Error('FAIL: Upcoming text did not become H1!');
   }
   console.log('✓ PASS: Upcoming text is correctly inside <h1>');
 
-  // 3. Bold text is bold and subsequent text is normal
-  if (!editorHtml.includes('<b>This text must be bold.</b>') && !editorHtml.includes('<strong>This text must be bold.</strong>')) {
+  // 4. Bold text is bold and subsequent text is normal
+  if (!cleanHtml.includes('<b>This text must be bold.</b>') && !cleanHtml.includes('<strong>This text must be bold.</strong>')) {
     throw new Error('FAIL: Upcoming bold text was not wrapped in bold tag!');
   }
   console.log('✓ PASS: Upcoming bold text is bold');
 
-  if (!editorHtml.includes('This text must be normal again')) {
+  if (!cleanHtml.includes('This text must be normal again')) {
     throw new Error('FAIL: Normal text was missing or corrupted!');
   }
   console.log('✓ PASS: Subsequent text reverted to normal text');

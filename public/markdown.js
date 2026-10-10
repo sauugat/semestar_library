@@ -365,6 +365,41 @@
             return childText;
           }
 
+          case 'table': {
+            const rows = Array.from(node.querySelectorAll('tr'));
+            if (rows.length === 0) return '';
+            const mdRows = [];
+            let headerColCount = 0;
+
+            rows.forEach((row, rowIdx) => {
+              const cells = Array.from(row.querySelectorAll('th, td'));
+              if (cells.length === 0) return;
+              const cellTexts = cells.map(cell => {
+                const text = Array.from(cell.childNodes).map(traverse).join('');
+                return text.replace(/\n+/g, ' ').replace(/\|/g, '\\|').trim();
+              });
+
+              if (rowIdx === 0) {
+                headerColCount = Math.max(cellTexts.length, 1);
+                mdRows.push('| ' + cellTexts.join(' | ') + ' |');
+                mdRows.push('| ' + cellTexts.map(() => '---').join(' | ') + ' |');
+              } else {
+                while (cellTexts.length < headerColCount) cellTexts.push('');
+                mdRows.push('| ' + cellTexts.slice(0, headerColCount).join(' | ') + ' |');
+              }
+            });
+
+            return '\n\n' + mdRows.join('\n') + '\n\n';
+          }
+
+          case 'thead':
+          case 'tbody':
+          case 'tfoot':
+          case 'tr':
+          case 'th':
+          case 'td':
+            return childText;
+
           case 'hr':
             return '\n\n---\n\n';
 

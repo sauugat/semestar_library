@@ -99,7 +99,10 @@ const fs = require('node:fs/promises');
   const port = server.address().port;
   console.log(`Test server running at http://127.0.0.1:${port}`);
 
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({
+    headless: true,
+    executablePath: '/Users/sauu_gat/Library/Caches/ms-playwright/chromium-1243/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing'
+  });
   const context = await browser.newContext({ viewport: { width: 1200, height: 900 } });
   const page = await context.newPage();
 

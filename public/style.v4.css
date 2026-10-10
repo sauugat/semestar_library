@@ -6478,6 +6478,69 @@ body.dash .dash-id::before {
   margin: 16px 0;
 }
 
+/* Markdown Tables */
+.post-markdown-content .md-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  margin: 14px 0;
+  border-radius: 8px;
+  border: 1px solid var(--border-color, #27272a);
+  -webkit-overflow-scrolling: touch;
+}
+
+.post-markdown-content .md-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 13.5px;
+  line-height: 1.5;
+  background: var(--card-bg, #18181b);
+}
+
+.post-markdown-content .md-table th,
+.post-markdown-content .md-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-color, #27272a);
+  border-right: 1px solid var(--border-color, #27272a);
+  vertical-align: top;
+}
+
+.post-markdown-content .md-table th:last-child,
+.post-markdown-content .md-table td:last-child {
+  border-right: none;
+}
+
+.post-markdown-content .md-table tr:last-child td {
+  border-bottom: none;
+}
+
+.post-markdown-content .md-table th {
+  background: rgba(255, 255, 255, 0.05);
+  font-weight: 600;
+  color: var(--text-main, #f4f4f5);
+  white-space: nowrap;
+}
+
+.post-markdown-content .md-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+[data-theme="light"] .post-markdown-content .md-table,
+body.light-mode .post-markdown-content .md-table {
+  background: #ffffff;
+}
+
+[data-theme="light"] .post-markdown-content .md-table th,
+body.light-mode .post-markdown-content .md-table th {
+  background: #f4f4f5;
+  color: #18181b;
+}
+
+[data-theme="light"] .post-markdown-content .md-table tbody tr:hover,
+body.light-mode .post-markdown-content .md-table tbody tr:hover {
+  background: #fafafa;
+}
+
 
 .status-post-attachment {
   color: var(--text-primary);

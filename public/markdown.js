@@ -167,8 +167,14 @@
         flushQuote();
         flushList();
 
-        const headerCells = line.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim());
-        const alignCells = lines[i + 1].trim().replace(/^\||\|$/g, '').split('|');
+        function splitTableRow(rowStr) {
+          const safe = (rowStr || '').trim().replace(/\\\|/g, '\x00PIPE\x00');
+          const unbordered = safe.replace(/^\||\|$/g, '');
+          return unbordered.split('|').map(c => c.replace(/\x00PIPE\x00/g, '|').trim());
+        }
+
+        const headerCells = splitTableRow(line);
+        const alignCells = splitTableRow(lines[i + 1]);
         const alignments = alignCells.map(c => {
           const t = c.trim();
           const left = t.startsWith(':');
@@ -183,7 +189,7 @@
         while (j < lines.length) {
           const dLine = lines[j].trim();
           if (!dLine || !dLine.includes('|') || isTableDelimiter(dLine)) break;
-          const rowCells = dLine.replace(/^\||\|$/g, '').split('|').map(c => c.trim());
+          const rowCells = splitTableRow(dLine);
           dataRows.push(rowCells);
           j++;
         }

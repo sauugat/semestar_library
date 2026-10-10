@@ -1308,212 +1308,264 @@
       if (semContainer && !semContainer.contains(e.target)) toggleSemesterMenu(false);
     });
 
-    // Markdown Editor Toolbar, Live Preview & Smart Paste
+    // Direct WYSIWYG Post Editor
+    const postEditor = document.getElementById('postEditor');
     const postContent = document.getElementById('postContent');
-    const postPreviewArea = document.getElementById('postPreviewArea');
-    const tabWriteBtn = document.getElementById('tabWriteBtn');
-    const tabPreviewBtn = document.getElementById('tabPreviewBtn');
     const charCounter = document.getElementById('charCounter');
     const markdownToolbar = document.getElementById('markdownToolbar');
 
+    function syncEditorToMarkdown() {
+      if (!postEditor) return '';
+      const html = postEditor.innerHTML;
+      const md = (typeof htmlToMarkdown === 'function')
+        ? htmlToMarkdown(html).trim()
+        : (postEditor.innerText || '').trim();
+      if (postContent) postContent.value = md;
+      return md;
+    }
+
     function updateCharCounter() {
-      if (!postContent || !charCounter) return;
-      const len = postContent.value.length;
-      charCounter.textContent = `${len.toLocaleString()} / 5,000`;
-      if (len > 5000) {
+      if (!postEditor || !charCounter) return;
+      const md = syncEditorToMarkdown();
+      const plainLen = (postEditor.innerText || '').replace(/\r\n/g, '\n').trim().length;
+      charCounter.textContent = `${plainLen.toLocaleString()} / 5,000`;
+      if (plainLen > 5000) {
         charCounter.style.color = '#ef4444';
       } else {
         charCounter.style.color = 'var(--text-muted)';
       }
+
+      // Check placeholder visibility
+      if (!postEditor.textContent.trim()) {
+        postEditor.setAttribute('data-empty', 'true');
+      } else {
+        postEditor.removeAttribute('data-empty');
+      }
     }
 
-    if (postContent) {
-      postContent.addEventListener('input', updateCharCounter);
-      updateCharCounter();
+    function setBtnActive(format, active) {
+      const btn = document.querySelector(`.md-tool-btn[data-format="${format}"]`);
+      if (!btn) return;
+      if (active) {
+        btn.classList.add('active');
+        btn.setAttribute('aria-pressed', 'true');
+      } else {
+        btn.classList.remove('active');
+        btn.setAttribute('aria-pressed', 'false');
+      }
     }
 
-    // Tab Switching (Write vs Preview)
-    if (tabWriteBtn && tabPreviewBtn && postContent && postPreviewArea) {
-      tabWriteBtn.addEventListener('click', () => {
-        tabWriteBtn.classList.add('active');
-        tabPreviewBtn.classList.remove('active');
-        tabWriteBtn.setAttribute('aria-selected', 'true');
-        tabPreviewBtn.setAttribute('aria-selected', 'false');
-        postContent.style.display = 'block';
-        postPreviewArea.style.display = 'none';
-        if (markdownToolbar) {
-          markdownToolbar.style.opacity = '1';
-          markdownToolbar.style.pointerEvents = 'auto';
-        }
-        postContent.focus();
-      });
+    function updateToolbarActiveState() {
+      if (!postEditor) return;
+      const sel = window.getSelection();
+      if (!sel || (sel.rangeCount > 0 && !postEditor.contains(sel.anchorNode))) {
+        return;
+      }
 
-      tabPreviewBtn.addEventListener('click', () => {
-        tabPreviewBtn.classList.add('active');
-        tabWriteBtn.classList.remove('active');
-        tabPreviewBtn.setAttribute('aria-selected', 'true');
-        tabWriteBtn.setAttribute('aria-selected', 'false');
-        const text = (postContent.value || '').trim();
-        if (typeof renderPostMarkdown === 'function') {
-          postPreviewArea.innerHTML = text
-            ? renderPostMarkdown(text)
-            : '<p style="color: var(--text-muted); font-style: italic;">Nothing to preview yet. Start typing to see formatted output.</p>';
-        } else {
-          postPreviewArea.textContent = text;
-        }
-        postContent.style.display = 'none';
-        postPreviewArea.style.display = 'block';
-        if (markdownToolbar) {
-          markdownToolbar.style.opacity = '0.4';
-          markdownToolbar.style.pointerEvents = 'none';
-        }
-      });
+      try {
+        setBtnActive('bold', document.queryCommandState('bold'));
+        setBtnActive('italic', document.queryCommandState('italic'));
+        setBtnActive('underline', document.queryCommandState('underline'));
+        setBtnActive('strike', document.queryCommandState('strikeThrough'));
+        setBtnActive('bullet-list', document.queryCommandState('insertUnorderedList'));
+        setBtnActive('number-list', document.queryCommandState('insertOrderedList'));
+
+        const blockVal = (document.queryCommandValue('formatBlock') || '').toLowerCase();
+        setBtnActive('h1', blockVal === 'h1');
+        setBtnActive('h2', blockVal === 'h2');
+        setBtnActive('h3', blockVal === 'h3');
+        setBtnActive('quote', blockVal === 'blockquote');
+
+        const anchor = sel.anchorNode;
+        const parentCode = anchor && (anchor.nodeType === Node.ELEMENT_NODE ? anchor.closest('code') : anchor.parentElement?.closest('code'));
+        setBtnActive('code-inline', !!parentCode);
+      } catch (_) {}
     }
 
-    // Markdown Toolbar Formatting Action
-    function applyMarkdownFormat(format) {
-      if (!postContent) return;
-      const start = postContent.selectionStart;
-      const end = postContent.selectionEnd;
-      const val = postContent.value;
-      const selected = val.substring(start, end);
+    function ensureEditorFocus() {
+      if (!postEditor) return;
+      postEditor.focus();
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0 || !postEditor.contains(sel.anchorNode)) {
+        const range = document.createRange();
+        range.selectNodeContents(postEditor);
+        range.collapse(false);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+    }
 
-      let replacement = '';
-      let cursorOffset = 0;
+    function applyFormat(format) {
+      ensureEditorFocus();
 
       switch (format) {
         case 'bold':
-          replacement = `**${selected || 'bold text'}**`;
-          cursorOffset = selected ? replacement.length : 2;
+          document.execCommand('bold', false, null);
           break;
         case 'italic':
-          replacement = `*${selected || 'italic text'}*`;
-          cursorOffset = selected ? replacement.length : 1;
+          document.execCommand('italic', false, null);
           break;
         case 'underline':
-          replacement = `<u>${selected || 'underlined text'}</u>`;
-          cursorOffset = selected ? replacement.length : 3;
+          document.execCommand('underline', false, null);
           break;
         case 'strike':
-          replacement = `~~${selected || 'strikethrough text'}~~`;
-          cursorOffset = selected ? replacement.length : 2;
+          document.execCommand('strikeThrough', false, null);
           break;
-        case 'h1':
-          replacement = `\n# ${selected || 'Heading 1'}\n`;
-          cursorOffset = replacement.length;
-          break;
-        case 'h2':
-          replacement = `\n## ${selected || 'Heading 2'}\n`;
-          cursorOffset = replacement.length;
-          break;
-        case 'h3':
-          replacement = `\n### ${selected || 'Heading 3'}\n`;
-          cursorOffset = replacement.length;
-          break;
-        case 'bullet-list': {
-          const items = selected ? selected.split('\n') : ['List item'];
-          replacement = '\n' + items.map(it => `- ${it.replace(/^[-*]\s*/, '')}`).join('\n') + '\n';
-          cursorOffset = replacement.length;
+        case 'h1': {
+          const cur = (document.queryCommandValue('formatBlock') || '').toLowerCase();
+          document.execCommand('formatBlock', false, cur === 'h1' ? '<p>' : '<h1>');
           break;
         }
-        case 'number-list': {
-          const items = selected ? selected.split('\n') : ['List item'];
-          replacement = '\n' + items.map((it, i) => `${i + 1}. ${it.replace(/^\d+\.\s*/, '')}`).join('\n') + '\n';
-          cursorOffset = replacement.length;
+        case 'h2': {
+          const cur = (document.queryCommandValue('formatBlock') || '').toLowerCase();
+          document.execCommand('formatBlock', false, cur === 'h2' ? '<p>' : '<h2>');
           break;
         }
+        case 'h3': {
+          const cur = (document.queryCommandValue('formatBlock') || '').toLowerCase();
+          document.execCommand('formatBlock', false, cur === 'h3' ? '<p>' : '<h3>');
+          break;
+        }
+        case 'bullet-list':
+          document.execCommand('insertUnorderedList', false, null);
+          break;
+        case 'number-list':
+          document.execCommand('insertOrderedList', false, null);
+          break;
         case 'quote': {
-          const items = selected ? selected.split('\n') : ['Blockquote'];
-          replacement = '\n' + items.map(it => `> ${it.replace(/^>\s*/, '')}`).join('\n') + '\n';
-          cursorOffset = replacement.length;
+          const cur = (document.queryCommandValue('formatBlock') || '').toLowerCase();
+          document.execCommand('formatBlock', false, cur === 'blockquote' ? '<p>' : '<blockquote>');
           break;
         }
-        case 'code-inline':
-          replacement = `\`${selected || 'code'}\``;
-          cursorOffset = selected ? replacement.length : 1;
-          break;
-        case 'code-block':
-          replacement = `\n\`\`\`javascript\n${selected || '// code here'}\n\`\`\`\n`;
-          cursorOffset = replacement.length;
-          break;
-        case 'link':
-          if (selected && /^https?:\/\//i.test(selected)) {
-            replacement = `[link title](${selected})`;
-          } else {
-            replacement = `[${selected || 'link title'}](https://)`;
+        case 'code-inline': {
+          const sel = window.getSelection();
+          if (sel && sel.rangeCount > 0) {
+            const range = sel.getRangeAt(0);
+            const parentCode = range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE
+              ? range.commonAncestorContainer.closest('code')
+              : range.commonAncestorContainer.parentElement?.closest('code');
+            if (parentCode) {
+              const textNode = document.createTextNode(parentCode.textContent || '');
+              parentCode.replaceWith(textNode);
+            } else if (!sel.isCollapsed) {
+              const codeEl = document.createElement('code');
+              codeEl.textContent = range.toString();
+              range.deleteContents();
+              range.insertNode(codeEl);
+              sel.selectAllChildren(codeEl);
+            } else {
+              const codeEl = document.createElement('code');
+              codeEl.textContent = 'code';
+              range.insertNode(codeEl);
+              sel.selectAllChildren(codeEl);
+            }
           }
-          cursorOffset = replacement.length;
           break;
+        }
+        case 'code-block': {
+          const pre = document.createElement('pre');
+          const code = document.createElement('code');
+          const sel = window.getSelection();
+          const text = (sel && !sel.isCollapsed) ? sel.toString() : '// code snippet';
+          code.textContent = text;
+          pre.appendChild(code);
+          if (sel && sel.rangeCount > 0) {
+            const range = sel.getRangeAt(0);
+            range.deleteContents();
+            range.insertNode(pre);
+            const p = document.createElement('p');
+            p.innerHTML = '<br>';
+            pre.after(p);
+            range.selectNodeContents(p);
+            range.collapse(true);
+            sel.removeAllRanges();
+            sel.addRange(range);
+          }
+          break;
+        }
+        case 'link': {
+          const sel = window.getSelection();
+          const selText = sel ? sel.toString().trim() : '';
+          const url = prompt('Enter link URL (e.g. https://example.com):', 'https://');
+          if (url && url !== 'https://' && !url.startsWith('javascript:')) {
+            if (!selText) {
+              const a = document.createElement('a');
+              a.href = url;
+              a.textContent = url;
+              a.target = '_blank';
+              a.rel = 'noopener noreferrer';
+              if (sel && sel.rangeCount > 0) {
+                const range = sel.getRangeAt(0);
+                range.insertNode(a);
+                range.setStartAfter(a);
+                range.collapse(true);
+                sel.removeAllRanges();
+                sel.addRange(range);
+              }
+            } else {
+              document.execCommand('createLink', false, url);
+            }
+          }
+          break;
+        }
         case 'divider':
-          replacement = `\n\n---\n\n`;
-          cursorOffset = replacement.length;
+          document.execCommand('insertHorizontalRule', false, null);
           break;
-        default:
-          return;
       }
 
-      postContent.focus();
-      if (typeof postContent.setRangeText === 'function') {
-        postContent.setRangeText(replacement, start, end, 'end');
-        if (!selected) {
-          postContent.setSelectionRange(start + cursorOffset, start + cursorOffset);
-        }
-      } else {
-        postContent.value = val.substring(0, start) + replacement + val.substring(end);
-        postContent.setSelectionRange(start + cursorOffset, start + cursorOffset);
-      }
+      updateToolbarActiveState();
       updateCharCounter();
     }
 
-    // Attach click events to all toolbar buttons
+    // Attach mousedown with preventDefault so the editor never blurs or loses caret/selection
     document.querySelectorAll('.md-tool-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('mousedown', (e) => {
         e.preventDefault();
         const fmt = btn.getAttribute('data-format');
-        if (fmt) applyMarkdownFormat(fmt);
+        if (fmt) applyFormat(fmt);
+      });
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
       });
     });
 
-    // Keyboard Shortcuts: Ctrl+B/Cmd+B, Ctrl+I/Cmd+I, Ctrl+U/Cmd+U, Ctrl+K/Cmd+K
-    if (postContent) {
-      postContent.addEventListener('keydown', (e) => {
+    if (postEditor) {
+      postEditor.addEventListener('input', () => {
+        updateCharCounter();
+        updateToolbarActiveState();
+      });
+      postEditor.addEventListener('keyup', updateToolbarActiveState);
+      postEditor.addEventListener('mouseup', updateToolbarActiveState);
+
+      // Keyboard shortcuts
+      postEditor.addEventListener('keydown', (e) => {
         const isMod = e.ctrlKey || e.metaKey;
-        if (!isMod) return;
-
-        if (e.key === 'b' || e.key === 'B') {
+        if (isMod && (e.key === 'k' || e.key === 'K')) {
           e.preventDefault();
-          applyMarkdownFormat('bold');
-        } else if (e.key === 'i' || e.key === 'I') {
-          e.preventDefault();
-          applyMarkdownFormat('italic');
-        } else if (e.key === 'u' || e.key === 'U') {
-          e.preventDefault();
-          applyMarkdownFormat('underline');
-        } else if (e.key === 'k' || e.key === 'K') {
-          e.preventDefault();
-          applyMarkdownFormat('link');
+          applyFormat('link');
         }
       });
 
-      // Smart Paste: ChatGPT / Notion / Google Docs / Rich HTML to Markdown
-      postContent.addEventListener('paste', (e) => {
-        const html = e.clipboardData?.getData('text/html');
-        if (html && typeof htmlToMarkdown === 'function') {
-          const hasRichHtml = /<(strong|b|em|i|u|s|strike|del|h[1-6]|ul|ol|li|blockquote|pre|code|a|p|hr)[\s>]/i.test(html);
-          if (hasRichHtml) {
-            e.preventDefault();
-            const md = htmlToMarkdown(html);
-            const start = postContent.selectionStart;
-            const end = postContent.selectionEnd;
-            if (typeof postContent.setRangeText === 'function') {
-              postContent.setRangeText(md, start, end, 'end');
-            } else {
-              postContent.value = postContent.value.substring(0, start) + md + postContent.value.substring(end);
-            }
-            updateCharCounter();
-          }
+      // Selection tracking for active states
+      document.addEventListener('selectionchange', () => {
+        const sel = window.getSelection();
+        if (sel && postEditor.contains(sel.anchorNode)) {
+          updateToolbarActiveState();
         }
       });
+
+      // Smart Paste: Preserve rich HTML elements and strip clashing inline CSS
+      postEditor.addEventListener('paste', (e) => {
+        setTimeout(() => {
+          postEditor.querySelectorAll('*').forEach(el => {
+            el.removeAttribute('style');
+          });
+          updateCharCounter();
+          updateToolbarActiveState();
+        }, 0);
+      });
+
+      updateCharCounter();
     }
 
     // Image Uploads

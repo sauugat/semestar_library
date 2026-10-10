@@ -31,6 +31,27 @@ const fs = require('node:fs/promises');
       like_count: 5,
       comment_count: 2,
       liked_by_me: true
+    },
+    {
+      id: 202,
+      type: 'status',
+      category: 'notice',
+      category_label: 'Notice',
+      is_official: true,
+      name: 'College Administration',
+      studentId: 'admin_1',
+      role: 'admin',
+      title: 'Exam Schedule Released',
+      content: 'Final semester examinations will commence from next Monday. Please review the updated schedule.',
+      created_at: new Date(Date.now() - 3600000).toISOString(),
+      target_all_semesters: 1,
+      allSemesters: true,
+      targetSemesters: [],
+      visibility: 'everyone',
+      audience: 'everyone',
+      like_count: 12,
+      comment_count: 4,
+      liked_by_me: false
     }
   ];
 

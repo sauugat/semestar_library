@@ -247,7 +247,7 @@ export function PostMarkdown({
                 },
               ]}
             >
-              <Text variant="xs" style={[styles.codeLang, { color: colors.textSecondary }]}>
+              <Text style={[styles.codeLang, { color: colors.textSecondary }]}>
                 {block.lang}
               </Text>
               <TouchableOpacity

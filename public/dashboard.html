@@ -521,6 +521,22 @@
     .post-card .post-content,
     .post-card .status-post-text {
       margin: 0;
+      white-space: pre-line;
+      line-height: 1.5;
+    }
+
+    .post-card .status-post-text.post-markdown-content {
+      white-space: normal;
+      line-height: 1.5;
+    }
+
+    .post-card .status-post-text.post-markdown-content .md-p {
+      margin: 0 0 6px 0;
+      line-height: 1.5;
+    }
+
+    .post-card .status-post-text.post-markdown-content .md-p:last-child {
+      margin-bottom: 0;
     }
 
     body.dash .feed .post-card :is(.post-footer, .post-actions, .post-engage-bar) {

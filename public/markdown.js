@@ -155,6 +155,55 @@
         continue;
       }
 
+      // Markdown Table: Header row followed by delimiter row
+      if (line.includes('|') && i + 1 < lines.length && isTableDelimiter(lines[i + 1])) {
+        flushQuote();
+        flushList();
+
+        const headerCells = line.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim());
+        const alignCells = lines[i + 1].trim().replace(/^\||\|$/g, '').split('|');
+        const alignments = alignCells.map(c => {
+          const t = c.trim();
+          const left = t.startsWith(':');
+          const right = t.endsWith(':');
+          if (left && right) return 'center';
+          if (right) return 'right';
+          return 'left';
+        });
+
+        const dataRows = [];
+        let j = i + 2;
+        while (j < lines.length) {
+          const dLine = lines[j].trim();
+          if (!dLine || !dLine.includes('|') || isTableDelimiter(dLine)) break;
+          const rowCells = dLine.replace(/^\||\|$/g, '').split('|').map(c => c.trim());
+          dataRows.push(rowCells);
+          j++;
+        }
+        i = j - 1; // Advance loop index
+
+        let tableHtml = '<div class="md-table-wrapper"><table class="md-table"><thead><tr>';
+        for (let c = 0; c < headerCells.length; c++) {
+          const align = alignments[c] || 'left';
+          const text = parseInlineMarkdown(escapeHtml(headerCells[c]));
+          tableHtml += `<th style="text-align: ${align};">${text}</th>`;
+        }
+        tableHtml += '</tr></thead><tbody>';
+
+        for (const row of dataRows) {
+          tableHtml += '<tr>';
+          for (let c = 0; c < headerCells.length; c++) {
+            const align = alignments[c] || 'left';
+            const text = parseInlineMarkdown(escapeHtml(row[c] || ''));
+            tableHtml += `<td style="text-align: ${align};">${text}</td>`;
+          }
+          tableHtml += '</tr>';
+        }
+        tableHtml += '</tbody></table></div>';
+        output.push(tableHtml);
+        continue;
+      }
+
       // Headings
       const hMatch = line.match(/^(#{1,3})\s+(.*)$/);
       if (hMatch) {

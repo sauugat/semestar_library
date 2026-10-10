@@ -545,6 +545,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
+  const { displayLabel: academicDisplayLabel } = useAcademicContext();
   const { colors, spacing, radii } = useTheme();
   const queryClient = useQueryClient();
   const navigation = useNavigation();

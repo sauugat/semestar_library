@@ -850,8 +850,8 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       if (!hasText && !hasAttachments) {
         return rejectPost('Post must contain either text content or at least one photo or file.');
       }
-      if (trimmedContent.length > 5000) {
-        return rejectPost('Post content cannot exceed 5,000 characters.');
+      if (trimmedContent.length > 1000000) {
+        return rejectPost('Post content cannot exceed 1,000,000 characters.');
       }
       if (!['status', 'assignment', 'notice'].includes(type)) {
         return rejectPost('Choose status, assignment, or notice.');
@@ -1377,9 +1377,9 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
           for (const f of uploadedFiles) await removeUploadedImage(f.path);
           return res.status(400).json({ message: 'Invalid content format.' });
         }
-        if (content.trim().length > 5000) {
+        if (content.trim().length > 1000000) {
           for (const f of uploadedFiles) await removeUploadedImage(f.path);
-          return res.status(400).json({ message: 'Post content cannot exceed 5,000 characters.' });
+          return res.status(400).json({ message: 'Post content cannot exceed 1,000,000 characters.' });
         }
         newContent = content.trim();
       }

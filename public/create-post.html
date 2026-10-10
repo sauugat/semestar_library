@@ -477,6 +477,42 @@
       margin: 0.5em 0;
     }
 
+    .composer-wysiwyg-editor .md-table-wrapper {
+      width: 100%;
+      overflow-x: auto;
+      margin: 12px 0;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .composer-wysiwyg-editor table.md-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 13.5px;
+      line-height: 1.5;
+      background: var(--card-bg);
+    }
+
+    .composer-wysiwyg-editor table.md-table th,
+    .composer-wysiwyg-editor table.md-table td {
+      padding: 8px 12px;
+      border: 1px solid var(--border-color);
+      vertical-align: top;
+      min-width: 60px;
+    }
+
+    .composer-wysiwyg-editor table.md-table th {
+      background: var(--select-hover);
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .composer-wysiwyg-editor table.md-table tbody tr:hover {
+      background: var(--select-hover);
+    }
+
     .composer-footer-hints {
       display: flex;
       align-items: center;

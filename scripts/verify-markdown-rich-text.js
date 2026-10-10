@@ -211,10 +211,16 @@ const fs = require('node:fs/promises');
   }
   console.log('✓ PASS: Upcoming bold text is bold');
 
-  if (!cleanHtml.includes('This text must be normal again')) {
+  const innerText = await page.evaluate(() => document.getElementById('postEditor').innerText);
+  if (!innerText.includes('This text must be normal again.')) {
     throw new Error('FAIL: Normal text was missing or corrupted!');
   }
   console.log('✓ PASS: Subsequent text reverted to normal text');
+
+  if (!cleanHtml.includes('<i>rmal again.</i>') && !cleanHtml.includes('<em>rmal again.</em>')) {
+    throw new Error('FAIL: Selected text was not italicized!');
+  }
+  console.log('✓ PASS: Selected text was formatted with italics');
 
   await page.screenshot({ path: `${screenshotsDir}/composer_wysiwyg_direct.png` });
   console.log('✓ Captured composer_wysiwyg_direct.png');

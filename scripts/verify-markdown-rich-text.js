@@ -274,6 +274,15 @@ const fs = require('node:fs/promises');
   await page.screenshot({ path: `${screenshotsDir}/feed_post_table_rendered.png` });
   console.log('✓ Captured feed_post_table_rendered.png');
 
+  // Also verify light mode styling
+  await page.evaluate(() => {
+    document.documentElement.setAttribute('data-theme', 'light');
+    document.body.classList.add('light-mode');
+  });
+  await page.waitForTimeout(100);
+  await page.screenshot({ path: `${screenshotsDir}/feed_post_table_light.png` });
+  console.log('✓ Captured feed_post_table_light.png');
+
   await browser.close();
   server.close();
   console.log('Visual verification complete!');

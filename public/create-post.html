@@ -1504,12 +1504,6 @@
         sel.addRange(range);
       }
     }
-        range.selectNodeContents(postEditor);
-        range.collapse(false);
-        sel.removeAllRanges();
-        sel.addRange(range);
-      }
-    }
 
     function escapeInlineTag(tagName, range, sel) {
       const tags = [tagName, tagName === 'b' ? 'strong' : '', tagName === 'i' ? 'em' : ''].filter(Boolean);

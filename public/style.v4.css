@@ -6458,16 +6458,26 @@ body.light-mode .post-markdown-content .md-blockquote {
 
 .post-markdown-content .md-code-block {
   margin: 0;
-  padding: 12px 14px;
+  padding: 10px 14px;
   overflow-x: auto;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 13px;
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace !important;
+  font-size: 12.5px;
   line-height: 1.5;
   color: #f4f4f5;
-  tab-size: 2;
+  white-space: pre !important;
+  tab-size: 4;
+  -moz-tab-size: 4;
+  -webkit-overflow-scrolling: touch;
 }
 
-[data-theme="light"] .post-markdown-content .md-code-block {
+.post-markdown-content .md-code-block code {
+  font-family: inherit !important;
+  white-space: pre !important;
+  display: block;
+}
+
+[data-theme="light"] .post-markdown-content .md-code-block,
+body.light-mode .post-markdown-content .md-code-block {
   color: #18181b;
 }
 

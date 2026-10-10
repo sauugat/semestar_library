@@ -103,4 +103,25 @@ test('public/markdown.js - Markdown parser and rich text converter', async (t) =
     assert.doesNotMatch(html, /<script>/i);
     assert.match(html, /&lt;script&gt;/);
   });
+
+  await t.test('renders markdown tables with proper header, rows, and responsive wrapper', () => {
+    const sampleTable = `| Feature | Traditional Learning | AI-Assisted Learning |
+|---|---|---|
+| Information access | Books and teachers | Books, teachers, and AI |
+| Availability | Limited hours | Often available 24/7 |
+| Personalization | Depends on instruction | Can adapt explanations |
+| Feedback | Sometimes delayed | Often immediate |
+| Accuracy | Depends on source | Requires verification |`;
+
+    const html = renderPostMarkdown(sampleTable);
+    assert.match(html, /<div class="md-table-wrapper">/);
+    assert.match(html, /<table class="md-table">/);
+    assert.match(html, /<thead><tr><th style="text-align: left;">Feature<\/th><th style="text-align: left;">Traditional Learning<\/th><th style="text-align: left;">AI-Assisted Learning<\/th><\/tr><\/thead>/);
+    assert.match(html, /<tbody>/);
+    assert.match(html, /<td>Information access<\/td>/);
+    assert.match(html, /<td>Books, teachers, and AI<\/td>/);
+    assert.match(html, /<td>Often available 24\/7<\/td>/);
+    assert.match(html, /<td>Requires verification<\/td>/);
+    assert.match(html, /<\/tbody><\/table><\/div>/);
+  });
 });

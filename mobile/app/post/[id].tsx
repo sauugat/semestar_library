@@ -571,6 +571,36 @@ export default function PostDetailScreen() {
             </View>
           </View>
 
+          {/* Category and Audience Monochrome Tags (omits General) */}
+          {(() => {
+            const cat = (post.category_label || post.category || '').trim();
+            const isGeneral = !cat || cat.toLowerCase() === 'general';
+            const isStudentsOnly = post.visibility === 'students_only' || post.audience === 'students_only';
+
+            if (isGeneral && !isStudentsOnly) {
+              return null;
+            }
+
+            return (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: spacing.xs, marginBottom: spacing.xs }}>
+                {!isGeneral && (
+                  <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, borderWidth: 1, backgroundColor: colors.surfaceRaised, borderColor: colors.border }}>
+                    <Text variant="xs" weight="700" style={{ color: colors.textSecondary, fontSize: 10, textTransform: 'uppercase' }}>
+                      {post.category_label || (post.category ? post.category.toUpperCase() : '')}
+                    </Text>
+                  </View>
+                )}
+                {isStudentsOnly && (
+                  <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, borderWidth: 1, backgroundColor: colors.surfaceRaised, borderColor: colors.borderStrong || colors.border }}>
+                    <Text variant="xs" weight="700" style={{ color: colors.text, fontSize: 10, textTransform: 'uppercase' }}>
+                      STUDENTS ONLY
+                    </Text>
+                  </View>
+                )}
+              </View>
+            );
+          })()}
+
           {/* Post Content Body */}
           <PostMarkdown
             content={post.content}

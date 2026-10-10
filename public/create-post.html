@@ -1355,30 +1355,105 @@
       }
     }
 
+    function findClosestElement(node, tagNames) {
+      if (!node) return null;
+      let cur = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+      const lowerTags = tagNames.map(t => t.toLowerCase());
+      while (cur && cur !== postEditor) {
+        if (lowerTags.includes(cur.tagName.toLowerCase())) {
+          return cur;
+        }
+        cur = cur.parentElement;
+      }
+      return null;
+    }
+
+    function getCurrentBlock(node) {
+      if (!node) return null;
+      let cur = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+      const blockTags = ['p', 'h1', 'h2', 'h3', 'blockquote', 'pre', 'ul', 'ol', 'li', 'div'];
+      while (cur && cur !== postEditor) {
+        if (blockTags.includes(cur.tagName.toLowerCase())) {
+          return cur;
+        }
+        cur = cur.parentElement;
+      }
+      return null;
+    }
+
+    function isBlockEmpty(block) {
+      if (!block) return true;
+      const text = (block.textContent || '').replace(/\u200B/g, '').trim();
+      return text.length === 0;
+    }
+
+    function setCursorAtStart(el, sel) {
+      el.focus();
+      const range = document.createRange();
+      if (el.firstChild) {
+        range.setStart(el.firstChild, 0);
+      } else {
+        range.setStart(el, 0);
+      }
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+
+    function setCursorAtEnd(el, sel) {
+      el.focus();
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      range.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+
     function updateToolbarActiveState() {
       if (!postEditor) return;
       const sel = window.getSelection();
-      if (!sel || (sel.rangeCount > 0 && !postEditor.contains(sel.anchorNode))) {
+      if (!sel || sel.rangeCount === 0 || !postEditor.contains(sel.anchorNode)) {
         return;
       }
 
       try {
-        setBtnActive('bold', document.queryCommandState('bold'));
-        setBtnActive('italic', document.queryCommandState('italic'));
-        setBtnActive('underline', document.queryCommandState('underline'));
-        setBtnActive('strike', document.queryCommandState('strikeThrough'));
-        setBtnActive('bullet-list', document.queryCommandState('insertUnorderedList'));
-        setBtnActive('number-list', document.queryCommandState('insertOrderedList'));
-
-        const blockVal = (document.queryCommandValue('formatBlock') || '').toLowerCase();
-        setBtnActive('h1', blockVal === 'h1');
-        setBtnActive('h2', blockVal === 'h2');
-        setBtnActive('h3', blockVal === 'h3');
-        setBtnActive('quote', blockVal === 'blockquote');
-
         const anchor = sel.anchorNode;
-        const parentCode = anchor && (anchor.nodeType === Node.ELEMENT_NODE ? anchor.closest('code') : anchor.parentElement?.closest('code'));
-        setBtnActive('code-inline', !!parentCode);
+        const curBlock = getCurrentBlock(anchor);
+        const blockTag = curBlock ? curBlock.tagName.toLowerCase() : '';
+
+        // Bold
+        const isBold = document.queryCommandState('bold') || !!findClosestElement(anchor, ['b', 'strong']);
+        setBtnActive('bold', isBold);
+
+        // Italic
+        const isItalic = document.queryCommandState('italic') || !!findClosestElement(anchor, ['i', 'em']);
+        setBtnActive('italic', isItalic);
+
+        // Underline
+        const isUnderline = document.queryCommandState('underline') || !!findClosestElement(anchor, ['u']);
+        setBtnActive('underline', isUnderline);
+
+        // Strikethrough
+        const isStrike = document.queryCommandState('strikeThrough') || !!findClosestElement(anchor, ['s', 'del', 'strike']);
+        setBtnActive('strike', isStrike);
+
+        // Lists
+        const isUl = blockTag === 'ul' || (curBlock && curBlock.closest('ul') !== null);
+        const isOl = blockTag === 'ol' || (curBlock && curBlock.closest('ol') !== null);
+        setBtnActive('bullet-list', isUl);
+        setBtnActive('number-list', isOl);
+
+        // Headings & Quote
+        setBtnActive('h1', blockTag === 'h1');
+        setBtnActive('h2', blockTag === 'h2');
+        setBtnActive('h3', blockTag === 'h3');
+        setBtnActive('quote', blockTag === 'blockquote');
+
+        // Code
+        const isCode = !!findClosestElement(anchor, ['code']) && blockTag !== 'pre';
+        const isCodeBlock = blockTag === 'pre' || (curBlock && curBlock.closest('pre') !== null);
+        setBtnActive('code-inline', isCode);
+        setBtnActive('code-block', isCodeBlock);
       } catch (_) {}
     }
 
@@ -1395,95 +1470,311 @@
       }
     }
 
-    function applyFormat(format) {
-      ensureEditorFocus();
+    function escapeInlineTag(tagName, range, sel) {
+      const tags = [tagName, tagName === 'b' ? 'strong' : '', tagName === 'i' ? 'em' : ''].filter(Boolean);
+      const el = findClosestElement(range.startContainer, tags);
+      if (el) {
+        const zws = document.createTextNode('\u200B');
+        if (el.nextSibling) {
+          el.parentNode.insertBefore(zws, el.nextSibling);
+        } else {
+          el.parentNode.appendChild(zws);
+        }
+        const newRange = document.createRange();
+        newRange.setStart(zws, 1);
+        newRange.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(newRange);
+      }
+    }
 
+    function toggleInlineFormat(cmd, tagName) {
+      ensureEditorFocus();
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0) return;
+      const range = sel.getRangeAt(0);
+
+      // Selected text: format or unformat selected characters only
+      if (!sel.isCollapsed && range.toString().length > 0) {
+        if (cmd) {
+          document.execCommand(cmd, false, null);
+        } else if (tagName === 'code') {
+          const parentCode = findClosestElement(range.commonAncestorContainer, ['code']);
+          if (parentCode) {
+            const text = parentCode.textContent || '';
+            parentCode.replaceWith(document.createTextNode(text));
+          } else {
+            const codeEl = document.createElement('code');
+            codeEl.appendChild(range.extractContents());
+            range.insertNode(codeEl);
+            sel.selectAllChildren(codeEl);
+          }
+        }
+        updateToolbarActiveState();
+        updateCharCounter();
+        return;
+      }
+
+      // Collapsed cursor: format for UPCOMING text without altering written text
+      if (cmd) {
+        const isActive = document.queryCommandState(cmd);
+        if (isActive) {
+          // Turning OFF for upcoming text
+          document.execCommand(cmd, false, null);
+          escapeInlineTag(tagName, range, sel);
+        } else {
+          // Turning ON for upcoming text
+          document.execCommand(cmd, false, null);
+          const zws = document.createTextNode('\u200B');
+          const inlineEl = document.createElement(tagName);
+          inlineEl.appendChild(zws);
+          range.insertNode(inlineEl);
+          const newRange = document.createRange();
+          newRange.setStart(zws, 1);
+          newRange.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(newRange);
+        }
+      } else if (tagName === 'code') {
+        const parentCode = findClosestElement(range.startContainer, ['code']);
+        if (parentCode) {
+          escapeInlineTag('code', range, sel);
+        } else {
+          const codeEl = document.createElement('code');
+          const zws = document.createTextNode('\u200B');
+          codeEl.appendChild(zws);
+          range.insertNode(codeEl);
+          const newRange = document.createRange();
+          newRange.setStart(zws, 1);
+          newRange.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(newRange);
+        }
+      }
+
+      updateToolbarActiveState();
+      updateCharCounter();
+    }
+
+    function applyBlockFormat(tagName) {
+      ensureEditorFocus();
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0) return;
+      const range = sel.getRangeAt(0);
+
+      // Selected text: convert selection block to tagName
+      if (!sel.isCollapsed && range.toString().trim().length > 0) {
+        const curBlock = getCurrentBlock(range.commonAncestorContainer);
+        if (curBlock && curBlock.tagName.toLowerCase() === tagName.toLowerCase()) {
+          // Toggle off: back to <p>
+          const p = document.createElement('p');
+          p.innerHTML = curBlock.innerHTML;
+          curBlock.parentNode.replaceChild(p, curBlock);
+          sel.selectAllChildren(p);
+        } else if (curBlock && curBlock !== postEditor) {
+          const newBlock = document.createElement(tagName);
+          newBlock.innerHTML = curBlock.innerHTML;
+          curBlock.parentNode.replaceChild(newBlock, curBlock);
+          sel.selectAllChildren(newBlock);
+        } else {
+          const newBlock = document.createElement(tagName);
+          newBlock.appendChild(range.extractContents());
+          range.insertNode(newBlock);
+          sel.selectAllChildren(newBlock);
+        }
+        updateToolbarActiveState();
+        updateCharCounter();
+        return;
+      }
+
+      // Collapsed cursor: apply for UPCOMING text!
+      const curBlock = getCurrentBlock(range.startContainer);
+
+      // If already inside this heading/quote: toggle off to normal <p>
+      if (curBlock && curBlock.tagName.toLowerCase() === tagName.toLowerCase()) {
+        const p = document.createElement('p');
+        p.innerHTML = curBlock.innerHTML || '<br>';
+        curBlock.parentNode.replaceChild(p, curBlock);
+        setCursorAtEnd(p, sel);
+        updateToolbarActiveState();
+        updateCharCounter();
+        return;
+      }
+
+      // If current block is empty: convert this empty line to tagName
+      if (isBlockEmpty(curBlock)) {
+        const newBlock = document.createElement(tagName);
+        newBlock.innerHTML = '<br>';
+        if (curBlock && curBlock !== postEditor) {
+          curBlock.parentNode.replaceChild(newBlock, curBlock);
+        } else {
+          postEditor.innerHTML = '';
+          postEditor.appendChild(newBlock);
+        }
+        setCursorAtStart(newBlock, sel);
+      } else {
+        // Current block has written text: DO NOT CHANGE WRITTEN TEXT!
+        // Start a fresh line of tagName for upcoming text!
+        const newBlock = document.createElement(tagName);
+        newBlock.innerHTML = '<br>';
+        if (curBlock && curBlock.nextSibling) {
+          curBlock.parentNode.insertBefore(newBlock, curBlock.nextSibling);
+        } else if (curBlock) {
+          curBlock.parentNode.appendChild(newBlock);
+        } else {
+          postEditor.appendChild(newBlock);
+        }
+        setCursorAtStart(newBlock, sel);
+      }
+
+      updateToolbarActiveState();
+      updateCharCounter();
+    }
+
+    function applyListFormat(listType) {
+      ensureEditorFocus();
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0) return;
+      const range = sel.getRangeAt(0);
+
+      // If selection exists: convert via execCommand
+      if (!sel.isCollapsed && range.toString().trim().length > 0) {
+        document.execCommand(listType === 'ul' ? 'insertUnorderedList' : 'insertOrderedList', false, null);
+        updateToolbarActiveState();
+        updateCharCounter();
+        return;
+      }
+
+      const curBlock = getCurrentBlock(range.startContainer);
+      const curList = curBlock?.closest('ul, ol');
+
+      // If already inside this list: toggle off list
+      if (curList && curList.tagName.toLowerCase() === listType) {
+        document.execCommand(listType === 'ul' ? 'insertUnorderedList' : 'insertOrderedList', false, null);
+        updateToolbarActiveState();
+        updateCharCounter();
+        return;
+      }
+
+      // If current line has written text: do not alter it, start list on new line for upcoming text
+      const listEl = document.createElement(listType);
+      const li = document.createElement('li');
+      li.innerHTML = '<br>';
+      listEl.appendChild(li);
+
+      if (isBlockEmpty(curBlock)) {
+        if (curBlock && curBlock !== postEditor) {
+          curBlock.parentNode.replaceChild(listEl, curBlock);
+        } else {
+          postEditor.innerHTML = '';
+          postEditor.appendChild(listEl);
+        }
+      } else if (curBlock && curBlock !== postEditor) {
+        if (curBlock.nextSibling) {
+          curBlock.parentNode.insertBefore(listEl, curBlock.nextSibling);
+        } else {
+          curBlock.parentNode.appendChild(listEl);
+        }
+      } else {
+        postEditor.appendChild(listEl);
+      }
+
+      setCursorAtStart(li, sel);
+      updateToolbarActiveState();
+      updateCharCounter();
+    }
+
+    function applyCodeBlock() {
+      ensureEditorFocus();
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0) return;
+      const range = sel.getRangeAt(0);
+
+      const pre = document.createElement('pre');
+      pre.className = 'md-code-block';
+      const code = document.createElement('code');
+
+      if (!sel.isCollapsed && range.toString().trim().length > 0) {
+        code.textContent = range.toString();
+        pre.appendChild(code);
+        range.deleteContents();
+        range.insertNode(pre);
+        setCursorAtEnd(code, sel);
+      } else {
+        code.innerHTML = '<br>';
+        pre.appendChild(code);
+        const curBlock = getCurrentBlock(range.startContainer);
+
+        if (isBlockEmpty(curBlock)) {
+          if (curBlock && curBlock !== postEditor) {
+            curBlock.parentNode.replaceChild(pre, curBlock);
+          } else {
+            postEditor.innerHTML = '';
+            postEditor.appendChild(pre);
+          }
+        } else if (curBlock && curBlock !== postEditor) {
+          if (curBlock.nextSibling) {
+            curBlock.parentNode.insertBefore(pre, curBlock.nextSibling);
+          } else {
+            curBlock.parentNode.appendChild(pre);
+          }
+        } else {
+          postEditor.appendChild(pre);
+        }
+
+        // Add a normal paragraph below for easy exiting
+        if (!pre.nextSibling) {
+          const p = document.createElement('p');
+          p.innerHTML = '<br>';
+          pre.parentNode.appendChild(p);
+        }
+        setCursorAtStart(code, sel);
+      }
+
+      updateToolbarActiveState();
+      updateCharCounter();
+    }
+
+    function applyFormat(format) {
       switch (format) {
         case 'bold':
-          document.execCommand('bold', false, null);
+          toggleInlineFormat('bold', 'b');
           break;
         case 'italic':
-          document.execCommand('italic', false, null);
+          toggleInlineFormat('italic', 'i');
           break;
         case 'underline':
-          document.execCommand('underline', false, null);
+          toggleInlineFormat('underline', 'u');
           break;
         case 'strike':
-          document.execCommand('strikeThrough', false, null);
+          toggleInlineFormat('strikeThrough', 's');
           break;
-        case 'h1': {
-          const cur = (document.queryCommandValue('formatBlock') || '').toLowerCase();
-          document.execCommand('formatBlock', false, cur === 'h1' ? '<p>' : '<h1>');
+        case 'h1':
+          applyBlockFormat('h1');
           break;
-        }
-        case 'h2': {
-          const cur = (document.queryCommandValue('formatBlock') || '').toLowerCase();
-          document.execCommand('formatBlock', false, cur === 'h2' ? '<p>' : '<h2>');
+        case 'h2':
+          applyBlockFormat('h2');
           break;
-        }
-        case 'h3': {
-          const cur = (document.queryCommandValue('formatBlock') || '').toLowerCase();
-          document.execCommand('formatBlock', false, cur === 'h3' ? '<p>' : '<h3>');
+        case 'h3':
+          applyBlockFormat('h3');
           break;
-        }
+        case 'quote':
+          applyBlockFormat('blockquote');
+          break;
         case 'bullet-list':
-          document.execCommand('insertUnorderedList', false, null);
+          applyListFormat('ul');
           break;
         case 'number-list':
-          document.execCommand('insertOrderedList', false, null);
+          applyListFormat('ol');
           break;
-        case 'quote': {
-          const cur = (document.queryCommandValue('formatBlock') || '').toLowerCase();
-          document.execCommand('formatBlock', false, cur === 'blockquote' ? '<p>' : '<blockquote>');
+        case 'code-inline':
+          toggleInlineFormat(null, 'code');
           break;
-        }
-        case 'code-inline': {
-          const sel = window.getSelection();
-          if (sel && sel.rangeCount > 0) {
-            const range = sel.getRangeAt(0);
-            const parentCode = range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE
-              ? range.commonAncestorContainer.closest('code')
-              : range.commonAncestorContainer.parentElement?.closest('code');
-            if (parentCode) {
-              const textNode = document.createTextNode(parentCode.textContent || '');
-              parentCode.replaceWith(textNode);
-            } else if (!sel.isCollapsed) {
-              const codeEl = document.createElement('code');
-              codeEl.textContent = range.toString();
-              range.deleteContents();
-              range.insertNode(codeEl);
-              sel.selectAllChildren(codeEl);
-            } else {
-              const codeEl = document.createElement('code');
-              codeEl.textContent = 'code';
-              range.insertNode(codeEl);
-              sel.selectAllChildren(codeEl);
-            }
-          }
+        case 'code-block':
+          applyCodeBlock();
           break;
-        }
-        case 'code-block': {
-          const pre = document.createElement('pre');
-          const code = document.createElement('code');
-          const sel = window.getSelection();
-          const text = (sel && !sel.isCollapsed) ? sel.toString() : '// code snippet';
-          code.textContent = text;
-          pre.appendChild(code);
-          if (sel && sel.rangeCount > 0) {
-            const range = sel.getRangeAt(0);
-            range.deleteContents();
-            range.insertNode(pre);
-            const p = document.createElement('p');
-            p.innerHTML = '<br>';
-            pre.after(p);
-            range.selectNodeContents(p);
-            range.collapse(true);
-            sel.removeAllRanges();
-            sel.addRange(range);
-          }
-          break;
-        }
         case 'link': {
+          ensureEditorFocus();
           const sel = window.getSelection();
           const selText = sel ? sel.toString().trim() : '';
           const url = prompt('Enter link URL (e.g. https://example.com):', 'https://');
@@ -1497,10 +1788,17 @@
               if (sel && sel.rangeCount > 0) {
                 const range = sel.getRangeAt(0);
                 range.insertNode(a);
-                range.setStartAfter(a);
-                range.collapse(true);
+                const zws = document.createTextNode('\u200B');
+                if (a.nextSibling) {
+                  a.parentNode.insertBefore(zws, a.nextSibling);
+                } else {
+                  a.parentNode.appendChild(zws);
+                }
+                const newRange = document.createRange();
+                newRange.setStart(zws, 1);
+                newRange.collapse(true);
                 sel.removeAllRanges();
-                sel.addRange(range);
+                sel.addRange(newRange);
               }
             } else {
               document.execCommand('createLink', false, url);
@@ -1508,9 +1806,21 @@
           }
           break;
         }
-        case 'divider':
-          document.execCommand('insertHorizontalRule', false, null);
+        case 'divider': {
+          ensureEditorFocus();
+          const sel = window.getSelection();
+          if (sel && sel.rangeCount > 0) {
+            const hr = document.createElement('hr');
+            hr.className = 'md-divider';
+            const p = document.createElement('p');
+            p.innerHTML = '<br>';
+            const range = sel.getRangeAt(0);
+            range.insertNode(p);
+            range.insertNode(hr);
+            setCursorAtStart(p, sel);
+          }
           break;
+        }
       }
 
       updateToolbarActiveState();
@@ -1537,12 +1847,90 @@
       postEditor.addEventListener('keyup', updateToolbarActiveState);
       postEditor.addEventListener('mouseup', updateToolbarActiveState);
 
-      // Keyboard shortcuts
+      // Handle Enter key for headings, blockquotes, and lists
       postEditor.addEventListener('keydown', (e) => {
         const isMod = e.ctrlKey || e.metaKey;
+        if (isMod && (e.key === 'b' || e.key === 'B')) {
+          e.preventDefault();
+          toggleInlineFormat('bold', 'b');
+          return;
+        }
+        if (isMod && (e.key === 'i' || e.key === 'I')) {
+          e.preventDefault();
+          toggleInlineFormat('italic', 'i');
+          return;
+        }
+        if (isMod && (e.key === 'u' || e.key === 'U')) {
+          e.preventDefault();
+          toggleInlineFormat('underline', 'u');
+          return;
+        }
         if (isMod && (e.key === 'k' || e.key === 'K')) {
           e.preventDefault();
           applyFormat('link');
+          return;
+        }
+
+        // Enter key handling: automatically resume normal paragraph on next line after heading
+        if (e.key === 'Enter' && !e.shiftKey) {
+          const sel = window.getSelection();
+          if (!sel || sel.rangeCount === 0) return;
+          const range = sel.getRangeAt(0);
+          const node = range.startContainer;
+
+          // Headings: Enter creates normal paragraph <p>
+          const heading = findClosestElement(node, ['h1', 'h2', 'h3']);
+          if (heading) {
+            e.preventDefault();
+            const p = document.createElement('p');
+            p.innerHTML = '<br>';
+            if (heading.nextSibling) {
+              heading.parentNode.insertBefore(p, heading.nextSibling);
+            } else {
+              heading.parentNode.appendChild(p);
+            }
+            setCursorAtStart(p, sel);
+            updateToolbarActiveState();
+            updateCharCounter();
+            return;
+          }
+
+          // Lists: Enter on empty item exits list into paragraph
+          const li = findClosestElement(node, ['li']);
+          if (li && isBlockEmpty(li)) {
+            e.preventDefault();
+            const list = li.closest('ul, ol');
+            li.remove();
+            const p = document.createElement('p');
+            p.innerHTML = '<br>';
+            if (list && list.nextSibling) {
+              list.parentNode.insertBefore(p, list.nextSibling);
+            } else if (list) {
+              list.parentNode.appendChild(p);
+            } else {
+              postEditor.appendChild(p);
+            }
+            if (list && list.children.length === 0) {
+              list.remove();
+            }
+            setCursorAtStart(p, sel);
+            updateToolbarActiveState();
+            updateCharCounter();
+            return;
+          }
+
+          // Blockquote: Enter on empty line exits blockquote
+          const quote = findClosestElement(node, ['blockquote']);
+          if (quote && isBlockEmpty(quote)) {
+            e.preventDefault();
+            const p = document.createElement('p');
+            p.innerHTML = '<br>';
+            quote.parentNode.replaceChild(p, quote);
+            setCursorAtStart(p, sel);
+            updateToolbarActiveState();
+            updateCharCounter();
+            return;
+          }
         }
       });
 
@@ -1555,7 +1943,7 @@
       });
 
       // Smart Paste: Preserve rich HTML elements and strip clashing inline CSS
-      postEditor.addEventListener('paste', (e) => {
+      postEditor.addEventListener('paste', () => {
         setTimeout(() => {
           postEditor.querySelectorAll('*').forEach(el => {
             el.removeAttribute('style');

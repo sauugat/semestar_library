@@ -262,8 +262,8 @@ const fs = require('node:fs/promises');
   console.log('✓ Captured composer_wysiwyg_direct.png');
 
   // Submit the post
-  await page.click('#submitPostBtn');
-  await page.waitForTimeout(800);
+  await page.click('#submitBtn');
+  await page.waitForTimeout(1000);
 
   // Navigate to dashboard and verify the table rendered on feed
   await page.goto(`http://127.0.0.1:${port}/dashboard.html`);

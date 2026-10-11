@@ -619,48 +619,52 @@
       color: var(--text-main);
     }
 
-    .email-title-input {
-      width: 100%;
-      border: none;
-      background: transparent;
-      padding: 6px 0;
-      font-size: 14.5px;
-      font-weight: 500;
-      color: var(--text-main);
-      font-family: inherit;
-      outline: none;
+    .email-title-input,
+    #postTitle.email-title-input {
+      width: 100% !important;
+      border: none !important;
+      background: transparent !important;
+      background-color: transparent !important;
+      padding: 6px 0 !important;
+      font-size: 14.5px !important;
+      font-weight: 500 !important;
+      color: var(--text-main) !important;
+      font-family: inherit !important;
+      outline: none !important;
+      box-shadow: none !important;
+      border-radius: 0 !important;
     }
 
     .email-title-input::placeholder {
       font-weight: 400;
-      color: var(--text-muted);
+      color: var(--text-muted) !important;
     }
 
     .email-to-trigger {
       display: inline-flex;
       align-items: center;
-      gap: 8px;
-      padding: 5px 12px;
+      gap: 7px;
+      padding: 4px 10px;
       border-radius: 6px;
-      font-size: 13px;
+      font-size: 12.5px;
       font-weight: 500;
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid var(--border-color);
-      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.04) !important;
+      border: 1px solid var(--border-color) !important;
+      color: var(--text-main) !important;
       cursor: pointer;
-      width: auto;
-      max-width: 100%;
+      width: auto !important;
+      max-width: fit-content;
       transition: all 0.12s ease;
     }
 
     [data-theme="light"] .email-to-trigger,
     body.light-mode .email-to-trigger {
-      background: rgba(0, 0, 0, 0.03);
+      background: rgba(0, 0, 0, 0.03) !important;
     }
 
     .email-to-trigger:hover {
-      background: var(--select-hover);
-      border-color: var(--border-strong);
+      background: var(--select-hover) !important;
+      border-color: var(--border-strong) !important;
     }
 
     .email-body-label {

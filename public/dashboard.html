@@ -3772,12 +3772,14 @@
 
     function renderFeed() {
       const container = document.getElementById('realFiles');
-      feedItems = feedItems.filter(item => item._feedType !== 'assignment' && item.type !== 'assignment');
       feedItems.sort((a, b) => b._feedTime - a._feedTime || b.id - a.id);
 
       let visibleItems = feedItems;
       if (currentFeedCategoryFilter && currentFeedCategoryFilter !== 'all') {
         visibleItems = feedItems.filter(item => {
+          if (item._feedType === 'assignment' || item.type === 'assignment') {
+            return currentFeedCategoryFilter.toLowerCase() === 'assignment';
+          }
           if (item._feedType !== 'post') return false;
           const cat = (item.category || 'general').toLowerCase();
           return cat === currentFeedCategoryFilter.toLowerCase();
@@ -3827,7 +3829,6 @@
     function addFeedPosts(posts) {
       const existing = new Set(feedItems.filter(item => item._feedType === 'post').map(item => item.id));
       posts.forEach(post => {
-        if (post.type === 'assignment') return;
         if (!existing.has(post.id)) {
           feedItems.push({ ...post, _feedType: 'post', _feedTime: new Date(post.created_at).getTime() });
           existing.add(post.id);
@@ -3842,12 +3843,15 @@
     }
 
     async function loadFeed() {
-      const [files, page] = await Promise.all([
+      const [files, assignments, page] = await Promise.all([
         fetch('/api/files').then(r => r.ok ? r.json() : []).catch(() => []),
+        fetch('/api/code-lab/assignments').then(r => r.ok ? r.json() : []).catch(() => []),
         fetchPostPage().catch(err => { postFeedMessage.textContent = err.message; return null; })
       ]);
+      const assignmentList = Array.isArray(assignments) ? assignments : (assignments?.assignments || []);
       feedItems = [
-        ...files.map(f => ({ ...f, _feedType: 'file', _feedTime: new Date(f.uploadedAt || f.createdAt || 0).getTime() }))
+        ...files.map(f => ({ ...f, _feedType: 'file', _feedTime: new Date(f.uploadedAt || f.createdAt || 0).getTime() })),
+        ...assignmentList.map(a => ({ ...a, _feedType: 'assignment', _feedTime: new Date(a.createdAt || 0).getTime() }))
       ];
       if (page) {
         addFeedPosts(page.posts);

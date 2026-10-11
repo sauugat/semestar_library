@@ -1136,6 +1136,39 @@
             </div>
           </div>
 
+          <!-- Target Semester Selector (Active for General mode) -->
+          <div class="dropdown-container" id="generalSemesterSlot">
+            <label class="form-label">Target Semester</label>
+            <div class="dropdown-container" id="semesterContainer" style="margin: 0; width: 100%;">
+              <button type="button" class="dropdown-trigger" id="semesterBtn" aria-haspopup="dialog" aria-expanded="false">
+                <span id="semesterValue">All Semesters</span>
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </button>
+              <div class="dropdown-menu" id="semesterMenu" hidden style="min-width: 260px; padding: 10px;">
+                <div class="semester-options-list">
+                  <label class="semester-check-label">
+                    <input type="checkbox" id="semAllCheck" checked>
+                    <span>All Semesters</span>
+                  </label>
+                  <div style="height: 1px; background: var(--border-color); margin: 4px 0;"></div>
+                  <label class="semester-check-label"><input type="checkbox" class="sem-indiv-check" value="1"><span>Semester 1</span></label>
+                  <label class="semester-check-label"><input type="checkbox" class="sem-indiv-check" value="2"><span>Semester 2</span></label>
+                  <label class="semester-check-label"><input type="checkbox" class="sem-indiv-check" value="3"><span>Semester 3</span></label>
+                  <label class="semester-check-label"><input type="checkbox" class="sem-indiv-check" value="4"><span>Semester 4</span></label>
+                  <label class="semester-check-label"><input type="checkbox" class="sem-indiv-check" value="5"><span>Semester 5</span></label>
+                  <label class="semester-check-label"><input type="checkbox" class="sem-indiv-check" value="6"><span>Semester 6</span></label>
+                  <label class="semester-check-label"><input type="checkbox" class="sem-indiv-check" value="7"><span>Semester 7</span></label>
+                  <label class="semester-check-label"><input type="checkbox" class="sem-indiv-check" value="8"><span>Semester 8</span></label>
+                </div>
+                <div class="semester-menu-footer">
+                  <button type="button" class="semester-apply-btn" id="applySemesterBtn">Apply Selection</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Audience Selector (Students / CRs only) -->
           <div class="dropdown-container" id="audienceContainer" style="display: none;">
             <label class="form-label">Audience</label>
@@ -1176,35 +1209,7 @@
           <!-- TO ROW (Semester Selector) -->
           <div class="email-header-row email-to-row">
             <span class="email-row-label">TO :</span>
-            <div class="email-row-content">
-              <div class="dropdown-container" id="semesterContainer" style="margin: 0; width: 100%;">
-                <button type="button" class="dropdown-trigger email-to-trigger" id="semesterBtn" aria-haspopup="dialog" aria-expanded="false">
-                  <span id="semesterValue">All Semesters</span>
-                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="6 9 12 15 18 9"></polyline>
-                  </svg>
-                </button>
-                <div class="dropdown-menu" id="semesterMenu" hidden style="min-width: 260px; padding: 10px;">
-                  <div class="semester-options-list">
-                    <label class="semester-check-label">
-                      <input type="checkbox" id="semAllCheck" checked>
-                      <span>All Semesters</span>
-                    </label>
-                    <div style="height: 1px; background: var(--border-color); margin: 4px 0;"></div>
-                    <label class="semester-check-label"><input type="checkbox" class="sem-indiv-check" value="1"><span>Semester 1</span></label>
-                    <label class="semester-check-label"><input type="checkbox" class="sem-indiv-check" value="2"><span>Semester 2</span></label>
-                    <label class="semester-check-label"><input type="checkbox" class="sem-indiv-check" value="3"><span>Semester 3</span></label>
-                    <label class="semester-check-label"><input type="checkbox" class="sem-indiv-check" value="4"><span>Semester 4</span></label>
-                    <label class="semester-check-label"><input type="checkbox" class="sem-indiv-check" value="5"><span>Semester 5</span></label>
-                    <label class="semester-check-label"><input type="checkbox" class="sem-indiv-check" value="6"><span>Semester 6</span></label>
-                    <label class="semester-check-label"><input type="checkbox" class="sem-indiv-check" value="7"><span>Semester 7</span></label>
-                    <label class="semester-check-label"><input type="checkbox" class="sem-indiv-check" value="8"><span>Semester 8</span></label>
-                  </div>
-                  <div class="semester-menu-footer">
-                    <button type="button" class="semester-apply-btn" id="applySemesterBtn">Apply Selection</button>
-                  </div>
-                </div>
-              </div>
+            <div class="email-row-content" id="emailSemesterSlot">
             </div>
           </div>
 

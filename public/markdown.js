@@ -431,6 +431,13 @@
 
           case 'p':
           case 'div':
+          case 'section':
+          case 'article':
+          case 'main':
+          case 'header':
+          case 'footer':
+          case 'aside':
+          case 'address':
             return childText.trim() ? `\n\n${childText.trim()}\n\n` : '\n';
 
           default:

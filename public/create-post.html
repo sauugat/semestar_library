@@ -1363,6 +1363,21 @@
       });
     }
 
+    function updateLayoutForCategory() {
+      const isGeneral = selectedCategory === 'general';
+      const emailHeader = document.getElementById('emailDispatchHeader');
+      const authorStrip = document.getElementById('authorStrip');
+      const bodyLabel = document.getElementById('bodyLabel');
+
+      if (emailHeader) emailHeader.style.display = isGeneral ? 'none' : 'block';
+      if (authorStrip) authorStrip.style.display = isGeneral ? 'flex' : 'none';
+      if (bodyLabel) {
+        bodyLabel.textContent = isGeneral ? 'Body' : 'BODY :';
+        if (isGeneral) bodyLabel.classList.remove('email-body-label');
+        else bodyLabel.classList.add('email-body-label');
+      }
+    }
+
     categoryOptions.forEach(opt => {
       opt.addEventListener('click', (e) => {
         e.preventDefault();
@@ -1373,13 +1388,27 @@
         const label = opt.querySelector('span')?.textContent || 'General';
         if (categoryValue) categoryValue.textContent = label;
         
-        // Hide Title field for General posts, show for others
-        if (titleGroup) {
-          titleGroup.style.display = selectedCategory === 'general' ? 'none' : 'block';
-        }
+        updateLayoutForCategory();
         toggleCategoryMenu(false);
       });
     });
+
+    // Check for query parameter (e.g. ?category=notice)
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const catParam = urlParams.get('category');
+      if (catParam) {
+        const targetOpt = document.querySelector(`#categoryMenu .dropdown-option[data-value="${catParam.toLowerCase()}"]`);
+        if (targetOpt) {
+          categoryOptions.forEach(o => o.classList.remove('selected'));
+          targetOpt.classList.add('selected');
+          selectedCategory = targetOpt.dataset.value;
+          const label = targetOpt.querySelector('span')?.textContent || 'General';
+          if (categoryValue) categoryValue.textContent = label;
+        }
+      }
+    } catch (_) {}
+    updateLayoutForCategory();
 
     // Audience dropdown controls
     const audienceBtn = document.getElementById('audienceBtn');

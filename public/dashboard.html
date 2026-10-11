@@ -3344,17 +3344,19 @@
         kind: 'assignment', id: a.id, className: 'assignment-post-card',
         profileUrl: 'profile.html?id=' + encodeURIComponent(a.createdBy),
         avatar: (a.avatarUrl || a.avatar_url || a.teacherAvatar) ? `<img src="${escapeHtml(a.avatarUrl || a.avatar_url || a.teacherAvatar)}" alt="${escapeHtml(a.teacherName || 'Faculty')}" class="post-avatar-img">` : escapeHtml(initials),
-        name: a.teacherName || 'Faculty Member', badge: '<span class="post-verified-badge post-admin-badge">Admin</span>',
+        name: a.teacherName || 'Faculty Member', badge: '<span class="post-verified-badge post-admin-badge"><svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>Teacher</span>',
         meta: `<span class="post-student-handle">@${escapeHtml(a.createdBy || 'faculty')}</span> &middot; <time class="post-timestamp" datetime="${escapeHtml(a.createdAt)}">${timeAgo(a.createdAt)}</time>`,
         controls: deleteBtnHtml,
         body: `
+            <div class="post-tags-row"><span class="post-monochrome-badge post-category-tag">ASSIGNMENT</span></div>
+            ${a.description ? `<div class="post-content" style="margin-bottom: 12px;"><div class="status-post-text">${escapeHtml(a.description)}</div></div>` : ''}
             <div class="file-attachment">
               <div class="file-icon file-icon-lab">
                 <span>LAB</span>
               </div>
               <div class="file-info">
                 <p class="file-name" title="${escapeHtml(a.title)}">${escapeHtml(a.title)}</p>
-                <span class="file-meta">${qCount > 0 ? `${qCount} Problem${qCount !== 1 ? 's' : ''} &middot; ` : ''}${escapeHtml(a.subject || 'Curriculum')}${a.semester ? ` &middot; Sem ${escapeHtml(a.semester)}` : ''}</span>
+                <span class="file-meta">${qCount > 0 ? `${qCount} Problem${qCount !== 1 ? 's' : ''} &middot; ` : ''}${escapeHtml(a.subject || 'Curriculum')}${a.semester ? ` &middot; Sem ${escapeHtml(a.semester)}` : ''}${a.deadline ? ` &middot; Due ${new Date(a.deadline).toLocaleDateString()}` : ''}</span>
               </div>
               <div class="file-actions">
                 <a href="/code-lab/assignment.html?id=${a.id}" class="file-action primary" title="Open and solve assignment">

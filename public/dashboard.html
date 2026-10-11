@@ -3701,37 +3701,23 @@
         ? `<span class="post-monochrome-badge post-audience-tag">STUDENTS ONLY</span>`
         : '';
 
-      const tagsHtml = (categoryBadgeHtml || audienceBadgeHtml) ? `
-        <div class="post-tags-row">
-          ${categoryBadgeHtml}
-          ${audienceBadgeHtml}
-        </div>
-      ` : '';
-      const titleHtml = '';
+      const tagsHtml = (categoryBadgeHtml || audienceBadgeHtml)
+        ? `<div class="post-tags-row">${categoryBadgeHtml}${audienceBadgeHtml}</div>`
+        : '';
+      const titleHtml = (post.title && post.title.trim())
+        ? `<h3 class="post-title">${escapeHtml(post.title.trim())}</h3>`
+        : '';
+
+      const contentHtml = shouldTruncate
+        ? `<div class="post-content-clamped"><div class="status-post-text post-markdown-content">${typeof renderPostMarkdown === 'function' ? renderPostMarkdown(cleanContent) : escapeHtml(cleanContent)}</div></div><button type="button" class="show-more-link post-expand-btn" onclick="togglePostExpand(this)">Show more</button>`
+        : `<div class="post-content-unclamped"><div class="status-post-text post-markdown-content">${typeof renderPostMarkdown === 'function' ? renderPostMarkdown(cleanContent) : escapeHtml(cleanContent)}</div></div>`;
 
       return renderPostShell({
         kind: 'post', id: post.id, className: 'status-post-card' + noticeClass,
         profileUrl, avatar, name: post.name, badge: roleBadgeHtml,
         meta: `${handleHtml}<time class="post-timestamp" datetime="${escapeHtml(post.created_at)}">${timeAgo(post.created_at)}</time>`,
         controls: post.canDelete ? `<button type="button" class="post-delete-btn" onclick="deleteStatusPost(${post.id}, this)" aria-label="Delete post" title="Delete post"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14H5V6m3 0V3h8v3"/></svg></button>` : '',
-        body: `
-            ${tagsHtml}
-            ${titleHtml}
-            <div class="post-content">
-              ${shouldTruncate ? `
-                <div class="post-content-clamped">
-                  <div class="status-post-text post-markdown-content">${typeof renderPostMarkdown === 'function' ? renderPostMarkdown(cleanContent) : escapeHtml(cleanContent)}</div>
-                </div>
-                <button type="button" class="show-more-link post-expand-btn" onclick="togglePostExpand(this)">Show more</button>
-              ` : `
-                <div class="post-content-unclamped">
-                  <div class="status-post-text post-markdown-content">${typeof renderPostMarkdown === 'function' ? renderPostMarkdown(cleanContent) : escapeHtml(cleanContent)}</div>
-                </div>
-              `}
-            </div>
-            ${imageHtml}
-            ${filesHtml}
-`,
+        body: `${tagsHtml}${titleHtml}<div class="post-content">${contentHtml}</div>${imageHtml}${filesHtml}`,
         actions: renderPostActions({ liked: post.liked_by_me, likes: likeCount, comments: commentCount,
           likeAction: `toggleStatusLike(${post.id}, this)`, commentAction: `togglePostComments(${post.id}, this.closest('.feed-card'))`, shareAction: `copySharePostLink(${post.id})`,
           extra: post.type === 'assignment' ? `<span class="post-submitted-count">${post.submission_count} submitted</span>` : '' }),

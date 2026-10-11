@@ -2808,10 +2808,6 @@
         document.getElementById('greetingLine').textContent = `${getGreeting()}, ${data.name}`;
         document.getElementById('idLine').textContent = `Student ID: ${data.studentId}`;
 
-        if (window.AcademicContext) {
-          window.AcademicContext.renderBadge('#dashAcademicBadge');
-          window.AcademicContext.renderBadge('#feedAcademicBadge');
-        }
 
         // Populate top right header profile chip
         const headerAvatar = document.getElementById('headerAvatar');

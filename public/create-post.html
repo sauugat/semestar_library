@@ -1299,9 +1299,20 @@
         const nameEl = document.getElementById('authorName');
         const roleEl = document.getElementById('authorRole');
         const avatarEl = document.getElementById('authorAvatar');
-        if (nameEl) nameEl.textContent = userData.name || 'Student';
-        if (roleEl) roleEl.textContent = (userData.role || 'STUDENT').toUpperCase();
-        if (avatarEl) avatarEl.textContent = (userData.name || 'S').charAt(0).toUpperCase();
+        const emailNameEl = document.getElementById('emailAuthorName');
+        const emailRoleEl = document.getElementById('emailAuthorRole');
+        const emailAvatarEl = document.getElementById('emailAuthorAvatar');
+
+        const userName = userData.name || 'Student';
+        const userRole = (userData.role || 'STUDENT').toUpperCase();
+        const userInitial = (userData.name || 'S').charAt(0).toUpperCase();
+
+        if (nameEl) nameEl.textContent = userName;
+        if (roleEl) roleEl.textContent = userRole;
+        if (avatarEl) avatarEl.textContent = userInitial;
+        if (emailNameEl) emailNameEl.textContent = userName;
+        if (emailRoleEl) emailRoleEl.textContent = userRole;
+        if (emailAvatarEl) emailAvatarEl.textContent = userInitial;
       }
 
       if (metaData) {

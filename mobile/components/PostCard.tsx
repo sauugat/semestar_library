@@ -444,7 +444,7 @@ const styles = StyleSheet.create({
   postActionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 14,
     gap: 16,
   },
   actionButton: {
@@ -456,8 +456,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginTop: 8,
-    marginBottom: 4,
+    marginTop: 6,
+    marginBottom: 6,
     flexWrap: 'wrap',
   },
   monochromeBadge: {

@@ -7869,7 +7869,7 @@ body.dark-mode .fb-card:hover {
 .post-card.notice,
 .social-post-card.notice {
   border-left: 3px solid var(--accent-color, #1d9bf0) !important;
-  padding-left: 25px !important;
+  padding-left: 20px !important;
 }
 
 /* Post Actions Row (Comment, Like, Share) */
@@ -7877,9 +7877,9 @@ body.dark-mode .fb-card:hover {
   display: flex;
   justify-content: flex-start;
   align-items: center;
-  gap: 48px;
-  margin-top: 12px;
-  padding-top: 10px;
+  gap: 32px;
+  margin-top: 15px;
+  padding-top: 0;
   color: var(--text-muted, #86868b);
   font-size: 13px;
   border: none;

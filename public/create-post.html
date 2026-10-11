@@ -1557,14 +1557,16 @@
     }
 
     function updateCharCounter() {
-      if (!postEditor || !charCounter) return;
+      if (!postEditor) return;
       const md = syncEditorToMarkdown();
       const plainLen = (postEditor.innerText || '').replace(/[\r\n\u200B]/g, '').trim().length;
-      charCounter.textContent = `${plainLen.toLocaleString()} / 1,000,000`;
-      if (plainLen > 1000000) {
-        charCounter.style.color = '#ef4444';
-      } else {
-        charCounter.style.color = 'var(--text-muted)';
+      if (charCounter) {
+        charCounter.textContent = `${plainLen.toLocaleString()} / 1,000,000`;
+        if (plainLen > 1000000) {
+          charCounter.style.color = '#ef4444';
+        } else {
+          charCounter.style.color = 'var(--text-muted)';
+        }
       }
 
       // Check placeholder visibility

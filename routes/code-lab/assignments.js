@@ -330,7 +330,7 @@ router.post('/assignments', requireLogin, async (req, res) => {
 // ── GET /assignments — list with server-authoritative cohort filtering ─────────
 router.get('/assignments', async (req, res) => {
     const context = await getAcademicContext(db, req);
-    const currentStudentId = (context && context.studentId) || (req.session && req.session.studentId) || null;
+    const currentStudentId = (context && context.studentId) || (req.user && req.user.studentId) || (req.session && req.session.studentId) || null;
     const { subject, semester, cohortId, cohort_id } = req.query;
 
     const filter = buildAcademicContentFilter(context, {
@@ -345,6 +345,13 @@ router.get('/assignments', async (req, res) => {
     if (subject) {
         whereClauses.push('a.subject = ?');
         whereParams.push(subject);
+    }
+
+    const isFeedRequest = req.query.feed === '1' || req.query.context === 'feed';
+    const isTeacher = context.role === 'teacher' || context.role === 'faculty';
+    if (isTeacher && isFeedRequest && currentStudentId) {
+        whereClauses.push('a.createdBy = ?');
+        whereParams.push(currentStudentId);
     }
 
     const mySubSql = currentStudentId

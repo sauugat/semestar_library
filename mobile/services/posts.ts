@@ -215,9 +215,10 @@ export async function getPostById(postId: number): Promise<Post> {
 /**
  * Fetch uploaded library files for merging into the Campus Feed.
  */
-export async function getFeedFiles(): Promise<LibraryFile[]> {
+export async function getFeedFiles(feedQuery: string = '?feed=1'): Promise<LibraryFile[]> {
   try {
-    const res = await api.get<LibraryFile[]>('/api/files');
+    const q = feedQuery ? (feedQuery.startsWith('?') ? feedQuery : `?${feedQuery}`) : '?feed=1';
+    const res = await api.get<LibraryFile[]>(`/api/files${q}`);
     return Array.isArray(res) ? res : [];
   } catch (err) {
     console.warn('Failed to fetch /api/files for feed:', err);

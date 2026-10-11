@@ -176,7 +176,19 @@ function getFileType(filename: string): 'pdf' | 'pptx' | 'docx' | 'zip' | 'file'
   return 'file';
 }
 
-type FeedAssignment = { id: number; title: string; description?: string; teacherName?: string; subject?: string; createdAt: string; deadline?: string };
+type FeedAssignment = {
+  id: number;
+  title: string;
+  description?: string;
+  teacherName?: string;
+  createdBy?: string;
+  subject?: string;
+  createdAt: string;
+  deadline?: string;
+  avatarUrl?: string;
+  questionCount?: number;
+  submissionCount?: number;
+};
 
 export type FeedItem =
   | { feedType: 'assignment'; assignment: FeedAssignment; time: number }
@@ -589,6 +601,25 @@ export default function HomeScreen() {
     return formatLastUpdated(lastFetchedAt);
   }, [lastFetchedAt, nowTick]);
 
+  // Fallback query for teacher assigned subjects if not present in cached auth profile
+  const isTeacherUser = user?.role === 'teacher' || user?.role === 'faculty';
+  const { data: fetchedTeacherSubjects } = useQuery({
+    queryKey: ['teacher-feed-subjects', user?.studentId],
+    queryFn: async () => {
+      if (!isTeacherUser) return [];
+      try {
+        const res = await apiFetch('/api/teacher/subjects');
+        if (res.ok) {
+          const json = await res.json();
+          return json.subjects || [];
+        }
+      } catch (_) {}
+      return [];
+    },
+    enabled: Boolean(isTeacherUser && (!user?.subjects || user.subjects.length === 0)),
+    staleTime: 5 * 60 * 1000,
+  });
+
   // React Query: Feed caching with 45s staleTime
   const {
     data: feedData,
@@ -598,10 +629,11 @@ export default function HomeScreen() {
   } = useQuery({
     queryKey: ['campus-feed', user?.studentId],
     queryFn: async () => {
+      const feedQuery = isTeacherUser ? '?feed=1' : '';
       const [postsRes, filesRes, assignmentsRes] = await Promise.all([
         getPosts(null, 20),
-        getFeedFiles(),
-        apiFetch('/api/code-lab/assignments')
+        getFeedFiles(feedQuery),
+        apiFetch(`/api/code-lab/assignments${feedQuery}`)
           .then(async response => (response.ok ? ((await response.json()) as FeedAssignment[]) : []))
           .catch(() => [] as FeedAssignment[]),
       ]);
@@ -614,6 +646,7 @@ export default function HomeScreen() {
       };
     },
     staleTime: 45 * 1000,
+    retry: 1,
   });
 
   // Sync state whenever fresh or cached feedData arrives
@@ -635,6 +668,18 @@ export default function HomeScreen() {
 
   // Merge posts and uploaded files into a unified chronological feed
   const feedItems = useMemo<FeedItem[]>(() => {
+    const isTeacher = user?.role === 'teacher' || user?.role === 'faculty';
+    const teacherId = user?.studentId;
+    const allTeacherSubs = (user?.subjects && user.subjects.length > 0)
+      ? user.subjects
+      : (fetchedTeacherSubjects || []);
+    const teacherSubjectTerms = allTeacherSubs.flatMap((s: any) => [
+      s.title,
+      s.name,
+      s.code,
+      s.id,
+    ].filter(Boolean).map((t: string) => String(t).toLowerCase().trim()));
+
     const visiblePosts = feedCategoryFilter === 'all'
       ? posts
       : posts.filter((p) => (p.category || 'general').toLowerCase() === feedCategoryFilter.toLowerCase());
@@ -644,27 +689,46 @@ export default function HomeScreen() {
       post: p,
       time: new Date(p.created_at).getTime() || 0,
     }));
+
+    // In teachers feeds, don't show file upload of other subjects of any semester.
+    // Only show file uploads of their assigned subjects or uploaded by the teacher.
+    const eligibleFiles = isTeacher
+      ? files.filter((f) => {
+          if (f.uploadedBy === teacherId) return true;
+          if (!f.subject) return false;
+          const fSub = String(f.subject).toLowerCase().trim();
+          return teacherSubjectTerms.some((term: string) => fSub === term || fSub.includes(term) || term.includes(fSub));
+        })
+      : files;
+
     const fileItems: FeedItem[] = feedCategoryFilter === 'all'
-      ? files.map((f) => ({
+      ? eligibleFiles.map((f) => ({
           feedType: 'file',
           file: f,
           time: new Date(f.uploadedAt || (f as any).createdAt || 0).getTime() || 0,
         }))
       : [];
+
+    // In teachers feeds, assignments also show only those he or she has uploaded.
+    const eligibleAssignments = isTeacher
+      ? assignments.filter((a) => a.createdBy === teacherId)
+      : assignments;
+
     const assignmentItems: FeedItem[] = feedCategoryFilter === 'all'
-      ? assignments.map((assignment) => ({
+      ? eligibleAssignments.map((assignment) => ({
           feedType: 'assignment',
           assignment,
           time: new Date(assignment.createdAt).getTime() || 0,
         }))
       : [];
+
     return [...postItems, ...fileItems, ...assignmentItems].sort((a, b) => {
       if (b.time !== a.time) return b.time - a.time;
       const bId = b.feedType === 'post' ? b.post.id : b.feedType === 'file' ? b.file.id : b.assignment.id;
       const aId = a.feedType === 'post' ? a.post.id : a.feedType === 'file' ? a.file.id : a.assignment.id;
       return bId - aId;
     });
-  }, [posts, files, assignments, feedCategoryFilter]);
+  }, [posts, files, assignments, feedCategoryFilter, user, fetchedTeacherSubjects]);
 
   // Post Comments bottom-sheet state
   const [activeCommentPost, setActiveCommentPost] = useState<Post | null>(null);
@@ -2163,7 +2227,7 @@ export default function HomeScreen() {
         <Card variant="elevated" padding="md" style={{ marginBottom: spacing.md, borderWidth: 1, borderColor: colors.border }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xs }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 }}>
-              <Avatar name={a.teacherName || 'Faculty'} size={32} imageUrl={a.avatarUrl || (a as any).avatar_url} style={{ marginRight: 8 }} />
+              <Avatar name={a.teacherName || 'Faculty'} size="sm" url={a.avatarUrl || (a as any).avatar_url} style={{ marginRight: 8 }} />
               <View style={{ flex: 1 }}>
                 <Text variant="sm" weight="700" numberOfLines={1}>{a.teacherName || 'Faculty Member'}</Text>
                 <Caption color="muted">{formatTimeAgo(a.createdAt)}{a.subject ? ` · ${a.subject}` : ''}</Caption>
@@ -2236,12 +2300,12 @@ export default function HomeScreen() {
         <Card variant="elevated" padding="lg" style={styles.stateCard}>
           <Ionicons name="cloud-offline-outline" size={44} color={colors.textSecondary} style={{ marginBottom: spacing.sm }} />
           <Heading style={{ marginBottom: spacing.xs, textAlign: 'center' }}>
-            Unable to Load Feed
+            Couldn't load posts.
           </Heading>
           <Text variant="sm" color="secondary" style={{ textAlign: 'center', marginBottom: spacing.md }}>
             {error}
           </Text>
-          <Button title="Retry Feed" variant="secondary" size="md" onPress={() => refetchFeed()} />
+          <Button title="Retry" variant="secondary" size="md" onPress={() => refetchFeed()} />
         </Card>
       );
     }
@@ -2250,10 +2314,10 @@ export default function HomeScreen() {
       <Card variant="flat" padding="lg" style={styles.stateCard}>
         <Ionicons name="newspaper-outline" size={44} color={colors.textMuted} style={{ marginBottom: spacing.sm }} />
         <Heading style={{ marginBottom: spacing.xs, textAlign: 'center' }}>
-          No Posts Yet
+          No posts yet.
         </Heading>
         <Text variant="sm" color="secondary" style={{ textAlign: 'center' }}>
-          Be the first to share an update or question with your classmates above!
+          There are no updates for your semester right now.
         </Text>
       </Card>
     );

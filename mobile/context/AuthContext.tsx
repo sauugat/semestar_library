@@ -5,7 +5,7 @@ import { clearChatDb } from '@/services/chat-db';
 import { disconnectChatRealtime } from '@/services/chat-realtime';
 import { clearAllDmCache } from '@/services/dm-db';
 import { disconnectAllDmRealtime } from '@/services/dm-realtime';
-import { invalidateChatSession } from '@/services/chat-session';
+import { invalidateChatSession, beginChatSession } from '@/services/chat-session';
 import { clearAppQueryCache } from '@/services/query-client';
 import { getAutoDetectedServerUrl, getBaseUrl, isTrustedServerUrl, DEFAULT_SERVER_URL } from '@/services/api';
 import {
@@ -85,7 +85,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<StudentUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
-  const [serverUrl, setServerUrl] = useState<string>(getAutoDetectedServerUrl());
+  const [serverUrl, setServerUrl] = useState<string>(DEFAULT_SERVER_URL);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Initialize auth state on app load without blocking first render
@@ -94,7 +94,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     async function initializeAuth() {
       try {
-        // 1. Resolve active backend URL (honors trusted override, env var, or production default)
+        // 1. In production (!__DEV__), purge stored server URL key and force getBaseUrl()
+        if (!__DEV__) {
+          await SecureStore.deleteItemAsync(SERVER_URL_KEY).catch(() => {});
+        }
         const activeUrl = await getBaseUrl();
         if (isMounted) setServerUrl(activeUrl);
 
@@ -112,7 +115,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           if (isMounted) {
             setToken(storedToken);
-            if (cachedUser) setUser(cachedUser);
+            if (cachedUser) {
+              setUser(cachedUser);
+              beginChatSession(activeUrl, cachedUser.studentId, storedToken);
+            }
             // CRITICAL: Unblock UI render immediately with cached credentials (0ms delay)
             setIsLoading(false);
           }
@@ -120,23 +126,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Register / sync push token in background when session is restored
           void registerPushToken();
 
-          // 3. Verify token against /api/me in the background
+          // 3. Verify token against /api/me in the background with timeout
           void (async () => {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 10000);
             try {
               const res = await fetch(`${activeUrl}/api/me`, {
                 headers: {
                   Authorization: `Bearer ${storedToken}`,
                   Accept: 'application/json',
                 },
+                signal: controller.signal,
               });
+              clearTimeout(timer);
 
               if (res.status === 200) {
                 const freshUser: StudentUser = await res.json();
                 if (isMounted) {
                   setUser(freshUser);
+                  beginChatSession(activeUrl, freshUser.studentId, storedToken);
                 }
                 await SecureStore.setItemAsync(USER_KEY, JSON.stringify(freshUser));
-                // Pre-warm realtime connection in background
               } else if (res.status === 401) {
                 // Token invalid or revoked - unregister push token first
                 await unregisterPushToken().catch(() => {});
@@ -150,7 +160,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 }
               }
             } catch {
-              // Network error: maintain cached session
+              // Network error or timeout: maintain cached session safely
+              clearTimeout(timer);
             }
           })();
           return;
@@ -441,6 +452,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const updateServerUrl = async (newUrl: string) => {
     if (!__DEV__) {
       // In production builds, custom server URLs are strictly ignored and prohibited
+      await SecureStore.deleteItemAsync(SERVER_URL_KEY).catch(() => {});
       return;
     }
     const sanitized = newUrl.trim().replace(/\/+$/, '');

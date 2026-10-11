@@ -57,8 +57,12 @@ export interface SendMessageParams {
 export async function fetchAdminChatRooms(): Promise<AdminChatRoom[]> {
   const session = getChatSession();
   const server = (session.server || await getBaseUrl()).replace(/\/+$/, '');
+  const headers: Record<string, string> = {};
+  if (session.credential) {
+    headers['Authorization'] = `Bearer ${session.credential}`;
+  }
   const response = await apiFetch(`${server}/api/chat/admin/rooms`, {
-    headers: { Authorization: `Bearer ${session.credential || ''}` },
+    headers,
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
@@ -69,14 +73,19 @@ export async function fetchAdminChatRooms(): Promise<AdminChatRoom[]> {
 
 export async function fetchChatConfig(targetChatGroupId?: string): Promise<ChatConfig> {
   const start = getChatSession();
-  assertLocalChatServer(start.server);
+  const server = (start.server || await getBaseUrl()).replace(/\/+$/, '');
+  assertLocalChatServer(server);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
   try {
     const url = targetChatGroupId
-      ? `${start.server}/api/chat/admin/rooms/${encodeURIComponent(targetChatGroupId)}/config`
-      : `${start.server}/api/chat/config`;
-    const context = await api.get<ChatConfig>(url, {signal: controller.signal, headers: {Authorization: `Bearer ${start.credential || ''}`}});
+      ? `${server}/api/chat/admin/rooms/${encodeURIComponent(targetChatGroupId)}/config`
+      : `${server}/api/chat/config`;
+    const headers: Record<string, string> = {};
+    if (start.credential) {
+      headers['Authorization'] = `Bearer ${start.credential}`;
+    }
+    const context = await api.get<ChatConfig>(url, {signal: controller.signal, headers});
     if (!acceptChatContext(start, context)) throw new Error('Stale chat context');
     return context;
   } catch (error: any) {
@@ -89,9 +98,13 @@ export async function fetchChatConfig(targetChatGroupId?: string): Promise<ChatC
 
 export async function chatRequest<T>(path: string, method = 'GET', body?: any, signal?: AbortSignal): Promise<T> {
   const start = captureChatSession();
+  const headers: Record<string, string> = {};
+  if (start.credential) {
+    headers['Authorization'] = `Bearer ${start.credential}`;
+  }
   const url = `${path}${path.includes('?') ? '&' : '?'}chatGroupId=${encodeURIComponent(start.context.chatGroupId)}`;
   try {
-    const response = await apiFetch(`${start.server}${url}`, { method, signal, headers: {Authorization: `Bearer ${start.credential || ''}`}, ...(body !== undefined ? { body: body instanceof FormData ? body : JSON.stringify(body) } : {}) });
+    const response = await apiFetch(`${start.server}${url}`, { method, signal, headers, ...(body !== undefined ? { body: body instanceof FormData ? body : JSON.stringify(body) } : {}) });
     assertCurrentChatSession(start);
     const result = await response.json();
     assertCurrentChatSession(start);

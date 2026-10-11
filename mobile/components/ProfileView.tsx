@@ -120,15 +120,19 @@ export function ProfileView({ targetStudentId, isTab = false }: ProfileViewProps
   // Content state
   const [posts, setPosts] = useState<Post[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(false);
+  const [postsError, setPostsError] = useState(false);
 
   const [photos, setPhotos] = useState<ProfilePhotoItem[]>([]);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
+  const [photosError, setPhotosError] = useState(false);
 
   const [files, setFiles] = useState<SharedFileItem[]>([]);
   const [loadingFiles, setLoadingFiles] = useState(false);
+  const [filesError, setFilesError] = useState(false);
 
   const [assignments, setAssignments] = useState<ProfileAssignmentItem[]>([]);
   const [loadingAssignments, setLoadingAssignments] = useState(false);
+  const [assignmentsError, setAssignmentsError] = useState(false);
 
   // Follow state for other student
   const [isFollowing, setIsFollowing] = useState(false);
@@ -206,14 +210,18 @@ export function ProfileView({ targetStudentId, isTab = false }: ProfileViewProps
   const fetchPosts = useCallback(async () => {
     if (!effectiveStudentId) return;
     setLoadingPosts(true);
+    setPostsError(false);
     try {
       const res = await apiFetch(`/api/posts?studentId=${encodeURIComponent(effectiveStudentId)}&limit=30`);
       if (res.ok) {
         const data = await res.json();
         setPosts(data.posts || []);
+      } else {
+        setPostsError(true);
       }
     } catch (err) {
       console.warn('Failed to load profile posts:', err);
+      setPostsError(true);
     } finally {
       setLoadingPosts(false);
     }
@@ -223,14 +231,18 @@ export function ProfileView({ targetStudentId, isTab = false }: ProfileViewProps
   const fetchPhotos = useCallback(async () => {
     if (!effectiveStudentId) return;
     setLoadingPhotos(true);
+    setPhotosError(false);
     try {
       const res = await apiFetch(`/api/profile/${encodeURIComponent(effectiveStudentId)}/photos`);
       if (res.ok) {
         const data = await res.json();
         setPhotos(Array.isArray(data) ? data : []);
+      } else {
+        setPhotosError(true);
       }
     } catch (err) {
       console.warn('Failed to load profile photos:', err);
+      setPhotosError(true);
     } finally {
       setLoadingPhotos(false);
     }
@@ -240,14 +252,18 @@ export function ProfileView({ targetStudentId, isTab = false }: ProfileViewProps
   const fetchFiles = useCallback(async () => {
     if (!effectiveStudentId) return;
     setLoadingFiles(true);
+    setFilesError(false);
     try {
       const res = await apiFetch(`/api/profile/${encodeURIComponent(effectiveStudentId)}/files`);
       if (res.ok) {
         const data = await res.json();
         setFiles(Array.isArray(data) ? data : []);
+      } else {
+        setFilesError(true);
       }
     } catch (err) {
       console.warn('Failed to load profile files:', err);
+      setFilesError(true);
     } finally {
       setLoadingFiles(false);
     }
@@ -257,14 +273,18 @@ export function ProfileView({ targetStudentId, isTab = false }: ProfileViewProps
   const fetchAssignments = useCallback(async () => {
     if (!effectiveStudentId) return;
     setLoadingAssignments(true);
+    setAssignmentsError(false);
     try {
       const res = await apiFetch(`/api/profile/${encodeURIComponent(effectiveStudentId)}/assignments`);
       if (res.ok) {
         const data = await res.json();
         setAssignments(Array.isArray(data) ? data : []);
+      } else {
+        setAssignmentsError(true);
       }
     } catch (err) {
       console.warn('Failed to load profile assignments:', err);
+      setAssignmentsError(true);
     } finally {
       setLoadingAssignments(false);
     }
@@ -1210,10 +1230,21 @@ export function ProfileView({ targetStudentId, isTab = false }: ProfileViewProps
               <View style={styles.loadingBox}>
                 <ActivityIndicator size="small" color={colors.text} />
               </View>
+            ) : postsError ? (
+              <View style={styles.errorBox}>
+                <Ionicons name="cloud-offline-outline" size={40} color={colors.textSecondary} style={{ marginBottom: spacing.sm }} />
+                <Heading style={{ marginBottom: spacing.xs, textAlign: 'center' }}>
+                  Couldn't load posts.
+                </Heading>
+                <Text variant="sm" color="secondary" style={{ textAlign: 'center', marginBottom: spacing.md }}>
+                  Failed to load profile posts.
+                </Text>
+                <Button title="Retry" variant="secondary" size="md" onPress={() => fetchPosts()} />
+              </View>
             ) : posts.length === 0 ? (
               <EmptyState
                 icon="newspaper-outline"
-                title="No Posts Yet"
+                title="No posts yet."
                 description={
                   isSelf
                     ? "You haven't shared any posts yet. Head over to the feed tab to post an update or note."
@@ -1253,6 +1284,14 @@ export function ProfileView({ targetStudentId, isTab = false }: ProfileViewProps
             {loadingPhotos ? (
               <View style={styles.loadingBox}>
                 <ActivityIndicator size="small" color={colors.text} />
+              </View>
+            ) : photosError ? (
+              <View style={styles.errorBox}>
+                <Ionicons name="cloud-offline-outline" size={40} color={colors.textSecondary} style={{ marginBottom: spacing.sm }} />
+                <Heading style={{ marginBottom: spacing.xs, textAlign: 'center' }}>
+                  Couldn't load photos.
+                </Heading>
+                <Button title="Retry" variant="secondary" size="md" onPress={() => fetchPhotos()} />
               </View>
             ) : photos.length === 0 ? (
               <EmptyState
@@ -1302,6 +1341,14 @@ export function ProfileView({ targetStudentId, isTab = false }: ProfileViewProps
               <View style={styles.loadingBox}>
                 <ActivityIndicator size="small" color={colors.text} />
               </View>
+            ) : filesError ? (
+              <View style={styles.errorBox}>
+                <Ionicons name="cloud-offline-outline" size={40} color={colors.textSecondary} style={{ marginBottom: spacing.sm }} />
+                <Heading style={{ marginBottom: spacing.xs, textAlign: 'center' }}>
+                  Couldn't load files.
+                </Heading>
+                <Button title="Retry" variant="secondary" size="md" onPress={() => fetchFiles()} />
+              </View>
             ) : files.length === 0 ? (
               <EmptyState
                 icon="folder-open-outline"
@@ -1338,6 +1385,14 @@ export function ProfileView({ targetStudentId, isTab = false }: ProfileViewProps
             {loadingAssignments ? (
               <View style={styles.loadingBox}>
                 <ActivityIndicator size="small" color={colors.text} />
+              </View>
+            ) : assignmentsError ? (
+              <View style={styles.errorBox}>
+                <Ionicons name="cloud-offline-outline" size={40} color={colors.textSecondary} style={{ marginBottom: spacing.sm }} />
+                <Heading style={{ marginBottom: spacing.xs, textAlign: 'center' }}>
+                  Couldn't load assignments.
+                </Heading>
+                <Button title="Retry" variant="secondary" size="md" onPress={() => fetchAssignments()} />
               </View>
             ) : assignments.length === 0 ? (
               <EmptyState
@@ -1851,6 +1906,12 @@ const styles = StyleSheet.create({
   },
   loadingBox: {
     paddingVertical: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  errorBox: {
+    paddingVertical: 40,
+    paddingHorizontal: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },

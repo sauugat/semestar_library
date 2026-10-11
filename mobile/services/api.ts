@@ -25,6 +25,16 @@ export class ApiError extends Error {
 
 export function isLocalAddress(url: string): boolean {
   if (!url) return false;
+  const lower = url.toLowerCase().trim();
+  if (
+    lower.startsWith('http://') ||
+    lower.includes('localhost') ||
+    lower.includes('127.0.0.1') ||
+    lower.includes('192.168.') ||
+    lower.includes('10.')
+  ) {
+    return true;
+  }
   try {
     const parsed = new URL(url.trim());
     const hostname = parsed.hostname.toLowerCase();
@@ -89,7 +99,7 @@ export function isTrustedServerUrl(url: string): boolean {
 
 export function getAutoDetectedServerUrl(): string {
   try {
-    if (__DEV__) {
+    if (__DEV__ && process.env.EXPO_PUBLIC_AUTO_DETECT_LAN === 'true') {
       const hostUri = Constants.expoConfig?.hostUri || (Constants as any).manifest2?.extra?.expoGo?.debuggerHost;
       if (hostUri) {
         const host = hostUri.split(':')[0];
@@ -112,16 +122,16 @@ export async function getBaseUrl(): Promise<string> {
     } catch {}
 
     const envUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
-    if (envUrl && isTrustedServerUrl(envUrl)) {
+    if (envUrl && !isLocalAddress(envUrl) && isTrustedServerUrl(envUrl)) {
       return envUrl.replace(/\/+$/, '');
     }
 
     const extraUrl = (Constants.expoConfig?.extra as any)?.apiUrl;
-    if (extraUrl && typeof extraUrl === 'string' && extraUrl.trim() && isTrustedServerUrl(extraUrl)) {
+    if (extraUrl && typeof extraUrl === 'string' && extraUrl.trim() && !isLocalAddress(extraUrl) && isTrustedServerUrl(extraUrl)) {
       return extraUrl.trim().replace(/\/+$/, '');
     }
 
-    return PRODUCTION_SERVER_URL;
+    return 'https://semestar-library.vercel.app';
   }
 
   // Development builds (__DEV__):
@@ -146,10 +156,12 @@ export async function getBaseUrl(): Promise<string> {
     }
   }
 
-  // 3. Auto-detected LAN server from Expo development bundler host (Expo Go on Wi-Fi)
-  const autoUrl = getAutoDetectedServerUrl();
-  if (autoUrl && isTrustedServerUrl(autoUrl)) {
-    return autoUrl;
+  // 3. Optional auto-detected LAN server ONLY when explicitly opted in via EXPO_PUBLIC_AUTO_DETECT_LAN=true
+  if (process.env.EXPO_PUBLIC_AUTO_DETECT_LAN === 'true') {
+    const autoUrl = getAutoDetectedServerUrl();
+    if (autoUrl && isTrustedServerUrl(autoUrl)) {
+      return autoUrl;
+    }
   }
 
   // 4. Fallback to extra.apiUrl from app.json
@@ -209,9 +221,10 @@ export async function apiFetch(
     headers['Accept'] = 'application/json';
   }
 
-  // Set Authorization header if token exists and not already provided
-  const hasAuth = Object.keys(headers).some((k) => k.toLowerCase() === 'authorization');
-  if (token && !hasAuth) {
+  // Set Authorization header if token exists and not already provided (or if provided with empty Bearer)
+  const authHeaderKey = Object.keys(headers).find((k) => k.toLowerCase() === 'authorization');
+  const existingAuthValue = authHeaderKey ? headers[authHeaderKey]?.trim() : '';
+  if (token && (!authHeaderKey || existingAuthValue === 'Bearer' || existingAuthValue === 'Bearer undefined' || existingAuthValue === 'Bearer null' || existingAuthValue === '')) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
@@ -237,6 +250,19 @@ export async function apiFetch(
 
   const startTime = Date.now();
   let response: Response;
+  const timeoutMs = 15000;
+  const abortController = new AbortController();
+  let didTimeout = false;
+  let timeoutTimer: ReturnType<typeof setTimeout> | null = null;
+
+  if (options.signal) {
+    if (options.signal.aborted) {
+      abortController.abort();
+    } else {
+      options.signal.addEventListener('abort', () => abortController.abort(), { once: true });
+    }
+  }
+
   try {
     if (isFormData) {
       // In React Native / Expo SDK 57, global fetch uses Expo Winter runtime which does not support
@@ -302,26 +328,41 @@ export async function apiFetch(
         };
 
         xhr.ontimeout = () => {
-          reject(new ApiError(`Upload request timed out to ${url}`, 0));
+          reject(new ApiError(`Upload request timed out to ${url}`, 408));
         };
 
         xhr.send(options.body);
       });
     } else {
+      timeoutTimer = setTimeout(() => {
+        didTimeout = true;
+        abortController.abort();
+      }, timeoutMs);
+
       response = await fetch(url, {
         ...options,
         headers,
+        signal: abortController.signal,
       });
     }
 
     const duration = Date.now() - startTime;
     if (__DEV__) {
-      console.log(`[CLIENT API] ${options.method || 'GET'} ${endpoint} -> ${response.status} (${duration}ms; prepare=${preparationMs}ms; request=${response.headers.get('X-Request-ID') || 'n/a'}; server=${response.headers.get('Server-Timing') || 'n/a'})`);
+      // Sanitized diagnostic logging
+      const pathOnly = endpoint.split('?')[0];
+      console.log(`[CLIENT API] ${options.method || 'GET'} ${pathOnly} -> ${response.status} (${duration}ms)`);
     }
   } catch (netErr: any) {
     const duration = Date.now() - startTime;
+    const pathOnly = endpoint.split('?')[0];
+    if (didTimeout) {
+      if (__DEV__) {
+        console.warn(`[CLIENT API TIMEOUT] ${options.method || 'GET'} ${pathOnly} timed out after ${timeoutMs}ms`);
+      }
+      throw new ApiError('Request timed out. Please check your connection and try again.', 408);
+    }
     if (__DEV__) {
-      console.log(`[CLIENT API FAILED] ${options.method || 'GET'} ${endpoint} (${duration}ms):`, netErr?.message);
+      console.warn(`[CLIENT API FAILED] ${options.method || 'GET'} ${pathOnly} (${duration}ms):`, netErr?.message);
     }
     if (netErr instanceof ApiError) throw netErr;
     const msg = netErr?.message || 'Network request failed';
@@ -331,17 +372,22 @@ export async function apiFetch(
         : `${msg} (Cannot connect to remote server at ${baseUrl}. Verify the deployment URL is active, reachable, and has no CORS/network issues.)`
       : 'Unable to connect to Semester Library. Check your internet connection and try again.';
     throw new ApiError(errorText, 0);
+  } finally {
+    if (timeoutTimer) clearTimeout(timeoutTimer);
   }
 
   // Handle 401 Unauthorized (expired token or invalid session)
   if (response.status === 401) {
-    const sentToken = (Object.entries(headers).find(([key])=>key.toLowerCase()==='authorization')?.[1] || '').replace(/^Bearer /,'');
-    if (sentToken !== await getAuthToken()) throw new ApiError('Expired request session.',401);
-    await clearAuthToken();
-    try {
-      router.replace('/login');
-    } catch {}
-    throw new ApiError('Authentication required or session expired. Please sign in.', 401);
+    const sentToken = (Object.entries(headers).find(([key]) => key.toLowerCase() === 'authorization')?.[1] || '').replace(/^Bearer /, '');
+    const currentToken = await getAuthToken();
+    if (sentToken && currentToken && sentToken === currentToken) {
+      await clearAuthToken();
+      try {
+        router.replace('/login');
+      } catch {}
+      throw new ApiError('Authentication required or session expired. Please sign in.', 401);
+    }
+    throw new ApiError('Authentication required.', 401);
   }
 
   return response;

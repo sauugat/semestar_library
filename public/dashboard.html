@@ -2836,6 +2836,7 @@
         return res.json();
       })
       .then(data => {
+        window.currentUserData = data;
         const avatarEl = document.getElementById('avatarInitial');
         if (avatarEl) {
           avatarEl.classList.remove('skeleton-box', 'skeleton-avatar');
@@ -3843,15 +3844,50 @@
     }
 
     async function loadFeed() {
+      if (!window.currentUserData) {
+        try {
+          const meRes = await fetch('/api/me');
+          if (meRes.ok) window.currentUserData = await meRes.json();
+        } catch (_) {}
+      }
+      const isTeacher = window.currentUserData && (window.currentUserData.role === 'teacher' || window.currentUserData.role === 'faculty');
+      const feedQuery = isTeacher ? '?feed=1' : '';
       const [files, assignments, page] = await Promise.all([
-        fetch('/api/files').then(r => r.ok ? r.json() : []).catch(() => []),
-        fetch('/api/code-lab/assignments').then(r => r.ok ? r.json() : []).catch(() => []),
+        fetch('/api/files' + feedQuery).then(r => r.ok ? r.json() : []).catch(() => []),
+        fetch('/api/code-lab/assignments' + feedQuery).then(r => r.ok ? r.json() : []).catch(() => []),
         fetchPostPage().catch(err => { postFeedMessage.textContent = err.message; return null; })
       ]);
       const assignmentList = Array.isArray(assignments) ? assignments : (assignments?.assignments || []);
+
+      let filteredFiles = files;
+      let filteredAssignments = assignmentList;
+
+      if (isTeacher && window.currentUserData) {
+        if (!window.currentUserData.subjects || window.currentUserData.subjects.length === 0) {
+          try {
+            const subRes = await fetch('/api/teacher/subjects');
+            if (subRes.ok) {
+              const subData = await subRes.json();
+              if (Array.isArray(subData.subjects)) window.currentUserData.subjects = subData.subjects;
+            }
+          } catch (_) {}
+        }
+        const teacherId = window.currentUserData.studentId;
+        const teacherSubs = (window.currentUserData.subjects || []).flatMap(s => [s.name, s.code, s.title, s.id].filter(Boolean).map(x => String(x).toLowerCase().trim()));
+
+        filteredFiles = files.filter(f => {
+          if (f.uploadedBy === teacherId) return true;
+          if (!f.subject) return false;
+          const fSub = String(f.subject).toLowerCase().trim();
+          return teacherSubs.some(sub => fSub === sub || fSub.includes(sub) || sub.includes(fSub));
+        });
+
+        filteredAssignments = assignmentList.filter(a => a.createdBy === teacherId);
+      }
+
       feedItems = [
-        ...files.map(f => ({ ...f, _feedType: 'file', _feedTime: new Date(f.uploadedAt || f.createdAt || 0).getTime() })),
-        ...assignmentList.map(a => ({ ...a, _feedType: 'assignment', _feedTime: new Date(a.createdAt || 0).getTime() }))
+        ...filteredFiles.map(f => ({ ...f, _feedType: 'file', _feedTime: new Date(f.uploadedAt || f.createdAt || 0).getTime() })),
+        ...filteredAssignments.map(a => ({ ...a, _feedType: 'assignment', _feedTime: new Date(a.createdAt || 0).getTime() }))
       ];
       if (page) {
         addFeedPosts(page.posts);

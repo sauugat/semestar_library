@@ -3179,6 +3179,46 @@ app.get('/api/files', requireLogin, async (req, res) => {
     requestedSemester: req.query.semester || req.query.semester_no
   });
 
+  const isFeedRequest = req.query.feed === '1' || req.query.context === 'feed';
+  let teacherFeedSql = '';
+  const teacherFeedParams = [];
+
+  const isTeacher = context.role === 'teacher' || context.role === 'faculty';
+  if (isTeacher && isFeedRequest) {
+    const activeTeacherId = req.session?.studentId || context.studentId || req.user?.studentId || req.student?.studentId;
+    let teacherSubjects = [];
+    try {
+      const { getTeacherSubjects } = require('./lib/teacher-service');
+      teacherSubjects = await getTeacherSubjects(db, activeTeacherId);
+    } catch (_) {}
+
+    if ((!teacherSubjects || teacherSubjects.length === 0) && (req.user?.subjects || context.subjects)) {
+      teacherSubjects = req.user?.subjects || context.subjects || [];
+    }
+
+    const subTerms = [];
+    for (const s of (teacherSubjects || [])) {
+      if (s.name) subTerms.push(s.name.trim().toLowerCase());
+      if (s.code) subTerms.push(s.code.trim().toLowerCase());
+      if (s.title) subTerms.push(s.title.trim().toLowerCase());
+    }
+
+    if (subTerms.length > 0) {
+      const orParts = ['files.uploadedBy = ?'];
+      teacherFeedParams.push(activeTeacherId);
+      for (const term of subTerms) {
+        orParts.push('LOWER(files.subject) = ?');
+        teacherFeedParams.push(term);
+        orParts.push('LOWER(files.subject) LIKE ?');
+        teacherFeedParams.push(`%${term}%`);
+      }
+      teacherFeedSql = ` AND (${orParts.join(' OR ')})`;
+    } else {
+      teacherFeedSql = ' AND files.uploadedBy = ?';
+      teacherFeedParams.push(activeTeacherId);
+    }
+  }
+
   let query = `
     SELECT files.id, files.originalName, files.title, files.semester, files.subject, files.chapter, files.sizeBytes, files.uploadedAt, files.uploadedBy,
       files.cohort_id, files.semester_no, files.audience_scope,
@@ -3188,7 +3228,7 @@ app.get('/api/files', requireLogin, async (req, res) => {
       (SELECT COUNT(*) FROM file_comments WHERE file_comments.fileId = files.id) AS commentCount
     FROM files
     JOIN students ON students.studentId = files.uploadedBy
-    WHERE ${filter.sql}
+    WHERE ${filter.sql}${teacherFeedSql}
     ORDER BY files.uploadedAt DESC
   `;
 
@@ -3196,11 +3236,12 @@ app.get('/api/files', requireLogin, async (req, res) => {
     query += ` LIMIT ${limit} OFFSET ${offset}`;
   }
 
-  const queryParams = [req.session.studentId, ...filter.params];
+  const currentViewerId = req.session?.studentId || context.studentId || req.user?.studentId || req.student?.studentId || null;
+  const queryParams = [currentViewerId, ...filter.params, ...teacherFeedParams];
 
   // Parallelize admin verification and files database query
   const [viewerIsAdmin, files] = await Promise.all([
-    req.student ? Promise.resolve(req.student.role === 'admin') : isStudentAdmin(req.session.studentId),
+    req.student ? Promise.resolve(req.student.role === 'admin') : isStudentAdmin(currentViewerId),
     db.all(query, ...queryParams)
   ]);
 

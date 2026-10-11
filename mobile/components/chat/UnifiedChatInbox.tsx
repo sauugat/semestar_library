@@ -249,20 +249,21 @@ export function UnifiedChatInbox({
     [onSelectCohort, onSelectDm]
   );
 
-  // Full Screen Error (if both fail and no items)
-  if (!loading && cohortError && dmError && items.length === 0) {
+  // Full Screen Error (if cohort loading fails and no items available)
+  const isFatalError = !loading && items.length === 0 && Boolean(cohortError || (dmEnabled && dmError));
+  if (isFatalError) {
     return (
       <View style={styles.centerErrorContainer}>
         <Ionicons name="cloud-offline-outline" size={44} color={Monochrome.textTertiary} style={{ marginBottom: 12 }} />
         <Text variant="lg" weight="700" style={{ color: Monochrome.textPrimary, textAlign: 'center', marginBottom: 8 }}>
-          Could not load chats
+          Couldn't load conversations.
         </Text>
         <Text variant="sm" style={{ color: Monochrome.textSecondary, textAlign: 'center', marginBottom: 20 }}>
-          {cohortError || dmError}
+          {cohortError || dmError || 'Network request failed. Please check your connection.'}
         </Text>
-        <TouchableOpacity style={styles.retryBtn} onPress={onRefresh}>
+        <TouchableOpacity style={styles.retryBtn} onPress={onRetryCohort || onRefresh}>
           <Text variant="sm" weight="600" style={{ color: Monochrome.textPrimary }}>
-            Try Again
+            Retry
           </Text>
         </TouchableOpacity>
       </View>

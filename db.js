@@ -38,6 +38,9 @@ if (isPostgres) {
     pgPool = new Pool({
       connectionString
     });
+    pgPool.on('error', (err) => {
+      console.warn('[DB Engine]: Idle client connection terminated/recovering:', err?.message || err);
+    });
     console.log('[DB Engine]: Connected to PostgreSQL/Neon Database via serverless driver');
   } catch (err) {
     console.error('[DB Engine]: PostgreSQL init error:', err.message);

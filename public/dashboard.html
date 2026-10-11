@@ -1958,6 +1958,23 @@
       box-shadow: none !important;
     }
 
+    /* Comment send button: Reply text gray in dark mode */
+    [data-theme="dark"] .post-comment-submit-btn,
+    body.dark-mode .post-comment-submit-btn {
+      color: #525252 !important;
+    }
+
+    [data-theme="dark"] .post-comment-submit-btn:hover:not(:disabled),
+    body.dark-mode .post-comment-submit-btn:hover:not(:disabled) {
+      color: #111111 !important;
+    }
+
+    [data-theme="dark"] .post-comment-submit-btn:disabled,
+    body.dark-mode .post-comment-submit-btn:disabled {
+      color: #8e8e93 !important;
+      opacity: 0.5 !important;
+    }
+
     .modal-post-composer .post-feedback {
       margin: 12px 0 0 0;
       font-size: 13px;

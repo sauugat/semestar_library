@@ -1925,42 +1925,6 @@ export default function HomeScreen() {
         )}
       </View>
 
-      {/* Category Filter Pills (Strict Monochrome) */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingVertical: 6, gap: 6 }}
-        style={{ marginBottom: spacing.xs }}
-      >
-        {FEED_CATEGORY_FILTERS.map((cat) => {
-          const isSelected = feedCategoryFilter === cat.id;
-          return (
-            <TouchableOpacity
-              key={cat.id}
-              activeOpacity={0.7}
-              onPress={() => setFeedCategoryFilter(cat.id)}
-              style={{
-                backgroundColor: isSelected ? colors.text : colors.surfaceRaised,
-                borderColor: isSelected ? colors.text : colors.border,
-                borderWidth: 1,
-                borderRadius: radii.full,
-                paddingHorizontal: 12,
-                paddingVertical: 5,
-              }}
-            >
-              <Text
-                variant="xs"
-                weight={isSelected ? '700' : '500'}
-                style={{
-                  color: isSelected ? colors.background : colors.textSecondary,
-                }}
-              >
-                {cat.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
 
 
     </View>

@@ -276,16 +276,19 @@
 
     .form-label {
       display: block;
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 600;
-      color: var(--text-main);
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      text-transform: uppercase;
       margin-bottom: 7px;
     }
 
     .label-optional {
-      font-size: 11.5px;
+      font-size: 11px;
       font-weight: 400;
       color: var(--text-faint);
+      text-transform: none;
     }
 
     .composer-input,
@@ -296,7 +299,7 @@
       border: 1px solid var(--border-color);
       border-radius: 10px;
       padding: 12px 14px;
-      font-size: 14.5px;
+      font-size: 14px;
       font-family: inherit;
       color: var(--text-main);
       outline: none;
@@ -323,12 +326,6 @@
       margin-bottom: 8px;
     }
 
-    .composer-live-hint {
-      font-size: 11.5px;
-      color: var(--text-muted);
-      font-weight: 500;
-    }
-
     .markdown-toolbar {
       display: flex;
       align-items: center;
@@ -336,7 +333,7 @@
       padding: 6px 10px;
       background: var(--input-bg);
       border: 1px solid var(--border-color);
-      border-top: 1px solid var(--border-color);
+      border-top: 1px solid var(--border-subtle);
       border-top-left-radius: 0;
       border-top-right-radius: 0;
       border-bottom-left-radius: 10px;
@@ -355,8 +352,8 @@
 
     .toolbar-divider {
       width: 1px;
-      height: 18px;
-      background: var(--border-color);
+      height: 16px;
+      background: var(--border-subtle);
       margin: 0 4px;
       flex-shrink: 0;
     }
@@ -371,7 +368,7 @@
       border-radius: 6px;
       border: 1px solid transparent;
       background: transparent;
-      color: var(--text-main);
+      color: var(--text-muted);
       font-size: 12.5px;
       font-weight: 600;
       cursor: pointer;
@@ -382,23 +379,23 @@
 
     .md-tool-btn:hover {
       background: var(--select-hover);
-      border-color: var(--border-color);
+      color: var(--text-main);
     }
 
     .md-tool-btn.active,
     .md-tool-btn[aria-pressed="true"] {
       background: #27272a;
       color: #fafafa;
-      border-color: #52525b;
+      border-color: rgba(255, 255, 255, 0.14);
     }
 
     [data-theme="light"] .md-tool-btn.active,
     body.light-mode .md-tool-btn.active,
     [data-theme="light"] .md-tool-btn[aria-pressed="true"],
     body.light-mode .md-tool-btn[aria-pressed="true"] {
-      background: #18181b;
-      color: #ffffff;
-      border-color: #09090b;
+      background: #e4e4e7;
+      color: #18181b;
+      border-color: rgba(0, 0, 0, 0.12);
     }
 
     .md-tool-btn svg {

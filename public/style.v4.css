@@ -8152,6 +8152,22 @@ body.dark-mode .post-comment-item {
   border-color: rgba(255, 255, 255, 0.08);
 }
 
+[data-theme="dark"] .post-comment-submit-btn,
+body.dark-mode .post-comment-submit-btn {
+  color: #525252 !important;
+}
+
+[data-theme="dark"] .post-comment-submit-btn:hover:not(:disabled),
+body.dark-mode .post-comment-submit-btn:hover:not(:disabled) {
+  color: #111111 !important;
+}
+
+[data-theme="dark"] .post-comment-submit-btn:disabled,
+body.dark-mode .post-comment-submit-btn:disabled {
+  color: #8e8e93 !important;
+  opacity: 0.5 !important;
+}
+
 /* Toast Notification for Social Actions (e.g. Copy Link) */
 .social-toast {
   position: fixed;

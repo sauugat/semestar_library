@@ -601,10 +601,9 @@ export default function HomeScreen() {
       const [postsRes, filesRes, assignmentsRes] = await Promise.all([
         getPosts(null, 20),
         getFeedFiles(),
-        apiFetch('/api/code-lab/assignments').then(async response => {
-          if (!response.ok) throw new Error('Could not load assignments. Pull to refresh.');
-          return response.json() as Promise<FeedAssignment[]>;
-        }),
+        apiFetch('/api/code-lab/assignments')
+          .then(async response => (response.ok ? ((await response.json()) as FeedAssignment[]) : []))
+          .catch(() => [] as FeedAssignment[]),
       ]);
       return {
         posts: postsRes.posts,

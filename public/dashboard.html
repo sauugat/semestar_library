@@ -3685,9 +3685,7 @@
       const tagsHtml = (categoryBadgeHtml || audienceBadgeHtml)
         ? `<div class="post-tags-row">${categoryBadgeHtml}${audienceBadgeHtml}</div>`
         : '';
-      const titleHtml = (post.title && post.title.trim())
-        ? `<h3 class="post-title">${escapeHtml(post.title.trim())}</h3>`
-        : '';
+      const titleHtml = '';
 
       const contentHtml = shouldTruncate
         ? `<div class="post-content-clamped"><div class="status-post-text post-markdown-content">${typeof renderPostMarkdown === 'function' ? renderPostMarkdown(cleanContent) : escapeHtml(cleanContent)}</div></div><button type="button" class="show-more-link post-expand-btn" onclick="togglePostExpand(this)">Show more</button>`

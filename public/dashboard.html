@@ -3719,9 +3719,12 @@
       }
 
       const isStudentsOnly = post.visibility === 'students_only' || post.audience === 'students_only';
-      const categoryBadgeHtml = (!isGeneral && categoryLabel)
-        ? `<span class="post-monochrome-badge post-category-tag">${escapeHtml(categoryLabel)}</span>`
-        : '';
+      const isAssignment = post.type === 'assignment';
+      const categoryBadgeHtml = isAssignment
+        ? `<span class="post-monochrome-badge post-category-tag">ASSIGNMENT</span>`
+        : ((!isGeneral && categoryLabel)
+          ? `<span class="post-monochrome-badge post-category-tag">${escapeHtml(categoryLabel)}</span>`
+          : '');
       const audienceBadgeHtml = isStudentsOnly
         ? `<span class="post-monochrome-badge post-audience-tag">STUDENTS ONLY</span>`
         : '';
@@ -3729,7 +3732,9 @@
       const tagsHtml = (categoryBadgeHtml || audienceBadgeHtml)
         ? `<div class="post-tags-row">${categoryBadgeHtml}${audienceBadgeHtml}</div>`
         : '';
-      const titleHtml = '';
+      const titleHtml = (isAssignment && post.title)
+        ? `<h3 class="post-title" style="margin: 0 0 8px 0; font-size: 15px; font-weight: 700;">${escapeHtml(post.title)}</h3>`
+        : '';
 
       const contentHtml = shouldTruncate
         ? `<div class="post-content-clamped"><div class="status-post-text post-markdown-content">${typeof renderPostMarkdown === 'function' ? renderPostMarkdown(cleanContent) : escapeHtml(cleanContent)}</div></div><button type="button" class="show-more-link post-expand-btn" onclick="togglePostExpand(this)">Show more</button>`

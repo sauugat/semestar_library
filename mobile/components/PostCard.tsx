@@ -291,6 +291,15 @@ export function PostCard({
         );
       })()}
 
+      {/* Assignment Title */}
+      {Boolean(post.title && post.type === 'assignment') && (
+        <View style={{ marginTop: spacing.xs, marginBottom: 2 }}>
+          <Text variant="sm" weight="700" style={{ color: colors.text, fontSize: 15 }}>
+            {post.title}
+          </Text>
+        </View>
+      )}
+
       {/* Post Text Content */}
       {Boolean(post.content && post.content.trim()) && (
         <View style={{ marginTop: spacing.sm }}>

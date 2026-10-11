@@ -1444,13 +1444,50 @@
       const emailHeader = document.getElementById('emailDispatchHeader');
       const authorStrip = document.getElementById('authorStrip');
       const bodyLabel = document.getElementById('bodyLabel');
+      const generalSemesterSlot = document.getElementById('generalSemesterSlot');
+      const emailSemesterSlot = document.getElementById('emailSemesterSlot');
+      const semesterContainer = document.getElementById('semesterContainer');
+      const semesterBtn = document.getElementById('semesterBtn');
 
       if (emailHeader) emailHeader.style.display = isGeneral ? 'none' : 'block';
       if (authorStrip) authorStrip.style.display = isGeneral ? 'flex' : 'none';
+
+      // Semester selection support for both General and Email theme modes
+      if (isGeneral) {
+        if (generalSemesterSlot && semesterContainer) {
+          generalSemesterSlot.style.display = 'block';
+          if (!generalSemesterSlot.contains(semesterContainer)) {
+            generalSemesterSlot.appendChild(semesterContainer);
+          }
+        }
+        if (semesterBtn) {
+          semesterBtn.classList.remove('email-to-trigger');
+          semesterBtn.classList.add('dropdown-trigger');
+        }
+      } else {
+        if (generalSemesterSlot) {
+          generalSemesterSlot.style.display = 'none';
+        }
+        if (emailSemesterSlot && semesterContainer) {
+          if (!emailSemesterSlot.contains(semesterContainer)) {
+            emailSemesterSlot.appendChild(semesterContainer);
+          }
+        }
+        if (semesterBtn) {
+          semesterBtn.classList.remove('dropdown-trigger');
+          semesterBtn.classList.add('email-to-trigger');
+        }
+      }
+
+      // In general mode, don't write "Body"
       if (bodyLabel) {
-        bodyLabel.textContent = isGeneral ? 'Body' : 'BODY :';
-        if (isGeneral) bodyLabel.classList.remove('email-body-label');
-        else bodyLabel.classList.add('email-body-label');
+        if (isGeneral) {
+          bodyLabel.style.display = 'none';
+        } else {
+          bodyLabel.style.display = 'block';
+          bodyLabel.textContent = 'BODY :';
+          bodyLabel.classList.add('email-body-label');
+        }
       }
     }
 

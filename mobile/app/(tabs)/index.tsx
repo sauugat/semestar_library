@@ -2306,7 +2306,7 @@ export default function HomeScreen() {
           onEndReachedThreshold={0.4}
           onScroll={handleNavScroll}
           scrollEventThrottle={scrollEventThrottle}
-          contentContainerStyle={[styles.container, { paddingBottom: 90 }]}
+          contentContainerStyle={[styles.container, { paddingBottom: 110 }]}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}

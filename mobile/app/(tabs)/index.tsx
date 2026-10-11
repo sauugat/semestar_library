@@ -2159,16 +2159,60 @@ export default function HomeScreen() {
   const renderFeedItem = ({ item }: { item: FeedItem }) => {
     if (item.feedType === 'assignment') {
       const a = item.assignment;
-      return <Card variant="elevated" padding="md" style={{ marginBottom: spacing.md }}>
-        <Text weight="700">{a.teacherName || 'Faculty'} · Assignment</Text>
-        <Caption color="muted">{formatTimeAgo(a.createdAt)}{a.subject ? ` · ${a.subject}` : ''}</Caption>
-        <Subheading style={{ marginTop: 12 }}>{a.title}</Subheading>
-        {!!a.description && <Text variant="sm" numberOfLines={4} style={{ marginVertical: 8 }}>{a.description}</Text>}
-        {!!a.deadline && <Caption color="secondary">Due {new Date(a.deadline).toLocaleDateString()}</Caption>}
-        <Button title="Do assignment on website" variant="secondary" size="sm" onPress={() => {
-          void Linking.openURL(`${baseUrl}/code-lab/assignment.html?id=${a.id}`).catch(() => showToast('Could not open the website.'));
-        }} />
-      </Card>;
+      return (
+        <Card variant="elevated" padding="md" style={{ marginBottom: spacing.md, borderWidth: 1, borderColor: colors.border }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xs }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 }}>
+              <Avatar name={a.teacherName || 'Faculty'} size={32} imageUrl={a.avatarUrl || (a as any).avatar_url} style={{ marginRight: 8 }} />
+              <View style={{ flex: 1 }}>
+                <Text variant="sm" weight="700" numberOfLines={1}>{a.teacherName || 'Faculty Member'}</Text>
+                <Caption color="muted">{formatTimeAgo(a.createdAt)}{a.subject ? ` · ${a.subject}` : ''}</Caption>
+              </View>
+            </View>
+            <View style={{
+              backgroundColor: colors.surfaceRaised,
+              borderColor: colors.border,
+              borderWidth: 1,
+              borderRadius: radii.full,
+              paddingHorizontal: 8,
+              paddingVertical: 3,
+              flexDirection: 'row',
+              alignItems: 'center',
+            }}>
+              <Ionicons name="document-text-outline" size={11} color={colors.textSecondary} style={{ marginRight: 3 }} />
+              <Text variant="xs" weight="700" style={{ color: colors.textSecondary, fontSize: 10 }}>ASSIGNMENT</Text>
+            </View>
+          </View>
+
+          <Subheading style={{ marginTop: 6, marginBottom: 4 }}>{a.title}</Subheading>
+          {Boolean(a.description) && (
+            <Text variant="sm" color="secondary" numberOfLines={3} style={{ marginBottom: 8, lineHeight: 20 }}>
+              {a.description}
+            </Text>
+          )}
+
+          <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: spacing.sm }}>
+            {typeof a.questionCount === 'number' && a.questionCount > 0 && (
+              <Caption color="secondary"><Ionicons name="list-outline" size={12} color={colors.textMuted} /> {a.questionCount} {a.questionCount === 1 ? 'Problem' : 'Problems'}</Caption>
+            )}
+            {Boolean(a.deadline) && (
+              <Caption color="secondary"><Ionicons name="calendar-outline" size={12} color={colors.textMuted} /> Due {new Date(a.deadline!).toLocaleDateString()}</Caption>
+            )}
+            {typeof a.submissionCount === 'number' && (
+              <Caption color="secondary"><Ionicons name="people-outline" size={12} color={colors.textMuted} /> {a.submissionCount} submitted</Caption>
+            )}
+          </View>
+
+          <Button
+            title="Open Assignment"
+            variant="secondary"
+            size="sm"
+            onPress={() => {
+              void Linking.openURL(`${baseUrl}/code-lab/assignment.html?id=${a.id}`).catch(() => showToast('Could not open the website.'));
+            }}
+          />
+        </Card>
+      );
     }
     if (item.feedType === 'file') {
       return renderFileItem(item.file);

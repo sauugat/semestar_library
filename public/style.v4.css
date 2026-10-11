@@ -6311,38 +6311,46 @@ body.dash .dash-id::before {
 }
 
 .post-markdown-content .md-p {
-  margin: 0 0 6px 0;
-  line-height: 1.5;
+  margin: 0 0 11px 0;
+  line-height: 1.55;
 }
 
 .post-markdown-content .md-p:last-child {
-  margin-bottom: 0;
+  margin-bottom: 0 !important;
 }
 
 .post-markdown-content .md-h1 {
   font-size: 1.25rem;
   font-weight: 700;
-  margin: 10px 0 4px 0;
+  margin: 18px 0 8px 0;
   color: var(--text-primary);
   letter-spacing: -0.015em;
-  line-height: 1.3;
+  line-height: 1.35;
 }
 
 .post-markdown-content .md-h2 {
   font-size: 1.12rem;
   font-weight: 700;
-  margin: 8px 0 4px 0;
+  margin: 18px 0 8px 0;
   color: var(--text-primary);
   letter-spacing: -0.01em;
-  line-height: 1.3;
+  line-height: 1.35;
 }
 
 .post-markdown-content .md-h3 {
   font-size: 1.02rem;
   font-weight: 600;
-  margin: 6px 0 3px 0;
+  margin: 16px 0 8px 0;
   color: var(--text-primary);
-  line-height: 1.3;
+  line-height: 1.35;
+}
+
+.post-markdown-content > :first-child {
+  margin-top: 0 !important;
+}
+
+.post-markdown-content > :last-child {
+  margin-bottom: 0 !important;
 }
 
 .post-markdown-content .md-blockquote {

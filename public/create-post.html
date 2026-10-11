@@ -401,9 +401,11 @@
       padding: 14px 16px;
       background: var(--input-bg);
       border: 1px solid var(--border-color);
-      border-top: none;
-      border-bottom-left-radius: 10px;
-      border-bottom-right-radius: 10px;
+      border-bottom: none;
+      border-top-left-radius: 10px;
+      border-top-right-radius: 10px;
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
       line-height: 1.6;
       box-sizing: border-box;
       outline: none;
@@ -415,6 +417,11 @@
     }
 
     .composer-wysiwyg-editor:focus {
+      border-color: var(--border-hover);
+    }
+
+    .form-group:focus-within .composer-wysiwyg-editor,
+    .form-group:focus-within .markdown-toolbar {
       border-color: var(--border-hover);
     }
 

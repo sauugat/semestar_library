@@ -2612,7 +2612,6 @@
       <div id="heroRealText" style="display: none;">
         <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:4px;">
           <p class="dash-greeting-line" id="greetingLine" style="margin:0;"></p>
-          <span class="academic-context-badge" id="dashAcademicBadge" style="display:none;"></span>
         </div>
         <p class="dash-id" id="idLine"></p>
       </div>
@@ -2622,31 +2621,13 @@
   <div class="feed-heading">
     <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
       <h2 style="margin:0;">Your Feed</h2>
-      <span class="academic-context-badge" id="feedAcademicBadge" style="display:none;"></span>
     </div>
     <div style="display: flex; align-items: center; gap: 12px;">
-      <a href="/create-post" class="feed-create-post-link" title="Open full page post composer" style="display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 6px; font-size: 12.5px; font-weight: 600; text-decoration: none; color: inherit; border: 1px solid rgba(255, 255, 255, 0.16); background: rgba(255, 255, 255, 0.05); transition: all 0.15s ease;">
-        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="12" y1="5" x2="12" y2="19"></line>
-          <line x1="5" y1="12" x2="19" y2="12"></line>
-        </svg>
-        <span>New Post</span>
-      </a>
       <span>Updated just now</span>
     </div>
   </div>
 
   <main class="feed">
-    <!-- Feed Category Filter Bar -->
-    <div class="feed-category-filter-bar" id="feedCategoryFilterBar" role="tablist" aria-label="Filter posts by category">
-      <button type="button" class="feed-filter-pill active" data-category="all" role="tab" aria-selected="true">All Posts</button>
-      <button type="button" class="feed-filter-pill" data-category="general" role="tab" aria-selected="false">General</button>
-      <button type="button" class="feed-filter-pill" data-category="notice" role="tab" aria-selected="false">Notices</button>
-      <button type="button" class="feed-filter-pill" data-category="announcement" role="tab" aria-selected="false">Announcements</button>
-      <button type="button" class="feed-filter-pill" data-category="news" role="tab" aria-selected="false">News</button>
-      <button type="button" class="feed-filter-pill" data-category="complaints" role="tab" aria-selected="false">Complaints</button>
-      <button type="button" class="feed-filter-pill" data-category="feedback" role="tab" aria-selected="false">Feedback</button>
-    </div>
     <div id="searchResults" style="display: none;"></div>
     <div id="realFiles">
       <!-- Skeleton Loading Feed Layout -->

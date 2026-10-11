@@ -321,12 +321,15 @@
       padding: 6px 10px;
       background: var(--input-bg);
       border: 1px solid var(--border-color);
-      border-bottom: 1px solid var(--border-color);
-      border-top-left-radius: 10px;
-      border-top-right-radius: 10px;
+      border-top: 1px solid var(--border-color);
+      border-top-left-radius: 0;
+      border-top-right-radius: 0;
+      border-bottom-left-radius: 10px;
+      border-bottom-right-radius: 10px;
       overflow-x: auto;
       scrollbar-width: thin;
       user-select: none;
+      transition: border-color 0.15s ease;
     }
 
     .toolbar-group {

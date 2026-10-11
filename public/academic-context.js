@@ -56,8 +56,13 @@
     const role = (data.role || 'student').toLowerCase();
     const isStudent = role === 'student' || role === 'cr';
     const isStaff = role === 'teacher' || role === 'admin';
-    const cohort = data.cohort || null;
-    const currentSem = cohort ? Number(cohort.currentSemester || 1) : null;
+    let currentSem = cohort ? Number(cohort.currentSemester || 1) : null;
+    if (!currentSem && data.semester) {
+      const parsed = parseInt(String(data.semester).replace(/^(?:semester|sem)\s*/i, ''), 10);
+      if (!isNaN(parsed) && parsed >= 1 && parsed <= 8) {
+        currentSem = parsed;
+      }
+    }
     const isUnassigned = !cohort || data.academicStatus === 'unassigned';
 
     return {

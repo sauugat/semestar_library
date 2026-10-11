@@ -8,7 +8,12 @@ const {
   regenerateTeacherInvitePassword,
   reissueTeacherInvite,
   revokeTeacherInvite,
-  isTeacherOnboardingEnabled
+  isTeacherOnboardingEnabled,
+  listAllSubjects,
+  getTeacherAssignments,
+  assignTeacherSubject,
+  removeTeacherSubject,
+  listTeachersWithAssignments
 } = require('../lib/teacher-service');
 
 function createAdminTeachersRouter(arg1, arg2) {
@@ -181,6 +186,127 @@ function createAdminTeachersRouter(arg1, arg2) {
     } catch (err) {
       const status = err.message && err.message.includes('not found') ? 404 : 400;
       res.status(status).json({ message: err.message || 'Failed to revoke teacher invite.' });
+    }
+  });
+
+  /**
+   * 7. GET /api/admin/teacher-invites/:id
+   * Alias to detail endpoint supporting either invite ID or initial username.
+   */
+  router.get('/teacher-invites/:id', requireLogin, requireAdminRole, async (req, res) => {
+    try {
+      const inviteId = req.params.id;
+      const detail = await getTeacherInviteDetail(db, inviteId);
+      if (!detail) {
+        return res.status(404).json({ message: 'Teacher invite not found.' });
+      }
+
+      res.json(detail);
+    } catch (err) {
+      console.error('[Admin Teachers] Detail error:', err);
+      res.status(500).json({ message: 'Failed to retrieve teacher details.' });
+    }
+  });
+
+  /**
+   * 8. GET /api/admin/subjects
+   * List available canonical subjects (active only), with optional semester or search filter.
+   */
+  router.get('/subjects', requireLogin, requireAdminRole, async (req, res) => {
+    try {
+      const subjects = await listAllSubjects(db, req.query);
+      res.json({ subjects });
+    } catch (err) {
+      console.error('[Admin Teachers] List subjects error:', err);
+      res.status(500).json({ message: 'Failed to list subjects.' });
+    }
+  });
+
+  /**
+   * 9. GET /api/admin/teachers/assignments
+   * List all faculty teachers with their assigned canonical subjects and derived semesters.
+   */
+  router.get('/teachers/assignments', requireLogin, requireAdminRole, async (req, res) => {
+    try {
+      const teachers = await listTeachersWithAssignments(db);
+      res.json({ teachers });
+    } catch (err) {
+      console.error('[Admin Teachers] List assignments error:', err);
+      res.status(500).json({ message: 'Failed to load teacher assignments.' });
+    }
+  });
+
+  /**
+   * 10. GET /api/admin/teachers/:id/subjects
+   * Get specific teacher's assigned canonical subjects and derived semesters.
+   */
+  router.get('/teachers/:id/subjects', requireLogin, requireAdminRole, async (req, res) => {
+    try {
+      const result = await getTeacherAssignments(db, req.params.id);
+      if (!result) {
+        return res.status(404).json({ message: 'Teacher not found.' });
+      }
+      res.json(result);
+    } catch (err) {
+      console.error('[Admin Teachers] Teacher subjects error:', err);
+      res.status(500).json({ message: 'Failed to get teacher subjects.' });
+    }
+  });
+
+  /**
+   * 11. POST /api/admin/teachers/:id/subjects
+   * Authoritatively assign an existing active canonical subject to a teacher.
+   * Body: { subjectId } or { subjectCode }
+   */
+  router.post('/teachers/:id/subjects', requireLogin, requireAdminRole, async (req, res) => {
+    try {
+      const subjectInput = req.body && (req.body.subjectId || req.body.subjectCode || req.body.id || req.body.code);
+      if (!subjectInput) {
+        return res.status(400).json({ message: 'Subject ID or code is required.' });
+      }
+
+      const result = await assignTeacherSubject(db, {
+        adminId: req.adminStudentId,
+        teacherId: req.params.id,
+        subjectIdOrCode: subjectInput
+      });
+
+      res.status(201).json({
+        message: 'Subject assigned successfully.',
+        ...result
+      });
+    } catch (err) {
+      console.error('[Admin Teachers] Assign subject error:', err.message);
+      const msg = err.message || '';
+      let status = 400;
+      if (msg.includes('not found')) status = 404;
+      else if (msg.includes('already assigned')) status = 409;
+      res.status(status).json({ message: msg || 'Failed to assign subject.' });
+    }
+  });
+
+  /**
+   * 12. DELETE /api/admin/teachers/:id/subjects/:subjectId
+   * Authoritatively remove an assigned subject from a teacher. Preserves historical materials.
+   */
+  router.delete('/teachers/:id/subjects/:subjectId', requireLogin, requireAdminRole, async (req, res) => {
+    try {
+      const result = await removeTeacherSubject(db, {
+        adminId: req.adminStudentId,
+        teacherId: req.params.id,
+        subjectIdOrCode: req.params.subjectId
+      });
+
+      res.json({
+        message: 'Subject assignment removed successfully.',
+        ...result
+      });
+    } catch (err) {
+      console.error('[Admin Teachers] Remove subject error:', err.message);
+      const msg = err.message || '';
+      let status = 400;
+      if (msg.includes('not found')) status = 404;
+      res.status(status).json({ message: msg || 'Failed to remove subject assignment.' });
     }
   });
 

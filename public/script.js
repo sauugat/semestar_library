@@ -169,8 +169,9 @@ window.doLogin = async function (e) {
 
       const urlParams = new URLSearchParams(window.location.search);
       const redirectParam = urlParams.get('redirect');
+      const roleTarget = (data.user && data.user.role === 'teacher') ? '/teacher-dashboard.html' : '/dashboard.html';
       setTimeout(() => {
-        window.location.href = redirectParam || '/dashboard.html';
+        window.location.href = redirectParam || data.redirect || roleTarget;
       }, 350);
     }
   } catch (err) {

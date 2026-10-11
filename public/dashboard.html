@@ -2836,6 +2836,10 @@
         return res.json();
       })
       .then(data => {
+        if (data && data.role === 'teacher') {
+          window.location.replace('/teacher-dashboard.html');
+          return;
+        }
         window.currentUserData = data;
         const avatarEl = document.getElementById('avatarInitial');
         if (avatarEl) {

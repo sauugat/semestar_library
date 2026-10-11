@@ -43,6 +43,19 @@ export function semNumberToRoman(num: number): string {
   return ROMAN_MAP[num] || `Semester ${num}`;
 }
 
+export function parseSemesterNumber(val?: string | number | null): number | null {
+  if (val === null || val === undefined) return null;
+  if (typeof val === 'number') {
+    return Number.isInteger(val) && val >= 1 && val <= 8 ? val : null;
+  }
+  const cleaned = String(val).replace(/^(?:semester|sem)\s*/i, '').trim().toUpperCase();
+  const num = parseInt(cleaned, 10);
+  if (!isNaN(num) && num >= 1 && num <= 8) return num;
+  const ROMANS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
+  const idx = ROMANS.indexOf(cleaned);
+  return idx !== -1 ? idx + 1 : null;
+}
+
 export async function fetchAcademicContext(): Promise<AcademicContextResponse> {
   const data = await api.get<AcademicContextResponse>('/api/academic-context');
   if (data.cohort) {
@@ -52,6 +65,14 @@ export async function fetchAcademicContext(): Promise<AcademicContextResponse> {
     data.semesterRoman = semNumberToRoman(semNum);
   } else if (data.canViewAllCohorts) {
     data.displayLabel = 'All Cohorts';
+  } else if (data.semester) {
+    const semNum = parseSemesterNumber(data.semester);
+    if (semNum) {
+      data.displayLabel = `Semester ${semNum}`;
+      data.semesterRoman = semNumberToRoman(semNum);
+    } else {
+      data.displayLabel = 'Unassigned';
+    }
   } else if (data.academicStatus === 'unassigned') {
     data.displayLabel = 'Unassigned';
   }

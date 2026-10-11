@@ -1,0 +1,1701 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+  <script src="/theme.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Faculty Workspace — Semester Library</title>
+
+  <!-- Web App Manifest & iOS PWA Metadata -->
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/logo.jpg">
+  <link rel="icon" type="image/png" sizes="192x192" href="/logo.jpg">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Semester Library">
+  <meta name="theme-color" content="#0a0a0a">
+
+  <!-- Anti-flash inline script: executes before paint to prevent FOUC -->
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('theme');
+        if (!t) {
+          t = 'dark';
+          try { localStorage.setItem('theme', 'dark'); } catch (e) { }
+        }
+        var d = t === 'dark';
+        document.documentElement.setAttribute('data-theme', t);
+        if (d) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      } catch (e) { }
+    })();
+  </script>
+
+  <script src="/auth.js"></script>
+  <script>SemesterAuth.protectPage();</script>
+  <script src="/markdown.js"></script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="style.v4.css?v=4.2">
+  <link rel="stylesheet" href="theme-overrides.css">
+
+  <style>
+    /* Strict Monochrome Palette & Design System */
+    :root {
+      --teach-bg: #f5f5f7;
+      --teach-surface: #ffffff;
+      --teach-surface-subtle: #f9f9fb;
+      --teach-surface-hover: #f0f0f2;
+      --teach-border: #d0d7de;
+      --teach-border-subtle: #e1e4e8;
+      --teach-text-primary: #1d1d1f;
+      --teach-text-secondary: #656d76;
+      --teach-text-tertiary: #8c959f;
+      --teach-badge-bg: #ebebef;
+      --teach-badge-text: #1d1d1f;
+      --teach-btn-primary-bg: #1d1d1f;
+      --teach-btn-primary-text: #ffffff;
+      --teach-btn-secondary-bg: #ebebef;
+      --teach-btn-secondary-text: #1d1d1f;
+      --teach-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+      --teach-shadow-md: 0 4px 14px rgba(0, 0, 0, 0.06);
+    }
+
+    [data-theme="dark"],
+    html.dark,
+    body.dark-mode {
+      --teach-bg: #0a0a0a;
+      --teach-surface: #141414;
+      --teach-surface-subtle: #1c1c1c;
+      --teach-surface-hover: #242424;
+      --teach-border: #2a2a2a;
+      --teach-border-subtle: #202020;
+      --teach-text-primary: #f5f5f5;
+      --teach-text-secondary: #a3a3a3;
+      --teach-text-tertiary: #6e6e6e;
+      --teach-badge-bg: #222222;
+      --teach-badge-text: #e5e5e5;
+      --teach-btn-primary-bg: #f5f5f5;
+      --teach-btn-primary-text: #0a0a0a;
+      --teach-btn-secondary-bg: #222222;
+      --teach-btn-secondary-text: #e5e5e5;
+      --teach-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+      --teach-shadow-md: 0 6px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    body.teacher-dash {
+      background-color: var(--teach-bg);
+      color: var(--teach-text-primary);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Navigation Bar */
+    .teach-header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--teach-surface);
+      border-bottom: 1px solid var(--teach-border);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 24px;
+      gap: 16px;
+    }
+
+    .teach-brand-cluster {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .teach-wordmark {
+      font-family: 'Fraunces', serif;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--teach-text-primary);
+      text-decoration: none;
+      letter-spacing: -0.02em;
+    }
+
+    .teach-workspace-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 10px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-radius: 999px;
+      background: var(--teach-badge-bg);
+      color: var(--teach-badge-text);
+      border: 1px solid var(--teach-border);
+    }
+
+    /* Workspace Navigation Tabs */
+    .teach-nav-tabs {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--teach-surface-subtle);
+      padding: 4px;
+      border-radius: 10px;
+      border: 1px solid var(--teach-border);
+    }
+
+    .teach-tab-btn {
+      background: transparent;
+      border: none;
+      padding: 8px 18px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--teach-text-secondary);
+      border-radius: 7px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.15s ease;
+    }
+
+    .teach-tab-btn:hover {
+      color: var(--teach-text-primary);
+    }
+
+    .teach-tab-btn.active {
+      background: var(--teach-surface);
+      color: var(--teach-text-primary);
+      box-shadow: var(--teach-shadow-sm);
+    }
+
+    .teach-tab-btn svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .teach-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .teach-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 8px 16px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      text-decoration: none;
+      border: 1px solid transparent;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .teach-btn-primary {
+      background: var(--teach-btn-primary-bg);
+      color: var(--teach-btn-primary-text);
+      border-color: var(--teach-btn-primary-bg);
+    }
+
+    .teach-btn-primary:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+
+    .teach-btn-secondary {
+      background: var(--teach-btn-secondary-bg);
+      color: var(--teach-btn-secondary-text);
+      border-color: var(--teach-border);
+    }
+
+    .teach-btn-secondary:hover {
+      background: var(--teach-surface-hover);
+    }
+
+    .teach-user-chip {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 4px 12px 4px 4px;
+      background: var(--teach-surface-subtle);
+      border: 1px solid var(--teach-border);
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--teach-text-primary);
+    }
+
+    .teach-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--teach-btn-primary-bg);
+      color: var(--teach-btn-primary-text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+
+    /* Main Workspace Container */
+    .teach-container {
+      max-width: 1140px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 24px 20px 60px;
+      box-sizing: border-box;
+      flex: 1;
+    }
+
+    /* Faculty Identity Banner */
+    .teach-hero {
+      background: var(--teach-surface);
+      border: 1px solid var(--teach-border);
+      border-radius: 14px;
+      padding: 24px 28px;
+      margin-bottom: 24px;
+      box-shadow: var(--teach-shadow-sm);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+
+    .teach-hero-left {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .teach-hero-avatar {
+      width: 60px;
+      height: 60px;
+      border-radius: 16px;
+      background: var(--teach-surface-subtle);
+      border: 1px solid var(--teach-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--teach-text-primary);
+    }
+
+    .teach-hero-title {
+      font-size: 1.35rem;
+      font-weight: 700;
+      margin: 0 0 4px;
+      letter-spacing: -0.01em;
+    }
+
+    .teach-hero-subtitle {
+      font-size: 0.88rem;
+      color: var(--teach-text-secondary);
+      margin: 0 0 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .teach-hero-semesters {
+      font-size: 0.8rem;
+      color: var(--teach-text-tertiary);
+      margin: 0;
+    }
+
+    .teach-stats-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .teach-stat-card {
+      background: var(--teach-surface-subtle);
+      border: 1px solid var(--teach-border-subtle);
+      border-radius: 10px;
+      padding: 12px 18px;
+      min-width: 110px;
+      text-align: center;
+    }
+
+    .teach-stat-num {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: var(--teach-text-primary);
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .teach-stat-label {
+      font-size: 0.75rem;
+      color: var(--teach-text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      font-weight: 600;
+    }
+
+    /* Section Styles */
+    .teach-view {
+      display: none;
+    }
+
+    .teach-view.active {
+      display: block;
+      animation: fadeIn 0.2s ease;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(4px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .teach-section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      margin-top: 32px;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .teach-section-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin: 0;
+      letter-spacing: -0.01em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .teach-section-desc {
+      font-size: 0.84rem;
+      color: var(--teach-text-secondary);
+      margin: 4px 0 0;
+    }
+
+    /* Filter Bar & Pills */
+    .teach-filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 20px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      scrollbar-width: thin;
+    }
+
+    .teach-filter-pill {
+      background: var(--teach-surface);
+      border: 1px solid var(--teach-border);
+      color: var(--teach-text-secondary);
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+    }
+
+    .teach-filter-pill:hover {
+      color: var(--teach-text-primary);
+      border-color: var(--teach-text-secondary);
+    }
+
+    .teach-filter-pill.active {
+      background: var(--teach-btn-primary-bg);
+      color: var(--teach-btn-primary-text);
+      border-color: var(--teach-btn-primary-bg);
+    }
+
+    /* Subject Cards Grid */
+    .teach-subjects-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+
+    .teach-subject-card {
+      background: var(--teach-surface);
+      border: 1px solid var(--teach-border);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: var(--teach-shadow-sm);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: border-color 0.15s ease, transform 0.15s ease;
+    }
+
+    .teach-subject-card:hover {
+      border-color: var(--teach-text-secondary);
+      transform: translateY(-2px);
+    }
+
+    .teach-sub-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .teach-sub-code {
+      font-family: monospace;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--teach-text-secondary);
+      background: var(--teach-surface-subtle);
+      padding: 3px 8px;
+      border-radius: 6px;
+      border: 1px solid var(--teach-border-subtle);
+    }
+
+    .teach-sub-semester {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: var(--teach-badge-bg);
+      color: var(--teach-badge-text);
+    }
+
+    .teach-sub-name {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin: 0 0 8px;
+      line-height: 1.35;
+    }
+
+    .teach-sub-meta {
+      font-size: 0.8rem;
+      color: var(--teach-text-tertiary);
+      margin-bottom: 16px;
+    }
+
+    .teach-sub-action {
+      margin-top: auto;
+      width: 100%;
+    }
+
+    /* Materials / Notes Cards */
+    .teach-materials-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+
+    .teach-material-card {
+      background: var(--teach-surface);
+      border: 1px solid var(--teach-border);
+      border-radius: 10px;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      transition: border-color 0.15s ease;
+    }
+
+    .teach-material-card:hover {
+      border-color: var(--teach-text-secondary);
+    }
+
+    .teach-mat-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .teach-mat-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      background: var(--teach-surface-subtle);
+      border: 1px solid var(--teach-border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--teach-text-primary);
+      flex-shrink: 0;
+    }
+
+    .teach-mat-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .teach-mat-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin: 0 0 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .teach-mat-tags {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.78rem;
+      color: var(--teach-text-secondary);
+      flex-wrap: wrap;
+    }
+
+    .teach-mat-tag {
+      background: var(--teach-badge-bg);
+      color: var(--teach-badge-text);
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
+    .teach-mat-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    /* Assignments Cards */
+    .teach-assignments-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+
+    .teach-assignment-card {
+      background: var(--teach-surface);
+      border: 1px solid var(--teach-border);
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: border-color 0.15s ease;
+    }
+
+    .teach-assignment-card:hover {
+      border-color: var(--teach-text-secondary);
+    }
+
+    .teach-asg-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .teach-asg-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin: 0 0 6px;
+      line-height: 1.35;
+    }
+
+    .teach-asg-desc {
+      font-size: 0.84rem;
+      color: var(--teach-text-secondary);
+      margin: 0 0 16px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .teach-asg-metrics {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 10px 14px;
+      background: var(--teach-surface-subtle);
+      border-radius: 8px;
+      border: 1px solid var(--teach-border-subtle);
+      margin-bottom: 16px;
+      font-size: 0.82rem;
+      color: var(--teach-text-secondary);
+    }
+
+    .teach-asg-metric-val {
+      font-weight: 700;
+      color: var(--teach-text-primary);
+    }
+
+    /* Empty States */
+    .teach-empty-state {
+      background: var(--teach-surface);
+      border: 1px dashed var(--teach-border);
+      border-radius: 12px;
+      padding: 40px 24px;
+      text-align: center;
+      margin: 16px 0 32px;
+    }
+
+    .teach-empty-icon {
+      width: 48px;
+      height: 48px;
+      margin: 0 auto 12px;
+      color: var(--teach-text-tertiary);
+    }
+
+    .teach-empty-title {
+      font-size: 1rem;
+      font-weight: 700;
+      margin: 0 0 6px;
+    }
+
+    .teach-empty-text {
+      font-size: 0.85rem;
+      color: var(--teach-text-secondary);
+      max-width: 400px;
+      margin: 0 auto 16px;
+    }
+
+    /* Scope Notice Banner */
+    .teach-scope-notice {
+      background: var(--teach-surface);
+      border: 1px solid var(--teach-border);
+      border-radius: 10px;
+      padding: 14px 18px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      font-size: 0.85rem;
+      color: var(--teach-text-secondary);
+    }
+
+    .teach-scope-notice svg {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      margin-top: 1px;
+      color: var(--teach-text-primary);
+    }
+
+    .teach-scope-notice strong {
+      color: var(--teach-text-primary);
+    }
+
+    /* Feed Container styling */
+    .teach-feed-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Modal Styles */
+    .teach-modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .teach-modal-overlay.open {
+      display: flex;
+    }
+
+    .teach-modal-card {
+      background: var(--teach-surface);
+      border: 1px solid var(--teach-border);
+      border-radius: 16px;
+      max-width: 520px;
+      width: 100%;
+      padding: 28px;
+      box-shadow: var(--teach-shadow-md);
+      position: relative;
+    }
+
+    .teach-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .teach-modal-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin: 0;
+      letter-spacing: -0.01em;
+    }
+
+    .teach-modal-close {
+      background: transparent;
+      border: none;
+      font-size: 1.2rem;
+      color: var(--teach-text-secondary);
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 6px;
+    }
+
+    .teach-form-group {
+      margin-bottom: 16px;
+    }
+
+    .teach-form-label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--teach-text-secondary);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .teach-form-input,
+    .teach-form-select,
+    .teach-form-textarea {
+      width: 100%;
+      padding: 10px 14px;
+      box-sizing: border-box;
+      background: var(--teach-surface-subtle);
+      border: 1px solid var(--teach-border);
+      border-radius: 8px;
+      color: var(--teach-text-primary);
+      font-size: 0.9rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+
+    .teach-form-input:focus,
+    .teach-form-select:focus,
+    .teach-form-textarea:focus {
+      border-color: var(--teach-text-primary);
+    }
+
+    .teach-form-textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    /* Toast notification */
+    .teach-toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--teach-btn-primary-bg);
+      color: var(--teach-btn-primary-text);
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      box-shadow: var(--teach-shadow-md);
+      z-index: 2000;
+      display: none;
+      animation: toastIn 0.2s ease;
+    }
+
+    @keyframes toastIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @media (max-width: 768px) {
+      .teach-header {
+        padding: 10px 16px;
+      }
+      .teach-workspace-badge {
+        display: none;
+      }
+      .teach-container {
+        padding: 16px 14px 40px;
+      }
+      .teach-hero {
+        padding: 18px 20px;
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .teach-stats-row {
+        width: 100%;
+        justify-content: space-between;
+      }
+      .teach-stat-card {
+        flex: 1;
+        min-width: 80px;
+        padding: 10px 8px;
+      }
+    }
+  </style>
+</head>
+
+<body class="teacher-dash">
+
+  <!-- Top Navigation Header -->
+  <header class="teach-header">
+    <div class="teach-brand-cluster">
+      <a href="/teacher-dashboard.html" class="teach-wordmark">Semester Library</a>
+      <span class="teach-workspace-badge">Faculty Workspace</span>
+    </div>
+
+    <!-- Central Switcher Tabs -->
+    <div class="teach-nav-tabs">
+      <button type="button" class="teach-tab-btn active" id="tabFeedBtn" onclick="switchView('feed')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 11a9 9 0 0 1 9 9"></path>
+          <path d="M4 4a16 16 0 0 1 16 16"></path>
+          <circle cx="5" cy="19" r="1"></circle>
+        </svg>
+        Campus Feed
+      </button>
+      <button type="button" class="teach-tab-btn" id="tabMaterialsBtn" onclick="switchView('materials')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+        </svg>
+        My Materials
+      </button>
+    </div>
+
+    <!-- Header Actions -->
+    <div class="teach-header-actions">
+      <button type="button" class="teach-btn teach-btn-primary" onclick="openNewPostModal()">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        New Announcement
+      </button>
+
+      <button type="button" class="theme-toggle-btn dash-theme-btn" id="themeToggleBtn" aria-label="Toggle theme" title="Toggle theme">
+        <span class="theme-toggle-track">
+          <svg class="theme-icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+          <svg class="theme-icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </span>
+      </button>
+
+      <div class="teach-user-chip" id="userChip">
+        <div class="teach-avatar" id="userInitial">T</div>
+        <span id="userName">Faculty</span>
+        <button type="button" onclick="handleSignOut()" title="Sign Out" style="background: transparent; border: none; cursor: pointer; color: var(--teach-text-secondary); padding: 2px 4px;">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16 17 21 12 16 7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Workspace Container -->
+  <main class="teach-container">
+
+    <!-- Faculty Hero Banner -->
+    <section class="teach-hero">
+      <div class="teach-hero-left">
+        <div class="teach-hero-avatar" id="heroAvatar">·</div>
+        <div>
+          <h1 class="teach-hero-title" id="heroName">Loading Faculty Workspace…</h1>
+          <div class="teach-hero-subtitle">
+            <span id="heroDesignation">Faculty Member</span>
+            <span>&middot;</span>
+            <span id="heroId">Teacher ID: …</span>
+          </div>
+          <p class="teach-hero-semesters" id="heroSemesters">Active Teaching Semesters: Loading…</p>
+        </div>
+      </div>
+      <div class="teach-stats-row">
+        <div class="teach-stat-card">
+          <div class="teach-stat-num" id="statSubjects">0</div>
+          <div class="teach-stat-label">Assigned Subjects</div>
+        </div>
+        <div class="teach-stat-card">
+          <div class="teach-stat-num" id="statNotes">0</div>
+          <div class="teach-stat-label">My Notes</div>
+        </div>
+        <div class="teach-stat-card">
+          <div class="teach-stat-num" id="statAssignments">0</div>
+          <div class="teach-stat-label">Assignments</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 1: CAMPUS FEED -->
+    <section class="teach-view active" id="viewFeed">
+      <div class="teach-scope-notice">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="16" x2="12" y2="12"></line>
+          <line x1="12" y1="8" x2="12.01" y2="8"></line>
+        </svg>
+        <div>
+          <strong>Role-Based Academic Feed:</strong> You are viewing official university notices, posts you authored, and student discussions scoped to your teaching semesters (<span id="feedSemesterNotice">Semesters</span>). Other teachers' general posts and unrelated semesters are excluded.
+        </div>
+      </div>
+
+      <!-- Feed Filter Pills -->
+      <div class="teach-filter-bar">
+        <button type="button" class="teach-filter-pill active" onclick="filterFeed('all', this)">All Feeds</button>
+        <button type="button" class="teach-filter-pill" onclick="filterFeed('notice', this)">Notices</button>
+        <button type="button" class="teach-filter-pill" onclick="filterFeed('status', this)">Discussions</button>
+        <button type="button" class="teach-filter-pill" onclick="filterFeed('mine', this)">My Posts</button>
+      </div>
+
+      <!-- Feed List -->
+      <div class="teach-feed-list" id="feedContainer">
+        <div class="teach-empty-state">
+          <svg class="teach-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+          </svg>
+          <div class="teach-empty-title">Loading feed…</div>
+          <div class="teach-empty-text">Fetching campus updates and student posts for your assigned semesters.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 2: MY MATERIALS WORKSPACE -->
+    <section class="teach-view" id="viewMaterials">
+
+      <!-- Subject Filter & Actions Bar -->
+      <div class="teach-section-header" style="margin-top: 0;">
+        <div>
+          <h2 class="teach-section-title">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            </svg>
+            My Materials Workspace
+          </h2>
+          <p class="teach-section-desc">Manage curriculum resources, lecture notes, and Code Lab assignments authored exclusively by you.</p>
+        </div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <button type="button" class="teach-btn teach-btn-primary" onclick="openUploadNoteModal()">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+            Upload Note
+          </button>
+          <a href="/code-lab/create.html" class="teach-btn teach-btn-secondary">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="16 18 22 12 16 6"></polyline>
+              <polyline points="8 6 2 12 8 18"></polyline>
+            </svg>
+            Create Code Lab Assignment
+          </a>
+        </div>
+      </div>
+
+      <!-- Subject Filter Pills -->
+      <div class="teach-filter-bar" id="materialsSubjectFilterBar">
+        <button type="button" class="teach-filter-pill active" onclick="filterMaterialsBySubject('all', this)">All Assigned Subjects</button>
+      </div>
+
+      <!-- SUBSECTION A: MY ASSIGNED SUBJECTS -->
+      <div class="teach-section-header">
+        <div>
+          <h3 class="teach-section-title">My Assigned Subjects</h3>
+          <p class="teach-section-desc">Subjects officially allocated to your faculty account.</p>
+        </div>
+      </div>
+      <div class="teach-subjects-grid" id="subjectsGrid">
+        <!-- Injected via JavaScript -->
+      </div>
+
+      <!-- SUBSECTION B: MY UPLOADED NOTES -->
+      <div class="teach-section-header">
+        <div>
+          <h3 class="teach-section-title">My Uploaded Notes</h3>
+          <p class="teach-section-desc">Lecture slides, reference PDFs, and handouts uploaded by you.</p>
+        </div>
+      </div>
+      <div class="teach-materials-list" id="notesList">
+        <!-- Injected via JavaScript -->
+      </div>
+
+      <!-- SUBSECTION C: MY CODE LAB ASSIGNMENTS -->
+      <div class="teach-section-header">
+        <div>
+          <h3 class="teach-section-title">My Code Lab Assignments</h3>
+          <p class="teach-section-desc">Practical programming assignments created by you.</p>
+        </div>
+      </div>
+      <div class="teach-assignments-grid" id="assignmentsGrid">
+        <!-- Injected via JavaScript -->
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Upload Note Modal -->
+  <div class="teach-modal-overlay" id="uploadNoteModal">
+    <div class="teach-modal-card">
+      <div class="teach-modal-header">
+        <h3 class="teach-modal-title">Upload Course Material</h3>
+        <button type="button" class="teach-modal-close" onclick="closeUploadNoteModal()">&times;</button>
+      </div>
+      <form id="uploadNoteForm" onsubmit="handleUploadNoteSubmit(event)">
+        <div class="teach-form-group">
+          <label class="teach-form-label" for="noteFileInput">Select File (PDF, DOCX, PPTX, ZIP)</label>
+          <input type="file" class="teach-form-input" id="noteFileInput" required>
+        </div>
+        <div class="teach-form-group">
+          <label class="teach-form-label" for="noteTitleInput">Material Title</label>
+          <input type="text" class="teach-form-input" id="noteTitleInput" placeholder="e.g. Chapter 3: Object-Oriented Design Slides" required>
+        </div>
+        <div class="teach-form-group">
+          <label class="teach-form-label" for="noteSubjectSelect">Subject</label>
+          <select class="teach-form-select" id="noteSubjectSelect" required>
+            <option value="">Select an assigned subject…</option>
+          </select>
+        </div>
+        <div class="teach-form-group">
+          <label class="teach-form-label" for="noteChapterInput">Chapter / Unit (Optional)</label>
+          <input type="text" class="teach-form-input" id="noteChapterInput" placeholder="e.g. Unit 3">
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px;">
+          <button type="button" class="teach-btn teach-btn-secondary" onclick="closeUploadNoteModal()">Cancel</button>
+          <button type="submit" class="teach-btn teach-btn-primary" id="uploadNoteSubmitBtn">Upload Material</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- New Announcement Modal -->
+  <div class="teach-modal-overlay" id="newPostModal">
+    <div class="teach-modal-card">
+      <div class="teach-modal-header">
+        <h3 class="teach-modal-title">Post Announcement</h3>
+        <button type="button" class="teach-modal-close" onclick="closeNewPostModal()">&times;</button>
+      </div>
+      <form id="newPostForm" onsubmit="handleNewPostSubmit(event)">
+        <div class="teach-form-group">
+          <label class="teach-form-label" for="postCategorySelect">Category</label>
+          <select class="teach-form-select" id="postCategorySelect">
+            <option value="announcement">Official Announcement</option>
+            <option value="notice">Class Notice</option>
+            <option value="question">Discussion Prompt</option>
+          </select>
+        </div>
+        <div class="teach-form-group">
+          <label class="teach-form-label" for="postContentInput">Announcement Content</label>
+          <textarea class="teach-form-textarea" id="postContentInput" placeholder="Write your announcement or notice to students..." required></textarea>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px;">
+          <button type="button" class="teach-btn teach-btn-secondary" onclick="closeNewPostModal()">Cancel</button>
+          <button type="submit" class="teach-btn teach-btn-primary" id="newPostSubmitBtn">Publish Announcement</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="teach-toast" id="teachToast"></div>
+
+  <!-- Application Logic -->
+  <script>
+    // State
+    let teacherData = null;
+    let allSubjects = [];
+    let allNotes = [];
+    let allAssignments = [];
+    let allPosts = [];
+    let currentFeedFilter = 'all';
+    let currentSubjectFilter = 'all';
+
+    function showToast(message) {
+      const toast = document.getElementById('teachToast');
+      toast.textContent = message;
+      toast.style.display = 'block';
+      setTimeout(() => {
+        toast.style.display = 'none';
+      }, 3000);
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function formatBytes(bytes) {
+      if (!bytes || bytes === 0) return '0 B';
+      const k = 1024;
+      const sizes = ['B', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    }
+
+    function timeAgo(dateInput) {
+      if (!dateInput) return '';
+      const date = new Date(dateInput);
+      const seconds = Math.floor((new Date() - date) / 1000);
+      if (seconds < 60) return 'Just now';
+      const minutes = Math.floor(seconds / 60);
+      if (minutes < 60) return `${minutes}m ago`;
+      const hours = Math.floor(minutes / 60);
+      if (hours < 24) return `${hours}h ago`;
+      const days = Math.floor(hours / 24);
+      if (days < 30) return `${days}d ago`;
+      return date.toLocaleDateString();
+    }
+
+    // View Navigation
+    function switchView(viewName) {
+      document.getElementById('viewFeed').classList.toggle('active', viewName === 'feed');
+      document.getElementById('viewMaterials').classList.toggle('active', viewName === 'materials');
+      document.getElementById('tabFeedBtn').classList.toggle('active', viewName === 'feed');
+      document.getElementById('tabMaterialsBtn').classList.toggle('active', viewName === 'materials');
+    }
+
+    // Initialize Dashboard
+    async function initDashboard() {
+      try {
+        const res = await SemesterAuth.authFetch('/api/teacher/dashboard-init');
+        if (res.status === 401) {
+          window.location.replace('/login.html?redirect=/teacher-dashboard.html');
+          return;
+        }
+        if (res.status === 403) {
+          // Blocked student: redirect to student dashboard
+          window.location.replace('/dashboard.html');
+          return;
+        }
+        if (!res.ok) {
+          throw new Error('Failed to load teacher workspace initialization');
+        }
+
+        const data = await res.json();
+        teacherData = data;
+        allSubjects = data.assignedSubjects || [];
+
+        // Populate Teacher Hero
+        const user = data.user || {};
+        const teacherProfile = data.teacher || {};
+        const name = user.name || 'Faculty Member';
+        const initial = name.charAt(0).toUpperCase();
+
+        document.getElementById('heroName').textContent = name;
+        document.getElementById('heroAvatar').textContent = initial;
+        document.getElementById('userName').textContent = name;
+        document.getElementById('userInitial').textContent = initial;
+        document.getElementById('heroId').textContent = `ID: ${user.studentId || teacherProfile.user_id || 'N/A'}`;
+        document.getElementById('heroDesignation').textContent = teacherProfile.designation || 'Faculty Member';
+
+        const sems = (data.assignedSemesters || []).sort((a, b) => a - b);
+        const semsText = sems.length ? `Semester ${sems.join(', Semester ')}` : 'No semesters assigned';
+        document.getElementById('heroSemesters').textContent = `Active Teaching Semesters: ${semsText}`;
+        document.getElementById('feedSemesterNotice').textContent = semsText;
+
+        // Stats
+        document.getElementById('statSubjects').textContent = data.stats?.assignedSubjectsCount ?? allSubjects.length;
+        document.getElementById('statNotes').textContent = data.stats?.uploadedNotesCount ?? 0;
+        document.getElementById('statAssignments').textContent = data.stats?.createdAssignmentsCount ?? 0;
+
+        // Populate Subjects in Select Dropdown
+        const subjectSelect = document.getElementById('noteSubjectSelect');
+        subjectSelect.innerHTML = '<option value="">Select an assigned subject…</option>';
+        allSubjects.forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = s.code || s.name;
+          opt.textContent = `${s.code ? '[' + s.code + '] ' : ''}${s.name} (Semester ${s.semester})`;
+          opt.dataset.semester = s.semester;
+          subjectSelect.appendChild(opt);
+        });
+
+        // Render My Assigned Subjects
+        renderSubjectsGrid();
+
+        // Populate Subject Filter Pills in My Materials
+        renderSubjectFilterPills();
+
+        // Load Notes & Assignments
+        await Promise.all([
+          loadMyNotes(),
+          loadMyAssignments(),
+          loadFeed()
+        ]);
+
+      } catch (err) {
+        console.error('[Teacher Dashboard Init Error]:', err);
+        showToast('Error initializing workspace: ' + err.message);
+      }
+    }
+
+    // Render Subjects Grid
+    function renderSubjectsGrid() {
+      const container = document.getElementById('subjectsGrid');
+      if (!allSubjects.length) {
+        container.innerHTML = `
+          <div class="teach-empty-state" style="grid-column: 1 / -1;">
+            <div class="teach-empty-title">No subjects assigned yet</div>
+            <div class="teach-empty-text">Contact the university administrator to allocate academic subjects to your faculty profile.</div>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = allSubjects.map(s => `
+        <div class="teach-subject-card" data-code="${escapeHtml(s.code)}" data-name="${escapeHtml(s.name)}">
+          <div>
+            <div class="teach-sub-top">
+              <span class="teach-sub-code">${escapeHtml(s.code || 'COURSE')}</span>
+              <span class="teach-sub-semester">Semester ${s.semester}</span>
+            </div>
+            <h4 class="teach-sub-name">${escapeHtml(s.name)}</h4>
+            <div class="teach-sub-meta">${s.creditHours ? s.creditHours + ' Credit Hours &middot; ' : ''}${escapeHtml(s.department || 'BIT / BCA')}</div>
+          </div>
+          <div class="teach-sub-action">
+            <button type="button" class="teach-btn teach-btn-secondary" style="width: 100%; font-size: 0.8rem;" onclick="filterMaterialsBySubject('${escapeHtml(s.code || s.name)}')">
+              View Materials &rarr;
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Render Subject Filter Pills
+    function renderSubjectFilterPills() {
+      const bar = document.getElementById('materialsSubjectFilterBar');
+      let html = `<button type="button" class="teach-filter-pill ${currentSubjectFilter === 'all' ? 'active' : ''}" onclick="filterMaterialsBySubject('all', this)">All Assigned Subjects</button>`;
+      allSubjects.forEach(s => {
+        const key = s.code || s.name;
+        const isActive = currentSubjectFilter === key;
+        html += `<button type="button" class="teach-filter-pill ${isActive ? 'active' : ''}" onclick="filterMaterialsBySubject('${escapeHtml(key)}', this)">${escapeHtml(s.code || s.name)}</button>`;
+      });
+      bar.innerHTML = html;
+    }
+
+    // Filter Materials by Subject
+    function filterMaterialsBySubject(subjectKey, btnEl) {
+      currentSubjectFilter = subjectKey;
+      if (btnEl) {
+        document.querySelectorAll('#materialsSubjectFilterBar .teach-filter-pill').forEach(b => b.classList.remove('active'));
+        btnEl.classList.add('active');
+      } else {
+        renderSubjectFilterPills();
+      }
+      renderNotesList();
+      renderAssignmentsGrid();
+    }
+
+    // Load My Notes
+    async function loadMyNotes() {
+      try {
+        const res = await SemesterAuth.authFetch('/api/teacher/notes');
+        if (!res.ok) throw new Error('Failed to load notes');
+        const data = await res.json();
+        allNotes = data.notes || [];
+        document.getElementById('statNotes').textContent = allNotes.length;
+        renderNotesList();
+      } catch (err) {
+        console.error('[Load Notes Error]:', err);
+      }
+    }
+
+    // Render Notes List
+    function renderNotesList() {
+      const container = document.getElementById('notesList');
+      const filtered = currentSubjectFilter === 'all' 
+        ? allNotes 
+        : allNotes.filter(n => (n.subjectCode === currentSubjectFilter || n.subject === currentSubjectFilter || (n.subject && n.subject.includes(currentSubjectFilter))));
+
+      if (!filtered.length) {
+        container.innerHTML = `
+          <div class="teach-empty-state">
+            <svg class="teach-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+            </svg>
+            <div class="teach-empty-title">No notes uploaded${currentSubjectFilter !== 'all' ? ' for ' + escapeHtml(currentSubjectFilter) : ''}</div>
+            <div class="teach-empty-text">Click "Upload Note" above to share lecture slides, handouts, and PDFs with your students.</div>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = filtered.map(n => `
+        <div class="teach-material-card">
+          <div class="teach-mat-left">
+            <div class="teach-mat-icon">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+              </svg>
+            </div>
+            <div class="teach-mat-info">
+              <h4 class="teach-mat-title">${escapeHtml(n.title || n.filename)}</h4>
+              <div class="teach-mat-tags">
+                <span class="teach-mat-tag">${escapeHtml(n.subject || 'General')}</span>
+                ${n.semester ? `<span class="teach-mat-tag">Sem ${n.semester}</span>` : ''}
+                ${n.chapter ? `<span>Unit: ${escapeHtml(n.chapter)}</span> &middot;` : ''}
+                <span>${formatBytes(n.size)}</span> &middot;
+                <span>${timeAgo(n.uploadedAt || n.createdAt)}</span>
+              </div>
+            </div>
+          </div>
+          <div class="teach-mat-actions">
+            <a href="/api/files/${n.id}/view" target="_blank" rel="noopener" class="teach-btn teach-btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;">
+              Preview
+            </a>
+            <a href="/api/files/${n.id}/download" class="teach-btn teach-btn-primary" style="padding: 6px 12px; font-size: 0.8rem;">
+              Download
+            </a>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Load My Assignments
+    async function loadMyAssignments() {
+      try {
+        const res = await SemesterAuth.authFetch('/api/teacher/assignments');
+        if (!res.ok) throw new Error('Failed to load assignments');
+        const data = await res.json();
+        allAssignments = data.assignments || [];
+        document.getElementById('statAssignments').textContent = allAssignments.length;
+        renderAssignmentsGrid();
+      } catch (err) {
+        console.error('[Load Assignments Error]:', err);
+      }
+    }
+
+    // Render Assignments Grid
+    function renderAssignmentsGrid() {
+      const container = document.getElementById('assignmentsGrid');
+      const filtered = currentSubjectFilter === 'all'
+        ? allAssignments
+        : allAssignments.filter(a => (a.subject_code === currentSubjectFilter || a.subject_id === currentSubjectFilter || a.subject_name === currentSubjectFilter));
+
+      if (!filtered.length) {
+        container.innerHTML = `
+          <div class="teach-empty-state" style="grid-column: 1 / -1;">
+            <svg class="teach-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="16 18 22 12 16 6"></polyline>
+              <polyline points="8 6 2 12 8 18"></polyline>
+            </svg>
+            <div class="teach-empty-title">No assignments created yet</div>
+            <div class="teach-empty-text">Create auto-graded coding lab assignments with test cases for your subjects.</div>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = filtered.map(a => `
+        <div class="teach-assignment-card">
+          <div>
+            <div class="teach-asg-header">
+              <span class="teach-sub-code">${escapeHtml(a.subject_code || 'LAB')}</span>
+              <span class="teach-sub-semester">Semester ${a.semester || 'N/A'}</span>
+            </div>
+            <h4 class="teach-asg-title">${escapeHtml(a.title)}</h4>
+            <p class="teach-asg-desc">${escapeHtml(a.description || 'No description provided.')}</p>
+          </div>
+          <div>
+            <div class="teach-asg-metrics">
+              <div>
+                <span class="teach-asg-metric-val">${a.questions_count ?? 0}</span> Questions
+              </div>
+              &middot;
+              <div>
+                <span class="teach-asg-metric-val">${a.submissions_count ?? 0}</span> Submissions
+              </div>
+            </div>
+            <a href="/code-lab/assignment.html?id=${a.id}" class="teach-btn teach-btn-secondary" style="width: 100%; font-size: 0.8rem;">
+              Manage in Code Lab &rarr;
+            </a>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Load Campus Feed
+    async function loadFeed() {
+      try {
+        const res = await SemesterAuth.authFetch('/api/posts');
+        if (!res.ok) throw new Error('Failed to load feed');
+        const data = await res.json();
+        allPosts = Array.isArray(data) ? data : (data.posts || []);
+        renderFeed();
+      } catch (err) {
+        console.error('[Load Feed Error]:', err);
+        document.getElementById('feedContainer').innerHTML = `
+          <div class="teach-empty-state">
+            <div class="teach-empty-title">Unable to load feed</div>
+            <div class="teach-empty-text">${escapeHtml(err.message)}</div>
+          </div>
+        `;
+      }
+    }
+
+    // Filter Feed
+    function filterFeed(filterKey, btnEl) {
+      currentFeedFilter = filterKey;
+      document.querySelectorAll('#viewFeed .teach-filter-pill').forEach(b => b.classList.remove('active'));
+      if (btnEl) btnEl.classList.add('active');
+      renderFeed();
+    }
+
+    // Render Feed List
+    function renderFeed() {
+      const container = document.getElementById('feedContainer');
+      let filtered = allPosts;
+      const myId = teacherData?.user?.studentId;
+
+      if (currentFeedFilter === 'notice') {
+        filtered = allPosts.filter(p => p.type === 'notice' || p.category === 'notice' || p.category === 'announcement');
+      } else if (currentFeedFilter === 'status') {
+        filtered = allPosts.filter(p => p.type === 'status' || p.category === 'question' || p.category === 'general');
+      } else if (currentFeedFilter === 'mine') {
+        filtered = allPosts.filter(p => p.studentId === myId || p.student_id === myId || p.uploadedBy === myId);
+      }
+
+      if (!filtered.length) {
+        container.innerHTML = `
+          <div class="teach-empty-state">
+            <div class="teach-empty-title">No posts in this feed</div>
+            <div class="teach-empty-text">No academic updates or student posts match the selected filter.</div>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = filtered.map(post => {
+        const authorName = post.studentName || post.uploaderName || post.author || 'Academic Member';
+        const role = post.authorRole || post.uploaderRole || post.role || 'student';
+        const isOfficial = role === 'teacher' || role === 'admin' || role === 'faculty';
+        const isNotice = post.type === 'notice' || post.category === 'notice' || post.category === 'announcement';
+
+        return `
+          <article class="feed-card social-post-card post-card" style="background: var(--teach-surface); border: 1px solid var(--teach-border); border-radius: 12px; padding: 20px; box-shadow: var(--teach-shadow-sm);">
+            <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px;">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <div class="teach-avatar" style="width: 38px; height: 38px; font-size: 0.95rem;">
+                  ${authorName.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <strong style="font-size: 0.95rem; color: var(--teach-text-primary);">${escapeHtml(authorName)}</strong>
+                    ${isOfficial ? `<span class="teach-mat-tag" style="font-size: 0.7rem; text-transform: uppercase;">Faculty</span>` : ''}
+                    ${isNotice ? `<span class="teach-mat-tag" style="font-size: 0.7rem; background: var(--teach-btn-primary-bg); color: var(--teach-btn-primary-text);">Notice</span>` : ''}
+                  </div>
+                  <div style="font-size: 0.78rem; color: var(--teach-text-tertiary); margin-top: 2px;">
+                    ${post.semester ? `Semester ${post.semester} &middot; ` : ''}
+                    ${timeAgo(post.created_at || post.uploadedAt || post.date)}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style="font-size: 0.92rem; line-height: 1.55; color: var(--teach-text-primary); margin-bottom: 14px; white-space: pre-wrap;">${escapeHtml(post.content || post.description || post.title || '')}</div>
+
+            ${post.file_url || post.attachment_url ? `
+              <div style="margin-bottom: 14px;">
+                <a href="${post.file_url || post.attachment_url}" target="_blank" rel="noopener" class="teach-btn teach-btn-secondary" style="font-size: 0.8rem; padding: 6px 12px;">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                  </svg>
+                  View Attachment
+                </a>
+              </div>
+            ` : ''}
+
+            <div style="display: flex; align-items: center; gap: 16px; font-size: 0.82rem; color: var(--teach-text-secondary); border-top: 1px solid var(--teach-border-subtle); padding-top: 12px;">
+              <span>${post.likes || 0} Likes</span>
+              &middot;
+              <span>${post.comments_count || (post.comments ? post.comments.length : 0)} Comments</span>
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    // Modal Handlers: Upload Note
+    function openUploadNoteModal() {
+      document.getElementById('uploadNoteModal').classList.add('open');
+    }
+    function closeUploadNoteModal() {
+      document.getElementById('uploadNoteModal').classList.remove('open');
+      document.getElementById('uploadNoteForm').reset();
+    }
+
+    async function handleUploadNoteSubmit(e) {
+      e.preventDefault();
+      const fileInput = document.getElementById('noteFileInput');
+      const titleInput = document.getElementById('noteTitleInput');
+      const subjectSelect = document.getElementById('noteSubjectSelect');
+      const chapterInput = document.getElementById('noteChapterInput');
+      const submitBtn = document.getElementById('uploadNoteSubmitBtn');
+
+      if (!fileInput.files.length) {
+        showToast('Please select a file to upload.');
+        return;
+      }
+      const selectedOpt = subjectSelect.options[subjectSelect.selectedIndex];
+      const semester = selectedOpt ? selectedOpt.dataset.semester : '';
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Uploading…';
+
+      try {
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        formData.append('title', titleInput.value.trim());
+        formData.append('subject', subjectSelect.value);
+        formData.append('semester', semester);
+        if (chapterInput.value.trim()) {
+          formData.append('chapter', chapterInput.value.trim());
+        }
+
+        const res = await SemesterAuth.authFetch('/api/files/upload', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.message || 'Upload failed');
+        }
+
+        showToast('Material uploaded successfully!');
+        closeUploadNoteModal();
+        await loadMyNotes();
+      } catch (err) {
+        console.error('[Upload Note Error]:', err);
+        showToast('Upload error: ' + err.message);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Upload Material';
+      }
+    }
+
+    // Modal Handlers: New Post
+    function openNewPostModal() {
+      document.getElementById('newPostModal').classList.add('open');
+    }
+    function closeNewPostModal() {
+      document.getElementById('newPostModal').classList.remove('open');
+      document.getElementById('newPostForm').reset();
+    }
+
+    async function handleNewPostSubmit(e) {
+      e.preventDefault();
+      const contentInput = document.getElementById('postContentInput');
+      const categorySelect = document.getElementById('postCategorySelect');
+      const submitBtn = document.getElementById('newPostSubmitBtn');
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Publishing…';
+
+      try {
+        const formData = new FormData();
+        formData.append('content', contentInput.value.trim());
+        formData.append('category', categorySelect.value);
+
+        const res = await SemesterAuth.authFetch('/api/posts', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.message || 'Post creation failed');
+        }
+
+        showToast('Announcement published!');
+        closeNewPostModal();
+        await loadFeed();
+      } catch (err) {
+        console.error('[Create Post Error]:', err);
+        showToast('Error publishing: ' + err.message);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Publish Announcement';
+      }
+    }
+
+    // Sign Out
+    async function handleSignOut() {
+      if (confirm('Are you sure you want to sign out from the Faculty Workspace?')) {
+        await SemesterAuth.signOut();
+      }
+    }
+
+    // Start on DOM ready
+    document.addEventListener('DOMContentLoaded', initDashboard);
+  </script>
+</body>
+
+</html>

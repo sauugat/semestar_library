@@ -161,7 +161,7 @@ export default function LibraryScreen() {
 
   // Navigation state: Subject -> Chapter -> Notes (semester selector is strictly staff-only)
   const queryClient = useQueryClient();
-  const [selectedSemesterId, setSelectedSemesterId] = useState<string>('Semester II');
+  const [selectedSemesterId, setSelectedSemesterId] = useState<string>('Semester I');
   const [selectedSubject, setSelectedSubject] = useState<SubjectItem | null>(null);
   const [selectedChapter, setSelectedChapter] = useState<ChapterItem | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -200,20 +200,40 @@ export default function LibraryScreen() {
   // For students and CRs, this is derived strictly from their server-authoritative cohort currentSemester.
   // For teachers/admins, it reflects their selected filter.
   const currentSemester: SemesterItem = useMemo(() => {
-    if (!isStaff && currentSemesterNumber) {
-      const match = SEMESTERS.find((s) => s.semester === String(currentSemesterNumber));
-      if (match) return match;
+    if (!isStaff) {
+      if (currentSemesterNumber && currentSemesterNumber >= 1 && currentSemesterNumber <= SEMESTERS.length) {
+        return SEMESTERS[currentSemesterNumber - 1];
+      }
+      if (semesterRoman) {
+        const match = SEMESTERS.find((s) => s.semester === semesterRoman || s.id === `Semester ${semesterRoman}`);
+        if (match) return match;
+      }
+      return SEMESTERS[0];
     }
-    return SEMESTERS.find((s) => s.id === selectedSemesterId) || SEMESTERS[1] || SEMESTERS[0];
-  }, [isStaff, currentSemesterNumber, selectedSemesterId]);
+    return SEMESTERS.find((s) => s.id === selectedSemesterId) || SEMESTERS[0];
+  }, [isStaff, currentSemesterNumber, semesterRoman, selectedSemesterId]);
 
   // Handle incoming route params (e.g. from Home search)
   useEffect(() => {
     if (params.subject) {
       const match = findSubjectAcrossSemesters(params.subject);
       if (match) {
-        if (isStaff) setSelectedSemesterId(match.semester.id);
-        setSelectedSubject(match.subject);
+        if (isStaff) {
+          setSelectedSemesterId(match.semester.id);
+          setSelectedSubject(match.subject);
+        } else {
+          // For students, ONLY permit selecting subjects belonging to their current semester
+          const belongsToCurrentSem = currentSemester.subjects.some(
+            (s) =>
+              s.title.toLowerCase() === match.subject.title.toLowerCase() ||
+              s.code.toLowerCase() === match.subject.code.toLowerCase()
+          );
+          if (belongsToCurrentSem) {
+            setSelectedSubject(match.subject);
+          } else {
+            setSelectedSubject(null);
+          }
+        }
         if (params.chapter) {
           const ch = match.subject.chapters.find(
             (c) => c.title.toLowerCase() === params.chapter?.toLowerCase() || c.id === params.chapter
@@ -230,7 +250,7 @@ export default function LibraryScreen() {
       );
       if (sem) setSelectedSemesterId(sem.id);
     }
-  }, [params.subject, params.semester, params.chapter, isStaff]);
+  }, [params.subject, params.semester, params.chapter, isStaff, currentSemester]);
 
   // React Query for Notes/Files when a specific chapter is open
   const isNotesLevel = selectedSubject !== null && selectedChapter !== null;

@@ -82,6 +82,45 @@ function positiveId(value) {
   return typeof value === 'string' && /^[1-9]\d*$/.test(value) && Number.isSafeInteger(Number(value));
 }
 
+async function getTeacherAssignedSemesters(db, teacherUserId) {
+  if (!teacherUserId) return [];
+  try {
+    const query = db.isPostgres
+      ? `SELECT DISTINCT s.semester
+         FROM teacher_subjects ts
+         JOIN subjects s ON s.id = ts.subject_id
+         LEFT JOIN teachers t ON t.id = ts.teacher_id
+         WHERE (ts.teacher_id = $1 OR t.user_id = $1 OR t.id = $1)`
+      : `SELECT DISTINCT s.semester
+         FROM teacher_subjects ts
+         JOIN subjects s ON s.id = ts.subject_id
+         LEFT JOIN teachers t ON t.id = ts.teacher_id
+         WHERE (ts.teacher_id = ? OR t.user_id = ? OR t.id = ?)`;
+    const rows = db.isPostgres
+      ? await db.all(query, teacherUserId)
+      : await db.all(query, teacherUserId, teacherUserId, teacherUserId);
+    if (rows && rows.length > 0) {
+      return [...new Set(
+        rows
+          .map(r => Number(r.semester))
+          .filter(sem => Number.isInteger(sem) && sem >= 1 && sem <= 8)
+      )];
+    }
+  } catch (_) {}
+
+  try {
+    const { getTeacherSubjects } = require('../lib/teacher-service');
+    const subjects = await getTeacherSubjects(db, teacherUserId);
+    return [...new Set(
+      (subjects || [])
+        .map(s => Number(s.semester))
+        .filter(sem => Number.isInteger(sem) && sem >= 1 && sem <= 8)
+    )];
+  } catch (_) {
+    return [];
+  }
+}
+
 module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST_UPLOAD_DIR } = {}) {
   const upload = multer({
     storage: multer.diskStorage({
@@ -501,8 +540,7 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       const context = await getAcademicContext(db, req);
       const academicFilter = buildAcademicContentFilter(context, {
         tableAlias: 'p',
-        requestedCohortId: req.query.cohortId || req.query.cohort_id,
-        requestedSemester: req.query.semester || req.query.semester_no
+        requestedCohortId: req.query.cohortId || req.query.cohort_id
       });
       whereConditions.push(academicFilter.sql);
       params.push(...academicFilter.params);
@@ -517,29 +555,99 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
         params.push(cat);
       }
 
-      // Semester targeting visibility
-      const isStaff = ['admin', 'teacher'].includes(req.postUser?.role);
-      const requestedSemester = semester || req.query.semester_no || targetSemester;
-      if (requestedSemester && requestedSemester !== 'all') {
-        const parsedSem = parseSemesterNumber(requestedSemester);
-        if (parsedSem) {
+      // Parse any requested semester filter from query params
+      const requestedSemesterParam = semester || req.query.semester_no || targetSemester || req.query.target_semester;
+      const parsedReqSem = (requestedSemesterParam && requestedSemesterParam !== 'all')
+        ? parseSemesterNumber(requestedSemesterParam)
+        : null;
+
+      const viewerRole = req.postUser?.role || 'student';
+      if (viewerRole === 'admin') {
+        // Admins can manage posts across all semesters.
+        // Optional semester filtering narrows the view if requested.
+        if (parsedReqSem) {
           whereConditions.push('(p.target_all_semesters = 1 OR EXISTS (SELECT 1 FROM post_target_semesters pts WHERE pts.post_id = p.id AND pts.semester = ?))');
-          params.push(parsedSem);
+          params.push(parsedReqSem);
         }
-      } else if (!isStaff) {
-        // Enforce semester visibility on students/CRs
+      } else if (viewerRole === 'teacher') {
+        // Teacher visibility:
+        // 1. Posts authored by that teacher (always visible, even if targeting another semester)
+        // 2. Official university notices
+        // 3. Relevant authorized announcements (targeting teacher's semesters or all semesters)
+        // 4. Student posts targeting semesters where teacher has an assigned class (or all semesters)
+        // Hidden from teachers:
+        // - Ordinary posts from other teachers
+        // - Student posts unrelated to teacher's assigned semesters
+        // - Student-only posts restricted from teachers (enforced in audience filtering)
+        const teacherAssignedSemesters = await getTeacherAssignedSemesters(db, viewerStudentId);
+        if (teacherAssignedSemesters.length > 0) {
+          const placeholders = teacherAssignedSemesters.map(() => '?').join(',');
+          whereConditions.push(`(
+            p.user_id = ?
+            OR ((p.type = 'notice' OR p.category = 'notice') AND s.role IN ('admin', 'cr', 'teacher'))
+            OR (
+              p.category = 'announcement'
+              AND s.role IN ('admin', 'cr', 'teacher')
+              AND (p.target_all_semesters = 1 OR EXISTS (SELECT 1 FROM post_target_semesters pts_ta WHERE pts_ta.post_id = p.id AND pts_ta.semester IN (${placeholders})))
+            )
+            OR (
+              (s.role IS NULL OR s.role NOT IN ('teacher', 'admin'))
+              AND (p.target_all_semesters = 1 OR EXISTS (SELECT 1 FROM post_target_semesters pts_ts WHERE pts_ts.post_id = p.id AND pts_ts.semester IN (${placeholders})))
+            )
+          )`);
+          params.push(viewerStudentId, ...teacherAssignedSemesters, ...teacherAssignedSemesters);
+        } else {
+          whereConditions.push(`(
+            p.user_id = ?
+            OR ((p.type = 'notice' OR p.category = 'notice') AND s.role IN ('admin', 'cr', 'teacher'))
+            OR (
+              p.category = 'announcement'
+              AND s.role IN ('admin', 'cr', 'teacher')
+              AND p.target_all_semesters = 1
+            )
+            OR (
+              (s.role IS NULL OR s.role NOT IN ('teacher', 'admin'))
+              AND p.target_all_semesters = 1
+            )
+          )`);
+          params.push(viewerStudentId);
+        }
+
+        // Additional requested semester filter narrows results within teacher's scope
+        if (parsedReqSem) {
+          whereConditions.push('(p.target_all_semesters = 1 OR EXISTS (SELECT 1 FROM post_target_semesters pts_req WHERE pts_req.post_id = p.id AND pts_req.semester = ?))');
+          params.push(parsedReqSem);
+        }
+      } else {
+        // Student & CR visibility:
+        // Strictly enforced using server-side academic context.
+        // A requested semester parameter must NEVER expand student's authorized visibility.
         const studentSem = parseSemesterNumber(context.cohort?.currentSemester || context.semester || req.postUser?.semester);
         if (studentSem) {
-          whereConditions.push('((p.target_all_semesters = 1) OR (EXISTS (SELECT 1 FROM post_target_semesters pts WHERE pts.post_id = p.id AND pts.semester = ?)) OR (p.user_id = ?))');
-          params.push(studentSem, viewerStudentId);
+          whereConditions.push(`(
+            p.user_id = ?
+            OR p.target_all_semesters = 1
+            OR EXISTS (SELECT 1 FROM post_target_semesters pts_s WHERE pts_s.post_id = p.id AND pts_s.semester = ?)
+            OR ((p.type = 'notice' OR p.category = 'notice') AND s.role IN ('admin', 'cr', 'teacher'))
+          )`);
+          params.push(viewerStudentId, studentSem);
         } else {
-          whereConditions.push('((p.target_all_semesters = 1) OR (p.user_id = ?))');
+          whereConditions.push(`(
+            p.user_id = ?
+            OR p.target_all_semesters = 1
+            OR ((p.type = 'notice' OR p.category = 'notice') AND s.role IN ('admin', 'cr', 'teacher'))
+          )`);
           params.push(viewerStudentId);
+        }
+
+        // Additional requested semester filter: narrows the feed, but NEVER expands beyond studentSem
+        if (parsedReqSem) {
+          whereConditions.push('(p.target_all_semesters = 1 OR EXISTS (SELECT 1 FROM post_target_semesters pts_req WHERE pts_req.post_id = p.id AND pts_req.semester = ?))');
+          params.push(parsedReqSem);
         }
       }
 
       // Audience visibility filtering
-      const viewerRole = req.postUser?.role || 'student';
       const isStaffViewer = ['admin', 'teacher'].includes(viewerRole);
       const isModerationView = viewerRole === 'admin' && (req.query.moderation === 'true' || req.query.moderation === '1');
 
@@ -1073,21 +1181,9 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
         return res.status(404).json({ message: 'Post not found.' });
       }
 
-      // Check semester targeting visibility
-      const isStaff = ['admin', 'teacher'].includes(req.postUser?.role);
-      const isAuthor = row.user_id === currentUserId;
-      if (!isStaff && !isAuthor && Number(row.target_all_semesters) !== 1) {
-        const studentSem = parseSemesterNumber(context.cohort?.currentSemester || context.semester || req.postUser?.semester);
-        if (!studentSem) {
-          return res.status(404).json({ message: 'Post not found.' });
-        }
-        const hasMatch = await db.get(
-          'SELECT 1 AS ok FROM post_target_semesters WHERE post_id = ? AND semester = ?',
-          postId, studentSem
-        );
-        if (!hasMatch) {
-          return res.status(404).json({ message: 'Post not found.' });
-        }
+      // Authoritative semester & role visibility check
+      if (!(await assertPostVisibility(db, req, row, context))) {
+        return res.status(404).json({ message: 'Post not found.' });
       }
 
       const formatted = formatPost(row, req);
@@ -1100,31 +1196,90 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
     }
   });
 
-  async function assertSemesterAccess(req, post) {
+  async function assertPostVisibility(db, req, post, context) {
     if (!post) return false;
-    const isStaff = ['admin', 'teacher'].includes(req.postUser?.role);
-    const isAuthor = post.user_id === req.postUser?.studentId;
-    if (isStaff || isAuthor) return true;
-    if (post.target_all_semesters === undefined || post.target_all_semesters === null || Number(post.target_all_semesters) === 1) {
-      return true;
+    const viewerId = req.postUser?.studentId || req.student?.studentId || req.user?.studentId || req.session?.studentId || null;
+    const viewerRole = req.postUser?.role || req.student?.role || req.user?.role || 'student';
+    const isAuthor = Boolean(viewerId && post.user_id === viewerId);
+
+    // 1. Author can always see their own post
+    if (isAuthor) return true;
+
+    // 2. Admin can manage posts across all semesters
+    if (viewerRole === 'admin') return true;
+
+    // Retrieve post author's role if not already provided on post
+    let postAuthorRole = post.role;
+    if (postAuthorRole === undefined && post.user_id) {
+      try {
+        const authorRow = await db.get('SELECT role FROM students WHERE studentId = ?', post.user_id);
+        postAuthorRole = authorRow?.role || null;
+      } catch (_) {}
     }
-    const context = await getAcademicContext(db, req);
-    const studentSem = parseSemesterNumber(context.cohort?.currentSemester || context.semester || req.postUser?.semester);
+
+    // 3. Official university notices
+    const isOfficialNotice = (post.type === 'notice' || post.category === 'notice') &&
+      ['admin', 'cr', 'teacher'].includes(postAuthorRole);
+    if (isOfficialNotice) return true;
+
+    const isAllSemesters = post.target_all_semesters === undefined ||
+      post.target_all_semesters === null ||
+      Number(post.target_all_semesters) === 1;
+
+    // 4. Teacher visibility
+    if (viewerRole === 'teacher') {
+      const isOtherTeacher = postAuthorRole === 'teacher';
+      const isAnnouncement = post.category === 'announcement';
+      if (isOtherTeacher && !isAnnouncement) {
+        // Ordinary post from another teacher is not visible in normal feed or direct lookup
+        return false;
+      }
+
+      if (isAllSemesters) return true;
+
+      // Check teacher's assigned semesters
+      const teacherSemesters = await getTeacherAssignedSemesters(db, viewerId);
+      if (teacherSemesters.length === 0) return false;
+
+      const placeholders = teacherSemesters.map(() => '?').join(',');
+      const match = await db.get(
+        `SELECT 1 AS ok FROM post_target_semesters WHERE post_id = ? AND semester IN (${placeholders}) LIMIT 1`,
+        post.id, ...teacherSemesters
+      );
+      return Boolean(match);
+    }
+
+    // 5. Student / CR visibility
+    if (isAllSemesters) return true;
+
+    const academicCtx = context || await getAcademicContext(db, req);
+    const studentSem = parseSemesterNumber(academicCtx.cohort?.currentSemester || academicCtx.semester || req.postUser?.semester);
     if (!studentSem) return false;
+
     const hasMatch = await db.get(
-      'SELECT 1 AS ok FROM post_target_semesters WHERE post_id = ? AND semester = ?',
+      'SELECT 1 AS ok FROM post_target_semesters WHERE post_id = ? AND semester = ? LIMIT 1',
       post.id, studentSem
     );
     return Boolean(hasMatch);
   }
 
+  async function assertSemesterAccess(req, post) {
+    const context = await getAcademicContext(db, req);
+    return assertPostVisibility(db, req, post, context);
+  }
+
   async function getAndAuthorizePost(req, postId) {
-    const post = await db.get('SELECT id, user_id, content, cohort_id, semester_no, audience_scope, target_all_semesters, visibility FROM posts WHERE id = ?', postId);
+    const post = await db.get(`
+      SELECT p.id, p.user_id, p.content, p.cohort_id, p.semester_no, p.audience_scope,
+             p.target_all_semesters, p.visibility, p.type, p.category, s.role
+      FROM posts p
+      LEFT JOIN students s ON s.studentId = p.user_id
+      WHERE p.id = ?`, postId);
     if (!post) return null;
     const context = await getAcademicContext(db, req);
     if (!assertContentAccess(context, post)) return null;
-    if (!(await assertSemesterAccess(req, post))) return null;
     if (!assertAudienceAccess(req, post)) return null;
+    if (!(await assertPostVisibility(db, req, post, context))) return null;
     return post;
   }
 

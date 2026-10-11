@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
-import { fetchAcademicContext, AcademicContextResponse } from '@/services/academicContext';
+import { fetchAcademicContext, AcademicContextResponse, parseSemesterNumber } from '@/services/academicContext';
 
 export function useAcademicContext() {
   const { user, token } = useAuth();
@@ -12,6 +12,9 @@ export function useAcademicContext() {
     staleTime: 60 * 1000, // 1 minute fresh cache
   });
 
+  const parsedSemNumber = query.data?.cohort?.currentSemester
+    || (query.data?.semester ? parseSemesterNumber(query.data.semester) : null);
+
   return {
     ...query,
     academicContext: query.data,
@@ -20,6 +23,6 @@ export function useAcademicContext() {
     isUnassigned: query.data?.academicStatus === 'unassigned',
     isStaff: query.data?.role === 'teacher' || query.data?.role === 'admin',
     semesterRoman: query.data?.semesterRoman || null,
-    currentSemesterNumber: query.data?.cohort?.currentSemester || null,
+    currentSemesterNumber: parsedSemNumber,
   };
 }

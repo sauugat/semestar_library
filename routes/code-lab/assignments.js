@@ -217,6 +217,23 @@ router.post('/assignments', requireLogin, async (req, res) => {
         return res.status(403).json({ message: 'Only teachers and admins can create assignments.' });
     }
 
+    if (context.role === 'teacher') {
+        const { validateTeacherSubjectAuthorization } = require('../../lib/teacher-service');
+        try {
+            const authSub = await validateTeacherSubjectAuthorization(
+                db,
+                context.studentId,
+                req.body.subject,
+                req.body.semester || req.body.semester_no
+            );
+            req.body.subject = authSub.name;
+            req.body.semester = `Semester ${authSub.semester}`;
+            req.body.semester_no = authSub.semester;
+        } catch (authErr) {
+            return res.status(authErr.status || 403).json({ message: authErr.message });
+        }
+    }
+
     let publishScope;
     try {
         publishScope = await resolvePublishScope(db, context, req.body, { isNotice: false });

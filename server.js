@@ -527,7 +527,25 @@ app.use((req, res, next) => {
 });
 
 // Clean URL Aliases for Protected and Public Pages (Static shells guarded client-side by Supabase)
-app.get('/dashboard', (req, res) => {
+app.get(['/teacher-dashboard', '/teacher-dashboard.html'], async (req, res) => {
+  const sessionStudentId = req.session?.studentId || req.user?.studentId;
+  if (sessionStudentId) {
+    const user = await db.get('SELECT role FROM students WHERE studentId = ?', sessionStudentId);
+    if (user && user.role !== 'teacher' && user.role !== 'admin') {
+      return res.redirect('/dashboard.html');
+    }
+  }
+  res.sendFile(path.join(__dirname, 'public', 'teacher-dashboard.html'));
+});
+
+app.get(['/dashboard', '/dashboard.html'], async (req, res) => {
+  const sessionStudentId = req.session?.studentId || req.user?.studentId;
+  if (sessionStudentId) {
+    const user = await db.get('SELECT role FROM students WHERE studentId = ?', sessionStudentId);
+    if (user && user.role === 'teacher') {
+      return res.redirect('/teacher-dashboard.html');
+    }
+  }
   res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
 });
 
@@ -861,7 +879,8 @@ app.post('/api/login', loginRateLimiter, async (req, res) => {
         console.error('Session save error:', saveErr);
         return res.status(500).json({ message: 'Authentication session creation error.' });
       }
-      return res.json({ message: 'Login successful', redirect: '/dashboard.html' });
+      const dest = student.role === 'teacher' ? '/teacher-dashboard.html' : '/dashboard.html';
+      return res.json({ message: 'Login successful', redirect: dest });
     });
   });
 });
@@ -2606,8 +2625,8 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
   }
 
   const title = (req.body.title || '').trim() || null;
-  const semester = (req.body.semester || '').trim() || null;
-  const subject = (req.body.subject || '').trim() || null;
+  let semester = (req.body.semester || '').trim() || null;
+  let subject = (req.body.subject || '').trim() || null;
   const chapter = (req.body.chapter || '').trim() || null;
 
   let fileTitlesMap = null;
@@ -2622,6 +2641,32 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
   const batchId = (req.body.batchId || req.headers['x-upload-batch-id'] || `batch_${Date.now()}_${crypto.randomBytes(6).toString('hex')}`).trim();
 
   const academicCtx = await getAcademicContext(db, req);
+
+  if (academicCtx.role === 'teacher') {
+    const { validateTeacherSubjectAuthorization } = require('./lib/teacher-service');
+    try {
+      const authSub = await validateTeacherSubjectAuthorization(
+        db,
+        academicCtx.studentId,
+        subject,
+        semester || req.body.semester_no
+      );
+      subject = authSub.name;
+      semester = `Semester ${authSub.semester}`;
+      req.body.semester = semester;
+      req.body.semester_no = authSub.semester;
+      req.body.subject = subject;
+    } catch (authErr) {
+      for (const f of uploadedFiles) {
+        const tempPath = path.join(UPLOAD_DIR, f.filename);
+        if (isSafeUploadPath(tempPath) && fs.existsSync(tempPath)) {
+          try { fs.unlinkSync(tempPath); } catch (_) {}
+        }
+      }
+      return res.status(authErr.status || 403).json({ message: authErr.message });
+    }
+  }
+
   const publishScope = await resolvePublishScope(db, academicCtx, req.body);
 
   const successfulFiles = [];
@@ -2931,6 +2976,34 @@ app.post('/api/files/record-upload', requireLogin, async (req, res) => {
     return res.status(400).json({ message: 'No file information provided.' });
   }
 
+  let cleanSemester = (semester || '').trim() || null;
+  let cleanSubject = (subject || '').trim() || null;
+  const cleanChapter = (chapter || '').trim() || null;
+  const cleanTitle = (title || '').trim() || null;
+  const currentStudentId = req.session?.studentId || req.user?.studentId;
+
+  const isAdmin = await isStudentAdmin(currentStudentId);
+  const academicCtx = await getAcademicContext(db, req);
+
+  if (academicCtx.role === 'teacher') {
+    const { validateTeacherSubjectAuthorization } = require('./lib/teacher-service');
+    try {
+      const authSub = await validateTeacherSubjectAuthorization(
+        db,
+        academicCtx.studentId,
+        cleanSubject,
+        cleanSemester || req.body.semester_no
+      );
+      cleanSubject = authSub.name;
+      cleanSemester = `Semester ${authSub.semester}`;
+      req.body.semester = cleanSemester;
+      req.body.semester_no = authSub.semester;
+      req.body.subject = cleanSubject;
+    } catch (authErr) {
+      return res.status(authErr.status || 403).json({ message: authErr.message });
+    }
+  }
+
   // Reject arbitrary external URLs, verify server-issued upload authorization, ownership, size and type
   for (const f of uploadedFiles) {
     const sName = String(f.storedName || '').trim();
@@ -3002,14 +3075,6 @@ app.post('/api/files/record-upload', requireLogin, async (req, res) => {
     }
   }
 
-  const cleanSemester = (semester || '').trim() || null;
-  const cleanSubject = (subject || '').trim() || null;
-  const cleanChapter = (chapter || '').trim() || null;
-  const cleanTitle = (title || '').trim() || null;
-  const currentStudentId = req.session?.studentId || req.user?.studentId;
-
-  const isAdmin = await isStudentAdmin(currentStudentId);
-  const academicCtx = await getAcademicContext(db, req);
   const publishScope = await resolvePublishScope(db, academicCtx, req.body);
   const results = [];
 
@@ -3473,7 +3538,7 @@ app.get(['/api/files/:id/office-preview-url', '/api/files/:id/office-preview'], 
   }
 
   const [file, context] = await Promise.all([
-    db.get('SELECT id, originalName, storedName, cohort_id, semester_no, audience_scope FROM files WHERE id = ?', fileId),
+    db.get('SELECT id, originalName, storedName, cohort_id, semester_no, semester, audience_scope FROM files WHERE id = ?', fileId),
     getAcademicContext(db, req)
   ]);
   if (!file || !assertContentAccess(context, file)) {
@@ -3495,7 +3560,7 @@ app.post('/api/files/:id/office-preview', requireLogin, async (req, res) => {
   }
 
   const [file, context] = await Promise.all([
-    db.get('SELECT id, originalName, storedName, cohort_id, semester_no, audience_scope FROM files WHERE id = ?', fileId),
+    db.get('SELECT id, originalName, storedName, cohort_id, semester_no, semester, audience_scope FROM files WHERE id = ?', fileId),
     getAcademicContext(db, req)
   ]);
   if (!file || !assertContentAccess(context, file)) {
@@ -5041,15 +5106,143 @@ app.get('/api/profile', requireLogin, async (req, res) => {
   return res.json(profile);
 });
 
+// Middleware: Enforce Teacher or Administrator access
+async function requireTeacherOrAdmin(req, res, next) {
+  const activeStudentId = req.session?.studentId || req.user?.studentId || req.student?.studentId;
+  if (!activeStudentId) {
+    return res.status(401).json({ message: 'Authentication required.' });
+  }
+  const role = req.session?.role || req.user?.role || req.student?.role;
+  if (role === 'teacher' || role === 'admin') {
+    return next();
+  }
+  try {
+    const user = await db.get('SELECT role FROM students WHERE studentId = ?', activeStudentId);
+    if (user && (user.role === 'teacher' || user.role === 'admin')) {
+      return next();
+    }
+  } catch (_) {}
+  return res.status(403).json({ message: 'Access denied: Teacher or administrator account required.' });
+}
+
+// Teacher Dashboard Initialization
+app.get('/api/teacher/dashboard-init', requireLogin, requireTeacherOrAdmin, async (req, res) => {
+  const activeStudentId = req.session?.studentId || req.user?.studentId || req.student?.studentId;
+  try {
+    const { getTeacherSubjects } = require('./lib/teacher-service');
+    const [teacherProfile, subjects, notesCountRow, assignmentsCountRow] = await Promise.all([
+      db.get(`
+        SELECT s.studentId, s.name, s.email, s.role, s.department, s.avatarUrl,
+               COALESCE(t.designation, 'Instructor') AS designation,
+               t.id AS teacherId
+        FROM students s
+        LEFT JOIN teachers t ON (t.user_id = s.studentId OR t.id = s.studentId)
+        WHERE s.studentId = ?
+      `, activeStudentId),
+      getTeacherSubjects(db, activeStudentId),
+      db.get('SELECT COUNT(*) AS count FROM files WHERE uploadedBy = ?', activeStudentId),
+      db.get('SELECT COUNT(*) AS count FROM assignments WHERE createdBy = ?', activeStudentId)
+    ]);
+
+    const assignedSemesters = Array.from(new Set((subjects || []).map(s => Number(s.semester)).filter(n => Number.isInteger(n) && n > 0))).sort((a, b) => a - b);
+    res.json({
+      user: {
+        studentId: teacherProfile?.studentId || activeStudentId,
+        name: teacherProfile?.name || 'Faculty Member',
+        email: teacherProfile?.email || '',
+        role: teacherProfile?.role || 'teacher',
+        department: teacherProfile?.department || 'BIT'
+      },
+      teacher: teacherProfile || { studentId: activeStudentId, role: 'teacher' },
+      assignedSubjects: subjects || [],
+      assignedSemesters,
+      subjects: subjects || [],
+      stats: {
+        assignedSubjectsCount: (subjects || []).length,
+        uploadedNotesCount: Number(notesCountRow?.count || 0),
+        createdAssignmentsCount: Number(assignmentsCountRow?.count || 0),
+        subjectsCount: (subjects || []).length,
+        notesCount: Number(notesCountRow?.count || 0),
+        assignmentsCount: Number(assignmentsCountRow?.count || 0)
+      }
+    });
+  } catch (err) {
+    console.error('[Teacher Dashboard Init Error]:', err);
+    res.status(500).json({ message: 'Failed to initialize teacher dashboard.' });
+  }
+});
+
 // Get faculty assigned subjects
-app.get('/api/teacher/subjects', requireLogin, async (req, res) => {
+app.get('/api/teacher/subjects', requireLogin, requireTeacherOrAdmin, async (req, res) => {
   const activeStudentId = req.session?.studentId || req.user?.studentId || req.student?.studentId;
   try {
     const { getTeacherSubjects } = require('./lib/teacher-service');
     const subjects = await getTeacherSubjects(db, activeStudentId);
-    res.json({ subjects });
+    res.json({ subjects: subjects || [] });
   } catch (err) {
     res.status(500).json({ message: 'Failed to load faculty subjects.' });
+  }
+});
+
+// Teacher My Notes (only notes uploaded by this teacher)
+app.get('/api/teacher/notes', requireLogin, requireTeacherOrAdmin, async (req, res) => {
+  const activeStudentId = req.session?.studentId || req.user?.studentId || req.student?.studentId;
+  const subjectFilter = req.query.subject ? String(req.query.subject).trim() : null;
+
+  try {
+    let query = `
+      SELECT id, originalName, storedName, title, subject, chapter, semester,
+             uploadedBy, uploadedAt, sizeBytes, previewName, audience_scope, semester_no, cohort_id
+      FROM files
+      WHERE uploadedBy = ?
+    `;
+    const params = [activeStudentId];
+
+    if (subjectFilter && subjectFilter !== 'all') {
+      query += ' AND LOWER(subject) = LOWER(?)';
+      params.push(subjectFilter);
+    }
+
+    query += ' ORDER BY uploadedAt DESC';
+
+    const notes = await db.all(query, ...params);
+    res.json({ notes: notes || [] });
+  } catch (err) {
+    console.error('[Teacher Notes API Error]:', err);
+    res.status(500).json({ message: 'Failed to load teacher notes.' });
+  }
+});
+
+// Teacher My Assignments (only assignments created by this teacher)
+app.get('/api/teacher/assignments', requireLogin, requireTeacherOrAdmin, async (req, res) => {
+  const activeStudentId = req.session?.studentId || req.user?.studentId || req.student?.studentId;
+  const subjectFilter = req.query.subject ? String(req.query.subject).trim() : null;
+
+  try {
+    let query = `
+      SELECT a.*,
+        a.createdBy AS created_by,
+        (SELECT COUNT(*) FROM assignment_questions aq WHERE aq.assignmentId = a.id) AS questionCount,
+        (SELECT COUNT(*) FROM assignment_questions aq WHERE aq.assignmentId = a.id) AS questions_count,
+        (SELECT COUNT(DISTINCT studentId) FROM submissions sub WHERE sub.assignmentId = a.id) AS submissionCount,
+        (SELECT COUNT(DISTINCT studentId) FROM submissions sub WHERE sub.assignmentId = a.id) AS submissions_count
+      FROM assignments a
+      WHERE a.createdBy = ?
+    `;
+    const params = [activeStudentId];
+
+    if (subjectFilter && subjectFilter !== 'all') {
+      query += ' AND LOWER(a.subject) = LOWER(?)';
+      params.push(subjectFilter);
+    }
+
+    query += ' ORDER BY a.createdAt DESC';
+
+    const assignments = await db.all(query, ...params);
+    res.json({ assignments: assignments || [] });
+  } catch (err) {
+    console.error('[Teacher Assignments API Error]:', err);
+    res.status(500).json({ message: 'Failed to load teacher assignments.' });
   }
 });
 

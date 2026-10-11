@@ -620,9 +620,12 @@
     }
 
     .email-title-input,
-    #postTitle.email-title-input {
+    input#postTitle,
+    [data-theme="dark"] input#postTitle:not(#unmatched),
+    body.dark-mode input#postTitle:not(#unmatched) {
       width: 100% !important;
       border: none !important;
+      border-width: 0 !important;
       background: transparent !important;
       background-color: transparent !important;
       padding: 6px 0 !important;
@@ -635,7 +638,17 @@
       border-radius: 0 !important;
     }
 
-    .email-title-input::placeholder {
+    .email-title-input:focus,
+    input#postTitle:focus,
+    [data-theme="dark"] input#postTitle:focus,
+    body.dark-mode input#postTitle:focus {
+      border: none !important;
+      outline: none !important;
+      box-shadow: none !important;
+    }
+
+    .email-title-input::placeholder,
+    input#postTitle::placeholder {
       font-weight: 400;
       color: var(--text-muted) !important;
     }

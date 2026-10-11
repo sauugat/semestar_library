@@ -173,6 +173,8 @@
   html[data-theme="dark"] body .cl-dot-yellow { background: #ffbd2e !important; }
   html[data-theme="dark"] body .cl-dot-green { background: #27c93f !important; }
   html[data-theme="dark"] body :is(.like-btn, .post-action-btn.like-btn) { border: none !important; box-shadow: none !important; background: transparent !important; }
+  html[data-theme="dark"] body .post-comment-submit-btn { color: #525252 !important; }
+  html[data-theme="dark"] body .post-comment-submit-btn:hover:not(:disabled) { color: #111111 !important; }
   /* Header App Button: bg gray, icon white, text white */
   html body :is(.dash-get-app-btn, .home-app-link) {
     background: #404040 !important;

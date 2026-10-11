@@ -1026,7 +1026,7 @@
       </div>
 
       <form id="standalonePostForm">
-        <!-- Metadata Controls: Category, Audience, Target Semesters -->
+        <!-- Metadata Controls: Category and Audience -->
         <div class="meta-controls-grid">
           <!-- Category Selector -->
           <div class="dropdown-container" id="categoryContainer">
@@ -1086,53 +1086,82 @@
             </div>
             <p id="audienceHelperText" style="display: none; font-size: 11px; color: var(--text-muted); margin: 4px 0 0 0; line-height: 1.35;">Students Only &mdash; This post won't appear in teacher or university staff feeds.</p>
           </div>
+        </div>
 
-          <!-- Target Semesters Multi-Select -->
-          <div class="dropdown-container" id="semesterContainer">
-            <label class="form-label">Target Semesters</label>
-            <button type="button" class="dropdown-trigger" id="semesterBtn" aria-haspopup="dialog" aria-expanded="false">
-              <span id="semesterValue">All Semesters</span>
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="6 9 12 15 18 9"></polyline>
-              </svg>
-            </button>
-            <div class="dropdown-menu" id="semesterMenu" hidden style="min-width: 260px; padding: 10px;">
-              <div class="semester-options-list">
-                <label class="semester-check-label">
-                  <input type="checkbox" id="semAllCheck" checked>
-                  <span>All Semesters</span>
-                </label>
-                <div style="height: 1px; background: var(--border-color); margin: 4px 0;"></div>
-                <label class="semester-check-label"><input type="checkbox" class="sem-indiv-check" value="1"><span>Semester 1</span></label>
-                <label class="semester-check-label"><input type="checkbox" class="sem-indiv-check" value="2"><span>Semester 2</span></label>
-                <label class="semester-check-label"><input type="checkbox" class="sem-indiv-check" value="3"><span>Semester 3</span></label>
-                <label class="semester-check-label"><input type="checkbox" class="sem-indiv-check" value="4"><span>Semester 4</span></label>
-                <label class="semester-check-label"><input type="checkbox" class="sem-indiv-check" value="5"><span>Semester 5</span></label>
-                <label class="semester-check-label"><input type="checkbox" class="sem-indiv-check" value="6"><span>Semester 6</span></label>
-                <label class="semester-check-label"><input type="checkbox" class="sem-indiv-check" value="7"><span>Semester 7</span></label>
-                <label class="semester-check-label"><input type="checkbox" class="sem-indiv-check" value="8"><span>Semester 8</span></label>
+        <!-- Modern Email Dispatch Theme (Active for non-General posts) -->
+        <div class="email-dispatch-header" id="emailDispatchHeader" style="display: none;">
+          <!-- FROM ROW -->
+          <div class="email-header-row email-from-row">
+            <span class="email-row-label">FROM :</span>
+            <div class="email-row-content">
+              <div class="email-sender-chip">
+                <div class="author-avatar small" id="emailAuthorAvatar">·</div>
+                <span class="email-author-name" id="emailAuthorName">Student</span>
+                <span class="author-role-badge" id="emailAuthorRole">STUDENT</span>
               </div>
-              <div class="semester-menu-footer">
-                <button type="button" class="semester-apply-btn" id="applySemesterBtn">Apply Selection</button>
+            </div>
+          </div>
+
+          <!-- TO ROW (Semester Selector) -->
+          <div class="email-header-row email-to-row">
+            <span class="email-row-label">TO :</span>
+            <div class="email-row-content">
+              <div class="dropdown-container" id="semesterContainer" style="margin: 0; width: 100%;">
+                <button type="button" class="dropdown-trigger email-to-trigger" id="semesterBtn" aria-haspopup="dialog" aria-expanded="false">
+                  <span id="semesterValue">All Semesters</span>
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </button>
+                <div class="dropdown-menu" id="semesterMenu" hidden style="min-width: 260px; padding: 10px;">
+                  <div class="semester-options-list">
+                    <label class="semester-check-label">
+                      <input type="checkbox" id="semAllCheck" checked>
+                      <span>All Semesters</span>
+                    </label>
+                    <div style="height: 1px; background: var(--border-color); margin: 4px 0;"></div>
+                    <label class="semester-check-label"><input type="checkbox" class="sem-indiv-check" value="1"><span>Semester 1</span></label>
+                    <label class="semester-check-label"><input type="checkbox" class="sem-indiv-check" value="2"><span>Semester 2</span></label>
+                    <label class="semester-check-label"><input type="checkbox" class="sem-indiv-check" value="3"><span>Semester 3</span></label>
+                    <label class="semester-check-label"><input type="checkbox" class="sem-indiv-check" value="4"><span>Semester 4</span></label>
+                    <label class="semester-check-label"><input type="checkbox" class="sem-indiv-check" value="5"><span>Semester 5</span></label>
+                    <label class="semester-check-label"><input type="checkbox" class="sem-indiv-check" value="6"><span>Semester 6</span></label>
+                    <label class="semester-check-label"><input type="checkbox" class="sem-indiv-check" value="7"><span>Semester 7</span></label>
+                    <label class="semester-check-label"><input type="checkbox" class="sem-indiv-check" value="8"><span>Semester 8</span></label>
+                  </div>
+                  <div class="semester-menu-footer">
+                    <button type="button" class="semester-apply-btn" id="applySemesterBtn">Apply Selection</button>
+                  </div>
+                </div>
               </div>
+            </div>
+          </div>
+
+          <!-- TITLE ROW -->
+          <div class="email-header-row email-title-row" id="titleGroup">
+            <span class="email-row-label">TITLE :</span>
+            <div class="email-row-content">
+              <input type="text" id="postTitle" name="title" maxlength="200" placeholder="Subject / Title of your post" class="email-title-input">
             </div>
           </div>
         </div>
 
-        <!-- Title Field (Hidden for General posts) -->
-        <div class="form-group" id="titleGroup" style="display: none;">
-          <label for="postTitle" class="form-label">Title <span class="label-optional">(optional)</span></label>
-          <input type="text" id="postTitle" name="title" maxlength="200" placeholder="Title your post" class="composer-input">
-        </div>
+        <!-- Content / Body Field with Direct WYSIWYG Formatting Toolbar -->
+        <div class="form-group" id="bodyGroup">
+          <label for="postEditor" class="form-label" id="bodyLabel">Body</label>
 
-        <!-- Content Field with Direct WYSIWYG Formatting Toolbar -->
-        <div class="form-group">
-          <div class="composer-toolbar-header">
-            <label for="postEditor" class="form-label" style="margin-bottom: 0;">Description / Content</label>
-            <span class="composer-live-hint">Format directly &bull; Shortcuts enabled</span>
+          <div class="composer-editor-wrap">
+            <div id="postEditor"
+                 contenteditable="true"
+                 role="textbox"
+                 aria-multiline="true"
+                 aria-label="Post body"
+                 class="composer-wysiwyg-editor post-markdown-content"
+                 data-placeholder="What's on your mind? Format directly or paste content..."></div>
+            <input type="hidden" id="postContent" name="content">
           </div>
 
-          <!-- Formatting Toolbar -->
+          <!-- Formatting Toolbar (Down below description/body text box) -->
           <div class="markdown-toolbar" id="markdownToolbar" role="toolbar" aria-label="Text formatting">
             <div class="toolbar-group">
               <button type="button" class="md-tool-btn" data-format="bold" title="Bold (Ctrl+B)" aria-label="Bold"><b>B</b></button>
@@ -1176,22 +1205,6 @@
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><rect x="3" y="11" width="18" height="2" rx="1"/></svg>
               </button>
             </div>
-          </div>
-
-          <div class="composer-editor-wrap">
-            <div id="postEditor"
-                 contenteditable="true"
-                 role="textbox"
-                 aria-multiline="true"
-                 aria-label="Post description or content"
-                 class="composer-wysiwyg-editor post-markdown-content"
-                 data-placeholder="What's on your mind? Format directly or paste from ChatGPT..."></div>
-            <input type="hidden" id="postContent" name="content">
-          </div>
-
-          <div class="composer-footer-hints">
-            <span class="composer-hint-text">Rich text &bull; Live WYSIWYG</span>
-            <span id="charCounter" class="composer-char-count">0 / 1,000,000</span>
           </div>
         </div>
 

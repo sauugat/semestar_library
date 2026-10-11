@@ -548,16 +548,16 @@
     }
 
     .email-dispatch-header:focus-within {
-      border-color: var(--border-hover);
+      border-color: var(--border-strong);
     }
 
     .email-header-row {
       display: flex;
       align-items: center;
-      gap: 14px;
+      gap: 12px;
       padding: 10px 16px;
-      border-bottom: 1px solid var(--border-color);
-      min-height: 48px;
+      border-bottom: 1px solid var(--border-subtle);
+      min-height: 46px;
       box-sizing: border-box;
       position: relative;
     }
@@ -575,10 +575,10 @@
 
     .email-row-label {
       font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.8px;
+      font-weight: 600;
+      letter-spacing: 0.6px;
       color: var(--text-muted);
-      min-width: 54px;
+      min-width: 50px;
       flex-shrink: 0;
       user-select: none;
       text-transform: uppercase;
@@ -599,22 +599,18 @@
     }
 
     .email-sender-chip .author-avatar {
-      width: 26px;
-      height: 26px;
-      font-size: 12px;
+      width: 24px;
+      height: 24px;
+      font-size: 11px;
       border-radius: 50%;
-      background: #27272a;
-      color: #fafafa;
+      background: var(--select-hover);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
       display: flex;
       align-items: center;
       justify-content: center;
       font-weight: 700;
       flex-shrink: 0;
-    }
-
-    [data-theme="light"] .email-sender-chip .author-avatar {
-      background: #e4e4e7;
-      color: #18181b;
     }
 
     .email-author-name {
@@ -629,7 +625,7 @@
       background: transparent;
       padding: 6px 0;
       font-size: 14.5px;
-      font-weight: 600;
+      font-weight: 500;
       color: var(--text-main);
       font-family: inherit;
       outline: none;
@@ -644,29 +640,36 @@
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      padding: 6px 12px;
-      border-radius: 8px;
+      padding: 5px 12px;
+      border-radius: 6px;
       font-size: 13px;
-      font-weight: 600;
-      background: var(--card-bg);
+      font-weight: 500;
+      background: rgba(255, 255, 255, 0.04);
       border: 1px solid var(--border-color);
       color: var(--text-main);
       cursor: pointer;
       width: auto;
       max-width: 100%;
+      transition: all 0.12s ease;
+    }
+
+    [data-theme="light"] .email-to-trigger,
+    body.light-mode .email-to-trigger {
+      background: rgba(0, 0, 0, 0.03);
     }
 
     .email-to-trigger:hover {
-      border-color: var(--border-hover);
+      background: var(--select-hover);
+      border-color: var(--border-strong);
     }
 
     .email-body-label {
       font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.8px;
+      font-weight: 600;
+      letter-spacing: 0.6px;
       color: var(--text-muted);
       text-transform: uppercase;
-      margin-bottom: 8px;
+      margin-bottom: 7px;
     }
 
     /* Metadata Controls Grid */
@@ -691,8 +694,8 @@
       gap: 8px;
       background: var(--input-bg);
       border: 1px solid var(--border-color);
-      border-radius: 10px;
-      padding: 10px 14px;
+      border-radius: 9px;
+      padding: 9px 13px;
       font-size: 13.5px;
       font-weight: 500;
       color: var(--text-main);
@@ -715,7 +718,7 @@
       background: var(--card-bg);
       border: 1px solid var(--border-color);
       border-radius: 10px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
       z-index: 1000;
       padding: 6px;
       box-sizing: border-box;
@@ -728,7 +731,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 9px 12px;
+      padding: 8px 11px;
       border-radius: 6px;
       background: transparent;
       border: 1px solid transparent;
@@ -746,14 +749,15 @@
     }
 
     .dropdown-option.selected {
-      background: #262626;
+      background: #27272a;
       color: #ffffff;
-      border-color: rgba(255, 255, 255, 0.18);
+      border-color: rgba(255, 255, 255, 0.12);
     }
 
     [data-theme="light"] .dropdown-option.selected {
-      background: #18181b;
-      color: #ffffff;
+      background: #e4e4e7;
+      color: #18181b;
+      border-color: rgba(0, 0, 0, 0.1);
     }
 
     .dropdown-option .opt-check {
@@ -765,10 +769,16 @@
     }
 
     /* Semester Multi-select Menu */
+    #semesterMenu {
+      width: auto;
+      min-width: 260px;
+      max-width: 340px;
+    }
+
     .semester-options-list {
       display: flex;
       flex-direction: column;
-      gap: 3px;
+      gap: 2px;
       max-height: 240px;
       overflow-y: auto;
       padding: 4px 0;
@@ -777,7 +787,7 @@
     .semester-check-label {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 9px;
       padding: 7px 10px;
       border-radius: 6px;
       font-size: 13px;
@@ -792,26 +802,44 @@
     }
 
     .semester-check-label input {
-      accent-color: var(--text-main);
+      accent-color: #71717a;
       cursor: pointer;
     }
 
     .semester-menu-footer {
       padding-top: 8px;
       margin-top: 6px;
-      border-top: 1px solid var(--border-color);
+      border-top: 1px solid var(--border-subtle);
     }
 
     .semester-apply-btn {
       width: 100%;
       padding: 8px 0;
       border-radius: 6px;
-      background: var(--btn-bg);
-      color: var(--btn-text);
-      border: none;
+      background: #27272a;
+      color: #f4f4f5;
+      border: 1px solid rgba(255, 255, 255, 0.1);
       font-size: 12.5px;
       font-weight: 600;
       cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+
+    .semester-apply-btn:hover {
+      background: #3f3f46;
+      color: #ffffff;
+    }
+
+    [data-theme="light"] .semester-apply-btn,
+    body.light-mode .semester-apply-btn {
+      background: #18181b;
+      color: #ffffff;
+      border: 1px solid #18181b;
+    }
+
+    [data-theme="light"] .semester-apply-btn:hover,
+    body.light-mode .semester-apply-btn:hover {
+      background: #000000;
     }
 
     /* Attachments Preview */
@@ -820,8 +848,8 @@
       align-items: center;
       gap: 10px;
       padding: 14px 0;
-      border-top: 1px solid var(--border-color);
-      border-bottom: 1px solid var(--border-color);
+      border-top: 1px solid var(--border-subtle);
+      border-bottom: 1px solid var(--border-subtle);
       margin-bottom: 20px;
       flex-wrap: wrap;
     }
@@ -834,7 +862,7 @@
       border-radius: 8px;
       background: var(--input-bg);
       border: 1px solid var(--border-color);
-      color: var(--text-main);
+      color: var(--text-muted);
       font-size: 13px;
       font-weight: 500;
       cursor: pointer;
@@ -845,6 +873,7 @@
     .tool-btn:hover {
       background: var(--select-hover);
       border-color: var(--border-strong);
+      color: var(--text-main);
     }
 
     /* Thumbnails Container */

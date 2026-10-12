@@ -390,6 +390,20 @@ export async function apiFetch(
     throw new ApiError('Authentication required.', 401);
   }
 
+  // Handle 403 Forbidden (check for account suspension)
+  if (response.status === 403) {
+    try {
+      const cloned = response.clone();
+      const errJson = await cloned.json().catch(() => null);
+      if (errJson && (errJson.error === 'ACCOUNT_SUSPENDED' || errJson.code === 'ACCOUNT_SUSPENDED')) {
+        await clearAuthToken();
+        throw new ApiError(errJson.message || 'Your account has been suspended by an administrator.', 403, errJson);
+      }
+    } catch (e) {
+      if (e instanceof ApiError) throw e;
+    }
+  }
+
   return response;
 }
 

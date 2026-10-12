@@ -1,10 +1,26 @@
 'use strict';
 
+const os = require('os');
+const path = require('path');
+const fs = require('fs');
+
+// Disposable SQLite DB test helper
+const tempDbPath = path.join(
+  os.tmpdir(),
+  `admin_audit_safety_p4b1_1_${Date.now()}_${Math.random().toString(36).slice(2)}.db`
+);
+process.env.NODE_ENV = 'test';
+process.env.DB_PATH = tempDbPath;
+process.env.SEMESTER_DB_SKIP_INIT = '1';
+process.env.SESSION_SECRET = 'test-session-secret-phase-4b1-1-safety-verification';
+process.env.TEACHER_ONBOARDING_SECRET = 'test-teacher-onboarding-secret-key-32-bytes-secure!';
+delete process.env.TEACHER_ONBOARDING_ENABLED; // strictly disabled
+delete process.env.DATABASE_URL;
+delete process.env.POSTGRES_URL;
+delete process.env.PGHOST;
+
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
 const http = require('http');
 const express = require('express');
 const session = require('express-session');
@@ -33,16 +49,6 @@ const {
 const { createAdminTeachersRouter } = require('../routes/admin-teachers');
 const { createAdminDashboardRouter } = require('../routes/admin-dashboard');
 const { createTeacherOnboardingRouter } = require('../routes/teacher-onboarding');
-
-// Disposable SQLite DB test helper
-const tempDbPath = path.join(
-  os.tmpdir(),
-  `admin_audit_safety_p4b1_1_${Date.now()}_${Math.random().toString(36).slice(2)}.db`
-);
-process.env.DATABASE_URL = `file:${tempDbPath}`;
-process.env.SESSION_SECRET = 'test-session-secret-phase-4b1-1-safety-verification';
-process.env.TEACHER_ONBOARDING_SECRET = 'test-teacher-onboarding-secret-key-32-bytes-secure!';
-delete process.env.TEACHER_ONBOARDING_ENABLED; // strictly disabled
 
 const db = require('../db');
 

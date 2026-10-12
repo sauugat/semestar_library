@@ -5671,6 +5671,9 @@ app.get('/api/cover/:filename', async (req, res) => {
 // Get photos uploaded by a student through posts
 app.get('/api/profile/:studentId/photos', requireLogin, async (req, res) => {
   const targetStudentId = req.params.studentId;
+  const { isModerationSchemaAvailable } = require('./lib/posts');
+  const modAvail = await isModerationSchemaAvailable(db);
+  const modFilter = modAvail ? " AND (p.moderation_status IS NULL OR p.moderation_status = 'active')" : '';
 
   let mediaPhotos = [];
   try {
@@ -5679,7 +5682,7 @@ app.get('/api/profile/:studentId/photos', requireLogin, async (req, res) => {
         pm.created_at AS "createdAt", p.content AS "postContent"
       FROM post_media pm
       JOIN posts p ON p.id = pm.post_id
-      WHERE p.user_id = ? AND (pm.media_type = 'image' OR pm.mime_type LIKE 'image/%')
+      WHERE p.user_id = ?${modFilter} AND (pm.media_type = 'image' OR pm.mime_type LIKE 'image/%')
       ORDER BY pm.id DESC
       LIMIT 100
     `, targetStudentId);
@@ -5692,7 +5695,7 @@ app.get('/api/profile/:studentId/photos', requireLogin, async (req, res) => {
     legacyPhotos = await db.all(`
       SELECT p.id AS "postId", p.attachment_url AS "url", p.created_at AS "createdAt", p.content AS "postContent"
       FROM posts p
-      WHERE p.user_id = ? AND p.attachment_url IS NOT NULL AND (
+      WHERE p.user_id = ?${modFilter} AND p.attachment_url IS NOT NULL AND (
         p.attachment_url LIKE '%.png' OR p.attachment_url LIKE '%.jpg' OR
         p.attachment_url LIKE '%.jpeg' OR p.attachment_url LIKE '%.webp' OR
         p.attachment_url LIKE '%.gif'

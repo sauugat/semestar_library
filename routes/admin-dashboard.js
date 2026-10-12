@@ -2,6 +2,7 @@
 
 const express = require('express');
 const { queryAdminAuditLogs, recordAdminAudit } = require('../lib/audit-service');
+const { isModerationSchemaAvailable, isContentReportsAvailable } = require('../lib/posts');
 
 function createAdminDashboardRouter(arg1, arg2) {
   let db, requireLogin;
@@ -1185,9 +1186,16 @@ function createAdminDashboardRouter(arg1, arg2) {
         params.push(visibility.toLowerCase());
       }
 
+      const modAvail = await isModerationSchemaAvailable(db);
+      const reportsAvail = await isContentReportsAvailable(db);
+
       if (status && status !== 'all') {
-        whereClauses.push("COALESCE(p.moderation_status, 'active') = ?");
-        params.push(status);
+        if (modAvail) {
+          whereClauses.push("COALESCE(p.moderation_status, 'active') = ?");
+          params.push(status);
+        } else if (status === 'removed') {
+          whereClauses.push("1 = 0");
+        }
       }
 
       if (search) {
@@ -1208,19 +1216,33 @@ function createAdminDashboardRouter(arg1, arg2) {
       const total = Number(countRow?.total || 0);
       const totalPages = Math.ceil(total / limit) || 1;
 
+      const modCols = modAvail
+        ? `COALESCE(p.moderation_status, 'active') AS moderation_status,
+           p.moderated_at, p.moderated_by, p.moderation_reason,`
+        : `'active' AS moderation_status,
+           NULL AS moderated_at, NULL AS moderated_by, NULL AS moderation_reason,`;
+
+      const commentsCountSql = modAvail
+        ? `COALESCE((SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id AND pc.deleted_at IS NULL AND (pc.moderation_status IS NULL OR pc.moderation_status = 'active')), 0) AS comments_count,`
+        : `COALESCE((SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id AND pc.deleted_at IS NULL), 0) AS comments_count,`;
+
+      const reportsCountSql = reportsAvail
+        ? `COALESCE((SELECT COUNT(*) FROM content_reports cr WHERE cr.content_type = 'post' AND cr.content_id = p.id AND cr.status = 'open'), 0) AS open_reports_count,
+           COALESCE((SELECT COUNT(*) FROM content_reports cr WHERE cr.content_type = 'post' AND cr.content_id = p.id), 0) AS total_reports_count`
+        : `0 AS open_reports_count,
+           0 AS total_reports_count`;
+
       const posts = await db.all(`
         SELECT p.id, p.user_id, p.title, p.content, p.type, p.category,
                COALESCE(p.visibility, 'everyone') AS visibility,
                CASE WHEN (p.type = 'notice' OR p.category = 'notice') AND s.role IN ('admin', 'cr', 'teacher') THEN 1 ELSE 0 END AS is_official,
                p.target_all_semesters, p.audience_scope,
-               COALESCE(p.moderation_status, 'active') AS moderation_status,
-               p.moderated_at, p.moderated_by, p.moderation_reason,
+               ${modCols}
                p.attachment_url, p.created_at, p.edited_at,
                s.name AS author_name, s.role AS author_role, s.avatarUrl AS author_avatar_url,
                COALESCE((SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id), 0) AS likes_count,
-               COALESCE((SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id AND pc.deleted_at IS NULL AND (pc.moderation_status IS NULL OR pc.moderation_status = 'active')), 0) AS comments_count,
-               COALESCE((SELECT COUNT(*) FROM content_reports cr WHERE cr.content_type = 'post' AND cr.content_id = p.id AND cr.status = 'open'), 0) AS open_reports_count,
-               COALESCE((SELECT COUNT(*) FROM content_reports cr WHERE cr.content_type = 'post' AND cr.content_id = p.id), 0) AS total_reports_count
+               ${commentsCountSql}
+               ${reportsCountSql}
         FROM posts p
         LEFT JOIN students s ON s.studentId = p.user_id
         ${whereSql}
@@ -1292,6 +1314,15 @@ function createAdminDashboardRouter(arg1, arg2) {
       const page = Math.max(1, parseInt(String(req.query.page || '1'), 10) || 1);
       const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit || '20'), 10) || 20));
       const offset = (page - 1) * limit;
+
+      const reportsAvail = await isContentReportsAvailable(db);
+      if (!reportsAvail) {
+        return res.json({
+          reports: [],
+          pagination: { page, limit, total: 0, totalPages: 1 },
+          migrationPending: true
+        });
+      }
 
       const status = req.query.status ? String(req.query.status).trim().toLowerCase() : 'open';
       const type = req.query.type ? String(req.query.type).trim().toLowerCase() : 'all';

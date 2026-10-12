@@ -1,4 +1,5 @@
 const express = require('express');
+const { isModerationSchemaAvailable } = require('../lib/posts');
 
 module.exports = function createPostImagesRouter(db) {
   const router = express.Router();
@@ -6,11 +7,13 @@ module.exports = function createPostImagesRouter(db) {
     if (!/^[a-f0-9-]+\.[a-z0-9]+$/i.test(req.params.filename)) return res.sendStatus(404);
     try {
       await db.initSchema();
+      const modAvail = await isModerationSchemaAvailable(db);
+      const modCol = modAvail ? ', moderation_status' : ", 'active' AS moderation_status";
       // Only expose blobs referenced by posts (either primary attachment_url or any post_media entry)
       const post = await db.get(
-        `SELECT id, user_id, visibility FROM posts WHERE attachment_url = ? OR attachment_url = ?
+        `SELECT id, user_id, visibility ${modCol} FROM posts WHERE attachment_url = ? OR attachment_url = ?
          UNION ALL
-         SELECT p.id, p.user_id, p.visibility FROM post_media pm JOIN posts p ON pm.post_id = p.id WHERE pm.url = ? OR pm.url = ?
+         SELECT p.id, p.user_id, p.visibility ${modCol} FROM post_media pm JOIN posts p ON pm.post_id = p.id WHERE pm.url = ? OR pm.url = ?
          LIMIT 1`,
         `/uploads/posts/${req.params.filename}`,
         `uploads/posts/${req.params.filename}`,
@@ -19,17 +22,22 @@ module.exports = function createPostImagesRouter(db) {
       );
       if (!post) return res.sendStatus(404);
 
+      const viewerStudentId = req.student?.studentId || req.user?.studentId || req.session?.studentId;
+      let viewerRole = req.student?.role || req.user?.role || req.session?.role;
+      if (!viewerRole && viewerStudentId) {
+        const studentRec = await db.get('SELECT role FROM students WHERE studentId = ?', viewerStudentId);
+        viewerRole = studentRec?.role || 'student';
+      }
+      const isAdminModeration = viewerRole === 'admin' && (req.query?.moderation === 'true' || req.headers?.['x-admin-moderation'] === 'true');
+
+      if (modAvail && post.moderation_status === 'removed' && !isAdminModeration) {
+        return res.sendStatus(404);
+      }
+
       if (post.visibility === 'students_only') {
-        const viewerStudentId = req.student?.studentId || req.user?.studentId || req.session?.studentId;
         if (!viewerStudentId) return res.sendStatus(404);
-        let viewerRole = req.student?.role || req.user?.role || req.session?.role;
-        if (!viewerRole) {
-          const studentRec = await db.get('SELECT role FROM students WHERE studentId = ?', viewerStudentId);
-          viewerRole = studentRec?.role || 'student';
-        }
         const isAuthor = post.user_id === viewerStudentId;
         const isStudentOrCR = ['student', 'cr', 'class_rep'].includes(viewerRole);
-        const isAdminModeration = viewerRole === 'admin' && (req.query?.moderation === 'true' || req.headers?.['x-admin-moderation'] === 'true');
         if (!isAuthor && !isStudentOrCR && !isAdminModeration) {
           return res.sendStatus(404);
         }

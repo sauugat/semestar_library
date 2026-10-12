@@ -15,7 +15,6 @@ const {
   removeTeacherSubject,
   listTeachersWithAssignments
 } = require('../lib/teacher-service');
-const { recordAdminAudit } = require('../lib/audit-service');
 
 function createAdminTeachersRouter(arg1, arg2) {
   let db, requireLogin;
@@ -90,22 +89,6 @@ function createAdminTeachersRouter(arg1, arg2) {
         createdBy: req.adminStudentId
       });
 
-      console.log(
-        `[Admin Teacher Audit] Event: teacher_invite_${rawCount > 1 ? 'bulk_' : ''}created, ` +
-        `adminId: ${req.adminStudentId}, count: ${rawCount}, time: ${new Date().toISOString()}`
-      );
-
-      await recordAdminAudit(db, {
-        actorUserId: req.adminStudentId,
-        action: rawCount > 1 ? 'teacher_invite_bulk_created' : 'teacher_invite_created',
-        entityType: 'teacher_invite',
-        entityId: rawCount === 1 && result.invites?.[0]?.id ? result.invites[0].id : null,
-        metadata: {
-          count: rawCount,
-          usernames: result.invites?.map(i => i.initial_username)
-        }
-      });
-
       res.status(201).json(result);
     } catch (err) {
       console.error('[Admin Teachers] Create error:', err);
@@ -142,22 +125,7 @@ function createAdminTeachersRouter(arg1, arg2) {
   router.post('/teacher-invites/:id/regenerate-password', requireLogin, requireAdminRole, async (req, res) => {
     try {
       const inviteId = req.params.id;
-      const result = await regenerateTeacherInvitePassword(db, inviteId);
-
-      console.log(
-        `[Admin Teacher Audit] Event: teacher_invite_password_regenerated, ` +
-        `adminId: ${req.adminStudentId}, inviteId: ${inviteId}, time: ${new Date().toISOString()}`
-      );
-
-      await recordAdminAudit(db, {
-        actorUserId: req.adminStudentId,
-        action: 'teacher_invite_password_regenerated',
-        entityType: 'teacher_invite',
-        entityId: inviteId,
-        metadata: {
-          temporaryUsername: result.temporary_username || result.initial_username
-        }
-      });
+      const result = await regenerateTeacherInvitePassword(db, inviteId, { adminId: req.adminStudentId });
 
       res.json(result);
     } catch (err) {
@@ -175,22 +143,7 @@ function createAdminTeachersRouter(arg1, arg2) {
   router.post('/teacher-invites/:id/reissue', requireLogin, requireAdminRole, async (req, res) => {
     try {
       const inviteId = req.params.id;
-      const result = await reissueTeacherInvite(db, inviteId);
-
-      console.log(
-        `[Admin Teacher Audit] Event: teacher_invite_reissued, ` +
-        `adminId: ${req.adminStudentId}, inviteId: ${inviteId}, time: ${new Date().toISOString()}`
-      );
-
-      await recordAdminAudit(db, {
-        actorUserId: req.adminStudentId,
-        action: 'teacher_invite_reissued',
-        entityType: 'teacher_invite',
-        entityId: inviteId,
-        metadata: {
-          temporaryUsername: result.temporary_username || result.initial_username
-        }
-      });
+      const result = await reissueTeacherInvite(db, inviteId, { adminId: req.adminStudentId });
 
       res.json(result);
     } catch (err) {
@@ -207,19 +160,7 @@ function createAdminTeachersRouter(arg1, arg2) {
   router.post('/teacher-invites/:id/revoke', requireLogin, requireAdminRole, async (req, res) => {
     try {
       const inviteId = req.params.id;
-      const result = await revokeTeacherInvite(db, inviteId);
-
-      console.log(
-        `[Admin Teacher Audit] Event: teacher_invite_revoked, ` +
-        `adminId: ${req.adminStudentId}, inviteId: ${inviteId}, time: ${new Date().toISOString()}`
-      );
-
-      await recordAdminAudit(db, {
-        actorUserId: req.adminStudentId,
-        action: 'teacher_invite_revoked',
-        entityType: 'teacher_invite',
-        entityId: inviteId
-      });
+      const result = await revokeTeacherInvite(db, inviteId, { adminId: req.adminStudentId });
 
       res.json(result);
     } catch (err) {

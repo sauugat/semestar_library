@@ -527,6 +527,51 @@ app.use((req, res, next) => {
 });
 
 // Clean URL Aliases for Protected and Public Pages (Static shells guarded client-side by Supabase)
+app.get(['/admin-dashboard', '/admin-dashboard.html', '/admin'], async (req, res) => {
+  const sessionStudentId = req.session?.studentId || req.user?.studentId;
+  if (!sessionStudentId) {
+    return res.redirect('/login.html');
+  }
+  const user = await db.get('SELECT role FROM students WHERE studentId = ?', sessionStudentId);
+  if (!user || user.role !== 'admin') {
+    if (user && user.role === 'teacher') {
+      return res.redirect('/teacher-dashboard.html');
+    }
+    return res.redirect('/dashboard.html');
+  }
+  res.sendFile(path.join(__dirname, 'public', 'admin-dashboard.html'));
+});
+
+app.get(['/admin-teachers', '/admin-teachers.html'], async (req, res) => {
+  const sessionStudentId = req.session?.studentId || req.user?.studentId;
+  if (!sessionStudentId) {
+    return res.redirect('/login.html');
+  }
+  const user = await db.get('SELECT role FROM students WHERE studentId = ?', sessionStudentId);
+  if (!user || user.role !== 'admin') {
+    if (user && user.role === 'teacher') {
+      return res.redirect('/teacher-dashboard.html');
+    }
+    return res.redirect('/dashboard.html');
+  }
+  res.sendFile(path.join(__dirname, 'public', 'admin-teachers.html'));
+});
+
+app.get(['/admin-cohorts', '/admin-cohorts.html'], async (req, res) => {
+  const sessionStudentId = req.session?.studentId || req.user?.studentId;
+  if (!sessionStudentId) {
+    return res.redirect('/login.html');
+  }
+  const user = await db.get('SELECT role FROM students WHERE studentId = ?', sessionStudentId);
+  if (!user || user.role !== 'admin') {
+    if (user && user.role === 'teacher') {
+      return res.redirect('/teacher-dashboard.html');
+    }
+    return res.redirect('/dashboard.html');
+  }
+  res.sendFile(path.join(__dirname, 'public', 'admin-cohorts.html'));
+});
+
 app.get(['/teacher-dashboard', '/teacher-dashboard.html'], async (req, res) => {
   const sessionStudentId = req.session?.studentId || req.user?.studentId;
   if (sessionStudentId) {
@@ -778,6 +823,7 @@ app.get('/api/profile/:studentId/posts', requireLogin, (req, res, next) => {
   postsRouterInstance(req, res, next);
 });
 app.use('/api/comments', require('./routes/comments')(db, requireLogin));
+app.use('/api/admin', require('./routes/admin-dashboard')(db, requireLogin));
 app.use('/api/admin', require('./routes/admin-teachers')(db, requireLogin));
 app.use('/api/admin', require('./routes/admin-cohorts')(db, requireLogin));
 app.use('/api/teacher/onboarding', require('./routes/teacher-onboarding'));
@@ -879,7 +925,9 @@ app.post('/api/login', loginRateLimiter, async (req, res) => {
         console.error('Session save error:', saveErr);
         return res.status(500).json({ message: 'Authentication session creation error.' });
       }
-      const dest = student.role === 'teacher' ? '/teacher-dashboard.html' : '/dashboard.html';
+      const dest = student.role === 'admin'
+        ? '/admin-dashboard.html'
+        : (student.role === 'teacher' ? '/teacher-dashboard.html' : '/dashboard.html');
       return res.json({ message: 'Login successful', redirect: dest });
     });
   });

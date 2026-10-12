@@ -63,6 +63,7 @@ export interface UnifiedChatInboxProps {
   cohortError?: string | null;
   dmError?: string | null;
   dmEnabled: boolean;
+  isTeacher?: boolean;
   onRefresh: () => void;
   onRetryCohort?: () => void;
   onRetryDm?: () => void;
@@ -78,6 +79,7 @@ export function UnifiedChatInbox({
   cohortError,
   dmError,
   dmEnabled,
+  isTeacher = false,
   onRefresh,
   onRetryCohort,
   onRetryDm,
@@ -390,13 +392,23 @@ export function UnifiedChatInbox({
       ) : displayedItems.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Ionicons
-            name={searchQuery ? 'search-outline' : activeFilter === 'unread' ? 'mail-open-outline' : 'chatbubbles-outline'}
+            name={
+              searchQuery
+                ? 'search-outline'
+                : isTeacher
+                ? 'school-outline'
+                : activeFilter === 'unread'
+                ? 'mail-open-outline'
+                : 'chatbubbles-outline'
+            }
             size={40}
             color={Monochrome.textTertiary}
           />
           <Text style={styles.emptyTitle}>
             {searchQuery
               ? 'No matching conversations'
+              : isTeacher
+              ? 'Faculty Communications'
               : activeFilter === 'unread'
               ? 'No unread messages'
               : activeFilter === 'groups'
@@ -406,6 +418,8 @@ export function UnifiedChatInbox({
           <Text style={styles.emptySubtitle}>
             {searchQuery
               ? `No chats found for "${searchQuery}"`
+              : isTeacher
+              ? 'Cohort group chats are restricted to enrolled student sections. Direct messages will appear here when initiated.'
               : activeFilter === 'unread'
               ? 'You are all caught up.'
               : dmEnabled

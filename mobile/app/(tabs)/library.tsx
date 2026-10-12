@@ -27,6 +27,7 @@ import { useAcademicContext } from '@/hooks/useAcademicContext';
 import { getBaseUrl } from '@/services/api';
 import { SearchOverlay } from '@/components/SearchOverlay';
 import { UploadNoteModal } from '@/components/UploadNoteModal';
+import { TeacherMaterialsView } from '@/components/teacher/TeacherMaterialsView';
 import {
   SEMESTERS,
   SemesterItem,
@@ -129,7 +130,7 @@ function SkeletonCard({ colors, radii, spacing }: { colors: any; radii: any; spa
   );
 }
 
-export default function LibraryScreen() {
+function StudentLibraryView() {
   const { colors, spacing, radii } = useTheme();
   const { user } = useAuth();
   const { onScroll: handleNavScroll, scrollEventThrottle } = useAdaptiveNavScroll();
@@ -1013,7 +1014,22 @@ export default function LibraryScreen() {
       )}
     </SafeAreaView>
   </TabSwipeContainer>
-);
+  );
+}
+
+export default function LibraryScreen() {
+  const { user } = useAuth();
+  const isTeacher = user?.role === 'teacher' || user?.role === 'faculty';
+
+  if (isTeacher) {
+    return (
+      <TabSwipeContainer tabIndex={1}>
+        <TeacherMaterialsView />
+      </TabSwipeContainer>
+    );
+  }
+
+  return <StudentLibraryView />;
 }
 
 const styles = StyleSheet.create({

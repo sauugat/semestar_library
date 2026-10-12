@@ -124,12 +124,18 @@ export function deleteCachedMessage(id: number) {
 export function updateCachedReaction(messageId: number, studentId: string, emoji: string, action: string) {
   return mutate(previous => applyChatReaction(previous, messageId, studentId, emoji, action));
 }
-export async function clearChatDb() {
+export async function clearChatDb(options?: { preservePending?: boolean }) {
+  const preservePending = options?.preservePending ?? true;
   await writes;
   memory.clear();
   const db = await getChatDatabase();
-  // Remove the old unscoped cache as well when migrating an existing installation.
-  await db.execAsync('DELETE FROM chat_cache_v3; DELETE FROM chat_events_v3; DELETE FROM chat_meta_v3;');
+  if (preservePending) {
+    // Preserve pending/failed messages (negative id) so outgoing drafts/unsent messages remain recoverable.
+    // Confirmed server messages (id > 0) are purged to prevent cross-account leakage.
+    await db.execAsync('DELETE FROM chat_cache_v3 WHERE id > 0; DELETE FROM chat_events_v3; DELETE FROM chat_meta_v3;');
+  } else {
+    await db.execAsync('DELETE FROM chat_cache_v3; DELETE FROM chat_events_v3; DELETE FROM chat_meta_v3;');
+  }
 }
 
 // State mutation and event receipt share one exclusive SQLite transaction.

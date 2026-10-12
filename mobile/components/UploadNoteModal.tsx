@@ -29,6 +29,7 @@ import {
 } from '@/constants/subjects.config';
 import { uploadNote, getLibraryStats, LibraryStat, UploadFileItem } from '@/services/library';
 import { normalizeUploadFile, validateFileSize } from '@/utils/file-upload';
+import { apiFetch } from '@/services/api';
 
 function isMatchingSemester(dbSemester: string | null | undefined, semItem: SemesterItem): boolean {
   if (!dbSemester) return false;
@@ -124,6 +125,32 @@ export function UploadNoteModal({
     staleTime: 60 * 1000,
   });
 
+  // Query teacher assigned subjects if teacher account
+  const isTeacher = user?.role === 'teacher' || user?.role === 'faculty';
+  const { data: teacherSubjectsData } = useQuery<{ subjects: any[] }>({
+    queryKey: ['teacher-modal-assigned-subjects', user?.studentId],
+    queryFn: async () => {
+      try {
+        const res = await apiFetch('/api/teacher/subjects');
+        if (res.ok) return res.json();
+      } catch (_) {}
+      return { subjects: [] };
+    },
+    enabled: Boolean(isTeacher && visible),
+    staleTime: 60 * 1000,
+  });
+
+  const teacherAssignedSubjects = useMemo(() => {
+    if (!isTeacher) return [];
+    if (Array.isArray(teacherSubjectsData?.subjects) && teacherSubjectsData.subjects.length > 0) {
+      return teacherSubjectsData.subjects;
+    }
+    if (Array.isArray(user?.subjects) && user.subjects.length > 0) {
+      return user.subjects;
+    }
+    return [];
+  }, [isTeacher, teacherSubjectsData?.subjects, user?.subjects]);
+
   // Selected files queue
   const [selectedFiles, setSelectedFiles] = useState<QueuedFile[]>([]);
 
@@ -150,6 +177,16 @@ export function UploadNoteModal({
       if (initialSubjectTitle) {
         setSelectedSubjectTitle(initialSubjectTitle);
         setIsCustomSubject(false);
+      } else if (isTeacher && teacherAssignedSubjects.length > 0) {
+        const first = teacherAssignedSubjects[0];
+        const sName = first.name || first.title || '';
+        setSelectedSubjectTitle(sName);
+        if (first.semester) {
+          const semNum = Number(first.semester);
+          if (semNum >= 1 && semNum <= SEMESTERS.length) {
+            setSemesterId(SEMESTERS[semNum - 1].id);
+          }
+        }
       }
       if (initialChapterTitle) {
         setSelectedChapterTitle(initialChapterTitle);
@@ -159,15 +196,37 @@ export function UploadNoteModal({
       setSubmitting(false);
       setUploadProgressText('');
     }
-  }, [visible, initialSemesterId, initialSubjectTitle, initialChapterTitle]);
+  }, [visible, initialSemesterId, initialSubjectTitle, initialChapterTitle, isTeacher, teacherAssignedSubjects]);
 
   // Active semester object from static config
   const currentSemester: SemesterItem = useMemo(() => {
     return SEMESTERS.find((s) => s.id === semesterId || s.shortLabel === semesterId) || SEMESTERS[1] || SEMESTERS[0];
   }, [semesterId]);
 
-  // Subjects available for current semester (static curriculum merged with custom subjects from libraryStats)
+  // Subjects available for current semester (restricted to assigned subjects for teachers)
   const availableSubjects: SubjectItem[] = useMemo(() => {
+    if (isTeacher) {
+      return teacherAssignedSubjects.map((ts: any) => {
+        const titleStr = (ts.title || ts.name || '').trim();
+        let chapters: ChapterItem[] = [];
+        for (const sem of SEMESTERS) {
+          const found = sem.subjects.find(
+            (s) => s.code === ts.code || s.title.toLowerCase() === titleStr.toLowerCase()
+          );
+          if (found) {
+            chapters = [...found.chapters];
+            break;
+          }
+        }
+        return {
+          code: ts.code || 'CUSTOM',
+          title: titleStr,
+          credit: String(ts.creditHours || '—'),
+          chapters,
+        };
+      });
+    }
+
     const baseSubjects = currentSemester.subjects || [];
     const subjectMap = new Map<string, SubjectItem>();
 
@@ -205,7 +264,7 @@ export function UploadNoteModal({
     }
 
     return Array.from(subjectMap.values());
-  }, [currentSemester, libraryStats]);
+  }, [isTeacher, teacherAssignedSubjects, currentSemester, libraryStats]);
 
   // Active subject object
   const currentSubject: SubjectItem | undefined = useMemo(() => {
@@ -263,10 +322,21 @@ export function UploadNoteModal({
     }
   };
 
-  // When subject changes, reset chapter if not matching
+  // When subject changes, reset chapter if not matching and auto-lock semester for teachers
   const handleSelectSubject = (subTitle: string) => {
     setIsCustomSubject(false);
     setSelectedSubjectTitle(subTitle);
+    if (isTeacher) {
+      const match = teacherAssignedSubjects.find(
+        (ts: any) => (ts.title || ts.name || '').toLowerCase() === subTitle.toLowerCase() || ts.code === subTitle
+      );
+      if (match && match.semester) {
+        const semNum = Number(match.semester);
+        if (semNum >= 1 && semNum <= SEMESTERS.length) {
+          setSemesterId(SEMESTERS[semNum - 1].id);
+        }
+      }
+    }
     const targetSub = availableSubjects.find((s) => s.title === subTitle);
     if (targetSub && !targetSub.chapters.some((c) => c.title === selectedChapterTitle)) {
       setSelectedChapterTitle('');
@@ -388,6 +458,19 @@ export function UploadNoteModal({
       setErrorMsg('Please select or specify a subject for this upload.');
       setCurrentStep(2);
       return;
+    }
+
+    if (isTeacher) {
+      const isAssigned = teacherAssignedSubjects.some(
+        (ts: any) =>
+          (ts.title || ts.name || '').toLowerCase() === effectiveSubject.toLowerCase() ||
+          ts.code === effectiveSubject
+      );
+      if (!isAssigned) {
+        setErrorMsg('You are only authorized to upload materials to your assigned subjects.');
+        setCurrentStep(2);
+        return;
+      }
     }
 
     const effectiveChapter = isCustomChapter ? customChapter.trim() : selectedChapterTitle.trim();
@@ -866,14 +949,19 @@ export function UploadNoteModal({
                   SEMESTER *
                 </Text>
                 <TouchableOpacity
-                  onPress={() => setShowSemesterSheet(true)}
-                  activeOpacity={0.7}
+                  onPress={() => {
+                    if (isTeacher) return;
+                    setShowSemesterSheet(true);
+                  }}
+                  activeOpacity={isTeacher ? 1 : 0.7}
+                  disabled={isTeacher}
                   style={[
                     styles.selectorField,
                     {
                       backgroundColor: colors.surface,
                       borderColor: colors.border,
                       borderRadius: radii.card,
+                      opacity: isTeacher ? 0.8 : 1,
                     },
                   ]}
                 >
@@ -882,10 +970,10 @@ export function UploadNoteModal({
                       {currentSemester.label}
                     </Text>
                     <Caption color="muted">
-                      {availableSubjects.length} subjects available
+                      {isTeacher ? 'Auto-selected from assigned course' : `${availableSubjects.length} subjects available`}
                     </Caption>
                   </View>
-                  <Ionicons name="chevron-down" size={20} color={colors.textSecondary} />
+                  {!isTeacher && <Ionicons name="chevron-down" size={20} color={colors.textSecondary} />}
                 </TouchableOpacity>
 
                 {/* Subject Selector Field */}
@@ -1131,13 +1219,13 @@ export function UploadNoteModal({
         <SelectionSheet
           visible={showSubjectSheet}
           onClose={() => setShowSubjectSheet(false)}
-          title="Choose subject"
+          title={isTeacher ? "Choose assigned subject" : "Choose subject"}
           options={subjectOptions}
           selectedId={isCustomSubject ? null : selectedSubjectTitle}
           searchable
-          searchPlaceholder="Search subjects by name or code..."
-          customActionLabel="+ Custom Subject"
-          onCustomAction={() => {
+          searchPlaceholder={isTeacher ? "Search assigned subjects..." : "Search subjects by name or code..."}
+          customActionLabel={isTeacher ? undefined : "+ Custom Subject"}
+          onCustomAction={isTeacher ? undefined : () => {
             setIsCustomSubject(true);
             setSelectedSubjectTitle('');
           }}

@@ -227,8 +227,11 @@ export async function clearDmAccountCache(accountId: string): Promise<void> {
   });
 }
 
-export async function clearAllDmCache(): Promise<void> {
-  await clearDmOutbox();
+export async function clearAllDmCache(options?: { preserveOutbox?: boolean }): Promise<void> {
+  const preserveOutbox = options?.preserveOutbox ?? true;
+  if (!preserveOutbox) {
+    await clearDmOutbox();
+  }
   memoryConversations.clear();
   memoryMessages.clear();
   writeQueue = writeQueue.then(async () => {

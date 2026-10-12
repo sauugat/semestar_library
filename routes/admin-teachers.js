@@ -15,6 +15,7 @@ const {
   removeTeacherSubject,
   listTeachersWithAssignments
 } = require('../lib/teacher-service');
+const { recordAdminAudit } = require('../lib/audit-service');
 
 function createAdminTeachersRouter(arg1, arg2) {
   let db, requireLogin;
@@ -94,6 +95,17 @@ function createAdminTeachersRouter(arg1, arg2) {
         `adminId: ${req.adminStudentId}, count: ${rawCount}, time: ${new Date().toISOString()}`
       );
 
+      await recordAdminAudit(db, {
+        actorUserId: req.adminStudentId,
+        action: rawCount > 1 ? 'teacher_invite_bulk_created' : 'teacher_invite_created',
+        entityType: 'teacher_invite',
+        entityId: rawCount === 1 && result.invites?.[0]?.id ? result.invites[0].id : null,
+        metadata: {
+          count: rawCount,
+          usernames: result.invites?.map(i => i.initial_username)
+        }
+      });
+
       res.status(201).json(result);
     } catch (err) {
       console.error('[Admin Teachers] Create error:', err);
@@ -137,6 +149,16 @@ function createAdminTeachersRouter(arg1, arg2) {
         `adminId: ${req.adminStudentId}, inviteId: ${inviteId}, time: ${new Date().toISOString()}`
       );
 
+      await recordAdminAudit(db, {
+        actorUserId: req.adminStudentId,
+        action: 'teacher_invite_password_regenerated',
+        entityType: 'teacher_invite',
+        entityId: inviteId,
+        metadata: {
+          temporaryUsername: result.temporary_username || result.initial_username
+        }
+      });
+
       res.json(result);
     } catch (err) {
       const status = err.message && err.message.includes('not found') ? 404 : 400;
@@ -160,6 +182,16 @@ function createAdminTeachersRouter(arg1, arg2) {
         `adminId: ${req.adminStudentId}, inviteId: ${inviteId}, time: ${new Date().toISOString()}`
       );
 
+      await recordAdminAudit(db, {
+        actorUserId: req.adminStudentId,
+        action: 'teacher_invite_reissued',
+        entityType: 'teacher_invite',
+        entityId: inviteId,
+        metadata: {
+          temporaryUsername: result.temporary_username || result.initial_username
+        }
+      });
+
       res.json(result);
     } catch (err) {
       const status = err.message && err.message.includes('not found') ? 404 : 400;
@@ -181,6 +213,13 @@ function createAdminTeachersRouter(arg1, arg2) {
         `[Admin Teacher Audit] Event: teacher_invite_revoked, ` +
         `adminId: ${req.adminStudentId}, inviteId: ${inviteId}, time: ${new Date().toISOString()}`
       );
+
+      await recordAdminAudit(db, {
+        actorUserId: req.adminStudentId,
+        action: 'teacher_invite_revoked',
+        entityType: 'teacher_invite',
+        entityId: inviteId
+      });
 
       res.json(result);
     } catch (err) {

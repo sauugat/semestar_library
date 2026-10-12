@@ -2,8 +2,12 @@ import React from 'react';
 import { PagerTabs } from '@/components/navigation/PagerTabs';
 import { FloatingTabBar } from '@/components/navigation/FloatingTabBar';
 import { NavScrollProvider } from '@/context/NavScrollContext';
+import { useAuth } from '@/context/AuthContext';
 
 export default function TabLayout() {
+  const { user } = useAuth();
+  const isTeacher = user?.role === 'teacher' || user?.role === 'faculty';
+
   return (
     <NavScrollProvider>
       <PagerTabs
@@ -15,17 +19,17 @@ export default function TabLayout() {
         <PagerTabs.Screen
           name="index"
           options={{
-            title: 'Home',
+            title: isTeacher ? 'Dashboard' : 'Home',
             headerShown: false,
-            tabBarAccessibilityLabel: 'Home',
+            tabBarAccessibilityLabel: isTeacher ? 'Dashboard' : 'Home',
           }}
         />
         <PagerTabs.Screen
           name="library"
           options={{
-            title: 'Library',
+            title: isTeacher ? 'My Materials' : 'Library',
             headerShown: false,
-            tabBarAccessibilityLabel: 'Library',
+            tabBarAccessibilityLabel: isTeacher ? 'My Materials' : 'Library',
           }}
         />
         <PagerTabs.Screen
@@ -39,9 +43,9 @@ export default function TabLayout() {
         <PagerTabs.Screen
           name="games"
           options={{
-            title: 'Games',
+            title: isTeacher ? 'Notices' : 'Games',
             headerShown: false,
-            tabBarAccessibilityLabel: 'Games',
+            tabBarAccessibilityLabel: isTeacher ? 'Notices' : 'Games',
           }}
         />
         <PagerTabs.Screen

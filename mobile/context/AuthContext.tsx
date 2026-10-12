@@ -208,6 +208,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (res.status === 200 && data.token) {
         invalidateChatSession();
+        disconnectChatRealtime();
+        disconnectAllDmRealtime();
+        await clearChatDb();
+        await clearAllDmCache();
+        await clearAppQueryCache();
         await SecureStore.setItemAsync(TOKEN_KEY, data.token);
         if (data.user) {
           await SecureStore.setItemAsync(USER_KEY, JSON.stringify(data.user));
@@ -480,6 +485,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const setSession = async (newToken: string, newUser: StudentUser) => {
     invalidateChatSession();
+    disconnectChatRealtime();
+    disconnectAllDmRealtime();
+    await clearChatDb();
+    await clearAllDmCache();
+    await clearAppQueryCache();
     await SecureStore.setItemAsync(TOKEN_KEY, newToken);
     if (newUser) {
       await SecureStore.setItemAsync(USER_KEY, JSON.stringify(newUser));

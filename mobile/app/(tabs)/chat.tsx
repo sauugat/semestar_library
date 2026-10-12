@@ -206,6 +206,7 @@ export default function ChatScreen() {
   );
 
   const isAdmin = Boolean(user?.isAdmin || user?.role === "admin");
+  const isTeacher = Boolean(user?.role === "teacher" || user?.role === "faculty");
   const [selectedCohortRoom, setSelectedCohortRoom] = useState<CohortConversationItem | null>(null);
   const navigation = useNavigation();
 
@@ -243,6 +244,9 @@ export default function ChatScreen() {
       if (isAdmin) {
         const rooms = await fetchAdminChatRooms();
         setAdminRooms(rooms);
+      } else if (isTeacher) {
+        // Teacher accounts are not assigned to student class cohorts
+        setStudentConfig(null);
       } else {
         const config = await fetchChatConfig();
         setStudentConfig(config);
@@ -253,7 +257,7 @@ export default function ChatScreen() {
       setCohortsLoading(false);
       setCohortsRefreshing(false);
     }
-  }, [isAdmin, user?.studentId, serverUrl, token]);
+  }, [isAdmin, isTeacher, user?.studentId, serverUrl, token]);
 
   // 2. Independent DM loader
   const loadDms = useCallback(async (isRefresh = false) => {
@@ -1465,6 +1469,7 @@ export default function ChatScreen() {
             cohortError={cohortError}
             dmError={dmError}
             dmEnabled={dmEnabled}
+            isTeacher={isTeacher}
             onRefresh={() => void loadAll(true)}
             onRetryCohort={() => void loadCohorts(false)}
             onRetryDm={() => void loadDms(false)}

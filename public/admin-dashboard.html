@@ -1,0 +1,1606 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+  <script src="/theme.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Admin Dashboard — Semester Library</title>
+  <meta name="description" content="Unified administrative control center for Semester Library: students, faculty, cohorts, academics, and moderation.">
+  <link rel="icon" type="image/png" sizes="192x192" href="logo.jpg">
+
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', t);
+        if (t === 'dark') document.documentElement.classList.add('dark');
+        else document.documentElement.classList.remove('dark');
+      } catch (e) { }
+    })();
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.v4.css">
+  <link rel="stylesheet" href="/theme-overrides.css">
+
+  <style>
+    :root {
+      --bg-page: #090a0f;
+      --bg-card: #12151e;
+      --bg-card-hover: #181d2a;
+      --border-color: #23293a;
+      --border-subtle: #1a1f2e;
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --accent-blue: #3b82f6;
+      --accent-green: #10b981;
+      --accent-purple: #8b5cf6;
+      --accent-amber: #f59e0b;
+      --accent-red: #ef4444;
+      --table-header-bg: #151926;
+      --table-row-hover: #161b28;
+      --input-bg: #10131d;
+    }
+
+    [data-theme="light"], body.light-mode {
+      --bg-page: #f8fafc;
+      --bg-card: #ffffff;
+      --bg-card-hover: #f1f5f9;
+      --border-color: #e2e8f0;
+      --border-subtle: #edf2f7;
+      --text-primary: #0f172a;
+      --text-secondary: #64748b;
+      --text-muted: #94a3b8;
+      --table-header-bg: #f8fafc;
+      --table-row-hover: #f1f5f9;
+      --input-bg: #ffffff;
+    }
+
+    body {
+      background: var(--bg-page);
+      color: var(--text-primary);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Admin Container Layout */
+    .admin-layout {
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 24px 20px 80px;
+    }
+
+    /* Top Breadcrumb & Header */
+    .admin-top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .admin-title-area h1 {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin: 0 0 4px 0;
+    }
+
+    .admin-title-area p {
+      margin: 0;
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+
+    .admin-top-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    /* Nav Tabs */
+    .admin-nav-tabs {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      margin-bottom: 28px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .admin-nav-tabs::-webkit-scrollbar { display: none; }
+
+    .nav-tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-family: inherit;
+      font-size: 13.5px;
+      font-weight: 600;
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+    }
+
+    .nav-tab-btn:hover {
+      color: var(--text-primary);
+      background: var(--bg-card-hover);
+    }
+
+    .nav-tab-btn.active {
+      color: var(--text-primary);
+      background: var(--bg-card-hover);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+      border: 1px solid var(--border-color);
+    }
+
+    /* Section Views */
+    .admin-view-section {
+      display: none;
+      animation: fadeIn 0.2s ease-out;
+    }
+    .admin-view-section.active {
+      display: block;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* KPI Grid */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    @media (max-width: 1024px) {
+      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 600px) {
+      .kpi-grid { grid-template-columns: 1fr; }
+    }
+
+    .kpi-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.2s ease, transform 0.15s ease;
+    }
+    .kpi-card:hover {
+      border-color: var(--text-secondary);
+      transform: translateY(-2px);
+    }
+
+    .kpi-label {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .kpi-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1.1;
+    }
+
+    .kpi-subtext {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    /* Action Grid */
+    .action-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    @media (max-width: 900px) {
+      .action-grid { grid-template-columns: 1fr; }
+    }
+
+    .action-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 16px;
+      transition: border-color 0.2s ease;
+    }
+    .action-card:hover {
+      border-color: var(--text-secondary);
+    }
+
+    .action-card-header h3 {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      margin: 0 0 6px 0;
+    }
+
+    .action-card-header p {
+      margin: 0;
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.45;
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.15s ease;
+      border: 1px solid transparent;
+      text-decoration: none;
+      font-family: inherit;
+    }
+    .btn-primary {
+      background: var(--text-primary);
+      color: var(--bg-page);
+    }
+    .btn-primary:hover {
+      opacity: 0.9;
+    }
+    .btn-secondary {
+      background: var(--bg-card);
+      color: var(--text-primary);
+      border-color: var(--border-color);
+    }
+    .btn-secondary:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--text-secondary);
+    }
+    .btn-sm {
+      padding: 5px 10px;
+      font-size: 12px;
+    }
+
+    /* Badges */
+    .role-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .role-admin { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+    .role-teacher { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
+    .role-cr { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .role-student { background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.25); }
+
+    .tag-badge {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 5px;
+      font-size: 11px;
+      font-weight: 600;
+      background: var(--bg-card-hover);
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+    }
+    .tag-official {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border-color: rgba(16, 185, 129, 0.3);
+    }
+    .tag-restricted {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+      border-color: rgba(245, 158, 11, 0.3);
+    }
+
+    /* Data Table Card */
+    .table-container-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      overflow: hidden;
+      margin-bottom: 24px;
+    }
+
+    .table-toolbar {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .table-filters {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .filter-select, .search-box-input {
+      background: var(--input-bg);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      border-radius: 8px;
+      padding: 7px 12px;
+      font-size: 13px;
+      font-family: inherit;
+    }
+    .filter-select:focus, .search-box-input:focus {
+      outline: none;
+      border-color: var(--text-secondary);
+    }
+
+    .data-table-wrap {
+      overflow-x: auto;
+    }
+
+    .admin-data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      text-align: left;
+    }
+
+    .admin-data-table th {
+      background: var(--table-header-bg);
+      padding: 12px 18px;
+      color: var(--text-secondary);
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid var(--border-color);
+      white-space: nowrap;
+    }
+
+    .admin-data-table td {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border-subtle);
+      color: var(--text-primary);
+      vertical-align: middle;
+    }
+
+    .admin-data-table tr:hover td {
+      background: var(--table-row-hover);
+    }
+
+    .pagination-bar {
+      padding: 14px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid var(--border-color);
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    /* Notice Box */
+    .notice-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+    .notice-box.warning {
+      border-left: 4px solid var(--accent-amber);
+    }
+    .notice-box.info {
+      border-left: 4px solid var(--text-secondary);
+    }
+
+    /* Semesters Grid */
+    .semester-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+    @media (max-width: 900px) {
+      .semester-cards-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 480px) {
+      .semester-cards-grid { grid-template-columns: 1fr; }
+    }
+
+    .sem-stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 16px;
+      transition: border-color 0.15s ease;
+    }
+    .sem-stat-card:hover {
+      border-color: var(--text-secondary);
+    }
+    .sem-stat-title {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 700;
+      font-size: 15px;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .sem-stat-metrics {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+    .sem-stat-row {
+      display: flex;
+      justify-content: space-between;
+    }
+    .sem-stat-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    /* Loading and Empty States */
+    .loading-state, .empty-state {
+      padding: 48px 24px;
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+
+    /* Monospace Identifiers */
+    .mono-code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--text-primary);
+    }
+  </style>
+</head>
+
+<body class="dash admin-body">
+
+  <!-- Apple Pro Header -->
+  <header class="dash-header">
+    <a href="/admin-dashboard.html" class="lib-wordmark">Semester Library</a>
+    <nav class="dash-header-nav">
+      <a href="/admin-dashboard.html" class="header-nav-item active">Dashboard</a>
+      <a href="/admin-cohorts.html" class="header-nav-item">Cohorts</a>
+      <a href="/admin-teachers.html" class="header-nav-item">Teachers</a>
+      <a href="/profile.html" class="header-nav-item">Profile</a>
+    </nav>
+    <div class="dash-header-actions">
+      <button type="button" class="theme-toggle-btn dash-theme-btn" id="themeToggleBtn" aria-label="Toggle theme" title="Toggle theme">
+        <span class="theme-toggle-track">
+          <svg class="theme-icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+          <svg class="theme-icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </span>
+      </button>
+      <a href="/profile.html" class="dash-profile-chip" title="View Profile">
+        <div class="dash-profile-avatar" id="headerAvatar">A</div>
+        <span class="dash-profile-label" id="headerProfileName">Admin</span>
+      </a>
+    </div>
+  </header>
+
+  <main class="admin-layout" id="adminMainContainer">
+
+    <!-- Top Bar -->
+    <div class="admin-top-bar">
+      <div class="admin-title-area">
+        <h1>Admin Control Center</h1>
+        <p>Authoritative portal for users, teachers, cohorts, academics, and platform moderation</p>
+      </div>
+      <div class="admin-top-actions">
+        <a href="/admin-teachers.html" class="btn btn-secondary">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Manage Teachers
+        </a>
+        <a href="/admin-cohorts.html" class="btn btn-secondary">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          Manage Cohorts
+        </a>
+      </div>
+    </div>
+
+    <!-- 7 Unified Admin Navigation Tabs -->
+    <nav class="admin-nav-tabs" role="tablist">
+      <button type="button" class="nav-tab-btn active" data-tab="overview" role="tab">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Overview
+      </button>
+      <button type="button" class="nav-tab-btn" data-tab="users" role="tab">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+        Users
+      </button>
+      <button type="button" class="nav-tab-btn" data-tab="teachers" role="tab">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+        Teachers
+      </button>
+      <button type="button" class="nav-tab-btn" data-tab="academics" role="tab">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        Academics
+      </button>
+      <button type="button" class="nav-tab-btn" data-tab="content" role="tab">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Content
+      </button>
+      <button type="button" class="nav-tab-btn" data-tab="cohorts" role="tab">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+        Cohorts
+      </button>
+      <button type="button" class="nav-tab-btn" data-tab="activity" role="tab">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Activity
+      </button>
+      <button type="button" class="nav-tab-btn" data-tab="settings" role="tab">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Settings
+      </button>
+    </nav>
+
+    <!-- TAB 1: OVERVIEW -->
+    <section class="admin-view-section active" id="view-overview">
+      <!-- Real KPI Cards -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Total Students <span style="opacity:0.6;">Account</span></div>
+          <div class="kpi-value" id="kpi-students">—</div>
+          <div class="kpi-subtext">Active student accounts</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Total Teachers <span style="opacity:0.6;">Faculty</span></div>
+          <div class="kpi-value" id="kpi-teachers">—</div>
+          <div class="kpi-subtext">Verified instructor profiles</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Class Reps (CR) <span style="opacity:0.6;">Role</span></div>
+          <div class="kpi-value" id="kpi-crs">—</div>
+          <div class="kpi-subtext">Designated student liaisons</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Total Posts <span style="opacity:0.6;">Discussions</span></div>
+          <div class="kpi-value" id="kpi-posts">—</div>
+          <div class="kpi-subtext">Public & scoped posts</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Study Materials <span style="opacity:0.6;">Library</span></div>
+          <div class="kpi-value" id="kpi-materials">—</div>
+          <div class="kpi-subtext">Uploaded notes and documents</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Assignments <span style="opacity:0.6;">Academics</span></div>
+          <div class="kpi-value" id="kpi-assignments">—</div>
+          <div class="kpi-subtext">Coursework assignments</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Active Cohorts <span style="opacity:0.6;">Lifecycle</span></div>
+          <div class="kpi-value" id="kpi-cohorts">—</div>
+          <div class="kpi-subtext">Planetary slot assignments</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Teacher Invites <span style="opacity:0.6;">Pending</span></div>
+          <div class="kpi-value" id="kpi-invites">—</div>
+          <div class="kpi-subtext">Pending invitation codes</div>
+        </div>
+      </div>
+
+      <!-- Quick Action Cards -->
+      <div class="action-grid">
+        <div class="action-card">
+          <div class="action-card-header">
+            <h3>Teacher Provisioning & Subjects</h3>
+            <p>Issue temporary faculty access tokens and assign teachers to canonical university subjects.</p>
+          </div>
+          <div>
+            <a href="/admin-teachers.html" class="btn btn-secondary">Open Teacher Management &rarr;</a>
+          </div>
+        </div>
+        <div class="action-card">
+          <div class="action-card-header">
+            <h3>Permanent Cohort Lifecycle</h3>
+            <p>Promote student batches, graduate senior cohorts, and manage planetary cohort slots.</p>
+          </div>
+          <div>
+            <a href="/admin-cohorts.html" class="btn btn-secondary">Open Cohort Management &rarr;</a>
+          </div>
+        </div>
+        <div class="action-card">
+          <div class="action-card-header">
+            <h3>User Directory & Rosters</h3>
+            <p>Inspect student, CR, and faculty accounts across all 8 semesters with secure pagination.</p>
+          </div>
+          <div>
+            <button type="button" class="btn btn-secondary" onclick="switchTab('users')">Explore Users Directory &rarr;</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: USERS -->
+    <section class="admin-view-section" id="view-users">
+      <div class="notice-box info">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        <div>
+          <strong>Read-Only Administrative Directory:</strong> Inspect student, teacher, CR, and administrator records. In Phase 4A, accounts are protected against unverified modifications. Account suspension, role changes, and deletions are reserved for audited actions in Phase 4B.
+        </div>
+      </div>
+
+      <div class="table-container-card">
+        <div class="table-toolbar">
+          <div class="table-filters">
+            <select class="filter-select" id="userFilterRole" onchange="loadUsersData(1)">
+              <option value="all">All Roles</option>
+              <option value="student">Students</option>
+              <option value="teacher">Teachers</option>
+              <option value="cr">Class Representatives (CR)</option>
+              <option value="admin">Administrators</option>
+            </select>
+            <select class="filter-select" id="userFilterSemester" onchange="loadUsersData(1)">
+              <option value="all">All Semesters</option>
+              <option value="1">Semester 1</option>
+              <option value="2">Semester 2</option>
+              <option value="3">Semester 3</option>
+              <option value="4">Semester 4</option>
+              <option value="5">Semester 5</option>
+              <option value="6">Semester 6</option>
+              <option value="7">Semester 7</option>
+              <option value="8">Semester 8</option>
+            </select>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <input type="text" class="search-box-input" id="userSearchInput" placeholder="Search by name, ID, or email..." onkeydown="if(event.key==='Enter') loadUsersData(1)">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="loadUsersData(1)">Search</button>
+          </div>
+        </div>
+
+        <div class="data-table-wrap">
+          <table class="admin-data-table" id="usersTable">
+            <thead>
+              <tr>
+                <th>Student ID</th>
+                <th>Name / Email</th>
+                <th>Role</th>
+                <th>Semester</th>
+                <th>Cohort Slot</th>
+                <th>Status</th>
+                <th>Joined</th>
+              </tr>
+            </thead>
+            <tbody id="usersTableBody">
+              <tr><td colspan="7" class="loading-state">Loading user directory...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="pagination-bar" id="usersPaginationBar">
+          <span id="usersPaginationText">Page 1 of 1</span>
+          <div style="display:flex; gap:8px;">
+            <button type="button" class="btn btn-secondary btn-sm" id="btnPrevUsers" onclick="changeUserPage(-1)">Previous</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="btnNextUsers" onclick="changeUserPage(1)">Next</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: TEACHERS -->
+    <section class="admin-view-section" id="view-teachers">
+      <div class="action-card" style="margin-bottom: 24px;">
+        <div class="action-card-header">
+          <h3>Faculty & Subject Assignments Hub</h3>
+          <p>Teacher onboarding is disabled platform-wide. All teacher invitations and canonical subject assignments are managed by administrators via the established workflow.</p>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <a href="/admin-teachers.html" class="btn btn-primary">Open Full Teacher Management Portal &rarr;</a>
+          <button type="button" class="btn btn-secondary" onclick="loadTeachersSummary()">Refresh Teacher Stats</button>
+        </div>
+      </div>
+
+      <div class="kpi-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 24px;">
+        <div class="kpi-card">
+          <div class="kpi-label">Active Teachers</div>
+          <div class="kpi-value" id="teacher-count-stat">—</div>
+          <div class="kpi-subtext">Verified faculty members</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Pending Invitations</div>
+          <div class="kpi-value" id="teacher-pending-stat">—</div>
+          <div class="kpi-subtext">Active invite tokens awaiting claim</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Teacher Onboarding</div>
+          <div class="kpi-value" style="font-size: 20px; color: var(--accent-red);">DISABLED</div>
+          <div class="kpi-subtext">Self-registration strictly blocked</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: ACADEMICS -->
+    <section class="admin-view-section" id="view-academics">
+      <div class="notice-box info">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        <div>
+          <strong>Cross-Semester Academic Structure:</strong> Administrators can inspect curriculum subjects, study notes, and assignments across all 8 semesters. Existing academic tables are preserved in read-only mode.
+        </div>
+      </div>
+
+      <h3 style="font-size: 16px; margin: 0 0 14px 0;">Semesters Overview (1 – 8)</h3>
+      <div class="semester-cards-grid" id="semesterCardsGrid">
+        <div class="loading-state">Loading academic structure...</div>
+      </div>
+
+      <!-- Materials Explorer -->
+      <div class="table-container-card">
+        <div class="table-toolbar">
+          <h4 style="margin:0; font-size:14px; font-weight:700;">Materials & Study Resources</h4>
+          <div style="display:flex; gap:10px;">
+            <select class="filter-select" id="materialFilterSemester" onchange="loadMaterialsData(1)">
+              <option value="all">All Semesters</option>
+              <option value="1">Semester 1</option>
+              <option value="2">Semester 2</option>
+              <option value="3">Semester 3</option>
+              <option value="4">Semester 4</option>
+              <option value="5">Semester 5</option>
+              <option value="6">Semester 6</option>
+              <option value="7">Semester 7</option>
+              <option value="8">Semester 8</option>
+            </select>
+            <input type="text" class="search-box-input" id="materialSearchInput" placeholder="Filter materials..." onkeydown="if(event.key==='Enter') loadMaterialsData(1)">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="loadMaterialsData(1)">Filter</button>
+          </div>
+        </div>
+        <div class="data-table-wrap">
+          <table class="admin-data-table">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Subject</th>
+                <th>Semester</th>
+                <th>Uploaded By</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody id="materialsTableBody">
+              <tr><td colspan="5" class="loading-state">Loading materials...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pagination-bar">
+          <span id="materialsPaginationText">Page 1 of 1</span>
+          <div style="display:flex; gap:8px;">
+            <button type="button" class="btn btn-secondary btn-sm" id="btnPrevMaterials" onclick="changeMaterialPage(-1)">Previous</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="btnNextMaterials" onclick="changeMaterialPage(1)">Next</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Assignments Explorer -->
+      <div class="table-container-card">
+        <div class="table-toolbar">
+          <h4 style="margin:0; font-size:14px; font-weight:700;">Assignments & Coursework</h4>
+          <div style="display:flex; gap:10px;">
+            <select class="filter-select" id="assignmentFilterSemester" onchange="loadAssignmentsData(1)">
+              <option value="all">All Semesters</option>
+              <option value="1">Semester 1</option>
+              <option value="2">Semester 2</option>
+              <option value="3">Semester 3</option>
+              <option value="4">Semester 4</option>
+              <option value="5">Semester 5</option>
+              <option value="6">Semester 6</option>
+              <option value="7">Semester 7</option>
+              <option value="8">Semester 8</option>
+            </select>
+            <input type="text" class="search-box-input" id="assignmentSearchInput" placeholder="Filter assignments..." onkeydown="if(event.key==='Enter') loadAssignmentsData(1)">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="loadAssignmentsData(1)">Filter</button>
+          </div>
+        </div>
+        <div class="data-table-wrap">
+          <table class="admin-data-table">
+            <thead>
+              <tr>
+                <th>Assignment Title</th>
+                <th>Subject</th>
+                <th>Semester</th>
+                <th>Created By</th>
+                <th>Questions</th>
+                <th>Submissions</th>
+                <th>Deadline</th>
+              </tr>
+            </thead>
+            <tbody id="assignmentsTableBody">
+              <tr><td colspan="7" class="loading-state">Loading assignments...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pagination-bar">
+          <span id="assignmentsPaginationText">Page 1 of 1</span>
+          <div style="display:flex; gap:8px;">
+            <button type="button" class="btn btn-secondary btn-sm" id="btnPrevAssignments" onclick="changeAssignmentPage(-1)">Previous</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="btnNextAssignments" onclick="changeAssignmentPage(1)">Next</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 5: CONTENT -->
+    <section class="admin-view-section" id="view-content">
+      <div class="notice-box info">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <div>
+          <strong>Content & Feed Moderation Oversight:</strong> Scoped view of platform posts and circular notices. Student-only cohort posts are cleanly demarcated with audience scope badges. Direct private messages are strictly private and unexposed.
+        </div>
+      </div>
+
+      <div class="table-container-card">
+        <div class="table-toolbar">
+          <div class="table-filters">
+            <select class="filter-select" id="contentFilterType" onchange="loadContentData(1)">
+              <option value="all">All Post Types</option>
+              <option value="notice">Official Notices</option>
+              <option value="discussion">Discussions</option>
+              <option value="general">General</option>
+            </select>
+            <select class="filter-select" id="contentFilterAudience" onchange="loadContentData(1)">
+              <option value="all">All Audience Scopes</option>
+              <option value="public">Public Feed</option>
+              <option value="student_only">Student-Only Cohort</option>
+            </select>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <input type="text" class="search-box-input" id="contentSearchInput" placeholder="Search post text or author..." onkeydown="if(event.key==='Enter') loadContentData(1)">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="loadContentData(1)">Filter</button>
+          </div>
+        </div>
+
+        <div class="data-table-wrap">
+          <table class="admin-data-table">
+            <thead>
+              <tr>
+                <th>Author</th>
+                <th>Role</th>
+                <th>Content Preview</th>
+                <th>Scope</th>
+                <th>Engagement</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody id="contentTableBody">
+              <tr><td colspan="6" class="loading-state">Loading posts oversight...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="pagination-bar">
+          <span id="contentPaginationText">Page 1 of 1</span>
+          <div style="display:flex; gap:8px;">
+            <button type="button" class="btn btn-secondary btn-sm" id="btnPrevContent" onclick="changeContentPage(-1)">Previous</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="btnNextContent" onclick="changeContentPage(1)">Next</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 6: COHORTS -->
+    <section class="admin-view-section" id="view-cohorts">
+      <div class="action-card" style="margin-bottom: 24px;">
+        <div class="action-card-header">
+          <h3>Permanent Cohort Lifecycle Manager</h3>
+          <p>The Semester Library cohort system manages 4 permanent planetary slots (Mercury, Venus, Earth, Mars). Promote active cohorts, transition graduating students to alumni, and maintain student rosters.</p>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <a href="/admin-cohorts.html" class="btn btn-primary">Open Full Cohort Management Portal &rarr;</a>
+        </div>
+      </div>
+
+      <div class="kpi-grid" style="grid-template-columns: repeat(4, 1fr);">
+        <div class="kpi-card">
+          <div class="kpi-label">Slot 1: Mercury</div>
+          <div class="kpi-value" style="font-size:18px;">SEM 1 & 2</div>
+          <div class="kpi-subtext">First Year Cohort Slot</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Slot 2: Venus</div>
+          <div class="kpi-value" style="font-size:18px;">SEM 3 & 4</div>
+          <div class="kpi-subtext">Second Year Cohort Slot</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Slot 3: Earth</div>
+          <div class="kpi-value" style="font-size:18px;">SEM 5 & 6</div>
+          <div class="kpi-subtext">Third Year Cohort Slot</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Slot 4: Mars</div>
+          <div class="kpi-value" style="font-size:18px;">SEM 7 & 8</div>
+          <div class="kpi-subtext">Final Year / Graduating Slot</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 7: ACTIVITY & AUDIT LOGS -->
+    <section class="admin-view-section" id="view-activity">
+      <div id="activityPendingMigrationBanner" class="notice-box info" style="display:none;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        <div>
+          <strong>Audit Storage Pending Migration:</strong> The <code>admin_audit_logs</code> durable database table has not yet been applied to this environment. Actions are currently logged to application telemetry.
+        </div>
+      </div>
+
+      <div class="table-container-card">
+        <div class="table-toolbar">
+          <div class="table-filters">
+            <select class="filter-select" id="activityFilterAction" onchange="loadActivityData(1)">
+              <option value="all">All Audited Actions</option>
+              <option value="teacher_subject_assigned">Teacher Subject Assigned</option>
+              <option value="teacher_subject_removed">Teacher Subject Removed</option>
+              <option value="teacher_invite_created">Teacher Invite Created</option>
+              <option value="teacher_invite_bulk_created">Teacher Invites Bulk-Created</option>
+              <option value="teacher_invite_password_regenerated">Password Regenerated</option>
+              <option value="teacher_invite_reissued">Teacher Invite Reissued</option>
+              <option value="teacher_invite_revoked">Teacher Invite Revoked</option>
+            </select>
+            <input type="text" class="search-box-input" id="activityFilterActor" placeholder="Filter by admin ID or name..." onkeydown="if(event.key==='Enter') loadActivityData(1)">
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="loadActivityData(1)">Filter</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="loadActivityData(state.activity.page)">Refresh</button>
+          </div>
+        </div>
+
+        <div class="data-table-wrap">
+          <table class="admin-data-table" id="activityTable">
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Administrator</th>
+                <th>Action</th>
+                <th>Target Entity</th>
+                <th>Change Summary</th>
+              </tr>
+            </thead>
+            <tbody id="activityTableBody">
+              <tr><td colspan="5" class="loading-state">Loading activity history...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="pagination-bar" id="activityPaginationBar">
+          <span id="activityPaginationText">Page 1 of 1</span>
+          <div style="display:flex; gap:8px;">
+            <button type="button" class="btn btn-secondary btn-sm" id="btnPrevActivity" onclick="changeActivityPage(-1)">Previous</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="btnNextActivity" onclick="changeActivityPage(1)">Next</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 8: SETTINGS & ROADMAP -->
+    <section class="admin-view-section" id="view-settings">
+      <div class="notice-box warning">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <div>
+          <strong>Phase 4B Scope Notice:</strong> Write actions such as role alterations, account suspensions, destructive deletions, and schema modifications are intentionally deferred to audited workflows.
+        </div>
+      </div>
+
+      <div class="table-container-card" style="padding: 24px;">
+        <h3 style="margin-top:0; font-size:18px; font-weight:700;">Platform Security & Feature Flags</h3>
+        <table class="admin-data-table" style="margin-top:16px;">
+          <thead>
+            <tr>
+              <th>Feature / Component</th>
+              <th>Current Status</th>
+              <th>Enforcement Mechanism</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Teacher Self-Onboarding</strong></td>
+              <td><span class="tag-badge tag-restricted">DISABLED</span></td>
+              <td>Environment flag <code>TEACHER_ONBOARDING_ENABLED = false</code></td>
+            </tr>
+            <tr>
+              <td><strong>Direct Messages Privacy</strong></td>
+              <td><span class="tag-badge tag-official">ENFORCED</span></td>
+              <td>End-to-end user isolation, private DM tables unexposed to moderation feed</td>
+            </tr>
+            <tr>
+              <td><strong>Authoritative Role Checks</strong></td>
+              <td><span class="tag-badge tag-official">ENFORCED</span></td>
+              <td>Server-side database role evaluation on all <code>/api/admin/*</code> routes</td>
+            </tr>
+            <tr>
+              <td><strong>Audit Logging Architecture</strong></td>
+              <td><span class="tag-badge tag-official">ACTIVE</span></td>
+              <td><code>admin_audit_logs</code> (Service active) + <code>cohort_audit_logs</code></td>
+            </tr>
+            <tr>
+              <td><strong>Phase 4B.1: Durable Audit Table</strong></td>
+              <td><span class="tag-badge tag-official">PREPARED</span></td>
+              <td><code>migrations/20261012_admin_audit_logs.sql</code> (Forward-only schema ready)</td>
+            </tr>
+            <tr>
+              <td><strong>Phase 4B: Role Escalation & Account Suspension</strong></td>
+              <td><span class="tag-badge">UPCOMING</span></td>
+              <td>Requires audited, dual-approval workflow in Phase 4B</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // State management
+    const state = {
+      activeTab: 'overview',
+      loadedTabs: new Set(),
+      users: { page: 1, limit: 15, total: 0, totalPages: 1 },
+      materials: { page: 1, limit: 10, total: 0, totalPages: 1 },
+      assignments: { page: 1, limit: 10, total: 0, totalPages: 1 },
+      content: { page: 1, limit: 10, total: 0, totalPages: 1 },
+      activity: { page: 1, limit: 15, total: 0, totalPages: 1 }
+    };
+
+    // Tab switching
+    function switchTab(tabId) {
+      state.activeTab = tabId;
+
+      document.querySelectorAll('.nav-tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
+      });
+
+      document.querySelectorAll('.admin-view-section').forEach(sec => {
+        sec.classList.toggle('active', sec.id === `view-${tabId}`);
+      });
+
+      // Lazy-load data when opened
+      if (!state.loadedTabs.has(tabId)) {
+        state.loadedTabs.add(tabId);
+        if (tabId === 'users') loadUsersData(1);
+        if (tabId === 'teachers') loadTeachersSummary();
+        if (tabId === 'academics') {
+          loadAcademicsSummary();
+          loadMaterialsData(1);
+          loadAssignmentsData(1);
+        }
+        if (tabId === 'content') loadContentData(1);
+        if (tabId === 'activity') loadActivityData(1);
+      }
+    }
+
+    // Attach Tab Event Listeners
+    document.querySelectorAll('.nav-tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tab = btn.getAttribute('data-tab');
+        switchTab(tab);
+      });
+    });
+
+    // 1. Load Overview (Only initial request on startup)
+    async function loadOverview() {
+      try {
+        const res = await fetch('/api/admin/overview');
+        if (!res.ok) {
+          if (res.status === 401 || res.status === 403) {
+            handleAccessDenied();
+            return;
+          }
+          throw new Error('Failed to load overview data');
+        }
+        const data = await res.json();
+        const counts = data.counts || {};
+
+        document.getElementById('kpi-students').textContent = Number(counts.students || 0).toLocaleString();
+        document.getElementById('kpi-teachers').textContent = Number(counts.teachers || 0).toLocaleString();
+        document.getElementById('kpi-crs').textContent = Number(counts.crs || 0).toLocaleString();
+        document.getElementById('kpi-posts').textContent = Number(counts.posts || 0).toLocaleString();
+        document.getElementById('kpi-materials').textContent = Number(counts.materials || 0).toLocaleString();
+        document.getElementById('kpi-assignments').textContent = Number(counts.assignments || 0).toLocaleString();
+        document.getElementById('kpi-cohorts').textContent = Number(counts.activeCohorts || 0).toLocaleString();
+        document.getElementById('kpi-invites').textContent = Number(counts.pendingTeacherInvites || 0).toLocaleString();
+
+        if (data.admin && data.admin.name) {
+          const av = document.getElementById('headerAvatar');
+          const lbl = document.getElementById('headerProfileName');
+          if (av) av.textContent = data.admin.name.charAt(0).toUpperCase();
+          if (lbl) lbl.textContent = data.admin.name.split(' ')[0] || 'Admin';
+        }
+
+        // Cache summary counts for other views
+        state.overviewCounts = counts;
+      } catch (err) {
+        console.error('Error loading overview:', err);
+      }
+    }
+
+    function handleAccessDenied() {
+      const main = document.getElementById('adminMainContainer');
+      if (main) {
+        main.innerHTML = `
+          <div class="action-card" style="max-width: 480px; margin: 60px auto; text-align: center; border-color: var(--accent-red);">
+            <h2 style="color: var(--accent-red); margin: 0 0 10px 0;">403 — Access Denied</h2>
+            <p style="color: var(--text-secondary); margin: 0 0 20px 0;">Administrator privileges required to access the Semester Library Admin Center.</p>
+            <a href="/login.html" class="btn btn-primary" style="align-self: center;">Return to Sign In</a>
+          </div>
+        `;
+      }
+    }
+
+    // 2. Load Users Directory
+    async function loadUsersData(page = 1) {
+      state.users.page = page;
+      const role = document.getElementById('userFilterRole')?.value || 'all';
+      const semester = document.getElementById('userFilterSemester')?.value || 'all';
+      const search = (document.getElementById('userSearchInput')?.value || '').trim();
+
+      const tbody = document.getElementById('usersTableBody');
+      if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="loading-state">Loading users page ${page}...</td></tr>`;
+
+      try {
+        const q = new URLSearchParams({
+          page: String(page),
+          limit: String(state.users.limit),
+          role,
+          semester,
+          search
+        });
+        const res = await fetch(`/api/admin/users?${q.toString()}`);
+        if (!res.ok) throw new Error('Failed to load users');
+        const data = await res.json();
+
+        state.users.total = data.pagination?.total || 0;
+        state.users.totalPages = data.pagination?.totalPages || 1;
+
+        if (!data.users || data.users.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="7" class="empty-state">No matching users found.</td></tr>`;
+        } else {
+          tbody.innerHTML = data.users.map(u => {
+            const roleClass = `role-${u.role || 'student'}`;
+            const cohortText = u.cohort_slot ? `${u.cohort_slot.toUpperCase()} (${u.cohort_name || 'Active'})` : '—';
+            const joinedDate = u.created_at ? new Date(u.created_at).toLocaleDateString() : '—';
+            const semText = u.semester ? `Semester ${u.semester}` : '—';
+            return `
+              <tr>
+                <td class="mono-code">${escapeHtml(u.studentId)}</td>
+                <td>
+                  <strong>${escapeHtml(u.name || 'Unnamed')}</strong>
+                  <div style="font-size:11.5px; color:var(--text-muted);">${escapeHtml(u.email || u.username || '—')}</div>
+                </td>
+                <td><span class="role-badge ${roleClass}">${escapeHtml(u.role || 'student')}</span></td>
+                <td>${escapeHtml(semText)}</td>
+                <td>${escapeHtml(cohortText)}</td>
+                <td><span class="tag-badge ${u.verification_status === 'verified' ? 'tag-official' : ''}">${escapeHtml(u.verification_status || 'active')}</span></td>
+                <td style="color:var(--text-muted); font-size:12px;">${escapeHtml(joinedDate)}</td>
+              </tr>
+            `;
+          }).join('');
+        }
+
+        const pText = document.getElementById('usersPaginationText');
+        if (pText) pText.textContent = `Showing page ${page} of ${state.users.totalPages} (${state.users.total} users)`;
+        document.getElementById('btnPrevUsers').disabled = page <= 1;
+        document.getElementById('btnNextUsers').disabled = page >= state.users.totalPages;
+      } catch (err) {
+        console.error('Error loading users:', err);
+        if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="empty-state" style="color:var(--accent-red);">Failed to load users.</td></tr>`;
+      }
+    }
+
+    function changeUserPage(delta) {
+      const target = state.users.page + delta;
+      if (target >= 1 && target <= state.users.totalPages) {
+        loadUsersData(target);
+      }
+    }
+
+    // 3. Load Teachers Summary
+    function loadTeachersSummary() {
+      const tStat = document.getElementById('teacher-count-stat');
+      const iStat = document.getElementById('teacher-pending-stat');
+      if (state.overviewCounts) {
+        if (tStat) tStat.textContent = Number(state.overviewCounts.teachers || 0).toLocaleString();
+        if (iStat) iStat.textContent = Number(state.overviewCounts.pendingTeacherInvites || 0).toLocaleString();
+      }
+    }
+
+    // 4. Load Academics Summary & Lists
+    async function loadAcademicsSummary() {
+      const grid = document.getElementById('semesterCardsGrid');
+      try {
+        const res = await fetch('/api/admin/academics');
+        if (!res.ok) throw new Error('Failed to load academics summary');
+        const data = await res.json();
+
+        if (grid && data.semesters) {
+          grid.innerHTML = data.semesters.map(s => `
+            <div class="sem-stat-card">
+              <div class="sem-stat-title">
+                ${escapeHtml(s.label)}
+                <span class="mono-code">S${s.semester}</span>
+              </div>
+              <div class="sem-stat-metrics">
+                <div class="sem-stat-row">
+                  <span>Active Subjects:</span>
+                  <span class="sem-stat-val">${s.subjectsCount}</span>
+                </div>
+                <div class="sem-stat-row">
+                  <span>Materials / Notes:</span>
+                  <span class="sem-stat-val">${s.materialsCount}</span>
+                </div>
+                <div class="sem-stat-row">
+                  <span>Assignments:</span>
+                  <span class="sem-stat-val">${s.assignmentsCount}</span>
+                </div>
+              </div>
+            </div>
+          `).join('');
+        }
+      } catch (err) {
+        console.error('Error loading academics summary:', err);
+        if (grid) grid.innerHTML = `<div class="empty-state" style="color:var(--accent-red);">Failed to load semesters summary.</div>`;
+      }
+    }
+
+    // 4b. Materials explorer
+    async function loadMaterialsData(page = 1) {
+      state.materials.page = page;
+      const sem = document.getElementById('materialFilterSemester')?.value || 'all';
+      const search = (document.getElementById('materialSearchInput')?.value || '').trim();
+      const tbody = document.getElementById('materialsTableBody');
+      if (tbody) tbody.innerHTML = `<tr><td colspan="5" class="loading-state">Loading materials...</td></tr>`;
+
+      try {
+        const q = new URLSearchParams({ page: String(page), limit: String(state.materials.limit), semester: sem, search });
+        const res = await fetch(`/api/admin/academics/materials?${q.toString()}`);
+        if (!res.ok) throw new Error('Failed to load materials');
+        const data = await res.json();
+        state.materials.total = data.pagination?.total || 0;
+        state.materials.totalPages = data.pagination?.totalPages || 1;
+
+        if (!data.materials || data.materials.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="5" class="empty-state">No materials found.</td></tr>`;
+        } else {
+          tbody.innerHTML = data.materials.map(m => `
+            <tr>
+              <td><strong>${escapeHtml(m.title || m.originalName || 'Untitled')}</strong></td>
+              <td>${escapeHtml(m.subject || '—')}</td>
+              <td><span class="tag-badge">Sem ${escapeHtml(String(m.semester || '—'))}</span></td>
+              <td>${escapeHtml(m.uploader_name || m.uploadedBy || '—')}</td>
+              <td style="color:var(--text-muted); font-size:12px;">${m.uploadedAt ? new Date(m.uploadedAt).toLocaleDateString() : '—'}</td>
+            </tr>
+          `).join('');
+        }
+
+        const pText = document.getElementById('materialsPaginationText');
+        if (pText) pText.textContent = `Page ${page} of ${state.materials.totalPages} (${state.materials.total} items)`;
+        document.getElementById('btnPrevMaterials').disabled = page <= 1;
+        document.getElementById('btnNextMaterials').disabled = page >= state.materials.totalPages;
+      } catch (err) {
+        console.error('Error loading materials:', err);
+      }
+    }
+
+    function changeMaterialPage(delta) {
+      const target = state.materials.page + delta;
+      if (target >= 1 && target <= state.materials.totalPages) loadMaterialsData(target);
+    }
+
+    // 4c. Assignments explorer
+    async function loadAssignmentsData(page = 1) {
+      state.assignments.page = page;
+      const sem = document.getElementById('assignmentFilterSemester')?.value || 'all';
+      const search = (document.getElementById('assignmentSearchInput')?.value || '').trim();
+      const tbody = document.getElementById('assignmentsTableBody');
+      if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="loading-state">Loading assignments...</td></tr>`;
+
+      try {
+        const q = new URLSearchParams({ page: String(page), limit: String(state.assignments.limit), semester: sem, search });
+        const res = await fetch(`/api/admin/academics/assignments?${q.toString()}`);
+        if (!res.ok) throw new Error('Failed to load assignments');
+        const data = await res.json();
+        state.assignments.total = data.pagination?.total || 0;
+        state.assignments.totalPages = data.pagination?.totalPages || 1;
+
+        if (!data.assignments || data.assignments.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="7" class="empty-state">No assignments found.</td></tr>`;
+        } else {
+          tbody.innerHTML = data.assignments.map(a => `
+            <tr>
+              <td><strong>${escapeHtml(a.title || 'Untitled')}</strong></td>
+              <td>${escapeHtml(a.subject || '—')}</td>
+              <td><span class="tag-badge">Sem ${escapeHtml(String(a.semester || '—'))}</span></td>
+              <td>${escapeHtml(a.author_name || a.createdBy || '—')}</td>
+              <td class="mono-code">${a.question_count || 0}</td>
+              <td class="mono-code">${a.submission_count || 0}</td>
+              <td style="color:var(--text-muted); font-size:12px;">${a.deadline ? new Date(a.deadline).toLocaleDateString() : 'No deadline'}</td>
+            </tr>
+          `).join('');
+        }
+
+        const pText = document.getElementById('assignmentsPaginationText');
+        if (pText) pText.textContent = `Page ${page} of ${state.assignments.totalPages} (${state.assignments.total} assignments)`;
+        document.getElementById('btnPrevAssignments').disabled = page <= 1;
+        document.getElementById('btnNextAssignments').disabled = page >= state.assignments.totalPages;
+      } catch (err) {
+        console.error('Error loading assignments:', err);
+      }
+    }
+
+    function changeAssignmentPage(delta) {
+      const target = state.assignments.page + delta;
+      if (target >= 1 && target <= state.assignments.totalPages) loadAssignmentsData(target);
+    }
+
+    // 5. Load Content Oversight
+    async function loadContentData(page = 1) {
+      state.content.page = page;
+      const type = document.getElementById('contentFilterType')?.value || 'all';
+      const audience = document.getElementById('contentFilterAudience')?.value || 'all';
+      const search = (document.getElementById('contentSearchInput')?.value || '').trim();
+      const tbody = document.getElementById('contentTableBody');
+      if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="loading-state">Loading posts oversight...</td></tr>`;
+
+      try {
+        const q = new URLSearchParams({ page: String(page), limit: String(state.content.limit), type, audience, search });
+        const res = await fetch(`/api/admin/content?${q.toString()}`);
+        if (!res.ok) throw new Error('Failed to load content');
+        const data = await res.json();
+        state.content.total = data.pagination?.total || 0;
+        state.content.totalPages = data.pagination?.totalPages || 1;
+
+        if (!data.posts || data.posts.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="6" class="empty-state">No matching posts found.</td></tr>`;
+        } else {
+          tbody.innerHTML = data.posts.map(p => {
+            const authorRoleClass = `role-${p.author_role || 'student'}`;
+            const isStudentOnly = p.audience_scope === 'student_only';
+            const scopeBadge = isStudentOnly
+              ? `<span class="tag-badge tag-restricted">Student-Only Cohort</span>`
+              : (p.is_official ? `<span class="tag-badge tag-official">Official Notice</span>` : `<span class="tag-badge">Public</span>`);
+            const preview = escapeHtml((p.content || '').substring(0, 100)) + ((p.content || '').length > 100 ? '…' : '');
+            return `
+              <tr>
+                <td><strong>${escapeHtml(p.author_name || p.user_id || '—')}</strong></td>
+                <td><span class="role-badge ${authorRoleClass}">${escapeHtml(p.author_role || 'student')}</span></td>
+                <td>${preview}</td>
+                <td>${scopeBadge}</td>
+                <td style="font-size:12px; color:var(--text-secondary);">${p.likes_count || 0} likes &middot; ${p.comments_count || 0} comments</td>
+                <td style="color:var(--text-muted); font-size:12px;">${p.created_at ? new Date(p.created_at).toLocaleDateString() : '—'}</td>
+              </tr>
+            `;
+          }).join('');
+        }
+
+        const pText = document.getElementById('contentPaginationText');
+        if (pText) pText.textContent = `Page ${page} of ${state.content.totalPages} (${state.content.total} posts)`;
+        document.getElementById('btnPrevContent').disabled = page <= 1;
+        document.getElementById('btnNextContent').disabled = page >= state.content.totalPages;
+      } catch (err) {
+        console.error('Error loading content oversight:', err);
+      }
+    }
+
+    function changeContentPage(delta) {
+      const target = state.content.page + delta;
+      if (target >= 1 && target <= state.content.totalPages) loadContentData(target);
+    }
+
+    // 6. Load Activity & Administrative Audit Logs
+    async function loadActivityData(page = 1) {
+      state.activity.page = page;
+      const action = document.getElementById('activityFilterAction')?.value || 'all';
+      const actor = (document.getElementById('activityFilterActor')?.value || '').trim();
+      const tbody = document.getElementById('activityTableBody');
+      const banner = document.getElementById('activityPendingMigrationBanner');
+      if (tbody) tbody.innerHTML = `<tr><td colspan="5" class="loading-state">Loading audit history page ${page}...</td></tr>`;
+
+      try {
+        const q = new URLSearchParams({
+          page: String(page),
+          limit: String(state.activity.limit),
+          action,
+          actor
+        });
+        const res = await fetch(`/api/admin/activity?${q.toString()}`);
+        if (!res.ok) throw new Error('Failed to load activity logs');
+        const data = await res.json();
+
+        if (data.auditTableAvailable === false) {
+          if (banner) banner.style.display = 'flex';
+          if (tbody) tbody.innerHTML = `<tr><td colspan="5" class="empty-state">Audit storage table not yet migrated. Activity is logged to application runtime logs.</td></tr>`;
+          const pText = document.getElementById('activityPaginationText');
+          if (pText) pText.textContent = 'Page 1 of 1 (0 events)';
+          const prevBtn = document.getElementById('btnPrevActivity');
+          const nextBtn = document.getElementById('btnNextActivity');
+          if (prevBtn) prevBtn.disabled = true;
+          if (nextBtn) nextBtn.disabled = true;
+          return;
+        }
+
+        if (banner) banner.style.display = 'none';
+
+        state.activity.total = data.pagination?.total || 0;
+        state.activity.totalPages = data.pagination?.totalPages || 1;
+
+        if (!data.logs || data.logs.length === 0) {
+          if (tbody) tbody.innerHTML = `<tr><td colspan="5" class="empty-state">No matching audit events found.</td></tr>`;
+        } else {
+          if (tbody) {
+            tbody.innerHTML = data.logs.map(log => {
+              const dateStr = log.created_at ? new Date(log.created_at).toLocaleString() : '—';
+              const actorDisplay = escapeHtml(log.actor_name || log.actor_user_id || 'System/Admin');
+              const actorIdDisplay = log.actor_user_id ? `<div class="mono-code" style="font-size:11px; color:var(--text-muted);">${escapeHtml(log.actor_user_id)}</div>` : '';
+              const actionBadge = formatActionBadge(log.action);
+              const entityDisplay = formatEntityDisplay(log.entity_type, log.entity_id);
+              const changeSummary = formatChangeSummary(log);
+
+              return `
+                <tr>
+                  <td style="white-space: nowrap; font-size: 12px; color: var(--text-secondary);">${escapeHtml(dateStr)}</td>
+                  <td>
+                    <strong>${actorDisplay}</strong>
+                    ${actorIdDisplay}
+                  </td>
+                  <td>${actionBadge}</td>
+                  <td>${entityDisplay}</td>
+                  <td style="font-size: 13px;">${changeSummary}</td>
+                </tr>
+              `;
+            }).join('');
+          }
+        }
+
+        const pText = document.getElementById('activityPaginationText');
+        if (pText) pText.textContent = `Showing page ${page} of ${state.activity.totalPages} (${state.activity.total} events)`;
+        const prevBtn = document.getElementById('btnPrevActivity');
+        const nextBtn = document.getElementById('btnNextActivity');
+        if (prevBtn) prevBtn.disabled = page <= 1;
+        if (nextBtn) nextBtn.disabled = page >= state.activity.totalPages;
+      } catch (err) {
+        console.error('Error loading activity logs:', err);
+        if (tbody) tbody.innerHTML = `<tr><td colspan="5" class="empty-state" style="color:var(--accent-red);">Failed to load activity logs.</td></tr>`;
+      }
+    }
+
+    function changeActivityPage(delta) {
+      const target = state.activity.page + delta;
+      if (target >= 1 && target <= state.activity.totalPages) {
+        loadActivityData(target);
+      }
+    }
+
+    function formatActionBadge(action) {
+      const safeAction = escapeHtml(action || 'unknown');
+      return `<span class="tag-badge mono-code">${safeAction}</span>`;
+    }
+
+    function formatEntityDisplay(entityType, entityId) {
+      const typeStr = escapeHtml(entityType || 'entity');
+      const idStr = entityId ? `<span class="mono-code">${escapeHtml(String(entityId))}</span>` : '';
+      return `<div><strong>${typeStr}</strong> ${idStr}</div>`;
+    }
+
+    function formatChangeSummary(log) {
+      const meta = log.metadata || {};
+      const after = log.after_state || {};
+      const before = log.before_state || {};
+
+      if (log.action === 'teacher_subject_assigned') {
+        const sub = after.subject_code || after.subjectCode || meta.subjectCode || 'subject';
+        const teacher = after.teacher_user_id || after.teacherUserId || log.entity_id;
+        return `Assigned subject <strong>${escapeHtml(sub)}</strong> to teacher <span class="mono-code">${escapeHtml(teacher)}</span>`;
+      }
+      if (log.action === 'teacher_subject_removed') {
+        const sub = before.subject_code || before.subjectCode || meta.subjectCode || 'subject';
+        const teacher = before.teacher_user_id || before.teacherUserId || log.entity_id;
+        return `Removed subject <strong>${escapeHtml(sub)}</strong> from teacher <span class="mono-code">${escapeHtml(teacher)}</span>`;
+      }
+      if (log.action === 'teacher_invite_created') {
+        const email = meta.email || after.email || log.entity_id;
+        const count = meta.assignedSubjectsCount || (after.assignedSubjects ? after.assignedSubjects.length : 0);
+        return `Created invitation for <strong>${escapeHtml(email)}</strong> (${count} subjects)`;
+      }
+      if (log.action === 'teacher_invite_bulk_created') {
+        const total = meta.total || meta.createdCount || 'multiple';
+        return `Bulk created <strong>${escapeHtml(String(total))}</strong> teacher invitations`;
+      }
+      if (log.action === 'teacher_invite_password_regenerated') {
+        return `Regenerated credentials for invite <span class="mono-code">${escapeHtml(String(log.entity_id))}</span>`;
+      }
+      if (log.action === 'teacher_invite_reissued') {
+        return `Reissued invitation token for <span class="mono-code">${escapeHtml(String(log.entity_id))}</span>`;
+      }
+      if (log.action === 'teacher_invite_revoked') {
+        return `Revoked invitation token for <span class="mono-code">${escapeHtml(String(log.entity_id))}</span>`;
+      }
+      if (log.action === 'cohort_promoted') {
+        return `Promoted cohort slot <span class="mono-code">${escapeHtml(String(log.entity_id))}</span>`;
+      }
+      if (log.action === 'cohort_student_assigned') {
+        return `Assigned student to cohort <span class="mono-code">${escapeHtml(String(log.entity_id))}</span>`;
+      }
+
+      const details = meta.description || meta.note || (log.action ? log.action.replace(/_/g, ' ') : 'Administrative update');
+      return escapeHtml(details);
+    }
+
+    // Utility: XSS prevention helper
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    // Startup initialization: only load overview initially (Step 10 Performance)
+    document.addEventListener('DOMContentLoaded', () => {
+      state.loadedTabs.add('overview');
+      loadOverview();
+    });
+  </script>
+</body>
+
+</html>

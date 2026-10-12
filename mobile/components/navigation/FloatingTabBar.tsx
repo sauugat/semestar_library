@@ -46,8 +46,8 @@ interface TabConfig {
   iconFilled: keyof typeof Ionicons.glyphMap;
 }
 
-// Exactly five tabs in strict order with Chat in the exact center (index 2)
-export const TAB_CONFIGS: TabConfig[] = [
+// Strictly five tabs in ordered sequence with Chat in center (index 2)
+export const STUDENT_TAB_CONFIGS: TabConfig[] = [
   {
     name: 'index',
     label: 'Home',
@@ -79,6 +79,42 @@ export const TAB_CONFIGS: TabConfig[] = [
     iconFilled: 'person',
   },
 ];
+
+export const TEACHER_TAB_CONFIGS: TabConfig[] = [
+  {
+    name: 'index',
+    label: 'Dashboard',
+    iconOutline: 'grid-outline',
+    iconFilled: 'grid',
+  },
+  {
+    name: 'library',
+    label: 'My Materials',
+    iconOutline: 'folder-outline',
+    iconFilled: 'folder',
+  },
+  {
+    name: 'chat',
+    label: 'Chat',
+    iconOutline: 'chatbubble-outline',
+    iconFilled: 'chatbubble',
+  },
+  {
+    name: 'games',
+    label: 'Notices',
+    iconOutline: 'megaphone-outline',
+    iconFilled: 'megaphone',
+  },
+  {
+    name: 'profile',
+    label: 'Profile',
+    iconOutline: 'person-outline',
+    iconFilled: 'person',
+  },
+];
+
+// Preserved for backwards compatibility with tests and layout math
+export const TAB_CONFIGS: TabConfig[] = STUDENT_TAB_CONFIGS;
 
 // Normal Mode dimensions
 export const BAR_HEIGHT_NORMAL = 54;
@@ -140,6 +176,8 @@ export function FloatingTabBar({
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
   const { user, serverUrl } = useAuth();
+  const isTeacher = user?.role === 'teacher' || user?.role === 'faculty';
+  const currentTabConfigs = isTeacher ? TEACHER_TAB_CONFIGS : STUDENT_TAB_CONFIGS;
   const { isCompact, resetCompact } = useNavScroll();
   const [avatarLoadError, setAvatarLoadError] = useState(false);
   const isLiquidGlassSupported = useMemo(() => isLiquidGlassSupportedOnDevice(), []);
@@ -312,7 +350,7 @@ export function FloatingTabBar({
 
   const handleTabSelect = (targetIndex: number) => {
     const clampedIndex = Math.min(4, Math.max(0, targetIndex));
-    const targetTab = TAB_CONFIGS[clampedIndex];
+    const targetTab = currentTabConfigs[clampedIndex] || TAB_CONFIGS[clampedIndex];
     const isAlreadyFocused = state.index === clampedIndex;
 
     // Smoothly scroll native pager to target tab
@@ -541,7 +579,7 @@ export function FloatingTabBar({
         </Animated.View>
 
         {/* 5 Tab Buttons — equally distributed with flex: 1 for symmetric center-based shrinking */}
-        {TAB_CONFIGS.map((tab, idx) => {
+        {currentTabConfigs.map((tab, idx) => {
           const isSelected = hoveredIndex !== null ? hoveredIndex === idx : state.index === idx;
           const isProfileTab = tab.name === 'profile';
 

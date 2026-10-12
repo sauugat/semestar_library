@@ -25,7 +25,9 @@ const {
   normalizeCategory,
   normalizeVisibility,
   parseAndValidateTargetSemesters,
-  formatSemesterDisplay
+  formatSemesterDisplay,
+  isModerationSchemaAvailable,
+  isContentReportsAvailable
 } = require('../lib/posts');
 const {
   getAcademicContext,
@@ -168,21 +170,26 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
     }
   });
 
-  const selectPosts = `
-    SELECT p.*, s.name, s.role, s.avatarUrl AS "avatarUrl", s.studentId AS "studentId",
-      COALESCE(l.like_count, 0) AS like_count,
-      COALESCE(c.comment_count, 0) AS comment_count,
-      COALESCE(sub.submission_count, 0) AS submission_count,
-      (mine.user_id IS NOT NULL) AS liked_by_me
-    FROM posts p
-    LEFT JOIN students s ON s.studentId = p.user_id
-    LEFT JOIN (SELECT post_id, COUNT(*) AS like_count FROM post_likes GROUP BY post_id) l
-      ON l.post_id = p.id
-    LEFT JOIN (SELECT post_id, COUNT(*) AS comment_count FROM post_comments WHERE deleted_at IS NULL AND (moderation_status IS NULL OR moderation_status = 'active') GROUP BY post_id) c
-      ON c.post_id = p.id
-    LEFT JOIN post_likes mine ON mine.post_id = p.id AND mine.user_id = ?
-    LEFT JOIN (SELECT post_id, COUNT(*) AS submission_count FROM post_submissions GROUP BY post_id) sub
-      ON sub.post_id = p.id AND p.type = 'assignment'`;
+  function buildSelectPosts(modAvail = true) {
+    const commentFilter = modAvail
+      ? "WHERE deleted_at IS NULL AND (moderation_status IS NULL OR moderation_status = 'active')"
+      : "WHERE deleted_at IS NULL";
+    return `
+      SELECT p.*, s.name, s.role, s.avatarUrl AS "avatarUrl", s.studentId AS "studentId",
+        COALESCE(l.like_count, 0) AS like_count,
+        COALESCE(c.comment_count, 0) AS comment_count,
+        COALESCE(sub.submission_count, 0) AS submission_count,
+        (mine.user_id IS NOT NULL) AS liked_by_me
+      FROM posts p
+      LEFT JOIN students s ON s.studentId = p.user_id
+      LEFT JOIN (SELECT post_id, COUNT(*) AS like_count FROM post_likes GROUP BY post_id) l
+        ON l.post_id = p.id
+      LEFT JOIN (SELECT post_id, COUNT(*) AS comment_count FROM post_comments ${commentFilter} GROUP BY post_id) c
+        ON c.post_id = p.id
+      LEFT JOIN post_likes mine ON mine.post_id = p.id AND mine.user_id = ?
+      LEFT JOIN (SELECT post_id, COUNT(*) AS submission_count FROM post_submissions GROUP BY post_id) sub
+        ON sub.post_id = p.id AND p.type = 'assignment'`;
+  }
 
   const runTransaction = typeof db.withTransaction === 'function'
     ? (fn) => db.withTransaction(fn)
@@ -550,7 +557,10 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       params.push(...academicFilter.params);
 
       // Moderation filter: removed posts are hidden from all feeds, search, and list endpoints
-      whereConditions.push("(p.moderation_status IS NULL OR p.moderation_status = 'active')");
+      const modAvail = await isModerationSchemaAvailable(db);
+      if (modAvail) {
+        whereConditions.push("(p.moderation_status IS NULL OR p.moderation_status = 'active')");
+      }
 
       // Category filter
       if (category !== undefined && category !== 'all' && category !== '') {
@@ -706,6 +716,7 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       }
       const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
       params.push(Number(limit) + 1);
+      const selectPosts = buildSelectPosts(modAvail);
       const rows = await db.all(`${selectPosts}
         ${whereClause} ORDER BY p.id DESC LIMIT ?`, ...params);
       const hasMore = rows.length > Number(limit);
@@ -1112,7 +1123,8 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
           }
         }
 
-        postRow = await tx.get(`${selectPosts} WHERE p.id = ?`, req.postUser.studentId, newPostId);
+        const modAvail = await isModerationSchemaAvailable(tx);
+        postRow = await tx.get(`${buildSelectPosts(modAvail)} WHERE p.id = ?`, req.postUser.studentId, newPostId);
       });
       req.postCreated = true;
 
@@ -1180,10 +1192,11 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
         return res.status(400).json({ message: 'Invalid post ID.' });
       }
       const currentUserId = req.student?.studentId || req.user?.studentId || req.session?.studentId || null;
-      const row = await db.get(`${selectPosts} WHERE p.id = ?`, currentUserId, postId);
+      const modAvail = await isModerationSchemaAvailable(db);
+      const row = await db.get(`${buildSelectPosts(modAvail)} WHERE p.id = ?`, currentUserId, postId);
       if (!row) return res.status(404).json({ message: 'Post not found.' });
 
-      if (row.moderation_status === 'removed') {
+      if (modAvail && row.moderation_status === 'removed') {
         return res.status(404).json({
           message: 'This post is no longer available as it was removed by moderation.',
           isRemoved: true
@@ -1283,14 +1296,16 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
   }
 
   async function getAndAuthorizePost(req, postId) {
+    const modAvail = await isModerationSchemaAvailable(db);
     const post = await db.get(`
       SELECT p.id, p.user_id, p.content, p.cohort_id, p.semester_no, p.audience_scope,
-             p.target_all_semesters, p.visibility, p.type, p.category, p.moderation_status, s.role
+             p.target_all_semesters, p.visibility, p.type, p.category,
+             ${modAvail ? 'p.moderation_status' : "'active' AS moderation_status"}, s.role
       FROM posts p
       LEFT JOIN students s ON s.studentId = p.user_id
       WHERE p.id = ?`, postId);
     if (!post) return null;
-    if (post.moderation_status === 'removed') return null;
+    if (modAvail && post.moderation_status === 'removed') return null;
     const context = await getAcademicContext(db, req);
     if (!assertContentAccess(context, post)) return null;
     if (!assertAudienceAccess(req, post)) return null;
@@ -1539,6 +1554,14 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
         return res.status(401).json({ message: 'Authentication required to report content.' });
       }
 
+      const reportsAvail = await isContentReportsAvailable(db);
+      if (!reportsAvail) {
+        return res.status(503).json({
+          message: 'Content reporting is temporarily unavailable pending database migration.',
+          migrationPending: true
+        });
+      }
+
       // Check account suspension
       const reporter = await db.get('SELECT studentId, account_status FROM students WHERE studentId = ?', reporterId);
       if (reporter && (reporter.account_status === 'suspended' || reporter.accountStatus === 'suspended')) {
@@ -1604,6 +1627,14 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
         return res.status(401).json({ message: 'Authentication required to report content.' });
       }
 
+      const reportsAvail = await isContentReportsAvailable(db);
+      if (!reportsAvail) {
+        return res.status(503).json({
+          message: 'Content reporting is temporarily unavailable pending database migration.',
+          migrationPending: true
+        });
+      }
+
       const reporter = await db.get('SELECT studentId, account_status FROM students WHERE studentId = ?', reporterId);
       if (reporter && (reporter.account_status === 'suspended' || reporter.accountStatus === 'suspended')) {
         return res.status(403).json({ message: 'Suspended accounts cannot submit content reports.' });
@@ -1616,11 +1647,12 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       }
 
       // Verify comment exists on this post
+      const modAvail = await isModerationSchemaAvailable(db);
       const comment = await db.get(
-        'SELECT id, post_id, deleted_at, moderation_status FROM post_comments WHERE id = ? AND post_id = ?',
+        `SELECT id, post_id, deleted_at ${modAvail ? ', moderation_status' : ''} FROM post_comments WHERE id = ? AND post_id = ?`,
         commentId, postId
       );
-      if (!comment || comment.deleted_at || comment.moderation_status === 'removed') {
+      if (!comment || comment.deleted_at || (modAvail && comment.moderation_status === 'removed')) {
         return res.status(404).json({ message: 'Comment not found.' });
       }
 
@@ -2015,7 +2047,8 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
 
       await cleanupUnattachedBlobs(removedBlobsToClean);
 
-      const updatedRow = await db.get(`${selectPosts} WHERE p.id = ?`, req.postUser.studentId, postId);
+      const modAvail = await isModerationSchemaAvailable(db);
+      const updatedRow = await db.get(`${buildSelectPosts(modAvail)} WHERE p.id = ?`, req.postUser.studentId, postId);
       const formatted = formatPost(updatedRow, req);
       await attachMediaToPosts([formatted]);
       await attachTargetSemestersToPosts([formatted]);
@@ -2031,9 +2064,13 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
   router.delete('/:id', async (req, res, next) => {
     try {
       const postId = Number(req.params.id);
-      const post = await db.get('SELECT user_id, attachment_url, moderation_status FROM posts WHERE id = ?', postId);
+      const modAvail = await isModerationSchemaAvailable(db);
+      const post = await db.get(
+        `SELECT user_id, attachment_url ${modAvail ? ', moderation_status' : ''} FROM posts WHERE id = ?`,
+        postId
+      );
       if (!post) return res.status(404).json({ message: 'Post not found.' });
-      if (post.moderation_status === 'removed' && req.postUser.role !== 'admin') {
+      if (modAvail && post.moderation_status === 'removed' && req.postUser.role !== 'admin') {
         return res.status(400).json({ message: 'Cannot delete a post that has been removed by moderation.' });
       }
       if (post.user_id !== req.postUser.studentId && req.postUser.role !== 'admin') {

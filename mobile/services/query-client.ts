@@ -7,7 +7,12 @@ export const queryClient = new QueryClient({
     queries: {
       staleTime: 45 * 1000,
       gcTime: 1000 * 60 * 60 * 24, // 24 hours
-      retry: 2,
+      retry: (failureCount, error: any) => {
+        if (error?.status === 401 || error?.status === 403 || error?.statusCode === 401 || error?.statusCode === 403) {
+          return false;
+        }
+        return failureCount < 2;
+      },
       refetchOnWindowFocus: false,
     },
   },

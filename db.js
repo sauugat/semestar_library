@@ -115,6 +115,7 @@ const camelMap = {
   ischecked: 'isChecked', isreleased: 'isReleased', feedbacktext: 'feedbackText',
   pinnedby: 'pinnedBy', pinnedat: 'pinnedAt', is_official: 'is_official',
   verificationstatus: 'verificationStatus', verification_status: 'verificationStatus',
+  accountstatus: 'accountStatus', account_status: 'accountStatus',
   coverurl: 'coverUrl', coverposition: 'coverPosition',
   mentionedstudentid: 'mentionedStudentId', message_id: 'messageId',
   mentioned_student_id: 'mentionedStudentId',
@@ -136,8 +137,12 @@ function formatRow(row) {
   if (!row) return row;
   const formatted = {};
   for (const [key, value] of Object.entries(row)) {
+    const val = (value instanceof Date) ? value.toISOString() : value;
     const camelKey = camelMap[key] || key;
-    formatted[camelKey] = (value instanceof Date) ? value.toISOString() : value;
+    formatted[camelKey] = val;
+    if (camelKey !== key) {
+      formatted[key] = val;
+    }
   }
   return formatted;
 }
@@ -359,6 +364,7 @@ async function initSchema() {
             linkedinUrl TEXT,
             role TEXT DEFAULT 'student',
             verification_status TEXT DEFAULT 'unverified',
+            account_status VARCHAR(32) NOT NULL DEFAULT 'active',
             created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
           );
@@ -587,6 +593,7 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
             linkedinUrl TEXT,
             role TEXT DEFAULT 'student',
             verification_status TEXT DEFAULT 'unverified',
+            account_status TEXT NOT NULL DEFAULT 'active',
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
             updated_at TEXT DEFAULT CURRENT_TIMESTAMP
           );
@@ -828,6 +835,7 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
           await exec(`ALTER TABLE students ADD COLUMN IF NOT EXISTS username TEXT;`);
           await exec(`ALTER TABLE students ADD COLUMN IF NOT EXISTS gender TEXT;`);
           await exec(`ALTER TABLE students ADD COLUMN IF NOT EXISTS verification_status TEXT DEFAULT 'unverified';`);
+          await exec(`ALTER TABLE students ADD COLUMN IF NOT EXISTS account_status VARCHAR(32) NOT NULL DEFAULT 'active';`);
           await exec(`ALTER TABLE students ADD COLUMN IF NOT EXISTS coverUrl TEXT;`);
           await exec(`ALTER TABLE students ADD COLUMN IF NOT EXISTS coverPosition TEXT;`);
           await exec(`ALTER TABLE students ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;`);
@@ -837,6 +845,7 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
           await exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_students_username_lower ON students (LOWER(username)) WHERE username IS NOT NULL;`);
           await exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_students_supabase_uid ON students (supabase_uid) WHERE supabase_uid IS NOT NULL;`);
           await exec(`CREATE INDEX IF NOT EXISTS idx_students_verification_status ON students (verification_status);`);
+          await exec(`CREATE INDEX IF NOT EXISTS idx_students_account_status ON students (account_status);`);
           await exec(`ALTER TABLE assignments ADD COLUMN IF NOT EXISTS subject TEXT;`);
           await exec(`ALTER TABLE assignments ADD COLUMN IF NOT EXISTS semester TEXT;`);
           await exec(`ALTER TABLE assignments ADD COLUMN IF NOT EXISTS deadline TEXT;`);
@@ -894,6 +903,7 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
           if (!studentColNames.includes('username')) await exec(`ALTER TABLE students ADD COLUMN username TEXT;`);
           if (!studentColNames.includes('gender')) await exec(`ALTER TABLE students ADD COLUMN gender TEXT;`);
           if (!studentColNames.includes('verification_status')) await exec(`ALTER TABLE students ADD COLUMN verification_status TEXT DEFAULT 'unverified';`);
+          if (!studentColNames.includes('account_status')) await exec(`ALTER TABLE students ADD COLUMN account_status TEXT NOT NULL DEFAULT 'active';`);
           if (!studentColNames.includes('coverUrl')) await exec(`ALTER TABLE students ADD COLUMN coverUrl TEXT;`);
           if (!studentColNames.includes('coverPosition')) await exec(`ALTER TABLE students ADD COLUMN coverPosition TEXT;`);
           if (!studentColNames.includes('created_at')) await exec(`ALTER TABLE students ADD COLUMN created_at TEXT;`);
@@ -902,6 +912,7 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
           await exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_students_username_lower ON students (LOWER(username));`);
           await exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_students_supabase_uid ON students (supabase_uid);`);
           await exec(`CREATE INDEX IF NOT EXISTS idx_students_verification_status ON students (verification_status);`);
+          await exec(`CREATE INDEX IF NOT EXISTS idx_students_account_status ON students (account_status);`);
 
           const chatCols = await all(`PRAGMA table_info(chat_messages)`);
           const chatColNames = chatCols.map(c => c.name);

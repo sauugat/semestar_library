@@ -583,7 +583,7 @@ app.get(['/teacher-dashboard', '/teacher-dashboard.html'], async (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'teacher-dashboard.html'));
 });
 
-app.get(['/dashboard', '/dashboard.html'], async (req, res) => {
+app.get(['/dashboard', '/dashboard.html', '/student-dashboard', '/student-dashboard.html'], async (req, res) => {
   const sessionStudentId = req.session?.studentId || req.user?.studentId;
   if (sessionStudentId) {
     const user = await db.get('SELECT role FROM students WHERE studentId = ?', sessionStudentId);
@@ -758,7 +758,21 @@ app.use(express.static(path.join(__dirname, 'public'), {
 }));
 
 function requireLogin(req, res, next) {
+  if (req.isSuspended) {
+    return res.status(403).json({
+      error: 'ACCOUNT_SUSPENDED',
+      code: 'ACCOUNT_SUSPENDED',
+      message: 'Your account has been suspended by an administrator. Please contact support.'
+    });
+  }
   if (req.user && req.user.studentId) {
+    if (req.user.account_status === 'suspended' || req.user.accountStatus === 'suspended') {
+      return res.status(403).json({
+        error: 'ACCOUNT_SUSPENDED',
+        code: 'ACCOUNT_SUSPENDED',
+        message: 'Your account has been suspended by an administrator. Please contact support.'
+      });
+    }
     req.student = req.user;
     if (!req.session) req.session = {};
     req.session.studentId = req.user.studentId;
@@ -766,12 +780,21 @@ function requireLogin(req, res, next) {
     return next();
   }
   if (req.session && req.session.studentId) {
-    db.get('SELECT studentId, role, name, department, semester, email, avatarUrl FROM students WHERE studentId = ?', req.session.studentId)
+    db.get('SELECT studentId, role, name, department, semester, email, avatarUrl, account_status FROM students WHERE studentId = ?', req.session.studentId)
       .then(student => {
         if (!student) {
           if (typeof req.session.destroy === 'function') req.session.destroy(() => {});
           if (res.clearCookie) res.clearCookie('__gu_session');
           return res.status(401).json({ message: 'Authentication required. Account not found.' });
+        }
+        if (student.account_status === 'suspended' || student.accountStatus === 'suspended') {
+          if (typeof req.session.destroy === 'function') req.session.destroy(() => {});
+          if (res.clearCookie) res.clearCookie('__gu_session');
+          return res.status(403).json({
+            error: 'ACCOUNT_SUSPENDED',
+            code: 'ACCOUNT_SUSPENDED',
+            message: 'Your account has been suspended by an administrator. Please contact support.'
+          });
         }
         req.user = student;
         req.student = student;
@@ -902,6 +925,14 @@ app.post('/api/login', loginRateLimiter, async (req, res) => {
     return res.status(401).json({ message: 'Invalid Student ID or Password' });
   }
 
+  if (student.account_status === 'suspended' || student.accountStatus === 'suspended') {
+    return res.status(403).json({
+      error: 'ACCOUNT_SUSPENDED',
+      code: 'ACCOUNT_SUSPENDED',
+      message: 'Your account has been suspended by an administrator. Please contact support.'
+    });
+  }
+
   const match = bcrypt.compareSync(password, student.passwordHash);
 
   if (!match) {
@@ -981,6 +1012,14 @@ app.post('/api/mobile/login', loginRateLimiter, async (req, res) => {
     await new Promise(r => setTimeout(r, 60 + Math.floor(Math.random() * 40)));
     await recordFailedLogin(ip);
     return res.status(401).json({ message: 'Invalid username/email or password.' });
+  }
+
+  if (student.account_status === 'suspended' || student.accountStatus === 'suspended') {
+    return res.status(403).json({
+      error: 'ACCOUNT_SUSPENDED',
+      code: 'ACCOUNT_SUSPENDED',
+      message: 'Your account has been suspended by an administrator. Please contact support.'
+    });
   }
 
   let authenticated = false;
@@ -1598,11 +1637,19 @@ app.post('/api/auth/login', loginRateLimiter, async (req, res) => {
 
     // Fetch authoritative Neon student profile
     const student = await db.get(
-      `SELECT studentId, username, name, role, department, semester, gender, email, avatarUrl, verification_status
+      `SELECT studentId, username, name, role, department, semester, gender, email, avatarUrl, verification_status, account_status
        FROM students
        WHERE supabase_uid = ? OR (email IS NOT NULL AND LOWER(email) = ?)`,
       data.user.id, resolvedEmail
     );
+
+    if (student && (student.account_status === 'suspended' || student.accountStatus === 'suspended')) {
+      return res.status(403).json({
+        error: 'ACCOUNT_SUSPENDED',
+        code: 'ACCOUNT_SUSPENDED',
+        message: 'Your account has been suspended by an administrator. Please contact support.'
+      });
+    }
 
     if (student && student.studentId) {
       const suid = data.user.id;
@@ -4442,9 +4489,10 @@ app.get('/api/chat/pinned', requireLogin, async (req, res) => {
 app.post('/api/chat/pinned/:id', requireLogin, async (req, res) => {
   try {
     // Only authorized roles (admin, cr) can pin announcements
-    const role = req.session.role;
-    const isAdmin = await isStudentAdmin(req.session.studentId);
-    if (!isAdmin && role !== 'admin' && role !== 'cr') {
+    const activeStudentId = req.user?.studentId || req.student?.studentId || req.session?.studentId;
+    const role = req.user?.role || req.student?.role || req.session?.role || 'student';
+    const isAdmin = await isStudentAdmin(activeStudentId);
+    if (!isAdmin && role !== 'admin' && role !== 'cr' && role !== 'class_rep') {
       return res.status(403).json({ error: 'Forbidden: Only admins or class representatives can pin messages.' });
     }
 
@@ -4495,9 +4543,10 @@ app.post('/api/chat/pinned/:id', requireLogin, async (req, res) => {
 
 app.delete('/api/chat/pinned', requireLogin, async (req, res) => {
   try {
-    const role = req.session.role;
-    const isAdmin = await isStudentAdmin(req.session.studentId);
-    if (!isAdmin && role !== 'admin' && role !== 'cr') {
+    const activeStudentId = req.user?.studentId || req.student?.studentId || req.session?.studentId;
+    const role = req.user?.role || req.student?.role || req.session?.role || 'student';
+    const isAdmin = await isStudentAdmin(activeStudentId);
+    if (!isAdmin && role !== 'admin' && role !== 'cr' && role !== 'class_rep') {
       return res.status(403).json({ error: 'Forbidden: Only admins or class representatives can unpin messages.' });
     }
 
@@ -5156,6 +5205,13 @@ app.get('/api/profile', requireLogin, async (req, res) => {
 
 // Middleware: Enforce Teacher or Administrator access
 async function requireTeacherOrAdmin(req, res, next) {
+  if (req.isSuspended || req.user?.account_status === 'suspended' || req.user?.accountStatus === 'suspended') {
+    return res.status(403).json({
+      error: 'ACCOUNT_SUSPENDED',
+      code: 'ACCOUNT_SUSPENDED',
+      message: 'Your account has been suspended by an administrator. Please contact support.'
+    });
+  }
   const activeStudentId = req.session?.studentId || req.user?.studentId || req.student?.studentId;
   if (!activeStudentId) {
     return res.status(401).json({ message: 'Authentication required.' });

@@ -7,7 +7,7 @@ import { clearAllDmCache } from '@/services/dm-db';
 import { disconnectAllDmRealtime } from '@/services/dm-realtime';
 import { invalidateChatSession, beginChatSession } from '@/services/chat-session';
 import { clearAppQueryCache } from '@/services/query-client';
-import { getAutoDetectedServerUrl, getBaseUrl, isTrustedServerUrl, DEFAULT_SERVER_URL } from '@/services/api';
+import { getAutoDetectedServerUrl, getBaseUrl, isTrustedServerUrl, DEFAULT_SERVER_URL, addSuspensionListener } from '@/services/api';
 import {
   registerPushToken,
   unregisterPushToken,
@@ -88,6 +88,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [serverUrl, setServerUrl] = useState<string>(DEFAULT_SERVER_URL);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
+  // Synchronize React Native auth state with account suspension notifications
+  useEffect(() => {
+    const unsub = addSuspensionListener(async (msg) => {
+      await unregisterPushToken().catch(() => {});
+      await SecureStore.deleteItemAsync(TOKEN_KEY);
+      await SecureStore.deleteItemAsync(USER_KEY);
+      invalidateChatSession();
+      void disconnectChatRealtime();
+      disconnectAllDmRealtime();
+      await clearChatDb({ preservePending: true });
+      await clearAllDmCache();
+      await clearAppQueryCache();
+      setToken(null);
+      setUser(null);
+    });
+    return unsub;
+  }, []);
+
   // Initialize auth state on app load without blocking first render
   useEffect(() => {
     let isMounted = true;
@@ -142,21 +160,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
               if (res.status === 200) {
                 const freshUser: StudentUser = await res.json();
+                const roleChanged = cachedUser && (cachedUser.role !== freshUser.role || cachedUser.isCR !== freshUser.isCR);
                 if (isMounted) {
                   setUser(freshUser);
                   beginChatSession(activeUrl, freshUser.studentId, storedToken);
                 }
                 await SecureStore.setItemAsync(USER_KEY, JSON.stringify(freshUser));
-              } else if (res.status === 401) {
-                // Token invalid or revoked - unregister push token first
+                if (roleChanged) {
+                  await clearAppQueryCache();
+                }
+              } else if (res.status === 401 || res.status === 403) {
+                const errData = await res.json().catch(() => ({}));
+                const isSuspended = res.status === 403 && (errData.error === 'ACCOUNT_SUSPENDED' || errData.code === 'ACCOUNT_SUSPENDED');
+                // Token invalid, revoked, or account suspended - unregister push token first
                 await unregisterPushToken().catch(() => {});
                 await SecureStore.deleteItemAsync(TOKEN_KEY);
                 await SecureStore.deleteItemAsync(USER_KEY);
                 invalidateChatSession();
+                void disconnectChatRealtime();
+                disconnectAllDmRealtime();
+                await clearChatDb({ preservePending: true });
+                await clearAllDmCache();
+                await clearAppQueryCache();
                 if (isMounted) {
                   setToken(null);
                   setUser(null);
-                  router.replace('/login');
+                  router.replace({
+                    pathname: '/login' as any,
+                    params: isSuspended ? { suspensionMessage: errData.message || 'Your account has been suspended by an administrator.' } : {},
+                  });
                 }
               }
             } catch {
@@ -378,8 +410,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (res.ok) {
         const fresh: StudentUser = await res.json();
+        const roleChanged = user && (user.role !== fresh.role || user.isCR !== fresh.isCR);
         setUser(fresh);
         await SecureStore.setItemAsync(USER_KEY, JSON.stringify(fresh));
+        if (roleChanged) {
+          await clearAppQueryCache();
+        }
         return fresh;
       }
     } catch (err) {

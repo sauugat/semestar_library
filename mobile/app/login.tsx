@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Image } from 'expo-image';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/constants/useTheme';
@@ -146,6 +146,13 @@ export default function LoginScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const params = useLocalSearchParams<{ suspensionMessage?: string }>();
+  useEffect(() => {
+    if (params?.suspensionMessage) {
+      setErrorMessage(params.suspensionMessage);
+    }
+  }, [params?.suspensionMessage]);
 
   // 60-second Resend Timer
   useEffect(() => {

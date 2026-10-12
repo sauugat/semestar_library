@@ -36,8 +36,8 @@ function createAdminTeachersRouter(arg1, arg2) {
     }
 
     try {
-      const student = await db.get('SELECT studentId, role FROM students WHERE studentId = ?', studentId);
-      if (!student || student.role !== 'admin') {
+      const student = await db.get('SELECT studentId, role, account_status FROM students WHERE studentId = ?', studentId);
+      if (!student || student.role !== 'admin' || (student.account_status || 'active') === 'suspended') {
         return res.status(403).json({ message: 'Forbidden: Administrator access required.' });
       }
       req.adminStudentId = student.studentId;

@@ -333,6 +333,122 @@
       border-color: rgba(245, 158, 11, 0.3);
     }
 
+    /* Strict Monochrome Account Suspension Styles (Zero colorful accents) */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .status-active {
+      background: rgba(255, 255, 255, 0.06);
+      color: #e2e8f0;
+      border: 1px solid #475569;
+    }
+    [data-theme="light"] .status-active, body.light-mode .status-active {
+      background: #f1f5f9;
+      color: #1e293b;
+      border: 1px solid #94a3b8;
+    }
+    .status-suspended {
+      background: #ffffff;
+      color: #000000;
+      border: 1px solid #ffffff;
+      font-weight: 800;
+    }
+    [data-theme="light"] .status-suspended, body.light-mode .status-suspended {
+      background: #000000;
+      color: #ffffff;
+      border: 1px solid #000000;
+      font-weight: 800;
+    }
+
+    /* Modal Backdrop and Dialog (Neutral Grayscale) */
+    .admin-modal-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .admin-modal-backdrop.open {
+      display: flex;
+    }
+    .admin-modal-dialog {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      max-width: 640px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+      padding: 24px;
+      color: var(--text-primary);
+    }
+    .admin-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 14px;
+      margin-bottom: 18px;
+    }
+    .admin-modal-header h3 {
+      margin: 0;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 18px;
+      font-weight: 700;
+    }
+    .admin-modal-close {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 22px;
+      cursor: pointer;
+      padding: 4px 8px;
+      line-height: 1;
+    }
+    .admin-modal-close:hover {
+      color: var(--text-primary);
+    }
+    .admin-modal-btn-action {
+      background: #ffffff;
+      color: #000000;
+      border: 1px solid #ffffff;
+      font-family: inherit;
+      font-weight: 700;
+      font-size: 13px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+    .admin-modal-btn-action:hover {
+      background: #e2e8f0;
+    }
+    [data-theme="light"] .admin-modal-btn-action, body.light-mode .admin-modal-btn-action {
+      background: #0f172a;
+      color: #ffffff;
+      border-color: #0f172a;
+    }
+    [data-theme="light"] .admin-modal-btn-action:hover, body.light-mode .admin-modal-btn-action:hover {
+      background: #334155;
+    }
+
     /* Data Table Card */
     .table-container-card {
       background: var(--bg-card);
@@ -681,7 +797,7 @@
       <div class="notice-box info">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
         <div>
-          <strong>Read-Only Administrative Directory:</strong> Inspect student, teacher, CR, and administrator records. In Phase 4A, accounts are protected against unverified modifications. Account suspension, role changes, and deletions are reserved for audited actions in Phase 4B.
+          <strong>Administrative Directory & Account Management:</strong> Inspect student, teacher, CR, and administrator records. Authorized administrators can audit, suspend, and reactivate accounts with transactionally verified audit logging.
         </div>
       </div>
 
@@ -694,6 +810,11 @@
               <option value="teacher">Teachers</option>
               <option value="cr">Class Representatives (CR)</option>
               <option value="admin">Administrators</option>
+            </select>
+            <select class="filter-select" id="userFilterStatus" onchange="loadUsersData(1)">
+              <option value="all">All Statuses</option>
+              <option value="active">Active Only</option>
+              <option value="suspended">Suspended Only</option>
             </select>
             <select class="filter-select" id="userFilterSemester" onchange="loadUsersData(1)">
               <option value="all">All Semesters</option>
@@ -722,12 +843,13 @@
                 <th>Role</th>
                 <th>Semester</th>
                 <th>Cohort Slot</th>
-                <th>Status</th>
+                <th>Account Status</th>
                 <th>Joined</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody id="usersTableBody">
-              <tr><td colspan="7" class="loading-state">Loading user directory...</td></tr>
+              <tr><td colspan="8" class="loading-state">Loading user directory...</td></tr>
             </tbody>
           </table>
         </div>
@@ -881,59 +1003,213 @@
       </div>
     </section>
 
-    <!-- TAB 5: CONTENT -->
+    <!-- TAB 5: CONTENT & MODERATION -->
     <section class="admin-view-section" id="view-content">
       <div class="notice-box info">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         <div>
-          <strong>Content & Feed Moderation Oversight:</strong> Scoped view of platform posts and circular notices. Student-only cohort posts are cleanly demarcated with audience scope badges. Direct private messages are strictly private and unexposed.
+          <strong>Content & Feed Moderation Oversight:</strong> Centralized administration for platform posts, comments, community reporting queue, and durable moderation audit logs. Student-only cohort posts are demarcated. Direct private messages are strictly private and unexposed.
         </div>
       </div>
 
-      <div class="table-container-card">
-        <div class="table-toolbar">
-          <div class="table-filters">
-            <select class="filter-select" id="contentFilterType" onchange="loadContentData(1)">
-              <option value="all">All Post Types</option>
-              <option value="notice">Official Notices</option>
-              <option value="discussion">Discussions</option>
-              <option value="general">General</option>
-            </select>
-            <select class="filter-select" id="contentFilterAudience" onchange="loadContentData(1)">
-              <option value="all">All Audience Scopes</option>
-              <option value="public">Public Feed</option>
-              <option value="student_only">Student-Only Cohort</option>
-            </select>
+      <!-- Moderation Sub-navigation -->
+      <div style="display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;">
+        <button type="button" class="btn btn-secondary btn-sm content-subnav-btn active" id="subnav-posts" onclick="switchContentSubnav('posts')">Posts Moderation</button>
+        <button type="button" class="btn btn-secondary btn-sm content-subnav-btn" id="subnav-comments" onclick="switchContentSubnav('comments')">Comments Moderation</button>
+        <button type="button" class="btn btn-secondary btn-sm content-subnav-btn" id="subnav-reports" onclick="switchContentSubnav('reports')">Report Review Queue</button>
+        <button type="button" class="btn btn-secondary btn-sm content-subnav-btn" id="subnav-history" onclick="switchContentSubnav('history')">Moderation History</button>
+      </div>
+
+      <!-- SUBVIEW 1: POSTS MODERATION -->
+      <div class="content-subview" id="content-subview-posts">
+        <div class="table-container-card">
+          <div class="table-toolbar">
+            <div class="table-filters" style="display:flex; gap:8px; flex-wrap:wrap;">
+              <select class="filter-select" id="contentFilterType" onchange="loadContentData(1)">
+                <option value="all">All Post Types</option>
+                <option value="notice">Official Notices</option>
+                <option value="discussion">Discussions</option>
+                <option value="general">General</option>
+              </select>
+              <select class="filter-select" id="contentFilterAudience" onchange="loadContentData(1)">
+                <option value="all">All Audience Scopes</option>
+                <option value="public">Public Feed</option>
+                <option value="student_only">Student-Only Cohort</option>
+              </select>
+              <select class="filter-select" id="contentFilterStatus" onchange="loadContentData(1)">
+                <option value="all">All Statuses</option>
+                <option value="active">Active Only</option>
+                <option value="removed">Removed Only</option>
+              </select>
+            </div>
+            <div style="display:flex; gap:8px;">
+              <input type="text" class="search-box-input" id="contentSearchInput" placeholder="Search post text or author..." onkeydown="if(event.key==='Enter') loadContentData(1)">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="loadContentData(1)">Filter</button>
+            </div>
           </div>
-          <div style="display:flex; gap:8px;">
-            <input type="text" class="search-box-input" id="contentSearchInput" placeholder="Search post text or author..." onkeydown="if(event.key==='Enter') loadContentData(1)">
-            <button type="button" class="btn btn-secondary btn-sm" onclick="loadContentData(1)">Filter</button>
+
+          <div class="data-table-wrap">
+            <table class="admin-data-table">
+              <thead>
+                <tr>
+                  <th>Author</th>
+                  <th>Role</th>
+                  <th>Content Preview</th>
+                  <th>Scope</th>
+                  <th>Status</th>
+                  <th>Reports</th>
+                  <th>Engagement</th>
+                  <th>Date</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="contentTableBody">
+                <tr><td colspan="9" class="loading-state">Loading posts oversight...</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="pagination-bar">
+            <span id="contentPaginationText">Page 1 of 1</span>
+            <div style="display:flex; gap:8px;">
+              <button type="button" class="btn btn-secondary btn-sm" id="btnPrevContent" onclick="changeContentPage(-1)">Previous</button>
+              <button type="button" class="btn btn-secondary btn-sm" id="btnNextContent" onclick="changeContentPage(1)">Next</button>
+            </div>
           </div>
         </div>
+      </div>
 
-        <div class="data-table-wrap">
-          <table class="admin-data-table">
-            <thead>
-              <tr>
-                <th>Author</th>
-                <th>Role</th>
-                <th>Content Preview</th>
-                <th>Scope</th>
-                <th>Engagement</th>
-                <th>Date</th>
-              </tr>
-            </thead>
-            <tbody id="contentTableBody">
-              <tr><td colspan="6" class="loading-state">Loading posts oversight...</td></tr>
-            </tbody>
-          </table>
+      <!-- SUBVIEW 2: COMMENTS MODERATION -->
+      <div class="content-subview" id="content-subview-comments" style="display:none;">
+        <div class="table-container-card">
+          <div class="table-toolbar">
+            <div class="table-filters" style="display:flex; gap:8px; flex-wrap:wrap;">
+              <select class="filter-select" id="commentsFilterStatus" onchange="loadModerationComments(1)">
+                <option value="all">All Comment Statuses</option>
+                <option value="active">Active Comments</option>
+                <option value="removed">Removed Comments</option>
+              </select>
+            </div>
+            <div style="display:flex; gap:8px;">
+              <input type="text" class="search-box-input" id="commentsSearchInput" placeholder="Search comment text or author..." onkeydown="if(event.key==='Enter') loadModerationComments(1)">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="loadModerationComments(1)">Filter</button>
+            </div>
+          </div>
+
+          <div class="data-table-wrap">
+            <table class="admin-data-table">
+              <thead>
+                <tr>
+                  <th>Author</th>
+                  <th>Role</th>
+                  <th>Comment Content</th>
+                  <th>Target Post</th>
+                  <th>Status</th>
+                  <th>Reports</th>
+                  <th>Date</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="commentsTableBody">
+                <tr><td colspan="8" class="loading-state">Loading comments moderation...</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="pagination-bar">
+            <span id="commentsPaginationText">Page 1 of 1</span>
+            <div style="display:flex; gap:8px;">
+              <button type="button" class="btn btn-secondary btn-sm" id="btnPrevComments" onclick="changeCommentsPage(-1)">Previous</button>
+              <button type="button" class="btn btn-secondary btn-sm" id="btnNextComments" onclick="changeCommentsPage(1)">Next</button>
+            </div>
+          </div>
         </div>
+      </div>
 
-        <div class="pagination-bar">
-          <span id="contentPaginationText">Page 1 of 1</span>
-          <div style="display:flex; gap:8px;">
-            <button type="button" class="btn btn-secondary btn-sm" id="btnPrevContent" onclick="changeContentPage(-1)">Previous</button>
-            <button type="button" class="btn btn-secondary btn-sm" id="btnNextContent" onclick="changeContentPage(1)">Next</button>
+      <!-- SUBVIEW 3: REPORT REVIEW QUEUE -->
+      <div class="content-subview" id="content-subview-reports" style="display:none;">
+        <div class="table-container-card">
+          <div class="table-toolbar">
+            <div class="table-filters" style="display:flex; gap:8px; flex-wrap:wrap;">
+              <select class="filter-select" id="reportsFilterStatus" onchange="loadModerationReports(1)">
+                <option value="open">Open Reports (Pending Review)</option>
+                <option value="all">All Reports</option>
+                <option value="resolved">Resolved</option>
+                <option value="dismissed">Dismissed</option>
+              </select>
+              <select class="filter-select" id="reportsFilterType" onchange="loadModerationReports(1)">
+                <option value="all">All Content Types</option>
+                <option value="post">Posts</option>
+                <option value="comment">Comments</option>
+              </select>
+            </div>
+            <div style="display:flex; gap:8px;">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="loadModerationReports(1)">Refresh Queue</button>
+            </div>
+          </div>
+
+          <div class="data-table-wrap">
+            <table class="admin-data-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Type</th>
+                  <th>Target Content Preview</th>
+                  <th>Reason</th>
+                  <th>Description</th>
+                  <th>Reporter</th>
+                  <th>Status</th>
+                  <th>Reported Date</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="reportsTableBody">
+                <tr><td colspan="9" class="loading-state">Loading report queue...</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="pagination-bar">
+            <span id="reportsPaginationText">Page 1 of 1</span>
+            <div style="display:flex; gap:8px;">
+              <button type="button" class="btn btn-secondary btn-sm" id="btnPrevReports" onclick="changeReportsPage(-1)">Previous</button>
+              <button type="button" class="btn btn-secondary btn-sm" id="btnNextReports" onclick="changeReportsPage(1)">Next</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SUBVIEW 4: MODERATION HISTORY -->
+      <div class="content-subview" id="content-subview-history" style="display:none;">
+        <div class="table-container-card">
+          <div class="table-toolbar">
+            <div style="font-weight:700; font-size:14px;">Recent Content Moderation Audit Records</div>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="loadModerationHistory(1)">Refresh History</button>
+          </div>
+
+          <div class="data-table-wrap">
+            <table class="admin-data-table">
+              <thead>
+                <tr>
+                  <th>Action</th>
+                  <th>Target Entity</th>
+                  <th>Moderator</th>
+                  <th>Reason / Notes</th>
+                  <th>Timestamp</th>
+                </tr>
+              </thead>
+              <tbody id="moderationHistoryTableBody">
+                <tr><td colspan="5" class="loading-state">Loading moderation history...</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="pagination-bar">
+            <span id="moderationHistoryPaginationText">Page 1 of 1</span>
+            <div style="display:flex; gap:8px;">
+              <button type="button" class="btn btn-secondary btn-sm" id="btnPrevModHistory" onclick="changeModHistoryPage(-1)">Previous</button>
+              <button type="button" class="btn btn-secondary btn-sm" id="btnNextModHistory" onclick="changeModHistoryPage(1)">Next</button>
+            </div>
           </div>
         </div>
       </div>
@@ -1087,6 +1363,46 @@
       </div>
     </section>
 
+    <!-- USER SUSPENSION & REACTIVATION MODAL (Strictly Monochrome Grayscale) -->
+    <div class="admin-modal-backdrop" id="userManageModal" role="dialog" aria-modal="true" aria-labelledby="userModalTitle">
+      <div class="admin-modal-dialog">
+        <div class="admin-modal-header">
+          <h3 id="userModalTitle">Account Status Management</h3>
+          <button type="button" class="admin-modal-close" onclick="closeUserModal()" aria-label="Close dialog">&times;</button>
+        </div>
+
+        <div id="userModalBody">
+          <div class="loading-state">Loading account profile and audit history...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONTENT MODERATION ACTION MODAL (Strictly Monochrome Grayscale) -->
+    <div class="admin-modal-backdrop" id="contentModerationModal" role="dialog" aria-modal="true" aria-labelledby="modModalTitle">
+      <div class="admin-modal-dialog">
+        <div class="admin-modal-header">
+          <h3 id="modModalTitle">Content Moderation Action</h3>
+          <button type="button" class="admin-modal-close" onclick="closeContentModerationModal()" aria-label="Close dialog">&times;</button>
+        </div>
+        <div id="contentModerationModalBody">
+          <div class="loading-state">Loading content details...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- REPORT RESOLUTION MODAL (Strictly Monochrome Grayscale) -->
+    <div class="admin-modal-backdrop" id="reportResolveModal" role="dialog" aria-modal="true" aria-labelledby="reportModalTitle">
+      <div class="admin-modal-dialog">
+        <div class="admin-modal-header">
+          <h3 id="reportModalTitle">Review Content Report</h3>
+          <button type="button" class="admin-modal-close" onclick="closeReportModal()" aria-label="Close dialog">&times;</button>
+        </div>
+        <div id="reportModalBody">
+          <div class="loading-state">Loading report details...</div>
+        </div>
+      </div>
+    </div>
+
   </main>
 
   <script>
@@ -1098,6 +1414,9 @@
       materials: { page: 1, limit: 10, total: 0, totalPages: 1 },
       assignments: { page: 1, limit: 10, total: 0, totalPages: 1 },
       content: { page: 1, limit: 10, total: 0, totalPages: 1 },
+      comments: { page: 1, limit: 10, total: 0, totalPages: 1 },
+      reports: { page: 1, limit: 10, total: 0, totalPages: 1 },
+      modHistory: { page: 1, limit: 10, total: 0, totalPages: 1 },
       activity: { page: 1, limit: 15, total: 0, totalPages: 1 }
     };
 
@@ -1190,20 +1509,23 @@
     async function loadUsersData(page = 1) {
       state.users.page = page;
       const role = document.getElementById('userFilterRole')?.value || 'all';
+      const status = document.getElementById('userFilterStatus')?.value || 'all';
       const semester = document.getElementById('userFilterSemester')?.value || 'all';
       const search = (document.getElementById('userSearchInput')?.value || '').trim();
 
       const tbody = document.getElementById('usersTableBody');
-      if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="loading-state">Loading users page ${page}...</td></tr>`;
+      if (tbody) tbody.innerHTML = `<tr><td colspan="8" class="loading-state">Loading users page ${page}...</td></tr>`;
 
       try {
-        const q = new URLSearchParams({
+        const params = {
           page: String(page),
           limit: String(state.users.limit),
           role,
           semester,
           search
-        });
+        };
+        if (status && status !== 'all') params.status = status;
+        const q = new URLSearchParams(params);
         const res = await fetch(`/api/admin/users?${q.toString()}`);
         if (!res.ok) throw new Error('Failed to load users');
         const data = await res.json();
@@ -1212,13 +1534,22 @@
         state.users.totalPages = data.pagination?.totalPages || 1;
 
         if (!data.users || data.users.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="7" class="empty-state">No matching users found.</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="8" class="empty-state">No matching users found.</td></tr>`;
         } else {
           tbody.innerHTML = data.users.map(u => {
             const roleClass = `role-${u.role || 'student'}`;
             const cohortText = u.cohort_slot ? `${u.cohort_slot.toUpperCase()} (${u.cohort_name || 'Active'})` : '—';
             const joinedDate = u.created_at ? new Date(u.created_at).toLocaleDateString() : '—';
             const semText = u.semester ? `Semester ${u.semester}` : '—';
+            const isSuspended = (u.accountStatus || u.account_status) === 'suspended';
+            const statusBadge = isSuspended
+              ? `<span class="status-badge status-suspended">Suspended</span>`
+              : `<span class="status-badge status-active">Active</span>`;
+            const isAdmin = (u.role || '').toLowerCase() === 'admin';
+            const actionHtml = isAdmin
+              ? `<span style="color:var(--text-muted); font-size:12px; font-family:'JetBrains Mono',monospace;">Protected</span>`
+              : `<button type="button" class="btn btn-secondary btn-sm" onclick="openUserModal('${escapeHtml(u.studentId)}')">Manage</button>`;
+
             return `
               <tr>
                 <td class="mono-code">${escapeHtml(u.studentId)}</td>
@@ -1229,8 +1560,9 @@
                 <td><span class="role-badge ${roleClass}">${escapeHtml(u.role || 'student')}</span></td>
                 <td>${escapeHtml(semText)}</td>
                 <td>${escapeHtml(cohortText)}</td>
-                <td><span class="tag-badge ${u.verification_status === 'verified' ? 'tag-official' : ''}">${escapeHtml(u.verification_status || 'active')}</span></td>
+                <td>${statusBadge}</td>
                 <td style="color:var(--text-muted); font-size:12px;">${escapeHtml(joinedDate)}</td>
+                <td>${actionHtml}</td>
               </tr>
             `;
           }).join('');
@@ -1242,7 +1574,7 @@
         document.getElementById('btnNextUsers').disabled = page >= state.users.totalPages;
       } catch (err) {
         console.error('Error loading users:', err);
-        if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="empty-state" style="color:var(--accent-red);">Failed to load users.</td></tr>`;
+        if (tbody) tbody.innerHTML = `<tr><td colspan="8" class="empty-state" style="color:var(--accent-red);">Failed to load users.</td></tr>`;
       }
     }
 
@@ -1250,6 +1582,406 @@
       const target = state.users.page + delta;
       if (target >= 1 && target <= state.users.totalPages) {
         loadUsersData(target);
+      }
+    }
+
+    // 2b. User Modal Management (Account Suspension & Reactivation)
+    async function openUserModal(studentId) {
+      const modal = document.getElementById('userManageModal');
+      const body = document.getElementById('userModalBody');
+      if (!modal || !body) return;
+
+      modal.classList.add('open');
+      body.innerHTML = `<div class="loading-state">Loading account profile for <span class="mono-code">${escapeHtml(studentId)}</span>...</div>`;
+
+      try {
+        const [statusRes, histRes, roleHistRes] = await Promise.all([
+          fetch(`/api/admin/users/${encodeURIComponent(studentId)}/status`),
+          fetch(`/api/admin/users/${encodeURIComponent(studentId)}/suspension-history`),
+          fetch(`/api/admin/users/${encodeURIComponent(studentId)}/role-history`)
+        ]);
+
+        if (!statusRes.ok) {
+          const err = await statusRes.json().catch(() => ({}));
+          throw new Error(err.message || 'Failed to retrieve account details');
+        }
+
+        const userData = await statusRes.json();
+        const histData = histRes.ok ? await histRes.json() : { history: [] };
+        const roleHistData = roleHistRes.ok ? await roleHistRes.json() : { history: [] };
+
+        const isSuspended = userData.accountStatus === 'suspended';
+        const userRole = (userData.role || 'student').toLowerCase();
+        const isAdmin = userRole === 'admin';
+        const isTeacher = userRole === 'teacher';
+        const isCR = userRole === 'cr' || userRole === 'class_rep';
+        const isStudent = userRole === 'student' || (!isAdmin && !isTeacher && !isCR);
+
+        const statusBadge = isSuspended
+          ? `<span class="status-badge status-suspended">Suspended</span>`
+          : `<span class="status-badge status-active">Active</span>`;
+
+        let actionBlock = '';
+        if (isAdmin) {
+          actionBlock = `
+            <div class="notice-box info" style="margin-top: 16px;">
+              <div><strong>Protected Account:</strong> Administrator accounts cannot be suspended.</div>
+            </div>
+          `;
+        } else if (isSuspended) {
+          actionBlock = `
+            <div style="margin-top: 20px; padding: 16px; border: 1px solid var(--border-color); border-radius: 10px; background: var(--bg-card-hover);">
+              <div style="font-weight: 600; font-size: 14px; margin-bottom: 6px;">Reactivate Account</div>
+              <p style="font-size: 13px; color: var(--text-secondary); margin: 0 0 14px 0;">
+                Reactivating this account restores login eligibility across web sessions, mobile tokens, and Supabase tokens. Academic history and role assignments remain preserved.
+              </p>
+              <div id="reactivateActionError" style="display:none; color:var(--accent-red); font-size:12.5px; margin-bottom:10px;"></div>
+              <button type="button" class="admin-modal-btn-action" id="btnSubmitReactivate" onclick="submitReactivateUser('${escapeHtml(studentId)}')">
+                Reactivate Account
+              </button>
+            </div>
+          `;
+        } else {
+          actionBlock = `
+            <div style="margin-top: 20px; padding: 16px; border: 1px solid var(--border-color); border-radius: 10px; background: var(--bg-card-hover);">
+              <div style="font-weight: 600; font-size: 14px; margin-bottom: 6px;">Suspend Account</div>
+              <p style="font-size: 13px; color: var(--text-secondary); margin: 0 0 14px 0;">
+                Suspension immediately revokes active web sessions and mobile tokens. The user will be blocked with HTTP 403 on all protected endpoints. A non-empty reason is required for the audit record.
+              </p>
+              <div style="margin-bottom: 14px;">
+                <label for="suspendReasonInput" style="display:block; font-size:12px; font-weight:600; margin-bottom:6px; color:var(--text-secondary);">
+                  Suspension Reason (Required):
+                </label>
+                <textarea id="suspendReasonInput" rows="2" class="search-box-input" style="width: 100%; box-sizing: border-box; resize: vertical;" placeholder="Provide authoritative reason for suspension..."></textarea>
+              </div>
+              <div id="suspendActionError" style="display:none; color:var(--accent-red); font-size:12.5px; margin-bottom:10px;"></div>
+              <button type="button" class="admin-modal-btn-action" id="btnSubmitSuspend" onclick="submitSuspendUser('${escapeHtml(studentId)}')">
+                Suspend Account
+              </button>
+            </div>
+          `;
+        }
+
+        // Role Management Block
+        let roleManagementBlock = '';
+        if (isAdmin) {
+          roleManagementBlock = `
+            <div class="notice-box info" style="margin-top: 14px;">
+              <div><strong>Protected Role:</strong> Administrator accounts cannot be promoted or demoted via student role management.</div>
+            </div>
+          `;
+        } else if (isTeacher) {
+          roleManagementBlock = `
+            <div class="notice-box info" style="margin-top: 14px;">
+              <div><strong>Faculty Role:</strong> Teacher accounts cannot be converted to Class Representative or Student roles.</div>
+            </div>
+          `;
+        } else if (isSuspended) {
+          roleManagementBlock = `
+            <div class="notice-box info" style="margin-top: 14px;">
+              <div><strong>Account Suspended:</strong> Role changes are prohibited while an account is suspended. Reactivate the account first.</div>
+            </div>
+          `;
+        } else if (isStudent) {
+          roleManagementBlock = `
+            <div style="margin-top: 16px; padding: 16px; border: 1px solid var(--border-color); border-radius: 10px; background: var(--bg-card-hover);">
+              <div style="font-weight: 600; font-size: 14px; margin-bottom: 6px;">Promote to Class Representative (CR)</div>
+              <p style="font-size: 13px; color: var(--text-secondary); margin: 0 0 14px 0;">
+                Promoting this student grants Class Representative permissions (announcement pinning, official notices, and assignment creation) within their academic cohort while preserving their student identity, academic records, and dashboard access.
+              </p>
+              <div style="margin-bottom: 14px;">
+                <label for="promoteReasonInput" style="display:block; font-size:12px; font-weight:600; margin-bottom:6px; color:var(--text-secondary);">
+                  Promotion Reason (Required):
+                </label>
+                <textarea id="promoteReasonInput" rows="2" class="search-box-input" style="width: 100%; box-sizing: border-box; resize: vertical;" placeholder="Provide authoritative reason for promotion..."></textarea>
+              </div>
+              <div id="promoteActionError" style="display:none; color:var(--accent-red); font-size:12.5px; margin-bottom:10px;"></div>
+              <button type="button" class="admin-modal-btn-action" id="btnSubmitPromote" onclick="submitPromoteCR('${escapeHtml(studentId)}')">
+                Promote to CR
+              </button>
+            </div>
+          `;
+        } else if (isCR) {
+          roleManagementBlock = `
+            <div style="margin-top: 16px; padding: 16px; border: 1px solid var(--border-color); border-radius: 10px; background: var(--bg-card-hover);">
+              <div style="font-weight: 600; font-size: 14px; margin-bottom: 6px;">Demote to Regular Student</div>
+              <p style="font-size: 13px; color: var(--text-secondary); margin: 0 0 14px 0;">
+                Demoting this Class Representative revokes CR permissions immediately across all active web and mobile sessions. The account reverts to standard Student permissions while preserving all academic records and submissions.
+              </p>
+              <div style="margin-bottom: 14px;">
+                <label for="demoteReasonInput" style="display:block; font-size:12px; font-weight:600; margin-bottom:6px; color:var(--text-secondary);">
+                  Demotion Reason (Required):
+                </label>
+                <textarea id="demoteReasonInput" rows="2" class="search-box-input" style="width: 100%; box-sizing: border-box; resize: vertical;" placeholder="Provide authoritative reason for demotion..."></textarea>
+              </div>
+              <div id="demoteActionError" style="display:none; color:var(--accent-red); font-size:12.5px; margin-bottom:10px;"></div>
+              <button type="button" class="admin-modal-btn-action" id="btnSubmitDemote" onclick="submitDemoteStudent('${escapeHtml(studentId)}')">
+                Demote to Student
+              </button>
+            </div>
+          `;
+        }
+
+        // Combine audit events
+        const combinedHistory = [
+          ...(histData.history || []),
+          ...(roleHistData.history || [])
+        ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+        const historyRows = combinedHistory.map(h => {
+          const dateStr = h.createdAt ? new Date(h.createdAt).toLocaleString() : '—';
+          let actBadge = `<span class="status-badge">${escapeHtml(h.action)}</span>`;
+          if (h.action === 'account_suspended') {
+            actBadge = `<span class="status-badge status-suspended">Suspended</span>`;
+          } else if (h.action === 'account_reactivated') {
+            actBadge = `<span class="status-badge status-active">Reactivated</span>`;
+          } else if (h.action === 'student_promoted_to_cr') {
+            actBadge = `<span class="status-badge" style="background:var(--bg-card); border:1px solid var(--border-color); font-weight:600;">Promoted to CR</span>`;
+          } else if (h.action === 'cr_demoted_to_student') {
+            actBadge = `<span class="status-badge" style="background:var(--bg-card); border:1px solid var(--border-color); font-weight:600;">Demoted to Student</span>`;
+          }
+
+          const actorDisplay = escapeHtml(h.actorName || h.actorUserId || 'Admin');
+          const reasonText = h.reason ? `<div><small style="color:var(--text-secondary);">${escapeHtml(h.reason)}</small></div>` : '';
+          return `
+            <tr>
+              <td style="font-size:12px; white-space:nowrap; color:var(--text-secondary);">${escapeHtml(dateStr)}</td>
+              <td>${actBadge}</td>
+              <td style="font-size:12.5px;">${actorDisplay}</td>
+              <td style="font-size:12.5px;">${escapeHtml(h.action)}${reasonText}</td>
+            </tr>
+          `;
+        }).join('');
+
+        const historyTable = historyRows
+          ? `
+            <div style="margin-top: 24px;">
+              <h4 style="font-size: 13.5px; font-weight: 700; margin: 0 0 10px 0;">Account & Role Audit History</h4>
+              <div class="data-table-wrap">
+                <table class="admin-data-table" style="font-size: 12px;">
+                  <thead>
+                    <tr>
+                      <th>Timestamp</th>
+                      <th>Action</th>
+                      <th>Admin Actor</th>
+                      <th>Details / Reason</th>
+                    </tr>
+                  </thead>
+                  <tbody>${historyRows}</tbody>
+                </table>
+              </div>
+            </div>
+          `
+          : `
+            <div style="margin-top: 24px;">
+              <h4 style="font-size: 13.5px; font-weight: 700; margin: 0 0 10px 0;">Account & Role Audit History</h4>
+              <div style="font-size: 12.5px; color: var(--text-secondary); padding: 12px 0;">No prior suspension or role transition events recorded for this account.</div>
+            </div>
+          `;
+
+        body.innerHTML = `
+          <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap: 12px; font-size: 13px;">
+            <div>
+              <span style="color:var(--text-secondary); font-size:12px;">Full Name:</span>
+              <div style="font-weight:600;">${escapeHtml(userData.name || '—')}</div>
+            </div>
+            <div>
+              <span style="color:var(--text-secondary); font-size:12px;">Student / Account ID:</span>
+              <div class="mono-code">${escapeHtml(userData.studentId)}</div>
+            </div>
+            <div>
+              <span style="color:var(--text-secondary); font-size:12px;">Email:</span>
+              <div>${escapeHtml(userData.email || '—')}</div>
+            </div>
+            <div>
+              <span style="color:var(--text-secondary); font-size:12px;">Role:</span>
+              <div><span class="role-badge role-${escapeHtml(userData.role || 'student')}">${escapeHtml(userData.role || 'student')}</span></div>
+            </div>
+            <div>
+              <span style="color:var(--text-secondary); font-size:12px;">Account Status:</span>
+              <div>${statusBadge}</div>
+            </div>
+            <div>
+              <span style="color:var(--text-secondary); font-size:12px;">Account Created:</span>
+              <div style="color:var(--text-secondary);">${escapeHtml(userData.created_at ? new Date(userData.created_at).toLocaleDateString() : '—')}</div>
+            </div>
+          </div>
+
+          ${actionBlock}
+
+          ${roleManagementBlock}
+
+          ${historyTable}
+        `;
+      } catch (err) {
+        console.error('Error opening user modal:', err);
+        body.innerHTML = `
+          <div style="padding: 24px; text-align: center; color: var(--accent-red);">
+            Failed to load account details: ${escapeHtml(err.message || 'Unknown error')}
+          </div>
+        `;
+      }
+    }
+
+    function closeUserModal() {
+      const modal = document.getElementById('userManageModal');
+      if (modal) modal.classList.remove('open');
+    }
+
+    async function submitSuspendUser(studentId) {
+      const reasonInput = document.getElementById('suspendReasonInput');
+      const errBox = document.getElementById('suspendActionError');
+      const btn = document.getElementById('btnSubmitSuspend');
+      const reason = (reasonInput?.value || '').trim();
+
+      if (!reason || reason.length < 3) {
+        if (errBox) {
+          errBox.textContent = 'A valid suspension reason (at least 3 characters) is required.';
+          errBox.style.display = 'block';
+        }
+        return;
+      }
+
+      if (errBox) errBox.style.display = 'none';
+      if (btn) { btn.disabled = true; btn.textContent = 'Suspending...'; }
+
+      try {
+        const res = await fetch(`/api/admin/users/${encodeURIComponent(studentId)}/suspend`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.message || 'Failed to suspend account.');
+        }
+
+        // Refresh modal and refresh users table
+        await openUserModal(studentId);
+        loadUsersData(state.users.page);
+      } catch (err) {
+        if (errBox) {
+          errBox.textContent = err.message || 'Suspension request failed.';
+          errBox.style.display = 'block';
+        }
+        if (btn) { btn.disabled = false; btn.textContent = 'Suspend Account'; }
+      }
+    }
+
+    async function submitReactivateUser(studentId) {
+      const errBox = document.getElementById('reactivateActionError');
+      const btn = document.getElementById('btnSubmitReactivate');
+
+      if (errBox) errBox.style.display = 'none';
+      if (btn) { btn.disabled = true; btn.textContent = 'Reactivating...'; }
+
+      try {
+        const res = await fetch(`/api/admin/users/${encodeURIComponent(studentId)}/reactivate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.message || 'Failed to reactivate account.');
+        }
+
+        // Refresh modal and refresh users table
+        await openUserModal(studentId);
+        loadUsersData(state.users.page);
+      } catch (err) {
+        if (errBox) {
+          errBox.textContent = err.message || 'Reactivation request failed.';
+          errBox.style.display = 'block';
+        }
+        if (btn) { btn.disabled = false; btn.textContent = 'Reactivate Account'; }
+      }
+    }
+
+    async function submitPromoteCR(studentId) {
+      const reasonInput = document.getElementById('promoteReasonInput');
+      const errBox = document.getElementById('promoteActionError');
+      const btn = document.getElementById('btnSubmitPromote');
+      const reason = (reasonInput?.value || '').trim();
+
+      if (!reason || reason.length < 3) {
+        if (errBox) {
+          errBox.textContent = 'A valid promotion reason (at least 3 characters) is required.';
+          errBox.style.display = 'block';
+        }
+        return;
+      }
+
+      if (!confirm(`Are you sure you want to promote ${studentId} to Class Representative (CR)?`)) {
+        return;
+      }
+
+      if (errBox) errBox.style.display = 'none';
+      if (btn) { btn.disabled = true; btn.textContent = 'Promoting...'; }
+
+      try {
+        const res = await fetch(`/api/admin/users/${encodeURIComponent(studentId)}/promote-cr`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.message || 'Failed to promote student to Class Representative.');
+        }
+
+        // Refresh modal and refresh users table
+        await openUserModal(studentId);
+        loadUsersData(state.users.page);
+      } catch (err) {
+        if (errBox) {
+          errBox.textContent = err.message || 'Promotion request failed.';
+          errBox.style.display = 'block';
+        }
+        if (btn) { btn.disabled = false; btn.textContent = 'Promote to CR'; }
+      }
+    }
+
+    async function submitDemoteStudent(studentId) {
+      const reasonInput = document.getElementById('demoteReasonInput');
+      const errBox = document.getElementById('demoteActionError');
+      const btn = document.getElementById('btnSubmitDemote');
+      const reason = (reasonInput?.value || '').trim();
+
+      if (!reason || reason.length < 3) {
+        if (errBox) {
+          errBox.textContent = 'A valid demotion reason (at least 3 characters) is required.';
+          errBox.style.display = 'block';
+        }
+        return;
+      }
+
+      if (!confirm(`Are you sure you want to demote Class Representative ${studentId} to regular Student?`)) {
+        return;
+      }
+
+      if (errBox) errBox.style.display = 'none';
+      if (btn) { btn.disabled = true; btn.textContent = 'Demoting...'; }
+
+      try {
+        const res = await fetch(`/api/admin/users/${encodeURIComponent(studentId)}/demote-student`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.message || 'Failed to demote Class Representative.');
+        }
+
+        // Refresh modal and refresh users table
+        await openUserModal(studentId);
+        loadUsersData(state.users.page);
+      } catch (err) {
+        if (errBox) {
+          errBox.textContent = err.message || 'Demotion request failed.';
+          errBox.style.display = 'block';
+        }
+        if (btn) { btn.disabled = false; btn.textContent = 'Demote to Student'; }
       }
     }
 
@@ -1391,17 +2123,39 @@
       if (target >= 1 && target <= state.assignments.totalPages) loadAssignmentsData(target);
     }
 
-    // 5. Load Content Oversight
+    function switchContentSubnav(subnav) {
+      document.querySelectorAll('.content-subnav-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.id === `subnav-${subnav}`);
+      });
+      document.querySelectorAll('.content-subview').forEach(view => {
+        view.style.display = 'none';
+      });
+      const activeView = document.getElementById(`content-subview-${subnav}`);
+      if (activeView) activeView.style.display = 'block';
+
+      if (subnav === 'posts') {
+        loadContentData(state.content.page || 1);
+      } else if (subnav === 'comments') {
+        loadModerationComments(state.comments.page || 1);
+      } else if (subnav === 'reports') {
+        loadModerationReports(state.reports.page || 1);
+      } else if (subnav === 'history') {
+        loadModerationHistory(state.modHistory.page || 1);
+      }
+    }
+
+    // 5. Load Content Oversight (Posts)
     async function loadContentData(page = 1) {
       state.content.page = page;
       const type = document.getElementById('contentFilterType')?.value || 'all';
       const audience = document.getElementById('contentFilterAudience')?.value || 'all';
+      const status = document.getElementById('contentFilterStatus')?.value || 'all';
       const search = (document.getElementById('contentSearchInput')?.value || '').trim();
       const tbody = document.getElementById('contentTableBody');
-      if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="loading-state">Loading posts oversight...</td></tr>`;
+      if (tbody) tbody.innerHTML = `<tr><td colspan="9" class="loading-state">Loading posts oversight...</td></tr>`;
 
       try {
-        const q = new URLSearchParams({ page: String(page), limit: String(state.content.limit), type, audience, search });
+        const q = new URLSearchParams({ page: String(page), limit: String(state.content.limit), type, audience, status, search });
         const res = await fetch(`/api/admin/content?${q.toString()}`);
         if (!res.ok) throw new Error('Failed to load content');
         const data = await res.json();
@@ -1409,7 +2163,7 @@
         state.content.totalPages = data.pagination?.totalPages || 1;
 
         if (!data.posts || data.posts.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="6" class="empty-state">No matching posts found.</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="9" class="empty-state">No matching posts found.</td></tr>`;
         } else {
           tbody.innerHTML = data.posts.map(p => {
             const authorRoleClass = `role-${p.author_role || 'student'}`;
@@ -1417,15 +2171,29 @@
             const scopeBadge = isStudentOnly
               ? `<span class="tag-badge tag-restricted">Student-Only Cohort</span>`
               : (p.is_official ? `<span class="tag-badge tag-official">Official Notice</span>` : `<span class="tag-badge">Public</span>`);
-            const preview = escapeHtml((p.content || '').substring(0, 100)) + ((p.content || '').length > 100 ? '…' : '');
+            const isRemoved = p.moderation_status === 'removed';
+            const statusBadge = isRemoved
+              ? `<span class="tag-badge tag-restricted" style="font-weight:600;">Removed</span>`
+              : `<span class="tag-badge tag-official">Active</span>`;
+            const reportBadge = (p.open_reports_count > 0)
+              ? `<span class="tag-badge tag-restricted">${p.open_reports_count} open</span>`
+              : `<span style="color:var(--text-muted); font-size:12px;">0</span>`;
+            const preview = escapeHtml((p.content || '').substring(0, 80)) + ((p.content || '').length > 80 ? '…' : '');
+            const actionBtn = isRemoved
+              ? `<button type="button" class="btn btn-secondary btn-sm" onclick="openPostModerationModal(${p.id}, 'restore')">Restore</button>`
+              : `<button type="button" class="btn btn-secondary btn-sm" onclick="openPostModerationModal(${p.id}, 'remove')">Remove</button>`;
+
             return `
               <tr>
                 <td><strong>${escapeHtml(p.author_name || p.user_id || '—')}</strong></td>
                 <td><span class="role-badge ${authorRoleClass}">${escapeHtml(p.author_role || 'student')}</span></td>
                 <td>${preview}</td>
                 <td>${scopeBadge}</td>
-                <td style="font-size:12px; color:var(--text-secondary);">${p.likes_count || 0} likes &middot; ${p.comments_count || 0} comments</td>
+                <td>${statusBadge}</td>
+                <td>${reportBadge}</td>
+                <td style="font-size:12px; color:var(--text-secondary);">${p.likes_count || 0} &middot; ${p.comments_count || 0} comm</td>
                 <td style="color:var(--text-muted); font-size:12px;">${p.created_at ? new Date(p.created_at).toLocaleDateString() : '—'}</td>
+                <td>${actionBtn}</td>
               </tr>
             `;
           }).join('');
@@ -1433,16 +2201,479 @@
 
         const pText = document.getElementById('contentPaginationText');
         if (pText) pText.textContent = `Page ${page} of ${state.content.totalPages} (${state.content.total} posts)`;
-        document.getElementById('btnPrevContent').disabled = page <= 1;
-        document.getElementById('btnNextContent').disabled = page >= state.content.totalPages;
+        const prevBtn = document.getElementById('btnPrevContent');
+        const nextBtn = document.getElementById('btnNextContent');
+        if (prevBtn) prevBtn.disabled = page <= 1;
+        if (nextBtn) nextBtn.disabled = page >= state.content.totalPages;
       } catch (err) {
         console.error('Error loading content oversight:', err);
+        if (tbody) tbody.innerHTML = `<tr><td colspan="9" class="empty-state" style="color:var(--accent-red);">Failed to load posts oversight.</td></tr>`;
       }
     }
 
     function changeContentPage(delta) {
       const target = state.content.page + delta;
       if (target >= 1 && target <= state.content.totalPages) loadContentData(target);
+    }
+
+    // 5b. Comments Moderation
+    async function loadModerationComments(page = 1) {
+      state.comments.page = page;
+      const status = document.getElementById('commentsFilterStatus')?.value || 'all';
+      const search = (document.getElementById('commentsSearchInput')?.value || '').trim();
+      const tbody = document.getElementById('commentsTableBody');
+      if (tbody) tbody.innerHTML = `<tr><td colspan="8" class="loading-state">Loading comments moderation...</td></tr>`;
+
+      try {
+        const q = new URLSearchParams({ page: String(page), limit: String(state.comments.limit), status, search });
+        const res = await fetch(`/api/admin/moderation/comments?${q.toString()}`);
+        if (!res.ok) throw new Error('Failed to load comments');
+        const data = await res.json();
+        state.comments.total = data.pagination?.total || 0;
+        state.comments.totalPages = data.pagination?.totalPages || 1;
+
+        if (!data.comments || data.comments.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="8" class="empty-state">No matching comments found.</td></tr>`;
+        } else {
+          tbody.innerHTML = data.comments.map(c => {
+            const authorRoleClass = `role-${c.author_role || 'student'}`;
+            const isRemoved = c.moderation_status === 'removed';
+            const statusBadge = isRemoved
+              ? `<span class="tag-badge tag-restricted" style="font-weight:600;">Removed</span>`
+              : `<span class="tag-badge tag-official">Active</span>`;
+            const reportBadge = (c.open_reports_count > 0)
+              ? `<span class="tag-badge tag-restricted">${c.open_reports_count} open</span>`
+              : `<span style="color:var(--text-muted); font-size:12px;">0</span>`;
+            const contentPreview = escapeHtml((c.content || '').substring(0, 80)) + ((c.content || '').length > 80 ? '…' : '');
+            const actionBtn = isRemoved
+              ? `<button type="button" class="btn btn-secondary btn-sm" onclick="openCommentModerationModal(${c.id}, 'restore')">Restore</button>`
+              : `<button type="button" class="btn btn-secondary btn-sm" onclick="openCommentModerationModal(${c.id}, 'remove')">Remove</button>`;
+
+            return `
+              <tr>
+                <td><strong>${escapeHtml(c.author_name || c.user_id || '—')}</strong></td>
+                <td><span class="role-badge ${authorRoleClass}">${escapeHtml(c.author_role || 'student')}</span></td>
+                <td>${contentPreview}</td>
+                <td><span class="mono-code">Post #${c.post_id}</span></td>
+                <td>${statusBadge}</td>
+                <td>${reportBadge}</td>
+                <td style="color:var(--text-muted); font-size:12px;">${c.created_at ? new Date(c.created_at).toLocaleDateString() : '—'}</td>
+                <td>${actionBtn}</td>
+              </tr>
+            `;
+          }).join('');
+        }
+
+        const pText = document.getElementById('commentsPaginationText');
+        if (pText) pText.textContent = `Page ${page} of ${state.comments.totalPages} (${state.comments.total} comments)`;
+        const prevBtn = document.getElementById('btnPrevComments');
+        const nextBtn = document.getElementById('btnNextComments');
+        if (prevBtn) prevBtn.disabled = page <= 1;
+        if (nextBtn) nextBtn.disabled = page >= state.comments.totalPages;
+      } catch (err) {
+        console.error('Error loading comments moderation:', err);
+        if (tbody) tbody.innerHTML = `<tr><td colspan="8" class="empty-state" style="color:var(--accent-red);">Failed to load comments moderation.</td></tr>`;
+      }
+    }
+
+    function changeCommentsPage(delta) {
+      const target = state.comments.page + delta;
+      if (target >= 1 && target <= state.comments.totalPages) loadModerationComments(target);
+    }
+
+    // 5c. Reports Queue
+    async function loadModerationReports(page = 1) {
+      state.reports.page = page;
+      const status = document.getElementById('reportsFilterStatus')?.value || 'open';
+      const type = document.getElementById('reportsFilterType')?.value || 'all';
+      const tbody = document.getElementById('reportsTableBody');
+      if (tbody) tbody.innerHTML = `<tr><td colspan="9" class="loading-state">Loading report queue...</td></tr>`;
+
+      try {
+        const q = new URLSearchParams({ page: String(page), limit: String(state.reports.limit), status, type });
+        const res = await fetch(`/api/admin/moderation/reports?${q.toString()}`);
+        if (!res.ok) throw new Error('Failed to load reports');
+        const data = await res.json();
+        state.reports.total = data.pagination?.total || 0;
+        state.reports.totalPages = data.pagination?.totalPages || 1;
+
+        if (!data.reports || data.reports.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="9" class="empty-state">No matching reports found in queue.</td></tr>`;
+        } else {
+          tbody.innerHTML = data.reports.map(r => {
+            const statusBadge = (r.status === 'open')
+              ? `<span class="tag-badge tag-restricted" style="font-weight:600;">Open</span>`
+              : (r.status === 'resolved' ? `<span class="tag-badge tag-official">Resolved</span>` : `<span class="tag-badge">Dismissed</span>`);
+            const targetDisplay = `<span class="mono-code">${escapeHtml(r.content_type)} #${r.content_id}</span>`;
+            const reporterDisplay = `<strong>${escapeHtml(r.reporter_name || r.reporter_id || '—')}</strong>`;
+            const dateStr = r.created_at ? new Date(r.created_at).toLocaleString() : '—';
+            let actions = `<span style="color:var(--text-muted); font-size:12px;">Closed (${escapeHtml(r.status)})</span>`;
+            if (r.status === 'open') {
+              actions = `
+                <div style="display:flex; gap:6px;">
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="openReportModal(${r.id}, 'resolve')">Resolve</button>
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="openReportModal(${r.id}, 'dismiss')">Dismiss</button>
+                </div>
+              `;
+            }
+
+            return `
+              <tr>
+                <td><span class="mono-code">#${r.id}</span></td>
+                <td><span class="tag-badge mono-code">${escapeHtml(r.content_type)}</span></td>
+                <td>${targetDisplay}</td>
+                <td><span class="tag-badge" style="text-transform:capitalize;">${escapeHtml(r.reason)}</span></td>
+                <td style="font-size:12px;">${escapeHtml(r.description || '—')}</td>
+                <td>${reporterDisplay}</td>
+                <td>${statusBadge}</td>
+                <td style="color:var(--text-muted); font-size:12px;">${escapeHtml(dateStr)}</td>
+                <td>${actions}</td>
+              </tr>
+            `;
+          }).join('');
+        }
+
+        const pText = document.getElementById('reportsPaginationText');
+        if (pText) pText.textContent = `Page ${page} of ${state.reports.totalPages} (${state.reports.total} reports)`;
+        const prevBtn = document.getElementById('btnPrevReports');
+        const nextBtn = document.getElementById('btnNextReports');
+        if (prevBtn) prevBtn.disabled = page <= 1;
+        if (nextBtn) nextBtn.disabled = page >= state.reports.totalPages;
+      } catch (err) {
+        console.error('Error loading reports queue:', err);
+        if (tbody) tbody.innerHTML = `<tr><td colspan="9" class="empty-state" style="color:var(--accent-red);">Failed to load report queue.</td></tr>`;
+      }
+    }
+
+    function changeReportsPage(delta) {
+      const target = state.reports.page + delta;
+      if (target >= 1 && target <= state.reports.totalPages) loadModerationReports(target);
+    }
+
+    // 5d. Moderation History
+    async function loadModerationHistory(page = 1) {
+      state.modHistory.page = page;
+      const tbody = document.getElementById('moderationHistoryTableBody');
+      if (tbody) tbody.innerHTML = `<tr><td colspan="5" class="loading-state">Loading moderation history...</td></tr>`;
+
+      try {
+        const q = new URLSearchParams({ page: String(page), limit: String(state.modHistory.limit) });
+        const res = await fetch(`/api/admin/moderation/history?${q.toString()}`);
+        if (!res.ok) throw new Error('Failed to load moderation history');
+        const data = await res.json();
+        state.modHistory.total = data.pagination?.total || 0;
+        state.modHistory.totalPages = data.pagination?.totalPages || 1;
+
+        if (!data.logs || data.logs.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="5" class="empty-state">No moderation audit events recorded.</td></tr>`;
+        } else {
+          tbody.innerHTML = data.logs.map(log => {
+            const dateStr = log.created_at ? new Date(log.created_at).toLocaleString() : '—';
+            const actorDisplay = escapeHtml(log.actor_name || log.actor_user_id || 'Admin');
+            const actionBadge = formatActionBadge(log.action);
+            const entityDisplay = formatEntityDisplay(log.entity_type, log.entity_id);
+            const changeSummary = formatChangeSummary(log);
+
+            return `
+              <tr>
+                <td>${actionBadge}</td>
+                <td>${entityDisplay}</td>
+                <td><strong>${actorDisplay}</strong></td>
+                <td style="font-size:13px;">${changeSummary}</td>
+                <td style="white-space:nowrap; font-size:12px; color:var(--text-secondary);">${escapeHtml(dateStr)}</td>
+              </tr>
+            `;
+          }).join('');
+        }
+
+        const pText = document.getElementById('moderationHistoryPaginationText');
+        if (pText) pText.textContent = `Page ${page} of ${state.modHistory.totalPages} (${state.modHistory.total} events)`;
+        const prevBtn = document.getElementById('btnPrevModHistory');
+        const nextBtn = document.getElementById('btnNextModHistory');
+        if (prevBtn) prevBtn.disabled = page <= 1;
+        if (nextBtn) nextBtn.disabled = page >= state.modHistory.totalPages;
+      } catch (err) {
+        console.error('Error loading moderation history:', err);
+        if (tbody) tbody.innerHTML = `<tr><td colspan="5" class="empty-state" style="color:var(--accent-red);">Failed to load moderation history.</td></tr>`;
+      }
+    }
+
+    function changeModHistoryPage(delta) {
+      const target = state.modHistory.page + delta;
+      if (target >= 1 && target <= state.modHistory.totalPages) loadModerationHistory(target);
+    }
+
+    // Modal management for Content & Moderation
+    function closeContentModerationModal() {
+      const modal = document.getElementById('contentModerationModal');
+      if (modal) modal.classList.remove('open');
+    }
+
+    async function openPostModerationModal(postId, action) {
+      const modal = document.getElementById('contentModerationModal');
+      const title = document.getElementById('modModalTitle');
+      const body = document.getElementById('contentModerationModalBody');
+      if (!modal || !body) return;
+
+      modal.classList.add('open');
+      if (title) title.textContent = action === 'remove' ? `Remove Post #${postId}` : `Restore Post #${postId}`;
+      body.innerHTML = `<div class="loading-state">Loading post #${postId} details...</div>`;
+
+      try {
+        const res = await fetch(`/api/admin/moderation/posts/${postId}`);
+        if (!res.ok) throw new Error('Failed to retrieve post details');
+        const data = await res.json();
+        const post = data.post || {};
+
+        if (action === 'remove') {
+          body.innerHTML = `
+            <div style="margin-bottom:14px; padding:12px; border:1px solid var(--border-color); border-radius:8px; background:var(--bg-card-hover);">
+              <div style="font-size:13px; font-weight:600; margin-bottom:4px;">Post Author: ${escapeHtml(post.author_name || post.user_id || '—')}</div>
+              <div style="font-size:12.5px; color:var(--text-secondary); margin-bottom:6px;">"${escapeHtml(post.content || '')}"</div>
+              <div style="font-size:11px; color:var(--text-muted);">Audience: ${escapeHtml(post.audience_scope || 'public')} &middot; Status: ${escapeHtml(post.moderation_status || 'active')}</div>
+            </div>
+            <p style="font-size:13px; color:var(--text-secondary); margin-bottom:12px;">
+              Removing this post will hide it immediately from home feeds, teacher feeds, search results, and public detail endpoints. A mandatory reason is required for the durable audit log.
+            </p>
+            <div style="margin-bottom:14px;">
+              <label for="postModReason" style="display:block; font-size:12px; font-weight:600; margin-bottom:6px;">Removal Reason (Required):</label>
+              <textarea id="postModReason" rows="2" class="search-box-input" style="width:100%; box-sizing:border-box;" placeholder="Enter authoritative removal reason..."></textarea>
+            </div>
+            <div id="postModError" style="display:none; color:var(--accent-red); font-size:12.5px; margin-bottom:10px;"></div>
+            <div style="display:flex; justify-content:flex-end; gap:8px;">
+              <button type="button" class="btn btn-secondary" onclick="closeContentModerationModal()">Cancel</button>
+              <button type="button" class="admin-modal-btn-action" id="btnSubmitPostMod" onclick="submitPostModeration(${postId}, 'remove')">Confirm Removal</button>
+            </div>
+          `;
+        } else {
+          body.innerHTML = `
+            <div style="margin-bottom:14px; padding:12px; border:1px solid var(--border-color); border-radius:8px; background:var(--bg-card-hover);">
+              <div style="font-size:13px; font-weight:600; margin-bottom:4px;">Post Author: ${escapeHtml(post.author_name || post.user_id || '—')}</div>
+              <div style="font-size:12.5px; color:var(--text-secondary); margin-bottom:6px;">"${escapeHtml(post.content || '')}"</div>
+              <div style="font-size:11px; color:var(--text-muted); color:var(--accent-red);">Current Removal Reason: "${escapeHtml(post.moderation_reason || 'N/A')}"</div>
+            </div>
+            <p style="font-size:13px; color:var(--text-secondary); margin-bottom:12px;">
+              Restoring this post will reactivate it according to its original audience restrictions (student-only cohort isolation remains preserved).
+            </p>
+            <div style="margin-bottom:14px;">
+              <label for="postModReason" style="display:block; font-size:12px; font-weight:600; margin-bottom:6px;">Restoration Note (Optional):</label>
+              <input type="text" id="postModReason" class="search-box-input" style="width:100%; box-sizing:border-box;" placeholder="Restored by administrator">
+            </div>
+            <div id="postModError" style="display:none; color:var(--accent-red); font-size:12.5px; margin-bottom:10px;"></div>
+            <div style="display:flex; justify-content:flex-end; gap:8px;">
+              <button type="button" class="btn btn-secondary" onclick="closeContentModerationModal()">Cancel</button>
+              <button type="button" class="admin-modal-btn-action" id="btnSubmitPostMod" onclick="submitPostModeration(${postId}, 'restore')">Confirm Restoration</button>
+            </div>
+          `;
+        }
+      } catch (err) {
+        body.innerHTML = `<div class="empty-state" style="color:var(--accent-red);">${escapeHtml(err.message || 'Failed to load post.')}</div>`;
+      }
+    }
+
+    async function submitPostModeration(postId, action) {
+      const reasonInput = document.getElementById('postModReason');
+      const errBox = document.getElementById('postModError');
+      const btn = document.getElementById('btnSubmitPostMod');
+      const reason = (reasonInput?.value || '').trim();
+
+      if (action === 'remove' && (!reason || reason.length < 3)) {
+        if (errBox) {
+          errBox.textContent = 'A valid removal reason of at least 3 characters is required.';
+          errBox.style.display = 'block';
+        }
+        return;
+      }
+
+      if (btn) btn.disabled = true;
+      if (errBox) errBox.style.display = 'none';
+
+      try {
+        const url = `/api/admin/moderation/posts/${postId}/${action}`;
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || `Failed to ${action} post`);
+
+        closeContentModerationModal();
+        loadContentData(state.content.page || 1);
+        if (state.loadedTabs.has('activity')) loadActivityData(1);
+      } catch (err) {
+        if (errBox) {
+          errBox.textContent = err.message || 'Action failed.';
+          errBox.style.display = 'block';
+        }
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    async function openCommentModerationModal(commentId, action) {
+      const modal = document.getElementById('contentModerationModal');
+      const title = document.getElementById('modModalTitle');
+      const body = document.getElementById('contentModerationModalBody');
+      if (!modal || !body) return;
+
+      modal.classList.add('open');
+      if (title) title.textContent = action === 'remove' ? `Remove Comment #${commentId}` : `Restore Comment #${commentId}`;
+      body.innerHTML = `<div class="loading-state">Loading comment #${commentId} details...</div>`;
+
+      try {
+        const res = await fetch(`/api/admin/moderation/comments/${commentId}`);
+        if (!res.ok) throw new Error('Failed to retrieve comment details');
+        const data = await res.json();
+        const comment = data.comment || {};
+
+        if (action === 'remove') {
+          body.innerHTML = `
+            <div style="margin-bottom:14px; padding:12px; border:1px solid var(--border-color); border-radius:8px; background:var(--bg-card-hover);">
+              <div style="font-size:13px; font-weight:600; margin-bottom:4px;">Comment Author: ${escapeHtml(comment.author_name || comment.user_id || '—')}</div>
+              <div style="font-size:12.5px; color:var(--text-secondary); margin-bottom:6px;">"${escapeHtml(comment.content || '')}"</div>
+              <div style="font-size:11px; color:var(--text-muted);">Target: Post #${comment.post_id} &middot; Status: ${escapeHtml(comment.moderation_status || 'active')}</div>
+            </div>
+            <p style="font-size:13px; color:var(--text-secondary); margin-bottom:12px;">
+              Removing this comment will hide its content while preserving reply threading integrity. A mandatory reason is required for the durable audit log.
+            </p>
+            <div style="margin-bottom:14px;">
+              <label for="commentModReason" style="display:block; font-size:12px; font-weight:600; margin-bottom:6px;">Removal Reason (Required):</label>
+              <textarea id="commentModReason" rows="2" class="search-box-input" style="width:100%; box-sizing:border-box;" placeholder="Enter authoritative removal reason..."></textarea>
+            </div>
+            <div id="commentModError" style="display:none; color:var(--accent-red); font-size:12.5px; margin-bottom:10px;"></div>
+            <div style="display:flex; justify-content:flex-end; gap:8px;">
+              <button type="button" class="btn btn-secondary" onclick="closeContentModerationModal()">Cancel</button>
+              <button type="button" class="admin-modal-btn-action" id="btnSubmitCommentMod" onclick="submitCommentModeration(${commentId}, 'remove')">Confirm Removal</button>
+            </div>
+          `;
+        } else {
+          body.innerHTML = `
+            <div style="margin-bottom:14px; padding:12px; border:1px solid var(--border-color); border-radius:8px; background:var(--bg-card-hover);">
+              <div style="font-size:13px; font-weight:600; margin-bottom:4px;">Comment Author: ${escapeHtml(comment.author_name || comment.user_id || '—')}</div>
+              <div style="font-size:12.5px; color:var(--text-secondary); margin-bottom:6px;">"${escapeHtml(comment.content || '')}"</div>
+              <div style="font-size:11px; color:var(--text-muted); color:var(--accent-red);">Current Removal Reason: "${escapeHtml(comment.moderation_reason || 'N/A')}"</div>
+            </div>
+            <p style="font-size:13px; color:var(--text-secondary); margin-bottom:12px;">
+              Restoring this comment will make its original text visible again to authorized users.
+            </p>
+            <div style="margin-bottom:14px;">
+              <label for="commentModReason" style="display:block; font-size:12px; font-weight:600; margin-bottom:6px;">Restoration Note (Optional):</label>
+              <input type="text" id="commentModReason" class="search-box-input" style="width:100%; box-sizing:border-box;" placeholder="Restored by administrator">
+            </div>
+            <div id="commentModError" style="display:none; color:var(--accent-red); font-size:12.5px; margin-bottom:10px;"></div>
+            <div style="display:flex; justify-content:flex-end; gap:8px;">
+              <button type="button" class="btn btn-secondary" onclick="closeContentModerationModal()">Cancel</button>
+              <button type="button" class="admin-modal-btn-action" id="btnSubmitCommentMod" onclick="submitCommentModeration(${commentId}, 'restore')">Confirm Restoration</button>
+            </div>
+          `;
+        }
+      } catch (err) {
+        body.innerHTML = `<div class="empty-state" style="color:var(--accent-red);">${escapeHtml(err.message || 'Failed to load comment.')}</div>`;
+      }
+    }
+
+    async function submitCommentModeration(commentId, action) {
+      const reasonInput = document.getElementById('commentModReason');
+      const errBox = document.getElementById('commentModError');
+      const btn = document.getElementById('btnSubmitCommentMod');
+      const reason = (reasonInput?.value || '').trim();
+
+      if (action === 'remove' && (!reason || reason.length < 3)) {
+        if (errBox) {
+          errBox.textContent = 'A valid removal reason of at least 3 characters is required.';
+          errBox.style.display = 'block';
+        }
+        return;
+      }
+
+      if (btn) btn.disabled = true;
+      if (errBox) errBox.style.display = 'none';
+
+      try {
+        const url = `/api/admin/moderation/comments/${commentId}/${action}`;
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || `Failed to ${action} comment`);
+
+        closeContentModerationModal();
+        loadModerationComments(state.comments.page || 1);
+        if (state.loadedTabs.has('activity')) loadActivityData(1);
+      } catch (err) {
+        if (errBox) {
+          errBox.textContent = err.message || 'Action failed.';
+          errBox.style.display = 'block';
+        }
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    function closeReportModal() {
+      const modal = document.getElementById('reportResolveModal');
+      if (modal) modal.classList.remove('open');
+    }
+
+    function openReportModal(reportId, action) {
+      const modal = document.getElementById('reportResolveModal');
+      const title = document.getElementById('reportModalTitle');
+      const body = document.getElementById('reportModalBody');
+      if (!modal || !body) return;
+
+      modal.classList.add('open');
+      if (title) title.textContent = action === 'resolve' ? `Resolve Report #${reportId}` : `Dismiss Report #${reportId}`;
+
+      body.innerHTML = `
+        <p style="font-size:13px; color:var(--text-secondary); margin-bottom:14px;">
+          ${action === 'resolve'
+            ? 'Marking this report as resolved indicates that administrative review is complete and necessary action has been taken.'
+            : 'Dismissing this report leaves the target content active while closing the pending report.'}
+        </p>
+        <div style="margin-bottom:14px;">
+          <label for="reportActionNotes" style="display:block; font-size:12px; font-weight:600; margin-bottom:6px;">Resolution Notes (Optional):</label>
+          <textarea id="reportActionNotes" rows="2" class="search-box-input" style="width:100%; box-sizing:border-box;" placeholder="Add notes for audit log..."></textarea>
+        </div>
+        <div id="reportActionError" style="display:none; color:var(--accent-red); font-size:12.5px; margin-bottom:10px;"></div>
+        <div style="display:flex; justify-content:flex-end; gap:8px;">
+          <button type="button" class="btn btn-secondary" onclick="closeReportModal()">Cancel</button>
+          <button type="button" class="admin-modal-btn-action" id="btnSubmitReportAction" onclick="submitReportAction(${reportId}, '${action}')">
+            Confirm ${action === 'resolve' ? 'Resolution' : 'Dismissal'}
+          </button>
+        </div>
+      `;
+    }
+
+    async function submitReportAction(reportId, action) {
+      const notesInput = document.getElementById('reportActionNotes');
+      const errBox = document.getElementById('reportActionError');
+      const btn = document.getElementById('btnSubmitReportAction');
+      const notes = (notesInput?.value || '').trim();
+
+      if (btn) btn.disabled = true;
+      if (errBox) errBox.style.display = 'none';
+
+      try {
+        const url = `/api/admin/moderation/reports/${reportId}/${action}`;
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ resolutionNotes: notes })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || `Failed to ${action} report`);
+
+        closeReportModal();
+        loadModerationReports(state.reports.page || 1);
+        if (state.loadedTabs.has('activity')) loadActivityData(1);
+      } catch (err) {
+        if (errBox) {
+          errBox.textContent = err.message || 'Action failed.';
+          errBox.style.display = 'block';
+        }
+        if (btn) btn.disabled = false;
+      }
     }
 
     // 6. Load Activity & Administrative Audit Logs
@@ -1578,6 +2809,33 @@
       }
       if (log.action === 'cohort_student_assigned') {
         return `Assigned student to cohort <span class="mono-code">${escapeHtml(String(log.entity_id))}</span>`;
+      }
+      if (log.action === 'account_suspended') {
+        const reason = meta.reason ? ` Reason: "${escapeHtml(meta.reason)}"` : '';
+        return `Suspended account <span class="mono-code">${escapeHtml(String(log.entity_id))}</span>.${reason}`;
+      }
+      if (log.action === 'account_reactivated') {
+        return `Reactivated account <span class="mono-code">${escapeHtml(String(log.entity_id))}</span>.`;
+      }
+      if (log.action === 'post_removed') {
+        const reason = meta.reason ? ` Reason: "${escapeHtml(meta.reason)}"` : '';
+        return `Removed post <span class="mono-code">#${escapeHtml(String(log.entity_id))}</span>.${reason}`;
+      }
+      if (log.action === 'post_restored') {
+        return `Restored post <span class="mono-code">#${escapeHtml(String(log.entity_id))}</span>.`;
+      }
+      if (log.action === 'comment_removed') {
+        const reason = meta.reason ? ` Reason: "${escapeHtml(meta.reason)}"` : '';
+        return `Removed comment <span class="mono-code">#${escapeHtml(String(log.entity_id))}</span>.${reason}`;
+      }
+      if (log.action === 'comment_restored') {
+        return `Restored comment <span class="mono-code">#${escapeHtml(String(log.entity_id))}</span>.`;
+      }
+      if (log.action === 'content_report_resolved') {
+        return `Resolved content report <span class="mono-code">#${escapeHtml(String(log.entity_id))}</span>.`;
+      }
+      if (log.action === 'content_report_dismissed') {
+        return `Dismissed content report <span class="mono-code">#${escapeHtml(String(log.entity_id))}</span>.`;
       }
 
       const details = meta.description || meta.note || (log.action ? log.action.replace(/_/g, ' ') : 'Administrative update');

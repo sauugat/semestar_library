@@ -178,7 +178,7 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
     LEFT JOIN students s ON s.studentId = p.user_id
     LEFT JOIN (SELECT post_id, COUNT(*) AS like_count FROM post_likes GROUP BY post_id) l
       ON l.post_id = p.id
-    LEFT JOIN (SELECT post_id, COUNT(*) AS comment_count FROM post_comments WHERE deleted_at IS NULL GROUP BY post_id) c
+    LEFT JOIN (SELECT post_id, COUNT(*) AS comment_count FROM post_comments WHERE deleted_at IS NULL AND (moderation_status IS NULL OR moderation_status = 'active') GROUP BY post_id) c
       ON c.post_id = p.id
     LEFT JOIN post_likes mine ON mine.post_id = p.id AND mine.user_id = ?
     LEFT JOIN (SELECT post_id, COUNT(*) AS submission_count FROM post_submissions GROUP BY post_id) sub
@@ -461,6 +461,10 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       audienceScope: post.audience_scope || post.audienceScope || 'all_students',
       audience_scope: post.audience_scope || post.audienceScope || 'all_students',
       is_official: isOfficialNotice,
+      moderation_status: post.moderation_status || 'active',
+      is_removed: post.moderation_status === 'removed',
+      moderated_at: post.moderated_at || null,
+      moderation_reason: post.moderation_status === 'removed' ? (isAdmin ? (post.moderation_reason || null) : null) : null,
       canDelete: isAuthor || isAdmin,
       canEdit: isAuthor || isAdmin,
       media: Array.isArray(post.media) ? post.media : []
@@ -544,6 +548,9 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       });
       whereConditions.push(academicFilter.sql);
       params.push(...academicFilter.params);
+
+      // Moderation filter: removed posts are hidden from all feeds, search, and list endpoints
+      whereConditions.push("(p.moderation_status IS NULL OR p.moderation_status = 'active')");
 
       // Category filter
       if (category !== undefined && category !== 'all' && category !== '') {
@@ -1176,6 +1183,13 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       const row = await db.get(`${selectPosts} WHERE p.id = ?`, currentUserId, postId);
       if (!row) return res.status(404).json({ message: 'Post not found.' });
 
+      if (row.moderation_status === 'removed') {
+        return res.status(404).json({
+          message: 'This post is no longer available as it was removed by moderation.',
+          isRemoved: true
+        });
+      }
+
       const context = await getAcademicContext(db, req);
       if (!assertContentAccess(context, row) || !assertAudienceAccess(req, row)) {
         return res.status(404).json({ message: 'Post not found.' });
@@ -1271,11 +1285,12 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
   async function getAndAuthorizePost(req, postId) {
     const post = await db.get(`
       SELECT p.id, p.user_id, p.content, p.cohort_id, p.semester_no, p.audience_scope,
-             p.target_all_semesters, p.visibility, p.type, p.category, s.role
+             p.target_all_semesters, p.visibility, p.type, p.category, p.moderation_status, s.role
       FROM posts p
       LEFT JOIN students s ON s.studentId = p.user_id
       WHERE p.id = ?`, postId);
     if (!post) return null;
+    if (post.moderation_status === 'removed') return null;
     const context = await getAcademicContext(db, req);
     if (!assertContentAccess(context, post)) return null;
     if (!assertAudienceAccess(req, post)) return null;
@@ -1506,6 +1521,145 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
 
   router.delete('/:id/comments/:commentId/like', handleRemoveCommentReaction);
 
+  const VALID_REPORT_REASONS = ['spam', 'harassment', 'inappropriate', 'misinformation', 'other'];
+
+  /**
+   * POST /api/posts/:id/report
+   * Report a post. Content must be accessible to caller. Prevents duplicate reports.
+   */
+  router.post('/:id/report', requireLogin, async (req, res, next) => {
+    try {
+      const postId = Number(req.params.id);
+      if (!Number.isInteger(postId) || postId <= 0) {
+        return res.status(400).json({ message: 'Invalid post ID.' });
+      }
+
+      const reporterId = req.student?.studentId || req.user?.studentId || req.session?.studentId || req.postUser?.studentId;
+      if (!reporterId) {
+        return res.status(401).json({ message: 'Authentication required to report content.' });
+      }
+
+      // Check account suspension
+      const reporter = await db.get('SELECT studentId, account_status FROM students WHERE studentId = ?', reporterId);
+      if (reporter && (reporter.account_status === 'suspended' || reporter.accountStatus === 'suspended')) {
+        return res.status(403).json({ message: 'Suspended accounts cannot submit content reports.' });
+      }
+
+      // Verify the post is accessible to the user using existing authorization
+      const post = await getAndAuthorizePost(req, postId);
+      if (!post) {
+        return res.status(404).json({ message: 'Post not found.' });
+      }
+
+      const { reason, description } = req.body || {};
+      const cleanReason = (typeof reason === 'string' ? reason.trim().toLowerCase() : '');
+      if (!VALID_REPORT_REASONS.includes(cleanReason)) {
+        return res.status(400).json({
+          message: 'A valid report reason is required (spam, harassment, inappropriate, misinformation, or other).'
+        });
+      }
+
+      const cleanDesc = (typeof description === 'string' ? description.trim().slice(0, 1000) : null);
+
+      // Duplicate report abuse prevention: check if this user already has an open report on this post
+      const existing = await db.get(
+        "SELECT id FROM content_reports WHERE reporter_id = ? AND content_type = 'post' AND content_id = ? AND status = 'open'",
+        reporterId, postId
+      );
+      if (existing) {
+        return res.status(409).json({ message: 'You have already submitted an active report for this post.' });
+      }
+
+      const insertResult = await db.run(
+        `INSERT INTO content_reports (content_type, content_id, reporter_id, reason, description, status, created_at)
+         VALUES ('post', ?, ?, ?, ?, 'open', CURRENT_TIMESTAMP)`,
+        postId, reporterId, cleanReason, cleanDesc
+      );
+
+      res.status(201).json({
+        success: true,
+        message: 'Report submitted successfully. Community moderators will review this content.',
+        reportId: insertResult?.lastInsertRowid || null,
+        status: 'open'
+      });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  /**
+   * POST /api/posts/:id/comments/:commentId/report
+   * Report a comment. Parent post and comment must be accessible to caller. Prevents duplicates.
+   */
+  router.post('/:id/comments/:commentId/report', requireLogin, async (req, res, next) => {
+    try {
+      const postId = Number(req.params.id);
+      const commentId = Number(req.params.commentId);
+      if (!Number.isInteger(postId) || postId <= 0 || !Number.isInteger(commentId) || commentId <= 0) {
+        return res.status(400).json({ message: 'Invalid post or comment ID.' });
+      }
+
+      const reporterId = req.student?.studentId || req.user?.studentId || req.session?.studentId || req.postUser?.studentId;
+      if (!reporterId) {
+        return res.status(401).json({ message: 'Authentication required to report content.' });
+      }
+
+      const reporter = await db.get('SELECT studentId, account_status FROM students WHERE studentId = ?', reporterId);
+      if (reporter && (reporter.account_status === 'suspended' || reporter.accountStatus === 'suspended')) {
+        return res.status(403).json({ message: 'Suspended accounts cannot submit content reports.' });
+      }
+
+      // Verify parent post is accessible
+      const post = await getAndAuthorizePost(req, postId);
+      if (!post) {
+        return res.status(404).json({ message: 'Post not found.' });
+      }
+
+      // Verify comment exists on this post
+      const comment = await db.get(
+        'SELECT id, post_id, deleted_at, moderation_status FROM post_comments WHERE id = ? AND post_id = ?',
+        commentId, postId
+      );
+      if (!comment || comment.deleted_at || comment.moderation_status === 'removed') {
+        return res.status(404).json({ message: 'Comment not found.' });
+      }
+
+      const { reason, description } = req.body || {};
+      const cleanReason = (typeof reason === 'string' ? reason.trim().toLowerCase() : '');
+      if (!VALID_REPORT_REASONS.includes(cleanReason)) {
+        return res.status(400).json({
+          message: 'A valid report reason is required (spam, harassment, inappropriate, misinformation, or other).'
+        });
+      }
+
+      const cleanDesc = (typeof description === 'string' ? description.trim().slice(0, 1000) : null);
+
+      // Duplicate report prevention
+      const existing = await db.get(
+        "SELECT id FROM content_reports WHERE reporter_id = ? AND content_type = 'comment' AND content_id = ? AND status = 'open'",
+        reporterId, commentId
+      );
+      if (existing) {
+        return res.status(409).json({ message: 'You have already submitted an active report for this comment.' });
+      }
+
+      const insertResult = await db.run(
+        `INSERT INTO content_reports (content_type, content_id, reporter_id, reason, description, status, created_at)
+         VALUES ('comment', ?, ?, ?, ?, 'open', CURRENT_TIMESTAMP)`,
+        commentId, reporterId, cleanReason, cleanDesc
+      );
+
+      res.status(201).json({
+        success: true,
+        message: 'Report submitted successfully. Community moderators will review this comment.',
+        reportId: insertResult?.lastInsertRowid || null,
+        status: 'open'
+      });
+    } catch (err) {
+      next(err);
+    }
+  });
+
   const handleEditPost = async (req, res, next) => {
     try {
       const postId = Number(req.params.id);
@@ -1515,6 +1669,11 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       if (!post) {
         for (const f of uploadedFiles) await removeUploadedImage(f.path);
         return res.status(404).json({ message: 'Post not found.' });
+      }
+
+      if (post.moderation_status === 'removed') {
+        for (const f of uploadedFiles) await removeUploadedImage(f.path);
+        return res.status(400).json({ message: 'Cannot edit a post that has been removed by moderation.' });
       }
 
       // Backend ownership check: Never trust client userId / studentId!
@@ -1872,8 +2031,11 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
   router.delete('/:id', async (req, res, next) => {
     try {
       const postId = Number(req.params.id);
-      const post = await db.get('SELECT user_id, attachment_url FROM posts WHERE id = ?', postId);
+      const post = await db.get('SELECT user_id, attachment_url, moderation_status FROM posts WHERE id = ?', postId);
       if (!post) return res.status(404).json({ message: 'Post not found.' });
+      if (post.moderation_status === 'removed' && req.postUser.role !== 'admin') {
+        return res.status(400).json({ message: 'Cannot delete a post that has been removed by moderation.' });
+      }
       if (post.user_id !== req.postUser.studentId && req.postUser.role !== 'admin') {
         return res.status(403).json({ message: 'Only the owner or an admin can delete this post.' });
       }

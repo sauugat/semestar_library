@@ -188,6 +188,26 @@ export async function clearAuthToken(): Promise<void> {
   } catch {}
 }
 
+export type SuspensionListener = (message: string) => void;
+const suspensionListeners = new Set<SuspensionListener>();
+
+export function addSuspensionListener(listener: SuspensionListener): () => void {
+  suspensionListeners.add(listener);
+  return () => {
+    suspensionListeners.delete(listener);
+  };
+}
+
+export function notifyAccountSuspended(message: string): void {
+  for (const listener of suspensionListeners) {
+    try {
+      listener(message);
+    } catch (e) {
+      console.warn('[apiFetch] Suspension listener error:', e);
+    }
+  }
+}
+
 export async function apiFetch(
   endpoint: string,
   options: RequestInit = {}
@@ -397,7 +417,15 @@ export async function apiFetch(
       const errJson = await cloned.json().catch(() => null);
       if (errJson && (errJson.error === 'ACCOUNT_SUSPENDED' || errJson.code === 'ACCOUNT_SUSPENDED')) {
         await clearAuthToken();
-        throw new ApiError(errJson.message || 'Your account has been suspended by an administrator.', 403, errJson);
+        const msg = errJson.message || 'Your account has been suspended by an administrator.';
+        notifyAccountSuspended(msg);
+        try {
+          router.replace({
+            pathname: '/login' as any,
+            params: { suspensionMessage: msg },
+          });
+        } catch {}
+        throw new ApiError(msg, 403, errJson);
       }
     } catch (e) {
       if (e instanceof ApiError) throw e;

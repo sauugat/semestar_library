@@ -3,6 +3,16 @@
 const express = require('express');
 const { queryAdminAuditLogs, recordAdminAudit } = require('../lib/audit-service');
 const { isModerationSchemaAvailable, isContentReportsAvailable } = require('../lib/posts');
+const {
+  getAcademicsOverview,
+  listCanonicalSubjects,
+  getSubjectDetail,
+  createCanonicalSubject,
+  updateCanonicalSubject,
+  archiveCanonicalSubject,
+  reactivateCanonicalSubject,
+  getUnclassifiedMaterials
+} = require('../lib/academic-service');
 
 function createAdminDashboardRouter(arg1, arg2) {
   let db, requireLogin;
@@ -993,42 +1003,8 @@ function createAdminDashboardRouter(arg1, arg2) {
    */
   router.get('/academics', requireLogin, requireAdminRole, async (req, res) => {
     try {
-      const [subjectsRows, filesRows, assignmentsRows] = await Promise.all([
-        db.all("SELECT semester, COUNT(*) AS count FROM subjects WHERE is_active = 1 GROUP BY semester").catch(() => []),
-        db.all("SELECT semester, COUNT(*) AS count FROM files GROUP BY semester").catch(() => []),
-        db.all("SELECT semester, COUNT(*) AS count FROM assignments GROUP BY semester").catch(() => [])
-      ]);
-
-      const semesterStats = [];
-      for (let sem = 1; sem <= 8; sem++) {
-        const semStr = String(sem);
-        const fullSemStr = `Semester ${sem}`;
-
-        const subMatch = (subjectsRows || []).find(r => String(r.semester) === semStr || String(r.semester) === fullSemStr);
-        const fileMatch = (filesRows || []).find(r => String(r.semester) === semStr || String(r.semester) === fullSemStr || String(r.semester).toLowerCase() === `sem ${sem}`);
-        const assignMatch = (assignmentsRows || []).find(r => String(r.semester) === semStr || String(r.semester) === fullSemStr || String(r.semester).toLowerCase() === `sem ${sem}`);
-
-        semesterStats.push({
-          semester: sem,
-          label: `Semester ${sem}`,
-          subjectsCount: Number(subMatch?.count || 0),
-          materialsCount: Number(fileMatch?.count || 0),
-          assignmentsCount: Number(assignMatch?.count || 0)
-        });
-      }
-
-      const totalSubjects = (subjectsRows || []).reduce((acc, r) => acc + Number(r.count || 0), 0);
-      const totalMaterials = (filesRows || []).reduce((acc, r) => acc + Number(r.count || 0), 0);
-      const totalAssignments = (assignmentsRows || []).reduce((acc, r) => acc + Number(r.count || 0), 0);
-
-      res.json({
-        semesters: semesterStats,
-        totals: {
-          subjects: totalSubjects,
-          materials: totalMaterials,
-          assignments: totalAssignments
-        }
-      });
+      const overview = await getAcademicsOverview(db);
+      res.json(overview);
     } catch (err) {
       console.error('[Admin Academics Overview Error]:', err);
       res.status(500).json({ message: 'Failed to retrieve academic overview.' });
@@ -1036,8 +1012,148 @@ function createAdminDashboardRouter(arg1, arg2) {
   });
 
   /**
+   * 3a. GET /api/admin/academics/subjects
+   * List canonical subjects with semester, status, and search filters, with pagination.
+   */
+  router.get('/academics/subjects', requireLogin, requireAdminRole, async (req, res) => {
+    try {
+      const result = await listCanonicalSubjects(db, req.query);
+      res.json(result);
+    } catch (err) {
+      console.error('[Admin Academics List Subjects Error]:', err);
+      res.status(500).json({ message: 'Failed to list subjects.' });
+    }
+  });
+
+  /**
+   * 3b. POST /api/admin/academics/subjects
+   * Create canonical subject with unique code and transactional audit logging.
+   */
+  router.post('/academics/subjects', requireLogin, requireAdminRole, async (req, res) => {
+    try {
+      const subject = await createCanonicalSubject(db, {
+        adminId: req.adminStudentId,
+        ...req.body
+      });
+      res.status(201).json({
+        message: 'Canonical subject created successfully.',
+        subject
+      });
+    } catch (err) {
+      const status = err.statusCode || (err.message && err.message.includes('already exists') ? 409 : 400);
+      res.status(status).json({ message: err.message || 'Failed to create canonical subject.' });
+    }
+  });
+
+  /**
+   * 3c. GET /api/admin/academics/subjects/:id
+   * Detail view for single canonical subject with assigned teachers and related stats.
+   */
+  router.get('/academics/subjects/:id', requireLogin, requireAdminRole, async (req, res) => {
+    try {
+      const detail = await getSubjectDetail(db, req.params.id);
+      if (!detail) {
+        return res.status(404).json({ message: 'Subject not found.' });
+      }
+      res.json(detail);
+    } catch (err) {
+      console.error('[Admin Academics Subject Detail Error]:', err);
+      res.status(500).json({ message: 'Failed to retrieve subject detail.' });
+    }
+  });
+
+  /**
+   * 3d. PATCH / PUT /api/admin/academics/subjects/:id
+   * Update canonical subject without changing stable ID, with transactional audit logging.
+   */
+  const handleUpdateSubject = async (req, res) => {
+    try {
+      const updated = await updateCanonicalSubject(db, {
+        adminId: req.adminStudentId,
+        subjectId: req.params.id,
+        ...req.body
+      });
+      res.json({
+        message: 'Canonical subject updated successfully.',
+        subject: updated
+      });
+    } catch (err) {
+      const status = err.statusCode || (err.message && err.message.includes('already exists') ? 409 : 400);
+      res.status(status).json({ message: err.message || 'Failed to update canonical subject.' });
+    }
+  };
+  router.patch('/academics/subjects/:id', requireLogin, requireAdminRole, handleUpdateSubject);
+  router.put('/academics/subjects/:id', requireLogin, requireAdminRole, handleUpdateSubject);
+
+  /**
+   * 3e. POST /api/admin/academics/subjects/:id/archive
+   * Reversibly archive/deactivate canonical subject with transactional audit logging.
+   */
+  router.post('/academics/subjects/:id/archive', requireLogin, requireAdminRole, async (req, res) => {
+    try {
+      const result = await archiveCanonicalSubject(db, {
+        adminId: req.adminStudentId,
+        subjectId: req.params.id,
+        reason: req.body?.reason
+      });
+      res.json({
+        message: 'Subject archived successfully.',
+        subject: result
+      });
+    } catch (err) {
+      const status = err.statusCode || 400;
+      res.status(status).json({ message: err.message || 'Failed to archive subject.' });
+    }
+  });
+
+  /**
+   * 3f. POST /api/admin/academics/subjects/:id/reactivate
+   * Reactivate canonical subject with transactional audit logging.
+   */
+  router.post('/academics/subjects/:id/reactivate', requireLogin, requireAdminRole, async (req, res) => {
+    try {
+      const result = await reactivateCanonicalSubject(db, {
+        adminId: req.adminStudentId,
+        subjectId: req.params.id,
+        reason: req.body?.reason
+      });
+      res.json({
+        message: 'Subject reactivated successfully.',
+        subject: result
+      });
+    } catch (err) {
+      const status = err.statusCode || 400;
+      res.status(status).json({ message: err.message || 'Failed to reactivate subject.' });
+    }
+  });
+
+  /**
+   * 3g. DELETE /api/admin/academics/subjects/:id
+   * Subject deletion is strictly disallowed to preserve historical data integrity.
+   */
+  router.delete('/academics/subjects/:id', requireLogin, requireAdminRole, (req, res) => {
+    return res.status(405).json({
+      message: 'Subject deletion is disabled to preserve historical academic integrity. Use archive instead.'
+    });
+  });
+
+  /**
+   * 3h. GET /api/admin/academics/unclassified-materials
+   * Read-only administrative review list of unclassified files and assignments.
+   */
+  router.get('/academics/unclassified-materials', requireLogin, requireAdminRole, async (req, res) => {
+    try {
+      const result = await getUnclassifiedMaterials(db, req.query);
+      res.json(result);
+    } catch (err) {
+      console.error('[Admin Unclassified Materials Error]:', err);
+      res.status(500).json({ message: 'Failed to retrieve unclassified materials.' });
+    }
+  });
+
+  /**
    * 4. GET /api/admin/academics/materials
-   * Paginated study materials across all semesters.
+   * Paginated study materials across all semesters with subject and unclassified filtering.
    */
   router.get('/academics/materials', requireLogin, requireAdminRole, async (req, res) => {
     try {
@@ -1046,14 +1162,22 @@ function createAdminDashboardRouter(arg1, arg2) {
       const offset = (page - 1) * limit;
 
       const semester = req.query.semester ? String(req.query.semester).trim() : null;
+      const subject = req.query.subject ? String(req.query.subject).trim() : null;
       const search = req.query.search ? String(req.query.search).trim() : null;
 
       const whereClauses = [];
       const params = [];
 
-      if (semester && semester !== 'all') {
+      if (semester === 'unclassified') {
+        whereClauses.push("(f.semester IS NULL OR TRIM(f.semester) = '' OR TRIM(f.semester) NOT IN ('1','2','3','4','5','6','7','8', 'Semester 1', 'Semester 2', 'Semester 3', 'Semester 4', 'Semester 5', 'Semester 6', 'Semester 7', 'Semester 8', 'Sem 1', 'Sem 2', 'Sem 3', 'Sem 4', 'Sem 5', 'Sem 6', 'Sem 7', 'Sem 8') OR f.subject IS NULL OR TRIM(f.subject) = '')");
+      } else if (semester && semester !== 'all') {
         whereClauses.push("(f.semester = ? OR f.semester = ? OR f.semester = ?)");
         params.push(semester, `Semester ${semester}`, `Sem ${semester}`);
+      }
+
+      if (subject && subject !== 'all') {
+        whereClauses.push("(LOWER(f.subject) = LOWER(?) OR LOWER(f.subject) = LOWER(?))");
+        params.push(subject, subject);
       }
 
       if (search) {
@@ -1091,7 +1215,7 @@ function createAdminDashboardRouter(arg1, arg2) {
 
   /**
    * 5. GET /api/admin/academics/assignments
-   * Paginated assignments across all semesters.
+   * Paginated assignments across all semesters with subject and unclassified filtering.
    */
   router.get('/academics/assignments', requireLogin, requireAdminRole, async (req, res) => {
     try {
@@ -1100,14 +1224,22 @@ function createAdminDashboardRouter(arg1, arg2) {
       const offset = (page - 1) * limit;
 
       const semester = req.query.semester ? String(req.query.semester).trim() : null;
+      const subject = req.query.subject ? String(req.query.subject).trim() : null;
       const search = req.query.search ? String(req.query.search).trim() : null;
 
       const whereClauses = [];
       const params = [];
 
-      if (semester && semester !== 'all') {
+      if (semester === 'unclassified') {
+        whereClauses.push("(a.semester IS NULL OR TRIM(a.semester) = '' OR TRIM(a.semester) NOT IN ('1','2','3','4','5','6','7','8', 'Semester 1', 'Semester 2', 'Semester 3', 'Semester 4', 'Semester 5', 'Semester 6', 'Semester 7', 'Semester 8', 'Sem 1', 'Sem 2', 'Sem 3', 'Sem 4', 'Sem 5', 'Sem 6', 'Sem 7', 'Sem 8') OR a.subject IS NULL OR TRIM(a.subject) = '')");
+      } else if (semester && semester !== 'all') {
         whereClauses.push("(a.semester = ? OR a.semester = ?)");
         params.push(semester, `Semester ${semester}`);
+      }
+
+      if (subject && subject !== 'all') {
+        whereClauses.push("(LOWER(a.subject) = LOWER(?) OR LOWER(a.subject) = LOWER(?))");
+        params.push(subject, subject);
       }
 
       if (search) {
@@ -1301,9 +1433,65 @@ function createAdminDashboardRouter(arg1, arg2) {
     }
   });
 
+  /**
+   * 7b. GET /api/admin/audit-logs
+   * Mobile and programmatic alias for /activity.
+   */
+  router.get('/audit-logs', requireLogin, requireAdminRole, async (req, res) => {
+    try {
+      const { page, limit, action, actor, entityType, startDate, endDate } = req.query;
+      const result = await queryAdminAuditLogs(db, {
+        page,
+        limit,
+        action,
+        actor,
+        entityType,
+        startDate,
+        endDate
+      });
+      res.json(result);
+    } catch (err) {
+      console.error('[Admin Audit Logs Error]:', err);
+      res.status(500).json({ message: 'Failed to retrieve administrative audit logs.' });
+    }
+  });
+
   // ==========================================
   // CONTENT MODERATION ENDPOINTS (PHASE 4B.4)
   // ==========================================
+
+  /**
+   * 7c. GET /api/admin/moderation/overview
+   * Overview metrics for moderation queue, reports, and actions.
+   */
+  router.get('/moderation/overview', requireLogin, requireAdminRole, async (req, res) => {
+    try {
+      const reportsAvail = await isContentReportsAvailable(db);
+      if (!reportsAvail) {
+        return res.json({
+          queueCount: 0,
+          reportsCount: 0,
+          historyCount: 0,
+          moderationAvailable: false,
+          migrationPending: true
+        });
+      }
+      const [pendingCount, totalReports, modHistory] = await Promise.all([
+        db.get("SELECT COUNT(*) AS count FROM content_reports WHERE status = 'pending'").catch(() => ({ count: 0 })),
+        db.get("SELECT COUNT(*) AS count FROM content_reports").catch(() => ({ count: 0 })),
+        db.get("SELECT COUNT(*) AS count FROM admin_audit_logs WHERE action LIKE 'post_%' OR action LIKE 'comment_%' OR action LIKE 'content_report_%'").catch(() => ({ count: 0 }))
+      ]);
+      res.json({
+        queueCount: Number(pendingCount?.count || 0),
+        reportsCount: Number(totalReports?.count || 0),
+        historyCount: Number(modHistory?.count || 0),
+        moderationAvailable: true
+      });
+    } catch (err) {
+      console.error('[Admin Moderation Overview Error]:', err);
+      res.status(500).json({ message: 'Failed to retrieve moderation overview.' });
+    }
+  });
 
   /**
    * 8. GET /api/admin/moderation/queue
@@ -1424,6 +1612,11 @@ function createAdminDashboardRouter(arg1, arg2) {
         return res.status(400).json({ message: 'Invalid post ID.' });
       }
 
+      const modAvail = await isModerationSchemaAvailable(db);
+      if (!modAvail) {
+        return res.status(503).json({ message: 'Content moderation migration is pending.', migrationPending: true });
+      }
+
       const post = await db.get(`
         SELECT p.*, s.name AS author_name, s.role AS author_role, s.email AS author_email,
                COALESCE(p.moderation_status, 'active') AS moderation_status,
@@ -1483,6 +1676,11 @@ function createAdminDashboardRouter(arg1, arg2) {
 
     if (!reason || reason.length < 3) {
       return res.status(400).json({ message: 'A valid moderation removal reason (at least 3 characters) is required.' });
+    }
+
+    const modAvail = await isModerationSchemaAvailable(db);
+    if (!modAvail) {
+      return res.status(503).json({ message: 'Content moderation migration is pending.', migrationPending: true });
     }
 
     try {
@@ -1580,6 +1778,11 @@ function createAdminDashboardRouter(arg1, arg2) {
       return res.status(400).json({ message: 'Invalid post ID.' });
     }
 
+    const modAvail = await isModerationSchemaAvailable(db);
+    if (!modAvail) {
+      return res.status(503).json({ message: 'Content moderation migration is pending.', migrationPending: true });
+    }
+
     try {
       const runRestore = async (tx) => {
         const post = await tx.get(
@@ -1663,6 +1866,15 @@ function createAdminDashboardRouter(arg1, arg2) {
       const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit || '20'), 10) || 20));
       const offset = (page - 1) * limit;
 
+      const modAvail = await isModerationSchemaAvailable(db);
+      if (!modAvail) {
+        return res.json({
+          comments: [],
+          pagination: { page, limit, total: 0, totalPages: 1 },
+          migrationPending: true
+        });
+      }
+
       const status = req.query.status ? String(req.query.status).trim().toLowerCase() : null;
       const postId = req.query.postId ? Number(req.query.postId) : null;
       const search = req.query.search ? String(req.query.search).trim() : null;
@@ -1740,6 +1952,11 @@ function createAdminDashboardRouter(arg1, arg2) {
         return res.status(400).json({ message: 'Invalid comment ID.' });
       }
 
+      const modAvail = await isModerationSchemaAvailable(db);
+      if (!modAvail) {
+        return res.status(503).json({ message: 'Content moderation migration is pending.', migrationPending: true });
+      }
+
       const comment = await db.get(`
         SELECT c.*, s.name AS author_name, s.role AS author_role, s.email AS author_email,
                COALESCE(c.moderation_status, 'active') AS moderation_status,
@@ -1802,6 +2019,11 @@ function createAdminDashboardRouter(arg1, arg2) {
 
     if (!reason || reason.length < 3) {
       return res.status(400).json({ message: 'A valid moderation removal reason (at least 3 characters) is required.' });
+    }
+
+    const modAvail = await isModerationSchemaAvailable(db);
+    if (!modAvail) {
+      return res.status(503).json({ message: 'Content moderation migration is pending.', migrationPending: true });
     }
 
     try {
@@ -1899,6 +2121,11 @@ function createAdminDashboardRouter(arg1, arg2) {
       return res.status(400).json({ message: 'Invalid comment ID.' });
     }
 
+    const modAvail = await isModerationSchemaAvailable(db);
+    if (!modAvail) {
+      return res.status(503).json({ message: 'Content moderation migration is pending.', migrationPending: true });
+    }
+
     try {
       const runRestore = async (tx) => {
         const comment = await tx.get(
@@ -1983,6 +2210,15 @@ function createAdminDashboardRouter(arg1, arg2) {
       const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit || '20'), 10) || 20));
       const offset = (page - 1) * limit;
 
+      const reportsAvail = await isContentReportsAvailable(db);
+      if (!reportsAvail) {
+        return res.json({
+          reports: [],
+          pagination: { page, limit, total: 0, totalPages: 1 },
+          migrationPending: true
+        });
+      }
+
       const status = req.query.status ? String(req.query.status).trim().toLowerCase() : null;
       const type = req.query.type ? String(req.query.type).trim().toLowerCase() : null;
 
@@ -2039,6 +2275,11 @@ function createAdminDashboardRouter(arg1, arg2) {
 
     if (!Number.isInteger(reportId) || reportId <= 0) {
       return res.status(400).json({ message: 'Invalid report ID.' });
+    }
+
+    const reportsAvail = await isContentReportsAvailable(db);
+    if (!reportsAvail) {
+      return res.status(503).json({ message: 'Content moderation migration is pending.', migrationPending: true });
     }
 
     try {
@@ -2104,6 +2345,11 @@ function createAdminDashboardRouter(arg1, arg2) {
 
     if (!Number.isInteger(reportId) || reportId <= 0) {
       return res.status(400).json({ message: 'Invalid report ID.' });
+    }
+
+    const reportsAvailDismiss = await isContentReportsAvailable(db);
+    if (!reportsAvailDismiss) {
+      return res.status(503).json({ message: 'Content moderation migration is pending.', migrationPending: true });
     }
 
     try {

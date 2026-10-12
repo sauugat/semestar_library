@@ -7,6 +7,7 @@ interface CustomTextProps extends RNTextProps {
   color?: 'primary' | 'secondary' | 'muted' | 'inverse' | 'accent' | 'error' | 'success';
   weight?: '400' | '500' | '600' | '700' | '800';
   align?: 'left' | 'center' | 'right';
+  level?: number;
   children: React.ReactNode;
 }
 
@@ -48,9 +49,10 @@ export function Text({
   );
 }
 
-export function Heading({ children, style, ...props }: CustomTextProps) {
+export function Heading({ children, style, level, ...props }: CustomTextProps) {
+  const variant = level === 1 ? 'xxl' : level === 2 ? 'xl' : level === 3 ? 'lg' : level === 4 ? 'md' : 'xl';
   return (
-    <Text variant="xl" weight="700" style={style} {...props}>
+    <Text variant={variant} weight="700" style={style} {...props}>
       {children}
     </Text>
   );

@@ -6,7 +6,9 @@ module.exports = function createPostImagesRouter(db) {
   router.get('/:filename', async (req, res, next) => {
     if (!/^[a-f0-9-]+\.[a-z0-9]+$/i.test(req.params.filename)) return res.sendStatus(404);
     try {
-      await db.initSchema();
+      if (typeof db.initSchema === 'function') {
+        await db.initSchema();
+      }
       const modAvail = await isModerationSchemaAvailable(db);
       const modCol = modAvail ? ', moderation_status' : ", 'active' AS moderation_status";
       // Only expose blobs referenced by posts (either primary attachment_url or any post_media entry)

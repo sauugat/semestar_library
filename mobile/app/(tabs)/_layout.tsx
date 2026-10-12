@@ -3,10 +3,13 @@ import { PagerTabs } from '@/components/navigation/PagerTabs';
 import { FloatingTabBar } from '@/components/navigation/FloatingTabBar';
 import { NavScrollProvider } from '@/context/NavScrollContext';
 import { useAuth } from '@/context/AuthContext';
+import { resolveAppRole } from '@/utils/roles';
 
 export default function TabLayout() {
   const { user } = useAuth();
+  const appRole = resolveAppRole(user);
   const isTeacher = user?.role === 'teacher' || user?.role === 'faculty';
+  const isAdmin = appRole === 'admin';
 
   return (
     <NavScrollProvider>
@@ -19,33 +22,33 @@ export default function TabLayout() {
         <PagerTabs.Screen
           name="index"
           options={{
-            title: isTeacher ? 'Dashboard' : 'Home',
+            title: isAdmin ? 'Dashboard' : isTeacher ? 'Dashboard' : 'Home',
             headerShown: false,
-            tabBarAccessibilityLabel: isTeacher ? 'Dashboard' : 'Home',
+            tabBarAccessibilityLabel: isAdmin ? 'Dashboard' : isTeacher ? 'Dashboard' : 'Home',
           }}
         />
         <PagerTabs.Screen
           name="library"
           options={{
-            title: isTeacher ? 'My Materials' : 'Library',
+            title: isAdmin ? 'Users' : isTeacher ? 'My Materials' : 'Library',
             headerShown: false,
-            tabBarAccessibilityLabel: isTeacher ? 'My Materials' : 'Library',
+            tabBarAccessibilityLabel: isAdmin ? 'Users' : isTeacher ? 'My Materials' : 'Library',
           }}
         />
         <PagerTabs.Screen
           name="chat"
           options={{
-            title: 'Chat',
+            title: isAdmin ? 'Academics' : 'Chat',
             headerShown: false,
-            tabBarAccessibilityLabel: 'Chat',
+            tabBarAccessibilityLabel: isAdmin ? 'Academics' : 'Chat',
           }}
         />
         <PagerTabs.Screen
           name="games"
           options={{
-            title: isTeacher ? 'Notices' : 'Games',
+            title: isAdmin ? 'Content' : isTeacher ? 'Notices' : 'Games',
             headerShown: false,
-            tabBarAccessibilityLabel: isTeacher ? 'Notices' : 'Games',
+            tabBarAccessibilityLabel: isAdmin ? 'Content' : isTeacher ? 'Notices' : 'Games',
           }}
         />
         <PagerTabs.Screen

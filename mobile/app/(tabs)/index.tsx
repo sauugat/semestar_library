@@ -23,6 +23,9 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams, useFocusEffect, useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { TabSwipeContainer } from '@/components/navigation/TabSwipeContainer';
+import { AdminDashboardView } from '@/components/admin/AdminDashboardView';
+import { UnrecognizedRoleView } from '@/components/admin/UnrecognizedRoleView';
+import { resolveAppRole } from '@/utils/roles';
 import { useAdaptiveNavScroll } from '@/context/NavScrollContext';
 import { fetchUnseenCount } from '@/services/notifications';
 import * as ImagePicker from 'expo-image-picker';
@@ -552,7 +555,7 @@ function PostImageItem({
   );
 }
 
-export default function HomeScreen() {
+function StudentHomeScreenInner() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
@@ -3869,3 +3872,22 @@ const styles = StyleSheet.create({
     zIndex: 9999,
   },
 });
+
+export default function HomeScreen() {
+  const { user } = useAuth();
+  const appRole = resolveAppRole(user);
+
+  if (appRole === 'admin') {
+    return (
+      <TabSwipeContainer tabIndex={0}>
+        <AdminDashboardView />
+      </TabSwipeContainer>
+    );
+  }
+
+  if (appRole === 'unknown') {
+    return <UnrecognizedRoleView />;
+  }
+
+  return <StudentHomeScreenInner />;
+}

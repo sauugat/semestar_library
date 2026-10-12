@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Monochrome } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
 import { useNavScroll } from '@/context/NavScrollContext';
+import { resolveAppRole } from '@/utils/roles';
 import { DEFAULT_SERVER_URL } from '@/services/api';
 import {
   GlassView,
@@ -39,11 +40,11 @@ export interface BottomTabBarProps {
   registerPagerScrollListener?: (listener: (position: number, offset: number) => void) => () => void;
 }
 
-interface TabConfig {
+export interface TabConfig {
   name: string;
   label: string;
-  iconOutline: keyof typeof Ionicons.glyphMap;
-  iconFilled: keyof typeof Ionicons.glyphMap;
+  iconOutline: string;
+  iconFilled: string;
 }
 
 // Strictly five tabs in ordered sequence with Chat in center (index 2)
@@ -113,7 +114,39 @@ export const TEACHER_TAB_CONFIGS: TabConfig[] = [
   },
 ];
 
-// Preserved for backwards compatibility with tests and layout math
+export const ADMIN_TAB_CONFIGS: TabConfig[] = [
+  {
+    name: 'index',
+    label: 'Dashboard',
+    iconOutline: 'grid-outline',
+    iconFilled: 'grid',
+  },
+  {
+    name: 'library',
+    label: 'Users',
+    iconOutline: 'people-outline',
+    iconFilled: 'people',
+  },
+  {
+    name: 'chat',
+    label: 'Academics',
+    iconOutline: 'school-outline',
+    iconFilled: 'school',
+  },
+  {
+    name: 'games',
+    label: 'Content',
+    iconOutline: 'shield-checkmark-outline',
+    iconFilled: 'shield-checkmark',
+  },
+  {
+    name: 'profile',
+    label: 'Profile',
+    iconOutline: 'person-outline',
+    iconFilled: 'person',
+  },
+];
+
 export const TAB_CONFIGS: TabConfig[] = STUDENT_TAB_CONFIGS;
 
 // Normal Mode dimensions
@@ -176,8 +209,13 @@ export function FloatingTabBar({
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
   const { user, serverUrl } = useAuth();
-  const isTeacher = user?.role === 'teacher' || user?.role === 'faculty';
-  const currentTabConfigs = isTeacher ? TEACHER_TAB_CONFIGS : STUDENT_TAB_CONFIGS;
+  const appRole = resolveAppRole(user);
+  const currentTabConfigs =
+    appRole === 'admin'
+      ? ADMIN_TAB_CONFIGS
+      : appRole === 'teacher'
+      ? TEACHER_TAB_CONFIGS
+      : STUDENT_TAB_CONFIGS;
   const { isCompact, resetCompact } = useNavScroll();
   const [avatarLoadError, setAvatarLoadError] = useState(false);
   const isLiquidGlassSupported = useMemo(() => isLiquidGlassSupportedOnDevice(), []);
@@ -583,7 +621,7 @@ export function FloatingTabBar({
           const isSelected = hoveredIndex !== null ? hoveredIndex === idx : state.index === idx;
           const isProfileTab = tab.name === 'profile';
 
-          const iconName = isSelected ? tab.iconFilled : tab.iconOutline;
+          const iconName = (isSelected ? tab.iconFilled : tab.iconOutline) as any;
           const iconColor = isSelected
             ? Monochrome.navIconActive
             : Monochrome.navIconInactive;

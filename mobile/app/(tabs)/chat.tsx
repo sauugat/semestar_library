@@ -58,6 +58,9 @@ import {
   type UnifiedConversationItem,
 } from "@/services/unified-inbox";
 import { useClassChat } from "@/hooks/useClassChat";
+import { AdminAcademicsView } from "@/components/admin/AdminAcademicsView";
+import { UnrecognizedRoleView } from "@/components/admin/UnrecognizedRoleView";
+import { resolveAppRole } from "@/utils/roles";
 import {
   mergeChatMessages,
   applyChatReaction,
@@ -165,7 +168,7 @@ function MemberAvatarItem({
   );
 }
 
-export default function ChatScreen() {
+function ChatScreenInner() {
   const { user, serverUrl, token } = useAuth();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -2663,3 +2666,22 @@ const styles = StyleSheet.create({
     color: "#a1a1aa",
   },
 });
+
+export default function ChatScreen() {
+  const { user } = useAuth();
+  const appRole = resolveAppRole(user);
+
+  if (appRole === 'admin') {
+    return (
+      <TabSwipeContainer tabIndex={2}>
+        <AdminAcademicsView />
+      </TabSwipeContainer>
+    );
+  }
+
+  if (appRole === 'unknown') {
+    return <UnrecognizedRoleView />;
+  }
+
+  return <ChatScreenInner />;
+}

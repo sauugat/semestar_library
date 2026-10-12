@@ -910,12 +910,15 @@
         <div class="loading-state">Loading academic structure...</div>
       </div>
 
-      <!-- Materials Explorer -->
+      <!-- Canonical Subjects Directory -->
       <div class="table-container-card">
         <div class="table-toolbar">
-          <h4 style="margin:0; font-size:14px; font-weight:700;">Materials & Study Resources</h4>
-          <div style="display:flex; gap:10px;">
-            <select class="filter-select" id="materialFilterSemester" onchange="loadMaterialsData(1)">
+          <div style="display:flex; align-items:center; gap:12px;">
+            <h4 style="margin:0; font-size:14px; font-weight:700;">Canonical Curriculum Subjects</h4>
+            <span class="tag-badge" id="subjectsCountBadge">0 subjects</span>
+          </div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <select class="filter-select" id="subjectFilterSemester" onchange="loadSubjectsData(1)">
               <option value="all">All Semesters</option>
               <option value="1">Semester 1</option>
               <option value="2">Semester 2</option>
@@ -926,7 +929,64 @@
               <option value="7">Semester 7</option>
               <option value="8">Semester 8</option>
             </select>
-            <input type="text" class="search-box-input" id="materialSearchInput" placeholder="Filter materials..." onkeydown="if(event.key==='Enter') loadMaterialsData(1)">
+            <select class="filter-select" id="subjectFilterStatus" onchange="loadSubjectsData(1)">
+              <option value="active">Active Only</option>
+              <option value="archived">Archived Only</option>
+              <option value="all">All Statuses</option>
+            </select>
+            <input type="text" class="search-box-input" id="subjectSearchInput" placeholder="Filter code or name..." onkeydown="if(event.key==='Enter') loadSubjectsData(1)">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="loadSubjectsData(1)">Filter</button>
+            <button type="button" class="btn btn-primary btn-sm" onclick="openCreateSubjectModal()">+ Create Subject</button>
+          </div>
+        </div>
+        <div class="data-table-wrap">
+          <table class="admin-data-table" id="subjectsTable">
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Subject Name</th>
+                <th>Semester</th>
+                <th>Department</th>
+                <th>Credits</th>
+                <th>Teachers</th>
+                <th>Resources</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="subjectsTableBody">
+              <tr><td colspan="9" class="loading-state">Loading curriculum subjects...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pagination-bar">
+          <span id="subjectsPaginationText">Page 1 of 1</span>
+          <div style="display:flex; gap:8px;">
+            <button type="button" class="btn btn-secondary btn-sm" id="btnPrevSubjects" onclick="changeSubjectPage(-1)">Previous</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="btnNextSubjects" onclick="changeSubjectPage(1)">Next</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Materials Explorer -->
+      <div class="table-container-card">
+        <div class="table-toolbar">
+          <h4 style="margin:0; font-size:14px; font-weight:700;">Materials & Study Resources</h4>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <select class="filter-select" id="materialFilterSemester" onchange="loadMaterialsData(1)">
+              <option value="all">All Semesters</option>
+              <option value="1">Semester 1</option>
+              <option value="2">Semester 2</option>
+              <option value="3">Semester 3</option>
+              <option value="4">Semester 4</option>
+              <option value="5">Semester 5</option>
+              <option value="6">Semester 6</option>
+              <option value="7">Semester 7</option>
+              <option value="8">Semester 8</option>
+              <option value="unclassified">Unclassified</option>
+            </select>
+            <input type="text" class="search-box-input" id="materialFilterSubject" placeholder="Filter subject..." onkeydown="if(event.key==='Enter') loadMaterialsData(1)">
+            <input type="text" class="search-box-input" id="materialSearchInput" placeholder="Filter title/author..." onkeydown="if(event.key==='Enter') loadMaterialsData(1)">
             <button type="button" class="btn btn-secondary btn-sm" onclick="loadMaterialsData(1)">Filter</button>
           </div>
         </div>
@@ -959,7 +1019,7 @@
       <div class="table-container-card">
         <div class="table-toolbar">
           <h4 style="margin:0; font-size:14px; font-weight:700;">Assignments & Coursework</h4>
-          <div style="display:flex; gap:10px;">
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
             <select class="filter-select" id="assignmentFilterSemester" onchange="loadAssignmentsData(1)">
               <option value="all">All Semesters</option>
               <option value="1">Semester 1</option>
@@ -970,8 +1030,10 @@
               <option value="6">Semester 6</option>
               <option value="7">Semester 7</option>
               <option value="8">Semester 8</option>
+              <option value="unclassified">Unclassified</option>
             </select>
-            <input type="text" class="search-box-input" id="assignmentSearchInput" placeholder="Filter assignments..." onkeydown="if(event.key==='Enter') loadAssignmentsData(1)">
+            <input type="text" class="search-box-input" id="assignmentFilterSubject" placeholder="Filter subject..." onkeydown="if(event.key==='Enter') loadAssignmentsData(1)">
+            <input type="text" class="search-box-input" id="assignmentSearchInput" placeholder="Filter title/author..." onkeydown="if(event.key==='Enter') loadAssignmentsData(1)">
             <button type="button" class="btn btn-secondary btn-sm" onclick="loadAssignmentsData(1)">Filter</button>
           </div>
         </div>
@@ -998,6 +1060,46 @@
           <div style="display:flex; gap:8px;">
             <button type="button" class="btn btn-secondary btn-sm" id="btnPrevAssignments" onclick="changeAssignmentPage(-1)">Previous</button>
             <button type="button" class="btn btn-secondary btn-sm" id="btnNextAssignments" onclick="changeAssignmentPage(1)">Next</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Legacy & Unclassified Materials Review -->
+      <div class="table-container-card">
+        <div class="table-toolbar">
+          <div>
+            <h4 style="margin:0; font-size:14px; font-weight:700;">Legacy & Unclassified Materials Review</h4>
+            <p style="margin:4px 0 0 0; font-size:12px; color:var(--text-secondary);">
+              Read-only inventory of historical study notes and coursework with missing semesters or unlinked subjects. Automatic reclassification is disabled.
+            </p>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span class="tag-badge" id="unclassifiedSummaryBadge">0 items needing review</span>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="loadUnclassifiedData(1)">Refresh</button>
+          </div>
+        </div>
+        <div class="data-table-wrap">
+          <table class="admin-data-table">
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Title / Resource</th>
+                <th>Raw Subject</th>
+                <th>Raw Semester</th>
+                <th>Uploader / Author</th>
+                <th>Diagnostic Issue</th>
+              </tr>
+            </thead>
+            <tbody id="unclassifiedTableBody">
+              <tr><td colspan="6" class="loading-state">Loading unclassified materials...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pagination-bar">
+          <span id="unclassifiedPaginationText">Page 1 of 1</span>
+          <div style="display:flex; gap:8px;">
+            <button type="button" class="btn btn-secondary btn-sm" id="btnPrevUnclassified" onclick="changeUnclassifiedPage(-1)">Previous</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="btnNextUnclassified" onclick="changeUnclassifiedPage(1)">Next</button>
           </div>
         </div>
       </div>
@@ -1403,6 +1505,19 @@
       </div>
     </div>
 
+    <!-- SUBJECT MANAGEMENT MODAL (Create, Edit, Detail, Archive/Reactivate) -->
+    <div class="admin-modal-backdrop" id="subjectManageModal" role="dialog" aria-modal="true" aria-labelledby="subjectModalTitle">
+      <div class="admin-modal-dialog">
+        <div class="admin-modal-header">
+          <h3 id="subjectModalTitle">Subject Management</h3>
+          <button type="button" class="admin-modal-close" onclick="closeSubjectModal()" aria-label="Close dialog">&times;</button>
+        </div>
+        <div id="subjectModalBody">
+          <div class="loading-state">Loading subject details...</div>
+        </div>
+      </div>
+    </div>
+
   </main>
 
   <script>
@@ -1411,8 +1526,10 @@
       activeTab: 'overview',
       loadedTabs: new Set(),
       users: { page: 1, limit: 15, total: 0, totalPages: 1 },
+      subjects: { page: 1, limit: 15, total: 0, totalPages: 1 },
       materials: { page: 1, limit: 10, total: 0, totalPages: 1 },
       assignments: { page: 1, limit: 10, total: 0, totalPages: 1 },
+      unclassified: { page: 1, limit: 10, total: 0, totalPages: 1 },
       content: { page: 1, limit: 10, total: 0, totalPages: 1 },
       comments: { page: 1, limit: 10, total: 0, totalPages: 1 },
       reports: { page: 1, limit: 10, total: 0, totalPages: 1 },
@@ -1439,8 +1556,10 @@
         if (tabId === 'teachers') loadTeachersSummary();
         if (tabId === 'academics') {
           loadAcademicsSummary();
+          loadSubjectsData(1);
           loadMaterialsData(1);
           loadAssignmentsData(1);
+          loadUnclassifiedData(1);
         }
         if (tabId === 'content') loadContentData(1);
         if (tabId === 'activity') loadActivityData(1);
@@ -2013,17 +2132,28 @@
               <div class="sem-stat-metrics">
                 <div class="sem-stat-row">
                   <span>Active Subjects:</span>
-                  <span class="sem-stat-val">${s.subjectsCount}</span>
+                  <span class="sem-stat-val">${s.activeSubjectsCount ?? s.subjectsCount ?? 0}</span>
+                </div>
+                <div class="sem-stat-row">
+                  <span>Archived Subjects:</span>
+                  <span class="sem-stat-val" style="opacity:0.7;">${s.archivedSubjectsCount ?? 0}</span>
+                </div>
+                <div class="sem-stat-row">
+                  <span>Assigned Teachers:</span>
+                  <span class="sem-stat-val">${s.assignedTeachersCount ?? 0}</span>
                 </div>
                 <div class="sem-stat-row">
                   <span>Materials / Notes:</span>
-                  <span class="sem-stat-val">${s.materialsCount}</span>
+                  <span class="sem-stat-val">${s.materialsCount ?? 0}</span>
                 </div>
                 <div class="sem-stat-row">
-                  <span>Assignments:</span>
-                  <span class="sem-stat-val">${s.assignmentsCount}</span>
+                  <span>Coursework:</span>
+                  <span class="sem-stat-val">${s.assignmentsCount ?? 0}</span>
                 </div>
               </div>
+              <button type="button" class="btn btn-secondary btn-sm" style="width:100%; margin-top:10px; font-size:11px;" onclick="filterSubjectsBySemester(${s.semester})">
+                Filter S${s.semester} Subjects
+              </button>
             </div>
           `).join('');
         }
@@ -2033,16 +2163,442 @@
       }
     }
 
-    // 4b. Materials explorer
+    function filterSubjectsBySemester(sem) {
+      const semSelect = document.getElementById('subjectFilterSemester');
+      if (semSelect) semSelect.value = String(sem);
+      const matSelect = document.getElementById('materialFilterSemester');
+      if (matSelect) matSelect.value = String(sem);
+      const assignSelect = document.getElementById('assignmentFilterSemester');
+      if (assignSelect) assignSelect.value = String(sem);
+      loadSubjectsData(1);
+      loadMaterialsData(1);
+      loadAssignmentsData(1);
+    }
+
+    // 4a. Canonical Subjects Directory
+    async function loadSubjectsData(page = 1) {
+      state.subjects.page = page;
+      const sem = document.getElementById('subjectFilterSemester')?.value || 'all';
+      const status = document.getElementById('subjectFilterStatus')?.value || 'active';
+      const search = (document.getElementById('subjectSearchInput')?.value || '').trim();
+      const tbody = document.getElementById('subjectsTableBody');
+      if (tbody) tbody.innerHTML = `<tr><td colspan="9" class="loading-state">Loading curriculum subjects...</td></tr>`;
+
+      try {
+        const q = new URLSearchParams({ page: String(page), limit: String(state.subjects.limit), semester: sem, status, search });
+        const res = await fetch(`/api/admin/academics/subjects?${q.toString()}`);
+        if (!res.ok) throw new Error('Failed to load curriculum subjects');
+        const data = await res.json();
+        state.subjects.total = data.pagination?.total || 0;
+        state.subjects.totalPages = data.pagination?.totalPages || 1;
+
+        const badge = document.getElementById('subjectsCountBadge');
+        if (badge) badge.textContent = `${state.subjects.total} subjects`;
+
+        if (!data.subjects || data.subjects.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="9" class="empty-state">No curriculum subjects found.</td></tr>`;
+        } else {
+          tbody.innerHTML = data.subjects.map(s => {
+            const statusHtml = s.active
+              ? `<span class="status-badge status-active">Active</span>`
+              : `<span class="status-badge" style="opacity:0.6;">Archived</span>`;
+
+            const lifecycleBtn = s.active
+              ? `<button type="button" class="btn btn-secondary btn-sm" onclick="openSubjectLifecycleModal('${escapeHtml(s.id)}', 'archive')">Archive</button>`
+              : `<button type="button" class="btn btn-secondary btn-sm" onclick="openSubjectLifecycleModal('${escapeHtml(s.id)}', 'reactivate')">Reactivate</button>`;
+
+            return `
+              <tr>
+                <td><span class="mono-code">${escapeHtml(s.code)}</span></td>
+                <td>
+                  <strong>${escapeHtml(s.name)}</strong>
+                  ${s.nature ? `<span class="tag-badge" style="font-size:10px; margin-left:6px;">${escapeHtml(s.nature)}</span>` : ''}
+                </td>
+                <td><span class="tag-badge">Sem ${s.semester}</span></td>
+                <td>${escapeHtml(s.department)}</td>
+                <td class="mono-code">${s.creditHours} cr</td>
+                <td>
+                  <button type="button" class="btn btn-secondary btn-sm" style="font-size:11px;" onclick="openSubjectDetailModal('${escapeHtml(s.id)}')">
+                    ${s.assignedTeachersCount} assigned
+                  </button>
+                </td>
+                <td style="font-size:12px; color:var(--text-secondary);">
+                  ${s.materialsCount} notes &bull; ${s.assignmentsCount} assign
+                </td>
+                <td>${statusHtml}</td>
+                <td>
+                  <div style="display:flex; gap:6px;">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="openSubjectDetailModal('${escapeHtml(s.id)}')">View</button>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="openEditSubjectModal('${escapeHtml(s.id)}')">Edit</button>
+                    ${lifecycleBtn}
+                  </div>
+                </td>
+              </tr>
+            `;
+          }).join('');
+        }
+
+        const pText = document.getElementById('subjectsPaginationText');
+        if (pText) pText.textContent = `Page ${page} of ${state.subjects.totalPages} (${state.subjects.total} subjects)`;
+        document.getElementById('btnPrevSubjects').disabled = page <= 1;
+        document.getElementById('btnNextSubjects').disabled = page >= state.subjects.totalPages;
+      } catch (err) {
+        console.error('Error loading subjects:', err);
+        if (tbody) tbody.innerHTML = `<tr><td colspan="9" class="empty-state" style="color:var(--accent-red);">${escapeHtml(err.message)}</td></tr>`;
+      }
+    }
+
+    function changeSubjectPage(delta) {
+      const target = state.subjects.page + delta;
+      if (target >= 1 && target <= state.subjects.totalPages) loadSubjectsData(target);
+    }
+
+    // 4b. Subject Modals (Create, Edit, Detail, Archive/Reactivate)
+    function closeSubjectModal() {
+      const m = document.getElementById('subjectManageModal');
+      if (m) m.classList.remove('open');
+    }
+
+    function openCreateSubjectModal() {
+      const modal = document.getElementById('subjectManageModal');
+      const title = document.getElementById('subjectModalTitle');
+      const body = document.getElementById('subjectModalBody');
+      if (!modal || !body) return;
+
+      if (title) title.textContent = 'Create Canonical Subject';
+      body.innerHTML = `
+        <form id="createSubjectForm" onsubmit="event.preventDefault(); submitCreateSubject();">
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:12px;">
+            <div>
+              <label style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Subject Code *</label>
+              <input type="text" id="createSubjCode" class="search-box-input" style="width:100%; text-transform:uppercase;" placeholder="e.g. CS101" required>
+            </div>
+            <div>
+              <label style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Academic Semester *</label>
+              <select id="createSubjSem" class="filter-select" style="width:100%;" required>
+                <option value="1">Semester 1</option>
+                <option value="2">Semester 2</option>
+                <option value="3">Semester 3</option>
+                <option value="4">Semester 4</option>
+                <option value="5">Semester 5</option>
+                <option value="6">Semester 6</option>
+                <option value="7">Semester 7</option>
+                <option value="8">Semester 8</option>
+              </select>
+            </div>
+          </div>
+          <div style="margin-bottom:12px;">
+            <label style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Subject Name *</label>
+            <input type="text" id="createSubjName" class="search-box-input" style="width:100%;" placeholder="e.g. Introduction to Computer Science" required>
+          </div>
+          <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; margin-bottom:12px;">
+            <div>
+              <label style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Department</label>
+              <input type="text" id="createSubjDept" class="search-box-input" style="width:100%;" value="BIT">
+            </div>
+            <div>
+              <label style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Credit Hours</label>
+              <input type="number" step="0.5" min="0" id="createSubjCredits" class="search-box-input" style="width:100%;" value="3.0">
+            </div>
+            <div>
+              <label style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Nature</label>
+              <input type="text" id="createSubjNature" class="search-box-input" style="width:100%;" placeholder="e.g. TH + PR">
+            </div>
+          </div>
+          <div style="margin-bottom:16px;">
+            <label style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Administrative Reason (Audit Log)</label>
+            <textarea id="createSubjReason" class="search-box-input" style="width:100%; height:60px; resize:vertical;" placeholder="Reason for adding new curriculum subject..."></textarea>
+          </div>
+          <div id="createSubjectError" style="display:none; color:var(--accent-red); font-size:12.5px; margin-bottom:12px;"></div>
+          <div style="display:flex; justify-content:flex-end; gap:8px;">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="closeSubjectModal()">Cancel</button>
+            <button type="submit" class="admin-modal-btn-action" id="btnSubmitCreateSubject">Create Subject</button>
+          </div>
+        </form>
+      `;
+      modal.classList.add('open');
+    }
+
+    async function submitCreateSubject() {
+      const code = document.getElementById('createSubjCode')?.value.trim();
+      const sem = parseInt(document.getElementById('createSubjSem')?.value, 10);
+      const name = document.getElementById('createSubjName')?.value.trim();
+      const dept = document.getElementById('createSubjDept')?.value.trim() || 'BIT';
+      const credits = parseFloat(document.getElementById('createSubjCredits')?.value) || 3.0;
+      const nature = document.getElementById('createSubjNature')?.value.trim() || null;
+      const reason = document.getElementById('createSubjReason')?.value.trim();
+      const errBox = document.getElementById('createSubjectError');
+      const btn = document.getElementById('btnSubmitCreateSubject');
+
+      if (!code || !name) {
+        if (errBox) { errBox.textContent = 'Subject code and name are required.'; errBox.style.display = 'block'; }
+        return;
+      }
+
+      if (btn) { btn.disabled = true; btn.textContent = 'Creating...'; }
+      try {
+        const res = await fetch('/api/admin/academics/subjects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code, name, semester: sem, department: dept, creditHours: credits, nature, reason })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Failed to create subject.');
+
+        closeSubjectModal();
+        loadSubjectsData(1);
+        loadAcademicsSummary();
+      } catch (err) {
+        if (errBox) { errBox.textContent = err.message; errBox.style.display = 'block'; }
+        if (btn) { btn.disabled = false; btn.textContent = 'Create Subject'; }
+      }
+    }
+
+    async function openSubjectDetailModal(subjectId) {
+      const modal = document.getElementById('subjectManageModal');
+      const title = document.getElementById('subjectModalTitle');
+      const body = document.getElementById('subjectModalBody');
+      if (!modal || !body) return;
+
+      if (title) title.textContent = 'Subject Details';
+      body.innerHTML = `<div class="loading-state">Loading subject <span class="mono-code">${escapeHtml(subjectId)}</span>...</div>`;
+      modal.classList.add('open');
+
+      try {
+        const res = await fetch(`/api/admin/academics/subjects/${encodeURIComponent(subjectId)}`);
+        if (!res.ok) throw new Error('Subject not found');
+        const s = await res.json();
+
+        const teachersHtml = s.assignedTeachers && s.assignedTeachers.length > 0
+          ? s.assignedTeachers.map(t => `
+              <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; border-bottom:1px solid var(--border-color);">
+                <div>
+                  <strong>${escapeHtml(t.name)}</strong>
+                  <span style="font-size:12px; color:var(--text-secondary); margin-left:6px;">@${escapeHtml(t.username)} &bull; ${escapeHtml(t.designation)}</span>
+                </div>
+                <button type="button" class="btn btn-secondary btn-sm" style="font-size:11px;" onclick="closeSubjectModal(); switchTab('teachers');">
+                  Manage Assignments &rarr;
+                </button>
+              </div>
+            `).join('')
+          : `<div style="padding:10px; color:var(--text-secondary); font-size:13px;">No faculty teachers currently assigned to this subject.</div>`;
+
+        body.innerHTML = `
+          <div style="margin-bottom:16px;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+              <div>
+                <span class="mono-code" style="font-size:14px; font-weight:700;">${escapeHtml(s.code)}</span>
+                <h4 style="margin:4px 0 0 0; font-size:16px;">${escapeHtml(s.name)}</h4>
+              </div>
+              <div>
+                ${s.active ? '<span class="status-badge status-active">Active</span>' : '<span class="status-badge" style="opacity:0.6;">Archived</span>'}
+              </div>
+            </div>
+            <div style="display:flex; gap:16px; font-size:12.5px; color:var(--text-secondary); margin-bottom:14px; flex-wrap:wrap;">
+              <span><strong>Semester:</strong> ${s.semester}</span>
+              <span><strong>Department:</strong> ${escapeHtml(s.department)}</span>
+              <span><strong>Credits:</strong> ${s.creditHours}</span>
+              <span><strong>Nature:</strong> ${escapeHtml(s.nature || '—')}</span>
+              <span><strong>Notes / Materials:</strong> ${s.materialsCount}</span>
+              <span><strong>Coursework:</strong> ${s.assignmentsCount}</span>
+            </div>
+          </div>
+
+          <div style="border-top:1px solid var(--border-color); padding-top:14px; margin-bottom:16px;">
+            <h5 style="margin:0 0 8px 0; font-size:13px; font-weight:700;">Assigned Faculty Teachers (${s.assignedTeachersCount})</h5>
+            <div style="border:1px solid var(--border-color); border-radius:8px; background:var(--bg-card-hover); max-height:160px; overflow-y:auto;">
+              ${teachersHtml}
+            </div>
+          </div>
+
+          <div style="display:flex; justify-content:space-between; border-top:1px solid var(--border-color); padding-top:14px;">
+            <div>
+              ${s.active
+                ? `<button type="button" class="btn btn-secondary btn-sm" onclick="openSubjectLifecycleModal('${escapeHtml(s.id)}', 'archive')">Archive Subject</button>`
+                : `<button type="button" class="btn btn-secondary btn-sm" onclick="openSubjectLifecycleModal('${escapeHtml(s.id)}', 'reactivate')">Reactivate Subject</button>`
+              }
+            </div>
+            <div style="display:flex; gap:8px;">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="openEditSubjectModal('${escapeHtml(s.id)}')">Edit Subject</button>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="closeSubjectModal()">Close</button>
+            </div>
+          </div>
+        `;
+      } catch (err) {
+        body.innerHTML = `<div class="empty-state" style="color:var(--accent-red);">${escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    async function openEditSubjectModal(subjectId) {
+      const modal = document.getElementById('subjectManageModal');
+      const title = document.getElementById('subjectModalTitle');
+      const body = document.getElementById('subjectModalBody');
+      if (!modal || !body) return;
+
+      if (title) title.textContent = 'Edit Canonical Subject';
+      body.innerHTML = `<div class="loading-state">Loading subject details...</div>`;
+      modal.classList.add('open');
+
+      try {
+        const res = await fetch(`/api/admin/academics/subjects/${encodeURIComponent(subjectId)}`);
+        if (!res.ok) throw new Error('Subject not found');
+        const s = await res.json();
+
+        body.innerHTML = `
+          <form id="editSubjectForm" onsubmit="event.preventDefault(); submitEditSubject('${escapeHtml(s.id)}');">
+            <div class="notice-box info" style="margin-bottom:14px; font-size:12px;">
+              <div><strong>Stable Subject Identity:</strong> Internal Subject ID (<span class="mono-code">${escapeHtml(s.id)}</span>) is permanently preserved across edits.</div>
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:12px;">
+              <div>
+                <label style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Subject Code *</label>
+                <input type="text" id="editSubjCode" class="search-box-input" style="width:100%; text-transform:uppercase;" value="${escapeHtml(s.code)}" required>
+              </div>
+              <div>
+                <label style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Academic Semester *</label>
+                <select id="editSubjSem" class="filter-select" style="width:100%;" required>
+                  ${[1,2,3,4,5,6,7,8].map(sem => `<option value="${sem}" ${s.semester === sem ? 'selected' : ''}>Semester ${sem}</option>`).join('')}
+                </select>
+              </div>
+            </div>
+            <div style="margin-bottom:12px;">
+              <label style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Subject Name *</label>
+              <input type="text" id="editSubjName" class="search-box-input" style="width:100%;" value="${escapeHtml(s.name)}" required>
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; margin-bottom:12px;">
+              <div>
+                <label style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Department</label>
+                <input type="text" id="editSubjDept" class="search-box-input" style="width:100%;" value="${escapeHtml(s.department)}">
+              </div>
+              <div>
+                <label style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Credit Hours</label>
+                <input type="number" step="0.5" min="0" id="editSubjCredits" class="search-box-input" style="width:100%;" value="${s.creditHours}">
+              </div>
+              <div>
+                <label style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Nature</label>
+                <input type="text" id="editSubjNature" class="search-box-input" style="width:100%;" value="${escapeHtml(s.nature || '')}">
+              </div>
+            </div>
+            <div style="margin-bottom:16px;">
+              <label style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Administrative Reason (Audit Log)</label>
+              <textarea id="editSubjReason" class="search-box-input" style="width:100%; height:60px; resize:vertical;" placeholder="Reason for updating subject details..."></textarea>
+            </div>
+            <div id="editSubjectError" style="display:none; color:var(--accent-red); font-size:12.5px; margin-bottom:12px;"></div>
+            <div style="display:flex; justify-content:flex-end; gap:8px;">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="closeSubjectModal()">Cancel</button>
+              <button type="submit" class="admin-modal-btn-action" id="btnSubmitEditSubject">Save Changes</button>
+            </div>
+          </form>
+        `;
+      } catch (err) {
+        body.innerHTML = `<div class="empty-state" style="color:var(--accent-red);">${escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    async function submitEditSubject(subjectId) {
+      const code = document.getElementById('editSubjCode')?.value.trim();
+      const sem = parseInt(document.getElementById('editSubjSem')?.value, 10);
+      const name = document.getElementById('editSubjName')?.value.trim();
+      const dept = document.getElementById('editSubjDept')?.value.trim() || 'BIT';
+      const credits = parseFloat(document.getElementById('editSubjCredits')?.value) || 3.0;
+      const nature = document.getElementById('editSubjNature')?.value.trim() || null;
+      const reason = document.getElementById('editSubjReason')?.value.trim();
+      const errBox = document.getElementById('editSubjectError');
+      const btn = document.getElementById('btnSubmitEditSubject');
+
+      if (!code || !name) {
+        if (errBox) { errBox.textContent = 'Subject code and name are required.'; errBox.style.display = 'block'; }
+        return;
+      }
+
+      if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+      try {
+        const res = await fetch(`/api/admin/academics/subjects/${encodeURIComponent(subjectId)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code, name, semester: sem, department: dept, creditHours: credits, nature, reason })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Failed to update subject.');
+
+        closeSubjectModal();
+        loadSubjectsData(state.subjects.page);
+        loadAcademicsSummary();
+      } catch (err) {
+        if (errBox) { errBox.textContent = err.message; errBox.style.display = 'block'; }
+        if (btn) { btn.disabled = false; btn.textContent = 'Save Changes'; }
+      }
+    }
+
+    function openSubjectLifecycleModal(subjectId, action) {
+      const modal = document.getElementById('subjectManageModal');
+      const title = document.getElementById('subjectModalTitle');
+      const body = document.getElementById('subjectModalBody');
+      if (!modal || !body) return;
+
+      const isArchive = action === 'archive';
+      if (title) title.textContent = isArchive ? 'Archive Subject' : 'Reactivate Subject';
+
+      body.innerHTML = `
+        <div style="margin-bottom:14px;">
+          <p style="font-size:13.5px; line-height:1.5; margin:0 0 10px 0;">
+            ${isArchive
+              ? 'Archiving this canonical subject will prevent faculty teachers from publishing new study notes or assignments for it. <strong>Historical materials, student submissions, and teacher assignments are strictly preserved.</strong>'
+              : 'Reactivating this canonical subject restores it to active curriculum listings and allows assigned faculty teachers to resume publishing study notes and coursework.'
+            }
+          </p>
+          <div style="margin-top:14px;">
+            <label style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Administrative Reason *</label>
+            <textarea id="lifecycleReason" class="search-box-input" style="width:100%; height:60px; resize:vertical;" placeholder="State reason for ${action} action..."></textarea>
+          </div>
+        </div>
+        <div id="lifecycleError" style="display:none; color:var(--accent-red); font-size:12.5px; margin-bottom:12px;"></div>
+        <div style="display:flex; justify-content:flex-end; gap:8px;">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="closeSubjectModal()">Cancel</button>
+          <button type="button" class="admin-modal-btn-action" id="btnSubmitLifecycle" onclick="submitSubjectLifecycle('${escapeHtml(subjectId)}', '${action}')">
+            Confirm ${isArchive ? 'Archive' : 'Reactivate'}
+          </button>
+        </div>
+      `;
+      modal.classList.add('open');
+    }
+
+    async function submitSubjectLifecycle(subjectId, action) {
+      const reason = document.getElementById('lifecycleReason')?.value.trim();
+      const errBox = document.getElementById('lifecycleError');
+      const btn = document.getElementById('btnSubmitLifecycle');
+
+      if (btn) { btn.disabled = true; btn.textContent = 'Processing...'; }
+      try {
+        const res = await fetch(`/api/admin/academics/subjects/${encodeURIComponent(subjectId)}/${action}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || `Failed to ${action} subject.`);
+
+        closeSubjectModal();
+        loadSubjectsData(state.subjects.page);
+        loadAcademicsSummary();
+      } catch (err) {
+        if (errBox) { errBox.textContent = err.message; errBox.style.display = 'block'; }
+        if (btn) { btn.disabled = false; btn.textContent = 'Confirm'; }
+      }
+    }
+
+    // 4c. Materials explorer
     async function loadMaterialsData(page = 1) {
       state.materials.page = page;
       const sem = document.getElementById('materialFilterSemester')?.value || 'all';
+      const subj = (document.getElementById('materialFilterSubject')?.value || '').trim();
       const search = (document.getElementById('materialSearchInput')?.value || '').trim();
       const tbody = document.getElementById('materialsTableBody');
       if (tbody) tbody.innerHTML = `<tr><td colspan="5" class="loading-state">Loading materials...</td></tr>`;
 
       try {
         const q = new URLSearchParams({ page: String(page), limit: String(state.materials.limit), semester: sem, search });
+        if (subj) q.set('subject', subj);
         const res = await fetch(`/api/admin/academics/materials?${q.toString()}`);
         if (!res.ok) throw new Error('Failed to load materials');
         const data = await res.json();
@@ -2077,16 +2633,18 @@
       if (target >= 1 && target <= state.materials.totalPages) loadMaterialsData(target);
     }
 
-    // 4c. Assignments explorer
+    // 4d. Assignments explorer
     async function loadAssignmentsData(page = 1) {
       state.assignments.page = page;
       const sem = document.getElementById('assignmentFilterSemester')?.value || 'all';
+      const subj = (document.getElementById('assignmentFilterSubject')?.value || '').trim();
       const search = (document.getElementById('assignmentSearchInput')?.value || '').trim();
       const tbody = document.getElementById('assignmentsTableBody');
       if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="loading-state">Loading assignments...</td></tr>`;
 
       try {
         const q = new URLSearchParams({ page: String(page), limit: String(state.assignments.limit), semester: sem, search });
+        if (subj) q.set('subject', subj);
         const res = await fetch(`/api/admin/academics/assignments?${q.toString()}`);
         if (!res.ok) throw new Error('Failed to load assignments');
         const data = await res.json();
@@ -2121,6 +2679,59 @@
     function changeAssignmentPage(delta) {
       const target = state.assignments.page + delta;
       if (target >= 1 && target <= state.assignments.totalPages) loadAssignmentsData(target);
+    }
+
+    // 4e. Legacy & Unclassified Materials Review
+    async function loadUnclassifiedData(page = 1) {
+      state.unclassified.page = page;
+      const tbody = document.getElementById('unclassifiedTableBody');
+      if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="loading-state">Loading unclassified materials...</td></tr>`;
+
+      try {
+        const q = new URLSearchParams({ page: String(page), limit: String(state.unclassified.limit) });
+        const res = await fetch(`/api/admin/academics/unclassified-materials?${q.toString()}`);
+        if (!res.ok) throw new Error('Failed to load unclassified materials');
+        const data = await res.json();
+
+        state.unclassified.total = data.pagination?.total || 0;
+        state.unclassified.totalPages = data.pagination?.totalPages || 1;
+
+        const badge = document.getElementById('unclassifiedSummaryBadge');
+        if (badge) badge.textContent = `${data.summary?.totalCombined || 0} items needing review`;
+
+        const combinedItems = [
+          ...(data.files || []).map(f => ({ ...f, itemType: 'Study Note' })),
+          ...(data.assignments || []).map(a => ({ ...a, itemType: 'Assignment' }))
+        ];
+
+        if (combinedItems.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="6" class="empty-state">No unclassified materials found. All assets have valid semester & subject associations.</td></tr>`;
+        } else {
+          tbody.innerHTML = combinedItems.map(item => `
+            <tr>
+              <td><span class="tag-badge">${escapeHtml(item.itemType)}</span></td>
+              <td><strong>${escapeHtml(item.title || item.originalName || 'Untitled')}</strong></td>
+              <td><span class="mono-code">${escapeHtml(item.subject || 'NULL / Missing')}</span></td>
+              <td><span class="mono-code">${escapeHtml(String(item.semester ?? 'NULL / Missing'))}</span></td>
+              <td>${escapeHtml(item.uploader_name || item.author_name || item.uploadedBy || item.createdBy || '—')}</td>
+              <td style="color:var(--text-secondary); font-size:12px;">${escapeHtml(item.issue || 'Missing classification')}</td>
+            </tr>
+          `).join('');
+        }
+
+        const pText = document.getElementById('unclassifiedPaginationText');
+        if (pText) pText.textContent = `Page ${page} of ${state.unclassified.totalPages} (${state.unclassified.total} items)`;
+        document.getElementById('btnPrevUnclassified').disabled = page <= 1;
+        document.getElementById('btnNextUnclassified').disabled = page >= state.unclassified.totalPages;
+      } catch (err) {
+        console.error('Error loading unclassified materials:', err);
+        if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="empty-state" style="color:var(--accent-red);">${escapeHtml(err.message)}</td></tr>`;
+      }
+    }
+
+    function changeUnclassifiedPage(delta) {
+      const target = state.unclassified.page + delta;
+      if (target >= 1 && target <= state.unclassified.totalPages) loadUnclassifiedData(target);
     }
 
     function switchContentSubnav(subnav) {

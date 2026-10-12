@@ -159,8 +159,11 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
   router.use(requireLogin);
   router.use(async (req, res, next) => {
     try {
-      await db.initSchema();
-      req.postUser = req.student || await db.get('SELECT * FROM students WHERE studentId = ?', req.session.studentId);
+      if (typeof db.initSchema === 'function') {
+        await db.initSchema();
+      }
+      const callerId = req.student?.studentId || req.user?.studentId || req.session?.studentId;
+      req.postUser = req.student || req.user || (callerId ? await db.get('SELECT * FROM students WHERE studentId = ?', callerId) : null);
       if (!req.postUser && req.method !== 'GET') {
         return res.status(403).json({ message: 'Sign in with a student account to post or like.' });
       }
@@ -1574,6 +1577,10 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
         return res.status(404).json({ message: 'Post not found.' });
       }
 
+      if (post.user_id === reporterId) {
+        return res.status(400).json({ message: 'You cannot report your own content.' });
+      }
+
       const { reason, description } = req.body || {};
       const cleanReason = (typeof reason === 'string' ? reason.trim().toLowerCase() : '');
       if (!VALID_REPORT_REASONS.includes(cleanReason)) {
@@ -1649,11 +1656,15 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       // Verify comment exists on this post
       const modAvail = await isModerationSchemaAvailable(db);
       const comment = await db.get(
-        `SELECT id, post_id, deleted_at ${modAvail ? ', moderation_status' : ''} FROM post_comments WHERE id = ? AND post_id = ?`,
+        `SELECT id, post_id, user_id, deleted_at ${modAvail ? ', moderation_status' : ''} FROM post_comments WHERE id = ? AND post_id = ?`,
         commentId, postId
       );
       if (!comment || comment.deleted_at || (modAvail && comment.moderation_status === 'removed')) {
         return res.status(404).json({ message: 'Comment not found.' });
+      }
+
+      if (comment.user_id === reporterId) {
+        return res.status(400).json({ message: 'You cannot report your own content.' });
       }
 
       const { reason, description } = req.body || {};

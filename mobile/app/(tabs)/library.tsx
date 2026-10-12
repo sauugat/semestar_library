@@ -28,6 +28,9 @@ import { getBaseUrl } from '@/services/api';
 import { SearchOverlay } from '@/components/SearchOverlay';
 import { UploadNoteModal } from '@/components/UploadNoteModal';
 import { TeacherMaterialsView } from '@/components/teacher/TeacherMaterialsView';
+import { AdminUsersView } from '@/components/admin/AdminUsersView';
+import { UnrecognizedRoleView } from '@/components/admin/UnrecognizedRoleView';
+import { resolveAppRole } from '@/utils/roles';
 import {
   SEMESTERS,
   SemesterItem,
@@ -1019,7 +1022,20 @@ function StudentLibraryView() {
 
 export default function LibraryScreen() {
   const { user } = useAuth();
+  const appRole = resolveAppRole(user);
   const isTeacher = user?.role === 'teacher' || user?.role === 'faculty';
+
+  if (appRole === 'admin') {
+    return (
+      <TabSwipeContainer tabIndex={1}>
+        <AdminUsersView />
+      </TabSwipeContainer>
+    );
+  }
+
+  if (appRole === 'unknown') {
+    return <UnrecognizedRoleView />;
+  }
 
   if (isTeacher) {
     return (

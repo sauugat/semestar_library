@@ -48,7 +48,7 @@ const {
 
 const { createAdminTeachersRouter } = require('../routes/admin-teachers');
 const { createAdminDashboardRouter } = require('../routes/admin-dashboard');
-const { createTeacherOnboardingRouter } = require('../routes/teacher-onboarding');
+const teacherOnboardingRouter = require('../routes/teacher-onboarding');
 
 const db = require('../db');
 
@@ -60,32 +60,32 @@ test.before(async () => {
   await db.initSchema();
 
   // Create isolated admin and student accounts for auth matrix testing
-  const now = new Date().toISOString();
   await db.run(
-    `INSERT OR REPLACE INTO students (studentId, name, passwordHash, role, createdAt)
-     VALUES (?, ?, ?, ?, ?)`,
-    'admin_safe_01', 'Admin Safe User', 'hash123', 'admin', now
+    `INSERT OR REPLACE INTO students (studentId, username, name, passwordHash, role, department)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    'admin_safe_01', 'admin_safe_01', 'Admin Safe User', 'hash123', 'admin', 'BIT'
   );
   await db.run(
-    `INSERT OR REPLACE INTO students (studentId, name, passwordHash, role, createdAt)
-     VALUES (?, ?, ?, ?, ?)`,
-    'student_safe_01', 'Regular Student User', 'hash123', 'student', now
+    `INSERT OR REPLACE INTO students (studentId, username, name, passwordHash, role, department)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    'student_safe_01', 'student_safe_01', 'Regular Student User', 'hash123', 'student', 'BIT'
   );
   await db.run(
-    `INSERT OR REPLACE INTO students (studentId, name, passwordHash, role, createdAt)
-     VALUES (?, ?, ?, ?, ?)`,
-    'cr_safe_01', 'Class Rep User', 'hash123', 'cr', now
+    `INSERT OR REPLACE INTO students (studentId, username, name, passwordHash, role, department)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    'cr_safe_01', 'cr_safe_01', 'Class Rep User', 'hash123', 'cr', 'BIT'
   );
   await db.run(
-    `INSERT OR REPLACE INTO students (studentId, name, passwordHash, role, createdAt)
-     VALUES (?, ?, ?, ?, ?)`,
-    'teacher_safe_01', 'Teacher Safe User', 'hash123', 'teacher', now
+    `INSERT OR REPLACE INTO students (studentId, username, name, passwordHash, role, department)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    'teacher_safe_01', 'teacher_safe_01', 'Teacher Safe User', 'hash123', 'teacher', 'BIT'
   );
 
   // Seed sample teacher and subject for assignment testing
+  const now = new Date().toISOString();
   await db.run(
-    `INSERT OR REPLACE INTO teachers (id, user_id, status, department, designation, created_at)
-     VALUES (?, ?, 'active', 'BIT', 'Lecturer', ?)`,
+    `INSERT OR REPLACE INTO teachers (id, user_id, status, designation, created_at)
+     VALUES (?, ?, 'active', 'Lecturer', ?)`,
     'T_SAFE_01', 'teacher_safe_01', now
   );
   await db.run(
@@ -126,7 +126,7 @@ test.before(async () => {
 
   app.use('/api/admin', createAdminTeachersRouter({ db, requireLogin }));
   app.use('/api/admin', createAdminDashboardRouter({ db, requireLogin }));
-  app.use('/api/teacher/onboarding', createTeacherOnboardingRouter({ db, requireLogin }));
+  app.use('/api/teacher/onboarding', teacherOnboardingRouter);
 
   await new Promise((resolve) => {
     server = http.createServer(app);
@@ -247,7 +247,7 @@ test('2. Audit insert failure rolls back the associated business mutation', asyn
   const assigned = await db.get(
     "SELECT * FROM teacher_subjects WHERE teacher_id = 'T_SAFE_01' AND subject_id = 'SUB_SAFE_01'"
   );
-  assert.strictEqual(assigned, undefined, 'Teacher subject assignment must be completely rolled back');
+  assert.strictEqual(assigned, null, 'Teacher subject assignment must be completely rolled back');
 });
 
 // ============================================================================
@@ -494,9 +494,9 @@ test('8. Teacher assignment APIs still work', async () => {
 test('9. Existing cohort audit records remain unchanged', async () => {
   // Ensure cohort_audit_logs exists and has data
   await db.run(
-    `INSERT INTO cohort_audit_logs (id, cohort_id, action, metadata, performed_by, created_at)
+    `INSERT INTO cohort_audit_logs (id, action, cohort_id, actor_id, details_json, created_at)
      VALUES (?, ?, ?, ?, ?, ?)`,
-    'cohort_audit_test_01', 'cohort_2026_bit', 'cohort_promoted', '{"nextSemester":2}', 'admin_safe_01', new Date().toISOString()
+    'cohort_audit_test_01', 'cohort_promoted', 'cohort_2026_bit', 'admin_safe_01', '{"nextSemester":2}', new Date().toISOString()
   );
 
   const cohortLog = await db.get("SELECT * FROM cohort_audit_logs WHERE id = 'cohort_audit_test_01'");

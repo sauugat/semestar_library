@@ -99,7 +99,7 @@ export function ProfileView({ targetStudentId, isTab = false }: ProfileViewProps
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const { user: currentUser, serverUrl, refreshProfile } = useAuth();
-  const { colors, spacing, radii } = useTheme();
+  const { colors, spacing, radii, isDark } = useTheme();
   const { onScroll: handleNavScroll, scrollEventThrottle } = useAdaptiveNavScroll();
 
   const effectiveStudentId = targetStudentId || currentUser?.studentId;
@@ -649,8 +649,48 @@ export function ProfileView({ targetStudentId, isTab = false }: ProfileViewProps
           <Text variant="md" weight="700" numberOfLines={1} style={{ flex: 1, marginHorizontal: 8 }}>
             {profile?.name || 'Profile'}
           </Text>
+          {isSelf && (
+            <TouchableOpacity
+              onPress={() => router.push('/settings')}
+              activeOpacity={0.7}
+              style={[styles.shareBtn, { marginRight: 6 }]}
+              accessibilityLabel="Open settings"
+            >
+              <Ionicons name="menu-outline" size={24} color={colors.text} />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity onPress={handleShareProfile} activeOpacity={0.7} style={styles.shareBtn}>
             <Ionicons name="share-outline" size={20} color={colors.text} />
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Top Left Settings Button (3 lines / hamburger menu) */}
+      {isTab && (
+        <View
+          style={[
+            styles.topSettingsContainer,
+            {
+              top: insets.top + 8,
+            },
+          ]}
+          pointerEvents="box-none"
+        >
+          <TouchableOpacity
+            style={[
+              styles.topSettingsBtn,
+              {
+                backgroundColor: isDark ? 'rgba(24, 24, 27, 0.78)' : 'rgba(255, 255, 255, 0.88)',
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.14)' : 'rgba(0, 0, 0, 0.08)',
+              },
+            ]}
+            onPress={() => router.push('/settings')}
+            accessibilityLabel="Open settings"
+            accessibilityRole="button"
+            activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="menu-outline" size={24} color={colors.text} />
           </TouchableOpacity>
         </View>
       )}
@@ -1749,6 +1789,24 @@ const styles = StyleSheet.create({
   },
   shareBtn: {
     padding: 6,
+  },
+  topSettingsContainer: {
+    position: 'absolute',
+    left: 16,
+    zIndex: 50,
+  },
+  topSettingsBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
   },
   scrollContent: {
     flexGrow: 1,

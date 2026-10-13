@@ -346,13 +346,21 @@ test('16. Admin Action: Suspend student, verify 403 suspension, reactivate', asy
   });
   assert.equal(suspendRes.status, 200);
 
-  // Student receives 403 ACCOUNT_SUSPENDED
+  // Student mobile token is invalidated on suspension (returns 401)
   const checkRes = await fetch(`${baseUrl}/api/profile`, {
     headers: { Authorization: `Bearer ${studentToken}` },
   });
-  assert.equal(checkRes.status, 403);
-  const checkData = await checkRes.json();
-  assert.equal(checkData.error, 'ACCOUNT_SUSPENDED');
+  assert.equal(checkRes.status, 401);
+
+  // New login attempt receives 403 ACCOUNT_SUSPENDED
+  const loginSuspended = await fetch(`${baseUrl}/api/mobile/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ identifier: 'qa_student', password: 'QaStudent123!' }),
+  });
+  assert.equal(loginSuspended.status, 403);
+  const suspData = await loginSuspended.json();
+  assert.equal(suspData.error, 'ACCOUNT_SUSPENDED');
 
   // Reactivate
   const reactRes = await fetch(`${baseUrl}/api/admin/users/qa_student/reactivate`, {
@@ -427,9 +435,9 @@ test('18. Admin Action: Create, Edit, Archive, and Reactivate canonical subject'
       nature: 'Theory',
     }),
   });
-  assert.equal(createRes.status, 200);
+  assert.equal(createRes.status, 201);
   const createData = await createRes.json();
-  assert.equal(createData.success, true);
+  assert.ok(createData.subject, 'Subject must be created');
   const subjectId = createData.subject?.id || 'sub_cs104';
 
   // 2. Edit subject
@@ -475,7 +483,7 @@ test('18. Admin Action: Create, Edit, Archive, and Reactivate canonical subject'
 
 test('19. Admin Action: Review reports, Remove/Restore post, Remove/Restore comment', async () => {
   // 1. Fetch moderation reports
-  const reportsRes = await fetch(`${baseUrl}/api/admin/content/reports?status=open`, {
+  const reportsRes = await fetch(`${baseUrl}/api/admin/moderation/reports?status=open`, {
     headers: { Authorization: `Bearer ${adminToken}` },
   });
   assert.equal(reportsRes.status, 200);
@@ -484,7 +492,7 @@ test('19. Admin Action: Review reports, Remove/Restore post, Remove/Restore comm
   assert.ok(reportsData.reports.length >= 1, 'Should contain seeded moderation report');
 
   // 2. Remove post
-  const removePostRes = await fetch(`${baseUrl}/api/admin/content/posts/1/remove`, {
+  const removePostRes = await fetch(`${baseUrl}/api/admin/moderation/posts/1/remove`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -498,7 +506,7 @@ test('19. Admin Action: Review reports, Remove/Restore post, Remove/Restore comm
   assert.equal(postRemoved.moderation_status, 'removed');
 
   // 3. Restore post
-  const restorePostRes = await fetch(`${baseUrl}/api/admin/content/posts/1/restore`, {
+  const restorePostRes = await fetch(`${baseUrl}/api/admin/moderation/posts/1/restore`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -509,10 +517,10 @@ test('19. Admin Action: Review reports, Remove/Restore post, Remove/Restore comm
   assert.equal(restorePostRes.status, 200);
 
   const postRestored = await db.get('SELECT moderation_status FROM posts WHERE id = 1');
-  assert.equal(postRestored.moderation_status, 'visible');
+  assert.equal(postRestored.moderation_status, 'active');
 
   // 4. Remove comment
-  const removeComRes = await fetch(`${baseUrl}/api/admin/content/comments/1/remove`, {
+  const removeComRes = await fetch(`${baseUrl}/api/admin/moderation/comments/1/remove`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -526,7 +534,7 @@ test('19. Admin Action: Review reports, Remove/Restore post, Remove/Restore comm
   assert.equal(comRemoved.moderation_status, 'removed');
 
   // 5. Restore comment
-  const restoreComRes = await fetch(`${baseUrl}/api/admin/content/comments/1/restore`, {
+  const restoreComRes = await fetch(`${baseUrl}/api/admin/moderation/comments/1/restore`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -537,7 +545,7 @@ test('19. Admin Action: Review reports, Remove/Restore post, Remove/Restore comm
   assert.equal(restoreComRes.status, 200);
 
   const comRestored = await db.get('SELECT moderation_status FROM post_comments WHERE id = 1');
-  assert.equal(comRestored.moderation_status, 'visible');
+  assert.equal(comRestored.moderation_status, 'active');
 });
 
 // ====================================================================

@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/constants/useTheme';
 import { useAuth } from '@/context/AuthContext';
+import { useAdminMode } from '@/context/AdminModeContext';
 import { Text, Heading, Caption } from '@/components/ui/Typography';
 import { Badge } from '@/components/ui/Badge';
 import { Avatar } from '@/components/ui/Avatar';
@@ -21,6 +22,7 @@ import { AdminCohortsModal } from './AdminCohortsModal';
 export function AdminProfileView() {
   const { colors, radii, spacing } = useTheme();
   const { user, logout } = useAuth();
+  const { setAdminMode } = useAdminMode();
   const router = useRouter();
 
   const [auditModalVisible, setAuditModalVisible] = useState(false);
@@ -57,6 +59,29 @@ export function AdminProfileView() {
           </Caption>
           <View style={{ marginTop: 8 }}>
             <Badge label="System Administrator" variant="neutral" size="sm" />
+          </View>
+        </View>
+
+        {/* Experience Mode Switcher */}
+        <Heading level={4} style={{ marginTop: 20, marginBottom: 10 }}>App Experience Mode</Heading>
+        <View style={[styles.modeCard, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.md }]}>
+          <View style={styles.modeCardContent}>
+            <View style={{ flex: 1, marginRight: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Ionicons name="shield-checkmark" size={17} color="#38bdf8" style={{ marginRight: 6 }} />
+                <Text style={{ color: colors.text, fontWeight: '700', fontSize: 15 }}>Admin Console Active</Text>
+              </View>
+              <Caption style={{ color: colors.textSecondary, marginTop: 4 }}>
+                Switch to Normal Mode to browse the student feed, library, campus chat, and arcade games.
+              </Caption>
+            </View>
+            <Button
+              title="Normal Mode"
+              variant="secondary"
+              size="sm"
+              onPress={() => void setAdminMode('normal')}
+              testID="switch-to-normal-mode-btn"
+            />
           </View>
         </View>
 
@@ -195,5 +220,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
+  },
+  modeCard: {
+    padding: 16,
+    borderWidth: 1,
+  },
+  modeCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
 });

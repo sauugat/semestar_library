@@ -14,9 +14,20 @@
 import type { AdminChatRoom, ChatConfig } from './chat';
 import type { DmConversationItem as RawDmConversation } from './dm';
 
-export type ConversationType = 'cohort' | 'dm';
-export type PresentationKey = `cohort:${string}` | `dm:${string}`;
+export type ConversationType = 'cohort' | 'dm' | 'kyana';
+export type PresentationKey = `cohort:${string}` | `dm:${string}` | 'kyana';
 export type InboxFilterTab = 'all' | 'unread' | 'groups';
+
+export interface KyanaConversationItem {
+  readonly key: 'kyana';
+  readonly type: 'kyana';
+  readonly conversationId?: string | null;
+  readonly title: string;
+  readonly subtitle: string | null;
+  readonly timestamp: string | null;
+  readonly unreadCount: number;
+  readonly isPinned: true;
+}
 
 export interface CohortConversationItem {
   readonly key: `cohort:${string}`;
@@ -52,7 +63,7 @@ export interface DmConversationItem {
   readonly isBlockedByPeer: boolean;
 }
 
-export type UnifiedConversationItem = CohortConversationItem | DmConversationItem;
+export type UnifiedConversationItem = CohortConversationItem | DmConversationItem | KyanaConversationItem;
 
 /**
  * Validates whether a value is a genuine ISO timestamp parseable by Date.parse.
@@ -222,9 +233,16 @@ export function normalizeUnifiedConversations(params: {
     unreadCount?: number | null;
   };
   dmConversations?: (RawDmConversation | null | undefined)[];
+  kyanaConversation?: KyanaConversationItem | null;
 }): UnifiedConversationItem[] {
   const seenKeys = new Set<string>();
   const result: UnifiedConversationItem[] = [];
+
+  // 0. Process Kyana AI (always pinned first if available)
+  if (params.kyanaConversation) {
+    seenKeys.add(params.kyanaConversation.key);
+    result.push(params.kyanaConversation);
+  }
 
   // 1. Process Admin Cohorts
   if (Array.isArray(params.adminRooms)) {
@@ -272,6 +290,7 @@ export function normalizeUnifiedConversations(params: {
  * Deterministically sorts a unified conversation list by genuine activity recency.
  *
  * Rules:
+ * 0. Kyana AI is strictly pinned at the top of the chat list.
  * 1. Items with valid timestamps are sorted descending (most recent first).
  * 2. Items without timestamps follow timestamped items.
  * 3. Ties (or missing timestamps) are broken deterministically:
@@ -282,6 +301,10 @@ export function normalizeUnifiedConversations(params: {
  */
 export function sortUnifiedConversations(items: readonly UnifiedConversationItem[]): UnifiedConversationItem[] {
   return [...items].sort((a, b) => {
+    // 0. Kyana AI is permanently pinned at the top
+    if (a.type === 'kyana') return -1;
+    if (b.type === 'kyana') return 1;
+
     const timeA = parseActivityTimestamp(a.timestamp);
     const timeB = parseActivityTimestamp(b.timestamp);
 
@@ -312,7 +335,7 @@ export function sortUnifiedConversations(items: readonly UnifiedConversationItem
  * Rules:
  * - 'all': returns all items.
  * - 'unread': returns items where unreadCount is confirmed > 0 (does not treat null/unknown as 0).
- * - 'groups': returns cohort items only.
+ * - 'groups': returns cohort items only (Kyana is an individual AI companion).
  */
 export function filterUnifiedConversations(
   items: readonly UnifiedConversationItem[],
@@ -347,6 +370,7 @@ export function searchUnifiedConversations(
     if (item.subtitle && item.subtitle.toLowerCase().includes(term)) return true;
     if (item.type === 'cohort' && item.groupCode.toLowerCase().includes(term)) return true;
     if (item.type === 'dm' && item.peerUsername && item.peerUsername.toLowerCase().includes(term)) return true;
+    if (item.type === 'kyana' && ('kyana'.includes(term) || 'ai'.includes(term))) return true;
     return false;
   });
 }

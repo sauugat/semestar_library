@@ -13,6 +13,7 @@ import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { useTheme } from '@/constants/useTheme';
 import { useAuth } from '@/context/AuthContext';
+import { useAdminMode } from '@/context/AdminModeContext';
 import { Text, Heading, Caption } from '@/components/ui/Typography';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -23,6 +24,7 @@ import { AdminCohortsModal } from './AdminCohortsModal';
 export function AdminDashboardView() {
   const { colors, radii, spacing } = useTheme();
   const { user } = useAuth();
+  const { setAdminMode } = useAdminMode();
   const router = useRouter();
 
   const [auditModalVisible, setAuditModalVisible] = useState(false);
@@ -50,13 +52,30 @@ export function AdminDashboardView() {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
       {/* Brand Header */}
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <View>
+        <View style={{ flex: 1, marginRight: 12 }}>
           <Heading level={2} style={styles.brandTitle}>
             Admin Console
           </Heading>
           <Caption style={{ color: colors.textSecondary }}>Semester Library Management System</Caption>
         </View>
-        <Badge label="Administrator" variant="neutral" size="sm" />
+        <TouchableOpacity
+          onPress={() => void setAdminMode('normal')}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: colors.surfaceRaised,
+            borderColor: colors.border,
+            borderWidth: 1,
+            borderRadius: radii.full,
+            paddingHorizontal: 10,
+            paddingVertical: 5,
+          }}
+          accessibilityLabel="Switch to Normal Mode"
+          testID="dashboard-switch-to-normal-btn"
+        >
+          <Ionicons name="eye-outline" size={13} color={colors.text} style={{ marginRight: 4 }} />
+          <Text style={{ fontSize: 11, fontWeight: '700', color: colors.text }}>Normal View</Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView

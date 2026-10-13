@@ -55,12 +55,15 @@ import {
   adaptStudentCohortConfig,
   type CohortConversationItem,
   type DmConversationItem,
+  type KyanaConversationItem,
   type UnifiedConversationItem,
 } from "@/services/unified-inbox";
+import { fetchKyanaPreview, type KyanaInboxPreview } from "@/services/kyana";
 import { useClassChat } from "@/hooks/useClassChat";
 import { AdminAcademicsView } from "@/components/admin/AdminAcademicsView";
 import { UnrecognizedRoleView } from "@/components/admin/UnrecognizedRoleView";
 import { resolveAppRole } from "@/utils/roles";
+import { useAdminMode } from "@/context/AdminModeContext";
 import {
   mergeChatMessages,
   applyChatReaction,
@@ -312,13 +315,23 @@ function ChatScreenInner() {
     }
   }, [user?.studentId, dmConversations.length]);
 
+  const [kyanaPreview, setKyanaPreview] = useState<KyanaInboxPreview | null>(null);
+
+  const loadKyana = useCallback(async () => {
+    try {
+      const preview = await fetchKyanaPreview();
+      if (preview) setKyanaPreview(preview);
+    } catch {}
+  }, []);
+
   // 3. Combined loader (concurrent, independent)
   const loadAll = useCallback(async (isRefresh = false) => {
     await Promise.allSettled([
       loadCohorts(isRefresh),
       loadDms(isRefresh),
+      loadKyana(),
     ]);
-  }, [loadCohorts, loadDms]);
+  }, [loadCohorts, loadDms, loadKyana]);
 
   // Reset state on account switch or logout
   useEffect(() => {
@@ -344,14 +357,26 @@ function ChatScreenInner() {
     }, [selectedCohortRoom, user?.studentId, loadAll])
   );
 
+  // Kyana AI pinned conversation item
+  const kyanaItem: KyanaConversationItem = useMemo(() => ({
+    key: 'kyana',
+    type: 'kyana',
+    title: '✦ Kyana AI',
+    subtitle: kyanaPreview?.subtitle || 'How can I help you today?',
+    timestamp: kyanaPreview?.timestamp || null,
+    unreadCount: 0,
+    isPinned: true,
+  }), [kyanaPreview]);
+
   // Normalize unified inbox items
   const unifiedItems = useMemo(() => {
     return normalizeUnifiedConversations({
+      kyanaConversation: kyanaItem,
       adminRooms: isAdmin ? adminRooms : undefined,
       studentConfig: !isAdmin ? studentConfig : null,
       dmConversations: dmEnabled ? dmConversations : undefined,
     });
-  }, [isAdmin, adminRooms, studentConfig, dmEnabled, dmConversations]);
+  }, [kyanaItem, isAdmin, adminRooms, studentConfig, dmEnabled, dmConversations]);
 
   const chatOptions = useMemo(
     () => ({
@@ -433,6 +458,10 @@ function ChatScreenInner() {
         peerAvatarUrl: item.peerAvatarUrl || '',
       },
     });
+  }, [router]);
+
+  const handleSelectKyana = useCallback(() => {
+    router.push('/kyana' as any);
   }, [router]);
 
   const handleNewMessage = useCallback(() => {
@@ -1478,6 +1507,7 @@ function ChatScreenInner() {
             onRetryDm={() => void loadDms(false)}
             onSelectCohort={handleSelectCohort}
             onSelectDm={handleSelectDm}
+            onSelectKyana={handleSelectKyana}
             onNewMessage={handleNewMessage}
           />
         </View>
@@ -2669,9 +2699,10 @@ const styles = StyleSheet.create({
 
 export default function ChatScreen() {
   const { user } = useAuth();
+  const { isInAdminMode } = useAdminMode();
   const appRole = resolveAppRole(user);
 
-  if (appRole === 'admin') {
+  if (isInAdminMode) {
     return (
       <TabSwipeContainer tabIndex={2}>
         <AdminAcademicsView />

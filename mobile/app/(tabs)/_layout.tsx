@@ -3,13 +3,14 @@ import { PagerTabs } from '@/components/navigation/PagerTabs';
 import { FloatingTabBar } from '@/components/navigation/FloatingTabBar';
 import { NavScrollProvider } from '@/context/NavScrollContext';
 import { useAuth } from '@/context/AuthContext';
+import { useAdminMode } from '@/context/AdminModeContext';
 import { resolveAppRole } from '@/utils/roles';
 
 export default function TabLayout() {
   const { user } = useAuth();
+  const { isInAdminMode } = useAdminMode();
   const appRole = resolveAppRole(user);
   const isTeacher = user?.role === 'teacher' || user?.role === 'faculty';
-  const isAdmin = appRole === 'admin';
 
   return (
     <NavScrollProvider>
@@ -22,33 +23,33 @@ export default function TabLayout() {
         <PagerTabs.Screen
           name="index"
           options={{
-            title: isAdmin ? 'Dashboard' : isTeacher ? 'Dashboard' : 'Home',
+            title: isInAdminMode ? 'Dashboard' : isTeacher ? 'Dashboard' : 'Home',
             headerShown: false,
-            tabBarAccessibilityLabel: isAdmin ? 'Dashboard' : isTeacher ? 'Dashboard' : 'Home',
+            tabBarAccessibilityLabel: isInAdminMode ? 'Dashboard' : isTeacher ? 'Dashboard' : 'Home',
           }}
         />
         <PagerTabs.Screen
           name="library"
           options={{
-            title: isAdmin ? 'Users' : isTeacher ? 'My Materials' : 'Library',
+            title: isInAdminMode ? 'Users' : isTeacher ? 'My Materials' : 'Library',
             headerShown: false,
-            tabBarAccessibilityLabel: isAdmin ? 'Users' : isTeacher ? 'My Materials' : 'Library',
+            tabBarAccessibilityLabel: isInAdminMode ? 'Users' : isTeacher ? 'My Materials' : 'Library',
           }}
         />
         <PagerTabs.Screen
           name="chat"
           options={{
-            title: isAdmin ? 'Academics' : 'Chat',
+            title: isInAdminMode ? 'Academics' : 'Chat',
             headerShown: false,
-            tabBarAccessibilityLabel: isAdmin ? 'Academics' : 'Chat',
+            tabBarAccessibilityLabel: isInAdminMode ? 'Academics' : 'Chat',
           }}
         />
         <PagerTabs.Screen
           name="games"
           options={{
-            title: isAdmin ? 'Content' : isTeacher ? 'Notices' : 'Games',
+            title: isInAdminMode ? 'Content' : isTeacher ? 'Notices' : 'Games',
             headerShown: false,
-            tabBarAccessibilityLabel: isAdmin ? 'Content' : isTeacher ? 'Notices' : 'Games',
+            tabBarAccessibilityLabel: isInAdminMode ? 'Content' : isTeacher ? 'Notices' : 'Games',
           }}
         />
         <PagerTabs.Screen

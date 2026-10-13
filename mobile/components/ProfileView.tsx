@@ -20,6 +20,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth, StudentUser } from '@/context/AuthContext';
+import { useAdminMode } from '@/context/AdminModeContext';
 import { useTheme } from '@/constants/useTheme';
 import { useAdaptiveNavScroll } from '@/context/NavScrollContext';
 import { Text, Heading, Caption } from '@/components/ui/Typography';
@@ -99,6 +100,7 @@ export function ProfileView({ targetStudentId, isTab = false }: ProfileViewProps
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const { user: currentUser, serverUrl, refreshProfile } = useAuth();
+  const { isAdmin, setAdminMode } = useAdminMode();
   const { colors, spacing, radii, isDark } = useTheme();
   const { onScroll: handleNavScroll, scrollEventThrottle } = useAdaptiveNavScroll();
 
@@ -1014,6 +1016,42 @@ export function ProfileView({ targetStudentId, isTab = false }: ProfileViewProps
                     </Text>
                   </TouchableOpacity>
                 )}
+              </View>
+            )}
+
+            {/* Experience Mode Switcher (Admin viewing in Normal Mode) */}
+            {isSelf && isAdmin && (
+              <View
+                style={{
+                  marginTop: 14,
+                  marginBottom: 10,
+                  padding: 14,
+                  borderRadius: radii.md,
+                  backgroundColor: '#0f172a',
+                  borderWidth: 1,
+                  borderColor: '#38bdf8',
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <View style={{ flex: 1, marginRight: 12 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Ionicons name="shield-checkmark" size={16} color="#38bdf8" style={{ marginRight: 6 }} />
+                      <Text style={{ color: '#f8fafc', fontWeight: '700', fontSize: 14 }}>
+                        Viewing in Normal Mode
+                      </Text>
+                    </View>
+                    <Caption style={{ color: '#94a3b8', marginTop: 4 }}>
+                      You are in student view. Switch to Admin Mode to manage users, academics, cohorts, and content.
+                    </Caption>
+                  </View>
+                  <Button
+                    title="Admin Mode"
+                    size="sm"
+                    variant="primary"
+                    onPress={() => void setAdminMode('admin')}
+                    testID="profile-switch-to-admin-btn"
+                  />
+                </View>
               </View>
             )}
 

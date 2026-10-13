@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Monochrome } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
 import { useNavScroll } from '@/context/NavScrollContext';
+import { useAdminMode } from '@/context/AdminModeContext';
 import { resolveAppRole } from '@/utils/roles';
 import { DEFAULT_SERVER_URL } from '@/services/api';
 import {
@@ -209,9 +210,10 @@ export function FloatingTabBar({
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
   const { user, serverUrl } = useAuth();
+  const { isAdmin, isInAdminMode, toggleAdminMode } = useAdminMode();
   const appRole = resolveAppRole(user);
   const currentTabConfigs =
-    appRole === 'admin'
+    isInAdminMode
       ? ADMIN_TAB_CONFIGS
       : appRole === 'teacher'
       ? TEACHER_TAB_CONFIGS
@@ -564,6 +566,37 @@ export function FloatingTabBar({
       ]}
       pointerEvents="box-none"
     >
+      {isAdmin && (
+        <TouchableOpacity
+          onPress={() => void toggleAdminMode()}
+          activeOpacity={0.8}
+          style={[
+            styles.modeSwitcherPill,
+            isInAdminMode ? styles.modeSwitcherPillAdmin : styles.modeSwitcherPillNormal,
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel={isInAdminMode ? 'Switch to Normal Mode' : 'Switch to Admin Mode'}
+          testID="admin-mode-toggle-pill"
+        >
+          <Ionicons
+            name={isInAdminMode ? 'shield-checkmark' : 'person-circle-outline'}
+            size={13}
+            color={isInAdminMode ? '#38bdf8' : '#e4e4e7'}
+            style={{ marginRight: 5 }}
+          />
+          <Text
+            style={[
+              styles.modeSwitcherText,
+              { color: isInAdminMode ? '#38bdf8' : '#f4f4f5' },
+            ]}
+          >
+            {isInAdminMode ? 'Admin Mode' : 'Normal Mode'}
+          </Text>
+          <View style={styles.modeSwitcherBadge}>
+            <Text style={styles.modeSwitcherBadgeText}>⇄</Text>
+          </View>
+        </TouchableOpacity>
+      )}
       <Animated.View
         style={[
           styles.capsuleBar,
@@ -773,6 +806,45 @@ const styles = StyleSheet.create({
   avatarInitials: {
     fontWeight: '700',
     textAlign: 'center',
+  },
+  modeSwitcherPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    marginBottom: 8,
+    borderWidth: 1,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  modeSwitcherPillAdmin: {
+    backgroundColor: '#0f172a',
+    borderColor: '#38bdf8',
+  },
+  modeSwitcherPillNormal: {
+    backgroundColor: '#18181b',
+    borderColor: '#3f3f46',
+  },
+  modeSwitcherText: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  modeSwitcherBadge: {
+    marginLeft: 6,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  modeSwitcherBadgeText: {
+    fontSize: 10,
+    color: '#ffffff',
+    fontWeight: '700',
   },
 });
 

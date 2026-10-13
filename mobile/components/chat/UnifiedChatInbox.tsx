@@ -18,6 +18,7 @@ import {
   type UnifiedConversationItem,
   type CohortConversationItem,
   type DmConversationItem,
+  type KyanaConversationItem,
   type InboxFilterTab,
   filterUnifiedConversations,
   searchUnifiedConversations,
@@ -69,6 +70,7 @@ export interface UnifiedChatInboxProps {
   onRetryDm?: () => void;
   onSelectCohort: (item: CohortConversationItem) => void;
   onSelectDm: (item: DmConversationItem) => void;
+  onSelectKyana?: () => void;
   onNewMessage: () => void;
 }
 
@@ -85,6 +87,7 @@ export function UnifiedChatInbox({
   onRetryDm,
   onSelectCohort,
   onSelectDm,
+  onSelectKyana,
   onNewMessage,
 }: UnifiedChatInboxProps) {
   const insets = useSafeAreaInsets();
@@ -114,6 +117,62 @@ export function UnifiedChatInbox({
 
   const renderItem = useCallback(
     ({ item }: { item: UnifiedConversationItem }) => {
+      // 0. Render Kyana AI pinned assistant row
+      if (item.type === 'kyana') {
+        const kyanaItem = item as KyanaConversationItem;
+        const time = formatRelativeTime(kyanaItem.timestamp);
+
+        return (
+          <Pressable
+            style={({ pressed }) => [
+              styles.itemRow,
+              pressed && styles.itemRowPressed,
+              styles.kyanaPinnedRow,
+            ]}
+            onPress={() => onSelectKyana?.()}
+            accessibilityRole="button"
+            accessibilityLabel="Kyana AI Study Companion conversation"
+          >
+            {/* Kyana AI Avatar */}
+            <View style={styles.kyanaAvatarContainer}>
+              <Ionicons name="sparkles" size={20} color="#F5F5F5" />
+            </View>
+
+            {/* Conversation Details */}
+            <View style={styles.itemContent}>
+              <View style={styles.itemHeaderRow}>
+                <View style={styles.titleWithBadge}>
+                  <Text variant="md" weight="600" style={styles.itemTitle} numberOfLines={1}>
+                    {kyanaItem.title}
+                  </Text>
+                  <View style={styles.aiBadge}>
+                    <Text style={styles.aiBadgeText}>AI</Text>
+                  </View>
+                </View>
+                <View style={styles.headerRightContainer}>
+                  <Ionicons name="pin" size={13} color="#71717A" style={styles.pinIcon} />
+                  {time ? (
+                    <Text variant="xs" style={styles.itemTime}>
+                      {time}
+                    </Text>
+                  ) : null}
+                </View>
+              </View>
+
+              <View style={styles.itemFooterRow}>
+                <Text
+                  variant="sm"
+                  style={styles.itemSubtitle}
+                  numberOfLines={1}
+                >
+                  {kyanaItem.subtitle || 'How can I help you today?'}
+                </Text>
+              </View>
+            </View>
+          </Pressable>
+        );
+      }
+
       const isCohort = item.type === 'cohort';
 
       if (isCohort) {
@@ -735,5 +794,43 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 18,
     maxWidth: 260,
+  },
+  kyanaPinnedRow: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#27272A',
+  },
+  kyanaAvatarContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#18181B',
+    borderWidth: 1,
+    borderColor: '#27272A',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  aiBadge: {
+    backgroundColor: '#27272A',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 6,
+    marginLeft: 6,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#3F3F46',
+  },
+  aiBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#A1A1AA',
+    letterSpacing: 0.5,
+  },
+  headerRightContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  pinIcon: {
+    opacity: 0.8,
   },
 });

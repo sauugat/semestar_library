@@ -26,6 +26,7 @@ import { TabSwipeContainer } from '@/components/navigation/TabSwipeContainer';
 import { AdminDashboardView } from '@/components/admin/AdminDashboardView';
 import { UnrecognizedRoleView } from '@/components/admin/UnrecognizedRoleView';
 import { resolveAppRole } from '@/utils/roles';
+import { useAdminMode } from '@/context/AdminModeContext';
 import { useAdaptiveNavScroll } from '@/context/NavScrollContext';
 import { fetchUnseenCount } from '@/services/notifications';
 import * as ImagePicker from 'expo-image-picker';
@@ -559,6 +560,7 @@ function StudentHomeScreenInner() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
+  const { isAdmin, setAdminMode } = useAdminMode();
   const { colors, spacing, radii } = useTheme();
   const queryClient = useQueryClient();
   const navigation = useNavigation();
@@ -1705,16 +1707,38 @@ function StudentHomeScreenInner() {
         ]}
       >
         {/* Left: "Semester Library" Wordmark and Academic Context Badge */}
-        <TouchableOpacity onPress={refreshFromTop} accessibilityLabel="Refresh home feed" style={{ flex: 1, marginRight: 12 }}>
-          <Text
-            style={[
-              styles.headerWordmark,
-              { color: colors.text },
-            ]}
-          >
-            Semester Library
-          </Text>
-        </TouchableOpacity>
+        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', marginRight: 12 }}>
+          <TouchableOpacity onPress={refreshFromTop} accessibilityLabel="Refresh home feed">
+            <Text
+              style={[
+                styles.headerWordmark,
+                { color: colors.text },
+              ]}
+            >
+              Semester Library
+            </Text>
+          </TouchableOpacity>
+          {isAdmin && (
+            <TouchableOpacity
+              onPress={() => void setAdminMode('admin')}
+              style={{
+                marginLeft: 8,
+                backgroundColor: '#0f172a',
+                borderColor: '#38bdf8',
+                borderWidth: 1,
+                borderRadius: 12,
+                paddingHorizontal: 8,
+                paddingVertical: 3,
+                flexDirection: 'row',
+                alignItems: 'center',
+              }}
+              accessibilityLabel="Switch to Admin Mode"
+            >
+              <Ionicons name="shield-checkmark" size={12} color="#38bdf8" style={{ marginRight: 4 }} />
+              <Text style={{ fontSize: 11, fontWeight: '700', color: '#38bdf8' }}>Admin</Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
         {/* Right: Search, Create (+), and Profile */}
         <View style={styles.headerRightActions}>
@@ -3875,9 +3899,10 @@ const styles = StyleSheet.create({
 
 export default function HomeScreen() {
   const { user } = useAuth();
+  const { isInAdminMode } = useAdminMode();
   const appRole = resolveAppRole(user);
 
-  if (appRole === 'admin') {
+  if (isInAdminMode) {
     return (
       <TabSwipeContainer tabIndex={0}>
         <AdminDashboardView />

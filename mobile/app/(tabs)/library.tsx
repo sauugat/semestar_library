@@ -31,6 +31,7 @@ import { TeacherMaterialsView } from '@/components/teacher/TeacherMaterialsView'
 import { AdminUsersView } from '@/components/admin/AdminUsersView';
 import { UnrecognizedRoleView } from '@/components/admin/UnrecognizedRoleView';
 import { resolveAppRole } from '@/utils/roles';
+import { useAdminMode } from '@/context/AdminModeContext';
 import {
   SEMESTERS,
   SemesterItem,
@@ -1022,10 +1023,11 @@ function StudentLibraryView() {
 
 export default function LibraryScreen() {
   const { user } = useAuth();
+  const { isInAdminMode } = useAdminMode();
   const appRole = resolveAppRole(user);
   const isTeacher = user?.role === 'teacher' || user?.role === 'faculty';
 
-  if (appRole === 'admin') {
+  if (isInAdminMode) {
     return (
       <TabSwipeContainer tabIndex={1}>
         <AdminUsersView />

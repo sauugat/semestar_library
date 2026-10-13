@@ -5870,9 +5870,98 @@ app.get('/api/students/suggested', requireLogin, async (req, res) => {
 
 // --- AI Assistant Service ---
 const aiAssistant = require('./ai-assistant');
+const aiChatService = require('./lib/ai-chat-service');
 
 // Unlimited AI Chat: Users can chat with Kyana without message caps or rate limits
 app.post('/api/ai/chat', require('./lib/chat-http').createChatHandler(db, aiAssistant));
+
+// Kyana AI inbox preview for mobile chat list and web widget
+app.get('/api/ai/preview', async (req, res) => {
+  try {
+    const studentId = req.user?.studentId || req.student?.studentId || req.session?.studentId || null;
+    const preview = await aiChatService.getInboxPreview(db, studentId);
+    res.json(preview);
+  } catch (err) {
+    res.json({
+      conversationId: null,
+      title: '✦ Kyana AI',
+      subtitle: 'How can I help you today?',
+      timestamp: null,
+      unreadCount: 0,
+      isPinned: true
+    });
+  }
+});
+
+// Authenticated AI Conversation Endpoints
+app.get('/api/ai/conversations', requireLogin, async (req, res) => {
+  try {
+    const studentId = req.student.studentId;
+    const convs = await aiChatService.getConversations(db, studentId);
+    res.json(convs);
+  } catch (err) {
+    console.error('[AI Conversations API Error]:', err);
+    res.status(500).json({ message: 'Failed to retrieve AI conversations.' });
+  }
+});
+
+app.get('/api/ai/conversations/:id/messages', requireLogin, async (req, res) => {
+  try {
+    const studentId = req.student.studentId;
+    const convId = req.params.id;
+    const conv = await aiChatService.getConversation(db, studentId, convId);
+    if (!conv) {
+      return res.status(404).json({ message: 'Conversation not found.' });
+    }
+    const messages = await aiChatService.getMessages(db, studentId, convId, 100);
+    res.json({ conversation: conv, messages });
+  } catch (err) {
+    console.error('[AI Conversation Messages API Error]:', err);
+    res.status(500).json({ message: 'Failed to retrieve messages.' });
+  }
+});
+
+app.post('/api/ai/conversations', requireLogin, async (req, res) => {
+  try {
+    const studentId = req.student.studentId;
+    const title = (req.body?.title || '').trim() || 'New conversation';
+    const conv = await aiChatService.createConversation(db, studentId, title);
+    res.status(201).json(conv);
+  } catch (err) {
+    console.error('[Create AI Conversation API Error]:', err);
+    res.status(500).json({ message: 'Failed to create conversation.' });
+  }
+});
+
+app.post('/api/ai/conversations/:id/clear', requireLogin, async (req, res) => {
+  try {
+    const studentId = req.student.studentId;
+    const convId = req.params.id;
+    const ok = await aiChatService.clearConversation(db, studentId, convId);
+    if (!ok) {
+      return res.status(404).json({ message: 'Conversation not found.' });
+    }
+    res.json({ success: true, message: 'Conversation cleared.' });
+  } catch (err) {
+    console.error('[Clear AI Conversation API Error]:', err);
+    res.status(500).json({ message: 'Failed to clear conversation.' });
+  }
+});
+
+app.delete('/api/ai/conversations/:id', requireLogin, async (req, res) => {
+  try {
+    const studentId = req.student.studentId;
+    const convId = req.params.id;
+    const ok = await aiChatService.deleteConversation(db, studentId, convId);
+    if (!ok) {
+      return res.status(404).json({ message: 'Conversation not found.' });
+    }
+    res.json({ success: true, message: 'Conversation deleted.' });
+  } catch (err) {
+    console.error('[Delete AI Conversation API Error]:', err);
+    res.status(500).json({ message: 'Failed to delete conversation.' });
+  }
+});
 
 app.get('/api/ai/suggestions', (req, res) => {
   res.json([

@@ -12,6 +12,7 @@ import {
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { queryClient, asyncStoragePersister } from '@/services/query-client';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { AdminModeProvider } from '@/context/AdminModeContext';
 import { useTheme, ThemeProvider } from '@/constants/useTheme';
 import { AppUpdateChecker } from '@/components/AppUpdateChecker';
 import * as Notifications from 'expo-notifications';
@@ -66,8 +67,10 @@ export default function RootLayout() {
       <ThemeProvider>
         <KeyboardProvider statusBarTranslucent navigationBarTranslucent>
           <AuthProvider>
-            <RootLayoutNav />
-            <AppUpdateChecker />
+            <AdminModeProvider>
+              <RootLayoutNav />
+              <AppUpdateChecker />
+            </AdminModeProvider>
           </AuthProvider>
         </KeyboardProvider>
       </ThemeProvider>
@@ -205,6 +208,7 @@ function RootLayoutNav() {
       <Stack.Screen name="notifications" options={{ title: 'Notifications', headerBackTitle: 'Back' }} />
       <Stack.Screen name="dm/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="dm/new" options={{ headerShown: false }} />
+      <Stack.Screen name="kyana" options={{ headerShown: false }} />
       <Stack.Screen name="notification-settings" options={{ title: 'Notification Settings', headerBackTitle: 'Notifications' }} />
       <Stack.Screen
         name="edit-profile"

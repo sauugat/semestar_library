@@ -1538,18 +1538,25 @@
       content: m.content.slice(0, 8000)
     }));
 
+    const reqHeaders = {
+      'Content-Type': 'application/json',
+      'Accept': 'text/event-stream'
+    };
+    try {
+      const token = window.SemesterAuth?.getAccessToken?.();
+      if (token) reqHeaders['Authorization'] = `Bearer ${token}`;
+    } catch (_) {}
+
     try {
       const response = await fetch('/api/ai/chat', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'text/event-stream'
-        },
+        headers: reqHeaders,
         signal: request.controller.signal,
         body: JSON.stringify({
           message: query,
           history: historyPayload,
-          stream: true
+          stream: true,
+          conversationId: activeSession?.id
         })
       });
 
@@ -1694,14 +1701,56 @@
     }
   };
 
-  // Hydrate initial session or start fresh
-  const storedActiveId = SessionStore.getActiveId();
-  if (storedActiveId && SessionStore.get(storedActiveId)) {
-    loadSession(storedActiveId);
-  } else {
-    renderHistoryList();
-    setConversationState(false, false);
+  // Sync conversations from server for authenticated students
+  async function syncServerConversations() {
+    try {
+      const headers = {};
+      const token = window.SemesterAuth?.getAccessToken?.();
+      if (token) headers['Authorization'] = 'Bearer ' + token;
+      const res = await fetch('/api/ai/conversations', { headers });
+      if (!res.ok) return;
+      const serverConvs = await res.json();
+      if (Array.isArray(serverConvs) && serverConvs.length > 0) {
+        let changed = false;
+        for (const conv of serverConvs) {
+          let local = SessionStore.get(conv.id);
+          if (!local) {
+            local = {
+              id: conv.id,
+              title: conv.title || 'Chat with Kyana',
+              createdAt: new Date(conv.createdAt).getTime() || Date.now(),
+              updatedAt: new Date(conv.updatedAt).getTime() || Date.now(),
+              messages: []
+            };
+            const all = SessionStore.getAll();
+            all.unshift(local);
+            SessionStore.saveAll(all);
+            changed = true;
+          }
+        }
+        if (changed) renderHistoryList();
+        const activeId = SessionStore.getActiveId() || serverConvs[0].id;
+        if (activeId) {
+          const msgRes = await fetch('/api/ai/conversations/' + encodeURIComponent(activeId) + '/messages', { headers });
+          if (msgRes.ok) {
+            const data = await msgRes.json();
+            const msgs = data.messages || [];
+            const current = SessionStore.get(activeId);
+            if (current && msgs.length > 0) {
+              current.messages = msgs.map(m => ({
+                role: m.sender === 'user' ? 'user' : 'assistant',
+                content: m.text,
+                timestamp: new Date(m.createdAt).getTime() || Date.now()
+              }));
+              SessionStore.update(current);
+              loadSession(activeId);
+            }
+          }
+        }
+      }
+    } catch (_) {}
   }
+  syncServerConversations();
 
   // Auto-send or prefill from URL parameters (?q=... or ?prompt=...)
   try {

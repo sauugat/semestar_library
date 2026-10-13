@@ -120,7 +120,9 @@ function testHttpHandshake(pathname, headers = {}) {
 }
 
 async function startWrangler() {
-  const proc = spawn('npx', ['wrangler', 'dev', '--port', String(PORT), '--ip', '127.0.0.1'], {
+  const localWrangler = path.join(backendDir, 'node_modules', '.bin', 'wrangler');
+  const wranglerCmd = fs.existsSync(localWrangler) ? localWrangler : 'wrangler';
+  const proc = spawn(wranglerCmd, ['dev', '--port', String(PORT), '--ip', '127.0.0.1'], {
     cwd: backendDir,
     stdio: ['ignore', 'pipe', 'pipe'],
     detached: false,

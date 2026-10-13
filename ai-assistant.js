@@ -119,10 +119,25 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
     onDelta(reply);
     return {...emptyResult(reply),chatMode};
   }
-  const cleanHistory = Array.isArray(history) ? history.filter(m=>m && ['user','assistant'].includes(m.role) && typeof m.content === 'string').slice(-12).map(m=>({role:m.role,content:m.content.slice(0,6000)})) : [];
+  // Context-window management: compact older messages when conversation history is long
+  let cleanHistory = Array.isArray(history) ? history.filter(m=>m && ['user','assistant'].includes(m.role) && typeof m.content === 'string') : [];
+  if (cleanHistory.length > 12) {
+    const older = cleanHistory.slice(0, -8);
+    const recent = cleanHistory.slice(-8);
+    const topicsDiscussed = [...new Set(older.filter(m => m.role === 'user').map(m => m.content.slice(0, 40)))].slice(0, 3).join(', ');
+    const summaryPrefix = topicsDiscussed ? `[Earlier context summary: student previously discussed ${topicsDiscussed}]` : '';
+    cleanHistory = [
+      ...(summaryPrefix ? [{ role: 'system', content: summaryPrefix }] : []),
+      ...recent.map(m=>({role:m.role,content:m.content.slice(0,6000),metadata:m.metadata,resourceCards:m.resourceCards}))
+    ];
+  } else {
+    cleanHistory = cleanHistory.map(m=>({role:m.role,content:m.content.slice(0,6000),metadata:m.metadata,resourceCards:m.resourceCards}));
+  }
+
   const route = routeQuery(message, cleanHistory);
   const cache = cacheFor(db);
-  const cacheKey = JSON.stringify([chatMode,route.kind,message,route.filters,route.query]);
+  const studentKey = studentInfo?.studentId || null;
+  const cacheKey = JSON.stringify([studentKey,chatMode,route.kind,message,route.filters,route.query]);
   const cacheable = !cleanHistory.length && ['notes','syllabus','routine','direct','web'].includes(route.kind);
   const cached = cacheable && cache.get(cacheKey);
   if (cached && cached.expires > Date.now()) {
@@ -141,6 +156,26 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
     } catch (e) {
       console.warn('[AI Assistant] academicContext resolve error:', e.message);
     }
+  }
+
+  // Handle relative reference follow-up: e.g. "second wala khola"
+  if (route.kind === 'relative_reference') {
+    const priorAssistant = [...cleanHistory].reverse().find(m => m.role === 'assistant');
+    let targetCard = null;
+    if (priorAssistant?.metadata?.resourceCards?.length) {
+      targetCard = priorAssistant.metadata.resourceCards[route.index] || priorAssistant.metadata.resourceCards[0];
+    } else if (priorAssistant?.resourceCards?.length) {
+      targetCard = priorAssistant.resourceCards[route.index] || priorAssistant.resourceCards[0];
+    }
+    if (targetCard) {
+      result.reply = `${targetCard.title} open gardai chu.`;
+      result.resourceCards = [targetCard];
+      onDelta(result.reply);
+      return result;
+    }
+    result.reply = 'Kun resource open garne ho? Paila search garam hai.';
+    onDelta(result.reply);
+    return result;
   }
 
   const toolkit = createTools(db, route, {signal, chatMode, history:cleanHistory, academicContext, ...options.toolDependencies});

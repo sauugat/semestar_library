@@ -575,12 +575,13 @@
   // KyanaSourceCard Component (Strict Monochrome, No Gradients)
   const KyanaSourceCard = {
     renderSources(container, data) {
+      const resourceCards = Array.isArray(data.resourceCards) ? data.resourceCards : [];
       const files = Array.isArray(data.matchedFiles) ? data.matchedFiles : [];
       const courses = Array.isArray(data.matchedCourses) ? data.matchedCourses : [];
       const routines = Array.isArray(data.matchedRoutine) ? data.matchedRoutine : [];
       const webSources = Array.isArray(data.webSources) ? data.webSources.filter(s => s && safeLink(s.url, true)) : [];
 
-      if (!files.length && !courses.length && !routines.length && !webSources.length) return;
+      if (!resourceCards.length && !files.length && !courses.length && !routines.length && !webSources.length) return;
 
       const wrap = document.createElement('div');
       wrap.className = 'kyana-sources-wrap';
@@ -590,74 +591,113 @@
             <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
             <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
           </svg>
-          <span>Sources & References</span>
+          <span>${resourceCards.length ? 'Interactive Resources' : 'Sources & References'}</span>
         </div>
         <div class="kyana-sources-list"></div>
       `;
       const list = wrap.querySelector('.kyana-sources-list');
 
-      // 1. Files
-      files.forEach(f => {
-        const card = document.createElement('a');
-        card.className = 'kyana-source-card';
-        card.href = `/api/files/${encodeURIComponent(f.id)}/view`;
-        card.target = '_blank';
-        card.rel = 'noopener noreferrer';
-        const ext = ((f.originalName || f.title || '').split('.').pop() || 'doc').toUpperCase().slice(0, 4);
-        const meta = [f.subject || 'Study Notes', f.chapter ? `Ch. ${f.chapter}` : '', f.semester ? `Sem ${f.semester}` : ''].filter(Boolean).join(' · ');
-        card.innerHTML = `
-          <div class="kyana-source-left">
-            <div class="kyana-source-icon">${escapeHtml(ext)}</div>
-            <div class="kyana-source-info">
-              <span class="kyana-source-title">${escapeHtml(f.title || f.originalName || 'Study Material')}</span>
-              <span class="kyana-source-meta">${escapeHtml(meta)}</span>
+      // 0. Primary Native Resource Cards
+      if (resourceCards.length) {
+        resourceCards.forEach(card => {
+          const el = document.createElement('a');
+          el.className = 'kyana-source-card';
+          el.href = card.deepLink || card.viewUrl || '#';
+          if (card.action === 'open_note' || card.type === 'note') {
+            el.target = '_blank';
+            el.rel = 'noopener noreferrer';
+          }
+          const iconType = {
+            note: 'NOTE',
+            routine: 'EXAM',
+            notice: 'NOTIF',
+            post: 'FEED',
+            assignment: 'TASK'
+          }[card.type] || 'DOC';
+          const actionText = {
+            open_note: 'Open Notes',
+            view_routine: 'View Routine',
+            view_notice: 'View Notice',
+            view_post: 'Open Post',
+            view_assignment: 'Open Assignment'
+          }[card.action] || 'Open';
+          const meta = [card.subject, card.semester ? `Sem ${card.semester}` : '', actionText].filter(Boolean).join(' · ');
+          el.innerHTML = `
+            <div class="kyana-source-left">
+              <div class="kyana-source-icon">${escapeHtml(iconType)}</div>
+              <div class="kyana-source-info">
+                <span class="kyana-source-title">${escapeHtml(card.title || 'Resource')}</span>
+                <span class="kyana-source-meta">${escapeHtml(meta)}</span>
+              </div>
             </div>
-          </div>
-          <span class="kyana-source-arrow" aria-hidden="true">&rarr;</span>
-        `;
-        list.appendChild(card);
-      });
-
-      // 2. Syllabus
-      courses.forEach(c => {
-        const card = document.createElement('a');
-        card.className = 'kyana-source-card';
-        const courseKey = c.code ? `${c.code}-${c.title}` : c.title;
-        card.href = `syllabus.html#${encodeURIComponent(c.year || 'Year 1')}/${encodeURIComponent(c.semester)}/${encodeURIComponent(courseKey)}`;
-        const meta = [`Semester ${c.semester}`, `${c.credit} Credits`, c.nature || 'Curriculum'].filter(Boolean).join(' · ');
-        card.innerHTML = `
-          <div class="kyana-source-left">
-            <div class="kyana-source-icon">SYL</div>
-            <div class="kyana-source-info">
-              <span class="kyana-source-title">${escapeHtml(c.title)}</span>
-              <span class="kyana-source-meta">${escapeHtml(meta)}</span>
+            <span class="kyana-source-arrow" aria-hidden="true">&rarr;</span>
+          `;
+          list.appendChild(el);
+        });
+      } else {
+        // Fallback: Files
+        files.forEach(f => {
+          const card = document.createElement('a');
+          card.className = 'kyana-source-card';
+          card.href = `/api/files/${encodeURIComponent(f.id)}/view`;
+          card.target = '_blank';
+          card.rel = 'noopener noreferrer';
+          const ext = ((f.originalName || f.title || '').split('.').pop() || 'doc').toUpperCase().slice(0, 4);
+          const meta = [f.subject || 'Study Notes', f.chapter ? `Ch. ${f.chapter}` : '', f.semester ? `Sem ${f.semester}` : ''].filter(Boolean).join(' · ');
+          card.innerHTML = `
+            <div class="kyana-source-left">
+              <div class="kyana-source-icon">${escapeHtml(ext)}</div>
+              <div class="kyana-source-info">
+                <span class="kyana-source-title">${escapeHtml(f.title || f.originalName || 'Study Material')}</span>
+                <span class="kyana-source-meta">${escapeHtml(meta)}</span>
+              </div>
             </div>
-          </div>
-          <span class="kyana-source-arrow" aria-hidden="true">&rarr;</span>
-        `;
-        list.appendChild(card);
-      });
+            <span class="kyana-source-arrow" aria-hidden="true">&rarr;</span>
+          `;
+          list.appendChild(card);
+        });
 
-      // 3. Routine
-      routines.forEach(r => {
-        const card = document.createElement('a');
-        card.className = 'kyana-source-card';
-        card.href = `routine.html?semester=${encodeURIComponent(r.semester)}`;
-        const meta = [`Semester ${r.semester}`, r.date, r.time, r.room ? `Room ${r.room}` : ''].filter(Boolean).join(' · ');
-        card.innerHTML = `
-          <div class="kyana-source-left">
-            <div class="kyana-source-icon">EXAM</div>
-            <div class="kyana-source-info">
-              <span class="kyana-source-title">${escapeHtml(r.subject)}</span>
-              <span class="kyana-source-meta">${escapeHtml(meta)}</span>
+        // Fallback: Syllabus
+        courses.forEach(c => {
+          const card = document.createElement('a');
+          card.className = 'kyana-source-card';
+          const courseKey = c.code ? `${c.code}-${c.title}` : c.title;
+          card.href = `syllabus.html#${encodeURIComponent(c.year || 'Year 1')}/${encodeURIComponent(c.semester)}/${encodeURIComponent(courseKey)}`;
+          const meta = [`Semester ${c.semester}`, `${c.credit} Credits`, c.nature || 'Curriculum'].filter(Boolean).join(' · ');
+          card.innerHTML = `
+            <div class="kyana-source-left">
+              <div class="kyana-source-icon">SYL</div>
+              <div class="kyana-source-info">
+                <span class="kyana-source-title">${escapeHtml(c.title)}</span>
+                <span class="kyana-source-meta">${escapeHtml(meta)}</span>
+              </div>
             </div>
-          </div>
-          <span class="kyana-source-arrow" aria-hidden="true">&rarr;</span>
-        `;
-        list.appendChild(card);
-      });
+            <span class="kyana-source-arrow" aria-hidden="true">&rarr;</span>
+          `;
+          list.appendChild(card);
+        });
 
-      // 4. Web Sources
+        // Fallback: Routine
+        routines.forEach(r => {
+          const card = document.createElement('a');
+          card.className = 'kyana-source-card';
+          card.href = `routine.html?semester=${encodeURIComponent(r.semester)}`;
+          const meta = [`Semester ${r.semester}`, r.date, r.time, r.room ? `Room ${r.room}` : ''].filter(Boolean).join(' · ');
+          card.innerHTML = `
+            <div class="kyana-source-left">
+              <div class="kyana-source-icon">EXAM</div>
+              <div class="kyana-source-info">
+                <span class="kyana-source-title">${escapeHtml(r.subject)}</span>
+                <span class="kyana-source-meta">${escapeHtml(meta)}</span>
+              </div>
+            </div>
+            <span class="kyana-source-arrow" aria-hidden="true">&rarr;</span>
+          `;
+          list.appendChild(card);
+        });
+      }
+
+      // Web Sources
       webSources.forEach(s => {
         const card = document.createElement('a');
         card.className = 'kyana-source-card';
@@ -1626,6 +1666,7 @@
       activeSession.messages.push({
         role: 'assistant',
         content: data.reply || '',
+        resourceCards: data.resourceCards,
         matchedFiles: data.matchedFiles,
         matchedCourses: data.matchedCourses,
         matchedRoutine: data.matchedRoutine,

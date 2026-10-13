@@ -12,19 +12,20 @@ import {
   Keyboard,
   StatusBar,
   Animated,
-  useWindowDimensions,
   Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
+
 import { Text } from '@/components/ui/Typography';
+import { Monochrome } from '@/constants/theme';
 import { useTheme } from '@/constants/useTheme';
 import { useAuth } from '@/context/AuthContext';
 import { PostMarkdown } from '@/components/PostMarkdown';
+import { StickyComposer, KeyboardContentBoundary } from '@/components/ui/StickyComposer';
 import {
   fetchKyanaConversations,
   fetchKyanaConversationMessages,
@@ -33,6 +34,7 @@ import {
   createKyanaConversation,
   type KyanaMessage,
   type KyanaConversation,
+  type KyanaResourceCard,
 } from '@/services/kyana';
 import {
   getCachedKyanaMessages,
@@ -47,7 +49,7 @@ const QUICK_SUGGESTIONS = [
   { label: '💻 Explain binary search', prompt: 'Explain binary search with a clean C code example' },
 ];
 
-function formatTime(isoString?: string | null): string {
+function formatBubbleTime(isoString?: string | null): string {
   if (!isoString) return '';
   const d = new Date(isoString);
   if (isNaN(d.getTime())) return '';
@@ -86,13 +88,62 @@ function isSameDay(iso1?: string | null, iso2?: string | null): boolean {
   );
 }
 
+/**
+ * 3-dot Animated Typing Indicator matching premium messaging apps.
+ */
+function TypingDots() {
+  const dot1 = useRef(new Animated.Value(0.3)).current;
+  const dot2 = useRef(new Animated.Value(0.3)).current;
+  const dot3 = useRef(new Animated.Value(0.3)).current;
+
+  useEffect(() => {
+    const pulse = (anim: Animated.Value, delay: number) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(anim, {
+            toValue: 1,
+            duration: 360,
+            useNativeDriver: true,
+          }),
+          Animated.timing(anim, {
+            toValue: 0.3,
+            duration: 360,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+
+    const a1 = pulse(dot1, 0);
+    const a2 = pulse(dot2, 140);
+    const a3 = pulse(dot3, 280);
+
+    a1.start();
+    a2.start();
+    a3.start();
+
+    return () => {
+      a1.stop();
+      a2.stop();
+      a3.stop();
+    };
+  }, [dot1, dot2, dot3]);
+
+  return (
+    <View style={styles.typingDotsContainer}>
+      <Animated.View style={[styles.typingDot, { opacity: dot1 }]} />
+      <Animated.View style={[styles.typingDot, { opacity: dot2 }]} />
+      <Animated.View style={[styles.typingDot, { opacity: dot3 }]} />
+    </View>
+  );
+}
+
 export default function KyanaChatScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const { user } = useAuth();
   const studentId = user?.studentId || 'guest';
-  const { width: screenWidth } = useWindowDimensions();
 
   // State
   const [conversation, setConversation] = useState<KyanaConversation | null>(null);
@@ -102,109 +153,109 @@ export default function KyanaChatScreen() {
   const [streamingText, setStreamingText] = useState('');
   const [isLoadingInitial, setIsLoadingInitial] = useState(true);
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
-  const [copiedMessageId, setCopiedMessageId] = useState<string | number | null>(null);
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // References
   const flatListRef = useRef<FlatList<any>>(null);
+  const inputRef = useRef<TextInput>(null);
   const activeAbortController = useRef<AbortController | null>(null);
-  const typingPulseAnim = useRef(new Animated.Value(0.4)).current;
+  const isNearBottomRef = useRef(true);
+  const messagesRef = useRef<KyanaMessage[]>([]);
+  messagesRef.current = messages;
 
-  // Typing pulse animation
-  useEffect(() => {
-    let anim: Animated.CompositeAnimation | null = null;
-    if (isGenerating && !streamingText) {
-      anim = Animated.loop(
-        Animated.sequence([
-          Animated.timing(typingPulseAnim, {
-            toValue: 1,
-            duration: 600,
-            useNativeDriver: true,
-          }),
-          Animated.timing(typingPulseAnim, {
-            toValue: 0.3,
-            duration: 600,
-            useNativeDriver: true,
-          }),
-        ])
-      );
-      anim.start();
-    } else {
-      typingPulseAnim.setValue(0.4);
-    }
-    return () => {
-      anim?.stop();
-    };
-  }, [isGenerating, streamingText, typingPulseAnim]);
+  // Inverted data: newest messages are at index 0 (the bottom of the list)
+  const invertedMessages = useMemo(() => {
+    return [...messages].reverse();
+  }, [messages]);
 
-  // Load conversation & cached messages
-  const loadActiveConversation = useCallback(async () => {
-    if (!studentId) return;
-    try {
-      // 1. Fetch conversations from server
-      const convs = await fetchKyanaConversations();
-      let activeConv = convs[0] || null;
-
-      if (!activeConv) {
-        // Create default session if none exists
-        activeConv = await createKyanaConversation('Chat with Kyana');
-      }
-
-      setConversation(activeConv);
-
-      // 2. Load cached messages for immediate render
-      const cached = await getCachedKyanaMessages(studentId, activeConv.id);
-      if (cached && cached.length > 0) {
-        setMessages(cached);
-      }
-
-      // 3. Sync authoritative messages from server
-      const { messages: serverMsgs } = await fetchKyanaConversationMessages(activeConv.id);
-      if (Array.isArray(serverMsgs)) {
-        setMessages(serverMsgs);
-        await saveCachedKyanaMessages(studentId, activeConv.id, serverMsgs);
-      }
-    } catch (err) {
-      console.warn('[Kyana] Error loading active conversation:', err);
-    } finally {
-      setIsLoadingInitial(false);
-    }
-  }, [studentId]);
-
-  useEffect(() => {
-    void loadActiveConversation();
-  }, [loadActiveConversation]);
-
-  // Auto-scroll on new message
-  const scrollToBottom = useCallback((animated = true) => {
+  // Toast trigger
+  const showToast = useCallback((msg: string) => {
+    setToastMessage(msg);
     setTimeout(() => {
-      flatListRef.current?.scrollToEnd({ animated });
-    }, 100);
+      setToastMessage(cur => (cur === msg ? null : cur));
+    }, 1800);
   }, []);
 
-  // Send message handler
+  // 1. Load active conversation and cached/server messages
+  useEffect(() => {
+    let isMounted = true;
+
+    async function initConversation() {
+      try {
+        setIsLoadingInitial(true);
+
+        // Fetch conversations from server
+        const convList = await fetchKyanaConversations();
+        let activeConv = convList.length > 0 ? convList[0] : null;
+
+        if (!activeConv) {
+          activeConv = await createKyanaConversation('Chat with Kyana');
+        }
+
+        if (!isMounted) return;
+        setConversation(activeConv);
+
+        if (activeConv) {
+          // Load local offline SQLite cache first for instant render
+          try {
+            const cached = await getCachedKyanaMessages(studentId, activeConv.id);
+            if (cached.length > 0 && isMounted) {
+              setMessages(cached);
+            }
+          } catch (_) {}
+
+          // Refresh with authoritative server messages
+          try {
+            const data = await fetchKyanaConversationMessages(activeConv.id);
+            if (isMounted && data?.messages) {
+              setMessages(data.messages);
+              await saveCachedKyanaMessages(studentId, activeConv.id, data.messages);
+            }
+          } catch (_) {}
+        }
+      } catch (err: any) {
+        console.warn('[Kyana] Initialization warning:', err?.message || err);
+      } finally {
+        if (isMounted) setIsLoadingInitial(false);
+      }
+    }
+
+    void initConversation();
+
+    return () => {
+      isMounted = false;
+      if (activeAbortController.current) {
+        activeAbortController.current.abort();
+      }
+    };
+  }, [studentId]);
+
+  // 2. Send message handler
   const handleSend = useCallback(
-    async (textToSend?: string) => {
-      const query = (typeof textToSend === 'string' ? textToSend : inputText).trim();
-      if (!query || isGenerating) return;
+    async (textOverride?: string) => {
+      const textToSend = (textOverride || inputText).trim();
+      if (!textToSend || isGenerating) return;
 
       setInputText('');
       Keyboard.dismiss();
 
-      const activeConvId = conversation?.id || `kyana_${studentId}_default`;
-      const tempUserMsgId = `user_${Date.now()}`;
-      const userMessage: KyanaMessage = {
-        id: tempUserMsgId,
-        conversationId: activeConvId,
+      const userMsgId = `local_user_${Date.now()}`;
+      const userMsg: KyanaMessage = {
+        id: userMsgId,
+        conversationId: conversation?.id || 'default',
         sender: 'user',
-        text: query,
+        text: textToSend,
         createdAt: new Date().toISOString(),
         status: 'sent',
       };
 
-      // Optimistic update
-      const updatedMessages = [...messages, userMessage];
-      setMessages(updatedMessages);
-      scrollToBottom();
+      // Optimistically append user message to messages state
+      setMessages(prev => [...prev, userMsg]);
+
+      // Ensure view is scrolled to latest
+      isNearBottomRef.current = true;
+      setShowScrollBottom(false);
 
       setIsGenerating(true);
       setStreamingText('');
@@ -212,205 +263,252 @@ export default function KyanaChatScreen() {
       const controller = new AbortController();
       activeAbortController.current = controller;
 
-      // Prepare conversational history payload (last 10 messages)
-      const historyPayload = updatedMessages.slice(-10).map((m) => ({
-        role: m.sender === 'user' ? ('user' as const) : ('assistant' as const),
-        content: m.text,
-      }));
-
       try {
-        let liveDeltaAccumulated = '';
-        const result = await sendKyanaMessage({
-          message: query,
-          conversationId: activeConvId,
+        // Build recent conversation context for model
+        const historyPayload = messagesRef.current.slice(-10).map(m => ({
+          role: m.sender === 'user' ? ('user' as const) : ('assistant' as const),
+          content: m.text,
+        }));
+
+        let accumulatedStream = '';
+        const finalResponse = await sendKyanaMessage({
+          message: textToSend,
+          conversationId: conversation?.id,
           history: historyPayload,
-          signal: controller.signal,
-          onDelta: (deltaText) => {
-            liveDeltaAccumulated += deltaText;
-            setStreamingText(liveDeltaAccumulated);
-            scrollToBottom(false);
+          onDelta: (deltaText: string) => {
+            accumulatedStream += deltaText;
+            setStreamingText(accumulatedStream);
           },
+          signal: controller.signal,
         });
 
-        const replyText = result.reply || liveDeltaAccumulated || "I couldn't complete that answer.";
-        const assistantMessage: KyanaMessage = {
-          id: `asst_${Date.now()}`,
-          conversationId: result.conversationId || activeConvId,
+        const assistantMsgId = `asst_${Date.now()}`;
+        const assistantMsg: KyanaMessage = {
+          id: assistantMsgId,
+          conversationId: finalResponse.conversationId || conversation?.id || 'default',
           sender: 'assistant',
-          text: replyText,
-          metadata: {
-            matchedFiles: result.matchedFiles,
-            matchedCourses: result.matchedCourses,
-            matchedRoutine: result.matchedRoutine,
-            webSources: result.webSources,
-            actions: result.actions,
-            chatMode: result.chatMode,
-          },
+          text: finalResponse.reply || accumulatedStream || 'I could not generate a reply.',
+          metadata: finalResponse,
           createdAt: new Date().toISOString(),
           status: 'sent',
         };
 
-        const finalMessages = [...updatedMessages, assistantMessage];
-        setMessages(finalMessages);
-        setStreamingText('');
+        setMessages(prev => {
+          const updated = [...prev, assistantMsg];
+          if (conversation?.id) {
+            void saveCachedKyanaMessages(studentId, conversation.id, updated);
+          }
+          return updated;
+        });
 
-        if (studentId && activeConvId) {
-          void saveCachedKyanaMessages(studentId, activeConvId, finalMessages);
+        if (finalResponse.conversationId && (!conversation || conversation.id !== finalResponse.conversationId)) {
+          setConversation(prev =>
+            prev
+              ? { ...prev, id: finalResponse.conversationId! }
+              : {
+                  id: finalResponse.conversationId!,
+                  title: 'Chat with Kyana',
+                  studentId,
+                  lastMessage: null,
+                  lastMessageAt: null,
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString(),
+                }
+          );
         }
       } catch (err: any) {
-        if (err?.message === 'Aborted') {
-          // User aborted manually
-          return;
+        if (err.name === 'AbortError' || controller.signal.aborted) {
+          if (streamingText.trim()) {
+            const stoppedMsg: KyanaMessage = {
+              id: `asst_stopped_${Date.now()}`,
+              conversationId: conversation?.id || 'default',
+              sender: 'assistant',
+              text: streamingText.trim(),
+              createdAt: new Date().toISOString(),
+              status: 'sent',
+            };
+            setMessages(prev => [...prev, stoppedMsg]);
+          }
+        } else {
+          console.error('[Kyana Send Error]', err);
+          const errorMsg: KyanaMessage = {
+            id: `err_${Date.now()}`,
+            conversationId: conversation?.id || 'default',
+            sender: 'assistant',
+            text: 'I couldn’t complete that response. Please check your network and tap retry.',
+            createdAt: new Date().toISOString(),
+            status: 'error',
+          };
+          setMessages(prev => [...prev, errorMsg]);
         }
-
-        const isRateLimit = err?.status === 429;
-        const errMsg = isRateLimit
-          ? 'Too many messages sent. Please wait a moment before sending again!'
-          : "Kyana couldn't complete that response. Please try again.";
-
-        const errorAssistantMsg: KyanaMessage = {
-          id: `err_${Date.now()}`,
-          conversationId: activeConvId,
-          sender: 'assistant',
-          text: errMsg,
-          createdAt: new Date().toISOString(),
-          status: 'error',
-        };
-
-        const withError = [...updatedMessages, errorAssistantMsg];
-        setMessages(withError);
       } finally {
         setIsGenerating(false);
         setStreamingText('');
         activeAbortController.current = null;
-        scrollToBottom();
       }
     },
-    [inputText, isGenerating, conversation?.id, studentId, messages, scrollToBottom]
+    [inputText, isGenerating, conversation, studentId, streamingText]
   );
 
-  // Stop generation handler
+  // 3. Stop response generation
   const handleStopGeneration = useCallback(() => {
     if (activeAbortController.current) {
       activeAbortController.current.abort();
-      activeAbortController.current = null;
-      setIsGenerating(false);
-      setStreamingText('');
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
   }, []);
 
-  // Regenerate last response handler
+  // 4. Retry / regenerate response
   const handleRegenerate = useCallback(async () => {
     if (isGenerating || messages.length === 0) return;
-    // Find the last user message
-    const lastUserMsg = [...messages].reverse().find((m) => m.sender === 'user');
+
+    // Find the last user query
+    const lastUserMsg = [...messages].reverse().find(m => m.sender === 'user');
     if (!lastUserMsg) return;
 
-    // Prune messages back to before that response
-    const lastUserIdx = messages.lastIndexOf(lastUserMsg);
-    const pruned = messages.slice(0, lastUserIdx);
-    setMessages(pruned);
+    // If the last message is an error or assistant response, prune it
+    setMessages(prev => {
+      const copy = [...prev];
+      if (copy.length > 0 && copy[copy.length - 1].sender === 'assistant') {
+        copy.pop();
+      }
+      return copy;
+    });
+
     void handleSend(lastUserMsg.text);
   }, [isGenerating, messages, handleSend]);
 
-  // Copy message text to clipboard
+  // 5. Copy single message
   const handleCopyMessage = useCallback(async (msg: KyanaMessage) => {
     try {
       await Clipboard.setStringAsync(msg.text);
-      setCopiedMessageId(msg.id);
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setTimeout(() => {
-        setCopiedMessageId(null);
-      }, 2000);
-    } catch {}
-  }, []);
+      await Haptics.selectionAsync();
+      showToast('Copied to clipboard');
+    } catch (_) {}
+  }, [showToast]);
 
-  // Clear conversation handler
+  // 6. Copy entire conversation
+  const handleCopyAll = useCallback(async () => {
+    setShowOptionsMenu(false);
+    if (messages.length === 0) {
+      showToast('No messages to copy');
+      return;
+    }
+    const formatted = messages
+      .map(m => `${m.sender === 'user' ? 'Student' : 'Kyana AI'} (${formatBubbleTime(m.createdAt)}):\n${m.text}`)
+      .join('\n\n');
+    await Clipboard.setStringAsync(formatted);
+    await Haptics.selectionAsync();
+    showToast('Conversation copied to clipboard');
+  }, [messages, showToast]);
+
+  // 7. Clear conversation
   const handleClear = useCallback(() => {
     setShowOptionsMenu(false);
-    if (!conversation?.id) return;
-
     Alert.alert(
-      'Clear Conversation?',
-      'This will clear all messages in this conversation. Kyana will start fresh.',
+      'Clear Conversation',
+      'Are you sure you want to delete all messages in this conversation?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Clear',
           style: 'destructive',
           onPress: async () => {
-            try {
-              await clearKyanaConversation(conversation.id);
-              if (studentId) {
+            if (conversation?.id) {
+              try {
+                await clearKyanaConversation(conversation.id);
                 await clearCachedKyanaMessages(studentId, conversation.id);
-              }
-              setMessages([]);
-              void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            } catch {
-              Alert.alert('Error', 'Could not clear conversation. Please try again.');
+              } catch (_) {}
             }
+            setMessages([]);
+            setStreamingText('');
+            showToast('Conversation cleared');
           },
         },
       ]
     );
-  }, [conversation?.id, studentId]);
+  }, [conversation, showToast]);
 
-  // Start new conversation handler
-  const handleStartNew = useCallback(() => {
+  // 8. Start fresh new conversation
+  const handleStartNew = useCallback(async () => {
     setShowOptionsMenu(false);
-    Alert.alert(
-      'New Conversation',
-      'Start a new conversation thread with Kyana?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Start New',
-          onPress: async () => {
-            try {
-              setIsLoadingInitial(true);
-              const newConv = await createKyanaConversation('Chat with Kyana');
-              setConversation(newConv);
-              setMessages([]);
-              if (studentId) {
-                await saveCachedKyanaMessages(studentId, newConv.id, []);
-              }
-              void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            } catch {
-              Alert.alert('Error', 'Could not create new conversation.');
-            } finally {
-              setIsLoadingInitial(false);
-            }
-          },
-        },
-      ]
-    );
-  }, [studentId]);
+    try {
+      const newConv = await createKyanaConversation('Chat with Kyana');
+      setConversation(newConv);
+      setMessages([]);
+      setStreamingText('');
+      showToast('New conversation started');
+    } catch (_) {}
+  }, [showToast]);
 
-  // Copy entire conversation history
-  const handleCopyAll = useCallback(async () => {
-    setShowOptionsMenu(false);
-    if (messages.length === 0) return;
-    const transcript = messages
-      .map((m) => `${m.sender === 'user' ? 'You' : 'Kyana'}: ${m.text}`)
-      .join('\n\n');
-    await Clipboard.setStringAsync(transcript);
-    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert('Copied', 'Full conversation transcript copied to clipboard.');
-  }, [messages]);
+  // Handle resource card navigation
+  const handleCardPress = useCallback((card: KyanaResourceCard) => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      if (card.mobileRoute) {
+        router.push(card.mobileRoute as any);
+        return;
+      }
+      if (card.type === 'note') {
+        router.push(`/material/${card.id}` as any);
+      } else if (card.type === 'notice') {
+        router.push(`/notice/${card.id}` as any);
+      } else if (card.type === 'post') {
+        router.push(`/post/${card.id}` as any);
+      } else if (card.type === 'routine') {
+        router.push('/routine' as any);
+      }
+    } catch (err: any) {
+      console.warn('[Kyana] Navigation error:', err?.message);
+    }
+  }, [router]);
 
-  // Render individual message item
+  // Inverted message item renderer
   const renderItem = useCallback(
     ({ item, index }: { item: KyanaMessage; index: number }) => {
       const isUser = item.sender === 'user';
-      const prev = messages[index - 1];
-      const showDate = !prev || !isSameDay(prev.createdAt, item.createdAt);
-      const isLastKyana =
-        !isUser &&
-        index === messages.length - 1 &&
-        !isGenerating;
-      const isCopied = copiedMessageId === item.id;
+      // In inverted array, the message chronologically preceding `item` is at index + 1
+      const prevChronological = invertedMessages[index + 1];
+      const showDate = !prevChronological || !isSameDay(prevChronological.createdAt, item.createdAt);
+      const isLatestAssistant = !isUser && index === 0 && !isGenerating;
       const isError = item.status === 'error';
+
+      const resourceCards: KyanaResourceCard[] = (!isUser && item.metadata)
+        ? ((Array.isArray(item.metadata.resourceCards) && item.metadata.resourceCards.length > 0)
+          ? item.metadata.resourceCards
+          : [
+              ...(item.metadata.matchedFiles || []).map((f: any) => ({
+                type: 'note' as const,
+                id: f.id,
+                title: f.title || f.originalName,
+                subject: f.subject,
+                semester: f.semester,
+                action: 'open_note' as const,
+                mobileRoute: `/material/${f.id}`,
+              })),
+              ...(item.metadata.matchedNotices || []).map((n: any) => ({
+                type: 'notice' as const,
+                id: n.id,
+                title: n.title,
+                action: 'view_notice' as const,
+                mobileRoute: `/notice/${n.id}`,
+              })),
+              ...(item.metadata.matchedPosts || []).map((p: any) => ({
+                type: 'post' as const,
+                id: p.id,
+                title: p.title,
+                action: 'view_post' as const,
+                mobileRoute: `/post/${p.id}`,
+              })),
+              ...(item.metadata.matchedAssignments || []).map((a: any) => ({
+                type: 'assignment' as const,
+                id: a.id,
+                title: a.title,
+                subject: a.subject,
+                action: 'view_assignment' as const,
+                mobileRoute: `/assignments/${a.id}`,
+              })),
+            ])
+        : [];
 
       return (
         <View style={styles.messageRowWrapper}>
@@ -426,18 +524,22 @@ export default function KyanaChatScreen() {
 
           <View
             style={[
-              styles.bubbleContainer,
-              isUser ? styles.userBubbleContainer : styles.assistantBubbleContainer,
+              styles.bubbleRow,
+              isUser ? styles.userBubbleRow : styles.assistantBubbleRow,
             ]}
           >
-            {/* Assistant Icon Pill */}
+            {/* Assistant Avatar */}
             {!isUser && (
               <View style={styles.assistantAvatarSmall}>
-                <Ionicons name="sparkles" size={13} color="#F5F5F5" />
+                <Ionicons name="sparkles" size={12} color="#FFFFFF" />
               </View>
             )}
 
-            <View
+            {/* Bubble */}
+            <TouchableOpacity
+              activeOpacity={0.92}
+              onLongPress={() => void handleCopyMessage(item)}
+              delayLongPress={280}
               style={[
                 styles.bubble,
                 isUser ? styles.userBubble : styles.assistantBubble,
@@ -445,16 +547,79 @@ export default function KyanaChatScreen() {
               ]}
             >
               {isUser ? (
-                <Text style={styles.userBubbleText} selectable>
+                <Text style={styles.userBubbleText}>
                   {item.text}
                 </Text>
               ) : (
                 <View style={styles.markdownWrapper}>
                   <PostMarkdown content={item.text} />
+                  {resourceCards.length > 0 && (
+                    <View style={styles.resourceCardsContainer}>
+                      {resourceCards.map((card, cIdx) => {
+                        const iconName = card.type === 'note'
+                          ? 'document-text-outline'
+                          : card.type === 'notice'
+                          ? 'megaphone-outline'
+                          : card.type === 'assignment' || card.type === 'post_assignment'
+                          ? 'code-slash-outline'
+                          : card.type === 'routine'
+                          ? 'calendar-outline'
+                          : 'chatbubbles-outline';
+
+                        const typeLabel = card.type === 'note'
+                          ? 'STUDY NOTE'
+                          : card.type === 'notice'
+                          ? 'CAMPUS NOTICE'
+                          : card.type === 'assignment' || card.type === 'post_assignment'
+                          ? 'ASSIGNMENT'
+                          : card.type === 'routine'
+                          ? 'ROUTINE'
+                          : 'COMMUNITY';
+
+                        const actionText = card.type === 'note'
+                          ? 'Open Note'
+                          : card.type === 'notice'
+                          ? 'View Notice'
+                          : card.type === 'assignment' || card.type === 'post_assignment'
+                          ? 'View Assignment'
+                          : card.type === 'routine'
+                          ? 'View Routine'
+                          : 'View Post';
+
+                        return (
+                          <TouchableOpacity
+                            key={`rc-${card.type}-${card.id}-${cIdx}`}
+                            activeOpacity={0.8}
+                            onPress={() => handleCardPress(card)}
+                            style={styles.resourceCard}
+                          >
+                            <View style={styles.resourceCardHeader}>
+                              <View style={styles.resourceCardBadge}>
+                                <Ionicons name={iconName as any} size={11} color="#D4D4D8" />
+                                <Text style={styles.resourceCardBadgeText}>{typeLabel}</Text>
+                              </View>
+                              {Boolean(card.subject) && (
+                                <Text style={styles.resourceCardSubject} numberOfLines={1}>
+                                  {card.subject}
+                                </Text>
+                              )}
+                            </View>
+                            <Text style={styles.resourceCardTitle} numberOfLines={2}>
+                              {card.title}
+                            </Text>
+                            <View style={styles.resourceCardActionRow}>
+                              <Text style={styles.resourceCardActionText}>{actionText}</Text>
+                              <Ionicons name="arrow-forward" size={12} color="#FFFFFF" />
+                            </View>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  )}
                 </View>
               )}
 
-              {/* Bottom Meta & Action Bar */}
+              {/* Bottom Meta Bar */}
               <View
                 style={[
                   styles.metaRow,
@@ -462,46 +627,44 @@ export default function KyanaChatScreen() {
                 ]}
               >
                 <Text style={styles.timestampText}>
-                  {formatTime(item.createdAt)}
+                  {formatBubbleTime(item.createdAt)}
                 </Text>
 
-                {/* Quick actions on message */}
-                <View style={styles.quickActions}>
-                  <TouchableOpacity
-                    onPress={() => void handleCopyMessage(item)}
-                    style={styles.actionIconBtn}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    accessibilityLabel="Copy message"
-                  >
-                    <Ionicons
-                      name={isCopied ? 'checkmark' : 'copy-outline'}
-                      size={13}
-                      color={isCopied ? '#10B981' : '#71717A'}
-                    />
-                  </TouchableOpacity>
-
-                  {(isLastKyana || isError) && (
+                {/* Subtle Action Buttons on Assistant Message */}
+                {!isUser && (
+                  <View style={styles.quickActions}>
                     <TouchableOpacity
-                      onPress={() => void handleRegenerate()}
+                      onPress={() => void handleCopyMessage(item)}
                       style={styles.actionIconBtn}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      accessibilityLabel="Regenerate response"
+                      accessibilityLabel="Copy message"
                     >
-                      <Ionicons name="reload-outline" size={13} color="#71717A" />
+                      <Ionicons name="copy-outline" size={13} color="#71717A" />
                     </TouchableOpacity>
-                  )}
-                </View>
+
+                    {(isLatestAssistant || isError) && (
+                      <TouchableOpacity
+                        onPress={() => void handleRegenerate()}
+                        style={styles.actionIconBtn}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        accessibilityLabel="Regenerate response"
+                      >
+                        <Ionicons name="reload-outline" size={13} color="#71717A" />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                )}
               </View>
-            </View>
+            </TouchableOpacity>
           </View>
         </View>
       );
     },
-    [messages, isGenerating, copiedMessageId, handleCopyMessage, handleRegenerate]
+    [invertedMessages, isGenerating, handleCopyMessage, handleRegenerate, handleCardPress]
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: Monochrome.background }]}>
       <StatusBar barStyle="light-content" />
 
       {/* TOP HEADER */}
@@ -517,14 +680,14 @@ export default function KyanaChatScreen() {
           onPress={() => router.back()}
           style={styles.headerBtn}
           accessibilityLabel="Back to chat list"
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons name="arrow-back" size={22} color="#F5F5F5" />
+          <Ionicons name="arrow-back" size={21} color="#FFFFFF" />
         </TouchableOpacity>
 
         <View style={styles.headerTitleBox}>
           <View style={styles.headerAvatar}>
-            <Ionicons name="sparkles" size={17} color="#F5F5F5" />
+            <Ionicons name="sparkles" size={16} color="#FFFFFF" />
           </View>
           <View style={styles.headerTextCol}>
             <View style={styles.headerTitleRow}>
@@ -534,7 +697,7 @@ export default function KyanaChatScreen() {
               </View>
             </View>
             <Text style={styles.headerSubtitle}>
-              {isGenerating ? '✦ Thinking…' : 'Study Companion'}
+              {isGenerating ? '✦ Thinking…' : 'Your study companion'}
             </Text>
           </View>
         </View>
@@ -543,15 +706,25 @@ export default function KyanaChatScreen() {
           onPress={() => setShowOptionsMenu(true)}
           style={styles.headerBtn}
           accessibilityLabel="Conversation options"
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons name="ellipsis-horizontal" size={22} color="#F5F5F5" />
+          <Ionicons name="ellipsis-vertical" size={19} color="#A1A1AA" />
         </TouchableOpacity>
       </View>
 
-      {/* MAIN MESSAGES AREA */}
-      <View style={styles.messagesWrapper}>
-        {isLoadingInitial ? (
+      {/* TOAST FEEDBACK NOTIFICATION */}
+      {toastMessage && (
+        <View style={styles.toastContainer}>
+          <View style={styles.toastCard}>
+            <Ionicons name="checkmark-circle" size={15} color="#10B981" />
+            <Text style={styles.toastText}>{toastMessage}</Text>
+          </View>
+        </View>
+      )}
+
+      {/* MAIN VIEWPORT WRAPPED IN KEYBOARD CONTENT BOUNDARY */}
+      <KeyboardContentBoundary style={styles.timelineBoundary}>
+        {isLoadingInitial && messages.length === 0 ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="small" color="#A1A1AA" />
             <Text style={styles.loadingText}>Opening Kyana AI…</Text>
@@ -559,100 +732,121 @@ export default function KyanaChatScreen() {
         ) : (
           <FlatList
             ref={flatListRef}
-            data={messages}
-            keyExtractor={(item) => String(item.id)}
+            data={invertedMessages}
+            keyExtractor={item => String(item.id)}
             renderItem={renderItem}
-            contentContainerStyle={[
-              styles.listContent,
-              { paddingBottom: 24 },
-            ]}
-            showsVerticalScrollIndicator={false}
+            inverted
+            keyboardDismissMode="on-drag"
             keyboardShouldPersistTaps="handled"
-            ListEmptyComponent={
-              <View style={styles.emptyState}>
-                <View style={styles.emptyAvatarLarge}>
-                  <Ionicons name="sparkles" size={32} color="#FFFFFF" />
-                </View>
-                <Text style={styles.emptyTitle}>Meet Kyana AI</Text>
-                <Text style={styles.emptyDesc}>
-                  Your BIT study companion. Ask concepts, code syntax, notes, syllabus, or exam routines.
-                </Text>
-
-                <View style={styles.suggestionsContainer}>
-                  <Text style={styles.suggestionsTitle}>QUICK QUESTIONS</Text>
-                  {QUICK_SUGGESTIONS.map((item, idx) => (
-                    <TouchableOpacity
-                      key={idx}
-                      style={styles.suggestionChip}
-                      onPress={() => void handleSend(item.prompt)}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={styles.suggestionLabel}>{item.label}</Text>
-                      <Ionicons name="arrow-forward" size={14} color="#71717A" />
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-            }
-            ListFooterComponent={
+            scrollEventThrottle={100}
+            onScroll={event => {
+              const offsetY = event.nativeEvent.contentOffset.y;
+              // In inverted FlatList, offsetY <= 60 indicates user is at the bottom
+              const nearBottom = offsetY <= 60;
+              isNearBottomRef.current = nearBottom;
+              if (showScrollBottom !== !nearBottom) {
+                setShowScrollBottom(!nearBottom);
+              }
+            }}
+            maintainVisibleContentPosition={{ minIndexForVisible: 0, autoscrollToTopThreshold: 60 }}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            // In inverted list, ListHeaderComponent sits at index 0 (the bottom)
+            ListHeaderComponent={
               isGenerating ? (
-                <View style={styles.liveGenerationWrapper}>
+                <View style={styles.liveGenerationRow}>
                   <View style={styles.assistantAvatarSmall}>
-                    <Ionicons name="sparkles" size={13} color="#F5F5F5" />
+                    <Ionicons name="sparkles" size={12} color="#FFFFFF" />
                   </View>
-                  <View style={[styles.bubble, styles.assistantBubble, styles.generatingBubble]}>
+                  <View style={[styles.bubble, styles.assistantBubble, styles.streamingBubble]}>
                     {streamingText ? (
                       <View style={styles.markdownWrapper}>
                         <PostMarkdown content={streamingText} />
                       </View>
                     ) : (
-                      <Animated.View
-                        style={[
-                          styles.typingIndicatorRow,
-                          { opacity: typingPulseAnim },
-                        ]}
-                      >
-                        <Ionicons name="sparkles" size={14} color="#A1A1AA" />
-                        <Text style={styles.typingIndicatorText}>
-                          Kyana is thinking…
-                        </Text>
-                      </Animated.View>
+                      <TypingDots />
                     )}
                   </View>
                 </View>
               ) : null
             }
+            // In inverted list, ListFooterComponent sits at the very top of history
+            ListFooterComponent={
+              messages.length === 0 ? (
+                <View style={styles.emptyStateContainer}>
+                  <View style={styles.emptyAvatarLarge}>
+                    <Ionicons name="sparkles" size={28} color="#FFFFFF" />
+                  </View>
+                  <Text style={styles.emptyTitle}>Meet Kyana AI</Text>
+                  <Text style={styles.emptyDesc}>
+                    Your study companion for concepts, syllabus, code syntax, and notes.
+                  </Text>
+
+                  <View style={styles.suggestionsContainer}>
+                    <Text style={styles.suggestionsTitle}>QUICK QUESTIONS</Text>
+                    {QUICK_SUGGESTIONS.map((item, idx) => (
+                      <TouchableOpacity
+                        key={idx}
+                        style={styles.suggestionChip}
+                        onPress={() => void handleSend(item.prompt)}
+                        activeOpacity={0.75}
+                      >
+                        <Text style={styles.suggestionLabel}>{item.label}</Text>
+                        <Ionicons name="arrow-forward" size={14} color="#71717A" />
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.historyStartPadding} />
+              )
+            }
           />
         )}
-      </View>
 
-      {/* COMPOSER DOCKED AT BOTTOM */}
-      <KeyboardStickyView
-        style={[
-          styles.composerContainer,
-          {
-            paddingBottom: Math.max(insets.bottom, 12),
-          },
-        ]}
-      >
-        <View style={styles.inputCard}>
+        {/* Floating Scroll to Bottom Button */}
+        {showScrollBottom && (
+          <TouchableOpacity
+            style={styles.scrollBottomBtn}
+            onPress={() => {
+              flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+            }}
+            hitSlop={8}
+            activeOpacity={0.85}
+            accessibilityLabel="Scroll to bottom"
+          >
+            <Ionicons name="chevron-down" size={18} color="#FFFFFF" />
+          </TouchableOpacity>
+        )}
+      </KeyboardContentBoundary>
+
+      {/* DOCKED STICKY COMPOSER */}
+      <StickyComposer bordered>
+        <View style={styles.composerRow}>
           <TextInput
-            style={styles.textInput}
+            ref={inputRef}
+            style={styles.composerInput}
             value={inputText}
             onChangeText={setInputText}
-            placeholder="Ask Kyana anything…"
-            placeholderTextColor="#71717A"
+            placeholder="Message Kyana..."
+            placeholderTextColor={Monochrome.composerPlaceholder}
             multiline
-            maxLength={8000}
+            maxLength={4000}
             editable={!isGenerating}
-            accessibilityLabel="Message input for Kyana"
+            onFocus={() => {
+              if (isNearBottomRef.current) {
+                flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+              }
+            }}
+            accessibilityLabel="Message input for Kyana AI"
           />
 
           {isGenerating ? (
             <TouchableOpacity
               onPress={handleStopGeneration}
-              style={[styles.actionBtn, styles.stopBtn]}
+              style={[styles.composerActionBtn, styles.stopBtn]}
               accessibilityLabel="Stop response generation"
+              hitSlop={8}
             >
               <View style={styles.stopIconSquare} />
             </TouchableOpacity>
@@ -661,27 +855,24 @@ export default function KyanaChatScreen() {
               onPress={() => void handleSend()}
               disabled={!inputText.trim()}
               style={[
-                styles.actionBtn,
+                styles.composerActionBtn,
                 styles.sendBtn,
                 !inputText.trim() && styles.sendBtnDisabled,
               ]}
               accessibilityLabel="Send message"
+              hitSlop={8}
             >
               <Ionicons
                 name="arrow-up"
                 size={18}
-                color={inputText.trim() ? '#000000' : '#52525B'}
+                color={inputText.trim() ? '#000000' : Monochrome.textTertiary}
               />
             </TouchableOpacity>
           )}
         </View>
+      </StickyComposer>
 
-        <Text style={styles.disclaimerText}>
-          Kyana can make mistakes. Verify vital exam and syllabus notices.
-        </Text>
-      </KeyboardStickyView>
-
-      {/* OPTIONS MODAL MENU */}
+      {/* CONVERSATION OPTIONS MODAL SHEET */}
       <Modal
         visible={showOptionsMenu}
         transparent
@@ -701,15 +892,15 @@ export default function KyanaChatScreen() {
             ]}
           >
             <View style={styles.optionsHandle} />
-            <Text style={styles.optionsTitle}>Kyana Conversation</Text>
+            <Text style={styles.optionsTitle}>Kyana AI Options</Text>
 
             <TouchableOpacity
               style={styles.optionRow}
-              onPress={handleStartNew}
+              onPress={() => void handleStartNew()}
               accessibilityRole="button"
             >
               <View style={styles.optionIconBox}>
-                <Ionicons name="add" size={20} color="#F5F5F5" />
+                <Ionicons name="add" size={20} color="#FFFFFF" />
               </View>
               <View style={styles.optionTextCol}>
                 <Text style={styles.optionLabel}>New Conversation</Text>
@@ -723,7 +914,7 @@ export default function KyanaChatScreen() {
               accessibilityRole="button"
             >
               <View style={styles.optionIconBox}>
-                <Ionicons name="copy-outline" size={18} color="#F5F5F5" />
+                <Ionicons name="copy-outline" size={18} color="#FFFFFF" />
               </View>
               <View style={styles.optionTextCol}>
                 <Text style={styles.optionLabel}>Copy Conversation</Text>
@@ -763,38 +954,40 @@ export default function KyanaChatScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#090A0D',
+    backgroundColor: Monochrome.background,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingBottom: 11,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#27272A',
-    backgroundColor: '#090A0D',
+    borderBottomColor: Monochrome.border,
+    backgroundColor: Monochrome.header,
+    zIndex: 10,
   },
   headerBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#18181B',
   },
   headerTitleBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+    flex: 1,
+    marginLeft: 4,
   },
   headerAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#18181B',
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: Monochrome.surfaceElevated,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: Monochrome.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -807,35 +1000,37 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   headerTitle: {
-    fontSize: 16,
+    fontSize: 15.5,
     fontWeight: '700',
-    color: '#F5F5F5',
+    color: Monochrome.text,
   },
   headerAiPill: {
-    backgroundColor: '#27272A',
+    backgroundColor: '#1E1E22',
     paddingHorizontal: 5,
     paddingVertical: 1,
-    borderRadius: 5,
+    borderRadius: 4,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#3F3F46',
+    borderColor: '#2D2D33',
   },
   headerAiPillText: {
-    fontSize: 9.5,
+    fontSize: 9,
     fontWeight: '700',
     color: '#A1A1AA',
     letterSpacing: 0.5,
   },
   headerSubtitle: {
-    fontSize: 11,
-    color: '#A1A1AA',
+    fontSize: 11.5,
+    color: Monochrome.textSecondary,
+    marginTop: 1,
   },
-  messagesWrapper: {
+  timelineBoundary: {
     flex: 1,
-    backgroundColor: '#090A0D',
+    width: '100%',
   },
   listContent: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 12,
   },
   loadingContainer: {
     flex: 1,
@@ -844,11 +1039,11 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   loadingText: {
-    color: '#71717A',
+    color: Monochrome.textTertiary,
     fontSize: 13,
   },
   messageRowWrapper: {
-    marginBottom: 14,
+    marginBottom: 8,
   },
   dateSeparatorRow: {
     flexDirection: 'row',
@@ -859,71 +1054,75 @@ const styles = StyleSheet.create({
   dateSeparatorLine: {
     flex: 1,
     height: StyleSheet.hairlineWidth,
-    backgroundColor: '#27272A',
+    backgroundColor: Monochrome.border,
   },
   dateSeparatorText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#71717A',
+    color: Monochrome.textTertiary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  bubbleContainer: {
+  bubbleRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    gap: 8,
+    gap: 7,
   },
-  userBubbleContainer: {
+  userBubbleRow: {
     justifyContent: 'flex-end',
   },
-  assistantBubbleContainer: {
+  assistantBubbleRow: {
     justifyContent: 'flex-start',
   },
   assistantAvatarSmall: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#18181B',
+    backgroundColor: Monochrome.surfaceElevated,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: Monochrome.border,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   bubble: {
     borderRadius: 18,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    maxWidth: '82%',
+    paddingHorizontal: 13,
+    paddingVertical: 9,
   },
   userBubble: {
-    backgroundColor: '#27272A',
+    backgroundColor: Monochrome.outgoingBubble,
     borderBottomRightRadius: 4,
+    maxWidth: '82%',
   },
   userBubbleText: {
     color: '#FFFFFF',
-    fontSize: 15,
-    lineHeight: 22,
+    fontSize: 14.5,
+    lineHeight: 21,
   },
   assistantBubble: {
-    backgroundColor: '#141416',
+    backgroundColor: Monochrome.surface,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: Monochrome.border,
     borderBottomLeftRadius: 4,
-    minWidth: 120,
+    maxWidth: '92%',
+    minWidth: 90,
+  },
+  streamingBubble: {
+    minHeight: 38,
+    justifyContent: 'center',
   },
   errorBubble: {
     borderColor: '#7F1D1D',
     backgroundColor: '#1C1917',
   },
   markdownWrapper: {
-    marginVertical: 2,
+    marginVertical: 1,
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 6,
+    marginTop: 4,
     gap: 8,
   },
   userMetaRow: {
@@ -934,7 +1133,7 @@ const styles = StyleSheet.create({
   },
   timestampText: {
     fontSize: 10,
-    color: '#71717A',
+    color: Monochrome.textTertiary,
   },
   quickActions: {
     flexDirection: 'row',
@@ -944,55 +1143,55 @@ const styles = StyleSheet.create({
   actionIconBtn: {
     padding: 2,
   },
-  liveGenerationWrapper: {
+  liveGenerationRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    gap: 8,
+    gap: 7,
     marginTop: 6,
-    marginBottom: 14,
+    marginBottom: 8,
   },
-  generatingBubble: {
-    minHeight: 40,
-    justifyContent: 'center',
-  },
-  typingIndicatorRow: {
+  typingDotsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingVertical: 4,
+    gap: 5,
+    paddingVertical: 5,
+    paddingHorizontal: 4,
   },
-  typingIndicatorText: {
-    color: '#A1A1AA',
-    fontSize: 13,
+  typingDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#A1A1AA',
   },
-  emptyState: {
+  emptyStateContainer: {
     alignItems: 'center',
-    paddingVertical: 36,
-    paddingHorizontal: 20,
+    paddingVertical: 32,
+    paddingHorizontal: 16,
   },
   emptyAvatarLarge: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#18181B',
-    borderWidth: 1.5,
-    borderColor: '#27272A',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Monochrome.surfaceElevated,
+    borderWidth: 1,
+    borderColor: Monochrome.border,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: 14,
   },
   emptyTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+    color: Monochrome.text,
     marginBottom: 6,
   },
   emptyDesc: {
-    fontSize: 13.5,
-    color: '#A1A1AA',
+    fontSize: 13,
+    color: Monochrome.textSecondary,
     textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 28,
+    lineHeight: 19,
+    marginBottom: 24,
+    maxWidth: 280,
   },
   suggestionsContainer: {
     width: '100%',
@@ -1001,7 +1200,7 @@ const styles = StyleSheet.create({
   suggestionsTitle: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#71717A',
+    color: Monochrome.textTertiary,
     letterSpacing: 0.8,
     marginBottom: 4,
   },
@@ -1009,72 +1208,113 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#141416',
+    backgroundColor: Monochrome.surface,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: Monochrome.border,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
   suggestionLabel: {
-    fontSize: 13.5,
+    fontSize: 13,
     color: '#E4E4E7',
     fontWeight: '500',
   },
-  composerContainer: {
-    backgroundColor: '#090A0D',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#27272A',
-    paddingHorizontal: 14,
-    paddingTop: 10,
+  historyStartPadding: {
+    height: 20,
   },
-  inputCard: {
+  scrollBottomBtn: {
+    position: 'absolute',
+    right: 16,
+    bottom: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Monochrome.surfaceElevated,
+    borderWidth: 1,
+    borderColor: Monochrome.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+    zIndex: 20,
+  },
+  composerRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    backgroundColor: '#18181B',
+    backgroundColor: Monochrome.composerInput,
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: '#27272A',
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    minHeight: 46,
+    borderColor: Monochrome.border,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    minHeight: 44,
+    gap: 8,
   },
-  textInput: {
+  composerInput: {
     flex: 1,
-    color: '#FFFFFF',
+    color: Monochrome.composerText,
     fontSize: 14.5,
-    maxHeight: 120,
-    paddingVertical: 8,
-    paddingRight: 8,
+    lineHeight: 20,
+    maxHeight: 110,
+    paddingTop: Platform.OS === 'ios' ? 7 : 5,
+    paddingBottom: Platform.OS === 'ios' ? 7 : 5,
+    paddingLeft: 4,
   },
-  actionBtn: {
+  composerActionBtn: {
     width: 32,
     height: 32,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 4,
+    marginBottom: 1,
   },
   sendBtn: {
     backgroundColor: '#FFFFFF',
   },
   sendBtnDisabled: {
-    backgroundColor: '#27272A',
+    backgroundColor: Monochrome.surfaceRaised,
   },
   stopBtn: {
-    backgroundColor: '#EF4444',
+    backgroundColor: '#27272A',
   },
   stopIconSquare: {
     width: 10,
     height: 10,
-    backgroundColor: '#FFFFFF',
     borderRadius: 2,
+    backgroundColor: '#FFFFFF',
   },
-  disclaimerText: {
-    fontSize: 10.5,
-    color: '#52525B',
-    textAlign: 'center',
-    marginTop: 6,
+  toastContainer: {
+    position: 'absolute',
+    top: 60,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 999,
+  },
+  toastCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    backgroundColor: '#1E1E22',
+    borderWidth: 1,
+    borderColor: Monochrome.border,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.4,
+    shadowRadius: 5,
+    elevation: 5,
+  },
+  toastText: {
+    color: '#FFFFFF',
+    fontSize: 12.5,
+    fontWeight: '600',
   },
   modalBackdrop: {
     flex: 1,
@@ -1082,44 +1322,46 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   optionsSheet: {
-    backgroundColor: '#141416',
+    backgroundColor: Monochrome.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
+    borderTopWidth: 1,
+    borderTopColor: Monochrome.border,
     paddingHorizontal: 20,
     paddingTop: 12,
-    borderWidth: 1,
-    borderColor: '#27272A',
   },
   optionsHandle: {
     width: 36,
     height: 4,
-    backgroundColor: '#3F3F46',
     borderRadius: 2,
+    backgroundColor: Monochrome.borderStrong,
     alignSelf: 'center',
     marginBottom: 16,
   },
   optionsTitle: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: Monochrome.text,
     marginBottom: 16,
   },
   optionRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: 13,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Monochrome.borderSubtle,
     gap: 14,
-    paddingVertical: 12,
   },
   optionIconBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: '#1F1F23',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Monochrome.surfaceElevated,
     alignItems: 'center',
     justifyContent: 'center',
   },
   destructiveIconBox: {
-    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    backgroundColor: 'rgba(239,68,68,0.12)',
   },
   optionTextCol: {
     flex: 1,
@@ -1127,26 +1369,90 @@ const styles = StyleSheet.create({
   optionLabel: {
     fontSize: 14.5,
     fontWeight: '600',
-    color: '#F5F5F5',
+    color: Monochrome.text,
   },
   destructiveLabel: {
     color: '#EF4444',
   },
   optionSub: {
     fontSize: 12,
-    color: '#71717A',
+    color: Monochrome.textSecondary,
     marginTop: 2,
   },
   cancelBtn: {
     marginTop: 14,
-    paddingVertical: 12,
-    alignItems: 'center',
-    backgroundColor: '#1F1F23',
+    paddingVertical: 13,
     borderRadius: 12,
+    backgroundColor: Monochrome.surfaceElevated,
+    alignItems: 'center',
   },
   cancelBtnText: {
-    fontSize: 14,
+    fontSize: 14.5,
     fontWeight: '600',
+    color: Monochrome.text,
+  },
+  resourceCardsContainer: {
+    marginTop: 10,
+    gap: 8,
+    width: '100%',
+  },
+  resourceCard: {
+    backgroundColor: '#1E1E22',
+    borderWidth: 1,
+    borderColor: Monochrome.borderStrong,
+    borderRadius: 12,
+    padding: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  resourceCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 5,
+  },
+  resourceCardBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.07)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  resourceCardBadgeText: {
+    fontSize: 9.5,
+    fontWeight: '700',
     color: '#D4D4D8',
+    letterSpacing: 0.5,
+  },
+  resourceCardSubject: {
+    fontSize: 10.5,
+    color: Monochrome.textTertiary,
+    maxWidth: 150,
+  },
+  resourceCardTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Monochrome.text,
+    lineHeight: 18,
+    marginBottom: 8,
+  },
+  resourceCardActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 4,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Monochrome.borderSubtle,
+    paddingTop: 6,
+  },
+  resourceCardActionText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

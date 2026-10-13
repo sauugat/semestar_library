@@ -1,5 +1,19 @@
 import { apiFetch, getBaseUrl, getAuthToken, ApiError } from './api';
 
+export interface KyanaResourceCard {
+  type: 'note' | 'post' | 'notice' | 'post_assignment' | 'assignment' | 'routine';
+  id: string | number;
+  title: string;
+  subject?: string;
+  semester?: number | string;
+  action: 'open_note' | 'view_post' | 'view_notice' | 'view_assignment' | 'view_routine';
+  deepLink?: string;
+  viewUrl?: string;
+  downloadUrl?: string;
+  mobileRoute?: string;
+  mobileParams?: Record<string, any>;
+}
+
 export interface KyanaMessage {
   id: string | number;
   conversationId: string;
@@ -9,6 +23,10 @@ export interface KyanaMessage {
     matchedFiles?: any[];
     matchedCourses?: any[];
     matchedRoutine?: any[];
+    matchedPosts?: any[];
+    matchedNotices?: any[];
+    matchedAssignments?: any[];
+    resourceCards?: KyanaResourceCard[];
     webSources?: any[];
     actions?: any[];
     chatMode?: string;
@@ -50,6 +68,10 @@ export interface SendKyanaMessageResult {
   matchedFiles?: any[];
   matchedCourses?: any[];
   matchedRoutine?: any[];
+  matchedPosts?: any[];
+  matchedNotices?: any[];
+  matchedAssignments?: any[];
+  resourceCards?: KyanaResourceCard[];
   webSources?: any[];
   actions?: any[];
   chatMode?: string;

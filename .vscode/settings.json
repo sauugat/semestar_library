@@ -2,5 +2,6 @@
   "git.enableSmartCommit": true,
   "git.postCommitCommand": "push",
   "git.confirmSync": false,
-  "git.autofetch": true
+  "git.autofetch": true,
+  "java.compile.nullAnalysis.mode": "automatic"
 }

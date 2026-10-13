@@ -21,6 +21,9 @@ if (!process.env.DB_PATH) process.env.DB_PATH = path.join(__dirname, '..', 'data
 if (!process.env.EXPO_PUSH_DISABLED) process.env.EXPO_PUSH_DISABLED = 'true';
 if (!process.env.TEACHER_ONBOARDING_ENABLED) process.env.TEACHER_ONBOARDING_ENABLED = 'false';
 if (!process.env.DM_ENABLED) process.env.DM_ENABLED = 'false';
+if (!process.env.GAMES_TICKET_SECRET) {
+  process.env.GAMES_TICKET_SECRET = 'a4e77ce00af1a3ed954c7b0a5b370eb07ed6bbac2e212be20bd3587136014f5b';
+}
 
 // Strip any external/production secrets from memory to prevent accidental calls
 delete process.env.DATABASE_URL;

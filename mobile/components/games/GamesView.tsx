@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -12,7 +12,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/Typography';
 import { useAuth } from '@/context/AuthContext';
-import { isOnlineGamesAvailable } from '@/services/games-api';
+import {
+  isOnlineGamesAvailable,
+  checkGamesWorkerReachability,
+  type GamesWorkerReachabilityStatus,
+} from '@/services/games-api';
 
 export interface GameDirectoryItem {
   id: string;
@@ -44,6 +48,27 @@ export function GamesView() {
   const [activeGameModal, setActiveGameModal] = useState<string | null>(null);
   const isOnlineAvailable = isOnlineGamesAvailable();
 
+  const [workerHealth, setWorkerHealth] = useState<GamesWorkerReachabilityStatus>('available');
+
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const result = await checkGamesWorkerReachability();
+        if (isMounted) {
+          setWorkerHealth(result.status);
+        }
+      } catch {
+        if (isMounted) {
+          setWorkerHealth('configured_unreachable');
+        }
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const gamesDirectory = useMemo<GameDirectoryItem[]>(() => [
     {
       id: 'tic-tac-toe',
@@ -64,7 +89,11 @@ export function GamesView() {
           label: 'Online Multiplayer',
           icon: 'globe-outline',
           action: isOnlineAvailable ? 'route_ttt' : 'online_disabled',
-          badge: isOnlineAvailable ? undefined : 'Setup Required',
+          badge: !isOnlineAvailable
+            ? 'Setup Required'
+            : workerHealth === 'configured_unreachable'
+            ? 'Server Offline'
+            : undefined,
         },
       ],
     },
@@ -93,7 +122,11 @@ export function GamesView() {
           label: 'Online Multiplayer',
           icon: 'globe-outline',
           action: isOnlineAvailable ? 'route_ludo_online' : 'online_disabled',
-          badge: isOnlineAvailable ? undefined : 'Setup Required',
+          badge: !isOnlineAvailable
+            ? 'Setup Required'
+            : workerHealth === 'configured_unreachable'
+            ? 'Server Offline'
+            : undefined,
         },
       ],
     },
@@ -129,7 +162,7 @@ export function GamesView() {
       icon: 'help-circle-outline',
       status: 'coming_soon',
     },
-  ], [isOnlineAvailable]);
+  ], [isOnlineAvailable, workerHealth]);
 
   // Local Tic Tac Toe board state (preserved)
   const [board, setBoard] = useState<(string | null)[]>(Array(9).fill(null));
@@ -171,22 +204,57 @@ export function GamesView() {
     setWinner(null);
   };
 
-  const handleLaunchMode = (action: string) => {
+  const handleLaunchMode = async (action: string) => {
     if (action === 'modal_ttt') {
       resetGame();
       setActiveGameModal('tic-tac-toe');
-    } else if (action === 'route_ttt') {
-      router.push('/games/tic-tac-toe' as any);
     } else if (action === 'route_ludo') {
       router.push('/games/ludo' as any);
     } else if (action === 'route_ludo_setup') {
       router.push('/games/ludo/setup' as any);
-    } else if (action === 'route_ludo_online') {
-      router.push('/games/ludo/online' as any);
+    } else if (action === 'route_ttt' || action === 'route_ludo_online') {
+      const health = await checkGamesWorkerReachability(false);
+      if (health.status === 'configured_unreachable') {
+        Alert.alert(
+          'Games Server Unreachable',
+          `Cannot connect to games worker at ${health.wsUrl}. Ensure the local Worker server is running.\n\nOffline matches and bots are fully playable.`,
+          [
+            {
+              text: 'Retry',
+              onPress: async () => {
+                const refreshed = await checkGamesWorkerReachability(true);
+                setWorkerHealth(refreshed.status);
+                if (refreshed.available) {
+                  router.push((action === 'route_ttt' ? '/games/tic-tac-toe' : '/games/ludo/online') as any);
+                } else {
+                  Alert.alert('Still Unreachable', `Failed to connect to ${refreshed.wsUrl}.`);
+                }
+              },
+            },
+            { text: 'Play Offline', onPress: () => router.push('/games/ludo' as any) },
+            { text: 'Cancel', style: 'cancel' },
+          ]
+        );
+        return;
+      }
+
+      if (health.status === 'not_configured') {
+        Alert.alert(
+          'Multiplayer Not Configured',
+          'Online multiplayer requires an explicitly configured game backend. In local development, enable local QA games.\n\nOffline pass-and-play and bot matches remain fully functional.'
+        );
+        return;
+      }
+
+      if (action === 'route_ttt') {
+        router.push('/games/tic-tac-toe' as any);
+      } else {
+        router.push('/games/ludo/online' as any);
+      }
     } else if (action === 'online_disabled') {
       Alert.alert(
         'Online Multiplayer Unavailable',
-        'Online multiplayer requires an explicitly configured game backend (e.g., local dev worker at ws://127.0.0.1:8789). Local pass-and-play and bot matches remain fully functional.'
+        'Online multiplayer is currently disabled in this build. Quick Play, offline match, and bot modes remain fully playable on this device.'
       );
     }
   };

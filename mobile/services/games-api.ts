@@ -1,22 +1,88 @@
-import { apiFetch, isQaMode } from '@/services/api';
+import { Platform } from 'react-native';
+import Constants from 'expo-constants';
+import { apiFetch, isQaMode, isLocalAddress } from '@/services/api';
+
+/**
+ * Derives the host address for the local Cloudflare games worker in development.
+ * Accurately routes to:
+ * 1. Explicit EXPO_PUBLIC_GAMES_WS_URL if set.
+ * 2. Host derived from explicit EXPO_PUBLIC_API_URL if it points to a LAN IP.
+ * 3. Host derived from Expo Metro hostUri / debuggerHost (Physical Android / iOS on Wi-Fi).
+ * 4. Android Emulator host alias (10.0.2.2) when running on Android emulator without custom host.
+ * 5. Loopback 127.0.0.1 for MacBook local test runner / iOS simulator.
+ */
+export function getLocalGamesWorkerHost(): string {
+  // 1. Explicit games worker environment variable
+  const explicitGamesUrl =
+    typeof process !== 'undefined' ? process.env?.EXPO_PUBLIC_GAMES_WS_URL?.trim() : undefined;
+  if (explicitGamesUrl) {
+    try {
+      const sanitized = explicitGamesUrl
+        .replace(/^ws:\/\//i, 'http://')
+        .replace(/^wss:\/\//i, 'https://');
+      const parsed = new URL(sanitized);
+      if (parsed.hostname) {
+        return parsed.hostname;
+      }
+    } catch {}
+  }
+
+  // 2. Derive host from explicit EXPO_PUBLIC_API_URL if it is a local LAN address
+  const explicitApiUrl =
+    typeof process !== 'undefined' ? process.env?.EXPO_PUBLIC_API_URL?.trim() : undefined;
+  if (explicitApiUrl && isLocalAddress(explicitApiUrl)) {
+    try {
+      const parsed = new URL(explicitApiUrl);
+      if (parsed.hostname && parsed.hostname !== 'localhost' && parsed.hostname !== '127.0.0.1') {
+        return parsed.hostname;
+      }
+    } catch {}
+  }
+
+  // 3. Auto-detected LAN host from Expo Metro debugger host (Physical Android / iOS on Wi-Fi)
+  try {
+    const hostUri =
+      Constants?.expoConfig?.hostUri ||
+      (Constants as any)?.manifest2?.extra?.expoGo?.debuggerHost;
+    if (hostUri && typeof hostUri === 'string') {
+      const host = hostUri.split(':')[0];
+      if (host && host !== 'localhost' && host !== '127.0.0.1') {
+        return host;
+      }
+    }
+  } catch {}
+
+  // 4. Android emulator fallback (10.0.2.2) when running on Android without custom LAN host
+  try {
+    if (typeof Platform !== 'undefined' && Platform.OS === 'android') {
+      return '10.0.2.2';
+    }
+  } catch {}
+
+  // 5. Default loopback for MacBook local tests and iOS simulator
+  return '127.0.0.1';
+}
 
 /**
  * Resolves the WebSocket base URL with strict production isolation guards:
- * - In QA mode or DEV: Only connects to local address (ws://127.0.0.1:8789 or EXPO_PUBLIC_GAMES_WS_URL if local).
+ * - In QA mode or DEV: Only connects to local address (derived host on port 8789 or EXPO_PUBLIC_GAMES_WS_URL).
  *   Never silently falls back to the production Cloudflare Worker.
  * - In Production: Uses EXPO_PUBLIC_GAMES_WS_URL or production worker when QA mode is disabled.
  */
-function resolveGamesWsUrl(): string {
-  const isQa = typeof isQaMode === 'function' ? isQaMode() : Boolean(process.env.EXPO_PUBLIC_QA_MODE === 'true');
-  const explicitWsUrl = process.env.EXPO_PUBLIC_GAMES_WS_URL?.trim();
+export function resolveGamesWsUrl(): string {
+  const isQa = typeof isQaMode === 'function' ? isQaMode() : Boolean(process.env?.EXPO_PUBLIC_QA_MODE === 'true');
+  const explicitWsUrl =
+    typeof process !== 'undefined' ? process.env?.EXPO_PUBLIC_GAMES_WS_URL?.trim() : undefined;
 
   if (isQa || (typeof __DEV__ !== 'undefined' && __DEV__)) {
     if (explicitWsUrl) {
       return explicitWsUrl.replace(/\/+$/, '');
     }
-    return 'ws://127.0.0.1:8789';
+    const host = getLocalGamesWorkerHost();
+    return `ws://${host}:8789`;
   }
 
+  // Production environment
   if (explicitWsUrl) {
     return explicitWsUrl.replace(/\/+$/, '');
   }
@@ -27,25 +93,132 @@ export const GAMES_WS_BASE_URL = resolveGamesWsUrl();
 
 /**
  * Checks whether an online multiplayer backend is safely and explicitly configured.
- * Online multiplayer is only considered available if:
- * 1. Games are not explicitly disabled via EXPO_PUBLIC_GAMES_DISABLED.
- * 2. In QA/DEV mode: local game networking is explicitly enabled via EXPO_PUBLIC_ENABLE_LOCAL_QA_GAMES='true',
- *    or EXPO_PUBLIC_GAMES_WS_URL is provided, or EXPO_PUBLIC_QA_MODE='true'.
- * 3. In production: an explicitly configured or verified production endpoint is present.
  */
-export function isOnlineGamesAvailable(): boolean {
-  if (process.env.EXPO_PUBLIC_GAMES_DISABLED === 'true') {
+export function isOnlineGamesConfigured(): boolean {
+  if (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_GAMES_DISABLED === 'true') {
     return false;
   }
-  const isQa = typeof isQaMode === 'function' ? isQaMode() : Boolean(process.env.EXPO_PUBLIC_QA_MODE === 'true');
+  const isQa = typeof isQaMode === 'function' ? isQaMode() : Boolean(process.env?.EXPO_PUBLIC_QA_MODE === 'true');
   if (isQa || (typeof __DEV__ !== 'undefined' && __DEV__)) {
     return Boolean(
-      process.env.EXPO_PUBLIC_ENABLE_LOCAL_QA_GAMES === 'true' ||
-      process.env.EXPO_PUBLIC_GAMES_WS_URL ||
-      process.env.EXPO_PUBLIC_QA_MODE === 'true'
+      process.env?.EXPO_PUBLIC_ENABLE_LOCAL_QA_GAMES === 'true' ||
+      process.env?.EXPO_PUBLIC_GAMES_WS_URL ||
+      process.env?.EXPO_PUBLIC_QA_MODE === 'true'
     );
   }
   return Boolean(GAMES_WS_BASE_URL);
+}
+
+export function isOnlineGamesAvailable(): boolean {
+  return isOnlineGamesConfigured();
+}
+
+export type GamesWorkerReachabilityStatus =
+  | 'not_configured'
+  | 'configured_unreachable'
+  | 'available';
+
+export interface GamesWorkerHealthResult {
+  status: GamesWorkerReachabilityStatus;
+  available: boolean;
+  message?: string;
+  wsUrl: string;
+}
+
+let lastHealthCheckResult: {
+  status: GamesWorkerReachabilityStatus;
+  timestamp: number;
+  message?: string;
+} | null = null;
+
+const HEALTH_CACHE_TTL_MS = 15_000; // 15 seconds cooldown
+
+/**
+ * Probes the games worker to determine actual network reachability.
+ * Uses a short (2000ms) timeout and caches results for 15s to avoid polling storms.
+ */
+export async function checkGamesWorkerReachability(
+  forceRefresh = false
+): Promise<GamesWorkerHealthResult> {
+  const wsUrl = resolveGamesWsUrl();
+
+  if (!isOnlineGamesConfigured()) {
+    return {
+      status: 'not_configured',
+      available: false,
+      message: 'Multiplayer is not configured or disabled in environment settings.',
+      wsUrl,
+    };
+  }
+
+  const now = Date.now();
+  if (
+    !forceRefresh &&
+    lastHealthCheckResult &&
+    now - lastHealthCheckResult.timestamp < HEALTH_CACHE_TTL_MS
+  ) {
+    return {
+      status: lastHealthCheckResult.status,
+      available: lastHealthCheckResult.status === 'available',
+      message: lastHealthCheckResult.message,
+      wsUrl,
+    };
+  }
+
+  // Convert ws:// to http:// or wss:// to https://
+  const httpUrl = wsUrl
+    .replace(/^ws:\/\//i, 'http://')
+    .replace(/^wss:\/\//i, 'https://');
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
+
+    const response = await fetch(`${httpUrl}/`, {
+      method: 'GET',
+      signal: controller.signal,
+      headers: { Accept: 'application/json' },
+    });
+    clearTimeout(timeoutId);
+
+    if (response.ok) {
+      const data = await response.json().catch(() => ({}));
+      if (data && (data.service === 'semester-library-games' || data.status === 'ok')) {
+        lastHealthCheckResult = { status: 'available', timestamp: now };
+        return { status: 'available', available: true, wsUrl };
+      }
+    }
+
+    const msg = `Games server at ${wsUrl} returned status ${response.status}.`;
+    lastHealthCheckResult = {
+      status: 'configured_unreachable',
+      timestamp: now,
+      message: msg,
+    };
+    return {
+      status: 'configured_unreachable',
+      available: false,
+      message: msg,
+      wsUrl,
+    };
+  } catch (err: any) {
+    const isTimeout = err?.name === 'AbortError';
+    const msg = isTimeout
+      ? `Games server at ${wsUrl} timed out after 2 seconds.`
+      : `Cannot reach local games worker at ${wsUrl}. Ensure local worker is running.`;
+
+    lastHealthCheckResult = {
+      status: 'configured_unreachable',
+      timestamp: now,
+      message: msg,
+    };
+    return {
+      status: 'configured_unreachable',
+      available: false,
+      message: msg,
+      wsUrl,
+    };
+  }
 }
 
 export interface GamesTicketResponse {

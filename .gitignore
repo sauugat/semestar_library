@@ -21,3 +21,5 @@ mobile-test/
 *credentials*.json
 fcm*.json
 backups/
+.wrangler/
+games-backend/.wrangler/

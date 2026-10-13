@@ -4,8 +4,17 @@ import { spawn } from 'node:child_process';
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
+
+// Strict local QA isolation: force test environment and local SQLite in /tmp
+const rootTestDbPath = path.join(os.tmpdir(), `games_integration_${Date.now()}_${Math.random().toString(36).slice(2)}.db`);
+process.env.NODE_ENV = 'test';
+process.env.DB_PATH = rootTestDbPath;
+delete process.env.DATABASE_URL;
+delete process.env.POSTGRES_URL;
+delete process.env.PGHOST;
 
 const require = createRequire(import.meta.url);
 const { createGamesTicket } = require('../../lib/games-ticket.js');
@@ -1157,5 +1166,116 @@ test('Integration: GET /rooms/:roomId auth checks and safe metadata exposure', a
   assert.equal(serverData.roomGeneration, 1);
 
   wsAlice.close();
+});
+
+test('Integration: End-to-end authentication: POST /api/games/ticket generates ticket and local Wrangler Worker accepts it in WebSocket handshake', async () => {
+  const os = require('node:os');
+  const testDbPath = path.join(os.tmpdir(), `games_e2e_auth_${Date.now()}_${Math.random().toString(36).slice(2)}.db`);
+  const savedDbPath = process.env.DB_PATH;
+  const savedTicketSecret = process.env.GAMES_TICKET_SECRET;
+
+  process.env.DB_PATH = testDbPath;
+  process.env.GAMES_TICKET_SECRET = TEST_SECRET;
+
+  const app = require('../../server');
+  const db = require('../../db');
+
+  await db.initSchema();
+
+  const testStudentId = `student_e2e_${Date.now()}`;
+  const testMobileToken = `token_e2e_${Date.now()}_abcdef1234567890`;
+
+  await db.run(
+    `INSERT INTO students (studentId, username, name, role, email, gender, semester, department, avatarUrl)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT (studentId) DO NOTHING`,
+    testStudentId, 'e2etester', 'E2E Tester', 'student', 'e2e@college.edu', 'male', 'Semester 5', 'BIT', 'https://example.com/avatar.png'
+  );
+
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  await db.run(
+    `INSERT INTO mobile_tokens (token, studentId, createdAt, expiresAt)
+     VALUES (?, ?, CURRENT_TIMESTAMP, ?)
+     ON CONFLICT (token) DO NOTHING`,
+    testMobileToken, testStudentId, expiresAt
+  );
+
+  let localBackendServer;
+  let backendUrl;
+
+  try {
+    await new Promise((resolve) => {
+      localBackendServer = http.createServer(app);
+      localBackendServer.listen(0, '127.0.0.1', () => {
+        const port = localBackendServer.address().port;
+        backendUrl = `http://127.0.0.1:${port}`;
+        resolve();
+      });
+    });
+
+    // 1. Issue real ticket via POST /api/games/ticket on Express server
+    const ticketRes = await fetch(`${backendUrl}/api/games/ticket`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${testMobileToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    assert.equal(ticketRes.status, 200, 'POST /api/games/ticket must return HTTP 200');
+    const ticketData = await ticketRes.json();
+    assert.ok(ticketData.ticket, 'Must return ticket string');
+    assert.equal(ticketData.expiresIn, 300);
+
+    // 2. Connect to the real local Cloudflare Wrangler Worker using the issued ticket
+    const roomId = `room_e2e_auth_${Date.now()}`;
+    const ws = await connectWs(`${BASE_WS}/rooms/${roomId}/ws`, {
+      Authorization: `Bearer ${ticketData.ticket}`,
+    });
+    const queue = new MessageQueue(ws);
+
+    // 3. Verify the Worker accepts the ticket and maps the verified claims
+    const connEvent = await queue.next();
+    assert.equal(connEvent.type, 'CONNECTED');
+    assert.equal(connEvent.userId, testStudentId);
+    assert.equal(connEvent.roomId, roomId);
+
+    // 4. Verify client cannot spoof user identity headers
+    ws.send(JSON.stringify({ type: 'LUDO_JOIN', displayName: 'E2E Student' }));
+    const lobbyEvent = await queue.next();
+    assert.equal(lobbyEvent.type, 'LUDO_LOBBY_STATE');
+    assert.equal(lobbyEvent.lobby.hostUserId, testStudentId);
+    assert.equal(lobbyEvent.lobby.seats.red.userId, testStudentId);
+
+    ws.close();
+
+    // 5. Suspend student and verify POST /api/games/ticket is rejected with HTTP 403
+    await db.run(
+      `UPDATE students SET account_status = 'suspended' WHERE studentId = ?`,
+      testStudentId
+    );
+
+    const suspendedRes = await fetch(`${backendUrl}/api/games/ticket`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${testMobileToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    assert.equal(suspendedRes.status, 403, 'Suspended account must be rejected with 403');
+    const suspendedData = await suspendedRes.json();
+    assert.equal(suspendedData.code, 'ACCOUNT_SUSPENDED');
+
+  } finally {
+    if (localBackendServer) {
+      await new Promise((r) => localBackendServer.close(r));
+    }
+    await db.close();
+    process.env.DB_PATH = savedDbPath;
+    process.env.GAMES_TICKET_SECRET = savedTicketSecret;
+    try {
+      if (fs.existsSync(testDbPath)) fs.unlinkSync(testDbPath);
+    } catch {}
+  }
 });
 

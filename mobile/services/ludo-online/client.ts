@@ -60,13 +60,18 @@ async function defaultTicketProvider(): Promise<{ ticket: string }> {
 }
 
 function defaultWsUrlResolver(roomId: string): string {
-  const rawUrl =
-    (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_GAMES_WS_URL) ||
-    (typeof __DEV__ !== 'undefined' && __DEV__
-      ? 'ws://127.0.0.1:8789'
-      : 'wss://semester-library-games.semester-library-games.workers.dev');
-  const base = rawUrl.trim().replace(/\/+$/, '');
-  return `${base}/rooms/${encodeURIComponent(roomId.trim())}/ws`;
+  try {
+    const { getGamesRoomWebSocketUrl } = require('../games-api');
+    return getGamesRoomWebSocketUrl(roomId);
+  } catch {
+    const rawUrl =
+      (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_GAMES_WS_URL) ||
+      (typeof __DEV__ !== 'undefined' && __DEV__
+        ? 'ws://127.0.0.1:8789'
+        : 'wss://semester-library-games.semester-library-games.workers.dev');
+    const base = rawUrl.trim().replace(/\/+$/, '');
+    return `${base}/rooms/${encodeURIComponent(roomId.trim())}/ws`;
+  }
 }
 
 function defaultSocketFactory(

@@ -1,0 +1,56 @@
+{
+  "timestamp": "2026-10-13T17:50:14.266Z",
+  "provider": "gemini",
+  "singleTurnResults": [
+    {
+      "category": "Casual Romanized Nepali",
+      "input": "Oii k xa khabar? Aaja k gardai xau?",
+      "reply": "Sanchai xu yrr, timro k xa?\n\nAaja khasai khei xaina, basera Semester Library ko notes haru milaudaixu. Timlai khei help chaiyeko xa ki padhai ma? Kasto chaldai xa preparation?",
+      "elapsedMs": 2842,
+      "status": "SUCCESS"
+    },
+    {
+      "category": "Nepali-English Code-Switching",
+      "input": "Recursion ma base case kina chaincha explain gara ta, stack overflow huncha ho?",
+      "reply": "Recursion ma base case chaine main reason nai function lai kata rokne vanera thaha pauna ho. \n\nBase case xaina vane function le afulai call gareko garei garchha, jasle garda memory ko stack space full hunchha. Tyo condition lai nai hami **Stack Overflow** vanxau.\n\nYeslai ali sajilo sanga bujham:\n\n1.  **Infinite Loop rokna:** Base case le \"aba dherai tala najau, yahi bata farkinu parcha\" vanne signal dincha. Base case vayena vane recursion kailei rokindaina.\n2.  **Stack Memory:** Jaba euta function call huncha, tyo memory ko 'Stack' ma gayera bascha. Base case xaina vane stack ma memory thapidai jancha ani antim ma computer ko memory sakkincha.\n3.  **Correct Result:** Result nikalna ko lagi pani hami mathi bata tala (base case samma) janchau ani base case vetepaxi balla value return gardai mathi aauxau.\n\n**Example (Factorial in C):**\n\n```c\nint fact(int n) {\n    if (n <= 1) { // Yo nai Base Case ho\n        return 1;\n    }\n    return n * fact(n - 1);\n}\n```\n\nYadi mathi ko code ma `if (n <= 1)` narakhne ho vane, `fact(5)` le `fact(4)` lai call garcha, tesle `fact(3)` lai... gardai gardai negative numbers tira jancha ani memory full vayera program crash huncha. Tei vayera base case bina recursion adhurow huncha. \n\nBujheu? Ki ali detail ma vannu parcha?",
+      "elapsedMs": 5452,
+      "status": "SUCCESS"
+    },
+    {
+      "category": "Informal Student Slang",
+      "input": "Babal garo topic thyo yrr, pointer ra reference ko chakar bujhdai bujhina.",
+      "reply": "Hait, pointers ra references le dherai lai tauko dukhaucha, tmi matra haina. Tara ekdam simple para ma bujhda huncha:\n\n**1. Pointer (*):**\nPointer vaneko euta variable ho jasle arko variable ko **address** (location) store garcha. Yeslai \"finger\" jasto samjhiu, jasle memory ko kun chai thau ma data cha vanera point garcha.\n*   `int *ptr = &a;` (ptr le a ko address samjhincha).\n*   Pointer lai change garna milcha (arko variable tira point garauna milcha).\n\n**2. Reference (&):**\nReference vaneko chai euta variable ko **alias** or \"nick-name\" jasto ho. Euta manche ko dui ota nam bhaye jastai ho.\n*   `int &ref = a;` (aba `ref` vannu ra `a` vannu eutai kura ho).\n*   Yeslai ekchoti assign garepachi change garna mildaina.\n\n**Main difference k cha ta?**\n*   **Pointer** lai `NULL` banauna milcha, tara **Reference** lai mildaina (yo sadhai kunai na kunai variable sanga jodieko hunuparcha).\n*   Pointer ma `*` ra `&` chalauna ali jhyau huncha, Reference chai normal variable jastai use garna sakincha.\n\nAli clear vayo ki ajhai example chaiyo? C++ ko code ma herne vaye vana, ma bujhaidinxu.",
+      "elapsedMs": 5430,
+      "status": "SUCCESS"
+    },
+    {
+      "category": "Spelling Mistakes / Variations",
+      "input": "Voli xam xa kei pdheko xina k grne mlai tanab vo",
+      "reply": "Hait, yo last hour ko tension ta beglai huncha yrr. Tara thikai cha, tanab liyera jhan dimag khrab huncha. Aile ko situation ma \"Smart Work\" garne ho, sabai padhna bhyainna.\n\nYesto gara:\n\n1.  **Syllabus ra Past Questions hera:** Sabai bhanda paila Semester Library ma gayera last 3-4 years ko questions hera. Kun topics bata dherai sodhiracha, tyo thaha huncha. Repeat bhairakhne questions lai priority deu.\n2.  **80/20 Rule lagau:** 20% syllabus padhera 80% marks aaune chances huncha. Important chapters haru xuttyau ani tyo matrai majjale hera.\n3.  **YouTube ma \"One Shot\" videos hera:** Book padhera bhyainna aile. Kunai topic bujhenau bhane 10-15 min ko video herera concept leu.\n4.  **Notes matrai sarara hera:** Deep ma najau, main points, diagrams, ani formulas haru matrai dimag ma rakha. Exam ma points thaha bhayo bhane ali-ali milaera lekhna sakincha.\n5.  **Nindra napugne gari napauda:** At least 4-5 ghanta suta, natra exam hall ma blank huna sakincha.\n\nKun subject ho ra? Specific kunai topic garo bhairacha bhane bhana, ma bujhaidine try garchu. Chill ma padha, pass huna sakincha!",
+      "elapsedMs": 4640,
+      "status": "SUCCESS"
+    },
+    {
+      "category": "Emotional Expressions / Exam Stress",
+      "input": "Fail hunchu hola yrr, pass kasari hune kei idea deu na 😭",
+      "reply": "Hait, tyo fail hunchu bhanne kura dimag bata nikalideu ta paila. Aile dherai stress liyera jhan padhna sakinxa, so ali calm hou. Pass huna dherai garo xaina, bas ali smart tarika le padhnu parxa.\n\nYo steps haru follow gara hai:\n\n1.  **Old Questions (Syllabus bhanda imp yo ho):** TU/PU ko past 5-10 years ko questions hera. Pattern thaha hunxa. Dherai jaso questions repeat bhairako hunxan, tyo fix aaucha bhanne topics lai paila majjale ghoka.\n2.  **Important Chapters Target Gara:** Sabai padhna khojda kehi pani sakinidaina. High weightage bhayeko 3-4 ota chapters select gara jasle pass marks cover garchha. Tyo chapters chai jasto question aaye pani milne gari padha.\n3.  **Back Paper ko Solution:** Semester Library ma gayera solution book haru hera. Answer kasari lekhne idea hunxa. Point wise lekhne bani gara, marks dherai aauxa.\n4.  **Diagrams ra Flowcharts:** Theory ma dherai marks lyaune trick nai yehi ho. Text dherai lekhnu bhanda safa diagram banau, examiner khusi hunxan.\n5.  **Sathi haru sanga discuss gara:** Ekai thau ma basera \"yo topic ma k xa?\" bhanera discuss garda xito bujhinxa ra memory ma pani basxa.\n\nKunnai specific subject garo bhayeko ho? Bhana hai, ma tyo subject ko important topics khojdinxu. Don't worry, sakinxa!",
+      "elapsedMs": 5704,
+      "status": "SUCCESS"
+    },
+    {
+      "category": "Academic Concept Explanation",
+      "input": "Operating system ma deadlock bhanya k ho? Real-life nepali example deu na.",
+      "reply": "Deadlock is basically a situation where two or more processes are stuck forever because each is waiting for a resource that the other one is holding. It’s like a \"no-win\" situation where nobody can move forward.\n\nIn OS terms, it happens when processes get stuck in a circular wait, and none of them are willing to give up what they already have.\n\n**Real-life Nepali Example:**\n\nImagine a narrow, one-way bridge (like those old suspension bridges in hills or a tight galli in Kathmandu) where only one vehicle can pass at a time.\n\n1.  A **Micro-bus** enters the bridge from one side.\n2.  A **Bolero** enters from the opposite side at the same time.\n3.  They meet in the middle.\n4.  Now, the Micro-bus driver says, \"I won't move back, you go back.\"\n5.  The Bolero driver says, \"No way, I'm already halfway through, you move back.\"\n\nSince neither driver is willing to reverse (no preemption) and the bridge is too narrow for both (mutual exclusion), they both just sit there staring at each other. That’s a **deadlock**. Traffic is stuck, and unless someone intervenes or one of them backs up, they’ll stay there forever.\n\n**In OS, for a deadlock to happen, these 4 conditions must meet:**\n*   **Mutual Exclusion:** Only one process can use a resource at a time.\n*   **Hold and Wait:** A process is holding a resource and waiting for another one.\n*   **No Preemption:** Resources cannot be forcibly taken away.\n*   **Circular Wait:** Process A waits for B, B waits for C, and C waits for A.\n\nBujheu? If you need the technical \"Banker's Algorithm\" or ways to prevent this, let me know!",
+      "elapsedMs": 4098,
+      "status": "SUCCESS"
+    }
+  ],
+  "multiTurnLanguageSwitch": {
+    "input": "La aba English ma explain gara with a clean C++ example.",
+    "reply": "Inheritance and polymorphism are basically two sides of the same coin in OOP. Inheritance allows you to build a hierarchy (reusing code), while polymorphism allows you to interact with that hierarchy in a flexible way.\n\nThink of it this way: Inheritance is the \"is-a\" relationship (a `Dog` is an `Animal`), and polymorphism is the ability to treat a `Dog` simply as an `Animal` while still getting the specific behavior of a `Dog` when you call its methods.\n\nHere is a clean C++ example:\n\n```cpp\n#include <iostream>\n#include <vector>\n\nclass Animal {\npublic:\n    // Virtual function enables polymorphism\n    virtual void makeSound() {\n        std::cout << \"Some generic animal sound\" << std::endl;\n    }\n};\n\nclass Dog : public Animal {\npublic:\n    void makeSound() override {\n        std::cout << \"Woof! Woof!\" << std::endl;\n    }\n};\n\nclass Cat : public Animal {\npublic:\n    void makeSound() override {\n        std::cout << \"Meow!\" << std::endl;\n    }\n};\n\nint main() {\n    // Inheritance: Dog and Cat inherit from Animal\n    // Polymorphism: We store different objects in a list of Animal pointers\n    std::vector<Animal*> animals;\n    animals.push_back(new Dog());\n    animals.push_back(new Cat());\n\n    for (Animal* a : animals) {\n        // The program knows which version of makeSound() to call at runtime\n        a->makeSound();\n    }\n\n    return 0;\n}\n```\n\nIn this code:\n1. **Inheritance**: `Dog` and `Cat` inherit from `Animal`. They get the structure of the base class.\n2. **Polymorphism**: Even though we have a list of `Animal*`, the program calls the correct `makeSound()` for each specific object. Without the `virtual` keyword and inheritance, it would just call the generic `Animal` version every time."
+  },
+  "longConversationRetention": {
+    "totalHistoryLength": 23,
+    "reply": "Hami Web Tech ko revision gardai thiye. Aaja ko specific topic Flexbox ra Grid thiyo."
+  }
+}

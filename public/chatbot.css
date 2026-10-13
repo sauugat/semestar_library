@@ -381,8 +381,15 @@ body.kyana-workspace-body {
 }
 
 @keyframes kyanaPulse {
-  0%, 100% { opacity: 0.35; }
-  50% { opacity: 0.7; }
+
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+
+  50% {
+    opacity: 0.7;
+  }
 }
 
 .kyana-sidebar-footer {
@@ -783,13 +790,25 @@ body.kyana-workspace-body {
 }
 
 @keyframes kyanaBloomPulse {
-  0% { transform: scale(0.96); opacity: 0.6; }
-  100% { transform: scale(1.04); opacity: 0.9; }
+  0% {
+    transform: scale(0.96);
+    opacity: 0.6;
+  }
+
+  100% {
+    transform: scale(1.04);
+    opacity: 0.9;
+  }
 }
 
 @keyframes kyanaHazeDrift {
-  0% { transform: translate(-2px, -2px) scale(0.98); }
-  100% { transform: translate(2px, 2px) scale(1.02); }
+  0% {
+    transform: translate(-2px, -2px) scale(0.98);
+  }
+
+  100% {
+    transform: translate(2px, 2px) scale(1.02);
+  }
 }
 
 /* Hero Logo Wrap (Monochrome Glass Ribbon) */
@@ -824,15 +843,24 @@ body.kyana-workspace-body {
 }
 
 @keyframes kyanaGlassSweep {
-  0% { background-position: -120% -120%; }
-  35%, 100% { background-position: 220% 220%; }
+  0% {
+    background-position: -120% -120%;
+  }
+
+  35%,
+  100% {
+    background-position: 220% 220%;
+  }
 }
 
 @keyframes kyanaHeroIdleBreathe {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: scale(0.99);
     filter: brightness(0.98);
   }
+
   50% {
     transform: scale(1.01);
     filter: brightness(1.03);
@@ -928,9 +956,17 @@ body.kyana-workspace-body {
   font-weight: 700;
 }
 
-.kyana-response-doc h1 { font-size: 22px; }
-.kyana-response-doc h2 { font-size: 18px; }
-.kyana-response-doc h3 { font-size: 16px; }
+.kyana-response-doc h1 {
+  font-size: 22px;
+}
+
+.kyana-response-doc h2 {
+  font-size: 18px;
+}
+
+.kyana-response-doc h3 {
+  font-size: 16px;
+}
 
 .kyana-response-doc ul,
 .kyana-response-doc ol {
@@ -963,7 +999,7 @@ body.kyana-workspace-body {
   color: var(--ky-text-primary);
 }
 
-.kyana-response-doc :not(pre) > code {
+.kyana-response-doc :not(pre)>code {
   font-family: var(--ky-font-mono);
   font-size: 13px;
   background-color: var(--ky-code-inline-bg);
@@ -1074,19 +1110,61 @@ body.kyana-workspace-body {
   color: inherit;
 }
 
-.token.keyword { color: #93c5fd; font-weight: 600; }
-.token.string { color: #86efac; }
-.token.comment { color: #71717a; font-style: italic; }
-.token.number { color: #fca5a5; }
-.token.class-name { color: #fde047; }
-.token.function { color: #c4b5fd; }
-.token.operator { color: #e4e4e7; }
-.token.punctuation { color: #a1a1aa; }
-.token.tag { color: #93c5fd; font-weight: 600; }
-.token.attr-name { color: #fde047; }
-.token.attr-value { color: #86efac; }
-.token.boolean { color: #fca5a5; }
-.token.directive { color: #a78bfa; font-weight: 600; }
+.token.keyword {
+  color: #93c5fd;
+  font-weight: 600;
+}
+
+.token.string {
+  color: #86efac;
+}
+
+.token.comment {
+  color: #71717a;
+  font-style: italic;
+}
+
+.token.number {
+  color: #fca5a5;
+}
+
+.token.class-name {
+  color: #fde047;
+}
+
+.token.function {
+  color: #c4b5fd;
+}
+
+.token.operator {
+  color: #e4e4e7;
+}
+
+.token.punctuation {
+  color: #a1a1aa;
+}
+
+.token.tag {
+  color: #93c5fd;
+  font-weight: 600;
+}
+
+.token.attr-name {
+  color: #fde047;
+}
+
+.token.attr-value {
+  color: #86efac;
+}
+
+.token.boolean {
+  color: #fca5a5;
+}
+
+.token.directive {
+  color: #a78bfa;
+  font-weight: 600;
+}
 
 /* ==========================================================================
    SOURCE CARDS (STRICT MONOCHROME — ZERO GRADIENT)
@@ -1243,9 +1321,19 @@ body.kyana-workspace-body {
 }
 
 @keyframes kyanaCompletionPass {
-  0% { transform: translateX(-100%); opacity: 0; }
-  40% { opacity: 0.8; }
-  100% { transform: translateX(100%); opacity: 0; }
+  0% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+
+  40% {
+    opacity: 0.8;
+  }
+
+  100% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
 }
 
 /* ==========================================================================
@@ -1287,13 +1375,11 @@ body.kyana-workspace-body {
   inset: -25%;
   border-radius: 50%;
   pointer-events: none;
-  background: radial-gradient(
-    circle at center,
-    rgba(255, 255, 255, 0.10) 0%,
-    rgba(180, 180, 190, 0.06) 45%,
-    rgba(110, 110, 120, 0.05) 70%,
-    transparent 85%
-  );
+  background: radial-gradient(circle at center,
+      rgba(255, 255, 255, 0.10) 0%,
+      rgba(180, 180, 190, 0.06) 45%,
+      rgba(110, 110, 120, 0.05) 70%,
+      transparent 85%);
   filter: blur(6px);
   opacity: 0.6;
   z-index: 0;
@@ -1305,12 +1391,10 @@ body.kyana-workspace-body {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(
-    115deg,
-    transparent 20%,
-    rgba(255, 255, 255, 0.22) 50%,
-    transparent 80%
-  );
+  background: linear-gradient(115deg,
+      transparent 20%,
+      rgba(255, 255, 255, 0.22) 50%,
+      transparent 80%);
   transform: translateX(-150%) rotate(25deg);
   opacity: 0;
 }
@@ -1337,16 +1421,20 @@ body.kyana-workspace-body {
     transform: translateY(0px) scale(0.98);
     filter: brightness(0.95);
   }
+
   30% {
     transform: translateY(-1.5px) scale(1.01);
   }
+
   50% {
     transform: translateY(-0.8px) scale(1.02);
     filter: brightness(1.08);
   }
+
   75% {
     transform: translateY(-1.5px) scale(1.005);
   }
+
   100% {
     transform: translateY(0px) scale(0.98);
     filter: brightness(0.95);
@@ -1358,13 +1446,16 @@ body.kyana-workspace-body {
     transform: translateX(-140%) rotate(25deg);
     opacity: 0;
   }
+
   20% {
     opacity: 0.22;
   }
+
   55% {
     transform: translateX(140%) rotate(25deg);
     opacity: 0.22;
   }
+
   100% {
     transform: translateX(140%) rotate(25deg);
     opacity: 0;
@@ -1372,10 +1463,13 @@ body.kyana-workspace-body {
 }
 
 @keyframes kyanaMonoAuraPulse {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: scale(0.95);
     opacity: 0.55;
   }
+
   50% {
     transform: scale(1.12);
     opacity: 0.95;
@@ -1396,13 +1490,16 @@ body.kyana-workspace-body {
     transform: translateX(-150%) rotate(25deg);
     opacity: 0;
   }
+
   35% {
     opacity: 0.12;
   }
+
   65% {
     transform: translateX(150%) rotate(25deg);
     opacity: 0.12;
   }
+
   100% {
     transform: translateX(150%) rotate(25deg);
     opacity: 0;
@@ -1591,8 +1688,8 @@ body.kyana-workspace-body {
 .kyana-composer-capsule:focus-within {
   border-color: rgba(255, 255, 255, 0.18);
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12),
-              0 0 16px rgba(255, 255, 255, 0.04),
-              0 6px 24px rgba(0, 0, 0, 0.45);
+    0 0 16px rgba(255, 255, 255, 0.04),
+    0 6px 24px rgba(0, 0, 0, 0.45);
 }
 
 .kyana-attach-btn {
@@ -1832,6 +1929,7 @@ body.dark-mode textarea#kyanaInput:focus {
    ========================================================================== */
 
 @media (prefers-reduced-motion: reduce) {
+
   .kyana-aura-layer,
   .kyana-logo-comp,
   .kyana-logo-img,

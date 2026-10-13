@@ -17,7 +17,9 @@
     "test:group-chat": "node --test tests/group-chat-history.test.js tests/mobile-chat-state.test.js tests/chat-cache-regression.test.js",
     "test:group-chat:browser": "node tests/chat-cross-client.browser.cjs",
     "sync": "node scripts/auto-sync.js --once",
-    "auto-sync": "node scripts/auto-sync.js"
+    "auto-sync": "node scripts/auto-sync.js",
+    "qa:server": "node scripts/qa-server.js",
+    "qa:seed": "node scripts/seed-qa.js"
   },
   "dependencies": {
     "@libsql/client": "^0.14.0",

@@ -4,7 +4,7 @@ import * as Device from 'expo-device';
 import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
-import { apiFetch } from '@/services/api';
+import { apiFetch, isQaMode, isLocalAddress, getBaseUrl } from '@/services/api';
 
 export const PUSH_TOKEN_STORAGE_KEY = 'semester_library_expo_push_token';
 
@@ -397,6 +397,14 @@ export function getEasProjectId(): string | null {
  * Retrieve current Expo Push Token for this device.
  */
 export async function getExpoPushToken(): Promise<string | null> {
+  const activeUrl = await getBaseUrl();
+  if (isQaMode(activeUrl) || isLocalAddress(activeUrl)) {
+    if (__DEV__) {
+      console.log('[Push] QA Mode active: skipped acquiring production Expo push token.');
+    }
+    return 'qa-mock-expo-push-token';
+  }
+
   // Physical device check
   if (!Device.isDevice) {
     if (__DEV__) {
@@ -432,6 +440,14 @@ export async function getExpoPushToken(): Promise<string | null> {
  */
 export async function registerPushToken(): Promise<string | null> {
   try {
+    const activeUrl = await getBaseUrl();
+    if (isQaMode(activeUrl) || isLocalAddress(activeUrl)) {
+      if (__DEV__) {
+        console.log('[Push] QA Mode active: skipped registering device against production push infrastructure.');
+      }
+      return 'qa-mock-expo-push-token';
+    }
+
     const hasPermission = await requestNotificationPermission();
     if (!hasPermission) {
       return null;

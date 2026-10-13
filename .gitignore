@@ -7,6 +7,12 @@ database.db
 database.db-*
 database.db-shm
 database.db-wal
+database.qa.db
+database.qa.db-*
+database.qa.db-shm
+database.qa.db-wal
+*.qa.db
+*.qa.db-*
 .DS_Store
 scratch/
 mobile-test/

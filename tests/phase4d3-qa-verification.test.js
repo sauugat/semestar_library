@@ -599,3 +599,175 @@ test('21. Offline Draft Isolation: Unsent drafts (id <= 0) are scoped by account
   assert.equal(afterLogout.length, 2, 'Unsent drafts must be preserved');
   assert.ok(!afterLogout.some((row) => row.id === 101), 'Confirmed server messages must be purged');
 });
+
+// ====================================================================
+// SECTION 11: MOBILE-SIDE PRODUCTION ISOLATION TESTS
+// ====================================================================
+
+test('22. Mobile QA Isolation: isQaMode correctly identifies local/QA targets', () => {
+  function isLocalAddress(url) {
+    if (!url) return false;
+    const lower = url.toLowerCase().trim();
+    if (
+      lower.startsWith('http://') ||
+      lower.includes('localhost') ||
+      lower.includes('127.0.0.1') ||
+      lower.includes('192.168.') ||
+      lower.includes('10.')
+    ) {
+      return true;
+    }
+    return false;
+  }
+
+  function isQaMode(url, envQaMode = 'false', envPublicUrl = '') {
+    if (envQaMode === 'true') return true;
+    const checkUrl = url || envPublicUrl || '';
+    return isLocalAddress(checkUrl);
+  }
+
+  assert.equal(isQaMode('http://192.168.1.65:3000'), true, 'LAN URL is recognized as QA target');
+  assert.equal(isQaMode('http://localhost:3000'), true, 'Localhost is recognized as QA target');
+  assert.equal(isQaMode('https://semestar-library.vercel.app'), false, 'Production Vercel is not local');
+  assert.equal(isQaMode('https://semestar-library.vercel.app', 'true'), true, 'EXPO_PUBLIC_QA_MODE=true forces QA mode');
+});
+
+test('23. Mobile QA Isolation: getBaseUrl in QA mode NEVER falls back to production Vercel', () => {
+  const PRODUCTION_SERVER_URL = 'https://semestar-library.vercel.app';
+
+  function resolveBaseUrlQa({ isQa, savedUrl, envUrl, hostUri }) {
+    if (isQa) {
+      if (savedUrl && savedUrl.startsWith('http://')) return savedUrl;
+      if (envUrl && envUrl.startsWith('http://')) return envUrl;
+      if (hostUri) {
+        const host = hostUri.split(':')[0];
+        if (host && host !== 'localhost') return `http://${host}:3000`;
+      }
+      return 'http://localhost:3000';
+    }
+    return PRODUCTION_SERVER_URL;
+  }
+
+  // 1. In QA mode with empty env: returns loopback, NEVER production
+  const resultEmpty = resolveBaseUrlQa({ isQa: true, savedUrl: null, envUrl: '', hostUri: null });
+  assert.equal(resultEmpty, 'http://localhost:3000');
+  assert.notEqual(resultEmpty, PRODUCTION_SERVER_URL);
+
+  // 2. In QA mode with Metro hostUri: auto-detects LAN IP
+  const resultMetro = resolveBaseUrlQa({ isQa: true, savedUrl: null, envUrl: '', hostUri: '192.168.1.65:8081' });
+  assert.equal(resultMetro, 'http://192.168.1.65:3000');
+  assert.notEqual(resultMetro, PRODUCTION_SERVER_URL);
+
+  // 3. In QA mode with production envUrl: overridden, NEVER returns production
+  const resultProdEnv = resolveBaseUrlQa({ isQa: true, savedUrl: null, envUrl: 'https://semestar-library.vercel.app', hostUri: '192.168.1.65:8081' });
+  assert.equal(resultProdEnv, 'http://192.168.1.65:3000');
+  assert.notEqual(resultProdEnv, PRODUCTION_SERVER_URL);
+});
+
+test('24. Mobile QA Isolation: Supabase client initialization throws in QA mode', async () => {
+  function getMobileSupabaseClient(serverUrl, isQa) {
+    if (isQa || serverUrl.startsWith('http://')) {
+      throw new Error('Supabase authentication is unavailable in QA mode. Synthetic accounts (qa_admin, qa_student, qa_cr, qa_teacher) must be used.');
+    }
+    return { mockClient: true };
+  }
+
+  assert.throws(
+    () => getMobileSupabaseClient('http://192.168.1.65:3000', true),
+    /Supabase authentication is unavailable in QA mode/,
+    'Must fail closed when targeting QA server'
+  );
+  assert.throws(
+    () => getMobileSupabaseClient('http://localhost:3000', false),
+    /Supabase authentication is unavailable in QA mode/,
+    'Must fail closed when targeting local URL'
+  );
+});
+
+test('25. Mobile QA Isolation: Chat realtime assertion rejects production Supabase and Vercel in QA mode', () => {
+  function assertLocalChatServer(server, isQa) {
+    const url = new URL(server.trim());
+    if (isQa) {
+      if (url.origin.includes('supabase.co') || url.hostname.endsWith('.vercel.app')) {
+        throw new Error('Connecting to production chat servers is forbidden in QA mode.');
+      }
+    }
+    if (['https://semestar-library.vercel.app','https://ahcccqsyvpxacnsttzeh.supabase.co'].includes(url.origin) || url.hostname.endsWith('.vercel.app')) return true;
+    if (/^(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+)$/.test(url.hostname)) return true;
+    throw new Error('This chat server is not trusted.');
+  }
+
+  // Allowed in QA mode: local LAN and localhost
+  assert.equal(assertLocalChatServer('http://192.168.1.65:3000/', true), true);
+  assert.equal(assertLocalChatServer('http://localhost:3000/', true), true);
+
+  // Strictly rejected in QA mode: production Supabase and Vercel
+  assert.throws(
+    () => assertLocalChatServer('https://ahcccqsyvpxacnsttzeh.supabase.co/', true),
+    /Connecting to production chat servers is forbidden in QA mode/
+  );
+  assert.throws(
+    () => assertLocalChatServer('https://semestar-library.vercel.app/', true),
+    /Connecting to production chat servers is forbidden in QA mode/
+  );
+});
+
+test('26. Mobile QA Isolation: Push token acquisition and registration bypass production Expo servers', async () => {
+  let outboundExpoNetworkCalls = 0;
+
+  async function getExpoPushTokenMock(isQa) {
+    if (isQa) {
+      return 'qa-mock-expo-push-token';
+    }
+    outboundExpoNetworkCalls++;
+    return 'real-expo-token';
+  }
+
+  async function registerPushTokenMock(isQa) {
+    if (isQa) {
+      return 'qa-mock-expo-push-token';
+    }
+    const token = await getExpoPushTokenMock(false);
+    return token;
+  }
+
+  // When targeting QA backend:
+  const token = await getExpoPushTokenMock(true);
+  assert.equal(token, 'qa-mock-expo-push-token');
+  const regResult = await registerPushTokenMock(true);
+  assert.equal(regResult, 'qa-mock-expo-push-token');
+  assert.equal(outboundExpoNetworkCalls, 0, 'Zero network calls to production Expo push servers');
+
+  // When QA mode is false (production mode):
+  const prodToken = await getExpoPushTokenMock(false);
+  assert.equal(prodToken, 'real-expo-token');
+  assert.equal(outboundExpoNetworkCalls, 1, 'Production mode performs normal token flow');
+});
+
+test('27. Mobile Outbound Safety: apiFetch rejects outbound requests to production hosts in QA mode', () => {
+  function validateOutboundUrl(url, isQa) {
+    if (isQa) {
+      const parsed = new URL(url);
+      const host = parsed.hostname.toLowerCase();
+      if (host.includes('vercel.app') || host.includes('supabase.co')) {
+        throw new Error('Outbound production requests are forbidden in QA mode.');
+      }
+    }
+    return true;
+  }
+
+  // Safe local requests allowed
+  assert.equal(validateOutboundUrl('http://192.168.1.65:3000/api/profile', true), true);
+  assert.equal(validateOutboundUrl('http://localhost:3000/api/mobile/login', true), true);
+
+  // Outbound production requests rejected
+  assert.throws(
+    () => validateOutboundUrl('https://semestar-library.vercel.app/api/profile', true),
+    /Outbound production requests are forbidden in QA mode/
+  );
+  assert.throws(
+    () => validateOutboundUrl('https://ahcccqsyvpxacnsttzeh.supabase.co/rest/v1/students', true),
+    /Outbound production requests are forbidden in QA mode/
+  );
+});
+

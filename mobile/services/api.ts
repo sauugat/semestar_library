@@ -97,9 +97,20 @@ export function isTrustedServerUrl(url: string): boolean {
   }
 }
 
+/**
+ * Detects whether the app is configured or connected to a QA / local development backend.
+ */
+export function isQaMode(url?: string): boolean {
+  if (process.env.EXPO_PUBLIC_QA_MODE === 'true' || process.env.QA_MODE === 'true') {
+    return true;
+  }
+  const checkUrl = url || process.env.EXPO_PUBLIC_API_URL || '';
+  return isLocalAddress(checkUrl);
+}
+
 export function getAutoDetectedServerUrl(): string {
   try {
-    if (__DEV__ && process.env.EXPO_PUBLIC_AUTO_DETECT_LAN === 'true') {
+    if (__DEV__) {
       const hostUri = Constants.expoConfig?.hostUri || (Constants as any).manifest2?.extra?.expoGo?.debuggerHost;
       if (hostUri) {
         const host = hostUri.split(':')[0];
@@ -113,6 +124,38 @@ export function getAutoDetectedServerUrl(): string {
 }
 
 export async function getBaseUrl(): Promise<string> {
+  // In QA mode, NEVER allow silent fallback to production
+  if (isQaMode()) {
+    // 1. Allow developer override from SecureStore if it is a local address
+    try {
+      const saved = await SecureStore.getItemAsync(SERVER_URL_STORAGE_KEY);
+      if (saved && saved.trim()) {
+        const cleanSaved = saved.trim().replace(/\/+$/, '');
+        if (isLocalAddress(cleanSaved)) {
+          return cleanSaved;
+        }
+        await SecureStore.deleteItemAsync(SERVER_URL_STORAGE_KEY).catch(() => {});
+      }
+    } catch {}
+
+    // 2. Explicit environment variable EXPO_PUBLIC_API_URL if it is a local address
+    if (process.env.EXPO_PUBLIC_API_URL && process.env.EXPO_PUBLIC_API_URL.trim()) {
+      const envUrl = process.env.EXPO_PUBLIC_API_URL.trim().replace(/\/+$/, '');
+      if (isLocalAddress(envUrl)) {
+        return envUrl;
+      }
+    }
+
+    // 3. Auto-detected LAN server from Metro hostUri
+    const autoUrl = getAutoDetectedServerUrl();
+    if (autoUrl && isLocalAddress(autoUrl)) {
+      return autoUrl;
+    }
+
+    // 4. Safe QA fallback: loopback on port 3000 (never production!)
+    return 'http://localhost:3000';
+  }
+
   // In production builds (!__DEV__), NEVER allow custom/arbitrary server URL overrides.
   // Purge any stored key and lock strictly to trusted production configuration.
   // Ensure development URL overrides cannot accidentally redirect production builds to a local HTTP address.
@@ -217,6 +260,18 @@ export async function apiFetch(
   const preparationMs = Date.now() - preparationStart;
 
   const url = endpoint.startsWith('http') ? endpoint : `${baseUrl}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
+
+  if (isQaMode()) {
+    try {
+      const parsed = new URL(url);
+      const host = parsed.hostname.toLowerCase();
+      if (host.includes('vercel.app') || host.includes('supabase.co')) {
+        throw new ApiError('Outbound production requests are forbidden in QA mode.', 403, { code: 'QA_ISOLATION_VIOLATION' });
+      }
+    } catch (e) {
+      if (e instanceof ApiError) throw e;
+    }
+  }
 
   // Prepare headers as a plain dictionary for React Native fetch / Hermes compatibility
   const headers: Record<string, string> = {};

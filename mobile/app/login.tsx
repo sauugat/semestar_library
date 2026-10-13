@@ -25,6 +25,7 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Screen } from '@/components/ui/Screen';
 import { KeyboardAwareForm } from '@/components/ui/KeyboardAwareForm';
 import { getMobileSupabaseClient } from '@/services/supabase';
+import { isQaMode, isLocalAddress } from '@/services/api';
 
 const DEPARTMENTS = ['BIT', 'BBA', 'BPharm', 'BTech', 'BLLB'];
 const SEMESTERS = [
@@ -304,6 +305,12 @@ export default function LoginScreen() {
     setVerifyingEmailLoading(true);
     resetFeedback();
 
+    if (isQaMode(serverUrl) || isLocalAddress(serverUrl)) {
+      setErrorMessage('Account registration is unavailable in QA mode. Please log in using one of the synthetic QA accounts (qa_admin, qa_student, qa_cr, qa_teacher).');
+      setVerifyingEmailLoading(false);
+      return;
+    }
+
     try {
       // 1. Check availability with backend
       const checkRes = await fetch(`${serverUrl}/api/auth/check-availability`, {
@@ -544,6 +551,11 @@ export default function LoginScreen() {
       return;
     }
 
+    if (isQaMode(serverUrl) || isLocalAddress(serverUrl)) {
+      setErrorMessage('Password reset is unavailable in QA mode. Deterministic credentials: qa_admin (QaAdmin123!), qa_student (QaStudent123!), qa_cr (QaCr123!), qa_teacher (QaTeacher123!).');
+      return;
+    }
+
     setLoading(true);
     resetFeedback();
 
@@ -560,6 +572,11 @@ export default function LoginScreen() {
   const handleResendVerification = async () => {
     const target = identifier.trim() || fpIdentifier.trim();
     if (!target) return;
+
+    if (isQaMode(serverUrl) || isLocalAddress(serverUrl)) {
+      setErrorMessage('Email verification is unavailable in QA mode.');
+      return;
+    }
 
     setLoading(true);
     const result = await resendVerification(target);

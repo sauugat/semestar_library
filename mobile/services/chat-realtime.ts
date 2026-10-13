@@ -3,7 +3,7 @@ import { fetchRealtimeConfig, type ChatMessage, type ChatReadReceipt } from './c
 import { applyCachedChatEvent } from './chat-db';
 import { CHAT_EVENTS, decodeChatEvent } from './chat-events';
 import { assertLocalChatServer, getChatSession, isCurrentChatSession, subscribeChatSession } from './chat-session';
-import { ApiError } from './api';
+import { ApiError, isLocalAddress, isQaMode } from './api';
 
 type Subscriber = {
   onNewMessage?: (message: ChatMessage) => void; onDeleteMessage?: (id: number) => void;
@@ -53,6 +53,14 @@ export async function initChatRealtime(_studentId?: string, _serverUrl?: string)
       // The authenticated backend supplies the pinned provider's public settings.
       // Room credentials remain short-lived and private; no singleton fallback.
       if (!config.url || !config.key) return;
+      if (isQaMode(start.server) || isLocalAddress(start.server)) {
+        if (config.url.includes('supabase.co') || config.url.includes('vercel.app')) {
+          if (__DEV__) {
+            console.log('[Chat Realtime] QA Mode active: Skipped connecting to production realtime provider.');
+          }
+          return;
+        }
+      }
       assertLocalChatServer(config.url);
       const local = createClient(config.url, config.key, { auth: { persistSession: false, autoRefreshToken: false } });
       client = local;

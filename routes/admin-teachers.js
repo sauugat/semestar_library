@@ -40,7 +40,7 @@ function createAdminTeachersRouter(arg1, arg2) {
       if (!student || student.role !== 'admin' || (student.account_status || 'active') === 'suspended') {
         return res.status(403).json({ message: 'Forbidden: Administrator access required.' });
       }
-      req.adminStudentId = student.studentId;
+      req.adminStudentId = student.studentId || student.studentid;
       next();
     } catch (err) {
       return res.status(500).json({ message: 'Authorization check failed.' });

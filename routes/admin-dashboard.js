@@ -41,7 +41,9 @@ function createAdminDashboardRouter(arg1, arg2) {
       if (!student || student.role !== 'admin' || (student.account_status || 'active') === 'suspended') {
         return res.status(403).json({ message: 'Forbidden: Administrator access required.' });
       }
-      req.adminStudentId = student.studentId;
+      const resolvedAdminId = student.studentId || student.studentid;
+      req.adminStudentId = resolvedAdminId;
+      student.studentId = resolvedAdminId;
       req.adminUser = student;
       next();
     } catch (err) {
@@ -312,16 +314,7 @@ function createAdminDashboardRouter(arg1, arg2) {
           await tx.run('DELETE FROM mobile_tokens WHERE studentId = ?', targetId);
         } catch (_) {}
 
-        // 3. Best-effort active session invalidation in session store
-        try {
-          if (tx.isPostgres) {
-            await tx.run(`DELETE FROM session WHERE sess::text LIKE '%"studentId":"' || $1 || '"%'`, targetId);
-          } else {
-            await tx.run(`DELETE FROM session WHERE sess LIKE '%"studentId":"' || ? || '"%'`, targetId);
-          }
-        } catch (_) {}
-
-        // 4. Record immutable administrative audit record within the exact same database transaction
+        // 3. Record immutable administrative audit record within the exact same database transaction
         await recordAdminAudit(tx, {
           actorUserId: req.adminStudentId,
           action: 'account_suspended',
@@ -351,6 +344,15 @@ function createAdminDashboardRouter(arg1, arg2) {
       const suspendedUser = typeof db.withTransaction === 'function'
         ? await db.withTransaction(runSuspend)
         : await runSuspend(db);
+
+      // Best-effort active session invalidation in session store (post-commit)
+      try {
+        if (db.isPostgres) {
+          await db.run(`DELETE FROM session WHERE sess::text LIKE '%"studentId":"' || $1 || '"%'`, targetId);
+        } else {
+          await db.run(`DELETE FROM session WHERE sess LIKE '%"studentId":"' || ? || '"%'`, targetId);
+        }
+      } catch (_) {}
 
       res.json({
         success: true,
@@ -686,14 +688,7 @@ function createAdminDashboardRouter(arg1, arg2) {
           targetId
         );
 
-        // 2. Best-effort session update for active Express sessions
-        try {
-          if (tx.isPostgres) {
-            await tx.run(`UPDATE session SET sess = jsonb_set(sess::jsonb, '{role}', '"cr"') WHERE sess::text LIKE '%"studentId":"' || $1 || '"%'`, targetId);
-          }
-        } catch (_) {}
-
-        // 3. Record immutable administrative audit record within the exact same database transaction
+        // 2. Record immutable administrative audit record within the exact same database transaction
         await recordAdminAudit(tx, {
           actorUserId: req.adminStudentId,
           action: 'student_promoted_to_cr',
@@ -726,6 +721,13 @@ function createAdminDashboardRouter(arg1, arg2) {
       const promotedUser = typeof db.withTransaction === 'function'
         ? await db.withTransaction(runPromote)
         : await runPromote(db);
+
+      // Best-effort session update for active Express sessions (post-commit)
+      try {
+        if (db.isPostgres) {
+          await db.run(`UPDATE session SET sess = jsonb_set(sess::jsonb, '{role}', '"cr"') WHERE sess::text LIKE '%"studentId":"' || $1 || '"%'`, targetId);
+        }
+      } catch (_) {}
 
       res.json({
         success: true,
@@ -816,14 +818,7 @@ function createAdminDashboardRouter(arg1, arg2) {
           targetId
         );
 
-        // 2. Best-effort session update for active Express sessions
-        try {
-          if (tx.isPostgres) {
-            await tx.run(`UPDATE session SET sess = jsonb_set(sess::jsonb, '{role}', '"student"') WHERE sess::text LIKE '%"studentId":"' || $1 || '"%'`, targetId);
-          }
-        } catch (_) {}
-
-        // 3. Record immutable administrative audit record within the exact same database transaction
+        // 2. Record immutable administrative audit record within the exact same database transaction
         await recordAdminAudit(tx, {
           actorUserId: req.adminStudentId,
           action: 'cr_demoted_to_student',
@@ -856,6 +851,13 @@ function createAdminDashboardRouter(arg1, arg2) {
       const demotedUser = typeof db.withTransaction === 'function'
         ? await db.withTransaction(runDemote)
         : await runDemote(db);
+
+      // Best-effort session update for active Express sessions (post-commit)
+      try {
+        if (db.isPostgres) {
+          await db.run(`UPDATE session SET sess = jsonb_set(sess::jsonb, '{role}', '"student"') WHERE sess::text LIKE '%"studentId":"' || $1 || '"%'`, targetId);
+        }
+      } catch (_) {}
 
       res.json({
         success: true,

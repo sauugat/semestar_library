@@ -3,28 +3,31 @@ const path = require('path');
 const fs = require('fs');
 const bcrypt = require('bcryptjs');
 
-// Load environment variables if .env exists
+// Load environment variables if .env exists (shielded when isolated QA mode is active)
 try {
-  const envPath = path.join(__dirname, '.env');
-  if (fs.existsSync(envPath)) {
-    const content = fs.readFileSync(envPath, 'utf8');
-    content.split('\n').forEach(line => {
-      const trimmed = line.trim();
-      if (trimmed && !trimmed.startsWith('#')) {
-        const eqIdx = trimmed.indexOf('=');
-        if (eqIdx > 0) {
-          const key = trimmed.substring(0, eqIdx).trim();
-          const val = trimmed.substring(eqIdx + 1).trim();
-          if (!process.env[key]) process.env[key] = val;
+  if (process.env.QA_MODE !== 'true') {
+    const envPath = path.join(__dirname, '.env');
+    if (fs.existsSync(envPath)) {
+      const content = fs.readFileSync(envPath, 'utf8');
+      content.split('\n').forEach(line => {
+        const trimmed = line.trim();
+        if (trimmed && !trimmed.startsWith('#')) {
+          const eqIdx = trimmed.indexOf('=');
+          if (eqIdx > 0) {
+            const key = trimmed.substring(0, eqIdx).trim();
+            const val = trimmed.substring(eqIdx + 1).trim();
+            if (!process.env[key]) process.env[key] = val;
+          }
         }
-      }
-    });
+      });
+    }
   }
 } catch (e) { }
 
 const isTest = process.env.NODE_ENV === 'test';
-const isPostgres = !isTest && !!(process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.PGHOST);
-const isTurso = !isTest && !!(process.env.TURSO_DATABASE_URL || process.env.LIBSQL_URL);
+const isQa = process.env.QA_MODE === 'true';
+const isPostgres = !isTest && !isQa && !!(process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.PGHOST);
+const isTurso = !isTest && !isQa && !!(process.env.TURSO_DATABASE_URL || process.env.LIBSQL_URL);
 
 let pgPool = null;
 let libsqlClient = null;
@@ -54,9 +57,10 @@ if (isPostgres) {
     dbUrl = process.env.TURSO_DATABASE_URL || process.env.LIBSQL_URL;
     console.log('[DB Engine]: Connected to Turso/LibSQL Database');
   } else {
-    const dbPath = process.env.DB_PATH || (process.env.VERCEL ? path.join('/tmp', 'database.db') : path.join(__dirname, 'database.db'));
+    const defaultDbName = isQa ? 'database.qa.db' : 'database.db';
+    const dbPath = process.env.DB_PATH || (process.env.VERCEL ? path.join('/tmp', defaultDbName) : path.join(__dirname, defaultDbName));
     dbUrl = dbPath === ':memory:' ? 'file::memory:?cache=shared' : `file:${dbPath}`;
-    console.log(`[DB Engine]: Connected to local SQLite database at ${dbUrl}`);
+    console.log(`[DB Engine]: Connected to ${isQa ? 'isolated QA SQLite' : 'local SQLite'} database at ${dbUrl}`);
   }
 
   libsqlClient = createClient({

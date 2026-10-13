@@ -52,7 +52,7 @@ const { url: supabaseUrl, key: supabaseKey } = getSupabaseConfig();
 let supabase = null;
 let broadcastChannel = null;
 
-if (process.env.NODE_ENV !== 'test' && supabaseUrl && supabaseKey) {
+if (process.env.NODE_ENV !== 'test' && process.env.QA_MODE !== 'true' && supabaseUrl && supabaseKey) {
   try {
     supabase = createClient(supabaseUrl, supabaseKey);
     broadcastChannel = supabase.channel('public:chat_messages');
@@ -6529,6 +6529,10 @@ const server = http.createServer(app);
 setupCompilerWebSocket(server);
 
 if (require.main === module) {
+  if (process.env.QA_MODE === 'true') {
+    const { assertSafeQaEnvironment } = require('./lib/qa-guard');
+    assertSafeQaEnvironment();
+  }
   const PORT = process.env.PORT || 3000;
   const HOST = process.env.HOST || '0.0.0.0';
   server.listen(PORT, HOST, () => {

@@ -95,7 +95,7 @@ export function AdminCohortsModal({ visible, onClose }: AdminCohortsModalProps) 
                 <View style={styles.cardTop}>
                   <View>
                     <Text style={[styles.cohortName, { color: colors.text }]}>{item.display_name}</Text>
-                    <Caption style={{ color: colors.textSecondary }}>Slot: {item.slot_code.toUpperCase()}</Caption>
+                    <Caption style={{ color: colors.textSecondary }}>Slot: {item.slot_code?.toUpperCase() ?? 'N/A'}</Caption>
                   </View>
                   <Badge
                     label={item.status === 'active' ? 'Active' : item.status || 'Active'}

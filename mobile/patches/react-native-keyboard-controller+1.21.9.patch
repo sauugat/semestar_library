@@ -1,0 +1,156 @@
+diff --git a/node_modules/react-native-keyboard-controller/lib/commonjs/bindings.native.js b/node_modules/react-native-keyboard-controller/lib/commonjs/bindings.native.js
+index af23965..5265b43 100644
+--- a/node_modules/react-native-keyboard-controller/lib/commonjs/bindings.native.js
++++ b/node_modules/react-native-keyboard-controller/lib/commonjs/bindings.native.js
+@@ -11,11 +11,19 @@ const LINKING_ERROR = `The package 'react-native-keyboard-controller' doesn't se
+ }) + "- You rebuilt the app after installing the package\n" + "- You are not using Expo Go\n";
+ const KeyboardControllerViewNativeComponentModule = require("./specs/KeyboardControllerViewNativeComponent");
+ const RCTKeyboardController = require("./specs/NativeKeyboardController").default;
+-const KeyboardControllerNative = exports.KeyboardControllerNative = RCTKeyboardController ? RCTKeyboardController : new Proxy({}, {
+-  get() {
+-    throw new Error(LINKING_ERROR);
+-  }
+-});
++const NOOP = () => {};
++const fallbackController = {
++  setDefaultMode: NOOP,
++  setInputMode: NOOP,
++  preload: NOOP,
++  dismiss: NOOP,
++  setFocusTo: NOOP,
++  viewPositionInWindow: () => Promise.resolve({ x: 0, y: 0, width: 0, height: 0 }),
++  addListener: NOOP,
++  removeListeners: NOOP,
++  getConstants: () => ({ keyboardBorderRadius: 0 }),
++};
++const KeyboardControllerNative = exports.KeyboardControllerNative = RCTKeyboardController ? RCTKeyboardController : fallbackController;
+ const KEYBOARD_CONTROLLER_NAMESPACE = "KeyboardController::";
+ const eventEmitter = new _reactNative.NativeEventEmitter(KeyboardControllerNative);
+ const KeyboardEvents = exports.KeyboardEvents = {
+diff --git a/node_modules/react-native-keyboard-controller/lib/module/bindings.native.js b/node_modules/react-native-keyboard-controller/lib/module/bindings.native.js
+index 6183bb5..65fffec 100644
+--- a/node_modules/react-native-keyboard-controller/lib/module/bindings.native.js
++++ b/node_modules/react-native-keyboard-controller/lib/module/bindings.native.js
+@@ -5,11 +5,19 @@ const LINKING_ERROR = `The package 'react-native-keyboard-controller' doesn't se
+ }) + "- You rebuilt the app after installing the package\n" + "- You are not using Expo Go\n";
+ const KeyboardControllerViewNativeComponentModule = require("./specs/KeyboardControllerViewNativeComponent");
+ const RCTKeyboardController = require("./specs/NativeKeyboardController").default;
+-export const KeyboardControllerNative = RCTKeyboardController ? RCTKeyboardController : new Proxy({}, {
+-  get() {
+-    throw new Error(LINKING_ERROR);
+-  }
+-});
++const NOOP = () => {};
++const fallbackController = {
++  setDefaultMode: NOOP,
++  setInputMode: NOOP,
++  preload: NOOP,
++  dismiss: NOOP,
++  setFocusTo: NOOP,
++  viewPositionInWindow: () => Promise.resolve({ x: 0, y: 0, width: 0, height: 0 }),
++  addListener: NOOP,
++  removeListeners: NOOP,
++  getConstants: () => ({ keyboardBorderRadius: 0 }),
++};
++export const KeyboardControllerNative = RCTKeyboardController ? RCTKeyboardController : fallbackController;
+ const KEYBOARD_CONTROLLER_NAMESPACE = "KeyboardController::";
+ const eventEmitter = new NativeEventEmitter(KeyboardControllerNative);
+ export const KeyboardEvents = {
+@@ -26,16 +34,18 @@ export const FocusedInputEvents = {
+ export const WindowDimensionsEvents = {
+   addListener: (name, cb) => eventEmitter.addListener(KEYBOARD_CONTROLLER_NAMESPACE + name, cb)
+ };
+-export const KeyboardControllerView = KeyboardControllerViewNativeComponentModule.default;
+-export const KeyboardControllerViewCommands = KeyboardControllerViewNativeComponentModule.Commands;
+-export const KeyboardGestureArea = Platform.OS === "android" && Platform.Version >= 30 || Platform.OS === "ios" ? require("./specs/KeyboardGestureAreaNativeComponent").default : ({
++import { View } from "react-native";
++
++export const KeyboardControllerView = RCTKeyboardController ? KeyboardControllerViewNativeComponentModule.default : View;
++export const KeyboardControllerViewCommands = RCTKeyboardController ? KeyboardControllerViewNativeComponentModule.Commands : { synchronizeFocusedInputLayout: () => {} };
++export const KeyboardGestureArea = RCTKeyboardController && (Platform.OS === "android" && Platform.Version >= 30 || Platform.OS === "ios") ? require("./specs/KeyboardGestureAreaNativeComponent").default : ({
+   children
+ }) => children;
+-export const RCTOverKeyboardView = require("./specs/OverKeyboardViewNativeComponent").default;
+-export const KeyboardBackgroundView = require("./specs/KeyboardBackgroundViewNativeComponent").default;
+-export const RCTKeyboardExtender = Platform.OS === "ios" ? require("./specs/KeyboardExtenderNativeComponent").default : ({
++export const RCTOverKeyboardView = RCTKeyboardController ? require("./specs/OverKeyboardViewNativeComponent").default : View;
++export const KeyboardBackgroundView = RCTKeyboardController ? require("./specs/KeyboardBackgroundViewNativeComponent").default : View;
++export const RCTKeyboardExtender = RCTKeyboardController && Platform.OS === "ios" ? require("./specs/KeyboardExtenderNativeComponent").default : ({
+   children
+ }) => children;
+-export const ClippingScrollView = require("./specs/ClippingScrollViewDecoratorViewNativeComponent").default;
+-export const RCTKeyboardToolbarGroupView = require("./specs/KeyboardToolbarGroupViewNativeComponent").default;
++export const ClippingScrollView = RCTKeyboardController ? require("./specs/ClippingScrollViewDecoratorViewNativeComponent").default : View;
++export const RCTKeyboardToolbarGroupView = RCTKeyboardController ? require("./specs/KeyboardToolbarGroupViewNativeComponent").default : View;
+ //# sourceMappingURL=bindings.native.js.map
+\ No newline at end of file
+diff --git a/node_modules/react-native-keyboard-controller/src/bindings.native.ts b/node_modules/react-native-keyboard-controller/src/bindings.native.ts
+index 8f29cc1..365f163 100644
+--- a/node_modules/react-native-keyboard-controller/src/bindings.native.ts
++++ b/node_modules/react-native-keyboard-controller/src/bindings.native.ts
+@@ -23,17 +23,21 @@ const KeyboardControllerViewNativeComponentModule = require("./specs/KeyboardCon
+ const RCTKeyboardController =
+   require("./specs/NativeKeyboardController").default;
+ 
++const NOOP = () => {};
++const fallbackController: any = {
++  setDefaultMode: NOOP,
++  setInputMode: NOOP,
++  preload: NOOP,
++  dismiss: NOOP,
++  setFocusTo: NOOP,
++  viewPositionInWindow: () => Promise.resolve({ x: 0, y: 0, width: 0, height: 0 }),
++  addListener: NOOP,
++  removeListeners: NOOP,
++  getConstants: () => ({ keyboardBorderRadius: 0 }),
++};
++
+ export const KeyboardControllerNative = (
+-  RCTKeyboardController
+-    ? RCTKeyboardController
+-    : new Proxy(
+-        {},
+-        {
+-          get() {
+-            throw new Error(LINKING_ERROR);
+-          },
+-        },
+-      )
++  RCTKeyboardController ? RCTKeyboardController : fallbackController
+ ) as KeyboardControllerNativeModule;
+ 
+ const KEYBOARD_CONTROLLER_NAMESPACE = "KeyboardController::";
+@@ -56,23 +60,25 @@ export const WindowDimensionsEvents: WindowDimensionsEventsModule = {
+   addListener: (name, cb) =>
+     eventEmitter.addListener(KEYBOARD_CONTROLLER_NAMESPACE + name, cb),
+ };
++import { View } from "react-native";
++
+ export const KeyboardControllerView: React.FC<KeyboardControllerProps> =
+-  KeyboardControllerViewNativeComponentModule.default;
++  RCTKeyboardController ? KeyboardControllerViewNativeComponentModule.default : (View as any);
+ export const KeyboardControllerViewCommands =
+-  KeyboardControllerViewNativeComponentModule.Commands;
++  RCTKeyboardController ? KeyboardControllerViewNativeComponentModule.Commands : { synchronizeFocusedInputLayout: () => {} };
+ export const KeyboardGestureArea: React.FC<KeyboardGestureAreaProps> =
+-  (Platform.OS === "android" && Platform.Version >= 30) || Platform.OS === "ios"
++  (RCTKeyboardController && ((Platform.OS === "android" && Platform.Version >= 30) || Platform.OS === "ios"))
+     ? require("./specs/KeyboardGestureAreaNativeComponent").default
+     : ({ children }: KeyboardGestureAreaProps) => children;
+ export const RCTOverKeyboardView: React.FC<OverKeyboardViewProps> =
+-  require("./specs/OverKeyboardViewNativeComponent").default;
++  RCTKeyboardController ? require("./specs/OverKeyboardViewNativeComponent").default : (View as any);
+ export const KeyboardBackgroundView: React.FC<KeyboardBackgroundViewProps> =
+-  require("./specs/KeyboardBackgroundViewNativeComponent").default;
++  RCTKeyboardController ? require("./specs/KeyboardBackgroundViewNativeComponent").default : (View as any);
+ export const RCTKeyboardExtender: React.FC<KeyboardExtenderProps> =
+-  Platform.OS === "ios"
++  (RCTKeyboardController && Platform.OS === "ios")
+     ? require("./specs/KeyboardExtenderNativeComponent").default
+     : ({ children }: KeyboardExtenderProps) => children;
+ export const ClippingScrollView: React.FC<KeyboardBackgroundViewProps> =
+-  require("./specs/ClippingScrollViewDecoratorViewNativeComponent").default;
++  RCTKeyboardController ? require("./specs/ClippingScrollViewDecoratorViewNativeComponent").default : (View as any);
+ export const RCTKeyboardToolbarGroupView: React.FC<KeyboardToolbarGroupViewProps> =
+-  require("./specs/KeyboardToolbarGroupViewNativeComponent").default;
++  RCTKeyboardController ? require("./specs/KeyboardToolbarGroupViewNativeComponent").default : (View as any);

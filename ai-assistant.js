@@ -160,12 +160,11 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
 
   // Handle relative reference follow-up: e.g. "second wala khola"
   if (route.kind === 'relative_reference') {
-    const priorAssistant = [...cleanHistory].reverse().find(m => m.role === 'assistant');
+    const priorAssistant = [...cleanHistory].reverse().find(m => m.role === 'assistant' && ((m.metadata?.resourceCards && m.metadata.resourceCards.length > 0) || (m.resourceCards && m.resourceCards.length > 0)));
     let targetCard = null;
-    if (priorAssistant?.metadata?.resourceCards?.length) {
-      targetCard = priorAssistant.metadata.resourceCards[route.index] || priorAssistant.metadata.resourceCards[0];
-    } else if (priorAssistant?.resourceCards?.length) {
-      targetCard = priorAssistant.resourceCards[route.index] || priorAssistant.resourceCards[0];
+    const cards = priorAssistant?.metadata?.resourceCards || priorAssistant?.resourceCards || [];
+    if (cards.length > 0) {
+      targetCard = cards[route.index] || cards[0];
     }
     if (targetCard) {
       result.reply = `${targetCard.title} open gardai chu.`;

@@ -133,7 +133,7 @@ export default function LudoInvitationScreen() {
       setScreenState('accepted');
       // Navigate to online Ludo room with JOIN intent
       router.replace({
-        pathname: '/games/ludo/online/[roomId]',
+        pathname: '/games/ludo/online/[roomId]' as any,
         params: { roomId: res.roomId, intent: 'join' },
       });
     } catch (err: any) {
@@ -488,7 +488,7 @@ export default function LudoInvitationScreen() {
                     title="Open Match"
                     onPress={() => {
                       router.replace({
-                        pathname: '/games/ludo/online/[roomId]',
+                        pathname: '/games/ludo/online/[roomId]' as any,
                         params: { roomId: invitation.roomId, intent: 'join' },
                       });
                     }}

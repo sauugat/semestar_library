@@ -263,3 +263,62 @@ test('Endpoint POST /api/games/ticket: fails closed (500) if secret is unconfigu
     process.env.GAMES_TICKET_SECRET = savedSecret;
   }
 });
+
+test('Endpoint POST /api/games/ticket: suspended accounts are rejected with 403 and cannot obtain tickets', async () => {
+  // Suspend the test student
+  await db.run(
+    `UPDATE students SET account_status = 'suspended' WHERE studentId = ?`,
+    testStudentId
+  );
+
+  try {
+    const res = await fetch(`${baseUrl}/api/games/ticket`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${testMobileToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    assert.equal(res.status, 403, 'Suspended account must be rejected with 403');
+    const data = await res.json();
+    assert.equal(data.code, 'ACCOUNT_SUSPENDED');
+  } finally {
+    // Restore active status
+    await db.run(
+      `UPDATE students SET account_status = 'active' WHERE studentId = ?`,
+      testStudentId
+    );
+  }
+});
+
+test('Ticket Security: expired tickets are rejected', () => {
+  // Create a manually expired ticket
+  const user = { studentId: 'student_expired', username: 'expired_user' };
+  const now = Math.floor(Date.now() / 1000);
+  const crypto = require('crypto');
+  const payload = {
+    v: 1,
+    sub: 'student_expired',
+    username: 'expired_user',
+    name: 'Expired Player',
+    avatarUrl: null,
+    iss: 'semester-library',
+    aud: 'semester-games',
+    iat: now - 400,
+    exp: now - 100, // Expired 100 seconds ago
+    jti: crypto.randomUUID(),
+  };
+
+  const payloadB64 = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
+  const signingInput = `v1.${payloadB64}`;
+  const signature = crypto
+    .createHmac('sha256', TEST_SECRET)
+    .update(signingInput)
+    .digest('base64url');
+  const expiredTicket = `${signingInput}.${signature}`;
+
+  const result = verifyGamesTicket(expiredTicket, TEST_SECRET);
+  assert.equal(result.valid, false);
+  assert.ok(result.error.toLowerCase().includes('expired'));
+});

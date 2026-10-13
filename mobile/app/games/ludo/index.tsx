@@ -420,13 +420,14 @@ export default function LudoLandingScreen() {
                 <Ionicons name="globe-outline" size={26} color={colors.primary} />
               </View>
               <View style={styles.cardTextContainer}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingRight: 4 }}>
                   <Text variant="md" weight="700" style={{ color: colors.text }}>
                     Online Multiplayer
                   </Text>
+                  <Badge label="2–4 Players" variant="neutral" size="sm" />
                 </View>
                 <Text variant="xs" style={{ color: colors.textMuted, marginTop: 2 }}>
-                  Play privately with friends • 2 to 4 players
+                  Private matches with cohort peers • Real-time rooms
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />

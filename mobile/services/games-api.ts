@@ -1,10 +1,52 @@
-import { apiFetch } from '@/services/api';
+import { apiFetch, isQaMode } from '@/services/api';
 
-const RAW_GAMES_WS_URL =
-  process.env.EXPO_PUBLIC_GAMES_WS_URL ||
-  'wss://semester-library-games.semester-library-games.workers.dev';
+/**
+ * Resolves the WebSocket base URL with strict production isolation guards:
+ * - In QA mode or DEV: Only connects to local address (ws://127.0.0.1:8789 or EXPO_PUBLIC_GAMES_WS_URL if local).
+ *   Never silently falls back to the production Cloudflare Worker.
+ * - In Production: Uses EXPO_PUBLIC_GAMES_WS_URL or production worker when QA mode is disabled.
+ */
+function resolveGamesWsUrl(): string {
+  const isQa = typeof isQaMode === 'function' ? isQaMode() : Boolean(process.env.EXPO_PUBLIC_QA_MODE === 'true');
+  const explicitWsUrl = process.env.EXPO_PUBLIC_GAMES_WS_URL?.trim();
 
-export const GAMES_WS_BASE_URL = RAW_GAMES_WS_URL.trim().replace(/\/+$/, '');
+  if (isQa || (typeof __DEV__ !== 'undefined' && __DEV__)) {
+    if (explicitWsUrl) {
+      return explicitWsUrl.replace(/\/+$/, '');
+    }
+    return 'ws://127.0.0.1:8789';
+  }
+
+  if (explicitWsUrl) {
+    return explicitWsUrl.replace(/\/+$/, '');
+  }
+  return 'wss://semester-library-games.semester-library-games.workers.dev';
+}
+
+export const GAMES_WS_BASE_URL = resolveGamesWsUrl();
+
+/**
+ * Checks whether an online multiplayer backend is safely and explicitly configured.
+ * Online multiplayer is only considered available if:
+ * 1. Games are not explicitly disabled via EXPO_PUBLIC_GAMES_DISABLED.
+ * 2. In QA/DEV mode: local game networking is explicitly enabled via EXPO_PUBLIC_ENABLE_LOCAL_QA_GAMES='true',
+ *    or EXPO_PUBLIC_GAMES_WS_URL is provided, or EXPO_PUBLIC_QA_MODE='true'.
+ * 3. In production: an explicitly configured or verified production endpoint is present.
+ */
+export function isOnlineGamesAvailable(): boolean {
+  if (process.env.EXPO_PUBLIC_GAMES_DISABLED === 'true') {
+    return false;
+  }
+  const isQa = typeof isQaMode === 'function' ? isQaMode() : Boolean(process.env.EXPO_PUBLIC_QA_MODE === 'true');
+  if (isQa || (typeof __DEV__ !== 'undefined' && __DEV__)) {
+    return Boolean(
+      process.env.EXPO_PUBLIC_ENABLE_LOCAL_QA_GAMES === 'true' ||
+      process.env.EXPO_PUBLIC_GAMES_WS_URL ||
+      process.env.EXPO_PUBLIC_QA_MODE === 'true'
+    );
+  }
+  return Boolean(GAMES_WS_BASE_URL);
+}
 
 export interface GamesTicketResponse {
   ticket: string;

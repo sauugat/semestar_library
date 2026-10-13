@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -7,55 +7,131 @@ import {
   Alert,
   Modal,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/Typography';
-import { Monochrome } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
-import { apiFetch } from '@/services/api';
+import { isOnlineGamesAvailable } from '@/services/games-api';
 
-interface GameItem {
+export interface GameDirectoryItem {
   id: string;
   title: string;
   category: string;
   description: string;
   icon: keyof typeof Ionicons.glyphMap;
-  status: 'available' | 'coming_soon';
+  status: 'playable' | 'coming_soon';
+  modes?: {
+    id: string;
+    label: string;
+    icon: keyof typeof Ionicons.glyphMap;
+    action:
+      | 'modal_ttt'
+      | 'route_ttt'
+      | 'route_ludo'
+      | 'route_ludo_setup'
+      | 'route_ludo_online'
+      | 'online_disabled';
+    disabled?: boolean;
+    badge?: string;
+  }[];
 }
 
-const FEATURED_GAMES: GameItem[] = [
-  {
-    id: 'tic-tac-toe',
-    title: 'Tic Tac Toe',
-    category: 'Turn-Based Multiplayer',
-    description: 'Challenge your cohort peers or play a quick local practice round.',
-    icon: 'grid-outline',
-    status: 'available',
-  },
-  {
-    id: 'quiz-arena',
-    title: 'Quiz Arena',
-    category: 'Semester Trivia',
-    description: 'Timed subject challenges against students from your semester cohort.',
-    icon: 'help-circle-outline',
-    status: 'coming_soon',
-  },
-  {
-    id: 'chess',
-    title: 'Chess',
-    category: 'Classic Strategy',
-    description: 'Deep strategic matches with asynchronous move notifications.',
-    icon: 'shield-outline',
-    status: 'coming_soon',
-  },
-];
-
 export function GamesView() {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [activeGameModal, setActiveGameModal] = useState<string | null>(null);
+  const isOnlineAvailable = isOnlineGamesAvailable();
 
-  // Local Tic Tac Toe board state
+  const gamesDirectory = useMemo<GameDirectoryItem[]>(() => [
+    {
+      id: 'tic-tac-toe',
+      title: 'Tic Tac Toe',
+      category: 'Turn-Based Strategy',
+      description: 'Play a quick pass-and-play practice round or challenge classmates online.',
+      icon: 'grid-outline',
+      status: 'playable',
+      modes: [
+        {
+          id: 'ttt-quick',
+          label: 'Quick Play',
+          icon: 'play',
+          action: 'modal_ttt',
+        },
+        {
+          id: 'ttt-online',
+          label: 'Online Multiplayer',
+          icon: 'globe-outline',
+          action: isOnlineAvailable ? 'route_ttt' : 'online_disabled',
+          badge: isOnlineAvailable ? undefined : 'Setup Required',
+        },
+      ],
+    },
+    {
+      id: 'ludo',
+      title: 'Ludo',
+      category: 'Classic Board Game',
+      description: '2 to 4 player strategy match with bot intelligence, safe zones, and local auto-save.',
+      icon: 'dice-outline',
+      status: 'playable',
+      modes: [
+        {
+          id: 'ludo-offline',
+          label: 'Offline Match',
+          icon: 'phone-portrait-outline',
+          action: 'route_ludo',
+        },
+        {
+          id: 'ludo-bots',
+          label: 'Play with Bots',
+          icon: 'hardware-chip-outline',
+          action: 'route_ludo_setup',
+        },
+        {
+          id: 'ludo-online',
+          label: 'Online Multiplayer',
+          icon: 'globe-outline',
+          action: isOnlineAvailable ? 'route_ludo_online' : 'online_disabled',
+          badge: isOnlineAvailable ? undefined : 'Setup Required',
+        },
+      ],
+    },
+    {
+      id: 'color-cards',
+      title: 'UNO / Color Cards',
+      category: 'Card Matching',
+      description: 'Fast-paced color matching and tactical discard challenges with friends.',
+      icon: 'albums-outline',
+      status: 'coming_soon',
+    },
+    {
+      id: 'imposter',
+      title: 'Imposter',
+      category: 'Social Deduction',
+      description: 'Uncover the infiltrator among your classmates before time runs out.',
+      icon: 'people-outline',
+      status: 'coming_soon',
+    },
+    {
+      id: 'chess',
+      title: 'Chess',
+      category: 'Grandmaster Tactics',
+      description: 'Deep strategic matches with asynchronous move clocks and rankings.',
+      icon: 'trophy-outline',
+      status: 'coming_soon',
+    },
+    {
+      id: 'quiz-arena',
+      title: 'Quiz Arena',
+      category: 'Cohort Trivia',
+      description: 'Timed subject quizzes and semester challenges against your peers.',
+      icon: 'help-circle-outline',
+      status: 'coming_soon',
+    },
+  ], [isOnlineAvailable]);
+
+  // Local Tic Tac Toe board state (preserved)
   const [board, setBoard] = useState<(string | null)[]>(Array(9).fill(null));
   const [turn, setTurn] = useState<'X' | 'O'>('X');
   const [winner, setWinner] = useState<string | null>(null);
@@ -95,13 +171,31 @@ export function GamesView() {
     setWinner(null);
   };
 
-  const handleLaunchGame = async (game: GameItem) => {
-    if (game.status === 'coming_soon') {
-      Alert.alert(game.title, 'This game is currently in development for your semester.');
-      return;
+  const handleLaunchMode = (action: string) => {
+    if (action === 'modal_ttt') {
+      resetGame();
+      setActiveGameModal('tic-tac-toe');
+    } else if (action === 'route_ttt') {
+      router.push('/games/tic-tac-toe' as any);
+    } else if (action === 'route_ludo') {
+      router.push('/games/ludo' as any);
+    } else if (action === 'route_ludo_setup') {
+      router.push('/games/ludo/setup' as any);
+    } else if (action === 'route_ludo_online') {
+      router.push('/games/ludo/online' as any);
+    } else if (action === 'online_disabled') {
+      Alert.alert(
+        'Online Multiplayer Unavailable',
+        'Online multiplayer requires an explicitly configured game backend (e.g., local dev worker at ws://127.0.0.1:8789). Local pass-and-play and bot matches remain fully functional.'
+      );
     }
-    resetGame();
-    setActiveGameModal(game.id);
+  };
+
+  const handleComingSoonPress = (title: string) => {
+    Alert.alert(
+      title,
+      'This game is currently in development and will be released in an upcoming update.'
+    );
   };
 
   return (
@@ -118,73 +212,133 @@ export function GamesView() {
       </View>
 
       <ScrollView
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 }]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 120 }]}
         showsVerticalScrollIndicator={false}
       >
         {/* Quick Challenge Banner */}
         <View style={styles.bannerCard}>
           <View style={styles.bannerTextContainer}>
-            <Text style={styles.bannerTitle}>Instant Multiplayer</Text>
+            <Text style={styles.bannerTitle}>Offline Ludo & Quick Play</Text>
             <Text style={styles.bannerSubtitle}>
-              Play casual matches between study sessions with your classmates.
+              Play casual matches between classes. Supports local pass-and-play and AI bots without network access.
             </Text>
           </View>
           <TouchableOpacity
             style={styles.bannerActionBtn}
-            onPress={() => handleLaunchGame(FEATURED_GAMES[0])}
+            onPress={() => router.push('/games/ludo' as any)}
             activeOpacity={0.75}
+            accessibilityRole="button"
+            accessibilityLabel="Launch Offline Ludo"
           >
-            <Text style={styles.bannerActionText}>Quick Play</Text>
-            <Ionicons name="play" size={12} color="#111111" />
+            <Text style={styles.bannerActionText}>Play Ludo</Text>
+            <Ionicons name="arrow-forward" size={12} color="#111111" />
           </TouchableOpacity>
         </View>
 
         {/* Section Heading */}
-        <Text style={styles.sectionHeader}>Featured Games</Text>
+        <Text style={styles.sectionHeader}>Game Directory</Text>
 
         {/* Game Cards */}
-        {FEATURED_GAMES.map((game) => {
-          const isAvailable = game.status === 'available';
+        {gamesDirectory.map((game) => {
+          const isPlayable = game.status === 'playable';
 
           return (
-            <TouchableOpacity
-              key={game.id}
-              style={styles.gameCard}
-              onPress={() => handleLaunchGame(game)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.gameIconBox}>
-                <Ionicons name={game.icon} size={24} color="#FFFFFF" />
-              </View>
+            <View key={game.id} style={styles.gameCard}>
+              <View style={styles.gameCardHeader}>
+                <View style={styles.gameIconBox}>
+                  <Ionicons
+                    name={game.icon}
+                    size={22}
+                    color={isPlayable ? '#FFFFFF' : '#737373'}
+                  />
+                </View>
 
-              <View style={styles.gameDetails}>
-                <View style={styles.gameHeaderRow}>
-                  <Text style={styles.gameTitle}>{game.title}</Text>
-                  <View
-                    style={[
-                      styles.statusPill,
-                      isAvailable ? styles.statusPillActive : styles.statusPillPending,
-                    ]}
-                  >
-                    <Text
+                <View style={styles.gameTitleContainer}>
+                  <View style={styles.gameHeaderRow}>
+                    <Text style={styles.gameTitle}>{game.title}</Text>
+                    <View
                       style={[
-                        styles.statusPillText,
-                        isAvailable ? styles.statusPillTextActive : styles.statusPillTextPending,
+                        styles.statusPill,
+                        isPlayable ? styles.statusPillActive : styles.statusPillPending,
                       ]}
                     >
-                      {isAvailable ? 'Play' : 'Coming Soon'}
-                    </Text>
+                      <Text
+                        style={[
+                          styles.statusPillText,
+                          isPlayable ? styles.statusPillTextActive : styles.statusPillTextPending,
+                        ]}
+                      >
+                        {isPlayable ? 'Playable' : 'Coming Soon'}
+                      </Text>
+                    </View>
                   </View>
+                  <Text style={styles.gameCategory}>{game.category}</Text>
                 </View>
-                <Text style={styles.gameCategory}>{game.category}</Text>
-                <Text style={styles.gameDescription}>{game.description}</Text>
               </View>
-            </TouchableOpacity>
+
+              <Text style={styles.gameDescription}>{game.description}</Text>
+
+              {/* Mode Action Buttons for Playable Games */}
+              {isPlayable && game.modes && (
+                <View style={styles.modesRow}>
+                  {game.modes.map((mode) => (
+                    <TouchableOpacity
+                      key={mode.id}
+                      style={[
+                        styles.modeButton,
+                        mode.action === 'online_disabled'
+                          ? styles.modeButtonDisabled
+                          : styles.modeButtonPrimary,
+                      ]}
+                      onPress={() => handleLaunchMode(mode.action)}
+                      activeOpacity={0.7}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${game.title} ${mode.label}`}
+                    >
+                      <Ionicons
+                        name={mode.icon}
+                        size={13}
+                        color={mode.action === 'online_disabled' ? '#737373' : '#FFFFFF'}
+                      />
+                      <Text
+                        style={[
+                          styles.modeButtonText,
+                          mode.action === 'online_disabled'
+                            ? styles.modeButtonTextDisabled
+                            : styles.modeButtonTextPrimary,
+                        ]}
+                      >
+                        {mode.label}
+                      </Text>
+                      {mode.badge && (
+                        <View style={styles.modeBadge}>
+                          <Text style={styles.modeBadgeText}>{mode.badge}</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
+              {/* Tap handler for non-playable cards */}
+              {!isPlayable && (
+                <TouchableOpacity
+                  style={styles.comingSoonTouchArea}
+                  onPress={() => handleComingSoonPress(game.title)}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${game.title} Coming Soon`}
+                >
+                  <Text style={styles.comingSoonHint}>In development for your semester cohort</Text>
+                  <Ionicons name="information-circle-outline" size={14} color="#737373" />
+                </TouchableOpacity>
+              )}
+            </View>
           );
         })}
       </ScrollView>
 
-      {/* Game Modal (Tic Tac Toe) */}
+      {/* Game Modal (Local Tic Tac Toe - Preserved) */}
       <Modal
         visible={activeGameModal === 'tic-tac-toe'}
         animationType="slide"
@@ -209,6 +363,8 @@ export function GamesView() {
                 style={styles.modalCloseBtn}
                 onPress={() => setActiveGameModal(null)}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                accessibilityRole="button"
+                accessibilityLabel="Close Tic Tac Toe"
               >
                 <Ionicons name="close" size={20} color="#FFFFFF" />
               </TouchableOpacity>
@@ -222,6 +378,8 @@ export function GamesView() {
                   style={styles.boardCell}
                   onPress={() => handleSquarePress(idx)}
                   activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Cell ${idx + 1}: ${cell || 'Empty'}`}
                 >
                   <Text style={styles.boardCellText}>{cell || ''}</Text>
                 </TouchableOpacity>
@@ -233,6 +391,8 @@ export function GamesView() {
               style={styles.resetBtn}
               onPress={resetGame}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Start New Round"
             >
               <Text style={styles.resetBtnText}>New Round</Text>
             </TouchableOpacity>
@@ -313,10 +473,10 @@ const styles = StyleSheet.create({
   bannerActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
     borderRadius: 20,
   },
   bannerActionText: {
@@ -334,27 +494,30 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   gameCard: {
-    flexDirection: 'row',
     backgroundColor: '#141414',
     borderRadius: 14,
     borderWidth: 1,
     borderColor: '#282828',
     padding: 14,
     marginBottom: 12,
-    alignItems: 'flex-start',
+  },
+  gameCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
   },
   gameIconBox: {
-    width: 44,
-    height: 44,
+    width: 42,
+    height: 42,
     borderRadius: 10,
     backgroundColor: '#1C1C1C',
     borderWidth: 1,
     borderColor: '#282828',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 14,
+    marginRight: 12,
   },
-  gameDetails: {
+  gameTitleContainer: {
     flex: 1,
   },
   gameHeaderRow: {
@@ -394,12 +557,75 @@ const styles = StyleSheet.create({
   gameCategory: {
     fontSize: 11.5,
     color: '#737373',
-    marginBottom: 4,
   },
   gameDescription: {
     fontSize: 12.5,
     color: '#A1A1A1',
     lineHeight: 17,
+    marginBottom: 10,
+  },
+  modesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 4,
+    paddingTop: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#242424',
+  },
+  modeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 16,
+    gap: 5,
+  },
+  modeButtonPrimary: {
+    backgroundColor: '#222222',
+    borderWidth: 1,
+    borderColor: '#383838',
+  },
+  modeButtonDisabled: {
+    backgroundColor: '#171717',
+    borderWidth: 1,
+    borderColor: '#262626',
+    borderStyle: 'dashed',
+  },
+  modeButtonText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+  },
+  modeButtonTextPrimary: {
+    color: '#FFFFFF',
+  },
+  modeButtonTextDisabled: {
+    color: '#737373',
+  },
+  modeBadge: {
+    backgroundColor: '#2B2B2B',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 8,
+    marginLeft: 2,
+  },
+  modeBadgeText: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#9E9E9E',
+  },
+  comingSoonTouchArea: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#202020',
+  },
+  comingSoonHint: {
+    fontSize: 11,
+    color: '#555555',
+    fontStyle: 'italic',
   },
   modalOverlay: {
     flex: 1,

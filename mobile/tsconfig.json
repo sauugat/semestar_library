@@ -2,9 +2,13 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    "allowImportingTsExtensions": true,
     "paths": {
       "@/*": [
         "./*"
+      ],
+      "@semester-library/ludo-engine": [
+        "../packages/ludo-engine/src/index.ts"
       ]
     }
   },

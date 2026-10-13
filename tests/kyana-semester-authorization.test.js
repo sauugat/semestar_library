@@ -187,6 +187,25 @@ describe('Kyana AI Platform Intelligence & Semester Authorization', () => {
     assert.strictEqual(searchCalledWith.semester, 4, 'Teacher allowed to query requested semester');
   });
 
+  test('5b. Teacher with assigned semesters [2] is restricted and blocked from querying Semester 4', async () => {
+    const db = createMockDb();
+    const route = routeQuery('find me 4th-semester DBMS notes');
+
+    const teacherContext = {
+      authenticated: true,
+      role: 'teacher',
+      assignedSemesters: [2]
+    };
+
+    const toolkit = createTools(db, route, {
+      academicContext: teacherContext
+    });
+
+    const result = await toolkit.executeTool('search_notes', { query: 'dbms' });
+    assert.ok(result.clarification, 'Expected clarification blocking semester 4 notes for teacher assigned to semester 2');
+    assert.match(result.clarification, /assigned to teach Semester\(s\) 2/i);
+  });
+
   test('6. Post & notice semester filter enforces cohort and target semester isolation', () => {
     const studentContext = {
       authenticated: true,

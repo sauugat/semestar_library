@@ -41,6 +41,11 @@ if (isPostgres) {
     pgPool = new Pool({
       connectionString
     });
+    pgPool.on('connect', (client) => {
+      client.on('error', (err) => {
+        console.warn('[DB Engine]: Neon client connection error (handled):', err?.message || err);
+      });
+    });
     pgPool.on('error', (err) => {
       console.warn('[DB Engine]: Idle client connection terminated/recovering:', err?.message || err);
     });

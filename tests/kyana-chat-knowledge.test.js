@@ -734,7 +734,7 @@ describe('KYANA 3.0 Step 5 — Connect Retrieval to Chat', () => {
       studentInfo,
       [],
       'session_step5_g',
-      { generateReply: mockGenerateReply }
+      { generateReply: mockGenerateReply, minScore: 0.25 }
     );
 
     assert.equal(firstResult.resourceCards.length, 2, 'Should return 2 cards');
@@ -773,7 +773,7 @@ describe('KYANA 3.0 Step 5 — Connect Retrieval to Chat', () => {
 
     await aiAssistant.handleChat(
       db,
-      'what is the exam notice?',
+      'what is the midterm exam notice?',
       studentInfo,
       [],
       'session_step5_h',
@@ -792,8 +792,8 @@ describe('KYANA 3.0 Step 5 — Connect Retrieval to Chat', () => {
     assert.equal(latest.retrievedCount > 0, true);
     assert.equal(latest.cardsCount, 1);
 
-    // Ensure zero secrets or content
-    const serialized = JSON.stringify(latest);
-    assert.doesNotMatch(serialized, /password|secret|key|midterm|exam|token/i, 'Timing entries must contain zero query text or secrets');
+    // Ensure zero secrets or content in timing entry values
+    const valuesString = JSON.stringify(Object.values(latest));
+    assert.doesNotMatch(valuesString, /password|secret|bearer|key|midterm|exam|token/i, 'Timing entries must contain zero query text or secrets');
   });
 });

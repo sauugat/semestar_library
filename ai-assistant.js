@@ -332,7 +332,8 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
       const tRetrieval0 = Date.now();
       const retrievedRecords = await searchKnowledge(db, academicContext, message, {
         queryVector,
-        limit: 6
+        limit: 6,
+        ...(options.minScore !== undefined ? { minScore: options.minScore } : {})
       });
       const retrievalMs = Date.now() - tRetrieval0;
 

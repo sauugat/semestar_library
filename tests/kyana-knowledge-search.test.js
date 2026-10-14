@@ -147,49 +147,49 @@ describe('KYANA 3.0 Step 4 — Unified Knowledge Retrieval Engine', () => {
     // 1. Post 701: Public general post in Mercury Sem 3
     await seedResource({
       post: { id: 701, user_id: 'stu_alice', title: 'DBMS Normalization Notes', content: 'Relational database normalization 1NF 2NF 3NF BCNF concepts.', semester_no: 3, cohort_id: 'c_mercury', category: 'general', visibility: 'everyone', audience_scope: 'cohort', target_all_semesters: 0 },
-      resource: { id: 'post:701', resource_type: 'post', canonical_id: 701, title: 'DBMS Normalization Notes', source_authority_tier: 5, author_id: 'stu_alice', author_role: 'student', cohort_id: 'c_mercury', semester_no: 3, audience_scope: 'cohort', target_all_semesters: 0, visibility: 'public', web_url: '/dashboard.html?post=701', mobile_route: '/post/701', mobile_params: { id: 701 }, content_hash: 'hash_701' },
+      resource: { id: 'post:701', resource_type: 'post', canonical_id: 701, title: 'DBMS Normalization Notes', source_authority_tier: 5, author_id: 'stu_alice', author_role: 'student', cohort_id: 'c_mercury', semester_no: 3, audience_scope: 'cohort', target_all_semesters: 0, visibility: 'everyone', web_url: '/dashboard.html?post=701', mobile_route: '/post/701', mobile_params: { id: 701 }, content_hash: 'hash_701' },
       chunkText: '[Type: Post | Title: DBMS Normalization Notes]\nRelational database normalization 1NF 2NF 3NF BCNF concepts.'
     });
 
     // 2. Post 702: Notice for all students in Mercury
     await seedResource({
       post: { id: 702, user_id: 'tea_carol', title: 'Semester 3 Exam Schedule Notice', content: 'Gandaki University terminal semester examination starts next week.', semester_no: 3, cohort_id: 'c_mercury', category: 'notice', visibility: 'everyone', audience_scope: 'all_students', target_all_semesters: 1 },
-      resource: { id: 'post:702', resource_type: 'notice', canonical_id: 702, title: 'Semester 3 Exam Schedule Notice', source_authority_tier: 2, author_id: 'tea_carol', author_role: 'teacher', cohort_id: 'c_mercury', semester_no: 3, audience_scope: 'all_students', target_all_semesters: 1, visibility: 'public', web_url: '/notices.html?id=702', mobile_route: '/notice/702', mobile_params: { id: 702 }, content_hash: 'hash_702' },
+      resource: { id: 'post:702', resource_type: 'notice', canonical_id: 702, title: 'Semester 3 Exam Schedule Notice', source_authority_tier: 2, author_id: 'tea_carol', author_role: 'teacher', cohort_id: 'c_mercury', semester_no: 3, audience_scope: 'all_students', target_all_semesters: 1, visibility: 'everyone', web_url: '/notices.html?id=702', mobile_route: '/notice/702', mobile_params: { id: 702 }, content_hash: 'hash_702' },
       chunkText: '[Type: Notice | Title: Semester 3 Exam Schedule Notice]\nGandaki University terminal semester examination starts next week.'
     });
 
     // 3. Assignment 703: Python OOP Assignment in Mercury Sem 3
     await seedResource({
       assignment: { id: 703, title: 'Python Object Oriented Lab', description: 'Implement polymorphism and inheritance in Python.', language: 'python', subject: 'CIT201', semester: '3', deadline: new Date(Date.now() + 7 * 86400000).toISOString(), createdBy: 'tea_carol', createdAt: new Date().toISOString(), cohort_id: 'c_mercury', semester_no: 3, audience_scope: 'cohort' },
-      resource: { id: 'assignment:703', resource_type: 'assignment', canonical_id: 703, title: 'Python Object Oriented Lab', source_authority_tier: 3, author_id: 'tea_carol', author_role: 'teacher', cohort_id: 'c_mercury', semester_no: 3, audience_scope: 'cohort', target_all_semesters: 0, visibility: 'public', web_url: '/code-lab/assignment.html?id=703', mobile_route: '/assignments/703', mobile_params: { id: 703 }, content_hash: 'hash_703' },
+      resource: { id: 'assignment:703', resource_type: 'assignment', canonical_id: 703, title: 'Python Object Oriented Lab', source_authority_tier: 3, author_id: 'tea_carol', author_role: 'teacher', cohort_id: 'c_mercury', semester_no: 3, audience_scope: 'cohort', target_all_semesters: 0, visibility: 'everyone', web_url: '/code-lab/assignment.html?id=703', mobile_route: '/assignments/703', mobile_params: { id: 703 }, content_hash: 'hash_703' },
       chunkText: '[Type: Assignment | Title: Python Object Oriented Lab]\nImplement polymorphism and inheritance in Python.'
     });
 
     // 4. Post 704: Private Post by Alice in Mercury
     await seedResource({
       post: { id: 704, user_id: 'stu_alice', title: 'Alice Private Research Notes', content: 'Confidential draft on distributed consensus protocols.', semester_no: 3, cohort_id: 'c_mercury', category: 'general', visibility: 'teachers_only', audience_scope: 'cohort', target_all_semesters: 0 },
-      resource: { id: 'post:704', resource_type: 'post', canonical_id: 704, title: 'Alice Private Research Notes', source_authority_tier: 5, author_id: 'stu_alice', author_role: 'student', cohort_id: 'c_mercury', semester_no: 3, audience_scope: 'cohort', target_all_semesters: 0, visibility: 'private', web_url: '/dashboard.html?post=704', mobile_route: '/post/704', mobile_params: { id: 704 }, content_hash: 'hash_704' },
+      resource: { id: 'post:704', resource_type: 'post', canonical_id: 704, title: 'Alice Private Research Notes', source_authority_tier: 5, author_id: 'stu_alice', author_role: 'student', cohort_id: 'c_mercury', semester_no: 3, audience_scope: 'cohort', target_all_semesters: 0, visibility: 'teachers_only', web_url: '/dashboard.html?post=704', mobile_route: '/post/704', mobile_params: { id: 704 }, content_hash: 'hash_704' },
       chunkText: '[Type: Post | Title: Alice Private Research Notes]\nConfidential draft on distributed consensus protocols.'
     });
 
     // 5. Post 705: Soft-deleted post
     await seedResource({
       post: { id: 705, user_id: 'stu_alice', title: 'Deleted Post on C Programming', content: 'Pointer arithmetic and memory management.', semester_no: 3, cohort_id: 'c_mercury', category: 'general', visibility: 'everyone', audience_scope: 'cohort', target_all_semesters: 0 },
-      resource: { id: 'post:705', resource_type: 'post', canonical_id: 705, title: 'Deleted Post on C Programming', source_authority_tier: 5, author_id: 'stu_alice', author_role: 'student', cohort_id: 'c_mercury', semester_no: 3, audience_scope: 'cohort', target_all_semesters: 0, visibility: 'public', web_url: '/dashboard.html?post=705', mobile_route: '/post/705', mobile_params: { id: 705 }, content_hash: 'hash_705', deleted_at: new Date().toISOString() },
+      resource: { id: 'post:705', resource_type: 'post', canonical_id: 705, title: 'Deleted Post on C Programming', source_authority_tier: 5, author_id: 'stu_alice', author_role: 'student', cohort_id: 'c_mercury', semester_no: 3, audience_scope: 'cohort', target_all_semesters: 0, visibility: 'everyone', web_url: '/dashboard.html?post=705', mobile_route: '/post/705', mobile_params: { id: 705 }, content_hash: 'hash_705', deleted_at: new Date().toISOString() },
       chunkText: '[Type: Post | Title: Deleted Post on C Programming]\nPointer arithmetic and memory management.'
     });
 
     // 6. Post 706: Moderated / Hidden post
     await seedResource({
       post: { id: 706, user_id: 'stu_alice', title: 'Reported Hidden Post', content: 'Spam advertising external tutoring service.', semester_no: 3, cohort_id: 'c_mercury', category: 'general', visibility: 'everyone', audience_scope: 'cohort', target_all_semesters: 0 },
-      resource: { id: 'post:706', resource_type: 'post', canonical_id: 706, title: 'Reported Hidden Post', source_authority_tier: 5, author_id: 'stu_alice', author_role: 'student', cohort_id: 'c_mercury', semester_no: 3, audience_scope: 'cohort', target_all_semesters: 0, visibility: 'public', web_url: '/dashboard.html?post=706', mobile_route: '/post/706', mobile_params: { id: 706 }, content_hash: 'hash_706', hidden_at: new Date().toISOString() },
+      resource: { id: 'post:706', resource_type: 'post', canonical_id: 706, title: 'Reported Hidden Post', source_authority_tier: 5, author_id: 'stu_alice', author_role: 'student', cohort_id: 'c_mercury', semester_no: 3, audience_scope: 'cohort', target_all_semesters: 0, visibility: 'everyone', web_url: '/dashboard.html?post=706', mobile_route: '/post/706', mobile_params: { id: 706 }, content_hash: 'hash_706', hidden_at: new Date().toISOString() },
       chunkText: '[Type: Post | Title: Reported Hidden Post]\nSpam advertising external tutoring service.'
     });
 
     // 7. Post 707: Post belonging exclusively to Venus Cohort Sem 5
     await seedResource({
       post: { id: 707, user_id: 'stu_bob', title: 'Venus Compiler Design Notes', content: 'Lexical analysis and LL1 parsing tables.', semester_no: 5, cohort_id: 'c_venus', category: 'general', visibility: 'everyone', audience_scope: 'cohort', target_all_semesters: 0 },
-      resource: { id: 'post:707', resource_type: 'post', canonical_id: 707, title: 'Venus Compiler Design Notes', source_authority_tier: 5, author_id: 'stu_bob', author_role: 'student', cohort_id: 'c_venus', semester_no: 5, audience_scope: 'cohort', target_all_semesters: 0, visibility: 'public', web_url: '/dashboard.html?post=707', mobile_route: '/post/707', mobile_params: { id: 707 }, content_hash: 'hash_707' },
+      resource: { id: 'post:707', resource_type: 'post', canonical_id: 707, title: 'Venus Compiler Design Notes', source_authority_tier: 5, author_id: 'stu_bob', author_role: 'student', cohort_id: 'c_venus', semester_no: 5, audience_scope: 'cohort', target_all_semesters: 0, visibility: 'everyone', web_url: '/dashboard.html?post=707', mobile_route: '/post/707', mobile_params: { id: 707 }, content_hash: 'hash_707' },
       chunkText: '[Type: Post | Title: Venus Compiler Design Notes]\nLexical analysis and LL1 parsing tables.'
     });
   });
@@ -378,7 +378,7 @@ describe('KYANA 3.0 Step 4 — Unified Knowledge Retrieval Engine', () => {
       ) VALUES (
         'post:9999', 'post', 9999, 'Benchmark Bulk Post', 5,
         'stu_alice', 'student', 'c_mercury', 3, 'cohort',
-        0, 'public', '/dashboard.html?post=9999', '/post/9999', 'hash_bulk'
+        0, 'everyone', '/dashboard.html?post=9999', '/post/9999', 'hash_bulk'
       ) ON CONFLICT (id) DO NOTHING;
 
       INSERT INTO posts (id, user_id, title, content, semester_no, cohort_id)

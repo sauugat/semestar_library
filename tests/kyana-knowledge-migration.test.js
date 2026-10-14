@@ -274,7 +274,7 @@ describe('KYANA 3.0 Step 2 — Unified Knowledge Schema & Migrations (Docker Pos
       ) VALUES (
         'post:999', 'post', 999, 'Test Post on DBMS', 5,
         'STU_TEST_01', 'student', $1, 3, 'cohort',
-        0, 'public', '/dashboard.html?post=999', '/post/999', '{"id": 999}'::jsonb, 'hash_abc123'
+        0, 'everyone', '/dashboard.html?post=999', '/post/999', '{"id": 999}'::jsonb, 'hash_abc123'
       )
     `, [validCohortId]);
 

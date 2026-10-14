@@ -361,7 +361,7 @@ function ChatScreenInner() {
   const kyanaItem: KyanaConversationItem = useMemo(() => ({
     key: 'kyana',
     type: 'kyana',
-    title: '✦ Kyana AI',
+    title: 'Kyana AI',
     subtitle: kyanaPreview?.subtitle || 'How can I help you today?',
     timestamp: kyanaPreview?.timestamp || null,
     unreadCount: 0,

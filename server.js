@@ -5903,7 +5903,7 @@ app.get('/api/ai/preview', async (req, res) => {
   } catch (err) {
     res.json({
       conversationId: null,
-      title: '✦ Kyana AI',
+      title: 'Kyana AI',
       subtitle: 'How can I help you today?',
       timestamp: null,
       unreadCount: 0,

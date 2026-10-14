@@ -86,7 +86,7 @@ export async function fetchKyanaPreview(): Promise<KyanaInboxPreview> {
     if (!res.ok) {
       return {
         conversationId: null,
-        title: '✦ Kyana AI',
+        title: 'Kyana AI',
         subtitle: 'How can I help you today?',
         timestamp: null,
         unreadCount: 0,
@@ -96,7 +96,7 @@ export async function fetchKyanaPreview(): Promise<KyanaInboxPreview> {
     const data = await res.json();
     return {
       conversationId: data.conversationId || null,
-      title: data.title || '✦ Kyana AI',
+      title: data.title || 'Kyana AI',
       subtitle: data.subtitle || 'How can I help you today?',
       timestamp: data.timestamp || null,
       unreadCount: 0,
@@ -105,7 +105,7 @@ export async function fetchKyanaPreview(): Promise<KyanaInboxPreview> {
   } catch {
     return {
       conversationId: null,
-      title: '✦ Kyana AI',
+      title: 'Kyana AI',
       subtitle: 'How can I help you today?',
       timestamp: null,
       unreadCount: 0,

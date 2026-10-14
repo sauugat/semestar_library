@@ -187,7 +187,7 @@ describe('Kyana AI Integration Suite', () => {
 
     // Verify inbox preview
     const preview = await aiChatService.getInboxPreview(db, studentId);
-    assert.equal(preview.title, '✦ Kyana AI');
+    assert.equal(preview.title, 'Kyana AI');
     assert.equal(preview.subtitle, 'Hey there! How can I help?');
     assert.equal(preview.isPinned, true);
   });
@@ -301,7 +301,7 @@ describe('Kyana AI Integration Suite', () => {
       {
         key: 'kyana',
         type: 'kyana',
-        title: '✦ Kyana AI',
+        title: 'Kyana AI',
         subtitle: 'How can I help you today?',
         timestamp: new Date(Date.now() - 10000).toISOString(),
         unreadCount: 0,
@@ -320,7 +320,7 @@ describe('Kyana AI Integration Suite', () => {
     const kyanaItem = {
       key: 'kyana',
       type: 'kyana',
-      title: '✦ Kyana AI',
+      title: 'Kyana AI',
       subtitle: 'How can I help you today?',
       timestamp: new Date().toISOString(),
       unreadCount: 0,

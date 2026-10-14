@@ -3903,6 +3903,28 @@
 
     const feedReady = loadFeed();
 
+    feedReady.then(() => {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const targetPostId = urlParams.get('post');
+        if (targetPostId) {
+          setTimeout(() => {
+            const el = document.querySelector(`[data-post-id="${targetPostId}"]`);
+            if (el) {
+              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              el.style.transition = 'box-shadow 0.4s ease, border-color 0.4s ease';
+              el.style.borderColor = 'var(--text-primary, #ffffff)';
+              el.style.boxShadow = '0 0 0 2px var(--text-primary, #ffffff)';
+              setTimeout(() => {
+                el.style.borderColor = '';
+                el.style.boxShadow = '';
+              }, 3000);
+            }
+          }, 350);
+        }
+      } catch (_) {}
+    });
+
     loadMorePostsBtn.addEventListener('click', async () => {
       loadMorePostsBtn.disabled = true;
       postFeedMessage.textContent = '';

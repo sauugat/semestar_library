@@ -1,0 +1,41 @@
+name: KYANA AI 3.0 Knowledge Reconciliation
+
+on:
+  schedule:
+    # Run every 15 minutes
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+jobs:
+  reconcile:
+    name: Reconcile Unified Knowledge Index
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Trigger Internal Knowledge Worker & Reconciliation
+        env:
+          APP_URL: ${{ secrets.PRODUCTION_APP_URL || 'https://semester-library.vercel.app' }}
+          INTERNAL_CRON_SECRET: ${{ secrets.INTERNAL_CRON_SECRET }}
+        run: |
+          if [ -z "$INTERNAL_CRON_SECRET" ]; then
+            echo "ERROR: INTERNAL_CRON_SECRET is not configured in repository secrets."
+            exit 1
+          fi
+
+          echo "Triggering knowledge index reconciliation endpoint..."
+          RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST "${APP_URL}/api/internal/knowledge/reconcile" \
+            -H "Content-Type: application/json" \
+            -H "x-cron-secret: ${INTERNAL_CRON_SECRET}" \
+            --max-time 30)
+
+          HTTP_BODY=$(echo "$RESPONSE" | sed -e '$d')
+          HTTP_STATUS=$(echo "$RESPONSE" | tail -n 1 | cut -d: -f2)
+
+          echo "Status: $HTTP_STATUS"
+          echo "Response: $HTTP_BODY"
+
+          if [ "$HTTP_STATUS" -ne 200 ]; then
+            echo "Failed with HTTP status $HTTP_STATUS"
+            exit 1
+          fi

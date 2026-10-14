@@ -1166,10 +1166,48 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
           });
         }
       } catch (pushErr) {
-        console.error('[Post/Notice Push Enqueue/Dispatch Error]:', pushErr.message);
+        console.error('[Push Dispatch Warning]:', pushErr.message);
       }
 
+      // F3: Respond immediately to the student so they do not wait for indexing
       res.status(201).json(formatted);
+
+      // KYANA AI 3.0 Knowledge Indexing Hook (Non-blocking via waitUntil / setImmediate)
+      const postSyncData = {
+        id: newPostId,
+        title: passedTitle || formatted.title || trimmedContent.slice(0, 80),
+        content: trimmedContent,
+        subject: req.body?.subject || null,
+        category: validatedCategory,
+        visibility: validatedVisibility,
+        audience_scope: publishScope.audienceScope,
+        cohort_id: publishScope.cohortId,
+        semester_no: publishScope.semesterNo || null,
+        target_all_semesters: parsedSemesters.allSemesters ? 1 : 0,
+        user_id: req.postUser.studentId,
+        author_role: req.postUser.role,
+        target_semesters: parsedSemesters.allSemesters ? [] : (parsedSemesters.semesters || [])
+      };
+
+      const runSyncTask = async () => {
+        try {
+          const { onPostSaved } = require('../lib/knowledge-sync');
+          await onPostSaved(db, postSyncData);
+        } catch (syncErr) {
+          console.error('[KYANA Knowledge Sync Post Create Error]:', syncErr.message);
+        }
+      };
+
+      try {
+        const { waitUntil } = require('@vercel/functions');
+        if (typeof waitUntil === 'function') {
+          waitUntil(runSyncTask());
+        } else {
+          setImmediate(runSyncTask);
+        }
+      } catch (_) {
+        setImmediate(runSyncTask);
+      }
     } catch (err) {
       // If final post creation fails, clean up newly uploaded unattached blobs safely (Requirement 8)
       try {
@@ -1605,6 +1643,19 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
          VALUES ('post', ?, ?, ?, ?, 'open', CURRENT_TIMESTAMP)`,
         postId, reporterId, cleanReason, cleanDesc
       );
+      // KYANA AI 3.0 Moderation Threshold Hook (3+ reports -> hidden_at)
+      try {
+        const countRow = await db.get(
+          "SELECT COUNT(*) AS count FROM content_reports WHERE content_type = 'post' AND content_id = ? AND status = 'open'",
+          postId
+        );
+        if (countRow && Number(countRow.count) >= 3) {
+          const { onPostModerationChanged } = require('../lib/knowledge-sync');
+          await onPostModerationChanged(db, postId, { isHidden: true });
+        }
+      } catch (modErr) {
+        console.error('[KYANA Moderation Sync Error]:', modErr.message);
+      }
 
       res.status(201).json({
         success: true,
@@ -1794,6 +1845,9 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
           return res.status(400).json({ message: semErr.message });
         }
       }
+
+      let finalTargetAllSem = post.target_all_semesters ?? 1;
+      let finalSemesterNo = post.semester_no;
 
       // Title update: General category NEVER has a title
       let updatedTitle = post.title || null;
@@ -2020,8 +2074,8 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
           }
 
           // 5. Update post in place with edited_at timestamp
-          const finalTargetAllSem = updateSemesters ? (parsedSemesters.allSemesters ? 1 : 0) : (post.target_all_semesters ?? 1);
-          const finalSemesterNo = updateSemesters
+          finalTargetAllSem = updateSemesters ? (parsedSemesters.allSemesters ? 1 : 0) : (post.target_all_semesters ?? 1);
+          finalSemesterNo = updateSemesters
             ? (parsedSemesters.allSemesters ? null : (parsedSemesters.semesters.length === 1 ? parsedSemesters.semesters[0] : null))
             : post.semester_no;
           await tx.run(
@@ -2063,7 +2117,61 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       const formatted = formatPost(updatedRow, req);
       await attachMediaToPosts([formatted]);
       await attachTargetSemestersToPosts([formatted]);
+
+      // F3: Deletes and privacy changes MUST stay synchronous so content vanishes immediately
+      if (updatedVisibility && updatedVisibility !== post.visibility && (updatedVisibility === 'private' || updatedVisibility === 'teachers_only')) {
+        try {
+          const isPg = Boolean(db.isPostgres || (db.query && !db.all));
+          if (isPg) {
+            await db.query("UPDATE knowledge_resources SET visibility = 'private', updated_at = CURRENT_TIMESTAMP WHERE id = $1", [`post:${postId}`]);
+          } else {
+            await db.run("UPDATE knowledge_resources SET visibility = 'private', updated_at = CURRENT_TIMESTAMP WHERE id = ?", `post:${postId}`);
+          }
+        } catch (_) {}
+      }
+
+      // F3: Respond immediately to the student
       res.json(formatted);
+
+      // F3 & F4: Non-blocking re-indexing via waitUntil / setImmediate (isolated from response lifecycle)
+      try {
+        const editSyncData = {
+          id: postId,
+          title: formatted.title || post.title || (newContent ? newContent.slice(0, 80) : ''),
+          content: newContent || post.content,
+          category: updatedCategory,
+          visibility: updatedVisibility,
+          audience_scope: post.audience_scope,
+          cohort_id: post.cohort_id,
+          semester_no: finalSemesterNo,
+          target_all_semesters: finalTargetAllSem,
+          user_id: post.user_id,
+          author_role: req.postUser.role,
+          target_semesters: (parsedSemesters && parsedSemesters.allSemesters) ? [] : (parsedSemesters?.semesters || [])
+        };
+
+        const runEditSyncTask = async () => {
+          try {
+            const { onPostSaved } = require('../lib/knowledge-sync');
+            await onPostSaved(db, editSyncData);
+          } catch (syncErr) {
+            console.error('[KYANA Knowledge Sync Post Edit Error]:', syncErr.message);
+          }
+        };
+
+        try {
+          const { waitUntil } = require('@vercel/functions');
+          if (typeof waitUntil === 'function') {
+            waitUntil(runEditSyncTask());
+          } else {
+            setImmediate(runEditSyncTask);
+          }
+        } catch (_) {
+          setImmediate(runEditSyncTask);
+        }
+      } catch (bgErr) {
+        console.error('[KYANA Knowledge Sync Post Edit Background Error]:', bgErr.message);
+      }
     } catch (err) {
       next(err);
     }
@@ -2109,6 +2217,14 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
             await removeUploadedImage(path.join(uploadDir, filename));
           }
         }
+      }
+
+      // KYANA AI 3.0 Knowledge Soft-Delete Hook (Synchronous before response)
+      try {
+        const { onPostDeleted } = require('../lib/knowledge-sync');
+        await onPostDeleted(db, postId);
+      } catch (syncErr) {
+        console.error('[KYANA Knowledge Sync Post Delete Error]:', syncErr.message);
       }
 
       res.json({ message: 'Post deleted.' });

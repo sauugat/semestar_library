@@ -102,7 +102,7 @@
           const authorRole = (n.role || 'official').toUpperCase();
           const authorName = n.name || 'Administration';
           return `
-            <div class="detail-section-card" style="margin-bottom: 20px;">
+            <div class="detail-section-card" data-notice-id="${n.id}" style="margin-bottom: 20px;">
               <div class="section-card-header" style="display: flex; justify-content: space-between; align-items: baseline;">
                 <h3>${escapeHtml(n.content.split('\n')[0].substring(0, 100))}</h3>
                 <span style="font-size: 12px; color: var(--text-secondary, #888);">${dateStr}</span>
@@ -115,6 +115,26 @@
             </div>
           `;
         }).join('');
+
+        try {
+          const urlParams = new URLSearchParams(window.location.search);
+          const targetNoticeId = urlParams.get('id');
+          if (targetNoticeId) {
+            setTimeout(() => {
+              const el = document.querySelector(`[data-notice-id="${targetNoticeId}"]`);
+              if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                el.style.transition = 'box-shadow 0.4s ease, border-color 0.4s ease';
+                el.style.borderColor = 'var(--text-primary, #ffffff)';
+                el.style.boxShadow = '0 0 0 2px var(--text-primary, #ffffff)';
+                setTimeout(() => {
+                  el.style.borderColor = '';
+                  el.style.boxShadow = '';
+                }, 3000);
+              }
+            }, 250);
+          }
+        } catch (_) {}
       } catch (err) {
         container.innerHTML = `
           <div class="detail-section-card">

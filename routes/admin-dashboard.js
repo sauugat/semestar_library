@@ -3,6 +3,7 @@
 const express = require('express');
 const { queryAdminAuditLogs, recordAdminAudit } = require('../lib/audit-service');
 const { isModerationSchemaAvailable, isContentReportsAvailable } = require('../lib/posts');
+const { onPostStatusChanged } = require('../lib/knowledge-sync');
 const {
   getAcademicsOverview,
   listCanonicalSubjects,
@@ -1752,6 +1753,11 @@ function createAdminDashboardRouter(arg1, arg2) {
         ? await db.withTransaction(runRemove)
         : await runRemove(db);
 
+      // Synchronously sync moderation hide to knowledge index
+      await onPostStatusChanged(db, postId, { hidden: true }).catch(err => {
+        console.warn(`[KYANA Knowledge Sync] Admin hide sync failed for post ${postId}: ${err.message}`);
+      });
+
       res.json({
         success: true,
         message: 'Post successfully removed by moderation.',
@@ -1842,6 +1848,11 @@ function createAdminDashboardRouter(arg1, arg2) {
       const restoredPost = typeof db.withTransaction === 'function'
         ? await db.withTransaction(runRestore)
         : await runRestore(db);
+
+      // Synchronously sync moderation un-hide to knowledge index
+      await onPostStatusChanged(db, postId, { hidden: false }).catch(err => {
+        console.warn(`[KYANA Knowledge Sync] Admin unhide sync failed for post ${postId}: ${err.message}`);
+      });
 
       res.json({
         success: true,
@@ -2392,7 +2403,23 @@ function createAdminDashboardRouter(arg1, arg2) {
         return report;
       };
 
-      await (typeof db.withTransaction === 'function' ? db.withTransaction(runDismiss) : runDismiss(db));
+      const dismissedReport = await (typeof db.withTransaction === 'function' ? db.withTransaction(runDismiss) : runDismiss(db));
+
+      // KYANA AI 3.0 Moderation Dismissal Hook: clear hidden_at if open reports < 3
+      try {
+        if (dismissedReport?.content_type === 'post') {
+          const countRow = await db.get(
+            "SELECT COUNT(*) AS count FROM content_reports WHERE content_type = 'post' AND content_id = ? AND status = 'open'",
+            dismissedReport.content_id
+          );
+          if (!countRow || Number(countRow.count) < 3) {
+            const { onPostModerationChanged } = require('../lib/knowledge-sync');
+            await onPostModerationChanged(db, dismissedReport.content_id, { isHidden: false });
+          }
+        }
+      } catch (syncErr) {
+        console.error('[KYANA Knowledge Dismiss Sync Error]:', syncErr.message);
+      }
 
       res.json({
         success: true,

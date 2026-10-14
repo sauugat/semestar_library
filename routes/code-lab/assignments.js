@@ -337,7 +337,46 @@ router.post('/assignments', requireLogin, async (req, res) => {
             return { assignmentId: aId, questionIds: qIds };
         });
 
+        // F3: Respond immediately to caller before background indexing
         res.json({ message: 'Assignment created', id: assignmentId, questionIds });
+
+        // KYANA AI 3.0 Knowledge Indexing Hook (Non-blocking via waitUntil / setImmediate)
+        const assignmentSyncData = {
+            id: assignmentId,
+            title,
+            description: finalQuestions[0]?.description || '',
+            language: effectiveLanguage,
+            subject: subject || null,
+            semester: finalSemester,
+            deadline: deadline || null,
+            pdfUrl: pdfUrl || null,
+            pdfName: pdfName || null,
+            createdBy: studentId,
+            createdAt: now,
+            cohort_id: publishScope.cohortId || null,
+            semester_no: publishScope.semesterNo || null,
+            audience_scope: publishScope.audienceScope || 'cohort'
+        };
+
+        const runAssignmentSync = async () => {
+            try {
+                const { onAssignmentSaved } = require('../../lib/knowledge-sync');
+                await onAssignmentSaved(db, assignmentSyncData);
+            } catch (syncErr) {
+                console.error('[KYANA Knowledge Sync Assignment Create Error]:', syncErr.message);
+            }
+        };
+
+        try {
+            const { waitUntil } = require('@vercel/functions');
+            if (typeof waitUntil === 'function') {
+                waitUntil(runAssignmentSync());
+            } else {
+                setImmediate(runAssignmentSync);
+            }
+        } catch (_) {
+            setImmediate(runAssignmentSync);
+        }
     } catch (err) {
         console.error('[Code Lab] Assignment creation transaction error:', err);
         res.status(500).json({ message: 'Failed to create assignment.' });
@@ -473,6 +512,14 @@ router.delete('/assignments/:id', requireLogin, async (req, res) => {
         await db.run('DELETE FROM submissions WHERE assignmentId = ?', assignmentId);
         await db.run('DELETE FROM assignment_questions WHERE assignmentId = ?', assignmentId);
         await db.run('DELETE FROM assignments WHERE id = ?', assignmentId);
+
+        // KYANA AI 3.0 Knowledge Soft-Delete Hook (Synchronous before response)
+        try {
+            const { onAssignmentDeleted } = require('../../lib/knowledge-sync');
+            await onAssignmentDeleted(db, assignmentId);
+        } catch (syncErr) {
+            console.error('[KYANA Knowledge Sync Assignment Delete Error]:', syncErr.message);
+        }
 
         res.json({ message: 'Assignment deleted successfully.', id: assignmentId });
     } catch (err) {

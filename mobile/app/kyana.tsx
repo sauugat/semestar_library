@@ -454,7 +454,7 @@ export default function KyanaChatScreen() {
         router.push(`/notice/${card.id}` as any);
       } else if (card.type === 'post') {
         router.push(`/post/${card.id}` as any);
-      } else if (card.type === 'assignment') {
+      } else if (card.type === 'assignment' || (card.type as string) === 'post_assignment') {
         router.push(`/assignments/${card.id}` as any);
       } else if (card.type === 'routine') {
         router.push('/routine' as any);

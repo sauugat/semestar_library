@@ -1,0 +1,46 @@
+[
+  {
+    "id": "q1",
+    "query": "When is the deadline for Python assignment 1?",
+    "lang": "en",
+    "expectedId": "assignment:703",
+    "academicContext": {
+      "role": "student",
+      "cohortId": "c_mercury",
+      "currentSemester": 3
+    }
+  },
+  {
+    "id": "q2",
+    "query": "What are the topics covered in DBMS normalization?",
+    "lang": "en",
+    "expectedId": "post:701",
+    "academicContext": {
+      "role": "student",
+      "cohortId": "c_mercury",
+      "currentSemester": 3
+    }
+  },
+  {
+    "id": "q3",
+    "query": "Exam routine kahile publish huncha?",
+    "lang": "ne-rom",
+    "expectedId": "post:702",
+    "academicContext": {
+      "role": "student",
+      "cohortId": "c_mercury",
+      "currentSemester": 3
+    }
+  },
+  {
+    "id": "q4",
+    "query": "परीक्षा सम्बन्धी आधिकारिक सूचना",
+    "lang": "ne-dev",
+    "expectedId": "post:702",
+    "academicContext": {
+      "role": "student",
+      "cohortId": "c_mercury",
+      "currentSemester": 3
+    }
+  }
+]

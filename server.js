@@ -672,6 +672,24 @@ app.get(['/assignments', '/code-lab', '/code-lab/'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'code-lab', 'subjects.html'));
 });
 
+// Single assignment web route handler
+app.get(['/assignments/:id', '/assignment/:id'], (req, res) => {
+  const assignmentId = req.params.id;
+  if (assignmentId && /^\d+$/.test(assignmentId)) {
+    return res.redirect(`/code-lab/assignment.html?id=${encodeURIComponent(assignmentId)}`);
+  }
+  res.redirect('/code-lab/subjects.html');
+});
+
+// Single post web route handler
+app.get(['/posts/:id', '/post/:id'], (req, res) => {
+  const postId = req.params.id;
+  if (postId && /^\d+$/.test(postId)) {
+    return res.redirect(`/dashboard.html?post=${encodeURIComponent(postId)}`);
+  }
+  res.redirect('/dashboard.html');
+});
+
 app.get('/code-lab/compiler', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'code-lab', 'index.html'));
 });
@@ -5041,7 +5059,8 @@ app.all('/api/internal/posts/cleanup-staging', verifyInternalCron, async (req, r
   }
 });
 
-
+// KYANA AI 3.0 Internal Knowledge Sync & Reconciliation
+app.use('/api/internal/knowledge', require('./routes/internal-knowledge'));
 // ============================================================
 // PROFILE & SOCIAL GRAPH SYSTEM
 // ============================================================

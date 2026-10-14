@@ -76,6 +76,7 @@ describe('KYANA 3.0 Step 5 — Connect Retrieval to Chat', () => {
 
   before(async () => {
     process.env.KYANA_KNOWLEDGE_V3 = 'true';
+    process.env.KYANA_KNOWLEDGE_V3_USERS = '*';
     client = new Client({ connectionString });
     await client.connect();
     db = wrapPgClient(client);
@@ -442,6 +443,7 @@ describe('KYANA 3.0 Step 5 — Connect Retrieval to Chat', () => {
 
   after(async () => {
     process.env.KYANA_KNOWLEDGE_V3 = 'false';
+    delete process.env.KYANA_KNOWLEDGE_V3_USERS;
     if (client) {
       await client.query(`
         DELETE FROM assignments WHERE id >= 800;

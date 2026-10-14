@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
@@ -533,7 +534,11 @@ export default function KyanaChatScreen() {
             {/* Assistant Avatar */}
             {!isUser && (
               <View style={styles.assistantAvatarSmall}>
-                <Ionicons name="sparkles" size={12} color="#FFFFFF" />
+                <Image
+                  source={require('../assets/images/kyana-logo.png')}
+                  style={styles.assistantAvatarImage}
+                  contentFit="contain"
+                />
               </View>
             )}
 
@@ -689,7 +694,11 @@ export default function KyanaChatScreen() {
 
         <View style={styles.headerTitleBox}>
           <View style={styles.headerAvatar}>
-            <Ionicons name="sparkles" size={16} color="#FFFFFF" />
+            <Image
+              source={require('../assets/images/kyana-logo.png')}
+              style={styles.headerAvatarImage}
+              contentFit="contain"
+            />
           </View>
           <View style={styles.headerTextCol}>
             <View style={styles.headerTitleRow}>
@@ -699,7 +708,7 @@ export default function KyanaChatScreen() {
               </View>
             </View>
             <Text style={styles.headerSubtitle}>
-              {isGenerating ? '✦ Thinking…' : 'Your study companion'}
+              {isGenerating ? 'Thinking…' : 'Your study companion'}
             </Text>
           </View>
         </View>
@@ -758,7 +767,11 @@ export default function KyanaChatScreen() {
               isGenerating ? (
                 <View style={styles.liveGenerationRow}>
                   <View style={styles.assistantAvatarSmall}>
-                    <Ionicons name="sparkles" size={12} color="#FFFFFF" />
+                    <Image
+                      source={require('../assets/images/kyana-logo.png')}
+                      style={styles.assistantAvatarImage}
+                      contentFit="contain"
+                    />
                   </View>
                   <View style={[styles.bubble, styles.assistantBubble, styles.streamingBubble]}>
                     {streamingText ? (
@@ -777,7 +790,11 @@ export default function KyanaChatScreen() {
               messages.length === 0 ? (
                 <View style={styles.emptyStateContainer}>
                   <View style={styles.emptyAvatarLarge}>
-                    <Ionicons name="sparkles" size={28} color="#FFFFFF" />
+                    <Image
+                      source={require('../assets/images/kyana-logo.png')}
+                      style={styles.emptyAvatarLargeImage}
+                      contentFit="contain"
+                    />
                   </View>
                   <Text style={styles.emptyTitle}>Meet Kyana AI</Text>
                   <Text style={styles.emptyDesc}>
@@ -992,6 +1009,11 @@ const styles = StyleSheet.create({
     borderColor: Monochrome.border,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  headerAvatarImage: {
+    width: 22,
+    height: 22,
   },
   headerTextCol: {
     alignItems: 'flex-start',
@@ -1086,6 +1108,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 2,
+    overflow: 'hidden',
+  },
+  assistantAvatarImage: {
+    width: 16,
+    height: 16,
   },
   bubble: {
     borderRadius: 18,
@@ -1180,6 +1207,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 14,
+    overflow: 'hidden',
+  },
+  emptyAvatarLargeImage: {
+    width: 38,
+    height: 38,
   },
   emptyTitle: {
     fontSize: 18,

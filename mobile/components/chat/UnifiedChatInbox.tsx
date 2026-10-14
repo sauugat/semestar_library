@@ -135,7 +135,11 @@ export function UnifiedChatInbox({
           >
             {/* Kyana AI Avatar */}
             <View style={styles.kyanaAvatarContainer}>
-              <Ionicons name="sparkles" size={20} color="#F5F5F5" />
+              <Image
+                source={require('../../assets/images/kyana-logo.png')}
+                style={styles.kyanaAvatarImage}
+                contentFit="contain"
+              />
             </View>
 
             {/* Conversation Details */}
@@ -809,6 +813,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
+    overflow: 'hidden',
+  },
+  kyanaAvatarImage: {
+    width: 32,
+    height: 32,
   },
   aiBadge: {
     backgroundColor: '#27272A',

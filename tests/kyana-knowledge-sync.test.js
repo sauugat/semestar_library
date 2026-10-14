@@ -25,6 +25,7 @@ describe('KYANA 3.0 Step 3 — Sync Hooks, Worker, Reconciliation & Backfill (Do
 
   before(async () => {
     process.env.KYANA_KNOWLEDGE_V3 = 'true';
+    process.env.KYANA_KNOWLEDGE_V3_USERS = '*';
     client = new Client({ connectionString });
     await client.connect();
 

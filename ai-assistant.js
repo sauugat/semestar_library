@@ -257,7 +257,7 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
   result.intent = route.kind;
   result.chatMode = chatMode;
 
-  const v3Enabled = isKnowledgeV3Enabled();
+  const v3Enabled = isKnowledgeV3Enabled(studentKey || studentInfo?.studentId || studentInfo?.id);
   const sessionKey = sessionId || studentKey || 'default';
 
   // Resolve academic context server-side for semester authorization

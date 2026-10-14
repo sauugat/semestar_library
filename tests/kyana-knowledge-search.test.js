@@ -25,6 +25,7 @@ describe('KYANA 3.0 Step 4 — Unified Knowledge Retrieval Engine', () => {
 
   before(async () => {
     process.env.KYANA_KNOWLEDGE_V3 = 'true';
+    process.env.KYANA_KNOWLEDGE_V3_USERS = '*';
     client = new Client({ connectionString });
     await client.connect();
 
@@ -249,6 +250,7 @@ describe('KYANA 3.0 Step 4 — Unified Knowledge Retrieval Engine', () => {
     // Bob (Venus Sem 5) searches broadly
     const bobResults = await searchKnowledge(client, bobContext, 'notes schedule consensus programming spam parsing', { minScore: 0.05 });
     const resultIds = bobResults.map(r => r.id);
+    console.log('DEBUG BOB RESULTS:', bobResults.map(r => ({ id: r.id, score: r.score, fts: r.fts_score, vec: r.vector_score, tier: r.source_authority_tier })));
 
     // 1. Bob cannot see Mercury's cohort-scoped post 701
     assert.ok(!resultIds.includes('post:701'), 'Bob must NOT see Mercury cohort-scoped post 701');

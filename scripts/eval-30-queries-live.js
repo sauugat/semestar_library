@@ -67,7 +67,7 @@ const evalDataset = [
   { query: 'ल्याब काम बुझाउने अन्तिम मिति', expectedId: 'assignment:703', lang: 'ne-dev' }
 ];
 
-// 15 "No Answer Exists" Queries (Non-existent faculty, fake courses, unrelated queries)
+// 20 "No Answer Exists" Queries (Non-existent faculty, fake courses, unrelated queries, common words)
 const noAnswerDataset = [
   'Professor Dumbledore office hours in room 404',
   'Quantum teleportation and warp drive lab manual',
@@ -83,11 +83,17 @@ const noAnswerDataset = [
   'Shakespearean tragedy analysis CIT707 notes',
   'Moon rover trajectory calculations homework',
   'Martian colonial law case studies',
-  'Time travel paradoxes exam syllabus'
+  'Time travel paradoxes exam syllabus',
+  'what is the notice',
+  'can you show me the post',
+  'is there any general announcement today',
+  'who is the new teacher in college',
+  'what are the notes about'
 ];
 
 async function main() {
   process.env.KYANA_KNOWLEDGE_V3 = 'true';
+  process.env.KYANA_KNOWLEDGE_V3_USERS = '*';
   process.env.ENABLE_LIVE_GEMINI_IN_TESTS = 'true';
 
   const client = new Client({ connectionString });

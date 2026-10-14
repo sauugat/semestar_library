@@ -29,6 +29,7 @@ describe('KYANA 3.0 G2 — Comprehensive Authorization Parity Matrix', () => {
 
   before(async () => {
     process.env.KYANA_KNOWLEDGE_V3 = 'true';
+    process.env.KYANA_KNOWLEDGE_V3_USERS = '*';
     client = new Client({ connectionString });
     await client.connect();
 
@@ -136,61 +137,58 @@ describe('KYANA 3.0 G2 — Comprehensive Authorization Parity Matrix', () => {
                   let sqlAllowed = false;
                   if (isAdmin) {
                     sqlAllowed = true;
-                  } else if (auth.id === ctx.studentId) {
-                    sqlAllowed = true; // Author always has access
                   } else if (isTeacher) {
                     const visOk = vis === 'everyone' || vis === 'teachers_only';
                     const assigned = ctx.assignedSemesters || [];
-                    const semOk = assigned.length === 0 || allSem === 1 || assigned.includes(sem);
+                    const semOk = assigned.length === 0 || assigned.includes(sem);
                     sqlAllowed = visOk && semOk;
                   } else if (isStudentOrCr) {
-                    const visOk = vis === 'everyone' || vis === 'students_only' || vis === 'cohort_only';
-                    const isOwnCohort = c.id === ctx.cohortId;
-                    const isUniversal = aud === 'all_students';
+                    if (auth.id === ctx.studentId) {
+                      sqlAllowed = true;
+                    } else {
+                      const visOk = vis === 'everyone' || vis === 'students_only' || vis === 'cohort_only';
+                      const isOwnCohort = c.id === ctx.cohortId;
+                      const isUniversal = aud === 'all_students';
 
-                    // G3 Historical Access Rule:
-                    // own cohort or all-students content is allowed if target_all_semesters=1 OR semester_no <= viewerCurrentSem
-                    const semOk = allSem === 1 || (sem <= viewerCurrentSem);
-                    sqlAllowed = visOk && semOk && (isOwnCohort || isUniversal);
+                      // G3 Historical Access Rule:
+                      // own cohort or all-students content is allowed if semester_no <= viewerCurrentSem
+                      const semOk = (sem <= viewerCurrentSem);
+                      sqlAllowed = visOk && semOk && (isOwnCohort || isUniversal);
+                    }
                   }
 
                   // 3. Analyze differences
                   if (sqlAllowed === baselineAllowed) {
                     exactMatches++;
-                  } else {
-                    // Check if difference is expected G3 Historical Semester Rule
+                  } else if (sqlAllowed && !baselineAllowed) {
+                    // Kyana allows MORE than assertContentAccess
                     const isHistoricalDifference = isStudentOrCr &&
                       auth.id !== ctx.studentId &&
                       (vis === 'everyone' || vis === 'students_only' || vis === 'cohort_only') &&
-                      allSem === 0 &&
                       (c.id === ctx.cohortId || aud === 'all_students') &&
                       sem < viewerCurrentSem;
 
-                    // Check if difference is visibility policy (students_only/cohort_only blocked from teachers, teachers_only blocked from students)
-                    const isVisibilityPolicyDifference =
-                      (isTeacher && (vis === 'students_only' || vis === 'cohort_only') && auth.id !== ctx.studentId) ||
-                      (isStudentOrCr && vis === 'teachers_only' && auth.id !== ctx.studentId);
-
-                    const isTeacherAuthorDifference = isTeacher && auth.id === ctx.studentId &&
-                      ctx.assignedSemesters && ctx.assignedSemesters.length > 0 &&
-                      !ctx.assignedSemesters.includes(sem);
-
-                    // Target all semesters difference:
-                    // In routes/posts.js and retrieval SQL, target_all_semesters = 1 grants universal access across all semesters.
-                    // In assertContentAccess, entitySem is checked strictly if semester_no is non-null.
-                    const isTargetAllSemestersDifference = (allSem === 1 && !baselineAllowed && sqlAllowed);
-
                     if (isHistoricalDifference) {
                       historicalDifferences++;
-                    } else if (isVisibilityPolicyDifference) {
-                      visibilityPolicyDifferences++;
-                    } else if (isTeacherAuthorDifference) {
-                      exactMatches++;
-                    } else if (isTargetAllSemestersDifference) {
-                      exactMatches++;
                     } else {
                       unexplainedDifferences++;
-                      console.error(`UNEXPLAINED DIFFERENCE for viewer ${viewer.name}:`, {
+                      console.error(`UNEXPLAINED KYANA ALLOWS MORE for viewer ${viewer.name}:`, {
+                        res,
+                        baselineAllowed,
+                        sqlAllowed
+                      });
+                    }
+                  } else {
+                    // Kyana allows LESS than assertContentAccess
+                    const isVisibilityPolicyDifference =
+                      (isTeacher && (vis === 'students_only' || vis === 'cohort_only')) ||
+                      (isStudentOrCr && vis === 'teachers_only' && auth.id !== ctx.studentId);
+
+                    if (isVisibilityPolicyDifference) {
+                      visibilityPolicyDifferences++;
+                    } else {
+                      unexplainedDifferences++;
+                      console.error(`UNEXPLAINED KYANA ALLOWS LESS for viewer ${viewer.name}:`, {
                         res,
                         baselineAllowed,
                         sqlAllowed
@@ -208,8 +206,8 @@ describe('KYANA 3.0 G2 — Comprehensive Authorization Parity Matrix', () => {
     console.log('\n--- PARITY MATRIX TEST RESULTS ---');
     console.log(`Total Scenarios Tested           : ${totalComparisons}`);
     console.log(`Exact Matches with assertAccess  : ${exactMatches} (${((exactMatches/totalComparisons)*100).toFixed(2)}%)`);
-    console.log(`G3 Historical Access Differences : ${historicalDifferences} (${((historicalDifferences/totalComparisons)*100).toFixed(2)}%)`);
-    console.log(`Audience Visibility Differences  : ${visibilityPolicyDifferences} (${((visibilityPolicyDifferences/totalComparisons)*100).toFixed(2)}%)`);
+    console.log(`G3 Historical Access (Kyana MORE): ${historicalDifferences} (${((historicalDifferences/totalComparisons)*100).toFixed(2)}%)`);
+    console.log(`Visibility Guard (Kyana LESS)    : ${visibilityPolicyDifferences} (${((visibilityPolicyDifferences/totalComparisons)*100).toFixed(2)}%)`);
     console.log(`Unexplained Differences          : ${unexplainedDifferences}`);
     console.log('----------------------------------\n');
 

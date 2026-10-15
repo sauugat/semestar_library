@@ -3,7 +3,7 @@
 ================================================================================
 Platform Name  : Semester Library
 Target Audience: Gandaki University (Faculty of Science & Technology / BIT Students)
-Platform Domain: Web Application (Portal, Library, Code Lab, Community, AI Assistant)
+Platform Domain: Full Platform (Web Portal & React Native / Expo Mobile App)
 Document Scope : Exhaustive End-to-End Architectural Breakdown & Master Manual
 Document Name  : semester library.txt
 Date Created   : October 2026
@@ -13,9 +13,135 @@ Author         : Saugat & Contributors
 
 TABLE OF CONTENTS
 --------------------------------------------------------------------------------
+PART I: SEMESTER LIBRARY WEB APPLICATION
+--------------------------------------------------------------------------------
 1. EXECUTIVE SUMMARY, MISSION & CORE PURPOSE
 2. HIGH-LEVEL SYSTEM ARCHITECTURE & TOPOLOGY
 3. FRONTEND ARCHITECTURE — DETAILED CLIENT IMPLEMENTATION
+   - The Philosophy of Vanilla Web Technologies (HTML5 / CSS3 / ES6+)
+   - Design System, Typography, Layout & Aesthetic Polish
+   - The Anti-FOUC Theme Engine (theme.js & theme-overrides.css)
+   - Client-Side State Management Without Frameworks
+   - Universal Authenticated Fetch Layer (auth.js & authFetch)
+   - In-Browser Document Rendering Engines (PDF.js, Mammoth.js, PPTX)
+   - Code Lab Monaco IDE Integration & Keyboard Bindings
+   - Progressive Web App (PWA) Offline Engine (sw.js & manifest.json)
+4. AUTHENTICATION, AUTHORIZATION & SECURITY DEEP DIVE
+   - The Three Platform Roles (Student, Teacher, Admin) & Privileges
+   - Tri-Channel Authentication Architecture (Supabase JWT, Session Cookie, Bearer Token)
+   - Complete Step-by-Step Auth Lifecycle Workflows:
+     * Workflow 1: Student Self-Registration & Real-Time Availability Checking
+     * Workflow 2: Supabase Email OTP Verification & Cohort Auto-Assignment
+     * Workflow 3: Standard Password Login & Session Regeneration (Fixation Defense)
+     * Workflow 4: Teacher Provisioning, Nonce Tracking & Self-Onboarding
+     * Workflow 5: Account Suspension Checks & Security Interceptors
+   - Backend Auth Middleware & Route Guards (lib/auth-middleware.js)
+   - Password Hashing (bcryptjs) & Session Persistence (CustomDbStore)
+5. BACKEND ARCHITECTURE & PROCESSING ENGINES
+   - The Express 4 Server Kernel (server.js) & Serverless Vercel Adapter
+   - Dual-Engine Universal Database Abstraction (db.js):
+     * Production: Neon Serverless PostgreSQL with WebSocket Connection Pool
+     * Development / QA / Offline: LibSQL & Local SQLite with WAL Mode
+     * Dynamic SQL Query Dialect Translation (? to $1, $2, ... & Timestamps)
+     * Column Normalization Engine (camelMap)
+   - 3-Tier Object & Binary Storage Engine (Supabase Storage, file_blobs, disk cache)
+   - Full-Text Document Ingestion & Search Engine (lib/note-search.js)
+   - Kyana AI 3.0 Academic Assistant (ai-assistant.js, lib/chat-*, lib/knowledge-*)
+   - Real-Time Messaging Engines (Supabase Realtime Broadcast & WebSockets)
+   - Code Lab Cloud Compiler & Live WebSocket Terminal Sandbox
+   - Multi-Channel Notification Engine (In-App Center & Expo Push Service)
+6. COMPLETE DATABASE SCHEMA CATALOG (TABLES, COLUMNS & CONSTRAINTS)
+   - Identity & Authentication Tables
+   - Academic Curricula & Cohort Tables
+   - File Management & Search Tables
+   - Community Social Feed & Comment Trees
+   - Real-Time Chat & Direct Messaging Tables
+   - Code Lab Assignments, Submissions & Grading Tables
+   - System Diagnostics, Audits & Notifications Tables
+7. EXHAUSTIVE DIRECTORY & FILE-BY-FILE BREAKDOWN
+   - Root Core Files (server.js, db.js, ai-assistant.js, schema.sql, etc.)
+   - Serverless Adapter & Configuration (api/index.js, vercel.json)
+   - Core Services & Libraries (lib/ — all 49 files fully documented)
+   - Route Controllers (routes/ — all 16 controllers fully documented)
+   - Web User Interfaces (public/ — all 34 HTML pages fully documented)
+   - Interactive Code Lab Suite (public/code-lab/ — all 10 pages & utilities)
+   - Client-Side JavaScript Modules (public/*.js — all 18 scripts fully documented)
+   - Design System Stylesheets (public/*.css — all 10 stylesheets documented)
+   - Administrative, Migration & Automation Scripts (scripts/ — key scripts documented)
+8. COMPLETE CATALOG OF ALL API ENDPOINTS
+   - Authentication & Profile APIs
+   - Academic Library & Document APIs
+   - Community Social Feed & Comment APIs
+   - Direct Messaging (DM) APIs
+   - Cohort Group Chat APIs
+   - Kyana AI Assistant APIs
+   - Code Lab & Online Compiler APIs
+   - Exam Routine & Schedule APIs
+   - Notification Center APIs
+   - Administration & Faculty Management APIs
+9. END-TO-END DATA FLOWS & TRANSACTION WALKTHROUGHS
+   - Flow A: Student Registration & Cohort Allocation
+   - Flow B: Lecture Note Upload, Extraction, Indexing & Preview
+   - Flow C: Kyana AI Question Answering with Tool Execution
+   - Flow D: Code Lab Assignment Submission & Automated Test Case Evaluation
+   - Flow E: Direct Messaging with Real-Time Broadcast & Read Receipts
+10. DEVELOPER MANUAL: HOW TO RUN, STUDY, TEST & EXTEND THIS CODEBASE
+   - Local Setup & Environment Configuration (.env)
+   - Recommended 5-Stage Learning Path for Students
+   - Practical Walkthrough: Adding a New Page
+   - Practical Walkthrough: Adding a New Database Table & Migration
+   - Practical Walkthrough: Adding a New API Endpoint with Validation
+   - Testing, QA Sandbox & Debugging Instructions
+
+--------------------------------------------------------------------------------
+PART II: SEMESTER LIBRARY MOBILE APPLICATION (EXPO SDK 57 / REACT NATIVE)
+--------------------------------------------------------------------------------
+11. MOBILE APPLICATION OVERVIEW & ARCHITECTURAL FOUNDATION
+    - Mission & Native Identity (com.semesterlibrary.app)
+    - Offline-First Resilience Philosophy & Zero-Crash Architecture
+    - Feature Summary: Feed, Notes, Cohort Chat, DMs, Kyana AI, Routine, Games
+12. COMPLETE MOBILE TECHNOLOGY STACK & NATIVE PACKAGES
+    - React Native 0.86.3, React 19.2.3, Expo SDK 57 & Expo Router
+    - TanStack React Query v5 & Persistent Client Architecture
+    - Local SQLite Storage (expo-sqlite in WAL mode) & 3 Isolated DBs
+    - Hardware Security & Token Storage (expo-secure-store)
+    - Native Device Modules (Notifications, Image, FileSystem, Haptics, Symbols)
+    - Keyboard Handling (react-native-keyboard-controller & StickyComposer)
+13. MOBILE ARCHITECTURAL PATTERNS & OFFLINE-FIRST STRATEGY
+    - The 3-Tier Mobile Data Pipeline (Memory Map -> SQLite WAL -> Remote API)
+    - Optimistic UI Sending Pattern & Negative ID Reconciliation
+    - Real-Time Broadcasts with Fallback Cursor Polling & Deduplication
+    - Dynamic Server Resolution (LAN Auto-Detection vs Production HTTPS Lock)
+    - Account Suspension Interceptor & Automatic Cache Invalidation
+14. MOBILE AUTHENTICATION & SESSION MANAGEMENT
+    - AuthContext.tsx Deep Dive & Lifecycle Management
+    - Persistent Hardware Keystore Token Storage
+    - Mobile Student Registration & Supabase Email OTP Verification
+    - Teacher Onboarding Flow & Temporary Token Redirection
+    - Admin View Mode Switching (Student, Teacher, Admin Modes)
+15. EXHAUSTIVE MOBILE DIRECTORY & FILE-BY-FILE BREAKDOWN
+    - Mobile Root Configuration Files (app.json, eas.json, tsconfig.json)
+    - Application Routes (mobile/app/ — all 16 screen routes fully documented)
+    - Bottom Tab Navigation (mobile/app/(tabs)/ — all 5 core tabs documented)
+    - Sub-Routes (dm/, admin/, assignments/, post/, user/)
+    - Context Providers (mobile/context/ — all 4 context providers documented)
+    - Mobile Services & Utilities (mobile/services/ — all 26 services documented)
+    - UI Kit & Feature Components (mobile/components/ — all 40+ components)
+    - Constants, Hooks, Types & Utilities (theme.ts, motion.ts, roles.ts, etc.)
+16. MOBILE NOTIFICATION SYSTEM & DEEP LINK ROUTING
+    - Expo Push Token Registration & Device Token Storage
+    - Android Notification Channels (Chat, Academic, Social, Notices)
+    - Deep Link Navigation Routing (navigateFromNotification)
+17. MOBILE REAL-TIME MESSAGING WORKFLOWS & DATA FLOWS
+    - Cohort Group Chat Sending, Optimistic Rendering & Supabase Sync
+    - 1-on-1 Direct Messaging, Offline Outbox & Reconnect Flushing
+18. HOW TO RUN, BUILD, TEST & DEPLOY THE MOBILE APP
+    - Prerequisites & Installation (mobile/package.json)
+    - Running in Development with Expo Go (npx expo start --go)
+    - Running on Android Emulator & iOS Simulator
+    - Building Standalone Production APK / AAB with EAS Build (eas.json)
+    - Mobile Troubleshooting & Metro Cache Management
+
    - The Philosophy of Vanilla Web Technologies (HTML5 / CSS3 / ES6+)
    - Design System, Typography, Layout & Aesthetic Polish
    - The Anti-FOUC Theme Engine (theme.js & theme-overrides.css)
@@ -1966,6 +2092,764 @@ The project includes a comprehensive suite of native Node.js tests:
 5. Run automated QA Server in an isolated sandbox database:
    npm run qa:server
 
+
+
+================================================================================
+PART II: SEMESTER LIBRARY MOBILE APPLICATION (EXPO SDK 57 / REACT NATIVE)
+================================================================================
+
+
+================================================================================
+11. MOBILE APPLICATION OVERVIEW & ARCHITECTURAL FOUNDATION
+================================================================================
+The Semester Library Mobile Application is the dedicated native companion app 
+built for Android and iOS devices (`com.semesterlibrary.app`).
+
+While the web application provides an expansive desktop workspace for studying, 
+writing code in Monaco Editor, and printing lab reports, university students 
+require immediate, on-the-go access from their smartphones:
+- Receiving instant push notifications for exam schedule changes or teacher notices.
+- Browsing lecture notes on campus Wi-Fi and saving them for offline reading 
+  inside lecture halls with weak reception.
+- Chatting with classmates in real-time cohort channels or private 1-on-1 messages.
+- Asking Kyana AI study questions on the walk between classes.
+- Playing casual multiplayer games (like Ludo) with classmates during breaks.
+
+OFFLINE-FIRST PHILOSOPHY & ZERO-CRASH ARCHITECTURE:
+Campus cellular connectivity in university buildings is often unpredictable. The 
+mobile app is engineered with an "Offline-First" mindset:
+1. Zero-Crash Guarantee: The app never throws unhandled network exceptions or 
+   freezes on white screens when connectivity drops.
+2. 0ms Data Hydration: On app boot, cached feed posts, lecture notes, and chat 
+   history render on screen instantly from local SQLite and AsyncStorage before 
+   any remote network request is initiated.
+3. Optimistic Background Mutations: Messages and post likes execute immediately 
+   in the local user interface with optimistic state. If the phone is offline, 
+   actions are queued in local SQLite outboxes and dispatched automatically once 
+   network connectivity resumes.
+
+
+================================================================================
+12. COMPLETE MOBILE TECHNOLOGY STACK & NATIVE PACKAGES
+================================================================================
+The mobile app is built upon modern cross-platform native technologies:
+
+A. CORE RUNTIME & FRAMEWORK
+- Framework: React Native 0.86.3
+- Language & Compiler: TypeScript ~5.9.3
+- Platform Ecosystem: Expo SDK 57 (`~57.0.26`)
+- Entrypoint: `expo-router/entry`
+- Navigation: Expo Router v4 (`~57.0.24`) providing file-based routing matching 
+  modern web conventions (directories map directly to navigation stacks).
+
+B. STATE MANAGEMENT, DATA FETCHING & LOCAL PERSISTENCE
+- Server State & Query Cache: `@tanstack/react-query` v5 (`^5.104.0`)
+- Query Cache Persistence: `@tanstack/react-query-persist-client` combined with 
+  `@react-native-async-storage/async-storage` (`2.2.0`). All server queries (feed, 
+  user profile, library subjects) survive app restarts.
+- Local SQLite Database: `expo-sqlite` (`~57.0.3`) running with Write-Ahead Logging 
+  (`PRAGMA journal_mode = WAL`) and exclusive ACID transactions. Powers 3 isolated 
+  local relational databases:
+  * `semester_library_chat.db`: Group chat messages, event deduplication, and read receipts.
+  * `semester_library_dm.db`: Direct messaging threads, local drafts, and pending outbox.
+  * `semester_library_kyana.db`: Kyana AI conversations, prompt history, and cached cards.
+
+C. HARDWARE SECURITY & CREDENTIAL STORAGE
+- Keystore & Keychain Storage: `expo-secure-store` (`~57.0.4`)
+  Sensitive authentication credentials (persistent 64-hex bearer tokens and session 
+  keys) are encrypted using hardware-backed Android Keystore and iOS Keychain. 
+  Tokens are never stored in unencrypted plain text.
+
+D. REAL-TIME NETWORKING
+- WebSockets & Broadcasts: `@supabase/supabase-js` (`^2.117.2`)
+  Maintains persistent WebSocket connections to Supabase Realtime channels for 
+  instant peer-to-peer message delivery and typing indicators.
+
+E. NATIVE DEVICE APIS & HARDWARE MODULES
+- Push Notifications: `expo-notifications` (`~57.0.21`) & `expo-device` (`~57.0.2`)
+- High-Performance Images: `expo-image` (`~57.0.5`) with disk caching and blurhash placeholders.
+- Media Capture: `expo-image-picker` (`~57.0.20`) & `expo-image-manipulator` (`~57.0.20`)
+- Document Picking & File System: `expo-file-system` (`~57.0.7`), `expo-document-picker` 
+  (`~57.0.3`), `expo-sharing` (`~57.0.22`), and `expo-media-library` (`~57.0.5`)
+- Haptic Feedback: `expo-haptics` (`~57.0.3`) providing tactile impact feedback on 
+  message sends, like toggles, and button clicks.
+- Visual Effects: `expo-glass-effect` (`~57.0.4`), `expo-symbols` (`~57.0.3`), and 
+  `@expo/vector-icons` (`^15.0.2` — Ionicons).
+- Keyboard & Physics: `react-native-keyboard-controller` (`^1.21.9`), 
+  `react-native-safe-area-context` (`~5.7.0`), `react-native-screens` (`~4.26.0`), 
+  and `react-native-reanimated` (`4.5.1`).
+- Typography: `@expo-google-fonts/plus-jakarta-sans` (`^0.4.2`).
+
+
+================================================================================
+13. MOBILE ARCHITECTURAL PATTERNS & OFFLINE-FIRST STRATEGY
+================================================================================
+
+A. THE 3-TIER MOBILE DATA PIPELINE
+Data in the mobile app moves through three synchronized tiers:
+
++-----------------------------------------------------------------------------+
+| TIER 1: IN-MEMORY SYNCHRONOUS MAP (0ms Latency)                             |
+|  - In-memory JavaScript Map collections inside service singletons.          |
+|  - Synchronous lookups ensure the UI never stutters or shows loading        |
+|    spinners when switching between chat rooms or tabs.                      |
++--------------------------------------|--------------------------------------+
+                                       | Asynchronous Cache Write
+                                       v
++-----------------------------------------------------------------------------+
+| TIER 2: LOCAL SQLITE WAL DATABASE (Offline Persistence)                     |
+|  - Transactional local SQLite databases via expo-sqlite.                    |
+|  - Stores up to 500 recent chat messages per cohort, all DM messages,       |
+|    and offline outbox actions.                                              |
+|  - Survives app kills, device reboots, and airplane mode.                   |
++--------------------------------------|--------------------------------------+
+                                       | Network Synchronization
+                                       v
++-----------------------------------------------------------------------------+
+| TIER 3: REMOTE BACKEND SERVER (Neon PostgreSQL & Supabase)                  |
+|  - Communicates via HTTPS REST APIs (api.ts) and WebSockets.                |
+|  - Reconciles local optimistic state with the server truth.                 |
++-----------------------------------------------------------------------------+
+
+B. OPTIMISTIC UI SENDING PATTERN & NEGATIVE ID RECONCILIATION
+To make messaging feel instantaneous:
+1. When a student types a message and clicks Send, `services/chat-db.ts` assigns 
+   it a negative temporary ID: `id = -Date.now()`.
+2. The message is immediately placed into the in-memory Map and rendered in the 
+   chat bubble list with a subtle clock/pending icon (`status: 'pending'`).
+3. Simultaneously, an asynchronous HTTP request is sent to `POST /api/chat/messages`.
+4. When the server responds with HTTP 200 OK containing the real database record 
+   (e.g., `id: 8492`, `status: 'sent'`), `services/chat-state.ts` executes atomic 
+   reconciliation:
+   - It matches the negative pending ID with the positive confirmed ID.
+   - It updates the message status to `'sent'`.
+   - The UI replaces the pending clock with a delivered checkmark without any 
+     screen flicker.
+5. If the network fails, the message remains stored in SQLite with `status: 'failed'` 
+   and a red retry icon, allowing the student to tap and resend when connectivity 
+   returns.
+
+C. REAL-TIME BROADCASTS WITH FALLBACK CURSOR POLLING & DEDUPLICATION
+1. Primary Transport: The mobile app subscribes to Supabase Realtime broadcast 
+   channels (`public:chat_messages` and `dm_realtime_outbox`).
+2. Event Deduplication (`chat-events.ts`):
+   Every broadcast event carries a unique `event_id`. When received, the app checks 
+   the local `chat_events_v3` SQLite table. If `event_id` was already processed, 
+   it is immediately discarded, preventing double-message duplication.
+3. Resilient Fallback: If WebSocket connections are severed (e.g., entering an 
+   elevator), `services/chat.ts` automatically falls back to timestamp-based cursor 
+   polling (`GET /api/chat/messages?afterId=X`) until the WebSocket reconnects.
+
+D. DYNAMIC SERVER RESOLUTION & ENVIRONMENT SAFETY (services/api.ts)
+The mobile app contains an intelligent server resolution engine:
+1. Development Mode (`__DEV__`):
+   When running on a physical Android or iOS device via Expo Go, connecting to 
+   `http://localhost:3000` fails because localhost refers to the phone itself.
+   `services/api.ts` inspects `Constants.expoConfig?.hostUri` (the IP of the laptop 
+   running the Expo bundler) and automatically routes API calls to:
+   `http://<computer_lan_ip>:3000` (e.g., `http://192.168.1.105:3000`).
+   This allows instant physical device testing without manually hardcoding IP addresses.
+2. Production Release Mode (`!__DEV__`):
+   In production builds, the app strictly locks the backend URL to:
+   `https://semestar-library.vercel.app`
+   Insecure HTTP protocols and unapproved hostnames are strictly rejected by 
+   `isTrustedServerUrl()`.
+
+E. ACCOUNT SUSPENSION INTERCEPTOR
+If an administrator suspends a student from the web dashboard:
+1. The student's mobile app receives an HTTP 403 response with `error: 'ACCOUNT_SUSPENDED'`.
+2. In `services/api.ts`, the global suspension listener fires.
+3. The app executes an immediate security shutdown:
+   - Unregisters the device's push notification token (`unregisterPushToken()`).
+   - Wipes tokens from `expo-secure-store`.
+   - Closes all Supabase Realtime WebSocket connections.
+   - Purges local SQLite chat and DM databases.
+   - Clears React Query caches (`clearAppQueryCache()`).
+   - Resets user state to `null` and redirects to `/login.tsx` with an alert explaining 
+     the administrative suspension.
+
+
+================================================================================
+14. MOBILE AUTHENTICATION & SESSION MANAGEMENT
+================================================================================
+
+A. AUTHCONTEXT.TSX DEEP DIVE
+`mobile/context/AuthContext.tsx` is the central state authority for mobile identity:
+- Manages `user: StudentUser | null`, `token: string | null`, and `isLoading: boolean`.
+- Initial App Boot:
+  * Reads `TOKEN_KEY` and `USER_KEY` from `expo-secure-store`.
+  * If found, sets state immediately so the student enters the app without waiting.
+  * In the background, executes `refreshProfile()` against `GET /api/me` to ensure 
+    the account is still active and synchronizes any semester/cohort changes.
+- Push Token Registration:
+  * Upon successful authentication, automatically invokes `registerPushToken(token, user.studentId)` 
+    to link the phone's Expo push token to the student record in `student_device_tokens`.
+
+B. MOBILE REGISTRATION & OTP FLOW
+1. Student opens `mobile/app/login.tsx` and toggles to the "Register" tab.
+2. Student enters Full Name, Student ID, Username, Email, Semester (1-8), Department, 
+   Gender, and Password.
+3. Client initiates Supabase OTP verification.
+4. Student enters the 6-digit confirmation code.
+5. Client calls `register()` in `AuthContext`, which sends the verified payload to 
+   `POST /api/auth/register`.
+6. The backend assigns the student to their academic cohort, issues a persistent 
+   64-hex mobile token, and returns the student record.
+7. `AuthContext` saves the token to hardware SecureStore and routes the user into 
+   the main tab navigation (`/(tabs)`).
+
+C. TEACHER ONBOARDING ON MOBILE
+If a faculty member signs in on mobile with temporary invite credentials:
+1. `POST /api/mobile/login` returns:
+   `{ onboardingRequired: true, onboardingToken: "...", state: { initialUsername, ... } }`.
+2. `AuthContext` detects `onboardingRequired: true`.
+3. The app navigates to `mobile/app/teacher-onboarding.tsx`.
+4. The instructor sets their permanent password, confirms full name and email, and 
+   completes onboarding directly on their phone.
+
+D. ADMIN VIEW MODE SWITCHING (context/AdminModeContext.tsx)
+For platform operators auditing the mobile app:
+1. When an `admin` logs in, `AdminModeContext` activates.
+2. The administrator can tap a floating badge or visit Settings to toggle between:
+   * "Admin View": Full access to teacher management, user suspensions, and academic cohorts.
+   * "Teacher View": Previews the app as a faculty member (checking assignment grading).
+   * "Student View": Previews the app exactly as an undergraduate student sees it.
+
+
+================================================================================
+15. EXHAUSTIVE MOBILE DIRECTORY & FILE-BY-FILE BREAKDOWN
+================================================================================
+
+Below is the complete, file-by-file breakdown of the `mobile/` directory:
+
+--------------------------------------------------------------------------------
+A. MOBILE ROOT CONFIGURATION FILES
+--------------------------------------------------------------------------------
+
+1. `mobile/app.json` (109 lines)
+   Expo application manifest. Configures app name ("Semester Library"), slug, version 
+   (1.0.0), bundle identifier (`com.semesterlibrary.app`), Android package, version 
+   code (7), permissions (photos, notifications, external storage), splash screen 
+   colors (#0a0a0a), icons, deep linking scheme (`semesterlibrary://`), and native 
+   plugins (`expo-router`, `expo-secure-store`, `expo-image`, `expo-notifications`, 
+   `expo-sqlite`).
+
+2. `mobile/eas.json` (36 lines)
+   Expo Application Services (EAS) build configuration. Defines build profiles:
+   * `development`: Internal dev builds with `expo-dev-client`.
+   * `preview`: Standalone Android APK builds (`"buildType": "apk"`) for direct 
+     sideloading and testing on student devices.
+   * `production`: Optimized Google Play Store Android App Bundles (`.aab`) and 
+     iOS release archives.
+
+3. `mobile/package.json` (69 lines)
+   Mobile dependencies manifest. Declares Expo SDK 57 dependencies, React Native 0.86, 
+   React 19, TypeScript, and patch-package scripts.
+
+4. `mobile/metro.config.js` (21 lines)
+   Metro bundler configuration. Tunes asset extensions, SVG transformations, and 
+   monorepo path resolution.
+
+5. `mobile/tsconfig.json` (17 lines)
+   TypeScript configuration. Configures strict type-checking, JSX transforms, and 
+   path aliases (`@/*` pointing to `./*`).
+
+6. `mobile/google-services.json`
+   Firebase configuration file for Google Cloud Messaging (FCM) on Android devices.
+
+
+--------------------------------------------------------------------------------
+B. APPLICATION ROUTES (mobile/app/)
+--------------------------------------------------------------------------------
+
+7. `mobile/app/_layout.tsx` (Root Application Layout)
+   The master entry point for the entire navigation tree:
+   * Wraps the application in `QueryClientProvider` with `PersistQueryClientProvider`.
+   * Attaches `AuthProvider`, `AdminModeProvider`, and `ThemeProvider`.
+   * Loads custom fonts (`PlusJakartaSans_400Regular`, `PlusJakartaSans_600SemiBold`, 
+     `PlusJakartaSans_700Bold`) via `expo-font`.
+   * Configures root `Stack` navigator with seamless slide animations and transparent 
+     headers.
+   * Attaches notification response listeners to route incoming push notifications.
+
+8. `mobile/app/index.tsx` (Splash & Dispatcher)
+   Initial landing screen. Checks authentication status: if authenticated, routes 
+   to `/(tabs)`; if unauthenticated, routes to `/login`.
+
+9. `mobile/app/login.tsx` (Login & Registration Screen)
+   Full-featured authentication screen:
+   * Segmented toggle between "Sign In" and "Create Account".
+   * Animated input fields with floating labels and password visibility toggles.
+   * Real-time username/email availability feedback.
+   * Supabase email verification OTP modal.
+   * Semester and Department selector dropdowns.
+   * Forgot password recovery dialog.
+
+10. `mobile/app/teacher-onboarding.tsx` (Teacher Setup Screen)
+    Dedicated screen for newly invited faculty members:
+    * Validates temporary onboarding token.
+    * Allows instructor to set permanent password, faculty email, and bio.
+    * Verifies email and promotes account to faculty status.
+
+11. `mobile/app/kyana.tsx` (Kyana AI Mobile Screen)
+    Full-screen conversational interface for Kyana AI:
+    * Token-by-token streaming response animation with animated 3-dot typing indicator.
+    * Markdown text formatting with code block copy buttons via `expo-clipboard`.
+    * Quick suggestion chips ("Find Math notes", "What is in Semester 3?", "When is the next exam?").
+    * Interactive UI citation cards (Syllabus Card, Routine Card, Note Card).
+    * Haptic vibrations on message send/receive via `expo-haptics`.
+    * Chat history persistence in local SQLite (`kyana-db.ts`).
+
+12. `mobile/app/routine.tsx` (Exam Routine Screen)
+    Mobile examination timetable viewer:
+    * Horizontal semester pills (Semester 1 through 8).
+    * Live exam countdown timer showing days, hours, and minutes remaining until 
+      the next exam.
+    * Examination cards displaying subject name, course code, exam date, time slot, 
+      and examination room.
+    * Dual calendar toggle (Bikram Sambat BS and Gregorian AD).
+
+13. `mobile/app/notices.tsx` & `mobile/app/notice/` (Notices Screens)
+    Official campus noticeboard feed displaying university circulars, examination 
+    notices, and holiday alerts with priority badges.
+
+14. `mobile/app/notifications.tsx` (Notification Center)
+    Dedicated notifications screen:
+    * Tabs: "All", "Unread", "Mentions".
+    * Displays user avatars, activity icons (like, comment, upload, mention), and 
+      relative timestamps ("5m ago", "2h ago").
+    * Tapping a notification navigates directly to the relevant entity (post, chat, 
+      or note).
+
+15. `mobile/app/notification-settings.tsx` (Notification Preferences)
+    Allows students to customize push notification preferences: toggle push alerts 
+    for chat messages, course materials, community posts, and campus notices.
+
+16. `mobile/app/settings.tsx` (App Settings)
+    Settings screen:
+    * Dark / Light / System theme selector.
+    * Account details and password change modal.
+    * Notification preferences shortcut.
+    * Admin mode switcher (for administrators).
+    * Developer options shortcut.
+    * Sign out button with confirmation dialog.
+
+17. `mobile/app/edit-profile.tsx` (Profile Editor)
+    Allows students to update display name, bio, department, semester, social links 
+    (GitHub, LinkedIn), and pick a new avatar image using `expo-image-picker`.
+
+18. `mobile/app/developer-settings.tsx` (Developer & QA Tools)
+    Internal diagnostic panel: allows developers to switch backend URLs (e.g., test 
+    against local LAN server vs staging vs production), clear SQLite databases, 
+    and inspect push notification tokens.
+
+19. `mobile/app/modal.tsx` (Generic Modal)
+    Reusable slide-up bottom sheet modal screen.
+
+
+--------------------------------------------------------------------------------
+C. BOTTOM TAB NAVIGATION (mobile/app/(tabs)/)
+--------------------------------------------------------------------------------
+
+20. `mobile/app/(tabs)/_layout.tsx` (Tabs Navigator)
+    Configures the bottom tab bar:
+    * 5 tabs: Feed (Home), Library, Chat, Games, Profile.
+    * Custom glassmorphic tab bar with blur effects.
+    * Active tab indicator with smooth scale animation.
+    * Dynamic badge counters for unread chat messages and notifications.
+
+21. `mobile/app/(tabs)/index.tsx` (Community Feed Tab)
+    The primary social feed:
+    * Infinite scroll FlatList with pull-to-refresh (`RefreshControl`).
+    * Post cards featuring author avatar, role badge, timestamp, post content with 
+      Markdown support, and multi-image galleries (`PostMediaGallery`).
+    * Like button with instant optimistic count updates and heart animation.
+    * Comment button opening a slide-up comments modal with threaded replies.
+    * Floating Action Button (FAB) opening the post creation modal (`create-post`).
+
+22. `mobile/app/(tabs)/library.tsx` (Notes Library Tab)
+    Academic notes browser:
+    * Semester carousel (Semesters 1 to 8).
+    * Subject cards showing course titles and note counts.
+    * Note list showing file size, uploader name, and download count.
+    * Actions: In-app full-screen preview or download to device storage via `expo-file-system`.
+
+23. `mobile/app/(tabs)/chat.tsx` (Cohort Group Chat Tab)
+    Real-time chat room for the student's semester cohort:
+    * Full-height chat timeline with inverted FlatList for 60fps performance.
+    * Message bubbles with author name, role badge, timestamp, and read status.
+    * Pinned announcement banner at the top showing official faculty notices.
+    * Media attachments (photos, documents) with full-screen viewer.
+    * Sticky message composer (`StickyComposer`) with keyboard elevation handling.
+    * User mention popup (`@student`) suggesting classmates as you type.
+    * Long-press message action sheet (Copy, Reply, Pin, Delete).
+
+24. `mobile/app/(tabs)/games.tsx` (Mini-Games Tab)
+    Campus games hub:
+    * Access to campus multiplayer games (e.g., Multiplayer Ludo).
+    * Creates game tickets via `/api/games/ticket` and connects to game socket servers.
+
+25. `mobile/app/(tabs)/profile.tsx` (Current User Profile Tab)
+    Displays the logged-in student's personal profile:
+    * Cover photo and avatar with verified badge.
+    * Bio, roll number, department, semester cohort badge.
+    * Aggregate statistics: Notes uploaded, posts published, likes received, followers.
+    * Segmented tabs: "My Notes", "My Posts", "Saved".
+
+
+--------------------------------------------------------------------------------
+D. SUB-ROUTES & FEATURE SCREENS
+--------------------------------------------------------------------------------
+
+26. `mobile/app/dm/[id].tsx` (1-on-1 Direct Messaging Screen)
+    Private chat room between two students:
+    * Real-time messaging powered by Supabase Broadcast and local SQLite cache.
+    * Live typing indicator ("Saugat is typing...").
+    * Message read receipts (double checkmarks).
+    * Image and document attachments.
+    * Block user and report conversation options.
+
+27. `mobile/app/dm/new.tsx` (Start New Conversation)
+    Classmate directory search allowing students to find classmates and start a private chat.
+
+28. `mobile/app/admin/teachers.tsx` (Admin Teacher Management)
+    Administrative screen on mobile allowing operators to view faculty, generate 
+    new teacher invite codes, and assign courses.
+
+29. `mobile/app/post/[id].tsx` (Single Post & Comment View)
+    Deep-linkable post detail screen displaying the full post content, high-resolution 
+    media gallery, and complete threaded comments tree.
+
+30. `mobile/app/user/[id].tsx` (Classmate Profile View)
+    Public profile screen for any university student: shows their bio, semester badge, 
+    uploaded lecture notes, and a "Message" button that opens a private DM.
+
+31. `mobile/app/assignment/[id].tsx` & `assignments/[id].tsx`
+    Mobile assignment description viewer and deadline tracker.
+
+
+--------------------------------------------------------------------------------
+E. CONTEXT PROVIDERS (mobile/context/)
+--------------------------------------------------------------------------------
+
+32. `mobile/context/AuthContext.tsx` (568 lines)
+    Central authentication provider: manages user profile, persistent bearer tokens 
+    in `expo-secure-store`, sign-in, sign-up with OTP, session refreshing, account 
+    suspension listening, and push token linking.
+
+33. `mobile/context/ThemeContext.tsx`
+    Manages active color theme (dark/light) with support for system color scheme 
+    detection and manual user override.
+
+34. `mobile/context/AdminModeContext.tsx`
+    Enables administrators to switch active view modes (Admin, Teacher, Student) 
+    directly within the mobile app.
+
+35. `mobile/context/NavScrollContext.tsx`
+    Scroll synchronization context that collapses headers and tab bars smoothly 
+    as the user scrolls down long feeds.
+
+
+--------------------------------------------------------------------------------
+F. CORE SERVICES & CLIENTS (mobile/services/)
+--------------------------------------------------------------------------------
+
+36. `mobile/services/api.ts` (569 lines)
+    Central HTTP networking client:
+    * Manages base URL resolution (LAN IP auto-detection in development, HTTPS lock in production).
+    * Injects `Authorization: Bearer <token>` into all outgoing requests.
+    * Intercepts errors (network disconnects, 401 token expiry, 403 suspension).
+    * Handles multipart/form-data file uploads with progress tracking.
+
+37. `mobile/services/chat.ts`
+    API client for cohort group chat: `fetchChatMessages()`, `sendChatMessage()`, 
+    `pinChatMessage()`.
+
+38. `mobile/services/chat-db.ts` (167 lines)
+    Transactional SQLite database manager for group chat (`semester_library_chat.db`). 
+    Manages in-memory message Map, WAL journal mode, optimistic sends, and retains 
+    up to 500 cached messages per cohort.
+
+39. `mobile/services/chat-realtime.ts`
+    Manages Supabase Realtime WebSocket channel connections for group chat. 
+    Broadcasts message payloads and listens for incoming classmate messages.
+
+40. `mobile/services/chat-state.ts`
+    Reconciliation engine: merges incoming server messages with local optimistic 
+    messages, reconciles negative temporary IDs, and deduplicates records.
+
+41. `mobile/services/chat-events.ts`
+    Event deduplication service that prevents duplicate broadcast notifications.
+
+42. `mobile/services/chat-session.ts`
+    Tracks active chat room sessions, current user ID, and active cohort scope.
+
+43. `mobile/services/chat-attachments.ts`
+    Uploads and compresses chat images and document attachments.
+
+44. `mobile/services/dm.ts`
+    API client for private 1-on-1 direct messaging.
+
+45. `mobile/services/dm-db.ts`
+    SQLite database manager for direct messaging: caches conversation lists, chat 
+    histories, and pending outbox queues.
+
+46. `mobile/services/dm-realtime.ts`
+    Supabase Realtime broadcast dispatcher for private messages.
+
+47. `mobile/services/dm-state.ts` & `mobile/services/dm-outbox.ts`
+    Offline outbox queue: stores messages sent while offline and automatically 
+    drains the queue when network connectivity is re-established.
+
+48. `mobile/services/kyana.ts` & `mobile/services/kyana-db.ts`
+    Mobile client for Kyana AI: manages SSE streaming chunks, prompt history, 
+    and offline conversation caching in SQLite.
+
+49. `mobile/services/library.ts`
+    Notes library service: fetches subjects, lists notes by semester, and handles 
+    file downloads to device storage.
+
+50. `mobile/services/posts.ts` (600+ lines)
+    Community feed service: `getPosts()`, `createPost()`, `toggleLike()`, 
+    `getComments()`, `addComment()`, and multi-attachment uploaders.
+
+51. `mobile/services/notifications.ts` (1,243 lines)
+    Push notification manager: registers Expo push tokens, configures Android 
+    notification channels (`chat`, `academic`, `social`, `notices`), updates app 
+    badge counts, and handles deep linking (`navigateFromNotification`).
+
+52. `mobile/services/query-client.ts`
+    TanStack React Query client configured with AsyncStorage persistence.
+
+53. `mobile/services/supabase.ts`
+    Initializes Supabase client for mobile using `EXPO_PUBLIC_SUPABASE_URL` and keys.
+
+54. `mobile/services/unified-inbox.ts`
+    Aggregated notifications service that consolidates DMs, mentions, and system 
+    alerts into a unified badge counter.
+
+55. `mobile/services/games-api.ts` & `mobile/services/games-socket.ts`
+    Mini-games networking client for multiplayer room matching and ticket authentication.
+
+
+--------------------------------------------------------------------------------
+G. UI KIT & FEATURE COMPONENTS (mobile/components/)
+--------------------------------------------------------------------------------
+
+56. `mobile/components/ui/` (28 Core Design System Components)
+    * `AppHeader.tsx`: Universal top navigation header with blur background and action icons.
+    * `Avatar.tsx`: Circular user avatar with fallback initials and online presence indicator.
+    * `Badge.tsx`: Pill badges for roles ('Teacher', 'Admin', 'CR') and semesters ('Sem 2').
+    * `BottomSheet.tsx`: Smooth draggable modal sheet for actions and selection.
+    * `Button.tsx`: Haptic-enabled buttons (Primary, Secondary, Outline, Danger).
+    * `Card.tsx` & `SurfaceCard.tsx`: Glassmorphic card surfaces with subtle borders.
+    * `Chip.tsx`: Interactive filter chips for subject and semester selection.
+    * `EmptyState.tsx`: Illustrated placeholder view for empty feeds or searches.
+    * `IconButton.tsx`: Touch-friendly circular icon button.
+    * `Input.tsx` & `TextField.tsx`: Styled text input with error messages and clear buttons.
+    * `KeyboardAwareForm.tsx`: Form container that scrolls inputs above the soft keyboard.
+    * `ListRow.tsx` & `UserRow.tsx`: Standardized table and classmate row layouts.
+    * `PasswordField.tsx`: Password field with visibility toggle.
+    * `ResourceCard.tsx`: Interactive citation cards for notes, syllabus, and routines.
+    * `Screen.tsx`: Safe area container with keyboard dismiss wrappers.
+    * `SearchField.tsx` & `SearchSuggestionRow.tsx`: Instant search bars.
+    * `SegmentedControl.tsx`: iOS-style animated tab switcher.
+    * `SelectionSheet.tsx` & `SemesterMultiSelectSheet.tsx`: Modal picker sheets.
+    * `Skeleton.tsx`: Shimmer loading placeholders for feed cards and avatars.
+    * `StickyComposer.tsx`: Input bar that remains pinned directly above the keyboard.
+    * `Toast.tsx`: Top floating notification banners for success/error alerts.
+    * `Typography.tsx`: Text primitives (`Heading`, `Subheading`, `Text`, `Caption`).
+
+57. Chat Components (`mobile/components/chat/`):
+    * `ChatComposer.tsx`: Input box with attachment button, send button, and mention triggers.
+    * `ChatMessageItem.tsx`: Inverted chat bubble with author avatar, timestamp, reactions, and media.
+    * `ChatMessageActionsSheet.tsx`: Bottom sheet for message actions (Copy, Reply, Pin, Delete).
+    * `ChatSendButton.tsx`: Animated send icon with haptic feedback.
+    * `MentionSuggestions.tsx`: Floating classmate mention list above composer.
+    * `UnifiedChatInbox.tsx`: Chat room preview list with unread counters.
+
+58. Post & Feed Components:
+    * `PostCard.tsx`: Community post card with author metadata, markdown body, and actions.
+    * `CommentItem.tsx`: Threaded comment item with reply button and reactions.
+    * `EditPostModal.tsx`: Post editing dialog.
+    * `PostMarkdown.tsx`: Native Markdown renderer supporting bold, italics, links, and code.
+    * `PostMediaGallery.tsx`: Multi-image mosaic grid (1 to 4 images) with lightbox viewer.
+    * `PostFileAttachments.tsx`: Attached PDF/Word file pill cards.
+    * `UploadNoteModal.tsx`: File upload dialog with semester/subject selectors.
+    * `FullScreenFilePreview.tsx`: In-app document previewer.
+    * `FullScreenImageViewer.tsx`: Zoomable, swipeable photo gallery.
+    * `SearchOverlay.tsx`: Full-screen search dialog querying notes and students.
+
+59. Admin & Teacher Components (`mobile/components/admin/` & `teacher/`):
+    * `AdminDashboardView.tsx`: Mobile platform statistics overview.
+    * `AdminAcademicsView.tsx`: Cohort management and semester promotions on mobile.
+    * `AdminContentView.tsx`: Content moderation queue for removing inappropriate posts.
+    * `AdminUsersView.tsx`: User list with account suspension and reactivation buttons.
+    * `TeacherMaterialsView.tsx`: Faculty notes and syllabus assignments.
+    * `TeacherNoticesView.tsx`: Faculty announcement authoring tool.
+
+
+--------------------------------------------------------------------------------
+H. CONSTANTS, HOOKS, TYPES & UTILITIES
+--------------------------------------------------------------------------------
+
+60. `mobile/constants/theme.ts` & `Colors.ts`
+    Central color palette tokens: obsidian backgrounds (`#0a0a0a`), borders, brand 
+    accents (`#3b82f6`), and dark/light mode maps.
+
+61. `mobile/constants/motion.ts`
+    Animation durations, spring configs, and easing curves for `react-native-reanimated`.
+
+62. `mobile/constants/subjects.config.ts` (101 KB)
+    Comprehensive catalog mapping all BIT course codes, titles, semesters, and units.
+
+63. `mobile/hooks/useClassChat.ts`
+    Custom React hook managing cohort chat room state, Realtime subscriptions, 
+    and message sending.
+
+64. `mobile/hooks/useAcademicContext.ts`
+    Hook providing active semester, cohort ID, and enrolled subjects.
+
+65. `mobile/utils/date.ts`
+    Relative date formatting ("just now", "5m ago", "Yesterday") and Bikram Sambat conversions.
+
+66. `mobile/utils/file-upload.ts`
+    Native file picker, MIME type resolution, and chunked upload utilities.
+
+67. `mobile/utils/roles.ts`
+    Role resolution helpers (`isAdmin`, `isTeacher`, `isCR`, `isStudent`).
+
+
+================================================================================
+16. MOBILE NOTIFICATION SYSTEM & DEEP LINK ROUTING
+================================================================================
+
+A. PUSH TOKEN REGISTRATION PIPELINE
+1. When a student logs into the app, `services/notifications.ts` executes 
+   `registerPushToken(token, studentId)`:
+   - Verifies device is a physical hardware phone via `Device.isDevice`.
+   - Requests native OS notification permissions (`Notifications.requestPermissionsAsync()`).
+   - Retrieves the Expo Push Token: `(await Notifications.getExpoPushTokenAsync()).data`.
+   - Sends the token, platform ('android' or 'ios'), and device model to the backend:
+     `POST /api/mobile/push-token`.
+   - The backend records the token in the `student_device_tokens` table.
+2. When an event occurs (a classmate likes a post, mentions the user in chat, or 
+   a teacher posts an assignment), the backend enqueues a push payload into 
+   `push_notification_outbox`.
+3. Expo Push Service delivers the notification to Apple Push Notification Service 
+   (APNs) or Firebase Cloud Messaging (FCM).
+
+B. ANDROID NOTIFICATION CHANNELS
+On Android, `notifications.ts` registers 4 specialized notification channels:
+1. `chat`: High priority, custom sound, vibration pattern for peer chat messages and mentions.
+2. `academic`: High priority for exam routine updates and new lecture notes.
+3. `social`: Default priority for post likes and comments.
+4. `notices`: Max priority for urgent official campus circulars.
+
+C. DEEP LINK NAVIGATION RESOLVER (`navigateFromNotification`)
+When a student taps a notification on their phone's lock screen or notification tray:
+- The function `navigateFromNotification(data)` inspects `data.type`:
+  * `type: 'chat'` -> Navigates directly to `/(tabs)/chat` (or `dm/[id]` if private message).
+  * `type: 'post'` or `'post_comment'` -> Navigates directly to `/post/[id]`.
+  * `type: 'material'` -> Navigates directly to `/(tabs)/library` with note preview open.
+  * `type: 'routine'` -> Navigates directly to `/routine`.
+  * `type: 'notice'` -> Navigates directly to `/notices`.
+The student arrives at the exact content immediately without navigating menus.
+
+
+================================================================================
+17. MOBILE REAL-TIME MESSAGING WORKFLOWS & DATA FLOWS
+================================================================================
+
+Flow A: Sending a Cohort Group Chat Message
+1. Student types message in `mobile/app/(tabs)/chat.tsx` and clicks Send.
+2. `useClassChat` invokes `services/chat-db.ts`:
+   - Creates message object with a negative temporary ID: `id = -Date.now()`.
+   - Adds message to in-memory Map.
+   - Saves record into `chat_cache_v3` in local SQLite database.
+   - Message renders on screen in 0 milliseconds with a pending clock icon.
+3. Background HTTP worker dispatches `POST /api/chat/messages` with mobile bearer token.
+4. Backend verifies token, inserts into `chat_messages` table in Neon PostgreSQL, 
+   and broadcasts the message over Supabase Realtime channel `public:chat_messages`.
+5. The HTTP response returns the permanent database record (`id: 1204`).
+6. `services/chat-state.ts` matches the negative temporary ID, swaps it with `1204`, 
+   and updates status to `'sent'`.
+7. All online classmates receive the Supabase WebSocket broadcast in real time, 
+   their app validates the event ID, and appends the message bubble to their screen.
+
+Flow B: Direct Messaging with Offline Outbox Draining
+1. Student A is offline in a basement classroom and sends a private message to Student B.
+2. `services/dm-outbox.ts` writes the message to `dm_outbox` in local SQLite with 
+   status `'queued'`.
+3. The message bubble appears in Student A's chat view marked as queued.
+4. When Student A steps outside and Wi-Fi reconnects, the network state listener fires.
+5. `services/dm-outbox.ts` drains the outbox queue:
+   - Sequentially sends queued messages to `POST /api/dm/conversations/:id/messages`.
+   - Reconciles message IDs in local SQLite.
+   - Updates status checkmarks to sent.
+
+
+================================================================================
+18. HOW TO RUN, BUILD, TEST & DEPLOY THE MOBILE APP
+================================================================================
+
+A. PREREQUISITES & LOCAL SETUP
+1. Install dependencies inside the `mobile` directory:
+   cd mobile
+   npm install
+
+2. Verify Environment Variables:
+   Create `mobile/.env`:
+   ```ini
+   # Optional: Local development API URL (auto-detected if blank)
+   EXPO_PUBLIC_API_URL=http://192.168.1.105:3000
+
+   # Supabase Client Credentials
+   EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+   EXPO_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+   ```
+
+B. RUNNING LOCALLY ON PHYSICAL DEVICES (EXPO GO)
+1. Start the Expo development server:
+   npx expo start --go
+2. Open the Expo Go app on your Android or iPhone.
+3. Scan the QR code displayed in your terminal.
+4. The JavaScript bundle will compile and stream directly to your phone.
+5. Any edits made to TypeScript files in `mobile/app/` or `mobile/components/` 
+   will Fast-Refresh on your phone screen in real time.
+
+C. RUNNING ON NATIVE EMULATORS
+- Android Emulator (Android Studio):
+  npm run android
+- iOS Simulator (macOS Xcode):
+  npm run ios
+
+D. BUILDING STANDALONE PRODUCTION BUILDS WITH EAS BUILD
+The project uses Expo Application Services (EAS) configured in `mobile/eas.json`:
+1. Install EAS CLI globally:
+   npm install -g eas-cli
+2. Log in to your Expo account:
+   eas login
+3. Build a standalone Android APK (for direct sideloading and testing):
+   eas build --platform android --profile preview
+   Once complete, EAS provides a direct download link to install the `.apk` on 
+   any Android device.
+4. Build Production Google Play Store App Bundle (`.aab`):
+   eas build --platform android --profile production
+
+E. TROUBLESHOOTING COMMON MOBILE ISSUES
+1. "Network request failed" in development:
+   - Ensure your phone and development computer are connected to the exact same 
+     Wi-Fi network.
+   - Verify your computer's firewall allows incoming connections on port 3000.
+2. Resetting Metro Bundler Cache:
+   If experiencing stale module errors:
+   npx expo start -c
+3. Clearing Stored SQLite Databases:
+   From within the app, visit Settings -> Developer Options -> "Clear Local Databases" 
+   to wipe local caches and re-sync from the server.
+
 ================================================================================
                                 END OF GUIDE
 ================================================================================
+

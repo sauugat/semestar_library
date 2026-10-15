@@ -21,7 +21,7 @@ CREATE INDEX IF NOT EXISTS note_search_content_gin ON note_search_documents USIN
 CREATE TABLE IF NOT EXISTS knowledge_resources (
   id TEXT PRIMARY KEY,
   resource_type TEXT NOT NULL CHECK (
-    resource_type IN ('post', 'notice', 'assignment', 'note', 'routine', 'syllabus', 'gu_official')
+    resource_type IN ('post', 'notice', 'assignment', 'note', 'routine', 'syllabus', 'gu_official', 'comment')
   ),
   canonical_id INTEGER,
   canonical_code TEXT,
@@ -53,6 +53,16 @@ CREATE TABLE IF NOT EXISTS knowledge_resources (
 CREATE INDEX IF NOT EXISTS idx_kr_scope ON knowledge_resources (audience_scope, cohort_id, semester_no);
 CREATE INDEX IF NOT EXISTS idx_kr_active ON knowledge_resources (resource_type, updated_at DESC) WHERE deleted_at IS NULL AND hidden_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_kr_canonical ON knowledge_resources (resource_type, canonical_id);
+
+DO $$
+BEGIN
+  ALTER TABLE knowledge_resources DROP CONSTRAINT IF EXISTS knowledge_resources_resource_type_check;
+  ALTER TABLE knowledge_resources ADD CONSTRAINT knowledge_resources_resource_type_check CHECK (
+    resource_type IN ('post', 'notice', 'assignment', 'note', 'routine', 'syllabus', 'gu_official', 'comment')
+  );
+EXCEPTION
+  WHEN OTHERS THEN NULL;
+END $$;
 
 -- 3. Unified Knowledge Chunks (Vectors + Multi-lingual FTS)
 CREATE TABLE IF NOT EXISTS knowledge_chunks (

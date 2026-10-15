@@ -2106,6 +2106,11 @@ function createAdminDashboardRouter(arg1, arg2) {
         ? await db.withTransaction(runRemove)
         : await runRemove(db);
 
+      try {
+        const { onCommentModerationChanged } = require('../lib/knowledge-sync');
+        await onCommentModerationChanged(db, commentId, { isHidden: true });
+      } catch (_) {}
+
       res.json({
         success: true,
         message: 'Comment successfully removed by moderation.',
@@ -2197,6 +2202,11 @@ function createAdminDashboardRouter(arg1, arg2) {
       const restoredComment = typeof db.withTransaction === 'function'
         ? await db.withTransaction(runRestore)
         : await runRestore(db);
+
+      try {
+        const { onCommentModerationChanged } = require('../lib/knowledge-sync');
+        await onCommentModerationChanged(db, commentId, { isHidden: false });
+      } catch (_) {}
 
       res.json({
         success: true,

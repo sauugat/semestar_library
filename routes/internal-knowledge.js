@@ -26,11 +26,11 @@ function requireCronSecret(req, res, next) {
 }
 
 /**
- * POST /api/internal/knowledge/worker
- * Cheap periodic worker: drains pending retry queue rows.
- * Runs every 2-5 minutes; exits in <1s if queue is empty.
+ * POST & GET /api/internal/knowledge/worker
+ * Periodic worker: drains pending retry queue rows.
+ * Supports GET for Vercel Cron invocation and POST for manual / CI invocation.
  */
-router.post('/worker', requireCronSecret, async (req, res) => {
+const handleWorker = async (req, res) => {
   if (!isKnowledgeIndexingEnabled()) {
     return res.json({ status: 'skipped', message: 'KYANA_KNOWLEDGE_V3 feature flag is disabled.' });
   }
@@ -51,14 +51,17 @@ router.post('/worker', requireCronSecret, async (req, res) => {
     console.error('[KYANA Knowledge Worker Endpoint Error]:', err);
     res.status(500).json({ success: false, message: err.message });
   }
-});
+};
+
+router.post('/worker', requireCronSecret, handleWorker);
+router.get('/worker', requireCronSecret, handleWorker);
 
 /**
- * POST /api/internal/knowledge/reconcile
+ * POST & GET /api/internal/knowledge/reconcile
  * Bounded drift reconciliation: scans for orphaned/missing records.
- * Runs hourly or daily.
+ * Supports GET for Vercel Cron and POST for manual / CI invocation.
  */
-router.post('/reconcile', requireCronSecret, async (req, res) => {
+const handleReconcile = async (req, res) => {
   if (!isKnowledgeIndexingEnabled()) {
     return res.json({ status: 'skipped', message: 'KYANA_KNOWLEDGE_V3 feature flag is disabled.' });
   }
@@ -79,7 +82,42 @@ router.post('/reconcile', requireCronSecret, async (req, res) => {
     console.error('[KYANA Knowledge Reconcile Endpoint Error]:', err);
     res.status(500).json({ success: false, message: err.message });
   }
-});
+};
+
+router.post('/reconcile', requireCronSecret, handleReconcile);
+router.get('/reconcile', requireCronSecret, handleReconcile);
+
+/**
+ * POST & GET /api/internal/knowledge/sync-university
+ * Controlled synchronization of approved public Gandaki University notices and updates.
+ * Preserves canonical university URLs, publication timestamps, and Tier 1 institutional authority.
+ */
+const handleSyncUniversity = async (req, res) => {
+  if (!isKnowledgeIndexingEnabled()) {
+    return res.json({ status: 'skipped', message: 'KYANA_KNOWLEDGE_V3 feature flag is disabled.' });
+  }
+
+  const db = req.app.locals.db || require('../db');
+  if (!db) {
+    return res.status(500).json({ message: 'Database handle unavailable.' });
+  }
+
+  try {
+    const { syncGandakiUniversityNotices } = require('../lib/university-sync');
+    const syncStats = await syncGandakiUniversityNotices(db);
+    res.json({
+      success: true,
+      timestamp: new Date().toISOString(),
+      sync: syncStats
+    });
+  } catch (err) {
+    console.error('[KYANA University Sync Endpoint Error]:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+router.post('/sync-university', requireCronSecret, handleSyncUniversity);
+router.get('/sync-university', requireCronSecret, handleSyncUniversity);
 
 /**
  * GET /api/internal/knowledge/timings

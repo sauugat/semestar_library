@@ -547,9 +547,9 @@ export function FloatingTabBar({
         : Math.max(10, insets.bottom - 6)
       : 10;
 
-  const avatarSize = effectiveIsCompact ? 22 : 24;
-  const iconActiveSize = effectiveIsCompact ? 22 : 24;
-  const iconInactiveSize = effectiveIsCompact ? 21 : 23;
+  const avatarSize = effectiveIsCompact ? 24 : 27;
+  const iconActiveSize = effectiveIsCompact ? 25 : 28;
+  const iconInactiveSize = effectiveIsCompact ? 23 : 25;
 
   // Render null strictly after all hooks have executed unconditionally
   if (isTabBarHidden) {
@@ -681,8 +681,8 @@ export function FloatingTabBar({
                         width: avatarSize + 4,
                         height: avatarSize + 4,
                         borderRadius: (avatarSize + 4) / 2,
-                        borderColor: isSelected ? '#FFFFFF' : 'rgba(255, 255, 255, 0.24)',
-                        borderWidth: isSelected ? 1.5 : 1,
+                        borderColor: isSelected ? '#FFFFFF' : 'rgba(255, 255, 255, 0.35)',
+                        borderWidth: isSelected ? 2 : 1.5,
                       },
                     ]}
                   >
@@ -706,8 +706,8 @@ export function FloatingTabBar({
                         width: avatarSize + 2,
                         height: avatarSize + 2,
                         borderRadius: (avatarSize + 2) / 2,
-                        borderColor: isSelected ? '#FFFFFF' : 'rgba(255, 255, 255, 0.24)',
-                        borderWidth: isSelected ? 1.5 : 1,
+                        borderColor: isSelected ? '#FFFFFF' : 'rgba(255, 255, 255, 0.35)',
+                        borderWidth: isSelected ? 2 : 1.5,
                       },
                     ]}
                   >
@@ -715,8 +715,8 @@ export function FloatingTabBar({
                       style={[
                         styles.avatarInitials,
                         {
-                          fontSize: effectiveIsCompact ? 10 : 11,
-                          color: isSelected ? '#FFFFFF' : '#A1A1A1',
+                          fontSize: effectiveIsCompact ? 11 : 12,
+                          color: isSelected ? '#FFFFFF' : '#E4E4E7',
                         },
                       ]}
                     >
@@ -783,6 +783,8 @@ const styles = StyleSheet.create({
   },
   indicatorPill: {
     // Dynamic width, height, borderRadius, top animated on JS thread via compactAnim
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.16)',
   },
   tabButton: {
     flex: 1,
@@ -804,7 +806,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#262626',
   },
   avatarInitials: {
-    fontWeight: '700',
+    fontWeight: '800',
     textAlign: 'center',
   },
   modeSwitcherPill: {

@@ -439,8 +439,20 @@ export default function KyanaChatScreen() {
     try {
       const checked = await resolveKyanaResource(card);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-      if (checked.mobileRoute) {
+      if (checked?.mobileRoute) {
         router.push({ pathname: checked.mobileRoute, params: checked.mobileParams || {} } as any);
+        return;
+      }
+      if (card.type === 'note') {
+        router.push(`/material/${card.id}` as any);
+      } else if (card.type === 'notice') {
+        router.push(`/notice/${card.id}` as any);
+      } else if (card.type === 'post') {
+        router.push(`/post/${card.id}` as any);
+      } else if (card.type === 'assignment' || (card.type as string) === 'post_assignment') {
+        router.push(`/assignments/${card.id}` as any);
+      } else if (card.type === 'routine') {
+        router.push('/routine' as any);
       }
     } catch (err: any) {
       showToast(err?.message || 'This resource is no longer available.');

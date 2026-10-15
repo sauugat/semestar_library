@@ -21,7 +21,7 @@ const { generateDeterministicVector } = require('../lib/knowledge-embeddings');
 
 describe('KYANA 3.0 Step 4 — Unified Knowledge Retrieval Engine', () => {
   let client;
-  const connectionString = 'postgresql://postgres:postgres@127.0.0.1:54333/test_semester_library';
+  const connectionString = process.env.KYANA_TEST_DATABASE_URL || 'postgresql://postgres:postgres@127.0.0.1:54333/test_semester_library';
 
   before(async () => {
     process.env.KYANA_KNOWLEDGE_V3 = 'true';

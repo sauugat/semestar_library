@@ -306,3 +306,10 @@ export async function sendKyanaMessage(
     }
   });
 }
+
+/** Revalidate source access before navigating; never trust persisted route strings. */
+export async function resolveKyanaResource(card: KyanaResourceCard): Promise<KyanaResourceCard> {
+  const res = await apiFetch(`/api/ai/resources/${encodeURIComponent(card.type)}/${encodeURIComponent(String(card.id))}/open?format=json`);
+  if (!res.ok) throw new Error('This resource is no longer available to your account.');
+  return res.json();
+}

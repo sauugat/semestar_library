@@ -1245,6 +1245,7 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       }
 
       const context = await getAcademicContext(db, req);
+      row.targetSemesters = (await db.all('SELECT semester FROM post_target_semesters WHERE post_id = ?', row.id)).map(r => r.semester);
       if (!assertContentAccess(context, row) || !assertAudienceAccess(req, row)) {
         return res.status(404).json({ message: 'Post not found.' });
       }
@@ -2123,9 +2124,9 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
         try {
           const isPg = Boolean(db.isPostgres || (db.query && !db.all));
           if (isPg) {
-            await db.query("UPDATE knowledge_resources SET visibility = 'private', updated_at = CURRENT_TIMESTAMP WHERE id = $1", [`post:${postId}`]);
+            await db.query("UPDATE knowledge_resources SET visibility = 'teachers_only', updated_at = CURRENT_TIMESTAMP WHERE id = $1", [`post:${postId}`]);
           } else {
-            await db.run("UPDATE knowledge_resources SET visibility = 'private', updated_at = CURRENT_TIMESTAMP WHERE id = ?", `post:${postId}`);
+            await db.run("UPDATE knowledge_resources SET visibility = 'teachers_only', updated_at = CURRENT_TIMESTAMP WHERE id = ?", `post:${postId}`);
           }
         } catch (_) {}
       }

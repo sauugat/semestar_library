@@ -1,0 +1,1971 @@
+================================================================================
+          SEMESTER LIBRARY — COMPLETE ARCHITECTURE & CODEBASE MASTER GUIDE
+================================================================================
+Platform Name  : Semester Library
+Target Audience: Gandaki University (Faculty of Science & Technology / BIT Students)
+Platform Domain: Web Application (Portal, Library, Code Lab, Community, AI Assistant)
+Document Scope : Exhaustive End-to-End Architectural Breakdown & Master Manual
+Document Name  : semester library.txt
+Date Created   : October 2026
+Author         : Saugat & Contributors
+================================================================================
+
+
+TABLE OF CONTENTS
+--------------------------------------------------------------------------------
+1. EXECUTIVE SUMMARY, MISSION & CORE PURPOSE
+2. HIGH-LEVEL SYSTEM ARCHITECTURE & TOPOLOGY
+3. FRONTEND ARCHITECTURE — DETAILED CLIENT IMPLEMENTATION
+   - The Philosophy of Vanilla Web Technologies (HTML5 / CSS3 / ES6+)
+   - Design System, Typography, Layout & Aesthetic Polish
+   - The Anti-FOUC Theme Engine (theme.js & theme-overrides.css)
+   - Client-Side State Management Without Frameworks
+   - Universal Authenticated Fetch Layer (auth.js & authFetch)
+   - In-Browser Document Rendering Engines (PDF.js, Mammoth.js, PPTX)
+   - Code Lab Monaco IDE Integration & Keyboard Bindings
+   - Progressive Web App (PWA) Offline Engine (sw.js & manifest.json)
+4. AUTHENTICATION, AUTHORIZATION & SECURITY DEEP DIVE
+   - The Three Platform Roles (Student, Teacher, Admin) & Privileges
+   - Tri-Channel Authentication Architecture (Supabase JWT, Session Cookie, Bearer Token)
+   - Complete Step-by-Step Auth Lifecycle Workflows:
+     * Workflow 1: Student Self-Registration & Real-Time Availability Checking
+     * Workflow 2: Supabase Email OTP Verification & Cohort Auto-Assignment
+     * Workflow 3: Standard Password Login & Session Regeneration (Fixation Defense)
+     * Workflow 4: Teacher Provisioning, Nonce Tracking & Self-Onboarding
+     * Workflow 5: Account Suspension Checks & Security Interceptors
+   - Backend Auth Middleware & Route Guards (lib/auth-middleware.js)
+   - Password Hashing (bcryptjs) & Session Persistence (CustomDbStore)
+5. BACKEND ARCHITECTURE & PROCESSING ENGINES
+   - The Express 4 Server Kernel (server.js) & Serverless Vercel Adapter
+   - Dual-Engine Universal Database Abstraction (db.js):
+     * Production: Neon Serverless PostgreSQL with WebSocket Connection Pool
+     * Development / QA / Offline: LibSQL & Local SQLite with WAL Mode
+     * Dynamic SQL Query Dialect Translation (? to $1, $2, ... & Timestamps)
+     * Column Normalization Engine (camelMap)
+   - 3-Tier Object & Binary Storage Engine (Supabase Storage, file_blobs, disk cache)
+   - Full-Text Document Ingestion & Search Engine (lib/note-search.js)
+   - Kyana AI 3.0 Academic Assistant (ai-assistant.js, lib/chat-*, lib/knowledge-*)
+   - Real-Time Messaging Engines (Supabase Realtime Broadcast & WebSockets)
+   - Code Lab Cloud Compiler & Live WebSocket Terminal Sandbox
+   - Multi-Channel Notification Engine (In-App Center & Expo Push Service)
+6. COMPLETE DATABASE SCHEMA CATALOG (TABLES, COLUMNS & CONSTRAINTS)
+   - Identity & Authentication Tables
+   - Academic Curricula & Cohort Tables
+   - File Management & Search Tables
+   - Community Social Feed & Comment Trees
+   - Real-Time Chat & Direct Messaging Tables
+   - Code Lab Assignments, Submissions & Grading Tables
+   - System Diagnostics, Audits & Notifications Tables
+7. EXHAUSTIVE DIRECTORY & FILE-BY-FILE BREAKDOWN
+   - Root Core Files (server.js, db.js, ai-assistant.js, schema.sql, etc.)
+   - Serverless Adapter & Configuration (api/index.js, vercel.json)
+   - Core Services & Libraries (lib/ — all 49 files fully documented)
+   - Route Controllers (routes/ — all 16 controllers fully documented)
+   - Web User Interfaces (public/ — all 34 HTML pages fully documented)
+   - Interactive Code Lab Suite (public/code-lab/ — all 10 pages & utilities)
+   - Client-Side JavaScript Modules (public/*.js — all 18 scripts fully documented)
+   - Design System Stylesheets (public/*.css — all 10 stylesheets documented)
+   - Administrative, Migration & Automation Scripts (scripts/ — key scripts documented)
+8. COMPLETE CATALOG OF ALL API ENDPOINTS
+   - Authentication & Profile APIs
+   - Academic Library & Document APIs
+   - Community Social Feed & Comment APIs
+   - Direct Messaging (DM) APIs
+   - Cohort Group Chat APIs
+   - Kyana AI Assistant APIs
+   - Code Lab & Online Compiler APIs
+   - Exam Routine & Schedule APIs
+   - Notification Center APIs
+   - Administration & Faculty Management APIs
+9. END-TO-END DATA FLOWS & TRANSACTION WALKTHROUGHS
+   - Flow A: Student Registration & Cohort Allocation
+   - Flow B: Lecture Note Upload, Extraction, Indexing & Preview
+   - Flow C: Kyana AI Question Answering with Tool Execution
+   - Flow D: Code Lab Assignment Submission & Automated Test Case Evaluation
+   - Flow E: Direct Messaging with Real-Time Broadcast & Read Receipts
+10. DEVELOPER MANUAL: HOW TO RUN, STUDY, TEST & EXTEND THIS CODEBASE
+   - Local Setup & Environment Configuration (.env)
+   - Recommended 5-Stage Learning Path for Students
+   - Practical Walkthrough: Adding a New Page
+   - Practical Walkthrough: Adding a New Database Table & Migration
+   - Practical Walkthrough: Adding a New API Endpoint with Validation
+   - Testing, QA Sandbox & Debugging Instructions
+================================================================================
+
+
+================================================================================
+1. EXECUTIVE SUMMARY, MISSION & CORE PURPOSE
+================================================================================
+Semester Library is a full-stack, enterprise-grade academic platform built from 
+the ground up for Gandaki University students in the Faculty of Science & 
+Technology, primarily studying the Bachelor of Information Technology (BIT) 
+curriculum.
+
+In traditional university environments, educational materials and communication 
+channels are deeply fragmented:
+1. Syllabus documents are distributed as scanned or unformatted PDF files where 
+   students cannot quickly search credit hours, practical ratios, or unit lists.
+2. Lecture notes, handwritten summaries, and PowerPoint presentations are 
+   scattered across informal messaging groups (WhatsApp, Messenger, Viber, Telegram), 
+   where links break and files disappear after a few months.
+3. Official examination routines are photographed from physical noticeboards and 
+   shared as compressed images, making it difficult for students to track exam 
+   dates, room allocations, or time countdowns.
+4. Computer science and programming students lack dedicated browser-based 
+   environments to write, compile, debug, and submit coding lab assignments 
+   tailored specifically to their university coursework.
+5. Students studying after hours lack immediate, contextual academic support that 
+   actually understands their university's syllabus, course units, and faculty 
+   announcements.
+
+Semester Library resolves all of these challenges within a single, integrated, 
+high-performance web portal:
+- Curated Academic Library: Verified, semester-segregated lecture notes, slides, 
+  and previous exam questions with in-browser previewing (PDF, Word, PPTX) and 
+  download counters.
+- Interactive Syllabus Explorer: Complete interactive breakdown of all 8 semesters 
+  of Gandaki University's BIT program, outlining course codes, credit hours, 
+  objectives, unit topics, and reference books.
+- Smart Exam Routine System: Live examination timetables featuring automated exam 
+  time countdowns, dual calendar support (Bikram Sambat BS & Gregorian AD), 
+  room assignments, and printable views.
+- Code Lab IDE & Automated Grading: A browser-based programming laboratory powered 
+  by Microsoft Monaco Editor (the core editor of VS Code), cloud compiler runners 
+  (C, C++, Java, Python), automated testing against hidden test cases, lab report 
+  PDF generation, and keystroke timelapse verification.
+- Campus Social Feed & Direct Messaging: An academic social platform where students 
+  and faculty publish notices, discuss questions, share code snippets, react, 
+  and message each other privately in real time.
+- Real-Time Cohort Group Chat: Semester-specific peer chat channels equipped with 
+  rich media attachments, user mentions (@username), emoji reactions, pinned 
+  teacher announcements, and online presence tracking.
+- Kyana AI 3.0 (Semester AI): A specialized academic artificial intelligence 
+  assistant built on Google Gemini 3.1 Flash Lite. Kyana is strictly grounded 
+  in Gandaki University's curriculum and uses autonomous tool calling to search 
+  uploaded lecture notes, check syllabus contents, retrieve exam routines, and 
+  debug student code with zero hallucinations.
+- Role-Based Governance: Dedicated dashboards for Administrators and Faculty 
+  Members to manage academic cohorts, assign courses, evaluate programming lab 
+  submissions, grade work, and moderate content.
+
+
+================================================================================
+2. HIGH-LEVEL SYSTEM ARCHITECTURE & TOPOLOGY
+================================================================================
+The Semester Library web platform is engineered as a hybrid serverless/Node.js 
+application that delivers sub-150ms page loads, continuous real-time reactivity, 
+and resilient data persistence:
+
++-----------------------------------------------------------------------------+
+|                          CLIENT BROWSER (FRONTEND)                          |
+|  - Semantic HTML5 + Custom Vanilla CSS3 + Modern ES6+ JavaScript            |
+|  - Monaco Code Editor (VS Code in Browser) + PDF.js Canvas + Mammoth.js     |
+|  - Supabase Realtime Channels (WebSockets) + Server-Sent Events (SSE)       |
+|  - PWA Service Worker (sw.js) & Local Storage Session Caches                |
++--------------------------------------|--------------------------------------+
+                                       | HTTP(S) / WebSockets / SSE
+                                       v
++-----------------------------------------------------------------------------+
+|                     BACKEND SERVER (EXPRESS 4 ON NODE.JS)                   |
+|  - server.js: Main server kernel, routing table, upload filters, security   |
+|  - api/index.js: Vercel Serverless Function entry point                     |
+|  - vercel.json: Serverless rewrites & background cron orchestrations        |
+|  - CustomDbStore: PostgreSQL-backed session manager (express-session)       |
+|  - Rate Limiters: express-rate-limit protecting auth, compiler, & AI routes |
+|  - WebSocket Terminal: ws server for interactive stdin/stdout processes     |
++------------------+---------------------+--------------------+---------------+
+                   |                     |                    |
+                   v                     v                    v
++-----------------------+ +--------------------+ +----------------------------+
+|  DUAL-ENGINE DATABASE | | OBJECT STORAGE     | | EXTERNAL SERVICES & APIS   |
+|  (db.js)              | | (lib/supabase.js)  | |  - Google Gemini 3.1       |
+|  - Primary: Neon      | |  - Supabase Cloud  | |    Flash Lite (AI Chat)    |
+|    Serverless PG via  | |    Storage buckets | |  - OpenRouter API (Fallback|
+|    WebSocket pool     | |    ('library_files'| |    AI Model Provider)      |
+|  - Fallback / Dev /   | |    and 'posts')    | |  - Paiza.io API (Cloud     |
+|    QA: LibSQL /       | |  - Neon Database   | |    Compiler Code Runner)   |
+|    SQLite (WAL mode)  | |    Blobs fallback  | |  - Expo Push Notification  |
+|  - Query dialect      | |  - Local /uploads/ | |    Service (Mobile APNS/FCM|
+|    auto-translation   | |    disk cache      | |  - Google AdSense          |
++-----------------------+ +--------------------+ +----------------------------+
+
+
+================================================================================
+3. FRONTEND ARCHITECTURE — DETAILED CLIENT IMPLEMENTATION
+================================================================================
+
+A. THE PHILOSOPHY OF VANILLA WEB TECHNOLOGIES (HTML5 / CSS3 / ES6+)
+In modern web development, teams frequently default to heavy frontend frameworks 
+(React, Next.js, Vue, Angular). Semester Library deliberately took a different 
+engineering path by building the entire web client using pure Semantic HTML5, 
+Vanilla CSS3, and Modern ES6+ JavaScript.
+
+Key Advantages:
+1. Instant Page Loads: Browser receives clean HTML, CSS, and JS directly over the 
+   wire. There is no multi-megabyte JavaScript bundle to download, parse, and 
+   hydrate before the page becomes interactive. First Contentful Paint (FCP) is 
+   consistently achieved under 150ms.
+2. Complete Freedom from Build Pipelines: There is no Webpack, Vite, or Babel 
+   compilation step required for the frontend. You can modify any HTML or JS 
+   file, save it, and refresh your browser immediately to see changes.
+3. Fine-Grained DOM Control: Components attach event listeners directly to 
+   standard DOM elements, avoiding the memory overhead of virtual DOM diffing.
+4. Longevity & Low Maintenance: Native web standards do not suffer from breaking 
+   framework version upgrades (e.g., React 17 -> 18 -> 19 breaking changes).
+
+B. DESIGN SYSTEM, TYPOGRAPHY, LAYOUT & AESTHETIC POLISH
+The design system is implemented in `public/style.v4.css` and `public/theme-overrides.css`, 
+drawing visual inspiration from Apple Human Interface Guidelines, Linear.app, and Vercel:
+- Dark-Mode First Palette: Built on neutral, high-contrast dark tones:
+  * Primary Canvas: #0a0a0a
+  * Card Surfaces: #141414 and #1c1c1c
+  * Raised Dialogs & Modals: #222222
+  * Subtle Glass Borders: rgba(255, 255, 255, 0.08)
+  * Text Contrast: Primary text is crisp white (#f5f5f7), secondary text is 
+    subtle slate (#a1a1a6), and tertiary labels are muted (#71717a).
+- Glassmorphism & Depth:
+  Top navigation bars, modal backdrops, and floating action toolbars use 
+  `backdrop-filter: blur(16px) -webkit-backdrop-filter: blur(16px)` combined with 
+  semi-transparent surface colors (`background: rgba(18, 18, 18, 0.75)`).
+- Typography System (Google Fonts):
+  * Plus Jakarta Sans & Outfit: Geometric, modern sans-serif fonts used for brand 
+    headings, page titles, and prominent statistics.
+  * Inter: Engineered for maximum legibility in body paragraphs, user comments, 
+    and UI tables.
+  * Fira Code & JetBrains Mono: Monospaced typography with programming ligatures 
+    used inside the Monaco code editor, compiler terminal outputs, and syllabus 
+    course codes.
+- Bento Grid Layout:
+  The homepage (`public/index.html`) organizes platform modules (Routine, Syllabus, 
+  Notes Library, Compiler, Community) into an asymmetrical Bento grid inspired by 
+  Apple promotional showcases. Cards feature subtle hover transforms, radial 
+  border gradients, and responsive auto-fitting grid tracks.
+
+C. THE ANTI-FOUC THEME ENGINE (theme.js & theme-overrides.css)
+A major challenge in dark-themed web applications is FOUC (Flash of Unstyled 
+Content) — where a white page briefly flashes on screen before the user's saved 
+theme preference is applied.
+Semester Library eliminates FOUC through `public/theme.js`:
+1. `theme.js` is placed directly inside the `<head>` tag of every HTML page as 
+   an inline, synchronous script BEFORE any stylesheet or `<body>` element.
+2. It executes synchronously before the browser paints the very first pixel:
+   ```javascript
+   (function() {
+     const savedTheme = localStorage.getItem('theme');
+     const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+     if (savedTheme === 'dark' || (!savedTheme && systemDark)) {
+       document.documentElement.classList.add('dark');
+     } else {
+       document.documentElement.classList.remove('dark');
+     }
+   })();
+   ```
+3. Because the `.dark` class is applied to `document.documentElement` (`<html>`) 
+   instantly, the CSS immediately applies the dark background color, ensuring 
+   zero white flash.
+4. When the user toggles the theme switch button, `theme.js` toggles `.dark` and 
+   updates `localStorage.setItem('theme', newTheme)`.
+
+D. CLIENT-SIDE STATE MANAGEMENT WITHOUT FRAMEWORKS
+Without a heavy framework like Redux or Zustand, state is managed through 
+disciplined vanilla patterns:
+1. URL Search Parameters: Filtering state (such as `?semester=2&subject=Data+Structures`) 
+   is written directly to `window.location.search`. This makes every view directly 
+   shareable and bookmarkable, and preserves filter state across page reloads.
+2. Dataset Attributes: DOM elements store entity IDs directly in HTML5 data 
+   attributes (e.g., `<button data-post-id="42" data-liked="true">`). Event 
+   delegation listeners on parent containers read `event.target.dataset.postId` 
+   without re-rendering lists.
+3. Session and Local Storage Caches:
+   * `localStorage`: Stores persistent user preferences (theme preference, 
+     Supabase session tokens, Code Lab draft code).
+   * `sessionStorage`: Stores ephemeral data (academic context cache, active 
+     filters, chat scroll positions) that reset when the tab closes.
+
+E. UNIVERSAL AUTHENTICATED FETCH LAYER (auth.js & authFetch)
+In `public/auth.js`, the platform defines `authFetch(url, options)`, which wraps 
+the standard browser `fetch`:
+1. Token Injection: Checks if an active Supabase session exists in memory or 
+   `localStorage`. If found, it automatically attaches:
+   `headers['Authorization'] = 'Bearer ' + token;`
+2. Auto-Refresh on Expiry: If a protected backend API endpoint responds with 
+   `401 Unauthorized`:
+   - `authFetch` intercepts the response.
+   - It calls `supabase.auth.refreshSession()` to exchange the refresh token for a 
+     fresh access token.
+   - If the refresh succeeds, it updates the stored token, re-attaches the new 
+     header, and replays the original failed request seamlessly without the user 
+     noticing any disruption.
+   - If the refresh fails (session truly revoked), it clears stored credentials 
+     and routes the user to `/login.html`.
+
+F. IN-BROWSER DOCUMENT RENDERING ENGINES
+Students can preview study materials directly in their browser without downloading:
+1. PDF Rendering with PDF.js (`pdfjs-dist`):
+   When a student clicks "View Note", `public/library.html` initializes a canvas-based 
+   PDF viewer. It downloads the document stream, renders PDF pages onto an 
+   HTML5 `<canvas>` element with pinch-to-zoom, page navigation, and text 
+   selection support.
+2. Microsoft Word Rendering with Mammoth.js:
+   For `.docx` lecture files, `mammoth.convertToHtml({ arrayBuffer })` converts 
+   Word document formatting, headings, bullet lists, and tables into clean semantic 
+   HTML that renders natively inside the modal container.
+3. PowerPoint Presentation Previews:
+   Handled via server-side preview extraction (`lib/office-preview.js`) and slide 
+   carousel navigation.
+
+G. CODE LAB MONACO IDE INTEGRATION & KEYBOARD BINDINGS
+Inside `public/code-lab/index.html` and `public/code-lab/assignment.html`:
+1. Monaco Editor (the engine powering Microsoft Visual Studio Code) is loaded 
+   dynamically via AMD loader (`vs/loader.js`).
+2. Provides full syntax highlighting, bracket pair colorization, line numbering, 
+   code folding, and auto-indentation for C, C++, Java, and Python.
+3. Custom Keyboard Shortcuts:
+   * `Ctrl+Enter` or `Cmd+Enter`: Compiles and runs code against standard input.
+   * `Ctrl+S` or `Cmd+S`: Saves code draft locally in `localStorage`.
+   * `F11`: Toggles distraction-free fullscreen coding mode.
+
+H. PROGRESSIVE WEB APP (PWA) OFFLINE ENGINE (sw.js & manifest.json)
+The website is fully configured as an installable Progressive Web App (PWA):
+1. `public/manifest.json`: Defines the application name ("Semester Library"), 
+   display mode (`standalone`), start URL, brand colors (#0a0a0a), and high-resolution 
+   home screen icons.
+2. Service Worker (`public/sw.js`):
+   - Pre-caches core application shells (`index.html`, `style.v4.css`, `theme.js`, 
+     `syllabus-data.json`).
+   - Implements a Stale-While-Revalidate caching strategy for syllabus and static 
+     assets, allowing students to access syllabus data even when completely offline 
+     inside lecture halls.
+
+
+================================================================================
+4. AUTHENTICATION, AUTHORIZATION & SECURITY DEEP DIVE
+================================================================================
+
+A. THE THREE PLATFORM ROLES & PRIVILEGES
+Semester Library implements strict Role-Based Access Control (RBAC):
+1. Role: `student`
+   - Target: Enrolled Gandaki University students.
+   - Permissions: Browse library notes, download study materials, inspect syllabus 
+     and routines, upload lecture notes, create community posts, write comments, 
+     participate in cohort chat, send 1-on-1 direct messages, and solve Code Lab 
+     assignments.
+   - Enrollment: Auto-assigned to an active Academic Cohort matching their semester 
+     (e.g., BIT 2024-2028).
+2. Role: `teacher`
+   - Target: Faculty instructors and professors.
+   - Permissions: All student privileges plus: create programming assignments, 
+     define test cases, inspect student code submissions, run automated evaluation 
+     against hidden test cases, grade lab reports, enter marks, write feedback, 
+     publish official teacher notices, and pin announcements in cohort chat.
+   - Enrollment: Provisioned strictly by administrators via invite codes; cannot 
+     self-register.
+3. Role: `admin`
+   - Target: Platform system administrators and university department heads.
+   - Permissions: Full administrative authority: view system metrics, promote 
+     academic cohorts from one semester to the next, archive graduated cohorts, 
+     provision teacher invites, manage subject assignments, suspend/reactivate 
+     accounts, demote or promote roles, and moderate or delete inappropriate content.
+
+B. TRI-CHANNEL AUTHENTICATION ARCHITECTURE
+The system unifies three complementary authentication mechanisms:
+
+1. Channel 1: Supabase Auth JWTs (Primary Client API Token)
+   - Utilized by modern web clients and mobile clients.
+   - Supabase generates signed JSON Web Tokens (RS256/HS256) containing `sub` 
+     (Supabase UID), `email`, and expiration timestamps.
+   - The backend validates the signature against Supabase public keys via 
+     `verifySupabaseToken(token)` in `lib/supabase.js`.
+   - The student record is then matched in Neon PostgreSQL by `supabase_uid` or 
+     `email`.
+
+2. Channel 2: Express Session Cookies (Persistent Web Session)
+   - Browser web requests carry a secure HTTP-only cookie named `__gu_session`.
+   - Cookie Flags: `httpOnly: true`, `sameSite: 'lax'`, `secure: true` in production, 
+     `maxAge: 7 days`.
+   - Stored in the Neon PostgreSQL `session` table via `CustomDbStore` in `server.js`.
+   - Survives serverless function container cold starts and server restarts.
+
+3. Channel 3: Mobile Persistent Bearer Tokens
+   - Stored in the `mobile_tokens` table (`token`, `studentId`, `createdAt`, `expiresAt`).
+   - Uses a 64-character hexadecimal cryptographically secure random token.
+   - Validated in `lib/auth-middleware.js` using an optimized single-query SQL join:
+     ```sql
+     SELECT m.token, m.studentId, m.expiresAt, s.name, s.role, s.semester, s.cohort_id
+     FROM mobile_tokens m
+     LEFT JOIN students s ON s.studentId = m.studentId
+     WHERE m.token = ?
+     ```
+
+C. STEP-BY-STEP AUTHENTICATION LIFECYCLES
+
+Workflow 1: Student Self-Registration & Real-Time Availability Checking
+1. Student navigates to `/register.html`.
+2. As the student types their desired username or email, an input debounce timer 
+   calls `POST /api/auth/check-availability` with `{ username, email }`.
+3. Backend checks uniqueness across the `students` table and returns `{ available: true }` 
+   or `{ available: false, message: 'Username is already taken' }`.
+4. Client provides live visual feedback (green checkmark or red warning) before 
+   submission.
+
+Workflow 2: Supabase Email OTP Verification & Cohort Auto-Assignment
+1. Student enters full registration data and submits form.
+2. Client initiates Supabase email signup with 6-digit OTP confirmation.
+3. Supabase sends a verification code to the student's email address.
+4. Student enters the 6-digit OTP; upon verification, Supabase returns a verified 
+   access token.
+5. Client calls `POST /api/auth/register` (or `/api/auth/finalize-signup`) with 
+   the verified token and profile information.
+6. Backend Security & Execution:
+   - Validates that `authUser.email_confirmed_at` is present.
+   - Enforces privilege escalation defense: strictly overrides any user-supplied 
+     role to `'student'` and sets `verification_status = 'verified'`.
+   - Resolves the active academic cohort: checks which active cohort in the `cohorts` 
+     table matches the chosen semester (e.g., Semester 2 -> Cohort BIT 2024-2028).
+   - Inserts record into `students` table.
+   - Logs cohort audit trail (`signup_auto_assign`).
+   - Generates mobile bearer token and initializes Express session.
+
+Workflow 3: Standard Password Login & Session Fixation Defense
+1. User enters identifier (Student ID, Username, or Email) and password at `/login.html`.
+2. Request hits `POST /api/login` (protected by `loginRateLimiter`).
+3. Backend looks up student record in database.
+4. If account status is `suspended`, backend rejects request with 403 `ACCOUNT_SUSPENDED`.
+5. Compares submitted password against `students.passwordHash` using `bcrypt.compareSync()`.
+6. Session Fixation Defense:
+   - Calling `req.session.regenerate()` discards the existing anonymous session ID 
+     and issues a completely new session identifier.
+   - Prevents attackers from harvesting unauthenticated session cookies and 
+     hijacking user sessions after login.
+7. Role-Based Destination Routing:
+   - Admin -> Redirects to `/admin-dashboard.html`
+   - Teacher -> Redirects to `/teacher-dashboard.html`
+   - Student -> Redirects to `/dashboard.html`
+
+Workflow 4: Teacher Provisioning, Nonce Tracking & Self-Onboarding
+To protect academic integrity, teachers cannot freely register as faculty:
+1. Administrator accesses `/admin-teachers.html`, enters the instructor's name, 
+   initial username, and assigned course subjects.
+2. Server generates a unique invite record in `teacher_invites`:
+   - Generates a cryptographically random temporary password.
+   - Hashes temporary password via bcrypt.
+   - Sets status to `'provisioned'` with an onboarding nonce (default: 1) and 
+     expiration date (7 days).
+3. Admin delivers temporary credentials to the instructor.
+4. Instructor visits `/login.html` and enters the temporary credentials.
+5. The login endpoint detects that the credentials match a `teacher_invites` record 
+   and returns:
+   `{ onboardingRequired: true, onboardingToken: "...", state: { initialUsername, ... } }`
+6. The onboarding token is signed specifically with `{ typ: 'teacher_onboarding' }`. 
+   `lib/auth-middleware.js` strictly forbids onboarding tokens from accessing 
+   standard user APIs.
+7. Instructor is routed to `/teacher-onboarding.html`:
+   - Instructor chooses a new permanent password and enters their official faculty email.
+   - Verifies email via OTP.
+   - System promotes account to `role = 'teacher'`, links records in `teachers` 
+     and `teacher_subjects`, and marks the invite as `'completed'`.
+
+Workflow 5: Account Suspension Checks & Security Interceptors
+1. Administrators can suspend disruptive accounts from `/admin-dashboard.html`.
+2. When an account is suspended, `students.account_status` is updated to `'suspended'`.
+3. In `lib/auth-middleware.js`, every incoming request verifies `account_status`:
+   - If suspended, `req.isSuspended = true`.
+   - Any access to protected routes returns HTTP 403:
+     ```json
+     {
+       "error": "ACCOUNT_SUSPENDED",
+       "code": "ACCOUNT_SUSPENDED",
+       "message": "Your account has been suspended by an administrator. Please contact support."
+     }
+     ```
+   - If authenticated via mobile token, the token is immediately purged from 
+     `mobile_tokens`.
+
+
+================================================================================
+5. BACKEND ARCHITECTURE & PROCESSING ENGINES
+================================================================================
+
+A. THE EXPRESS 4 SERVER KERNEL (server.js) & SERVERLESS ADAPTER
+`server.js` serves as the central orchestration kernel for the entire application:
+- Async Error Handler Monkey-Patch:
+  Express 4 historically required manual `try/catch` blocks inside async route 
+  handlers. `server.js` monkey-patches `Layer.prototype.handle_request` so any 
+  unhandled promise rejection in an async route is automatically caught and 
+  forwarded to `next(err)`, preventing server crashes.
+- Serverless Execution on Vercel:
+  * In local development, `server.js` starts a persistent HTTP server listening 
+    on port 3000 (`app.listen(PORT)`).
+  * On Vercel, `api/index.js` exports `app` directly as a Serverless Function.
+  * In `vercel.json`, all routes (`/(.*)`) are rewritten to `/api/index.js`.
+  * Temporary file uploads automatically switch from local `./uploads` to `/tmp/uploads` 
+    when running inside read-only AWS Lambda / Vercel container environments.
+- Rate Limiting Policies (`express-rate-limit`):
+  * `loginRateLimiter`: 5 failed attempts per 15-minute window on auth endpoints.
+  * `submitLimiter`: Max 10 assignment submissions per minute on Code Lab.
+  * `explainLimiter`: Max 10 AI code explanation requests per minute.
+  * `eventsLimiter`: Rate limits Code Lab competition event submissions.
+
+B. DUAL-ENGINE UNIVERSAL DATABASE ABSTRACTION (db.js)
+`db.js` provides an abstraction layer that allows the entire application to run 
+identically on Neon PostgreSQL (production) or SQLite/LibSQL (development and testing):
+1. Connection Management:
+   - PostgreSQL / Neon: Uses `@neondatabase/serverless` with a `Pool` configured 
+     with WebSocket constructor (`neonConfig.webSocketConstructor = ws`). Handles 
+     idle client terminations and automatic reconnections.
+   - SQLite / LibSQL: Uses `@libsql/client` pointing to `database.db` with 
+     Write-Ahead Logging (`PRAGMA journal_mode = WAL`) and a 5000ms busy timeout.
+2. Dynamic Query Dialect Translation (`toPostgresSql`):
+   When the app runs on PostgreSQL, `db.js` automatically rewrites queries on the fly:
+   * Replaces SQLite positional parameter `?` with PostgreSQL numbered parameters 
+     `$1, $2, $3, ...`.
+   * Replaces SQLite timestamp functions `datetime('now')` with PostgreSQL 
+     `CURRENT_TIMESTAMP`.
+3. Column Normalization Engine (`camelMap`):
+   PostgreSQL converts all unquoted column names to lowercase (e.g., `studentId` 
+   becomes `studentid`).
+   `db.js` intercepts all query results and maps lowercase keys back into camelCase 
+   JavaScript properties using a comprehensive lookup map (`studentid` -> `studentId`, 
+   `passwordhash` -> `passwordHash`, `avatarurl` -> `avatarUrl`, `createdat` -> `createdAt`).
+
+C. 3-TIER OBJECT & BINARY STORAGE ENGINE
+Files uploaded to Semester Library (notes, slides, post images, avatars) use a 
+three-tier persistence model:
+1. Tier 1 (Cloud Object Storage):
+   Files are uploaded to Supabase Cloud Storage buckets (`library_files` and `posts`) 
+   via `lib/supabase.js`. Produces global CDN URLs for high-speed streaming.
+2. Tier 2 (Database Blob Persistence):
+   If cloud object storage is unavailable or operating in offline testing mode, 
+   `db.storeFileBlob(filename, buffer, mimeType)` saves binary files directly into 
+   the `file_blobs` database table.
+3. Tier 3 (Serverless Local Disk Cache):
+   When a serverless Lambda instance spins up, local `/tmp/uploads` is empty. The 
+   function `ensureLocalFile(filename)` in `server.js` checks if the file exists on 
+   disk. If missing, it fetches the binary from the `file_blobs` table, writes it 
+   to `/tmp/uploads`, and serves it immediately.
+
+D. FULL-TEXT DOCUMENT INGESTION & SEARCH ENGINE (lib/note-search.js)
+Whenever an academic file is uploaded, the background indexing pipeline executes:
+1. Text Extraction:
+   - PDF: `pdfjs-dist` loads document pages sequentially and extracts text blocks.
+   - Word (.docx): `mammoth.extractRawText()` parses XML document streams.
+   - PowerPoint (.pptx): `node-pptx-parser` extracts slide titles and speaker notes.
+2. Search Vector Generation:
+   - In PostgreSQL: Converts extracted text into a search vector using 
+     `to_tsvector('english', content)`.
+   - Stored in the `note_search_documents` table with a Generalized Inverted Index (GIN).
+   - In SQLite: Extracted text is inserted into an `FTS5` virtual table with Porter 
+     stemming.
+3. Query Execution:
+   Searching `/api/search?q=algorithms` executes a weighted full-text search 
+   matching titles, chapters, and body paragraphs, returning ranked results in 
+   under 10 milliseconds.
+
+E. KYANA AI 3.0 ACADEMIC ASSISTANT
+Kyana AI is the built-in academic intelligence engine:
+1. LLM Core:
+   Connects to Google Gemini 3.1 Flash Lite via direct streaming HTTP calls in 
+   `lib/chat-provider.js` (with OpenRouter as an automatic fallback).
+2. Grounded Autonomous Tool Calling (`lib/chat-tools.js`):
+   Before replying to student questions, Kyana inspects the query and can call:
+   * `search_notes`: Queries lecture notes and extracted slide text.
+   * `get_syllabus`: Looks up exact BIT course outlines and textbook references.
+   * `get_routine`: Retrieves upcoming exam dates, times, and room numbers.
+   * `web_search`: Retrieves current external technical documentation.
+3. Authority Ranking Tiers (`lib/knowledge-*.js`):
+   When synthesizing information from the campus feed, Kyana weights sources by 
+   academic authority:
+   * Tier 1 (Highest): Official University Notices
+   * Tier 2: Faculty Assignments & Teacher Announcements
+   * Tier 3: Class Representative (CR) Announcements
+   * Tier 4: Student Community Posts
+4. Bilingual Streaming:
+   Kyana fluently understands and responds in both English and Nepali (including 
+   Romanized Nepali like "exam routine kahile auncha?"). Responses stream token-by-token 
+   over Server-Sent Events (SSE).
+
+F. REAL-TIME MESSAGING ENGINES
+Real-time features operate over two resilient channels:
+1. Supabase Realtime Channels (Cohort Chat & DM):
+   - Group chat rooms and 1-on-1 direct messages broadcast payloads over Supabase 
+     Realtime WebSocket channels (`public:chat_messages` and `dm_realtime_outbox`).
+   - Connected browser clients receive incoming messages instantly without polling.
+2. Interactive WebSocket Terminal (`ws`):
+   - At `/api/compiler/live`, a native WebSocket server spawns interactive terminal 
+     sessions for running student code with live bidirectional stdin/stdout.
+
+G. CODE LAB CLOUD COMPILER & AUTOMATED GRADING
+Code Lab allows students to test code and complete assignments:
+1. Remote Code Execution:
+   `routes/code-lab/run.js` formats code payloads and sends them to the Paiza.io 
+   compiler API. Tracks execution time, memory usage, and captures compiler errors.
+2. Automated Test Case Runner:
+   When an assignment is submitted, `routes/code-lab/assignments.js` iterates through 
+   all test cases defined for that problem:
+   - Feeds `test_case.input` into the program.
+   - Compares actual output against `test_case.expected_output` (ignoring trailing whitespace).
+   - Evaluates hidden test cases to prevent students from hardcoding output strings.
+   - Calculates the final percentage score and records the submission in `submissions`.
+3. Anti-Plagiarism Keystroke Playback:
+   `timelapse.html` captures keystroke intervals during coding and allows teachers 
+   to replay the student's typing progression to verify authentic student work.
+
+H. MULTI-CHANNEL NOTIFICATION ENGINE
+Notifications keep students updated on campus life:
+1. In-App Notification Center (`routes/notifications.js`):
+   Records user notifications in the `notifications` table for post likes, comments, 
+   mentions, uploaded notes, and new assignments.
+2. Mobile Expo Push Service (`lib/push-notifications.js`):
+   Queues push notifications in `push_notification_outbox`, batches transmissions 
+   to the Expo Push API, tracks delivery receipts, and handles automatic retries.
+
+
+================================================================================
+6. COMPLETE DATABASE SCHEMA CATALOG (TABLES, COLUMNS & CONSTRAINTS)
+================================================================================
+Below is the complete catalog of database tables defined in `schema.sql`:
+
+1. IDENTITY & AUTHENTICATION TABLES
+- `students`
+  Stores all registered user profiles (students, teachers, admins).
+  * `studentid` (VARCHAR(50), PRIMARY KEY): Unique student roll number or ID.
+  * `username` (TEXT, UNIQUE): Unique lowercase handle (e.g., 'saugat').
+  * `name` (VARCHAR(255)): Full display name.
+  * `email` (TEXT, UNIQUE): Verified user email address.
+  * `passwordhash` (VARCHAR(255)): Salted bcrypt password hash.
+  * `role` (VARCHAR(50), DEFAULT 'student'): User role ('student', 'teacher', 'admin').
+  * `department` (VARCHAR(100), DEFAULT 'BIT'): Academic department.
+  * `semester` (VARCHAR(50), DEFAULT 'Semester 1'): Active semester (Semester 1 to 8).
+  * `cohort_id` (TEXT, FK -> cohorts.id): Active academic cohort identifier.
+  * `gender` (TEXT): Gender selection ('male', 'female', 'other', 'prefer_not_to_say').
+  * `avatarurl` (TEXT): URL to uploaded avatar image.
+  * `bio` (TEXT): Short student biography.
+  * `githuburl`, `linkedinurl` (TEXT): Social profile links.
+  * `supabase_uid` (TEXT, UNIQUE): Supabase Auth unique identifier.
+  * `verification_status` (TEXT, DEFAULT 'unverified'): Email status ('unverified', 'verified').
+  * `account_status` (VARCHAR(32), DEFAULT 'active'): Account state ('active', 'suspended').
+  * `created_at`, `updated_at` (TIMESTAMPTZ): Timestamps.
+
+- `session`
+  PostgreSQL session store for Express (`connect-pg-simple`).
+  * `sid` (VARCHAR, PRIMARY KEY): Session cookie ID.
+  * `sess` (JSON): Serialized session payload (studentId, studentName, role).
+  * `expire` (TIMESTAMP(6)): Expiration date.
+
+- `mobile_tokens`
+  Long-lived mobile and API authentication bearer tokens.
+  * `token` (TEXT, PRIMARY KEY): 64-hexadecimal crypto token.
+  * `studentId` (TEXT, FK -> students.studentid): Associated student ID.
+  * `createdAt` (TIMESTAMPTZ): Token generation date.
+  * `expiresAt` (TIMESTAMPTZ): Expiration date (30 days from generation).
+
+- `login_attempts`
+  Tracks failed login attempts for IP rate limiting and brute force defense.
+  * `ip` (TEXT, PRIMARY KEY): Client IP address.
+  * `attempts` (INTEGER): Number of consecutive failed attempts.
+  * `last_attempt` (TIMESTAMPTZ): Timestamp of most recent attempt.
+
+- `teacher_invites`
+  Manages administrator-provisioned teacher invitations.
+  * `id` (TEXT, PRIMARY KEY): Unique invite UUID.
+  * `initial_username` (TEXT): Initial username assigned to the instructor.
+  * `temporary_password_hash` (TEXT): Bcrypt hash of temporary password.
+  * `status` (TEXT): State ('provisioned', 'onboarding', 'completed', 'expired', 'disabled').
+  * `onboarding_nonce` (INTEGER, DEFAULT 1): Security nonce incremented on onboarding attempts.
+  * `expires_at` (TIMESTAMPTZ): Invite expiration date.
+  * `claimed_at`, `completed_at` (TIMESTAMPTZ): Lifecycle timestamps.
+  * `created_by` (TEXT): Admin student ID who created the invitation.
+
+- `teachers`
+  Detailed instructor profile data.
+  * `id` (TEXT, PRIMARY KEY): Unique teacher UUID.
+  * `user_id` (TEXT, FK -> students.studentid): Reference to student record.
+  * `invite_id` (TEXT, FK -> teacher_invites.id): Reference to original invite.
+  * `designation` (TEXT, DEFAULT 'Instructor'): Faculty title.
+  * `status` (TEXT, DEFAULT 'active'): Status ('active', 'disabled').
+
+- `teacher_subjects`
+  Mapping of which course subjects are assigned to each teacher.
+  * `id` (TEXT, PRIMARY KEY): Unique mapping UUID.
+  * `teacher_id` (TEXT, FK -> teachers.id): Reference to teacher.
+  * `subject_id` (TEXT, FK -> subjects.id): Reference to assigned subject.
+
+2. ACADEMIC CURRICULA & COHORT TABLES
+- `cohorts`
+  Defines student batches / academic cohorts.
+  * `id` (TEXT, PRIMARY KEY): Unique cohort key (e.g., 'bit-2024-2028').
+  * `slot_code` (TEXT, UNIQUE): Internal slot identifier.
+  * `display_name` (TEXT): User-friendly title (e.g., 'BIT 2024 - 2028').
+  * `intake_year` (INTEGER): Enrollment year (e.g., 2024).
+  * `intake_identifier` (TEXT): Batch code.
+  * `current_semester` (INTEGER): Active semester (1 to 8).
+  * `is_active` (BOOLEAN, DEFAULT true): Active cohort flag.
+  * `graduated_at` (TIMESTAMPTZ): Graduation timestamp when archived.
+
+- `subjects`
+  Academic subjects catalog for the BIT program.
+  * `id` (TEXT, PRIMARY KEY): Unique subject key.
+  * `code` (TEXT): Official course code (e.g., 'BIT101').
+  * `name` (TEXT): Course title (e.g., 'Data Structures & Algorithms').
+  * `semester` (INTEGER): Applicable semester (1 to 8).
+  * `department` (TEXT, DEFAULT 'BIT'): Department name.
+  * `credit_hours` (NUMERIC(3,1), DEFAULT 3.0): Credit value.
+  * `nature` (TEXT): Course nature ('Theory', 'Practical', 'Both').
+  * `active` (BOOLEAN, DEFAULT true): Whether currently taught.
+
+- `routine`
+  Official exam timetable dataset.
+  * `id` (SERIAL, PRIMARY KEY): Auto-incrementing identifier.
+  * `semester` (INTEGER): Target semester (1 to 8).
+  * `subject_name` (TEXT): Name of the exam subject.
+  * `subject_code` (TEXT): Course code.
+  * `exam_date` (TEXT): Date string of the exam.
+  * `calendar` (TEXT): Calendar system ('BS' or 'AD').
+  * `exam_time` (TEXT): Time slot (e.g., '07:00 AM - 10:00 AM').
+  * `room` (TEXT): Examination hall / room allocation.
+  * `weekday` (TEXT): Day of the week.
+  * `exam_type` (TEXT): Type ('Regular', 'Backlog', 'Mid-Term').
+
+3. FILE MANAGEMENT & SEARCH TABLES
+- `files`
+  Metadata for uploaded academic study materials.
+  * `id` (SERIAL, PRIMARY KEY): Unique note identifier.
+  * `student_id` (TEXT, FK -> students.studentid): Uploader ID.
+  * `original_name` (TEXT): Original filename (e.g., 'Unit_1_Overview.pdf').
+  * `stored_name` (TEXT): Secure hashed storage name.
+  * `subject` (TEXT): Subject name.
+  * `semester` (TEXT): Semester label (e.g., 'Semester 2').
+  * `chapter` (TEXT): Unit or chapter title.
+  * `file_type` (TEXT): MIME type or extension.
+  * `file_size` (BIGINT): File size in bytes.
+  * `download_count` (INTEGER, DEFAULT 0): Aggregate download counter.
+  * `created_at` (TIMESTAMPTZ): Upload date.
+
+- `file_blobs`
+  Database binary storage fallback for files.
+  * `id` (SERIAL, PRIMARY KEY): Unique blob record.
+  * `filename` (TEXT, UNIQUE): Associated storage filename.
+  * `mimetype` (TEXT): Media MIME type.
+  * `filedata` (BYTEA / BLOB): Raw binary file bytes.
+  * `createdat` (TIMESTAMPTZ): Storage date.
+
+- `note_search_documents`
+  Full-text search document vectors extracted from notes.
+  * `id` (INTEGER, PRIMARY KEY, FK -> files.id ON DELETE CASCADE): Note ID.
+  * `content` (TEXT): Extracted raw plain text from document.
+  * `search_vector` (TSVECTOR): PostgreSQL GIN search vector.
+  * `extraction_status` (TEXT): Status ('indexed', 'failed').
+  * `indexed_at` (TIMESTAMPTZ): Indexing timestamp.
+
+4. COMMUNITY SOCIAL FEED & COMMENT TREES
+- `posts`
+  Community feed posts and teacher announcements.
+  * `id` (SERIAL, PRIMARY KEY): Post ID.
+  * `user_id` (TEXT, FK -> students.studentid): Author ID.
+  * `title` (TEXT): Post title (optional for short statuses).
+  * `content` (TEXT): Post text content (supports Markdown).
+  * `type` (TEXT, DEFAULT 'status'): Type ('status', 'assignment', 'notice').
+  * `category` (TEXT, DEFAULT 'general'): Category tag.
+  * `audience_scope` (TEXT, DEFAULT 'cohort'): Visibility ('cohort', 'faculty', 'campus').
+  * `cohort_id` (TEXT): Target cohort.
+  * `semester_no` (INTEGER): Target semester.
+  * `attachment_url` (TEXT): Main media attachment URL.
+  * `created_at`, `edited_at` (TIMESTAMPTZ): Timestamps.
+
+- `post_media`
+  Multi-image and media attachments for community posts.
+  * `id` (SERIAL, PRIMARY KEY): Media ID.
+  * `post_id` (INTEGER, FK -> posts.id ON DELETE CASCADE): Parent post ID.
+  * `media_type` (TEXT, DEFAULT 'image'): Media type.
+  * `url` (TEXT): Public URL.
+  * `file_size` (BIGINT): Attachment size.
+
+- `post_likes`
+  Idempotent like tracking for posts.
+  * `post_id` (INTEGER, FK -> posts.id ON DELETE CASCADE): Liked post.
+  * `user_id` (TEXT, FK -> students.studentid): Liker student ID.
+  * PRIMARY KEY (`post_id`, `user_id`).
+
+- `post_comments`
+  Threaded and nested comments on community posts.
+  * `id` (SERIAL, PRIMARY KEY): Comment ID.
+  * `post_id` (INTEGER, FK -> posts.id ON DELETE CASCADE): Parent post ID.
+  * `user_id` (TEXT, FK -> students.studentid): Commenter ID.
+  * `content` (TEXT): Comment body (1 to 2000 characters).
+  * `parent_comment_id` (INTEGER, FK -> post_comments.id): Parent comment for replies.
+  * `created_at`, `deleted_at` (TIMESTAMPTZ): Timestamps.
+
+5. REAL-TIME CHAT & DIRECT MESSAGING TABLES
+- `dm_conversations`
+  1-on-1 private messaging conversation slots.
+  * `id` (TEXT, PRIMARY KEY): Conversation UUID.
+  * `user_one_id` (TEXT, FK -> students.studentid): First participant.
+  * `user_two_id` (TEXT, FK -> students.studentid): Second participant.
+  * `created_at`, `updated_at` (TIMESTAMPTZ): Conversation timestamps.
+
+- `dm_messages`
+  Private direct messages between two students.
+  * `id` (SERIAL, PRIMARY KEY): Message ID.
+  * `conversation_id` (TEXT, FK -> dm_conversations.id): Parent conversation.
+  * `sender_id` (TEXT, FK -> students.studentid): Message sender ID.
+  * `message` (TEXT): Message text content.
+  * `attachment_url` (TEXT): Image or document attachment.
+  * `is_read` (BOOLEAN, DEFAULT false): Read receipt flag.
+  * `created_at` (TIMESTAMPTZ): Send timestamp.
+
+- `chat_groups` & `chat_messages`
+  Cohort-wide real-time group chat rooms.
+  * `id` (SERIAL, PRIMARY KEY): Chat message ID.
+  * `group_id` (TEXT): Cohort chat room identifier.
+  * `student_id` (TEXT, FK -> students.studentid): Message author.
+  * `message` (TEXT): Text content.
+  * `attachment_url` (TEXT): Attached media file URL.
+  * `is_pinned` (BOOLEAN, DEFAULT false): Pinned announcement flag.
+  * `created_at` (TIMESTAMPTZ): Message timestamp.
+
+6. CODE LAB ASSIGNMENTS, SUBMISSIONS & GRADING TABLES
+- `assignments`
+  Programming lab assignments created by instructors.
+  * `id` (SERIAL, PRIMARY KEY): Assignment ID.
+  * `title` (TEXT): Assignment title.
+  * `subject` (TEXT): Course name.
+  * `language` (TEXT): Programming language ('c', 'cpp', 'java', 'python').
+  * `description` (TEXT): Markdown problem description.
+  * `starter_code` (TEXT): Initial code template.
+  * `due_date` (TIMESTAMPTZ): Submission deadline.
+  * `created_by` (TEXT, FK -> students.studentid): Teacher ID who created assignment.
+
+- `assignment_questions` & `question_test_cases`
+  Multi-question problems and automated test suites.
+  * `questionid` (INTEGER): Parent question reference.
+  * `input` (TEXT): Standard input fed into the student's program.
+  * `expectedoutput` (TEXT): Expected standard output.
+  * `is_hidden` (BOOLEAN): Hidden test case flag to prevent hardcoded solutions.
+
+- `submissions` & `submission_grades`
+  Student code submissions and faculty grades.
+  * `id` (SERIAL, PRIMARY KEY): Submission ID.
+  * `assignmentid` (INTEGER, FK -> assignments.id): Assignment reference.
+  * `studentid` (TEXT, FK -> students.studentid): Submitting student.
+  * `code` (TEXT): Complete student source code.
+  * `submittedat` (TIMESTAMPTZ): Submission timestamp.
+  * `testresults` (TEXT): JSON test case evaluation results.
+  * `marksobtained` (INTEGER): Marks given by instructor.
+  * `remarks` (TEXT): Instructor written feedback.
+  * `checked` (BOOLEAN, DEFAULT false): Whether graded by faculty.
+  * `released` (BOOLEAN, DEFAULT false): Whether marks are visible to student.
+
+7. SYSTEM DIAGNOSTICS, AUDITS & NOTIFICATIONS TABLES
+- `notifications`
+  In-app notifications for social interactions and deadlines.
+  * `id` (SERIAL, PRIMARY KEY): Notification ID.
+  * `recipient_id` (TEXT, FK -> students.studentid): Target student.
+  * `actor_id` (TEXT, FK -> students.studentid): Student who performed action.
+  * `type` (TEXT): Event type ('like', 'comment', 'mention', 'note', 'assignment').
+  * `title` (TEXT): Notification heading.
+  * `message` (TEXT): Notification text.
+  * `link` (TEXT): URL to navigate to when clicked.
+  * `is_read` (BOOLEAN, DEFAULT false): Read status flag.
+  * `created_at` (TIMESTAMPTZ): Notification generation timestamp.
+
+- `push_notification_outbox`
+  Queue for dispatching push notifications to mobile devices via Expo.
+  * `id` (SERIAL, PRIMARY KEY): Queue record ID.
+  * `recipient_student_id` (TEXT): Recipient.
+  * `payload_json` (JSONB): Formatted push notification payload.
+  * `status` (TEXT, DEFAULT 'pending'): Queue state ('pending', 'sent', 'failed').
+  * `attempts` (INTEGER, DEFAULT 0): Retry attempt counter.
+  * `next_attempt_at` (TIMESTAMPTZ): Next retry timestamp.
+
+- `admin_audit_logs` & `cohort_audit_logs`
+  Audit trails recording administrative actions (account suspensions, cohort 
+  promotions, teacher invitations, content deletions) for system accountability.
+
+
+================================================================================
+7. EXHAUSTIVE DIRECTORY & FILE-BY-FILE BREAKDOWN
+================================================================================
+
+Below is the complete, file-by-file breakdown of every single file in the 
+Semester Library web application:
+
+--------------------------------------------------------------------------------
+A. ROOT CORE FILES
+--------------------------------------------------------------------------------
+
+1. `server.js` (6,666 lines)
+   The central application server kernel. Initializes the Express application, 
+   attaches security headers (`nosniff`, `SAMEORIGIN`), sets up body parsers 
+   with 250MB limits, establishes the PostgreSQL session store (`CustomDbStore`), 
+   configures `multer` disk storage with secure hashing and MIME validation, 
+   serves static files from `/public`, handles core authentication endpoints 
+   (`/api/login`, `/api/auth/register`, `/api/me`), runs the Kyana AI streaming 
+   assistant endpoint (`/api/chat/ai`), hosts the interactive WebSocket compiler 
+   terminal (`/api/compiler/live`), and mounts all modular sub-routers from 
+   `/routes`.
+
+2. `db.js` (1,221 lines)
+   The universal database engine abstraction layer. Automatically detects whether 
+   production PostgreSQL (`DATABASE_URL`) or local SQLite/LibSQL (`database.db`) 
+   is active. Exposes `db.get()`, `db.all()`, `db.run()`, `db.initSchema()`, and 
+   blob storage methods. Automatically translates SQL parameter syntax (`?` to 
+   `$1, $2, ...`), normalizes timestamp functions, maps lowercase PostgreSQL 
+   columns back into camelCase JavaScript properties using `camelMap`, and runs 
+   schema migrations on startup.
+
+3. `ai-assistant.js` (596 lines)
+   The Kyana AI assistant orchestration kernel. Classifies user query intent 
+   (exam routines, BIT syllabus, lecture notes, or general programming help), 
+   coordinates vector and lexical search across indexed university documents via 
+   Kyana Knowledge 3.0, applies academic authority scoring tiers (Notices > Teacher 
+   Posts > CR Announcements > Student Posts), calls Google Gemini 3.1 Flash Lite 
+   via Server-Sent Events (SSE), and injects rich interactive UI resource cards.
+
+4. `schema.sql` (4,823 lines)
+   The authoritative PostgreSQL database schema dump. Defines all 50+ relational 
+   tables, sequences, primary keys, foreign key constraints with cascade rules, 
+   GIN indexes for full-text search, trigger functions for DM integrity, and 
+   default column constraints.
+
+5. `package.json` (51 lines)
+   Node.js project manifest. Declares runtime dependencies (`@neondatabase/serverless`, 
+   `@supabase/supabase-js`, `express`, `express-session`, `connect-pg-simple`, 
+   `bcryptjs`, `multer`, `ws`, `pdfjs-dist`, `mammoth`, `node-pptx-parser`), 
+   development dependencies (`playwright`, `pglite`), engine requirements 
+   (`node >= 22.13.0`), and NPM scripts (`npm start`, `npm test`, `npm run seed`).
+
+6. `syllabus-data.json` (223 KB)
+   The canonical curriculum database for Gandaki University's BIT program. 
+   Contains detailed structured JSON covering all 8 semesters: course codes, 
+   course titles, credit hours, lecture hours, lab hours, course objectives, 
+   unit-by-unit breakdown of topics, and recommended textbooks.
+
+7. `vercel.json` (20 lines)
+   Deployment configuration for Vercel. Configures global URL rewrites directing 
+   all web traffic to `/api/index.js` and sets up cron jobs for daily push 
+   notification cleanup and staging attachment purging.
+
+8. `seed.js` (6 KB)
+   Database seeding script. Populates initial BIT courses, sample academic 
+   cohorts, default student accounts, and sample lecture notes for development 
+   and testing.
+
+9. `migrate.js` (12 KB)
+   Database migration runner. Checks `schema_migrations` and applies incremental 
+   SQL updates to ensure production and local databases stay in sync.
+
+
+--------------------------------------------------------------------------------
+B. SERVERLESS ADAPTER & CONFIGURATION (api/)
+--------------------------------------------------------------------------------
+
+10. `api/index.js` (4 lines)
+    Vercel Serverless Function entry point. Imports the Express application from 
+    `server.js` and exports it as the root request handler for Vercel's serverless 
+    edge containers.
+
+
+--------------------------------------------------------------------------------
+C. CORE SERVICES & LIBRARIES (lib/ — all 49 files)
+--------------------------------------------------------------------------------
+
+11. `lib/academic-context.js`
+    Computes and resolves a student's active academic state: current enrolled 
+    semester, associated cohort ID, enrolled subjects, syllabus units, and 
+    provides session cache management.
+
+12. `lib/academic-service.js`
+    Manages BIT course curricula, subject code resolution, credit hours, 
+    department requirements, and syllabus unit details.
+
+13. `lib/ai-chat-service.js`
+    Manages conversational memory, AI session persistence, chat history logging, 
+    and recent interactive resource cards for Kyana AI.
+
+14. `lib/ai-search-tools.js`
+    Tool execution harness for the AI assistant. Executes `search_notes`, 
+    `get_syllabus`, `get_routine`, and `web_search` and returns structured results.
+
+15. `lib/audit-service.js`
+    Administrative audit logger. Records cohort promotions, student demotions, 
+    account suspensions, and teacher invitation creations in `admin_audit_logs`.
+
+16. `lib/auth-middleware.js`
+    Express authentication middleware. Parses Supabase JWTs, mobile bearer tokens, 
+    or session cookies; verifies token signatures; validates account suspension 
+    status; attaches `req.user` and `req.student`; and provides `requireLogin`, 
+    `requireTeacher`, and `requireAdmin` guards.
+
+17. `lib/background-delivery.js`
+    Asynchronous job dispatcher that executes background tasks (indexing, 
+    notifications, cache pruning) without blocking the Express HTTP response cycle.
+
+18. `lib/chat-event-dedupe.js`
+    Event deduplication utility that prevents duplicate broadcast notifications 
+    and double-message processing in chat channels.
+
+19. `lib/chat-http.js`
+    HTTP helper for Server-Sent Events (SSE) streaming with support for custom 
+    keep-alive heartbeats and client disconnect abort controllers.
+
+20. `lib/chat-mode.js`
+    Classifies student prompt intent into specialized modes (Study Mode, Exam 
+    Prep, Code Debugging, General Campus Inquiry).
+
+21. `lib/chat-personality.js`
+    Defines Kyana AI's system prompt, persona, academic formatting guidelines, 
+    and bilingual instructions (English and Nepali).
+
+22. `lib/chat-provider.js`
+    Direct HTTP client connecting to Google Gemini 3.1 Flash Lite and OpenRouter. 
+    Streams token chunks over SSE without external heavy SDK dependencies.
+
+23. `lib/chat-ratelimit.js`
+    Rate limiter for AI interactions to protect API quotas and prevent spamming.
+
+24. `lib/chat-security.js`
+    Safety filter that detects and refuses prompt injection attempts, toxic 
+    language, academic cheating, and requests violating university policies.
+
+25. `lib/chat-tools.js`
+    Complete implementation of the 4 autonomous tools available to Kyana AI 
+    (`search_notes`, `get_syllabus`, `get_routine`, `web_search`) with course alias 
+    matching.
+
+26. `lib/chat-topics.js`
+    Keyword detector that maps student questions to specific BIT course codes 
+    (e.g., 'DSA', 'OOP', 'Calculus', 'Web Tech').
+
+27. `lib/cohort-chat.js`
+    Main coordinator for semester cohort group chat rooms. Manages message 
+    persistence, member rosters, user mentions, and pinned announcements.
+
+28. `lib/cohort-chat-db.js`
+    Database query layer for cohort group chat: loads message history, inserts 
+    new messages, and fetches pinned posts.
+
+29. `lib/cohort-chat-providers.js`
+    Provider abstraction allowing cohort chat to broadcast over Supabase Realtime 
+    or in-memory WebSocket channels.
+
+30. `lib/cohort-chat-runtime.js`
+    Runtime environment monitor for chat systems, handling heartbeat health 
+    checks and connection lifecycle.
+
+31. `lib/comments.js`
+    Service managing post comments: threaded replies, deletion cascades, and 
+    comment reaction counters.
+
+32. `lib/db-transaction.js`
+    Cross-database SQL transaction wrapper supporting `BEGIN`, `COMMIT`, and 
+    `ROLLBACK` across both PostgreSQL and SQLite.
+
+33. `lib/dm-config.js`
+    Configuration parameters for direct messaging: maximum message lengths, 
+    attachment size limits, and rate limits.
+
+34. `lib/dm-realtime.js`
+    Real-time message dispatcher for private direct messaging via Supabase 
+    Broadcast channels.
+
+35. `lib/dm-service.js`
+    Core service for 1-on-1 private messaging: manages conversation slotting, 
+    message history, delivery receipts, user blocks, and report filings.
+
+36. `lib/games-invitations.js`
+    Manages student multiplayer game invitations and room lobby matching for 
+    campus mini-games.
+
+37. `lib/games-ticket.js`
+    Generates cryptographically signed, short-lived game authentication tickets 
+    for accessing mini-game servers.
+
+38. `lib/knowledge-builder.js`
+    Ingestion service for Kyana Knowledge 3.0: chunks lecture notes, syllabus 
+    units, and campus notices into structured retrieval units.
+
+39. `lib/knowledge-db.js`
+    Database interface for storing and querying knowledge embeddings and metadata.
+
+40. `lib/knowledge-embeddings.js`
+    Generates dense vector embeddings for text chunks to enable semantic search.
+
+41. `lib/knowledge-relevance.js`
+    Relevance scoring algorithm that combines cosine similarity, keyword frequency, 
+    authority tiers, and date freshness.
+
+42. `lib/knowledge-schema.js`
+    Schema definitions and table setup for knowledge embeddings and retrieval 
+    indexes.
+
+43. `lib/knowledge-search.js`
+    Hybrid search engine combining dense vector embeddings with PostgreSQL 
+    `tsvector` lexical search.
+
+44. `lib/knowledge-sync.js`
+    Synchronization manager that detects updated notices or notes and schedules 
+    automatic re-indexing.
+
+45. `lib/knowledge-timing.js`
+    High-resolution latency profiler measuring execution times of knowledge 
+    retrieval steps.
+
+46. `lib/knowledge-worker.js`
+    Background worker that processes unindexed documents and populates knowledge 
+    embeddings asynchronously.
+
+47. `lib/kyana-access.js`
+    Access permission validator ensuring students only receive AI citation cards 
+    for resources they are authorized to view.
+
+48. `lib/kyana-resource-http.js`
+    HTTP helper that packages and serializes rich UI resource cards for streaming 
+    over SSE.
+
+49. `lib/nepali-dates.js`
+    Bikram Sambat (B.S.) to Gregorian (A.D.) calendar converter used for Gandaki 
+    University exam routines and holidays.
+
+50. `lib/note-search.js`
+    Document text extraction and full-text search indexing engine. Extracts text 
+    from PDF (`pdfjs-dist`), Word (`mammoth`), and PowerPoint (`node-pptx-parser`), 
+    and updates `note_search_documents`.
+
+51. `lib/notifications-service.js`
+    In-app notification manager that creates, reads, and marks notifications as read.
+
+52. `lib/office-preview.js`
+    Server-side converter that produces HTML or image previews for Office 
+    documents.
+
+53. `lib/posts.js`
+    Service managing community posts: validation, sanitization, multi-semester 
+    targeting, and like toggling.
+
+54. `lib/push-notifications.js`
+    Expo push notification client: batches notifications, manages outbox queues, 
+    and checks receipt tickets.
+
+55. `lib/qa-guard.js`
+    Testing sandbox guard that protects production data from accidental deletion 
+    during automated test runs.
+
+56. `lib/request-timing.js`
+    Middleware that records HTTP request duration and logs slow endpoints for 
+    performance tuning.
+
+57. `lib/routine.js`
+    Parses exam routine datasets, computes countdowns, and filters schedules by 
+    semester.
+
+58. `lib/supabase.js`
+    Supabase client initializer. Provides `verifySupabaseToken(token)` and handles 
+    bucket storage uploads/downloads.
+
+59. `lib/teacher-service.js`
+    Comprehensive teacher lifecycle management: creates invites, hashes temporary 
+    passwords, tracks onboarding tokens, and links faculty to assigned subjects.
+
+
+--------------------------------------------------------------------------------
+D. ROUTE CONTROLLERS (routes/ — all 16 controllers)
+--------------------------------------------------------------------------------
+
+60. `routes/code-lab/assignments.js`
+    API endpoints for Code Lab assignments: listing problems, fetching problem 
+    details, creating assignments (faculty), and grading submissions.
+
+61. `routes/code-lab/explain.js`
+    Endpoint `POST /api/code-lab/explain-error` where AI analyzes compilation 
+    errors and provides step-by-step guidance.
+
+62. `routes/code-lab/run.js`
+    Endpoint `POST /api/code-lab/run` that sends student code to Paiza.io and 
+    returns stdout, stderr, and execution benchmarks.
+
+63. `routes/admin-cohorts.js`
+    Admin endpoints for managing academic cohorts: `/api/admin/cohorts`, promoting 
+    batches, and managing slot codes.
+
+64. `routes/admin-dashboard.js`
+    Admin endpoints for platform management: metrics, student lists, account 
+    suspension, role promotion/demotion, and content deletion.
+
+65. `routes/admin-teachers.js`
+    Admin endpoints for faculty management: generating teacher invites, monitoring 
+    onboarding, and assigning courses.
+
+66. `routes/cohort-chat.js`
+    Endpoints for cohort group chat: loading message history, posting messages, 
+    and pinning announcements.
+
+67. `routes/comments.js`
+    Endpoints for post comments: adding comments, fetching comment trees, and 
+    deleting comments.
+
+68. `routes/direct-messaging.js`
+    Endpoints for private 1-on-1 direct messaging: list conversations, load chat, 
+    send message, and mark as read.
+
+69. `routes/games.js`
+    Endpoints for generating game authentication tickets and managing multiplayer 
+    invites.
+
+70. `routes/internal-knowledge.js`
+    Internal cron endpoints for triggering knowledge re-indexing and embedding sync.
+
+71. `routes/notifications.js`
+    Endpoints for user notifications: list notifications, unread count badge, and 
+    mark as read.
+
+72. `routes/post-images.js`
+    Dedicated media serving route that streams post attachment images reliably 
+    across serverless containers.
+
+73. `routes/posts.js`
+    Endpoints for the community feed: fetching posts with cursor pagination, 
+    creating posts, toggling likes, and filtering.
+
+74. `routes/routine.js`
+    Endpoints for retrieving exam timetables, semester filtering, and routine 
+    updates.
+
+75. `routes/teacher-onboarding.js`
+    Endpoints for teacher onboarding: verifying temporary credentials, changing 
+    passwords, and finalizing faculty profiles.
+
+
+--------------------------------------------------------------------------------
+E. FRONTEND WEB USER INTERFACES (public/ — all 34 HTML pages)
+--------------------------------------------------------------------------------
+
+76. `public/index.html` (Homepage)
+    The primary website landing page. Features an Apple-inspired Bento grid layout, 
+    hero banner, instant notes search bar, live exam routine countdown widget, 
+    syllabus jump links, and community highlights.
+
+77. `public/library.html` (Curriculum Notes Library)
+    Complete academic notes repository. Allows students to filter notes by 
+    semester (1 to 8), subject, and chapter. Features in-browser PDF previewing 
+    via PDF.js and Word previewing via Mammoth.js.
+
+78. `public/syllabus.html` (BIT Syllabus Explorer)
+    Interactive Gandaki University BIT curriculum explorer. Shows credit hours, 
+    course objectives, theory vs. lab hours, unit-by-unit topics, and textbook 
+    bibliographies.
+
+79. `public/routine.html` (Official Exam Routine)
+    Official examination timetable viewer. Supports semester filtering, exam time 
+    countdown timer, dual calendar (B.S. and A.D.), and print-ready layout.
+
+80. `public/semesters.html` (Semesters Directory)
+    Directory displaying 8 interactive cards for Semesters 1 through 8, showing 
+    course counts and quick links.
+
+81. `public/semester.html` (Single Semester Overview)
+    Dynamic landing page for an individual semester term, displaying all enrolled 
+    courses, syllabus details, and lecture notes.
+
+82. `public/notices.html` (Campus Notices)
+    Official campus noticeboard showing university circulars, exam notices, and 
+    holiday alerts.
+
+83. `public/about.html` (About Platform)
+    Background of Semester Library, the creators, institutional vision, and 
+    Gandaki University BIT scope.
+
+84. `public/compiler.html` (Standalone Compiler)
+    Standalone browser IDE with live interactive terminal. Supports C, C++, Java, 
+    and Python with live stdin/stdout and ANSI colors.
+
+85. `public/gallery.html` (Campus Photo Gallery)
+    Visual gallery showcasing university life, tech fests, sports events, and 
+    hackathons.
+
+86. `public/login.html` (Authentication Sign-In)
+    Student and faculty sign-in portal. Supports Student ID, username, or email, 
+    bcrypt verification, remember-me session, and password reset links.
+
+87. `public/register.html` (Student Registration)
+    Student self-registration page with real-time field validation, username/email 
+    availability checking, Supabase email OTP verification, and cohort auto-assignment.
+
+88. `public/reset-password.html` (Password Recovery)
+    Password reset portal supporting recovery links and OTP confirmation.
+
+89. `public/delete-account.html` (Account Deletion)
+    Self-service account deletion portal allowing users to permanently remove their 
+    data in compliance with privacy guidelines.
+
+90. `public/dashboard.html` (Student Workspace)
+    Personalized student dashboard. Shows enrolled subjects for the student's 
+    active semester, recent note uploads, upcoming assignments, personalized feed, 
+    and stats.
+
+91. `public/files.html` (File Upload & Document Manager)
+    Student document center for uploading lecture notes, slides, and past papers 
+    with semester, subject, and chapter metadata.
+
+92. `public/profile.html` (User Profile)
+    Public and private profile page showcasing avatar, bio, semester badge, social 
+    links (GitHub, LinkedIn), uploaded notes, and follower network.
+
+93. `public/settings.html` (Account Settings)
+    User account settings: update bio, change password, configure notification 
+    preferences, and manage theme options.
+
+94. `public/chat.html` (Cohort Group Chat)
+    Real-time group chat room for the student's semester cohort. Features file/image 
+    attachments, emoji reactions, user mentions, and online status.
+
+95. `public/chatbot.html` (Kyana AI Study Assistant)
+    Conversational interface for Kyana AI. Features Server-Sent Events (SSE) 
+    streaming responses, KaTeX math rendering, code highlighting, and interactive 
+    resource cards.
+
+96. `public/portal.html` (Student Hub Portal)
+    Fast navigation hub connecting to all university services and directories.
+
+97. `public/create-post.html` (Post Creator Modal)
+    Modal dialog for authoring community posts, teacher announcements, and 
+    assignment notices with media attachments and semester targeting.
+
+98. `public/notifications.html` (Notification Center)
+    Dedicated notifications view showing likes, comments, mentions, and new notes 
+    with filtering tabs (All, Unread, Mentions).
+
+99. `public/download.html` (Download Landing Page)
+    Dedicated landing page for shared document links with preview and download 
+    buttons.
+
+100. `public/admin-dashboard.html` (Admin Control Panel)
+     Master control console for administrators: platform statistics, student 
+     management, account suspensions, role management, and content moderation.
+
+101. `public/admin-cohorts.html` (Cohort Management UI)
+     Admin portal to create intake cohorts (e.g., 'BIT 2024-2028'), promote batches 
+     to the next semester, and archive graduated cohorts.
+
+102. `public/admin-teachers.html` (Teacher Management UI)
+     Admin portal to generate teacher invite codes, monitor onboarding status, 
+     and assign courses to professors.
+
+103. `public/teacher-dashboard.html` (Teacher Workspace)
+     Instructor dashboard: view assigned subjects, create programming assignments, 
+     inspect student code submissions, test code, and enter marks.
+
+104. `public/teacher-onboarding.html` (Teacher Onboarding)
+     Portal for newly invited faculty to enter temporary credentials, set a permanent 
+     password, and configure their teaching profile.
+
+105. `public/teacher-verify.html` (Teacher Email Verification)
+     Email verification screen for newly onboarded faculty members.
+
+106. `public/404.html` (404 Error Page)
+     Custom 404 page with retro voxel 3D artwork, search box, and quick navigation.
+
+107. `public/privacy.html` (Privacy Policy)
+     Official privacy policy outlining data collection, cookies, and student rights.
+
+108. `public/termsandconditions.html` (Terms of Service)
+     Platform terms of service detailing acceptable use, copyright, and academic integrity.
+
+109. `public/googlef8be9396b0363a54.html` (Search Console Token)
+     Google Search Console HTML site verification file.
+
+
+--------------------------------------------------------------------------------
+F. INTERACTIVE CODE LAB SUITE (public/code-lab/ — all 10 files)
+--------------------------------------------------------------------------------
+
+110. `public/code-lab/index.html` (Code Lab Studio)
+     Monaco Editor programming studio with language switcher (C, C++, Java, Python), 
+     compiler flags, stdin console, terminal output, and AI error debugger.
+
+111. `public/code-lab/subjects.html` (Programming Subjects)
+     Catalog of programming courses (C Programming, OOP, Java, Python, DSA) with 
+     active assignment counts and deadlines.
+
+112. `public/code-lab/assignments.html` (Assignment Problems List)
+     Problem list for a subject with difficulty tags, due dates, test case counts, 
+     and submission status.
+
+113. `public/code-lab/assignment.html` (Problem Workspace)
+     Student coding interface: problem statement on the left, Monaco editor on the 
+     right, with "Run Code" and "Submit Assignment" buttons.
+
+114. `public/code-lab/my-submissions.html` (Student Submissions)
+     Personal submission history showing pass/fail verdicts, execution benchmarks, 
+     scores, and teacher feedback.
+
+115. `public/code-lab/submissions.html` (Teacher Grading Hub)
+     Faculty grading console to review student submissions, run code against hidden 
+     test cases, enter marks, and leave feedback.
+
+116. `public/code-lab/create.html` (Assignment Authoring Suite)
+     Faculty interface to create new programming assignments with markdown descriptions, 
+     starter code, and visible/hidden test cases.
+
+117. `public/code-lab/report.html` (Lab Report Generator View)
+     Preview and print view for automated lab reports.
+
+118. `public/code-lab/report-generator.js` (Lab Report Compiler)
+     Client-side compiler that formats student code and execution logs into clean 
+     lab reports ready for PDF printing.
+
+119. `public/code-lab/timelapse.html` (Keystroke Timelapse Replayer)
+     Anti-plagiarism tool that replays student coding sessions step-by-step to 
+     verify authenticity.
+
+
+--------------------------------------------------------------------------------
+G. CLIENT-SIDE JAVASCRIPT MODULES (public/*.js — all 18 scripts)
+--------------------------------------------------------------------------------
+
+120. `public/auth.js`
+     Supabase Auth client integration, token persistence in `localStorage`, 
+     automatic token refreshing, and the universal `authFetch()` helper.
+
+121. `public/auth-modal.js`
+     Floating Apple-inspired login modal dialog that prompts unauthenticated users 
+     to sign in without leaving their current page.
+
+122. `public/academic-context.js`
+     Client-side cache resolving student active semester, cohort ID, and enrolled 
+     courses.
+
+123. `public/chat-cache.js`
+     Local storage cache manager for group chat and direct messaging history.
+
+124. `public/chatbot.js`
+     Frontend controller for Kyana AI: parses Server-Sent Events, animates 
+     streaming text, renders KaTeX math, and displays interactive citation cards.
+
+125. `public/cohort-chat-client.js`
+     Client controller for cohort group chat: connects to Supabase Realtime broadcast 
+     channels, renders messages, handles typing indicators, and manages reactions.
+
+126. `public/dm-chat-client.js`
+     Client controller for 1-on-1 direct messaging: manages active conversation 
+     switching, message sending, attachments, and read receipts.
+
+127. `public/home.js`
+     Landing page animations, bento grid 3D tilt effects, routine countdown, and 
+     instant notes search bar.
+
+128. `public/markdown.js`
+     Lightweight client-side Markdown parser and HTML sanitizer for posts and AI 
+     chat messages.
+
+129. `public/notifications.js`
+     Client controller for the notification bell: polls unread counts and updates 
+     the notification badge.
+
+130. `public/routine.js`
+     Client controller for the exam routine page: semester tab filtering, countdown 
+     math, and calendar conversions.
+
+131. `public/script.js`
+     Global site navigation controller: mobile hamburger menu, search dialogs, 
+     and toast notification alerts.
+
+132. `public/syllabus-helper.js`
+     Client utility for searching course units and objectives from `syllabus-data.json`.
+
+133. `public/teacher-onboarding.js`
+     Client controller handling the multi-step teacher credential verification and 
+     setup form.
+
+134. `public/theme.js`
+     Anti-FOUC theme engine executed synchronously in `<head>` to prevent white flashes 
+     during page loads.
+
+135. `public/sw.js`
+     PWA Service Worker for offline asset caching and home-screen installation.
+
+136. `public/code-lab/utils.js`
+     Shared utilities for Code Lab: language detection, syntax rules, and error 
+     formatters.
+
+
+--------------------------------------------------------------------------------
+H. DESIGN SYSTEM STYLESHEETS (public/*.css — all 10 stylesheets)
+--------------------------------------------------------------------------------
+
+137. `public/style.v4.css` (424 KB)
+     The primary application design system: CSS variables, typography, reset rules, 
+     responsive grid systems, buttons, cards, forms, and modals.
+
+138. `public/theme-overrides.css`
+     Universal color tokens and theme override rules for dark and light modes.
+
+139. `public/home.css` & `public/home-motion.css`
+     Homepage Bento grid styles, hero section typography, glowing border effects, 
+     and smooth entry animations.
+
+140. `public/auth-ui.css` & `public/auth-modal.css`
+     Card designs, floating input labels, and OTP verification boxes for login 
+     and registration portals.
+
+141. `public/chatbot.css`
+     Kyana AI chat interface stylesheet: message bubbles, streaming cursor, 
+     code blocks, and resource cards.
+
+142. `public/dm-chat.css`
+     Direct messaging interface stylesheet: conversation sidebar, chat bubbles, 
+     and media lightbox.
+
+143. `public/group-chat.css`
+     Cohort group chat styling: member lists, reaction bars, and pinned announcements.
+
+144. `public/routine-admin.css`
+     Styling for administrative routine editing tables.
+
+
+--------------------------------------------------------------------------------
+I. ADMINISTRATIVE, MIGRATION & AUTOMATION SCRIPTS (scripts/)
+--------------------------------------------------------------------------------
+
+145. `scripts/reindex-notes.js`
+     Batch CLI tool that iterates through all files in the database, extracts raw 
+     text, and rebuilds full-text search vectors.
+
+146. `scripts/migrate-academic-cohorts.js`
+     Database migration script that maps legacy student semester strings into 
+     formal academic cohorts.
+
+147. `scripts/provision-teachers.js`
+     Batch CLI tool allowing university administrators to generate multiple teacher 
+     invitations and credentials simultaneously.
+
+148. `scripts/auto-sync.js`
+     Background daemon that periodically synchronizes knowledge embeddings, 
+     prunes expired sessions, and cleans temporary files.
+
+
+================================================================================
+8. COMPLETE CATALOG OF ALL API ENDPOINTS
+================================================================================
+
+Below is the complete catalog of backend API endpoints provided by the web platform:
+
+A. AUTHENTICATION & PROFILE APIS
+- `POST /api/login` (Rate limited):
+  Standard password login. Validates credentials with bcrypt, checks suspension 
+  status, regenerates session ID, and sets `__gu_session` cookie.
+- `POST /api/mobile/login` (Rate limited):
+  Mobile login endpoint. Supports username, email, or student ID, and returns a 
+  persistent 64-hex bearer token.
+- `POST /api/auth/register` (Rate limited):
+  Finalizes student registration using verified Supabase OTP access token. 
+  Auto-assigns student to an active academic cohort matching their semester.
+- `POST /api/auth/check-availability`:
+  Checks if a username or email is available before registration form submission.
+- `POST /api/logout`:
+  Destroys the current session and clears cookies.
+- `GET /api/me`:
+  Returns the profile, role, semester, and cohort of the currently authenticated user.
+- `GET /api/profile/:studentId`:
+  Returns the public profile, bio, social links, and uploaded notes for any student.
+- `POST /api/profile/update` (Requires login):
+  Updates user bio, department, semester, and social links.
+- `POST /api/profile/avatar` (Requires login):
+  Uploads a new profile avatar image to Supabase Storage.
+- `POST /api/profile/:studentId/follow` (Requires login):
+  Toggles follow/unfollow status for a classmate.
+
+B. ACADEMIC LIBRARY & DOCUMENT APIS
+- `GET /api/library/files`:
+  Fetches verified notes filtered by semester, subject, and chapter.
+- `GET /api/library/subjects`:
+  Returns distinct list of subjects with file counts.
+- `POST /api/files/upload` (Requires login):
+  Multipart form upload for lecture notes, slides, and past papers. Automatically 
+  triggers text extraction and search indexing.
+- `GET /api/files/:id/view`:
+  Streams note binary for in-browser PDF/Word previewing.
+- `GET /api/files/:id/download`:
+  Increments download counter and serves file with attachment header.
+- `DELETE /api/files/:id` (Requires login):
+  Deletes file record and purges asset from storage (owner or admin only).
+- `GET /api/search`:
+  Unified full-text search querying notes, subjects, and student directory.
+
+C. COMMUNITY SOCIAL FEED & COMMENT APIS
+- `GET /api/posts`:
+  Fetches community feed with cursor-based pagination.
+- `POST /api/posts` (Requires login):
+  Publishes a new post (status, assignment, notice) with optional media attachments.
+- `DELETE /api/posts/:id` (Requires login):
+  Deletes a post and cascades deletion to likes, comments, and media.
+- `POST /api/posts/:id/like` (Requires login):
+  Idempotent like toggle.
+- `GET /api/posts/:id/comments`:
+  Loads threaded comments and replies for a post.
+- `POST /api/posts/:id/comments` (Requires login):
+  Adds a new comment or reply to a post.
+
+D. DIRECT MESSAGING (DM) APIS
+- `GET /api/dm/conversations` (Requires login):
+  Returns list of 1-on-1 conversations with latest message snippets and unread counts.
+- `GET /api/dm/conversations/:id/messages` (Requires login):
+  Loads chat history for a private conversation.
+- `POST /api/dm/conversations/:id/messages` (Requires login):
+  Sends a direct message and broadcasts payload over Supabase Realtime channel.
+- `POST /api/dm/conversations/:id/read` (Requires login):
+  Marks all messages in conversation as read.
+- `POST /api/dm/conversations/:id/block` (Requires login):
+  Blocks user from sending further direct messages.
+
+E. COHORT GROUP CHAT APIS
+- `GET /api/chat/messages` (Requires login):
+  Loads recent messages for the student's cohort chat room.
+- `POST /api/chat/messages` (Requires login):
+  Posts a new group chat message and broadcasts payload over Supabase Realtime channel.
+- `POST /api/chat/attachment` (Requires login):
+  Uploads image or file attachment for chat.
+- `POST /api/chat/messages/:id/pin` (Requires teacher/admin):
+  Pins a message as an official announcement.
+
+F. KYANA AI ASSISTANT APIS
+- `POST /api/chat/ai` (Rate limited):
+  Server-Sent Events (SSE) streaming chat endpoint connecting to Google Gemini 3.1 
+  Flash Lite. Executes autonomous tools (`search_notes`, `get_syllabus`, `get_routine`, 
+  `web_search`) and returns progressive text tokens and interactive UI resource cards.
+- `GET /api/ai/suggestions`:
+  Returns contextual study prompts and trending course suggestions.
+
+G. CODE LAB & ONLINE COMPILER APIS
+- `POST /api/code-lab/run` (Rate limited):
+  Executes C, C++, Java, or Python code via the Paiza.io cloud runner.
+- `POST /api/code-lab/explain-error` (Rate limited):
+  AI-powered analysis of compilation errors and code bugs.
+- `WS /api/compiler/live`:
+  Interactive terminal WebSocket server for live bidirectional stdin/stdout.
+- `GET /api/code-lab/assignments`:
+  Returns programming assignments for a course subject.
+- `POST /api/code-lab/assignments` (Requires teacher/admin):
+  Creates a new programming assignment with visible and hidden test cases.
+- `POST /api/code-lab/submit` (Requires login):
+  Submits student code and executes against test cases.
+- `GET /api/code-lab/submissions`:
+  Fetches submission records with test results, scores, and faculty feedback.
+
+H. EXAM ROUTINE & SCHEDULE APIS
+- `GET /api/routine`:
+  Fetches the complete exam timetable dataset.
+- `GET /api/routine/semester/:sem`:
+  Fetches timetable filtered by semester with countdown calculations.
+
+I. NOTIFICATION CENTER APIS
+- `GET /api/notifications` (Requires login):
+  Loads student notifications (likes, comments, mentions, note uploads).
+- `GET /api/notifications/unread-count` (Requires login):
+  Returns unread notification badge count.
+- `POST /api/notifications/:id/read` (Requires login):
+  Marks an individual notification as read.
+- `POST /api/notifications/read-all` (Requires login):
+  Marks all user notifications as read.
+
+J. ADMINISTRATION & FACULTY MANAGEMENT APIS
+- `GET /api/admin/metrics` (Requires admin):
+  Returns platform statistics (total students, files, downloads, posts).
+- `POST /api/admin/students/:id/suspend` (Requires admin):
+  Suspends a disruptive student account.
+- `POST /api/admin/students/:id/reactivate` (Requires admin):
+  Reactivates a suspended student account.
+- `POST /api/admin/teachers/invite` (Requires admin):
+  Provisions a new teacher invite with temporary credentials.
+- `POST /api/admin/cohorts/promote` (Requires admin):
+  Promotes an entire academic cohort from Semester N to Semester N+1.
+
+
+================================================================================
+9. END-TO-END DATA FLOWS & TRANSACTION WALKTHROUGHS
+================================================================================
+
+Flow A: Student Registration & Cohort Allocation
+1. Student fills out form at `/register.html`.
+2. Supabase verifies student's email address via a 6-digit confirmation OTP.
+3. Client receives verified access token and calls `POST /api/auth/register`.
+4. Backend `server.js` validates token with Supabase and checks that email is confirmed.
+5. Resolves active cohort: queries `cohorts` table for the active batch matching 
+   the student's selected semester (e.g., Semester 2 -> Cohort BIT 2024-2028).
+6. Inserts user into `students` table in Neon PostgreSQL with `role = 'student'` and 
+   `verification_status = 'verified'`.
+7. Records audit entry in `cohort_audit_logs`.
+8. Generates mobile bearer token, initializes session, and returns redirect to 
+   `/dashboard.html`.
+
+Flow B: Lecture Note Upload, Extraction, Indexing & Preview
+1. Student logs in and navigates to `/files.html`.
+2. Student selects PDF file, selects subject ("Database Management Systems"), 
+   semester ("Semester 3"), and chapter ("Unit 2: Normalization").
+3. Client submits multipart form request to `POST /api/files/upload`.
+4. `auth-middleware.js` validates JWT, verifies account is active, and attaches `req.user`.
+5. `multer` writes file to disk cache and computes unique hash name.
+6. `lib/supabase.js` streams file to Supabase Cloud Storage bucket (`library_files`).
+7. Metadata is stored in `files` table in Neon PostgreSQL.
+8. Background Indexing:
+   - `lib/note-search.js` extracts raw text from PDF using `pdfjs-dist`.
+   - Text is converted to a `TSVECTOR` and stored in `note_search_documents` with 
+     a GIN index.
+   - Kyana AI knowledge cache is invalidated so the new note is immediately searchable.
+9. Student visits `/library.html`, clicks "Preview Note":
+   - PDF.js downloads binary stream and renders pages onto an HTML5 canvas directly 
+     inside the modal.
+
+Flow C: Kyana AI Question Answering with Tool Execution
+1. Student types in `/chatbot.html`: "When is our DBMS final exam and what are the units?"
+2. Client sends request to `POST /api/chat/ai` with `stream: true`.
+3. `server.js` routes request to `ai-assistant.js`:
+   - `chat-mode.js` identifies dual intent: exam routine inquiry and syllabus inquiry.
+   - Model determines it needs authoritative facts and triggers tool calls:
+     * Tool 1: `get_routine({ subject: "DBMS", semester: 3 })` queries `routine` table.
+     * Tool 2: `get_syllabus({ subject: "Database Management Systems", semester: 3 })` 
+       queries `syllabus-data.json`.
+4. Tools execute and return structured data to the model.
+5. `chat-provider.js` calls Google Gemini 3.1 Flash Lite with the system personality, 
+   student question, and tool results.
+6. Gemini generates a comprehensive, factual answer and streams text chunks back over SSE.
+7. `chatbot.js` renders markdown on screen, displays math formulas via KaTeX, and 
+   renders two interactive UI citation cards:
+   - Card 1: Exam Routine card showing date, time, and room number.
+   - Card 2: Syllabus card showing course units and credit hours.
+
+Flow D: Code Lab Assignment Submission & Automated Evaluation
+1. Student opens `/code-lab/assignment.html?id=5`.
+2. Problem statement and starter template load into Monaco Editor.
+3. Student writes C code and clicks "Run Code":
+   - Code is sent to `POST /api/code-lab/run`.
+   - Code executes against standard input via Paiza.io API; output appears in console.
+4. Student clicks "Submit Assignment":
+   - Code is sent to `POST /api/code-lab/submit`.
+   - Backend queries all test cases for Question 5 from `question_test_cases`.
+   - Executes student code against visible test cases and hidden test cases.
+   - Calculates percentage score (e.g., 5/5 test cases passed = 100%).
+   - Stores submission in `submissions` table along with keystroke timelapse data.
+5. Teacher opens `/code-lab/submissions.html`:
+   - Reviews student submission, inspects test case execution diffs, verifies 
+     typing timelapse, enters marks, and submits remarks.
+   - Status updates in `submission_grades`.
+
+Flow E: Direct Messaging with Real-Time Broadcast & Read Receipts
+1. Student A opens `/dashboard.html` or DM drawer and selects Classmate B.
+2. Client calls `GET /api/dm/conversations/:id/messages` to load message history.
+3. Student A types a message and clicks Send.
+4. Client sends request to `POST /api/dm/conversations/:id/messages`.
+5. Backend verifies neither student has blocked the other.
+6. Message is inserted into `dm_messages` table.
+7. Message payload is broadcast via Supabase Realtime channel `dm_realtime_outbox`.
+8. Classmate B's browser receives WebSocket broadcast instantly and appends message 
+   bubble to screen.
+9. When Classmate B views the window, client sends `POST /api/dm/conversations/:id/read`, 
+   updating `is_read = true` in database and showing read receipt checkmarks to Student A.
+
+
+================================================================================
+10. DEVELOPER MANUAL: HOW TO RUN, STUDY, TEST & EXTEND THIS CODEBASE
+================================================================================
+
+A. LOCAL SETUP & ENVIRONMENT CONFIGURATION (.env)
+
+Step 1: Install Node.js
+Ensure Node.js 22.13.0 or higher is installed:
+  node -v
+  npm -v
+
+Step 2: Clone & Install Dependencies
+Clone repository and install dependencies:
+  git clone https://github.com/sauugat/semestar_library.git
+  cd semester-library
+  npm install
+
+Step 3: Configure Environment Variables
+Create a `.env` file in the project root:
+```ini
+# Application Port
+PORT=3000
+
+# Express Session Secret (Any random 32+ character string)
+SESSION_SECRET=gu_semester_lib_sec_9938b849204018247df4382
+
+# Database Connection (Neon PostgreSQL connection string)
+# Leave empty to automatically run on local SQLite (database.db)
+DATABASE_URL=postgresql://user:password@ep-example.ap-southeast-1.neon.tech/semester_library?sslmode=require
+
+# Supabase Auth & Storage Credentials
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_KEY=your-supabase-service-role-or-anon-key
+
+# Google Gemini API Key (For Kyana AI Assistant)
+GEMINI_API_KEY=your-google-gemini-api-key
+
+# Optional: OpenRouter Fallback Key
+OPENROUTER_API_KEY=your-openrouter-api-key
+```
+
+Step 4: Initialize & Seed Database
+Run seed script to populate sample courses and cohorts:
+  npm run seed
+
+Step 5: Start the Development Server
+Run:
+  npm start
+Open your browser and navigate to:
+  http://localhost:3000/
+
+B. RECOMMENDED 5-STAGE LEARNING PATH FOR STUDENTS
+
+Stage 1: The Visual Shell (Frontend Structure & Design)
+- Inspect `public/index.html` to understand how Semantic HTML elements form the 
+  Bento grid layout.
+- Study `public/style.v4.css` to see how CSS custom properties (variables) govern 
+  colors, typography, and responsive layouts.
+- Read `public/theme.js` to master the anti-FOUC inline script pattern.
+
+Stage 2: Server Kernel & Database Abstraction
+- Read `server.js` (lines 1 to 320) to understand middleware chains, security 
+  headers, and session initialization.
+- Study `db.js` to learn how query translation works between PostgreSQL and SQLite, 
+  and how `camelMap` normalizes database keys.
+
+Stage 3: Authentication & Security Architecture
+- Study `public/auth.js` to learn how `authFetch` wraps standard fetch to attach 
+  tokens and transparently handle token refreshes.
+- Read `lib/auth-middleware.js` to understand how incoming tokens are parsed, 
+  verified, and bound to user sessions.
+- Inspect `/api/login` and `/api/auth/register` in `server.js` to study session 
+  fixation defense and role protections.
+
+Stage 4: Document Ingestion & Search Pipelines
+- Read `lib/note-search.js` to see how `pdfjs-dist`, `mammoth`, and `node-pptx-parser` 
+  extract text from binary files.
+- Inspect `note_search_documents` in `schema.sql` to study PostgreSQL GIN indexes 
+  and `to_tsvector`.
+
+Stage 5: Intelligent Agents & Real-Time Compilers
+- Study `ai-assistant.js`, `lib/chat-tools.js`, and `lib/chat-provider.js` to learn 
+  how autonomous AI tool calling and Server-Sent Events (SSE) streaming work.
+- Inspect `routes/code-lab/run.js` and `public/code-lab/assignment.html` to learn 
+  how Monaco Editor integrates with remote compilation runners.
+
+C. PRACTICAL WALKTHROUGH: ADDING A NEW PAGE
+To add a new public page (e.g., `/events.html`):
+1. Create `public/events.html`:
+   ```html
+   <!DOCTYPE html>
+   <html lang="en">
+   <head>
+     <meta charset="UTF-8">
+     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+     <title>Campus Events — Semester Library</title>
+     <script src="/theme.js"></script>
+     <link rel="stylesheet" href="/style.v4.css">
+     <link rel="stylesheet" href="/theme-overrides.css">
+   </head>
+   <body class="bg-primary text-primary">
+     <header class="navbar-glass">...</header>
+     <main class="container">
+       <h1>Campus Events</h1>
+       <div id="events-list"></div>
+     </main>
+     <script src="/auth.js"></script>
+     <script>
+       async function loadEvents() {
+         const res = await authFetch('/api/events');
+         const data = await res.json();
+         // Render events...
+       }
+       loadEvents();
+     </script>
+   </body>
+   </html>
+   ```
+2. In `server.js`, register the route handler:
+   ```javascript
+   app.get('/events', (req, res) => {
+     res.sendFile(path.join(__dirname, 'public', 'events.html'));
+   });
+   ```
+
+D. PRACTICAL WALKTHROUGH: ADDING A NEW DATABASE TABLE & MIGRATION
+To add a new table (e.g., `events`):
+1. In `schema.sql`, add the DDL:
+   ```sql
+   CREATE TABLE public.events (
+       id SERIAL PRIMARY KEY,
+       title TEXT NOT NULL,
+       description TEXT,
+       event_date TIMESTAMPTZ NOT NULL,
+       venue TEXT,
+       created_by TEXT REFERENCES students(studentid),
+       created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+   );
+   ```
+2. In `db.js`, add the table creation query inside `initSchema()` so it automatically 
+   executes on development and test SQLite instances:
+   ```javascript
+   await this.run(`
+     CREATE TABLE IF NOT EXISTS events (
+       id INTEGER PRIMARY KEY AUTOINCREMENT,
+       title TEXT NOT NULL,
+       description TEXT,
+       event_date TEXT NOT NULL,
+       venue TEXT,
+       created_by TEXT,
+       created_at TEXT DEFAULT CURRENT_TIMESTAMP
+     )
+   `);
+   ```
+
+E. PRACTICAL WALKTHROUGH: ADDING A NEW API ENDPOINT WITH VALIDATION
+To create an API endpoint (e.g., `POST /api/events`):
+1. In `server.js` or in a new module `routes/events.js`:
+   ```javascript
+   app.post('/api/events', requireLogin, async (req, res) => {
+     const { title, description, eventDate, venue } = req.body || {};
+     
+     if (!title || !eventDate) {
+       return res.status(400).json({ message: 'Title and event date are required.' });
+     }
+     
+     try {
+       const result = await db.run(
+         `INSERT INTO events (title, description, event_date, venue, created_by)
+          VALUES (?, ?, ?, ?, ?)`,
+         title.trim(),
+         description ? description.trim() : null,
+         eventDate,
+         venue ? venue.trim() : null,
+         req.user.studentId
+       );
+       
+       return res.status(201).json({
+         success: true,
+         message: 'Event created successfully',
+         eventId: result.lastInsertRowid || result.id
+       });
+     } catch (err) {
+       console.error('Failed to create event:', err);
+       return res.status(500).json({ message: 'Internal server error creating event.' });
+     }
+   });
+   ```
+
+F. TESTING, QA SANDBOX & DEBUGGING INSTRUCTIONS
+The project includes a comprehensive suite of native Node.js tests:
+1. Run all unit and integration tests:
+   npm test
+2. Run Kyana AI chat and knowledge retrieval tests:
+   npm run test:chat
+3. Run authentication and security audit tests:
+   node --test tests/auth-*.test.js
+4. Run real-time group chat tests:
+   npm run test:group-chat
+5. Run automated QA Server in an isolated sandbox database:
+   npm run qa:server
+
+================================================================================
+                                END OF GUIDE
+================================================================================

@@ -15,7 +15,7 @@ const {
 
 describe('KYANA 3.0 Step 2 — Unified Knowledge Schema & Migrations (Docker PostgreSQL 16 + pgvector)', () => {
   let client;
-  const connectionString = 'postgresql://postgres:postgres@127.0.0.1:54333/test_semester_library';
+  const connectionString = process.env.KYANA_TEST_DATABASE_URL || 'postgresql://postgres:postgres@127.0.0.1:54333/test_semester_library';
 
   before(async () => {
     client = new Client({ connectionString });
@@ -137,16 +137,20 @@ describe('KYANA 3.0 Step 2 — Unified Knowledge Schema & Migrations (Docker Pos
 
   test('Feature flag check: KYANA_KNOWLEDGE_V3 defaults to false when undefined', () => {
     delete process.env.KYANA_KNOWLEDGE_V3;
+    delete process.env.KYANA_KNOWLEDGE_V3_USERS;
     assert.equal(isKnowledgeV3Enabled(), false);
 
     process.env.KYANA_KNOWLEDGE_V3 = 'false';
+    process.env.KYANA_KNOWLEDGE_V3_USERS = '*';
     assert.equal(isKnowledgeV3Enabled(), false);
 
     process.env.KYANA_KNOWLEDGE_V3 = 'true';
+    process.env.KYANA_KNOWLEDGE_V3_USERS = '*';
     assert.equal(isKnowledgeV3Enabled(), true);
 
     // Reset
     delete process.env.KYANA_KNOWLEDGE_V3;
+    delete process.env.KYANA_KNOWLEDGE_V3_USERS;
   });
 
   test('ensureKnowledgeSchema skips migration when feature flag is OFF', async () => {

@@ -25,7 +25,7 @@ const { applyKnowledgeMigration, rollbackKnowledgeMigration } = require('../lib/
 
 describe('KYANA 3.0 G2 — Comprehensive Authorization Parity Matrix', () => {
   let client;
-  const connectionString = 'postgresql://postgres:postgres@127.0.0.1:54333/test_semester_library';
+  const connectionString = process.env.KYANA_TEST_DATABASE_URL || 'postgresql://postgres:postgres@127.0.0.1:54333/test_semester_library';
 
   before(async () => {
     process.env.KYANA_KNOWLEDGE_V3 = 'true';
@@ -140,7 +140,7 @@ describe('KYANA 3.0 G2 — Comprehensive Authorization Parity Matrix', () => {
                   } else if (isTeacher) {
                     const visOk = vis === 'everyone' || vis === 'teachers_only';
                     const assigned = ctx.assignedSemesters || [];
-                    const semOk = assigned.length === 0 || assigned.includes(sem);
+                    const semOk = assigned.length > 0 && assigned.includes(sem);
                     sqlAllowed = visOk && semOk;
                   } else if (isStudentOrCr) {
                     if (auth.id === ctx.studentId) {
@@ -150,9 +150,9 @@ describe('KYANA 3.0 G2 — Comprehensive Authorization Parity Matrix', () => {
                       const isOwnCohort = c.id === ctx.cohortId;
                       const isUniversal = aud === 'all_students';
 
-                      // G3 Historical Access Rule:
-                      // own cohort or all-students content is allowed if semester_no <= viewerCurrentSem
-                      const semOk = (sem <= viewerCurrentSem);
+                      // Strict Current-Semester Rule:
+                      // Students/CRs only access their current semester or target_all_semesters
+                      const semOk = (sem === viewerCurrentSem);
                       sqlAllowed = visOk && semOk && (isOwnCohort || isUniversal);
                     }
                   }
@@ -162,29 +162,22 @@ describe('KYANA 3.0 G2 — Comprehensive Authorization Parity Matrix', () => {
                     exactMatches++;
                   } else if (sqlAllowed && !baselineAllowed) {
                     // Kyana allows MORE than assertContentAccess
-                    const isHistoricalDifference = isStudentOrCr &&
-                      auth.id !== ctx.studentId &&
-                      (vis === 'everyone' || vis === 'students_only' || vis === 'cohort_only') &&
-                      (c.id === ctx.cohortId || aud === 'all_students') &&
-                      sem < viewerCurrentSem;
-
-                    if (isHistoricalDifference) {
-                      historicalDifferences++;
-                    } else {
-                      unexplainedDifferences++;
-                      console.error(`UNEXPLAINED KYANA ALLOWS MORE for viewer ${viewer.name}:`, {
-                        res,
-                        baselineAllowed,
-                        sqlAllowed
-                      });
-                    }
+                    unexplainedDifferences++;
+                    console.error(`UNEXPLAINED KYANA ALLOWS MORE for viewer ${viewer.name}:`, {
+                      res,
+                      baselineAllowed,
+                      sqlAllowed
+                    });
                   } else {
-                    // Kyana allows LESS than assertContentAccess
+                    // Kyana allows LESS than assertContentAccess (strict guards)
                     const isVisibilityPolicyDifference =
                       (isTeacher && (vis === 'students_only' || vis === 'cohort_only')) ||
                       (isStudentOrCr && vis === 'teachers_only' && auth.id !== ctx.studentId);
 
-                    if (isVisibilityPolicyDifference) {
+                    const isTeacherUnassignedDifference =
+                      (isTeacher && (!ctx.assignedSemesters || ctx.assignedSemesters.length === 0));
+
+                    if (isVisibilityPolicyDifference || isTeacherUnassignedDifference) {
                       visibilityPolicyDifferences++;
                     } else {
                       unexplainedDifferences++;
@@ -211,10 +204,11 @@ describe('KYANA 3.0 G2 — Comprehensive Authorization Parity Matrix', () => {
     console.log(`Unexplained Differences          : ${unexplainedDifferences}`);
     console.log('----------------------------------\n');
 
+    assert.equal(historicalDifferences, 0, 'Must have zero historical semester differences (sem <= currentSem eliminated)');
     assert.equal(unexplainedDifferences, 0, 'Must have zero unexplained differences between SQL retrieval and access control rules');
   });
 
-  test('G3 Historical Access: Sem 3 student sees own Sem 1 & 2 notices, never Sem 4, and other cohort Sem 1 stays hidden', async () => {
+  test('Strict Current Semester: Sem 3 student sees own Sem 3 notice, never Sem 1, 2, 4, or other cohort', async () => {
     // Clean seed test resources
     await client.query(`
       DELETE FROM assignments WHERE id >= 800;
@@ -222,37 +216,45 @@ describe('KYANA 3.0 G2 — Comprehensive Authorization Parity Matrix', () => {
       DELETE FROM knowledge_chunks WHERE resource_id LIKE 'post:80%';
       DELETE FROM knowledge_resources WHERE id LIKE 'post:80%';
 
-      -- Mercury Sem 1 notice
+      -- Mercury Sem 1 notice (PAST for sem 3 student - MUST BE HIDDEN)
       INSERT INTO posts (id, user_id, title, content, semester_no, cohort_id, category, visibility, audience_scope, target_all_semesters)
       VALUES (801, 'tea_carol', 'Mercury Sem 1 Orientation Notice', 'Welcome to semester 1.', 1, 'c_mercury', 'notice', 'everyone', 'cohort', 0);
       INSERT INTO knowledge_resources (id, resource_type, canonical_id, title, source_authority_tier, author_id, cohort_id, semester_no, audience_scope, target_all_semesters, visibility, web_url, mobile_route, content_hash)
-      VALUES ('post:801', 'notice', 801, 'Mercury Sem 1 Orientation Notice', 2, 'tea_carol', 'c_mercury', 1, 'cohort', 0, 'everyone', '/notices.html?id=801', '/notice/801', 'h801');
+      VALUES ('post:801', 'notice', 801, 'Mercury Sem 1 Orientation Notice', 2, 'tea_carol', 'c_mercury', 1, 'cohort', 0, 'everyone', '/notices.html?id=801', '/notice/801', 'hash_801');
       INSERT INTO knowledge_chunks (id, resource_id, chunk_index, content)
       VALUES ('post:801:c0', 'post:801', 0, '[Type: Notice | Title: Mercury Sem 1 Orientation Notice]\nWelcome to semester 1 orientation notice for Mercury.');
 
-      -- Mercury Sem 2 notice
+      -- Mercury Sem 2 notice (PAST for sem 3 student - MUST BE HIDDEN)
       INSERT INTO posts (id, user_id, title, content, semester_no, cohort_id, category, visibility, audience_scope, target_all_semesters)
       VALUES (802, 'tea_carol', 'Mercury Sem 2 Project Notice', 'Midterm project instructions for semester 2.', 2, 'c_mercury', 'notice', 'everyone', 'cohort', 0);
       INSERT INTO knowledge_resources (id, resource_type, canonical_id, title, source_authority_tier, author_id, cohort_id, semester_no, audience_scope, target_all_semesters, visibility, web_url, mobile_route, content_hash)
-      VALUES ('post:802', 'notice', 802, 'Mercury Sem 2 Project Notice', 2, 'tea_carol', 'c_mercury', 2, 'cohort', 0, 'everyone', '/notices.html?id=802', '/notice/802', 'h802');
+      VALUES ('post:802', 'notice', 802, 'Mercury Sem 2 Project Notice', 2, 'tea_carol', 'c_mercury', 2, 'cohort', 0, 'everyone', '/notices.html?id=802', '/notice/802', 'hash_802');
       INSERT INTO knowledge_chunks (id, resource_id, chunk_index, content)
       VALUES ('post:802:c0', 'post:802', 0, '[Type: Notice | Title: Mercury Sem 2 Project Notice]\nMidterm project instructions for semester 2 Mercury notice.');
 
-      -- Mercury Sem 4 notice (FUTURE for sem 3 student!)
+      -- Mercury Sem 3 notice (CURRENT for sem 3 student - MUST BE VISIBLE)
+      INSERT INTO posts (id, user_id, title, content, semester_no, cohort_id, category, visibility, audience_scope, target_all_semesters)
+      VALUES (803, 'tea_carol', 'Mercury Sem 3 Exam Notice', 'Final exam instructions for semester 3.', 3, 'c_mercury', 'notice', 'everyone', 'cohort', 0);
+      INSERT INTO knowledge_resources (id, resource_type, canonical_id, title, source_authority_tier, author_id, cohort_id, semester_no, audience_scope, target_all_semesters, visibility, web_url, mobile_route, content_hash)
+      VALUES ('post:803', 'notice', 803, 'Mercury Sem 3 Exam Notice', 2, 'tea_carol', 'c_mercury', 3, 'cohort', 0, 'everyone', '/notices.html?id=803', '/notice/803', 'hash_803');
+      INSERT INTO knowledge_chunks (id, resource_id, chunk_index, content)
+      VALUES ('post:803:c0', 'post:803', 0, '[Type: Notice | Title: Mercury Sem 3 Exam Notice]\nFinal exam instructions for semester 3 Mercury notice.');
+
+      -- Mercury Sem 4 notice (FUTURE for sem 3 student - MUST BE HIDDEN)
       INSERT INTO posts (id, user_id, title, content, semester_no, cohort_id, category, visibility, audience_scope, target_all_semesters)
       VALUES (804, 'tea_carol', 'Mercury Sem 4 Advanced Notice', 'Internship guidelines for semester 4.', 4, 'c_mercury', 'notice', 'everyone', 'cohort', 0);
       INSERT INTO knowledge_resources (id, resource_type, canonical_id, title, source_authority_tier, author_id, cohort_id, semester_no, audience_scope, target_all_semesters, visibility, web_url, mobile_route, content_hash)
-      VALUES ('post:804', 'notice', 804, 'Mercury Sem 4 Advanced Notice', 2, 'tea_carol', 'c_mercury', 4, 'cohort', 0, 'everyone', '/notices.html?id=804', '/notice/804', 'h804');
+      VALUES ('post:804', 'notice', 804, 'Mercury Sem 4 Advanced Notice', 2, 'tea_carol', 'c_mercury', 4, 'cohort', 0, 'everyone', '/notices.html?id=804', '/notice/804', 'hash_804');
       INSERT INTO knowledge_chunks (id, resource_id, chunk_index, content)
       VALUES ('post:804:c0', 'post:804', 0, '[Type: Notice | Title: Mercury Sem 4 Advanced Notice]\nInternship guidelines for semester 4 Mercury notice.');
 
-      -- Venus Sem 1 notice (OTHER COHORT, past semester!)
+      -- Venus Sem 3 notice (OTHER COHORT - MUST BE HIDDEN)
       INSERT INTO posts (id, user_id, title, content, semester_no, cohort_id, category, visibility, audience_scope, target_all_semesters)
-      VALUES (805, 'tea_carol', 'Venus Sem 1 Notice', 'Private Venus cohort notice for semester 1.', 1, 'c_venus', 'notice', 'everyone', 'cohort', 0);
+      VALUES (805, 'tea_carol', 'Venus Sem 3 Notice', 'Private Venus cohort notice for semester 3.', 3, 'c_venus', 'notice', 'everyone', 'cohort', 0);
       INSERT INTO knowledge_resources (id, resource_type, canonical_id, title, source_authority_tier, author_id, cohort_id, semester_no, audience_scope, target_all_semesters, visibility, web_url, mobile_route, content_hash)
-      VALUES ('post:805', 'notice', 805, 'Venus Sem 1 Notice', 2, 'tea_carol', 'c_venus', 1, 'cohort', 0, 'everyone', '/notices.html?id=805', '/notice/805', 'h805');
+      VALUES ('post:805', 'notice', 805, 'Venus Sem 3 Notice', 2, 'tea_carol', 'c_venus', 3, 'cohort', 0, 'everyone', '/notices.html?id=805', '/notice/805', 'hash_805');
       INSERT INTO knowledge_chunks (id, resource_id, chunk_index, content)
-      VALUES ('post:805:c0', 'post:805', 0, '[Type: Notice | Title: Venus Sem 1 Notice]\nPrivate Venus cohort notice for semester 1.');
+      VALUES ('post:805:c0', 'post:805', 0, '[Type: Notice | Title: Venus Sem 3 Notice]\nPrivate Venus cohort notice for semester 3.');
     `);
 
     // Mercury Student in Semester 3
@@ -270,18 +272,21 @@ describe('KYANA 3.0 G2 — Comprehensive Authorization Parity Matrix', () => {
 
     console.log('Mercury Sem 3 Student Results:', resultIds);
 
-    // Assertions for G3:
-    // 1. Student in Sem 3 CAN retrieve own cohort Sem 1 notice
-    assert.ok(resultIds.includes('post:801'), 'Student in Sem 3 must see own cohort Sem 1 notice');
+    // Assertions for Strict Current Semester Access:
+    // 1. Student in Sem 3 CAN retrieve own cohort Sem 3 notice
+    assert.ok(resultIds.includes('post:803'), 'Student in Sem 3 must see own cohort Sem 3 notice');
 
-    // 2. Student in Sem 3 CAN retrieve own cohort Sem 2 notice
-    assert.ok(resultIds.includes('post:802'), 'Student in Sem 3 must see own cohort Sem 2 notice');
+    // 2. Student in Sem 3 CANNOT retrieve own cohort Sem 1 notice (PAST semester)
+    assert.ok(!resultIds.includes('post:801'), 'Student in Sem 3 must NOT see past Sem 1 notice');
 
-    // 3. Student in Sem 3 CANNOT retrieve own cohort Sem 4 notice (FUTURE semester!)
+    // 3. Student in Sem 3 CANNOT retrieve own cohort Sem 2 notice (PAST semester)
+    assert.ok(!resultIds.includes('post:802'), 'Student in Sem 3 must NOT see past Sem 2 notice');
+
+    // 4. Student in Sem 3 CANNOT retrieve own cohort Sem 4 notice (FUTURE semester)
     assert.ok(!resultIds.includes('post:804'), 'Student in Sem 3 must NEVER see future Sem 4 notice');
 
-    // 4. Student in Sem 3 CANNOT retrieve Venus Sem 1 notice (OTHER cohort!)
-    assert.ok(!resultIds.includes('post:805'), 'Student in Mercury must NEVER see Venus Sem 1 notice');
+    // 5. Student in Sem 3 CANNOT retrieve Venus Sem 3 notice (OTHER cohort)
+    assert.ok(!resultIds.includes('post:805'), 'Student in Mercury must NEVER see Venus Sem 3 notice');
 
     // Cleanup
     await client.query(`

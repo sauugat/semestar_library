@@ -29,6 +29,7 @@ import { PostMarkdown } from '@/components/PostMarkdown';
 import { StickyComposer, KeyboardContentBoundary } from '@/components/ui/StickyComposer';
 import {
   fetchKyanaConversations,
+  resolveKyanaResource,
   fetchKyanaConversationMessages,
   sendKyanaMessage,
   clearKyanaConversation,
@@ -38,7 +39,6 @@ import {
   type KyanaResourceCard,
 } from '@/services/kyana';
 import {
-  getCachedKyanaMessages,
   saveCachedKyanaMessages,
   clearCachedKyanaMessages,
 } from '@/services/kyana-db';
@@ -198,14 +198,7 @@ export default function KyanaChatScreen() {
         setConversation(activeConv);
 
         if (activeConv) {
-          // Load local offline SQLite cache first for instant render
-          try {
-            const cached = await getCachedKyanaMessages(studentId, activeConv.id);
-            if (cached.length > 0 && isMounted) {
-              setMessages(cached);
-            }
-          } catch (_) {}
-
+          // Protected assistant history is shown only after server revalidation.
           // Refresh with authoritative server messages
           try {
             const data = await fetchKyanaConversationMessages(activeConv.id);
@@ -442,28 +435,17 @@ export default function KyanaChatScreen() {
   }, [showToast]);
 
   // Handle resource card navigation
-  const handleCardPress = useCallback((card: KyanaResourceCard) => {
+  const handleCardPress = useCallback(async (card: KyanaResourceCard) => {
     try {
+      const checked = await resolveKyanaResource(card);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-      if (card.mobileRoute) {
-        router.push(card.mobileRoute as any);
-        return;
-      }
-      if (card.type === 'note') {
-        router.push(`/material/${card.id}` as any);
-      } else if (card.type === 'notice') {
-        router.push(`/notice/${card.id}` as any);
-      } else if (card.type === 'post') {
-        router.push(`/post/${card.id}` as any);
-      } else if (card.type === 'assignment' || (card.type as string) === 'post_assignment') {
-        router.push(`/assignments/${card.id}` as any);
-      } else if (card.type === 'routine') {
-        router.push('/routine' as any);
+      if (checked.mobileRoute) {
+        router.push({ pathname: checked.mobileRoute, params: checked.mobileParams || {} } as any);
       }
     } catch (err: any) {
-      console.warn('[Kyana] Navigation error:', err?.message);
+      showToast(err?.message || 'This resource is no longer available.');
     }
-  }, [router]);
+  }, [router, showToast]);
 
   // Inverted message item renderer
   const renderItem = useCallback(

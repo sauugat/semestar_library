@@ -602,7 +602,7 @@
         resourceCards.forEach(card => {
           const el = document.createElement('a');
           el.className = 'kyana-source-card';
-          el.href = card.deepLink || card.viewUrl || '#';
+          el.href = ['note','post','notice','assignment','post_assignment','routine'].includes(card.type) && /^\d+$/.test(String(card.id)) ? `/api/ai/resources/${card.type}/${card.id}/open` : '#';
           if (card.action === 'open_note' || card.type === 'note') {
             el.target = '_blank';
             el.rel = 'noopener noreferrer';
@@ -887,33 +887,13 @@
   const STORAGE_KEY = 'kyana_chat_sessions_v1';
   const ACTIVE_SESSION_KEY = 'kyana_active_session_id';
 
+  let volatileSessions = [];
+  let volatileActiveId = null;
   const SessionStore = {
-    getAll() {
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        return raw ? JSON.parse(raw) : [];
-      } catch (_) {
-        return [];
-      }
-    },
-    saveAll(sessions) {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions.slice(0, 50)));
-      } catch (_) {}
-    },
-    getActiveId() {
-      try {
-        return localStorage.getItem(ACTIVE_SESSION_KEY);
-      } catch (_) {
-        return null;
-      }
-    },
-    setActiveId(id) {
-      try {
-        if (id) localStorage.setItem(ACTIVE_SESSION_KEY, id);
-        else localStorage.removeItem(ACTIVE_SESSION_KEY);
-      } catch (_) {}
-    },
+    getAll() { return structuredClone(volatileSessions); },
+    saveAll(sessions) { volatileSessions = structuredClone(sessions.slice(0, 50)); },
+    getActiveId() { return volatileActiveId; },
+    setActiveId(id) { volatileActiveId = id || null; },
     get(id) {
       return this.getAll().find(s => s.id === id);
     },
@@ -1434,10 +1414,20 @@
     scrollToBottom();
   }
 
-  function loadSession(id) {
+  async function loadSession(id) {
     cancelActiveRequest();
     const session = SessionStore.get(id);
     if (session) {
+      const headers = {};
+      const token = window.SemesterAuth?.getAccessToken?.();
+      if (token) headers.Authorization = 'Bearer ' + token;
+      try {
+        const res = await fetch('/api/ai/conversations/' + encodeURIComponent(id) + '/messages', { headers, cache: 'no-store' });
+        if (!res.ok) throw new Error('Conversation unavailable');
+        const data = await res.json();
+        session.messages = (data.messages || []).map(m => ({ ...m.metadata, role: m.sender, content: m.text, timestamp: new Date(m.createdAt).getTime() }));
+      } catch { session.messages = []; }
+      SessionStore.update(session);
       activeSession = session;
       SessionStore.setActiveId(id);
       renderHistoryList();
@@ -1779,6 +1769,7 @@
             const current = SessionStore.get(activeId);
             if (current && msgs.length > 0) {
               current.messages = msgs.map(m => ({
+                ...m.metadata,
                 role: m.sender === 'user' ? 'user' : 'assistant',
                 content: m.text,
                 timestamp: new Date(m.createdAt).getTime() || Date.now()

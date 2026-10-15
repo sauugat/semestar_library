@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict';
+const { asKnowledgeDb } = require('../lib/knowledge-db');
 
 /**
  * KYANA AI 3.0 — Knowledge Backfill Script
@@ -50,6 +51,7 @@ function sleep(ms) {
 }
 
 async function runBackfill(db, options = {}) {
+  db = asKnowledgeDb(db);
   const { isDryRun = true, batchSize = 50, throttleMs = 200 } = options;
   const isPg = Boolean(db.isPostgres || (db.query && !db.all));
 

@@ -1,5 +1,15 @@
 'use strict';
 
+const fs = require('fs');
+const path = require('path');
+for (const envFile of ['.env.local', '.env']) {
+  const fullPath = path.resolve(process.cwd(), envFile);
+  if (fs.existsSync(fullPath)) {
+    try { process.loadEnvFile(fullPath); } catch (_) {}
+  }
+}
+process.env.ENABLE_LIVE_GEMINI_IN_TESTS = 'true';
+
 const { test, describe, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { Client } = require('pg');
@@ -21,7 +31,7 @@ const { buildPostKnowledge, buildAssignmentKnowledge } = require('../lib/knowled
 
 describe('KYANA 3.0 Step 3 — Sync Hooks, Worker, Reconciliation & Backfill (Docker PostgreSQL 16 + pgvector)', () => {
   let client;
-  const connectionString = 'postgresql://postgres:postgres@127.0.0.1:54333/test_semester_library';
+  const connectionString = process.env.KYANA_TEST_DATABASE_URL || 'postgresql://postgres:postgres@127.0.0.1:54333/test_semester_library';
 
   before(async () => {
     process.env.KYANA_KNOWLEDGE_V3 = 'true';

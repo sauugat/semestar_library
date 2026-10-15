@@ -8,6 +8,15 @@ BEGIN;
 -- 1. Enable pgvector extension
 CREATE EXTENSION IF NOT EXISTS vector;
 
+-- Reuse the existing document extraction index; create it on fresh staging DBs.
+CREATE TABLE IF NOT EXISTS note_search_documents (
+  id INTEGER PRIMARY KEY REFERENCES files(id) ON DELETE CASCADE,
+  content TEXT NOT NULL DEFAULT '', extraction_status TEXT NOT NULL,
+  extraction_error TEXT, indexed_at TEXT NOT NULL, content_truncated INTEGER NOT NULL DEFAULT 0,
+  search_vector TSVECTOR GENERATED ALWAYS AS (to_tsvector('english', content)) STORED
+);
+CREATE INDEX IF NOT EXISTS note_search_content_gin ON note_search_documents USING GIN(search_vector);
+
 -- 2. Unified Knowledge Resources Registry
 CREATE TABLE IF NOT EXISTS knowledge_resources (
   id TEXT PRIMARY KEY,
@@ -55,7 +64,7 @@ CREATE TABLE IF NOT EXISTS knowledge_chunks (
   embedding_model TEXT NOT NULL DEFAULT 'gemini-embedding-001',
   embedding vector(768),
   tsv_content tsvector GENERATED ALWAYS AS (
-    setweight(to_tsvector('nepali', content), 'A') || 
+    setweight(to_tsvector('english', content), 'A') || 
     setweight(to_tsvector('simple', content), 'B')
   ) STORED,
   created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -71,6 +80,7 @@ CREATE TABLE IF NOT EXISTS knowledge_jobs (
   resource_id TEXT NOT NULL,
   resource_type TEXT NOT NULL,
   operation TEXT NOT NULL CHECK (operation IN ('index', 'update', 'delete', 'sync')),
+  revision INTEGER NOT NULL DEFAULT 0,
   attempts INTEGER NOT NULL DEFAULT 0,
   max_attempts INTEGER NOT NULL DEFAULT 5,
   last_error TEXT,
@@ -81,6 +91,8 @@ CREATE TABLE IF NOT EXISTS knowledge_jobs (
   created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE knowledge_jobs ADD COLUMN IF NOT EXISTS revision INTEGER NOT NULL DEFAULT 0;
 
 CREATE INDEX IF NOT EXISTS idx_kj_status ON knowledge_jobs (status, scheduled_at ASC);
 CREATE INDEX IF NOT EXISTS idx_kj_resource ON knowledge_jobs (resource_id);

@@ -28,7 +28,7 @@ const { getRecentTimings, clearTimings } = require('../lib/knowledge-timing');
 describe('KYANA 3.0 Step 5 — Connect Retrieval to Chat', () => {
   let client;
   let db;
-  const connectionString = 'postgresql://postgres:postgres@127.0.0.1:54333/test_semester_library';
+  const connectionString = process.env.KYANA_TEST_DATABASE_URL || 'postgresql://postgres:postgres@127.0.0.1:54333/test_semester_library';
 
   function wrapPgClient(pg) {
     return {

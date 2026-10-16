@@ -286,15 +286,19 @@ async function runBackfill(db, options = {}) {
         }
       } catch (_) {}
 
+      const hasPostDel = (await db.query("SELECT 1 FROM information_schema.columns WHERE table_name = 'posts' AND column_name = 'deleted_at'")).rows.length > 0;
+      const postDelSelect = hasPostDel ? 'p.deleted_at AS post_deleted_at' : 'NULL AS post_deleted_at';
+      const postDelWhere = hasPostDel ? 'AND p.deleted_at IS NULL' : '';
+
       const res = await db.query(`
         SELECT c.*, s.name AS author_name, s.role AS author_role,
                p.title AS post_title, p.cohort_id AS post_cohort_id, p.semester_no AS post_semester_no,
                p.audience_scope AS post_audience_scope, p.target_all_semesters AS post_target_all_semesters,
-               p.visibility AS post_visibility, p.deleted_at AS post_deleted_at
+               p.visibility AS post_visibility, ${postDelSelect}
         FROM post_comments c
         JOIN posts p ON p.id = c.post_id
         LEFT JOIN students s ON s.studentId = c.user_id
-        WHERE c.deleted_at IS NULL AND p.deleted_at IS NULL ${modFilter}
+        WHERE c.deleted_at IS NULL ${postDelWhere} ${modFilter}
         ORDER BY c.id ASC
       `);
       comments = res.rows || [];

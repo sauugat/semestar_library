@@ -42,9 +42,10 @@ describe('KYANA 3.0 Step 2 — Unified Knowledge Schema & Migrations (Docker Pos
           .join('\n');
         await client.query(realSchemaSql);
       }
-    } else {
-      // Set up REAL production schema matching migrate.js, lib/academic-context.js, and lib/posts.js
-      await client.query(`
+    }
+
+    // Set up REAL production schema matching migrate.js, lib/academic-context.js, and lib/posts.js
+    await client.query(`
         CREATE TABLE IF NOT EXISTS students (
           studentId VARCHAR(50) PRIMARY KEY,
           name VARCHAR(255) NOT NULL,
@@ -110,7 +111,6 @@ describe('KYANA 3.0 Step 2 — Unified Knowledge Schema & Migrations (Docker Pos
           audience_scope TEXT DEFAULT 'cohort'
         );
       `);
-    }
 
     // Seed sample student and cohort safely
     const existingMercury = await client.query("SELECT id FROM cohorts WHERE slot_code = 'mercury' LIMIT 1");

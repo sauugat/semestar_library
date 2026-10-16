@@ -41,6 +41,18 @@ export default function GamesLayout() {
           headerShown: false,
         }}
       />
+      <Stack.Screen
+        name="uno/index"
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="hide-and-seek"
+        options={{
+          headerShown: false,
+        }}
+      />
     </Stack>
   );
 }

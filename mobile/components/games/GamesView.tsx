@@ -35,6 +35,8 @@ export interface GameDirectoryItem {
       | 'route_ludo'
       | 'route_ludo_setup'
       | 'route_ludo_online'
+      | 'route_uno'
+      | 'route_hide_and_seek'
       | 'online_disabled';
     disabled?: boolean;
     badge?: string;
@@ -131,12 +133,36 @@ export function GamesView() {
       ],
     },
     {
-      id: 'color-cards',
-      title: 'UNO / Color Cards',
-      category: 'Card Matching',
-      description: 'Fast-paced color matching and tactical discard challenges with friends.',
-      icon: 'albums-outline',
-      status: 'coming_soon',
+      id: 'uno',
+      title: 'UNO: Heritage Edition',
+      category: 'Ancient Nepali Royal Card Game',
+      description: 'Play in an ancient Malla Durbar courtyard with carved Newari woodwork, a Bronze Mandala table, and Himalayan acoustics.',
+      icon: 'albums',
+      status: 'playable',
+      modes: [
+        {
+          id: 'uno-play',
+          label: 'Play UNO (Heritage)',
+          icon: 'play',
+          action: 'route_uno',
+        },
+      ],
+    },
+    {
+      id: 'hide-and-seek',
+      title: 'Hide & Seek: Nightfall 3D',
+      category: '3D Horror Stealth • Royal Yellow Night',
+      description: 'Survive a haunted midnight under the glowing Royal Yellow harvest moon, howling winds, swaying dead trees, flickering streetlamps, and eerie horror SFX.',
+      icon: 'moon-outline',
+      status: 'playable',
+      modes: [
+        {
+          id: 'hns-play',
+          label: 'Enter Nightfall',
+          icon: 'flashlight',
+          action: 'route_hide_and_seek',
+        },
+      ],
     },
     {
       id: 'imposter',
@@ -212,6 +238,10 @@ export function GamesView() {
       router.push('/games/ludo' as any);
     } else if (action === 'route_ludo_setup') {
       router.push('/games/ludo/setup' as any);
+    } else if (action === 'route_uno') {
+      router.push('/games/uno' as any);
+    } else if (action === 'route_hide_and_seek') {
+      router.push('/games/hide-and-seek' as any);
     } else if (action === 'route_ttt' || action === 'route_ludo_online') {
       const health = await checkGamesWorkerReachability(false);
       if (health.status === 'configured_unreachable') {

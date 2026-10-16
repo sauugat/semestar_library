@@ -183,11 +183,16 @@ export async function getBaseUrl(): Promise<string> {
     const saved = await SecureStore.getItemAsync(SERVER_URL_STORAGE_KEY);
     if (saved && saved.trim()) {
       const cleanSaved = saved.trim().replace(/\/+$/, '');
-      if (isTrustedServerUrl(cleanSaved)) {
+      const envUrl = process.env.EXPO_PUBLIC_API_URL?.trim()?.replace(/\/+$/, '');
+      // If environment is explicitly configured for production, discard stale local address overrides
+      if (envUrl && !isLocalAddress(envUrl) && isLocalAddress(cleanSaved)) {
+        await SecureStore.deleteItemAsync(SERVER_URL_STORAGE_KEY).catch(() => {});
+      } else if (isTrustedServerUrl(cleanSaved)) {
         return cleanSaved;
+      } else {
+        // If stored key is untrusted or invalid, purge it safely
+        await SecureStore.deleteItemAsync(SERVER_URL_STORAGE_KEY).catch(() => {});
       }
-      // If stored key is untrusted or invalid, purge it safely
-      await SecureStore.deleteItemAsync(SERVER_URL_STORAGE_KEY).catch(() => {});
     }
   } catch {}
 

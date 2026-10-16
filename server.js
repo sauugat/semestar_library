@@ -36,6 +36,14 @@ const gamesTicket = require('./lib/games-ticket');
 async function indexUploadedNote(file) {
   try {
     const status = await noteSearch.indexNote(db, file);
+    try {
+      const knowledgeSync = require('./lib/knowledge-sync');
+      if (typeof knowledgeSync.onNoteSaved === 'function') {
+        await knowledgeSync.onNoteSaved(db, file);
+      }
+    } catch (syncErr) {
+      console.error('[Note knowledge sync failed]', file.id, syncErr.message);
+    }
     require('./ai-assistant').invalidateCache(db);
     return status;
   } catch (err) {
@@ -3488,6 +3496,7 @@ app.delete('/api/files/:id', requireLogin, async (req, res) => {
   await db.run('DELETE FROM file_comments WHERE fileId = ?', fileId);
   await db.run('DELETE FROM files WHERE id = ?', fileId);
   await noteSearch.removeNoteIndex(db, fileId);
+  await require('./lib/knowledge-sync').onNoteDeleted(db, fileId).catch(() => {});
   require('./ai-assistant').invalidateCache(db);
 
   res.json({ success: true, message: 'Post deleted successfully', fileId: parseInt(fileId) });
@@ -3533,6 +3542,7 @@ app.post('/api/files/:id/delete', requireLogin, async (req, res) => {
   await db.run('DELETE FROM file_comments WHERE fileId = ?', fileId);
   await db.run('DELETE FROM files WHERE id = ?', fileId);
   await noteSearch.removeNoteIndex(db, fileId);
+  await require('./lib/knowledge-sync').onNoteDeleted(db, fileId).catch(() => {});
   require('./ai-assistant').invalidateCache(db);
 
   res.json({ success: true, message: 'Post deleted successfully', fileId: parseInt(fileId) });
@@ -3595,6 +3605,7 @@ app.post(['/api/library/chapters/delete-files', '/api/library/chapters/files/del
       await db.run('DELETE FROM file_comments WHERE fileId = ?', f.id);
       await db.run('DELETE FROM files WHERE id = ?', f.id);
       await noteSearch.removeNoteIndex(db, f.id);
+      await require('./lib/knowledge-sync').onNoteDeleted(db, f.id).catch(() => {});
       require('./ai-assistant').invalidateCache(db);
       deletedCount++;
     }

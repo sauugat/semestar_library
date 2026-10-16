@@ -91,8 +91,9 @@ describe('KYANA 3.0 Step 4 — Unified Knowledge Retrieval Engine', () => {
         PRIMARY KEY (post_id, semester)
       );
 
-      DELETE FROM assignments WHERE id >= 700;
-      DELETE FROM posts WHERE id >= 700;
+      DELETE FROM assignments WHERE id >= 700 OR cohort_id IN ('c_mercury', 'c_venus');
+      DELETE FROM posts WHERE id >= 700 OR cohort_id IN ('c_mercury', 'c_venus');
+      DELETE FROM cohorts WHERE slot_code IN ('mercury', 'venus') OR id IN ('c_mercury', 'c_venus');
 
       INSERT INTO cohorts (id, slot_code, display_name, current_semester)
       VALUES ('c_mercury', 'mercury', 'Mercury Cohort', 3),

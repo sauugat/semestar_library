@@ -2252,21 +2252,117 @@ export function getHideAndSeekHtml(): string {
     }
 
     const softContactShadowTex = createSoftContactShadowTexture();
-    const rectContactShadowTex = softContactShadowTex;
-    const corridorDarknessTex = softContactShadowTex;
+
+    function createRectContactAOTexture() {
+      const c = document.createElement('canvas');
+      c.width = 128;
+      c.height = 128;
+      const ctx = c.getContext('2d');
+      ctx.clearRect(0, 0, 128, 128);
+      // Soft rectangular under-desk / furniture contact AO shadow
+      const g = ctx.createRadialGradient(64, 64, 10, 64, 64, 62);
+      g.addColorStop(0.0, 'rgba(2, 5, 10, 0.88)');
+      g.addColorStop(0.48, 'rgba(3, 7, 14, 0.64)');
+      g.addColorStop(0.78, 'rgba(4, 8, 16, 0.26)');
+      g.addColorStop(1.0, 'rgba(4, 8, 16, 0.0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, 128, 128);
+      return new THREE.CanvasTexture(c);
+    }
+
+    function createCornerAOStripTexture() {
+      const c = document.createElement('canvas');
+      c.width = 64;
+      c.height = 64;
+      const ctx = c.getContext('2d');
+      const g = ctx.createLinearGradient(0, 0, 64, 0);
+      g.addColorStop(0.0, 'rgba(2, 4, 9, 0.82)');
+      g.addColorStop(0.32, 'rgba(3, 6, 12, 0.46)');
+      g.addColorStop(0.72, 'rgba(4, 8, 15, 0.12)');
+      g.addColorStop(1.0, 'rgba(4, 8, 15, 0.0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, 64, 64);
+      return new THREE.CanvasTexture(c);
+    }
+
+    function createFlashlightBeamConeTexture() {
+      const c = document.createElement('canvas');
+      c.width = 128;
+      c.height = 256;
+      const ctx = c.getContext('2d');
+      // Axial falloff from emitter top (y=0) to far end (y=256) with soft radial edge fade
+      const vg = ctx.createLinearGradient(0, 0, 0, 256);
+      vg.addColorStop(0.0, 'rgba(255, 250, 235, 0.0)');
+      vg.addColorStop(0.05, 'rgba(255, 246, 220, 0.72)');
+      vg.addColorStop(0.24, 'rgba(255, 238, 198, 0.42)');
+      vg.addColorStop(0.58, 'rgba(225, 210, 178, 0.16)');
+      vg.addColorStop(0.88, 'rgba(180, 175, 160, 0.04)');
+      vg.addColorStop(1.0, 'rgba(140, 145, 150, 0.0)');
+      ctx.fillStyle = vg;
+      ctx.fillRect(0, 0, 128, 256);
+      return new THREE.CanvasTexture(c);
+    }
+
+    function createWindowLightShaftTexture() {
+      const c = document.createElement('canvas');
+      c.width = 128;
+      c.height = 256;
+      const ctx = c.getContext('2d');
+      const vg = ctx.createLinearGradient(0, 0, 0, 256);
+      vg.addColorStop(0.0, 'rgba(165, 205, 245, 0.0)');
+      vg.addColorStop(0.08, 'rgba(175, 212, 248, 0.48)');
+      vg.addColorStop(0.45, 'rgba(138, 184, 230, 0.24)');
+      vg.addColorStop(0.85, 'rgba(96, 142, 192, 0.07)');
+      vg.addColorStop(1.0, 'rgba(64, 104, 150, 0.0)');
+      ctx.fillStyle = vg;
+      ctx.fillRect(0, 0, 128, 256);
+
+      // Subtle window mullion shadow bars cutting through the moonbeam shaft
+      ctx.fillStyle = 'rgba(8, 16, 28, 0.26)';
+      ctx.fillRect(40, 0, 5, 256);
+      ctx.fillRect(83, 0, 5, 256);
+      return new THREE.CanvasTexture(c);
+    }
+
+    function createMoonWindowFloorGoboTexture() {
+      const c = document.createElement('canvas');
+      c.width = 128;
+      c.height = 128;
+      const ctx = c.getContext('2d');
+      const g = ctx.createRadialGradient(64, 64, 8, 64, 64, 62);
+      g.addColorStop(0.0, 'rgba(155, 198, 242, 0.42)');
+      g.addColorStop(0.65, 'rgba(115, 162, 212, 0.22)');
+      g.addColorStop(1.0, 'rgba(60, 96, 140, 0.0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(8, 8, 112, 112);
+      // Window frame crossbars in floor projection
+      ctx.fillStyle = 'rgba(6, 12, 20, 0.35)';
+      ctx.fillRect(61, 8, 6, 112);
+      ctx.fillRect(8, 61, 112, 6);
+      return new THREE.CanvasTexture(c);
+    }
+
+    const rectContactShadowTex = createRectContactAOTexture();
+    const aoCornerStripTex = createCornerAOStripTexture();
+    const corridorDarknessTex = rectContactShadowTex;
+    const flashlightBeamTex = createFlashlightBeamConeTexture();
+    const windowLightShaftTex = createWindowLightShaftTexture();
+    const moonWindowGoboTex = createMoonWindowFloorGoboTexture();
+    const corridorFogTex = createGroundMistTexture();
 
     /* =========================================================================
        MODULE 1: NightAtmosphere — COOL SLATE-BLUE NIGHT SKY, STORM CLOUDS & MOON
-       (Matches Reference 1 '9.19.58 AM.png' & Reference 3 '9.20.33 AM.png')
+       + MAIN PLAYER FLASHLIGHT (Soft-Edged Spotlight, Visible Cone, Dust & Battery Flicker)
+       + LOWER, COOLER GLOBAL AMBIENT WITH ROOM MOOD TRANSITIONS
        ========================================================================= */
     class NightAtmosphere {
       constructor(canvasEl) {
         this.scene = new THREE.Scene();
-        // Step 4: Fog color is a greener gray-blue than the sky so distance layers separate
         const fogHex = (HORROR_CONFIG.grade && HORROR_CONFIG.grade.fogColor) || HORROR_CONFIG.renderer.fogColor || 0x14222c;
         this.scene.background = new THREE.Color(HORROR_CONFIG.renderer.clearColor || 0x071118);
         this.baseFogColor = new THREE.Color(fogHex);
         this.warmFogColor = new THREE.Color(HORROR_CONFIG.renderer.fogWarmTintColor || 0x221d18);
+        this.corridorFogColor = new THREE.Color(0x0a141e);
         this.scene.fog = new THREE.Fog(
           this.baseFogColor.clone(),
           (HORROR_CONFIG.renderer && HORROR_CONFIG.renderer.fogNear) || 14.0,
@@ -2307,7 +2403,6 @@ export function getHideAndSeekHtml(): string {
         }
         if (!createdRenderer) {
           try {
-            // If the original canvas was tainted by a rejected context request, swap in a fresh clean canvas
             const freshCanvas = document.createElement('canvas');
             freshCanvas.id = 'game-canvas';
             freshCanvas.style.cssText = canvasEl.style.cssText;
@@ -2325,7 +2420,6 @@ export function getHideAndSeekHtml(): string {
           }
         }
         if (!createdRenderer) {
-          // Last resort: let Three.js create its own internal canvas
           try {
             createdRenderer = new THREE.WebGLRenderer({ antialias: false });
             createdRenderer.domElement.id = 'game-canvas';
@@ -2363,7 +2457,6 @@ export function getHideAndSeekHtml(): string {
         this.renderer.setSize(initW, initH);
         this.renderer.setPixelRatio(targetPR);
 
-        // ACES Filmic tone mapping calibrated so #ff8a2a lamps stay warm orange without whitening
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
         this.renderer.toneMappingExposure = (HORROR_CONFIG.renderer && HORROR_CONFIG.renderer.toneMappingExposure) || 1.15;
         if ('outputColorSpace' in this.renderer && THREE.SRGBColorSpace) {
@@ -2383,26 +2476,30 @@ export function getHideAndSeekHtml(): string {
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.renderer.shadowMap.autoUpdate = true;
 
-        // Cold darkness base + visibility floor
-        const minAmb = (HORROR_CONFIG.lighting && HORROR_CONFIG.lighting.visibilityFloorAmbient) || 0.45;
-        const ambInt = Math.max(minAmb, (HORROR_CONFIG.lighting && HORROR_CONFIG.lighting.ambientIntensity) || 0.65);
+        // Requirement 2: Much lower, cooler global ambient & hemisphere fill so rooms stop looking flat!
+        const lCfg = HORROR_CONFIG.lighting || {};
+        this.baseAmbColor = new THREE.Color(lCfg.ambientColor || 0x162436);
+        this.targetAmbColor = this.baseAmbColor.clone();
+        this.baseAmbIntensity = lCfg.ambientIntensity || 0.14;
+        this.baseHemiIntensity = lCfg.hemiIntensity || 0.16;
+        this.baseMoonIntensity = lCfg.moonIntensity || 0.58;
+
         this.ambientLight = new THREE.AmbientLight(
-          (HORROR_CONFIG.lighting && HORROR_CONFIG.lighting.ambientColor) || 0x486475,
-          ambInt
+          this.baseAmbColor.clone(),
+          this.baseAmbIntensity
         );
         this.scene.add(this.ambientLight);
 
         this.hemiLight = new THREE.HemisphereLight(
-          (HORROR_CONFIG.lighting && HORROR_CONFIG.lighting.hemiSkyColor) || 0x587b91,
-          (HORROR_CONFIG.lighting && HORROR_CONFIG.lighting.hemiGroundColor) || 0x24333b,
-          Math.max(minAmb, (HORROR_CONFIG.lighting && HORROR_CONFIG.lighting.hemiIntensity) || 0.62)
+          lCfg.hemiSkyColor || 0x1e334a,
+          lCfg.hemiGroundColor || 0x070c12,
+          this.baseHemiIntensity
         );
         this.scene.add(this.hemiLight);
 
-        // Phase A Requirement 4: Limit shadow-casting strictly to moonlight and player flashlight!
         this.moonDirLight = new THREE.DirectionalLight(
-          (HORROR_CONFIG.lighting && HORROR_CONFIG.lighting.moonColor) || 0x9bc0d9,
-          (HORROR_CONFIG.lighting && HORROR_CONFIG.lighting.moonIntensity) || 1.15
+          lCfg.moonColor || 0x8eb8d6,
+          this.baseMoonIntensity
         );
         this.moonDirLight.position.set(-38, 64, -44);
         this.moonDirLight.castShadow = shadowsOn;
@@ -2420,16 +2517,34 @@ export function getHideAndSeekHtml(): string {
         }
         this.scene.add(this.moonDirLight);
 
-        // Player Flashlight (SpotLight) — dynamic light budget: flashlight + at most 3 nearby PointLights
-        this.flashlight = new THREE.SpotLight(0xfff4e0, 1.85, 28.0, Math.PI / 5.2, 0.48, 1.6);
+        // Requirement 1: Bring the flashlight back as the main light!
+        // Soft-edged spotlight, visible volumetric beam cone, dust motes in beam, battery flicker & realistic falloff
+        this.flBaseColor = new THREE.Color(lCfg.flashlightColor || 0xfff1d6);
+        this.flLowBattColor = new THREE.Color(lCfg.flashlightLowBatteryColor || 0xffb366);
+        this.flBaseIntensity = lCfg.flashlightIntensity || 9.8;
+        this.flBaseDistance = lCfg.flashlightDistance || 28.0;
+        this.flBaseAngle = lCfg.flashlightAngle || 0.60;
+        this.flBasePenumbra = lCfg.flashlightPenumbra || 0.88;
+        this.flBaseDecay = lCfg.flashlightDecay || 1.85;
+        this.flBaseBeamOpacity = lCfg.flashlightBeamOpacity || 0.13;
+
+        this.flashlight = new THREE.SpotLight(
+          this.flBaseColor.clone(),
+          this.flBaseIntensity,
+          this.flBaseDistance,
+          this.flBaseAngle,
+          this.flBasePenumbra,
+          this.flBaseDecay
+        );
         this.flashlight.position.set(-4, 1.5, -48);
         this.flashlight.castShadow = shadowsOn;
         if (this.flashlight.shadow) {
           this.flashlight.shadow.mapSize.width = shadowSize;
           this.flashlight.shadow.mapSize.height = shadowSize;
+          this.flashlight.shadow.bias = -0.0005;
           if (this.flashlight.shadow.camera) {
-            this.flashlight.shadow.camera.near = 0.3;
-            this.flashlight.shadow.camera.far = 28.0;
+            this.flashlight.shadow.camera.near = 0.25;
+            this.flashlight.shadow.camera.far = this.flBaseDistance;
           }
         }
         this.flashlightTarget = new THREE.Object3D();
@@ -2438,11 +2553,294 @@ export function getHideAndSeekHtml(): string {
         this.flashlight.target = this.flashlightTarget;
         this.scene.add(this.flashlight);
 
+        // Close-range soft peripheral bounce fill so immediate 2-5m around player isn't pitch-black outside cone
+        this.flashlightSpill = new THREE.PointLight(
+          this.flBaseColor.clone(),
+          lCfg.flashlightSpillIntensity || 1.15,
+          lCfg.flashlightSpillDistance || 6.2,
+          2.0
+        );
+        this.flashlightSpill.castShadow = false;
+        this.scene.add(this.flashlightSpill);
+
+        // Visible Volumetric Beam Cone + Emitter Lens Halo + Floating Dust Motes in Beam
+        this.flashlightRig = new THREE.Group();
+        this.flashlightRig.userData.noMerge = true;
+        this.scene.add(this.flashlightRig);
+
+        const coneLen = 10.5;
+        const coneEndRadius = Math.tan(this.flBaseAngle * 0.72) * coneLen;
+        const beamConeGeo = new THREE.CylinderGeometry(0.06, coneEndRadius, coneLen, 20, 1, true);
+        // Shift cylinder so its narrow tip is at local (0,0,0) and it extends along -Z (lookAt forward direction)
+        beamConeGeo.translate(0, -coneLen * 0.5, 0);
+        beamConeGeo.rotateX(Math.PI * 0.5);
+
+        this.flashlightBeamMat = new THREE.MeshBasicMaterial({
+          map: flashlightBeamTex,
+          color: this.flBaseColor.clone(),
+          transparent: true,
+          opacity: this.flBaseBeamOpacity,
+          blending: THREE.AdditiveBlending,
+          side: THREE.DoubleSide,
+          depthWrite: false,
+          fog: false,
+        });
+        this.flashlightBeamCone = new THREE.Mesh(beamConeGeo, this.flashlightBeamMat);
+        this.flashlightBeamCone.userData.noMerge = true;
+        this.flashlightBeamCone.renderOrder = 12;
+        this.flashlightRig.add(this.flashlightBeamCone);
+
+        // Inner tighter core beam for soft multi-layered volumetric look
+        const innerConeGeo = new THREE.CylinderGeometry(0.03, coneEndRadius * 0.45, coneLen * 0.78, 14, 1, true);
+        innerConeGeo.translate(0, -coneLen * 0.39, 0);
+        innerConeGeo.rotateX(Math.PI * 0.5);
+        this.flashlightCoreMat = new THREE.MeshBasicMaterial({
+          map: flashlightBeamTex,
+          color: 0xfff8e7,
+          transparent: true,
+          opacity: this.flBaseBeamOpacity * 0.68,
+          blending: THREE.AdditiveBlending,
+          side: THREE.DoubleSide,
+          depthWrite: false,
+          fog: false,
+        });
+        this.flashlightCoreCone = new THREE.Mesh(innerConeGeo, this.flashlightCoreMat);
+        this.flashlightCoreCone.userData.noMerge = true;
+        this.flashlightCoreCone.renderOrder = 13;
+        this.flashlightRig.add(this.flashlightCoreCone);
+
+        // Emitter lens glow sprite at flashlight tip
+        this.flashlightLensMat = new THREE.SpriteMaterial({
+          map: warmLampBloomTex,
+          color: 0xfff8e7,
+          transparent: true,
+          opacity: 0.55,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        });
+        this.flashlightLensSprite = new THREE.Sprite(this.flashlightLensMat);
+        this.flashlightLensSprite.scale.set(0.28, 0.28, 1);
+        this.flashlightLensSprite.position.set(0, 0, -0.05);
+        this.flashlightRig.add(this.flashlightLensSprite);
+
+        // Requirement 3: Dust particles suspended inside the flashlight beam cone
+        this.beamDustCount = 28;
+        this.beamDustGeo = new THREE.BufferGeometry();
+        this.beamDustPos = new Float32Array(this.beamDustCount * 3);
+        this.beamDustMeta = [];
+        for (let i = 0; i < this.beamDustCount; i++) {
+          const distZ = 0.8 + Math.random() * 8.2;
+          const maxR = (distZ / coneLen) * coneEndRadius * 0.82;
+          const ang = Math.random() * Math.PI * 2;
+          const rad = Math.random() * maxR;
+          this.beamDustPos[i * 3]     = Math.cos(ang) * rad;
+          this.beamDustPos[i * 3 + 1] = Math.sin(ang) * rad;
+          this.beamDustPos[i * 3 + 2] = -distZ;
+          this.beamDustMeta.push({
+            vx: (Math.random() - 0.5) * 0.16,
+            vy: 0.04 + Math.random() * 0.12,
+            vz: (Math.random() - 0.5) * 0.14,
+            phase: Math.random() * 6.28,
+          });
+        }
+        this.beamDustGeo.setAttribute('position', new THREE.BufferAttribute(this.beamDustPos, 3));
+        this.beamDustMat = new THREE.PointsMaterial({
+          map: softRoundParticleTex,
+          color: 0xfff3d1,
+          size: 0.065,
+          transparent: true,
+          opacity: 0.52,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        });
+        this.beamDustPoints = new THREE.Points(this.beamDustGeo, this.beamDustMat);
+        this.beamDustPoints.frustumCulled = false;
+        this.flashlightRig.add(this.beamDustPoints);
+
+        // Battery Flicker State Machine
+        this.flBattState = 'steady';
+        this.flBattTimer = 6.5 + Math.random() * 6.0;
+        this.flBattCharge = 0.88; // Simulates aging battery with periodic voltage sag & recovery
+        this.flCurrentFactor = 1.0;
+
         this.skyGroup = null;
         this.buildCloudyMoonlitSkyDome();
 
         // Step 1: Single-Pass Full-Screen Color Grade (1 WebGLRenderTarget + 1 Full-Screen Quad)
         this.initColorGradePass(initW, initH, targetPR);
+      }
+
+      updateFlashlight(delta, timeSec, camPos, yaw, pitch, hunterProximity = 0.0, isHiding = false, isFirstPerson = true) {
+        if (!this.flashlight || !this.flashlightTarget) return;
+
+        // 1. Battery Flicker State Machine (steady -> micro_sag -> sputter -> brownout -> recover)
+        this.flBattTimer -= delta * (1.0 + hunterProximity * 1.65);
+        if (this.flBattTimer <= 0) {
+          if (this.flBattState === 'steady') {
+            const roll = Math.random();
+            if (roll < 0.52) {
+              this.flBattState = 'sputter';
+              this.flBattTimer = 0.32 + Math.random() * 0.55;
+            } else if (roll < 0.82) {
+              this.flBattState = 'micro_sag';
+              this.flBattTimer = 0.65 + Math.random() * 0.85;
+            } else {
+              this.flBattState = 'brownout';
+              this.flBattTimer = 0.40 + Math.random() * 0.55;
+            }
+          } else if (this.flBattState === 'sputter' || this.flBattState === 'brownout' || this.flBattState === 'micro_sag') {
+            this.flBattState = 'recover';
+            this.flBattTimer = 0.24 + Math.random() * 0.25;
+          } else {
+            this.flBattState = 'steady';
+            this.flBattTimer = Math.max(2.8, (6.0 + Math.random() * 7.5) * (1.0 - hunterProximity * 0.55));
+          }
+        }
+
+        let battFactor = 1.0;
+        let warmShift = 0.0;
+        if (this.flBattState === 'steady') {
+          // Subtle filament voltage hum + hunter interference
+          battFactor = 0.96 + Math.sin(timeSec * 7.3) * 0.025 + Math.cos(timeSec * 19.1) * 0.015;
+          if (hunterProximity > 0.25) {
+            const interfere = Math.sin(timeSec * 43.0) * Math.cos(timeSec * 29.0);
+            if (interfere > 0.55) {
+              battFactor *= (1.0 - hunterProximity * 0.52);
+              warmShift = hunterProximity * 0.45;
+            }
+          }
+        } else if (this.flBattState === 'micro_sag') {
+          battFactor = 0.66 + Math.sin(timeSec * 18.0) * 0.10;
+          warmShift = 0.38;
+        } else if (this.flBattState === 'sputter') {
+          const wave = Math.sin(timeSec * 58.0) + Math.cos(timeSec * 41.0) * 0.8;
+          battFactor = wave > 0.05 ? 0.94 : (wave > -0.65 ? 0.28 : 0.06);
+          warmShift = 0.65 * (1.0 - battFactor);
+        } else if (this.flBattState === 'brownout') {
+          battFactor = 0.24 + Math.sin(timeSec * 27.0) * 0.07;
+          warmShift = 0.78;
+        } else if (this.flBattState === 'recover') {
+          battFactor = 0.85 + Math.sin(timeSec * 34.0) * 0.12;
+          warmShift = 0.20;
+        }
+
+        if (isHiding) {
+          battFactor *= 0.32; // Dimmed when tucked under desk cover
+        }
+
+        this.flCurrentFactor += (battFactor - this.flCurrentFactor) * Math.min(1.0, 26.0 * delta);
+        const f = Math.max(0.04, this.flCurrentFactor);
+
+        // Non-ULTRA modes without post-process blackLift get a slight clean visibility boost on flashlight
+        const qualityMult = (currentQuality === 'fast' || currentQuality === 'low') ? 1.14 : 1.0;
+
+        this.flashlight.intensity = this.flBaseIntensity * f * qualityMult;
+        this.flashlight.color.copy(this.flBaseColor).lerp(this.flLowBattColor, warmShift);
+
+        if (this.flashlightSpill) {
+          this.flashlightSpill.position.copy(camPos);
+          this.flashlightSpill.intensity = ((HORROR_CONFIG.lighting && HORROR_CONFIG.lighting.flashlightSpillIntensity) || 1.15) * f * qualityMult;
+          this.flashlightSpill.color.copy(this.flashlight.color);
+        }
+
+        // 2. Position & Aim Flashlight and Volumetric Beam Cone
+        const fx = -Math.sin(yaw) * Math.cos(pitch);
+        const fy = Math.sin(pitch);
+        const fz = -Math.cos(yaw) * Math.cos(pitch);
+        const rightX = Math.cos(yaw);
+        const rightZ = -Math.sin(yaw);
+
+        // Offset emitter slightly right and down from eye so the volumetric cone is clearly visible in 1st-person
+        const handOffR = isFirstPerson ? 0.22 : 0.28;
+        const handOffY = isFirstPerson ? -0.19 : -0.25;
+        const handOffFwd = isFirstPerson ? 0.18 : 0.35;
+
+        const emitX = camPos.x + rightX * handOffR + fx * handOffFwd;
+        const emitY = camPos.y + handOffY + fy * handOffFwd;
+        const emitZ = camPos.z + rightZ * handOffR + fz * handOffFwd;
+
+        const targetX = camPos.x + fx * 14.0;
+        const targetY = camPos.y + fy * 14.0;
+        const targetZ = camPos.z + fz * 14.0;
+
+        this.flashlight.position.set(emitX, emitY, emitZ);
+        this.flashlightTarget.position.set(targetX, targetY, targetZ);
+
+        if (this.flashlightRig) {
+          this.flashlightRig.position.set(emitX, emitY, emitZ);
+          this.flashlightRig.lookAt(targetX, targetY, targetZ);
+          const coneOpacity = this.flBaseBeamOpacity * f * (isHiding ? 0.35 : 1.0);
+          this.flashlightBeamMat.opacity = coneOpacity;
+          this.flashlightBeamMat.color.copy(this.flashlight.color);
+          this.flashlightCoreMat.opacity = coneOpacity * 0.68;
+          this.flashlightLensMat.opacity = Math.min(0.85, 0.55 * f);
+
+          // Animate dust motes drifting inside the flashlight beam cone
+          const showBeamDust = currentQuality !== 'fast';
+          this.beamDustPoints.visible = showBeamDust && !isHiding;
+          if (showBeamDust && !isHiding) {
+            this.beamDustMat.opacity = Math.min(0.68, 0.52 * f);
+            const coneLen = 10.5;
+            const coneEndR = Math.tan(this.flBaseAngle * 0.72) * coneLen;
+            for (let i = 0; i < this.beamDustCount; i++) {
+              const dm = this.beamDustMeta[i];
+              const idx = i * 3;
+              let dx = this.beamDustPos[idx]     + (dm.vx + Math.sin(timeSec * 1.4 + dm.phase) * 0.05) * delta;
+              let dy = this.beamDustPos[idx + 1] + (dm.vy + Math.cos(timeSec * 1.1 + dm.phase) * 0.04) * delta;
+              let dz = this.beamDustPos[idx + 2] + dm.vz * delta;
+              if (dz > -0.7 || dz < -9.2) dz = -0.8 - Math.random() * 8.0;
+              const maxR = (Math.abs(dz) / coneLen) * coneEndR * 0.80;
+              if (dx * dx + dy * dy > maxR * maxR) {
+                const a = Math.random() * 6.28;
+                const r = Math.random() * maxR * 0.65;
+                dx = Math.cos(a) * r;
+                dy = Math.sin(a) * r;
+              }
+              this.beamDustPos[idx]     = dx;
+              this.beamDustPos[idx + 1] = dy;
+              this.beamDustPos[idx + 2] = dz;
+            }
+            this.beamDustGeo.attributes.position.needsUpdate = true;
+          }
+        }
+      }
+
+      updateRoomMoodAmbient(delta, activeRoomMood, inCorridor = false) {
+        const lCfg = HORROR_CONFIG.lighting || {};
+        const moods = HORROR_CONFIG.roomLightMoods || {};
+        const isCleanLowMode = (currentQuality === 'fast' || currentQuality === 'low');
+        const lowModeLift = isCleanLowMode ? 1.28 : 1.0;
+
+        let targetAmbInt = this.baseAmbIntensity * lowModeLift;
+        let targetHemiInt = this.baseHemiIntensity * lowModeLift;
+        let targetMoonInt = this.baseMoonIntensity;
+        this.targetAmbColor.copy(this.baseAmbColor);
+
+        if (activeRoomMood && moods[activeRoomMood]) {
+          const mCfg = moods[activeRoomMood];
+          const indoorAmb = (lCfg.indoorAmbientIntensity || 0.06) * (mCfg.ambientMult || 0.7) * lowModeLift;
+          const indoorHemi = (lCfg.indoorHemiIntensity || 0.07) * (mCfg.ambientMult || 0.7) * lowModeLift;
+          targetAmbInt = indoorAmb;
+          targetHemiInt = indoorHemi;
+          targetMoonInt = activeRoomMood === 'moonlight'
+            ? (this.baseMoonIntensity * 0.55)
+            : (lCfg.indoorMoonIntensity || 0.10);
+          if (mCfg.ambientColor) {
+            this.targetAmbColor.setHex(mCfg.ambientColor);
+          }
+        } else if (inCorridor) {
+          targetAmbInt = (lCfg.indoorAmbientIntensity || 0.06) * 0.85 * lowModeLift;
+          targetHemiInt = (lCfg.indoorHemiIntensity || 0.07) * 0.85 * lowModeLift;
+          targetMoonInt = this.baseMoonIntensity * 0.25;
+        }
+
+        const lerpRate = Math.min(1.0, 4.5 * delta);
+        this.ambientLight.intensity += (targetAmbInt - this.ambientLight.intensity) * lerpRate;
+        this.ambientLight.color.lerp(this.targetAmbColor, lerpRate);
+        this.hemiLight.intensity += (targetHemiInt - this.hemiLight.intensity) * lerpRate;
+        if (this.moonDirLight && this.moonDirLight.intensity <= this.baseMoonIntensity * 1.5) {
+          this.moonDirLight.intensity += (targetMoonInt - this.moonDirLight.intensity) * lerpRate;
+        }
       }
 
       getEffectivePixelRatio(preset) {
@@ -2623,8 +3021,6 @@ export function getHideAndSeekHtml(): string {
         this.lastTotalDrawCalls = (this.renderer.info && this.renderer.info.render) ? (this.renderer.info.render.calls || 0) : 0;
       }
 
-      // Step 4: Replace large black dome with Sky Gradient (deep blue-black top, sickly teal horizon,
-      // soft dim moon glow, 2 thin cloud bands) + 3 Layered Distant Ridge Silhouettes fading into fog!
       buildCloudyMoonlitSkyDome() {
         if (this.skyGroup) {
           this.scene.remove(this.skyGroup);
@@ -2636,7 +3032,6 @@ export function getHideAndSeekHtml(): string {
         skyCanvas.height = 256;
         const sCtx = skyCanvas.getContext('2d');
 
-        // 1. Sky gradient: deep blue-black top (#060c18) -> atmospheric teal-slate near horizon (#1b3248)
         const grad = sCtx.createLinearGradient(0, 0, 0, 256);
         grad.addColorStop(0.0, '#060c18');
         grad.addColorStop(0.35, '#0b1626');
@@ -2646,7 +3041,6 @@ export function getHideAndSeekHtml(): string {
         sCtx.fillStyle = grad;
         sCtx.fillRect(0, 0, 512, 256);
 
-        // 2. Soft moonlight glow in upper sky
         const moonGlow = sCtx.createRadialGradient(340, 74, 4, 340, 74, 110);
         moonGlow.addColorStop(0.0, 'rgba(215, 235, 248, 0.75)');
         moonGlow.addColorStop(0.20, 'rgba(140, 180, 210, 0.42)');
@@ -2655,13 +3049,11 @@ export function getHideAndSeekHtml(): string {
         sCtx.fillStyle = moonGlow;
         sCtx.fillRect(0, 0, 512, 256);
 
-        // Soft bright moon disc
         sCtx.fillStyle = 'rgba(240, 248, 255, 0.92)';
         sCtx.beginPath();
         sCtx.arc(340, 74, 11, 0, Math.PI * 2);
         sCtx.fill();
 
-        // 3. Two thin horizontal cloud bands drifting across the moonlit sky
         [68, 92].forEach((bandY, bIdx) => {
           const bandGrad = sCtx.createLinearGradient(0, bandY - 12, 0, bandY + 12);
           bandGrad.addColorStop(0.0, 'rgba(14, 28, 36, 0.0)');
@@ -2678,11 +3070,10 @@ export function getHideAndSeekHtml(): string {
         );
         this.skyGroup.add(skySphere);
 
-        // 4. Three Layered Distant Mountain/Ridge Silhouettes (Far, Mid, Near) Fading into Greener Gray-Blue Fog!
         const ridgeConfigs = [
-          { radius: 110, height: 34, color: 0x142533, opacity: 0.82, seed: 1.1, freq1: 5, freq2: 11 }, // Layer 1: Far High Himalayan Ridge
-          { radius: 101, height: 24, color: 0x101f2b, opacity: 0.88, seed: 2.7, freq1: 7, freq2: 13 }, // Layer 2: Mid Valley Ridge
-          { radius: 92,  height: 15, color: 0x0c1720, opacity: 0.94, seed: 4.3, freq1: 9, freq2: 17 }, // Layer 3: Near Wooded Foothill Ridge
+          { radius: 110, height: 34, color: 0x142533, opacity: 0.82, seed: 1.1, freq1: 5, freq2: 11 },
+          { radius: 101, height: 24, color: 0x101f2b, opacity: 0.88, seed: 2.7, freq1: 7, freq2: 13 },
+          { radius: 92,  height: 15, color: 0x0c1720, opacity: 0.94, seed: 4.3, freq1: 9, freq2: 17 },
         ];
 
         ridgeConfigs.forEach(rc => {
@@ -2754,6 +3145,9 @@ export function getHideAndSeekHtml(): string {
         this.renderer.shadowMap.enabled = shadowsOn;
         if (this.moonDirLight) this.moonDirLight.castShadow = shadowsOn;
         if (this.flashlight) this.flashlight.castShadow = shadowsOn;
+        // Keep FAST and LOW looking clean and readable when ULTRA post-grade pass is off
+        const baseExp = (HORROR_CONFIG.renderer && HORROR_CONFIG.renderer.toneMappingExposure) || 1.15;
+        this.renderer.toneMappingExposure = (preset && preset.enableColorGrade) ? baseExp : (baseExp * 1.07);
         const btn = document.getElementById('dbg-btn-shadows');
         if (btn) {
           btn.textContent = shadowsOn ? 'Shadows: ON' : 'Shadows: OFF';

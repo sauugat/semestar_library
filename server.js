@@ -306,7 +306,7 @@ app.use((req, res, next) => {
   // Browser requests (carrying __gu_session cookie) always run sessionMiddleware.
   const hasSessionCookie = Boolean(req.headers.cookie && req.headers.cookie.includes('__gu_session'));
   const authHeader = req.headers['authorization'];
-  if (!hasSessionCookie && authHeader && authHeader.startsWith('Bearer ')) {
+  if (!hasSessionCookie && authHeader && authHeader.startsWith('Bearer ') && !req.path.startsWith('/api/auth/sync-session')) {
     return next();
   }
   sessionMiddleware(req, res, next);
@@ -1686,6 +1686,19 @@ app.post('/api/auth/login', loginRateLimiter, async (req, res) => {
         student.verification_status = 'verified';
         student.verificationStatus = 'verified';
       }
+
+      if (req.session) {
+        req.session.studentId = student.studentId;
+        req.session.studentName = student.name;
+        req.session.role = student.role || 'student';
+        await new Promise(resolve => {
+          if (typeof req.session.save === 'function') {
+            req.session.save(resolve);
+          } else {
+            resolve();
+          }
+        });
+      }
     }
 
     return res.json({
@@ -1847,6 +1860,34 @@ app.post('/api/auth/sync-verification', requireLogin, async (req, res) => {
     console.error('[Sync Verification Error]:', err.message);
     return res.status(500).json({ message: 'Failed to synchronize email verification.' });
   }
+});
+
+// Synchronize browser session cookie (__gu_session) for authenticated Supabase web clients
+app.post('/api/auth/sync-session', requireLogin, async (req, res) => {
+  const student = req.user || req.student;
+  if (!student || !student.studentId) {
+    return res.status(401).json({ message: 'Authentication required. Please sign in.' });
+  }
+
+  if (req.session) {
+    req.session.studentId = student.studentId;
+    req.session.studentName = student.name;
+    req.session.role = student.role || 'student';
+    await new Promise(resolve => {
+      if (typeof req.session.save === 'function') {
+        req.session.save(resolve);
+      } else {
+        resolve();
+      }
+    });
+  }
+
+  return res.json({
+    ok: true,
+    studentId: student.studentId,
+    name: student.name,
+    role: student.role || 'student'
+  });
 });
 
 app.get('/api/me', requireLogin, async (req, res) => {

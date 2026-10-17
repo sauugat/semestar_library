@@ -2838,6 +2838,12 @@
         }
         return false;
       }
+      if (e && e.currentTarget && e.currentTarget.tagName === 'A') {
+        const link = e.currentTarget;
+        if (window.SemesterAuth && typeof window.SemesterAuth.attachAuthTokenToUrl === 'function') {
+          link.href = window.SemesterAuth.attachAuthTokenToUrl(link.href);
+        }
+      }
       return true;
     };
 
@@ -3169,14 +3175,23 @@
       // External & Download links
       const isPpt = ['PPT'].includes(badge) || /\.(pptx?|ppt)$/i.test(f.originalName || f.title || '');
 
+      const rawViewUrl = `/api/files/${f.id}/view`;
+      const rawDownloadUrl = `/api/files/${f.id}/download`;
+      const viewUrl = window.SemesterAuth && typeof window.SemesterAuth.attachAuthTokenToUrl === 'function'
+        ? window.SemesterAuth.attachAuthTokenToUrl(rawViewUrl)
+        : rawViewUrl;
+      const downloadUrl = window.SemesterAuth && typeof window.SemesterAuth.attachAuthTokenToUrl === 'function'
+        ? window.SemesterAuth.attachAuthTokenToUrl(rawDownloadUrl)
+        : rawDownloadUrl;
+
       const extLink = document.getElementById('previewExternalLink');
       if (extLink) {
-        extLink.href = `/api/files/${f.id}/view`;
+        extLink.href = viewUrl;
       }
 
       const dlLink = document.getElementById('previewDownloadLink');
       if (dlLink) {
-        dlLink.href = `/api/files/${f.id}/download`;
+        dlLink.href = downloadUrl;
         dlLink.setAttribute('download', f.originalName || 'file');
       }
 
@@ -3208,7 +3223,7 @@
           img.onerror = () => {
             if (loadingOverlay) loadingOverlay.classList.add('hidden');
           };
-          img.src = `/api/files/${f.id}/view`;
+          img.src = viewUrl;
         }
       } else if (isPpt) {
         if (imgWrap) imgWrap.style.display = 'none';
@@ -3242,7 +3257,7 @@
             .catch(err => {
               console.warn('[Office Preview URL Error]:', err);
               if (loadingOverlay) loadingOverlay.classList.add('hidden');
-              iframe.src = `/api/files/${f.id}/view#toolbar=1&navpanes=0`;
+              iframe.src = `${viewUrl}#toolbar=1&navpanes=0`;
             });
         }
 
@@ -3261,7 +3276,7 @@
           iframe.onerror = () => {
             if (loadingOverlay) loadingOverlay.classList.add('hidden');
           };
-          iframe.src = `/api/files/${f.id}/view#toolbar=1&navpanes=0`;
+          iframe.src = `${viewUrl}#toolbar=1&navpanes=0`;
         }
 
         // Safety fallback spinner timer

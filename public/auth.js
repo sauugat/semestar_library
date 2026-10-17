@@ -70,9 +70,45 @@
     }
   }
 
+  let cachedAccessToken = null;
+
   async function getAccessToken() {
     const session = await getSession();
-    return session ? session.access_token : null;
+    const token = session ? session.access_token : null;
+    if (token) cachedAccessToken = token;
+    return token;
+  }
+
+  function getAccessTokenSync() {
+    if (cachedAccessToken) return cachedAccessToken;
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        for (let i = 0; i < window.localStorage.length; i++) {
+          const key = window.localStorage.key(i);
+          if (key && (key.startsWith('sb-') || key.includes('auth-token') || key.includes('supabase.auth.token'))) {
+            const raw = window.localStorage.getItem(key);
+            if (raw) {
+              const val = JSON.parse(raw);
+              if (val && val.access_token) {
+                cachedAccessToken = val.access_token;
+                return cachedAccessToken;
+              }
+            }
+          }
+        }
+      }
+    } catch {}
+    return null;
+  }
+
+  function attachAuthTokenToUrl(url) {
+    if (!url || typeof url !== 'string') return url;
+    const token = cachedAccessToken || getAccessTokenSync();
+    if (!token) return url;
+    if (url.includes('token=')) return url;
+    const [pathAndQuery, hash] = url.split('#');
+    const separator = pathAndQuery.includes('?') ? '&' : '?';
+    return `${pathAndQuery}${separator}token=${encodeURIComponent(token)}${hash ? '#' + hash : ''}`;
   }
 
   function getResponseErrorMessage(res, data, defaultMsg) {
@@ -105,6 +141,8 @@
           access_token: data.session.access_token,
           refresh_token: data.session.refresh_token,
         });
+        cachedAccessToken = data.session.access_token;
+        syncSession().catch(() => {});
         return { data: { user: data.user, session: data.session }, error: null };
       }
       return {
@@ -197,7 +235,17 @@
   async function onAuthStateChange(callback) {
     try {
       const client = await getSupabase();
-      return client.auth.onAuthStateChange(callback);
+      return client.auth.onAuthStateChange((event, session) => {
+        if (session && session.access_token) {
+          cachedAccessToken = session.access_token;
+          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+            syncSession().catch(() => {});
+          }
+        }
+        if (typeof callback === 'function') {
+          callback(event, session);
+        }
+      });
     } catch (err) {
       console.warn('[Auth] onAuthStateChange setup error:', err);
       return { data: { subscription: { unsubscribe: () => {} } } };
@@ -229,6 +277,29 @@
     } catch (err) {
       return { error: err.message };
     }
+  }
+
+  async function syncSession() {
+    try {
+      let token = await getAccessToken();
+      if (!token) token = getAccessTokenSync();
+      if (!token) return null;
+      cachedAccessToken = token;
+      const res = await rawFetch('/api/auth/sync-session', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+      if (res.ok) {
+        return await res.json().catch(() => ({}));
+      }
+    } catch (err) {
+      console.warn('[Auth] syncSession warning:', err);
+    }
+    return null;
   }
 
   async function signOut() {
@@ -338,6 +409,10 @@
         window.location.replace(`/login.html?redirect=${currentPath}`);
         return;
       }
+      if (session.access_token) {
+        cachedAccessToken = session.access_token;
+        syncSession().catch(() => {});
+      }
       document.documentElement.classList.remove('auth-checking');
     } catch (e) {
       console.error('[Auth Guard] Error verifying session:', e);
@@ -368,11 +443,32 @@
     };
   }
 
+  // Seamlessly enrich in-browser document links (<a href="/api/files/...">) with auth token
+  if (typeof document !== 'undefined') {
+    document.addEventListener('click', (e) => {
+      const link = e.target && e.target.closest ? e.target.closest('a') : null;
+      if (!link || !link.href) return;
+      try {
+        const url = new URL(link.href, window.location.origin);
+        if (url.origin === window.location.origin && url.pathname.startsWith('/api/files/') && (url.pathname.endsWith('/view') || url.pathname.includes('/download'))) {
+          const token = cachedAccessToken || getAccessTokenSync();
+          if (token && !url.searchParams.has('token')) {
+            url.searchParams.set('token', token);
+            link.href = url.toString();
+          }
+        }
+      } catch {}
+    }, true);
+  }
+
   // Expose global methods
   window.SemesterAuth = {
     getSupabase,
     getSession,
     getAccessToken,
+    getAccessTokenSync,
+    attachAuthTokenToUrl,
+    syncSession,
     signIn,
     signUp,
     checkAvailability,

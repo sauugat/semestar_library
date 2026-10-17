@@ -639,7 +639,10 @@
         files.forEach(f => {
           const card = document.createElement('a');
           card.className = 'kyana-source-card';
-          card.href = `/api/files/${encodeURIComponent(f.id)}/view`;
+          const rawCardUrl = `/api/files/${encodeURIComponent(f.id)}/view`;
+          card.href = window.SemesterAuth && typeof window.SemesterAuth.attachAuthTokenToUrl === 'function'
+            ? window.SemesterAuth.attachAuthTokenToUrl(rawCardUrl)
+            : rawCardUrl;
           card.target = '_blank';
           card.rel = 'noopener noreferrer';
           const ext = ((f.originalName || f.title || '').split('.').pop() || 'doc').toUpperCase().slice(0, 4);

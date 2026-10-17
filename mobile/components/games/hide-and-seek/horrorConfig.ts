@@ -240,4 +240,35 @@ export const HORROR_CONFIG = {
     tagRange: 3.2,
     debugPhysics: false,
   },
+  accessibility: {
+    fearIntensity: 'high' as 'low' | 'medium' | 'high',
+    flickerReduction: false,
+    screenShakeOff: false,
+  },
+  gameplay: {
+    roundDurationSec: 540, // 9 minutes (8-10 min design pillar)
+    fuseBoxCount: 4,
+    hunterSpeed: 5.35, // Faster than walking Scholar (4.8), slower than sprinting Scholar (6.6)
+    scholarWalkSpeed: 4.8,
+    scholarSprintSpeed: 6.6,
+    scholarCrouchSpeed: 2.2,
+    pingIntervalSec: 30.0,
+    doorLockCooldownSec: 25.0,
+    doorLockDurationSec: 12.0,
+    powerCutCooldownSec: 35.0,
+    powerCutDurationSec: 10.0,
+    flashlightDrainPerSec: 1.15,
+    batteryPickupRestore: 45.0,
+    breathHoldDurationSec: 3.2,
+  },
+  roomLightMoods: {
+    '101': { mood: 'flickering_tube', color: 0xcbe4f5, intensity: 1.35, ambientScale: 0.16, tubeFlicker: true, moonlightShafts: true },
+    '102': { mood: 'warm_lamp', color: 0xe6a152, intensity: 1.25, ambientScale: 0.18, tubeFlicker: false, moonlightShafts: true },
+    '201': { mood: 'moonlit', color: 0x82acc9, intensity: 0.95, ambientScale: 0.14, tubeFlicker: false, moonlightShafts: true },
+    '202': { mood: 'warm_lamp', color: 0xd99445, intensity: 1.15, ambientScale: 0.18, tubeFlicker: true, moonlightShafts: true },
+    '301': { mood: 'dark', color: 0x3b5263, intensity: 0.40, ambientScale: 0.12, tubeFlicker: true, moonlightShafts: true },
+    '302': { mood: 'emergency_red', color: 0xc92a2a, intensity: 1.45, ambientScale: 0.15, tubeFlicker: true, moonlightShafts: false },
+    'atrium': { mood: 'flickering_tube', color: 0xd8a060, intensity: 1.10, ambientScale: 0.22, tubeFlicker: true, moonlightShafts: true },
+  },
 };
+

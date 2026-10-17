@@ -3,5 +3,6 @@
   "git.postCommitCommand": "push",
   "git.confirmSync": false,
   "git.autofetch": true,
+  "git.useEditorAsCommitInput": false,
   "java.compile.nullAnalysis.mode": "automatic"
 }

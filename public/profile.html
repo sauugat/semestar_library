@@ -23,7 +23,7 @@
     rel="stylesheet">
   <link rel="stylesheet" href="style.v4.css">
   <link rel="stylesheet" href="chatbot.css">
-  <script src="/auth.js"></script>
+  <script src="/auth.js?v=2"></script>
   <script>SemesterAuth.protectPage();</script>
   <link rel="stylesheet" href="auth-modal.css">
   <link rel="stylesheet" href="/theme-overrides.css">
@@ -541,15 +541,17 @@
       const initialsEl = document.getElementById('profileInitials');
       const imgEl = document.getElementById('profileAvatarImg');
 
-      // Update top header profile avatar & name
-      const headerAvatar = document.getElementById('headerAvatar');
-      const headerName = document.getElementById('headerProfileName');
-      if (headerName) headerName.textContent = p.name ? p.name.split(' ')[0] : 'Profile';
-      if (headerAvatar) {
-        if (p.avatarUrl) {
-          headerAvatar.innerHTML = `<img src="${p.avatarUrl}" alt="${p.name}">`;
-        } else {
-          headerAvatar.textContent = initials;
+      // Update top header profile avatar & name for current viewer
+      if (!targetStudentId || p.isSelf) {
+        const headerAvatar = document.getElementById('headerAvatar');
+        const headerName = document.getElementById('headerProfileName');
+        if (headerName) headerName.textContent = p.name ? p.name.split(' ')[0] : 'Profile';
+        if (headerAvatar) {
+          if (p.avatarUrl) {
+            headerAvatar.innerHTML = `<img src="${p.avatarUrl}" alt="${p.name}">`;
+          } else {
+            headerAvatar.textContent = initials;
+          }
         }
       }
 

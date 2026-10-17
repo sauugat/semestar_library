@@ -23,6 +23,7 @@
 
   <link rel="stylesheet" href="/style.v4.css">
   <link rel="stylesheet" href="/auth-modal.css">
+  <script src="/auth.js?v=2"></script>
 
   <style>
     :root {
@@ -226,13 +227,9 @@
 
   <script src="/auth-modal.js"></script>
   <script>
-    // Fetch profile avatar
-    fetch('/api/me').then(r => r.ok ? r.json() : null).then(u => {
-      if (!u) return;
-      const avatarEl = document.getElementById('headerAvatar');
-      const nameEl = document.getElementById('headerProfileName');
-      if (avatarEl && u.name) avatarEl.textContent = (u.name.charAt(0) || '·').toUpperCase();
-      if (nameEl && u.name) nameEl.textContent = u.name.split(' ')[0];
+    // Fetch profile avatar via SemesterAuth
+    SemesterAuth.getUser().then(u => {
+      if (u) SemesterAuth.initHeader(u);
     }).catch(() => {});
   </script>
 </body>

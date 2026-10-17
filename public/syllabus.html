@@ -87,62 +87,26 @@
 
 
   <script>
-    window.IS_AUTHENTICATED = false;
-    fetch('/api/profile').then(r => {
-      if (r.ok) {
+    SemesterAuth.getUser().then(user => {
+      if (user) {
         window.IS_AUTHENTICATED = true;
-        return r.json();
-      }
-      return null;
-    }).then(p => {
-      if (p) {
-        const headerAvatar = document.getElementById('headerAvatar');
-        const headerName = document.getElementById('headerProfileName');
-        if (headerName) headerName.textContent = p.name ? p.name.split(' ')[0] : 'Profile';
-        if (headerAvatar) {
-          if (p.avatarUrl) {
-            headerAvatar.innerHTML = `<img src="${p.avatarUrl}" alt="${p.name}">`;
-          } else {
-            headerAvatar.textContent = p.name ? p.name.charAt(0).toUpperCase() : 'S';
-          }
-        }
+        SemesterAuth.initHeader(user);
       } else {
+        window.IS_AUTHENTICATED = false;
         const chip = document.querySelector('.dash-profile-chip');
         if (chip) {
           chip.outerHTML = `<a href="login.html" class="nav-cta-btn apple-nav-btn">Sign In</a>`;
         }
       }
     }).catch(() => {
-        const chip = document.querySelector('.dash-profile-chip');
-        if (chip) {
-          chip.outerHTML = `<a href="login.html" class="nav-cta-btn apple-nav-btn">Sign In</a>`;
-        }
-    });
-
-    // Prevent redirect for protected pages if not logged in
-    document.addEventListener('click', function(e) {
-      const target = e.target.closest('a');
-      if (!target) return;
-      const href = target.getAttribute('href');
-      if (!href) return;
-      
-      const protectedPages = ['dashboard.html', 'chat.html', 'chatbot.html', 'profile.html'];
-      if (protectedPages.some(page => href.includes(page))) {
-        if (!window.IS_AUTHENTICATED) {
-          e.preventDefault();
-          const toast = document.getElementById('minimalAuthToast');
-          if (toast) {
-            toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 4000);
-          }
-        }
-      }
+      window.IS_AUTHENTICATED = false;
     });
 
     const logoutBtnEl = document.getElementById('logoutBtn');
     if (logoutBtnEl) {
-      logoutBtnEl.addEventListener('click', () => {
-        fetch('/api/logout', { method: 'POST' }).then(() => window.location.href = 'index.html');
+      logoutBtnEl.addEventListener('click', (e) => {
+        e.preventDefault();
+        SemesterAuth.logout();
       });
     }
 

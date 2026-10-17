@@ -10,6 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/style.v4.css">
   <link rel="stylesheet" href="/theme-overrides.css">
+  <script src="/auth.js"></script>
 </head>
 <body class="dash">
 
@@ -47,11 +48,15 @@
 
 
   <script>
-    fetch('/api/me').then(r => { if (!r.ok) window.location.href = 'login.html'; });
+    SemesterAuth.requireAuth();
 
-    document.getElementById('logoutBtn').addEventListener('click', () => {
-      fetch('/api/logout', { method: 'POST' }).then(() => window.location.href = 'index.html');
-    });
+    const logoutBtnEl = document.getElementById('logoutBtn');
+    if (logoutBtnEl) {
+      logoutBtnEl.addEventListener('click', (e) => {
+        e.preventDefault();
+        SemesterAuth.logout();
+      });
+    }
 
     let SYLLABUS = null;
 

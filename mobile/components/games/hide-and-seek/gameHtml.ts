@@ -546,7 +546,43 @@ export function getHideAndSeekHtml(): string {
   <div id="stealth-overlay">
     <div id="stealth-badge">
       <div class="pulse-dot"></div>
-      HIDDEN UNDER CLASSROOM DESK
+      <span id="stealth-badge-text">HIDDEN UNDER CLASSROOM DESK • PEEK VIEW</span>
+    </div>
+  </div>
+
+  <!-- Hold-Your-Breath Mini-Game Overlay (Triggered when Hunter inspects nearby hiding spot) -->
+  <div id="breath-minigame-overlay" style="position:absolute;top:24%;left:50%;transform:translateX(-50%);background:rgba(6,10,18,0.95);border:1.5px solid #ef4444;border-radius:16px;padding:12px 20px;z-index:22;display:none;flex-direction:column;align-items:center;gap:8px;box-shadow:0 0 28px rgba(220,38,38,0.65);min-width:260px;">
+    <div style="color:#fca5a5;font-size:11px;font-weight:900;letter-spacing:1.4px;text-transform:uppercase;">HUNTER SEARCHING ROOM — HOLD YOUR BREATH!</div>
+    <div style="width:220px;height:12px;background:rgba(15,23,42,0.95);border:1px solid rgba(239,68,68,0.55);border-radius:6px;overflow:hidden;">
+      <div id="breath-meter-fill" style="width:100%;height:100%;background:linear-gradient(90deg,#ef4444,#f59e0b,#22c55e);transition:width 0.05s linear;"></div>
+    </div>
+    <button id="btn-hold-breath" style="background:linear-gradient(135deg,#991b1b,#450a0a);border:1.5px solid #fca5a5;color:#fff;font-size:11px;font-weight:900;letter-spacing:1px;padding:7px 22px;border-radius:12px;cursor:pointer;touch-action:none;">HOLD BREATH (SPACE)</button>
+  </div>
+
+  <!-- Spectator / Captured Rescue Banner -->
+  <div id="spectator-overlay" style="position:absolute;top:15%;left:50%;transform:translateX(-50%);background:rgba(12,18,30,0.94);border:1.5px solid #38bdf8;border-radius:14px;padding:8px 18px;z-index:18;display:none;flex-direction:column;align-items:center;gap:4px;pointer-events:auto;">
+    <div id="spectator-title" style="color:#38bdf8;font-size:11px;font-weight:900;letter-spacing:1.2px;">CAPTURED (1/2) • SPECTATING TEAMMATES</div>
+    <div id="spectator-sub" style="color:#cbd5e1;font-size:10px;">A teammate can still free you once! Tap VIEW to cycle cameras.</div>
+  </div>
+
+  <!-- Subtle Gameplay Telemetry Bar: Noise Indicator, Flashlight Battery, Fuses & Throwables -->
+  <div id="gameplay-telemetry-hud" style="position:absolute;bottom:max(14px,env(safe-area-inset-bottom,14px));left:50%;transform:translateX(-50%);background:rgba(6,10,18,0.88);border:1px solid rgba(148,163,184,0.28);border-radius:14px;padding:5px 14px;z-index:11;display:flex;align-items:center;gap:12px;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,0.85);">
+    <div style="display:flex;align-items:center;gap:5px;">
+      <span style="color:#94a3b8;font-size:9.5px;font-weight:800;">NOISE</span>
+      <div style="width:46px;height:6px;background:#0f172a;border-radius:3px;overflow:hidden;border:1px solid rgba(148,163,184,0.3);">
+        <div id="hud-noise-bar" style="width:12%;height:100%;background:#22c55e;transition:width 0.1s ease;"></div>
+      </div>
+      <span id="hud-noise-label" style="color:#cbd5e1;font-size:9px;font-weight:800;min-width:38px;">QUIET</span>
+    </div>
+    <div style="width:1px;height:12px;background:rgba(148,163,184,0.25);"></div>
+    <div style="display:flex;align-items:center;gap:4px;">
+      <span style="color:#fde047;font-size:9.5px;font-weight:800;">BATT</span>
+      <span id="hud-battery-label" style="color:#f8fafc;font-size:9.5px;font-weight:800;">100%</span>
+    </div>
+    <div style="width:1px;height:12px;background:rgba(148,163,184,0.25);"></div>
+    <div style="display:flex;align-items:center;gap:4px;">
+      <span style="color:#f59e0b;font-size:9.5px;font-weight:800;">FUSES</span>
+      <span id="hud-fuses-label" style="color:#f8fafc;font-size:9.5px;font-weight:800;">0/4</span>
     </div>
   </div>
 
@@ -564,7 +600,7 @@ export function getHideAndSeekHtml(): string {
 
   <div id="blindfold-overlay">
     <div class="blindfold-title">GANDAKI UNIVERSITY BLUEPRINT MAP</div>
-    <div class="blindfold-sub">Exact aerial blueprint replica: Longitudinal Classroom Wings (L1-L3, R1-R4), 3 Yellow Buses, Parking Plaza, Guardhouse, Planter Island & the 3-Storey Grand Rotunda.</div>
+    <div class="blindfold-sub">Restore 4 Fuse Boxes across the campus buildings to unlock the South Main Gate and escape the Hollow Proctor.</div>
     <div class="blindfold-timer-box" id="blindfold-counter">10</div>
   </div>
 
@@ -581,7 +617,7 @@ export function getHideAndSeekHtml(): string {
     <div id="dbg-ground">Grounded: true | Crouching: false</div>
     <div id="dbg-normal">Coll Normal: None</div>
     <div class="debug-controls-section">
-      <div class="debug-section-label">TEST CONTROLS</div>
+      <div class="debug-section-label">TEST CONTROLS &amp; COMFORT</div>
       <div class="debug-btn-row">
         <button id="dbg-btn-spd-1" class="dbg-btn active">1x</button>
         <button id="dbg-btn-spd-2" class="dbg-btn">2x</button>
@@ -594,9 +630,20 @@ export function getHideAndSeekHtml(): string {
         <button id="dbg-btn-shadows" class="dbg-btn active">Shadows: ON</button>
         <button id="dbg-btn-run-audit" class="dbg-btn">Run Audit</button>
       </div>
+      <div class="debug-btn-row" style="margin-top:4px;">
+        <button id="dbg-btn-fear" class="dbg-btn">Fear: HIGH</button>
+        <button id="dbg-btn-flicker" class="dbg-btn">Flicker: FULL</button>
+        <button id="dbg-btn-shake" class="dbg-btn">Shake: ON</button>
+      </div>
       <div style="margin-top:4px;">
         <select id="dbg-teleport-select" class="dbg-select">
           <option value="">Teleport-to-Point...</option>
+          <option value="-5.7,0.48,64.0,0">Main Bldg: Hall 101 (Flicker Tube)</option>
+          <option value="17.7,0.48,64.0,0">Main Bldg: Admin 102 (Warm Lamp)</option>
+          <option value="-5.7,4.08,64.0,0">Main Bldg: Class 201 (Moonlit)</option>
+          <option value="17.7,4.08,64.0,0">Main Bldg: Library 202 (Warm Lamp)</option>
+          <option value="-5.7,7.68,64.0,0">Main Bldg: Seminar 301 (Dark)</option>
+          <option value="17.7,7.68,64.0,0">Main Bldg: Lab 302 (Emergency Red)</option>
           <option value="-3.8,0,-18.0,-1.57">West Wing L1 Exterior Wall</option>
           <option value="-38.2,0.22,-48.45,0.785">Heritage W1 Inside Corner</option>
           <option value="-4.5,0,-33.5,1.57">Narrow Gap (Car vs Wall)</option>
@@ -620,6 +667,14 @@ export function getHideAndSeekHtml(): string {
         <svg viewBox="0 0 24 24"><path d="M12 2l-5.5 9h11L12 2zm0 3.84L13.93 9h-3.86L12 5.84zM17.5 13c-2.49 0-4.5 2.01-4.5 4.5s2.01 4.5 4.5 4.5 4.5-2.01 4.5-4.5-2.01-4.5-4.5-4.5zm0 7c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5zM3 21.5h8v-8H3v8zm2-6h4v4H5v-4z"/></svg>
         <span>DEBUG</span>
       </div>
+      <div class="touch-btn" id="btn-flashlight" title="Toggle Flashlight / Hunter Ping (F/Q)">
+        <svg viewBox="0 0 24 24"><path d="M6 2h12v6l-3 3v11H9V11L6 8V2zm2 2v3.17l3 3V20h2v-9.83l3-3V4H8z"/></svg>
+        <span id="btn-flashlight-label">LIGHT</span>
+      </div>
+      <div class="touch-btn" id="btn-throw" title="Throw Distraction / Hunter Ability (G)">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+        <span id="btn-throw-label">THROW (2)</span>
+      </div>
       <div class="touch-btn" id="btn-cam" title="Toggle 1P/3P View (V)">
         <svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zm0 12.5c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
         <span>VIEW</span>
@@ -638,7 +693,7 @@ export function getHideAndSeekHtml(): string {
         <svg viewBox="0 0 24 24"><path d="M12 3l4 4h-3v6h-2V7H8zM5 19h14v2H5z"/></svg>
         <span>JUMP</span>
       </div>
-      <div class="touch-btn primary" id="btn-action" title="Interact / Hide / Tag (E)">
+      <div class="touch-btn primary" id="btn-action" title="Interact / Hide / Repair / Tag (E)">
         <svg viewBox="0 0 24 24"><path d="M13 2.05v3.03c3.39.49 6 3.39 6 6.92 0 .9-.18 1.75-.5 2.54l2.25 1.5c.8-1.25 1.25-2.73 1.25-4.04 0-4.97-4.03-9-9-9.95zM12 19c-3.87 0-7-3.13-7-7 0-3.53 2.61-6.43 6-6.92V2.05C6.03 3 2 7.03 2 12c0 5.52 4.48 10 10 10 2.2 0 4.22-.72 5.86-1.93l-2.06-1.42C14.63 19.55 13.38 19 12 19zm8 2.08l-4.59-3.16A7.94 7.94 0 0 1 12 20c-4.41 0-8-3.59-8-8 0-4.04 3.01-7.39 6.95-7.92L12 1.05C6.54 1.58 2 5.97 2 11.5 2 17.3 6.7 22 12.5 22c2.4 0 4.61-.81 6.38-2.18L21.08 22l1.42-1.42-2.5-1.5z"/></svg>
         <span id="btn-action-label">HIDE</span>
       </div>

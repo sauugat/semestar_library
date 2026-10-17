@@ -294,6 +294,7 @@ const sessionMiddleware = session({
   resave: false,
   saveUninitialized: false,
   cookie: {
+    path: '/',
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
@@ -771,6 +772,11 @@ app.get('/robots.txt', (req, res) => {
 
 // Serve persistent post images on every instance, including fresh Vercel functions.
 app.use('/uploads/posts', require('./routes/post-images')(db));
+
+// Serve shared auth module at both /auth.js and /js/auth.js
+app.get(['/js/auth.js', '/auth.js'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/auth.js'));
+});
 
 // Serve static assets securely
 app.use(express.static(path.join(__dirname, 'public'), {
@@ -2253,11 +2259,11 @@ app.post('/api/account/delete-request', async (req, res) => {
 
 app.post('/api/logout', (req, res) => {
   if (!req.session) {
-    res.clearCookie('__gu_session');
+    res.clearCookie('__gu_session', { path: '/' });
     return res.json({ message: 'Logged out' });
   }
   req.session.destroy((err) => {
-    res.clearCookie('__gu_session');
+    res.clearCookie('__gu_session', { path: '/' });
     if (err) {
       console.error('[Logout Error]:', err.message);
       return res.status(500).json({ message: 'Logout failed. Please clear your cookies.' });

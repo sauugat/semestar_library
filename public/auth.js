@@ -1,11 +1,15 @@
 // ============================================================
-// Semester Library — Supabase Auth Client & authFetch Helper
+// Semester Library — Unified Supabase Auth Client & Session Manager
+// Single Source of Truth for Web & API Authentication
 // ============================================================
 
 (function (window) {
   const rawFetch = window.fetch ? window.fetch.bind(window) : null;
   let supabaseClient = null;
   let initPromise = null;
+  let cachedAccessToken = null;
+  let cachedUser = null;
+  let userPromise = null;
 
   async function getSupabase() {
     if (supabaseClient) return supabaseClient;
@@ -64,13 +68,14 @@
       const client = await getSupabase();
       const { data, error } = await client.auth.getSession();
       if (error || !data || !data.session) return null;
+      if (data.session.access_token) {
+        cachedAccessToken = data.session.access_token;
+      }
       return data.session;
     } catch {
       return null;
     }
   }
-
-  let cachedAccessToken = null;
 
   async function getAccessToken() {
     const session = await getSession();
@@ -99,6 +104,73 @@
       }
     } catch {}
     return null;
+  }
+
+  /**
+   * Helper that returns Authorization headers for API calls
+   */
+  function getAuthHeaders(headers = {}) {
+    const out = { ...headers };
+    const token = cachedAccessToken || getAccessTokenSync();
+    if (token) {
+      out['Authorization'] = `Bearer ${token}`;
+    }
+    if (!out['Accept'] && !out['accept']) {
+      out['Accept'] = 'application/json';
+    }
+    return out;
+  }
+
+  /**
+   * Resolves currently authenticated user from session & /api/me
+   */
+  async function getUser(forceRefresh = false) {
+    if (!forceRefresh && cachedUser) return cachedUser;
+    if (!forceRefresh && userPromise) return userPromise;
+
+    userPromise = (async () => {
+      const session = await getSession();
+      if (!session || !session.access_token) {
+        cachedUser = null;
+        return null;
+      }
+
+      try {
+        const res = await rawFetch('/api/me', {
+          headers: getAuthHeaders({ 'Content-Type': 'application/json' })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.studentId) {
+            cachedUser = data;
+            return data;
+          }
+        }
+      } catch (err) {
+        console.warn('[Auth] /api/me fetch error:', err.message);
+      }
+
+      // Fallback to metadata from session
+      if (session.user) {
+        const meta = session.user.user_metadata || {};
+        cachedUser = {
+          studentId: meta.student_id || meta.studentId || session.user.id,
+          name: meta.full_name || meta.name || session.user.email?.split('@')[0] || 'Student',
+          email: session.user.email,
+          role: meta.role || 'student'
+        };
+        return cachedUser;
+      }
+
+      return null;
+    })();
+
+    try {
+      const res = await userPromise;
+      return res;
+    } finally {
+      userPromise = null;
+    }
   }
 
   function attachAuthTokenToUrl(url) {
@@ -142,6 +214,7 @@
           refresh_token: data.session.refresh_token,
         });
         cachedAccessToken = data.session.access_token;
+        cachedUser = data.user || null;
         syncSession().catch(() => {});
         return { data: { user: data.user, session: data.session }, error: null };
       }
@@ -242,6 +315,10 @@
             syncSession().catch(() => {});
           }
         }
+        if (event === 'SIGNED_OUT') {
+          cachedAccessToken = null;
+          cachedUser = null;
+        }
         if (typeof callback === 'function') {
           callback(event, session);
         }
@@ -302,7 +379,7 @@
     return null;
   }
 
-  async function signOut() {
+  async function logout() {
     try {
       const client = await getSupabase();
       await client.auth.signOut();
@@ -313,13 +390,27 @@
       await rawFetch('/api/logout', { method: 'POST' });
     } catch {}
     try {
-      sessionStorage.removeItem('sl_academic_context_cache_v1');
+      cachedAccessToken = null;
+      cachedUser = null;
+      window.IS_AUTHENTICATED = false;
+      sessionStorage.clear();
+      if (typeof window !== 'undefined' && window.localStorage) {
+        for (let i = window.localStorage.length - 1; i >= 0; i--) {
+          const key = window.localStorage.key(i);
+          if (key && (key.startsWith('sb-') || key.includes('auth-token') || key.includes('academic_context'))) {
+            window.localStorage.removeItem(key);
+          }
+        }
+      }
       if (window.AcademicContext && typeof window.AcademicContext.invalidate === 'function') {
         window.AcademicContext.invalidate();
       }
     } catch {}
     window.location.href = '/login.html';
   }
+
+  // Alias signOut to logout for backwards compatibility
+  const signOut = logout;
 
   /**
    * Universal Authenticated Fetch Helper
@@ -333,12 +424,12 @@
     let token = await getAccessToken();
 
     if (!token) {
-      // Try refreshing session
       try {
         const client = await getSupabase();
         const { data } = await client.auth.refreshSession();
         if (data && data.session) {
           token = data.session.access_token;
+          cachedAccessToken = token;
         }
       } catch {}
     }
@@ -347,7 +438,6 @@
       opts.headers['Authorization'] = `Bearer ${token}`;
     }
 
-    // Always request JSON unless explicit
     if (!opts.headers['Accept'] && !opts.headers['accept']) {
       opts.headers['Accept'] = 'application/json';
     }
@@ -356,25 +446,20 @@
 
     // If 401 Unauthorized, attempt one token refresh before redirecting
     if (response.status === 401 && token) {
-      // An old account's response must not refresh or redirect a newer session.
       if (await getAccessToken() !== token) return response;
       try {
         const client = await getSupabase();
         const { data, error } = await client.auth.refreshSession();
         if (!error && data && data.session) {
-          if (await getAccessToken() !== data.session.access_token) return response;
+          cachedAccessToken = data.session.access_token;
           opts.headers['Authorization'] = `Bearer ${data.session.access_token}`;
           response = await rawFetch(url, opts);
         } else {
-          const latestToken = await getAccessToken();
-          if (latestToken && latestToken !== token) return response;
           console.warn('[Auth] Session expired, redirecting to login');
           const currentPath = encodeURIComponent(window.location.pathname + window.location.search);
           window.location.href = `/login.html?redirect=${currentPath}`;
         }
       } catch {
-        const latestToken = await getAccessToken();
-        if (latestToken && latestToken !== token) return response;
         const currentPath = encodeURIComponent(window.location.pathname + window.location.search);
         window.location.href = `/login.html?redirect=${currentPath}`;
       }
@@ -385,11 +470,11 @@
 
   /**
    * Client-side page guard for static HTML shells
-   * Prevents flash of authenticated content.
+   * Prevents flash of authenticated content and hydrates header.
    */
-  async function protectPage() {
+  async function requireAuth() {
     document.documentElement.classList.add('auth-checking');
-    
+
     if (!document.getElementById('auth-guard-style')) {
       const style = document.createElement('style');
       style.id = 'auth-guard-style';
@@ -407,17 +492,144 @@
       if (!session) {
         const currentPath = encodeURIComponent(window.location.pathname + window.location.search);
         window.location.replace(`/login.html?redirect=${currentPath}`);
-        return;
+        return null;
       }
       if (session.access_token) {
         cachedAccessToken = session.access_token;
         syncSession().catch(() => {});
       }
+      window.IS_AUTHENTICATED = true;
       document.documentElement.classList.remove('auth-checking');
+      const user = await getUser();
+      initHeader(user);
+      return { session, user };
     } catch (e) {
       console.error('[Auth Guard] Error verifying session:', e);
       const currentPath = encodeURIComponent(window.location.pathname + window.location.search);
       window.location.replace(`/login.html?redirect=${currentPath}`);
+      return null;
+    }
+  }
+
+  // Backwards compatibility alias
+  const protectPage = requireAuth;
+
+  /**
+   * Universal Header Hydration
+   * Populates user avatar, name, profile chip, and wires up logout buttons.
+   */
+  async function initHeader(userData) {
+    try {
+      const user = userData || await getUser();
+      if (!user) return;
+
+      window.IS_AUTHENTICATED = true;
+      const name = user.name || 'User';
+      const firstName = name.split(' ')[0] || name;
+      const initial = name.charAt(0).toUpperCase();
+
+      // Top right header profile elements
+      const headerName = document.getElementById('headerProfileName');
+      if (headerName) {
+        headerName.textContent = firstName;
+      }
+
+      const headerAvatar = document.getElementById('headerAvatar');
+      if (headerAvatar) {
+        if (user.avatarUrl) {
+          headerAvatar.innerHTML = `<img src="${user.avatarUrl}" alt="${name}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+        } else {
+          headerAvatar.textContent = initial;
+        }
+      }
+
+      const headerAvatarChar = document.getElementById('headerAvatarChar');
+      if (headerAvatarChar) {
+        headerAvatarChar.textContent = initial;
+      }
+
+      const headerProfileAvatar = document.getElementById('headerProfileAvatar');
+      if (headerProfileAvatar && user.avatarUrl) {
+        const img = document.createElement('img');
+        img.src = user.avatarUrl;
+        img.alt = name;
+        img.style.cssText = 'width:100%;height:100%;border-radius:50%;object-fit:cover;';
+        headerProfileAvatar.replaceChildren(img);
+      }
+
+      // Ensure profile chip is displayed as authenticated
+      const profileChips = document.querySelectorAll('.dash-profile-chip');
+      profileChips.forEach(chip => {
+        chip.style.display = 'inline-flex';
+      });
+
+      // Dashboard greeting & ID line if present
+      const greetingLine = document.getElementById('greetingLine');
+      if (greetingLine) {
+        const hour = new Date().getHours();
+        const greeting = hour < 12 ? 'Good morning' : (hour < 17 ? 'Good afternoon' : 'Good evening');
+        greetingLine.textContent = `${greeting}, ${name}`;
+      }
+
+      const idLine = document.getElementById('idLine');
+      if (idLine && user.studentId) {
+        idLine.textContent = `Student ID: ${user.studentId}`;
+      }
+
+      const avatarEl = document.getElementById('avatarInitial');
+      if (avatarEl) {
+        avatarEl.classList.remove('skeleton-box', 'skeleton-avatar');
+        avatarEl.style.color = '';
+        if (user.avatarUrl) {
+          avatarEl.innerHTML = `<img src="${user.avatarUrl}" alt="${name}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+        } else {
+          avatarEl.textContent = initial;
+        }
+      }
+
+      const heroSkeleton = document.getElementById('heroSkeletonText');
+      const heroReal = document.getElementById('heroRealText');
+      if (heroSkeleton) heroSkeleton.style.display = 'none';
+      if (heroReal) heroReal.style.display = 'block';
+
+      // Bind logout buttons
+      const logoutElements = document.querySelectorAll('#logoutBtn, #accountLogoutBtn, .dash-logout, [data-action="logout"]');
+      logoutElements.forEach(btn => {
+        if (!btn.dataset.authLogoutBound) {
+          btn.dataset.authLogoutBound = 'true';
+          btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            logout();
+          });
+        }
+      });
+
+      // Fetch avatar URL from /api/profile if not already populated
+      if (!user.avatarUrl) {
+        rawFetch('/api/profile', { headers: getAuthHeaders() })
+          .then(r => r.ok ? r.json() : null)
+          .then(p => {
+            if (p && p.avatarUrl) {
+              user.avatarUrl = p.avatarUrl;
+              if (headerAvatar) {
+                headerAvatar.innerHTML = `<img src="${p.avatarUrl}" alt="${name}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+              }
+              if (headerProfileAvatar) {
+                const img = document.createElement('img');
+                img.src = p.avatarUrl;
+                img.alt = name;
+                img.style.cssText = 'width:100%;height:100%;border-radius:50%;object-fit:cover;';
+                headerProfileAvatar.replaceChildren(img);
+              }
+              if (avatarEl) {
+                avatarEl.innerHTML = `<img src="${p.avatarUrl}" alt="${name}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+              }
+            }
+          })
+          .catch(() => {});
+      }
+    } catch (e) {
+      console.warn('[Auth] Header hydration warning:', e.message);
     }
   }
 
@@ -426,7 +638,7 @@
     window.fetch = async function (input, init) {
       const url = typeof input === 'string' ? input : (input && input.url ? input.url : '');
       const isApi = url.startsWith('/api/') || url.includes('/api/');
-      const isPublicAuth = url.includes('/api/auth/') || url.includes('/api/login');
+      const isPublicAuth = url.includes('/api/auth/login') || url.includes('/api/auth/register') || url.includes('/api/auth/check-availability') || url.includes('/api/auth/config') || url === '/api/login';
 
       if (isApi && !isPublicAuth) {
         const hasAuthHeader = init && init.headers && (
@@ -459,20 +671,55 @@
         }
       } catch {}
     }, true);
+
+    // Auto-hydrate header on DOM ready for any authenticated page
+    const onReady = async () => {
+      try {
+        const token = getAccessTokenSync();
+        if (token) {
+          window.IS_AUTHENTICATED = true;
+          const user = await getUser();
+          if (user) {
+            initHeader(user);
+          }
+        } else {
+          const session = await getSession();
+          if (session) {
+            window.IS_AUTHENTICATED = true;
+            const user = await getUser();
+            if (user) {
+              initHeader(user);
+            }
+          }
+        }
+      } catch {}
+    };
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', onReady);
+    } else {
+      onReady();
+    }
   }
 
   // Expose global methods
   window.SemesterAuth = {
     getSupabase,
     getSession,
+    getUser,
     getAccessToken,
     getAccessTokenSync,
+    getAuthHeaders,
     attachAuthTokenToUrl,
     syncSession,
     signIn,
     signUp,
     checkAvailability,
+    logout,
     signOut,
+    requireAuth,
+    protectPage,
+    initHeader,
     forgotPassword,
     resendVerification,
     updatePassword,
@@ -481,7 +728,6 @@
     syncPasswordReset,
     syncVerification,
     authFetch,
-    protectPage,
   };
 
   window.authFetch = authFetch;

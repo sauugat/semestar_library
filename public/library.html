@@ -33,6 +33,7 @@
     })();
   </script>
 
+  <script src="/auth.js"></script>
   <script src="notifications.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2798,27 +2799,20 @@
 
     window.IS_AUTHENTICATED = false;
 
-    safeFetchJson('/api/profile').then(p => {
+    SemesterAuth.getUser().then(p => {
       if (p) {
         window.IS_AUTHENTICATED = true;
-        const headerAvatar = document.getElementById('headerAvatar');
-        const headerName = document.getElementById('headerProfileName');
-        if (headerName) headerName.textContent = p.name ? p.name.split(' ')[0] : 'Profile';
-        if (headerAvatar) {
-          if (p.avatarUrl) {
-            headerAvatar.innerHTML = `<img src="${p.avatarUrl}" alt="${p.name}">`;
-          } else {
-            headerAvatar.textContent = p.name ? p.name.charAt(0).toUpperCase() : 'S';
-          }
-        }
+        SemesterAuth.initHeader(p);
       } else {
-        // Replace profile chip with Sign In button
+        window.IS_AUTHENTICATED = false;
         const profileChip = document.querySelector('.dash-profile-chip');
         if (profileChip) {
           profileChip.outerHTML = `<a href="login.html" class="nav-cta-btn apple-nav-btn">Sign In</a>`;
         }
       }
-    }).catch(() => { });
+    }).catch(() => {
+      window.IS_AUTHENTICATED = false;
+    });
 
     window.requireLoginForFile = function (e, fileId, action) {
       if (!window.IS_AUTHENTICATED) {

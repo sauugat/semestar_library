@@ -53,6 +53,7 @@
   <link rel="stylesheet" href="auth-modal.css">
   <link rel="stylesheet" href="/theme-overrides.css">
   <link rel="stylesheet" href="routine-admin.css">
+  <script src="/auth.js"></script>
 </head>
 
 <body class="routine-page dash">
@@ -279,66 +280,19 @@
   <script src="routine.js?v=routine-db-1"></script>
 
   <script>
-    window.IS_AUTHENTICATED = false;
-    fetch('/api/profile')
-      .then(r => {
-        if (r.ok) {
-          window.IS_AUTHENTICATED = true;
-          return r.json();
-        }
-        throw new Error('Not logged in');
-      })
-      .then(p => {
-        if (p) {
-          const chip = document.querySelector('.dash-profile-chip');
-          const headerAvatar = document.getElementById('headerAvatar');
-          const headerName = document.getElementById('headerProfileName');
-
-          if (chip) chip.style.display = 'inline-flex';
-
-          if (headerName) {
-            headerName.textContent = p.name
-              ? p.name.split(' ')[0]
-              : 'Profile';
-          }
-
-          if (headerAvatar) {
-            if (p.avatarUrl) {
-              headerAvatar.innerHTML =
-                `<img src="${p.avatarUrl}" alt="${p.name}">`;
-            } else {
-              headerAvatar.textContent = p.name
-                ? p.name.charAt(0).toUpperCase()
-                : 'S';
-            }
-          }
-        }
-      })
-      .catch(() => {
+    SemesterAuth.getUser().then(user => {
+      if (user) {
+        window.IS_AUTHENTICATED = true;
+        SemesterAuth.initHeader(user);
+      } else {
+        window.IS_AUTHENTICATED = false;
         const chip = document.querySelector('.dash-profile-chip');
         if (chip) {
           chip.outerHTML = `<a href="login.html" class="nav-cta-btn apple-nav-btn">Sign In</a>`;
         }
-      });
-
-    // Prevent redirect for protected pages if not logged in
-    document.addEventListener('click', function (e) {
-      const target = e.target.closest('a');
-      if (!target) return;
-      const href = target.getAttribute('href');
-      if (!href) return;
-
-      const protectedPages = ['dashboard.html', 'chat.html', 'chatbot.html', 'profile.html'];
-      if (protectedPages.some(page => href.includes(page))) {
-        if (!window.IS_AUTHENTICATED) {
-          e.preventDefault();
-          const toast = document.getElementById('minimalAuthToast');
-          if (toast) {
-            toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 4000);
-          }
-        }
       }
+    }).catch(() => {
+      window.IS_AUTHENTICATED = false;
     });
   </script>
 

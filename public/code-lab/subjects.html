@@ -39,6 +39,7 @@
     rel="stylesheet">
   <link rel="stylesheet" href="/style.v4.css?v=4.2">
   <link rel="stylesheet" href="/auth-modal.css">
+  <script src="/auth.js"></script>
 
   <style>
     /* Explicitly disable all shine, sheen, sweep, and laser animations on posts, assignments, cards and buttons */
@@ -3208,11 +3209,15 @@
 
     async function loadUserProfile() {
       try {
-        const res = await fetch('/api/me');
-        if (!res.ok) return;
-        const data = await res.json();
+        const data = (window.SemesterAuth && typeof window.SemesterAuth.getUser === 'function')
+          ? await window.SemesterAuth.getUser()
+          : await fetch('/api/me').then(r => r.ok ? r.json() : null);
         if (!data) return;
         currentUser = data;
+
+        if (window.SemesterAuth && typeof window.SemesterAuth.initHeader === 'function') {
+          window.SemesterAuth.initHeader(data);
+        }
 
         const greetingEl = document.getElementById('greetingLine');
         const idLineEl = document.getElementById('idLine');

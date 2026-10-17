@@ -40,6 +40,7 @@
         rel="stylesheet">
     <link rel="stylesheet" href="/style.v4.css">
     <link rel="stylesheet" href="/auth-modal.css">
+    <script src="/auth.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
 
     <style>
@@ -1492,19 +1493,22 @@
 
         // Populate logged-in user profile picture in header
         async function initHeaderProfile() {
-            const headerAvatar = document.getElementById('headerAvatar');
-            const headerName = document.getElementById('headerProfileName');
             try {
-                const res = await fetch('/api/profile');
-                if (res.ok) {
-                    const p = await res.json();
-                    if (p && p.name && headerName) {
-                        headerName.textContent = p.name.split(' ')[0] || p.name;
+                const user = (window.SemesterAuth && typeof window.SemesterAuth.getUser === 'function')
+                    ? await window.SemesterAuth.getUser()
+                    : await fetch('/api/profile').then(r => r.ok ? r.json() : null);
+                if (user && window.SemesterAuth && typeof window.SemesterAuth.initHeader === 'function') {
+                    window.SemesterAuth.initHeader(user);
+                } else if (user) {
+                    const headerAvatar = document.getElementById('headerAvatar');
+                    const headerName = document.getElementById('headerProfileName');
+                    if (user.name && headerName) {
+                        headerName.textContent = user.name.split(' ')[0] || user.name;
                     }
-                    if (p && p.avatarUrl && headerAvatar) {
-                        headerAvatar.innerHTML = `<img src="${escapeHtml(p.avatarUrl)}" alt="${escapeHtml(p.name || 'Avatar')}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
-                    } else if (p && p.name && headerAvatar) {
-                        const inits = p.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+                    if (user.avatarUrl && headerAvatar) {
+                        headerAvatar.innerHTML = `<img src="${escapeHtml(user.avatarUrl)}" alt="${escapeHtml(user.name || 'Avatar')}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+                    } else if (user.name && headerAvatar) {
+                        const inits = user.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
                         headerAvatar.textContent = inits || 'GU';
                     }
                 }

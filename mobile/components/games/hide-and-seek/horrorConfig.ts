@@ -1,4 +1,4 @@
-export type GraphicsQuality = 'high' | 'low';
+export type GraphicsQuality = 'ultra' | 'high' | 'low' | 'fast';
 
 export interface QualityPreset {
   label: string;
@@ -13,6 +13,9 @@ export interface QualityPreset {
   enableLampCones: boolean;
   enableColorGrade: boolean;
   fakePoolStride: number;
+  cullDistBuilding: number;
+  cullDistInterior: number;
+  cullDistProps: number;
   eventIntervalMin: number;
   eventIntervalMax: number;
 }
@@ -118,37 +121,81 @@ export const HORROR_CONFIG = {
     templeBell: 'assets/sounds/horror/cursed_ghanta_bell.mp3',
   },
   qualityPresets: {
-    high: {
+    ultra: {
       label: 'ULTRA',
-      pixelRatioCap: 1.4,
+      pixelRatioCap: 1.35,
       particleCount: 36,
       paperLeafCount: 18,
       mistPlaneCount: 6,
-      maxActiveLampLights: 4,
+      maxActiveLampLights: 3,
       shadowMapSize: 512,
-      enableShadows: false,
+      enableShadows: true,
       extraDetail: true,
       enableLampCones: true,
       enableColorGrade: true,
       fakePoolStride: 1,
+      cullDistBuilding: 85,
+      cullDistInterior: 24,
+      cullDistProps: 60,
       eventIntervalMin: 12,
       eventIntervalMax: 24,
     },
+    high: {
+      label: 'HIGH',
+      pixelRatioCap: 1.15,
+      particleCount: 28,
+      paperLeafCount: 12,
+      mistPlaneCount: 4,
+      maxActiveLampLights: 3,
+      shadowMapSize: 512,
+      enableShadows: true,
+      extraDetail: true,
+      enableLampCones: true,
+      enableColorGrade: false,
+      fakePoolStride: 1,
+      cullDistBuilding: 75,
+      cullDistInterior: 20,
+      cullDistProps: 50,
+      eventIntervalMin: 14,
+      eventIntervalMax: 26,
+    },
     low: {
-      label: 'FAST',
+      label: 'LOW',
       pixelRatioCap: 1.0,
       particleCount: 18,
       paperLeafCount: 8,
-      mistPlaneCount: 0, // Low ground mist is ULTRA only
-      maxActiveLampLights: 4,
+      mistPlaneCount: 0,
+      maxActiveLampLights: 2,
       shadowMapSize: 256,
       enableShadows: false,
       extraDetail: false,
       enableLampCones: false,
-      enableColorGrade: false, // FAST mode uses cheap CSS vignette + grain fallback
+      enableColorGrade: false,
       fakePoolStride: 2,
+      cullDistBuilding: 62,
+      cullDistInterior: 16,
+      cullDistProps: 40,
       eventIntervalMin: 18,
       eventIntervalMax: 32,
+    },
+    fast: {
+      label: 'FAST',
+      pixelRatioCap: 0.85,
+      particleCount: 12,
+      paperLeafCount: 4,
+      mistPlaneCount: 0,
+      maxActiveLampLights: 1,
+      shadowMapSize: 256,
+      enableShadows: false,
+      extraDetail: false,
+      enableLampCones: false,
+      enableColorGrade: false,
+      fakePoolStride: 2,
+      cullDistBuilding: 52,
+      cullDistInterior: 13,
+      cullDistProps: 32,
+      eventIntervalMin: 20,
+      eventIntervalMax: 36,
     },
   } as Record<GraphicsQuality, QualityPreset>,
   physics: {

@@ -591,7 +591,8 @@ export function getHideAndSeekHtml(): string {
         <button id="dbg-btn-lag" class="dbg-btn">1s Freeze</button>
       </div>
       <div class="debug-btn-row" style="margin-top:4px;">
-        <button id="dbg-btn-wireframes" class="dbg-btn">Toggle Wireframes</button>
+        <button id="dbg-btn-wireframes" class="dbg-btn">Colliders+WPs</button>
+        <button id="dbg-btn-shadows" class="dbg-btn active">Shadows: ON</button>
         <button id="dbg-btn-run-audit" class="dbg-btn">Run Audit</button>
       </div>
       <div style="margin-top:4px;">
@@ -616,7 +617,7 @@ export function getHideAndSeekHtml(): string {
 
   <div id="action-cluster">
     <div class="action-row">
-      <div class="touch-btn" id="btn-debug-physics" style="display:none;" title="Toggle Physics Colliders &amp; Telemetry (P)">
+      <div class="touch-btn" id="btn-debug-physics" style="display:flex;" title="Toggle Physics Colliders &amp; Telemetry (P)">
         <svg viewBox="0 0 24 24"><path d="M12 2l-5.5 9h11L12 2zm0 3.84L13.93 9h-3.86L12 5.84zM17.5 13c-2.49 0-4.5 2.01-4.5 4.5s2.01 4.5 4.5 4.5 4.5-2.01 4.5-4.5-2.01-4.5-4.5-4.5zm0 7c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5zM3 21.5h8v-8H3v8zm2-6h4v4H5v-4z"/></svg>
         <span>DEBUG</span>
       </div>
@@ -646,13 +647,33 @@ export function getHideAndSeekHtml(): string {
   </div>
 
   <script>
+    const pendingRnMessages = [];
     function sendToReactNative(type, payload = {}) {
       try {
+        const msg = { type, ...payload };
         if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
-          window.ReactNativeWebView.postMessage(JSON.stringify({ type, ...payload }));
+          while (pendingRnMessages.length > 0) {
+            const p = pendingRnMessages.shift();
+            window.ReactNativeWebView.postMessage(JSON.stringify(p));
+          }
+          window.ReactNativeWebView.postMessage(JSON.stringify(msg));
+        } else {
+          pendingRnMessages.push(msg);
         }
       } catch (e) {}
     }
+
+    const rnCheckTimer = setInterval(() => {
+      if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+        clearInterval(rnCheckTimer);
+        while (pendingRnMessages.length > 0) {
+          const p = pendingRnMessages.shift();
+          try {
+            window.ReactNativeWebView.postMessage(JSON.stringify(p));
+          } catch (e) {}
+        }
+      }
+    }, 60);
 
     function showToast(msg) {
       const el = document.getElementById('toast');
@@ -681,7 +702,297 @@ export function getHideAndSeekHtml(): string {
 
     const HORROR_CONFIG = ${configJson};
     let currentQuality = 'high';
-    let activePreset = HORROR_CONFIG.qualityPresets[currentQuality];
+    let activePreset = HORROR_CONFIG.qualityPresets[currentQuality] || HORROR_CONFIG.qualityPresets.high;
+
+    /* =========================================================================
+       PHASE A PERFORMANCE FOUNDATION:
+       1. Global Geometry Parameter Cache (shares Box/Cylinder/Plane/Cone/Sphere/Dodec)
+       2. THREE.BufferGeometryUtils.mergeBufferGeometries (r128 static room merger)
+       3. bakeStaticGroup (per-room InstancedMesh for repeated props + material merge)
+       4. RoomVisibilityManager (room/building portal & distance culling)
+       ========================================================================= */
+    (function installGeometryCacheAndMerger() {
+      const geoCache = new Map();
+      function wrapGeoCtor(name, OrigCtor, skipPred) {
+        if (!OrigCtor) return;
+        const Wrapped = function(...args) {
+          if (skipPred && skipPred(args)) {
+            return new OrigCtor(...args);
+          }
+          const key = name + ':' + args.map(a => (typeof a === 'number' ? Math.round(a * 10000) / 10000 : String(a))).join(',');
+          let cached = geoCache.get(key);
+          if (!cached) {
+            cached = new OrigCtor(...args);
+            geoCache.set(key, cached);
+          }
+          return cached;
+        };
+        Wrapped.prototype = OrigCtor.prototype;
+        Object.setPrototypeOf(Wrapped, OrigCtor);
+        THREE[name] = Wrapped;
+      }
+      wrapGeoCtor('BoxGeometry', THREE.BoxGeometry, null);
+      wrapGeoCtor('CylinderGeometry', THREE.CylinderGeometry, (args) => args[5] === true && args[3] >= 28);
+      wrapGeoCtor('PlaneGeometry', THREE.PlaneGeometry, null);
+      wrapGeoCtor('ConeGeometry', THREE.ConeGeometry, null);
+      wrapGeoCtor('SphereGeometry', THREE.SphereGeometry, null);
+      wrapGeoCtor('DodecahedronGeometry', THREE.DodecahedronGeometry, null);
+
+      function mergeBufferGeometries(geometries) {
+        if (!geometries || geometries.length === 0) return null;
+        let totalVerts = 0;
+        let totalIndices = 0;
+        const validGeos = [];
+
+        for (let i = 0; i < geometries.length; i++) {
+          const g = geometries[i];
+          if (!g || !g.attributes || !g.attributes.position) continue;
+          const vCount = g.attributes.position.count;
+          if (vCount === 0) continue;
+          const iCount = g.index ? g.index.count : vCount;
+          totalVerts += vCount;
+          totalIndices += iCount;
+          validGeos.push(g);
+        }
+        if (validGeos.length === 0) return null;
+
+        const positions = new Float32Array(totalVerts * 3);
+        const normals = new Float32Array(totalVerts * 3);
+        const uvs = new Float32Array(totalVerts * 2);
+        const indices = totalVerts > 65535 ? new Uint32Array(totalIndices) : new Uint16Array(totalIndices);
+
+        let vOffset = 0;
+        let iOffset = 0;
+
+        for (let i = 0; i < validGeos.length; i++) {
+          const g = validGeos[i];
+          const posAttr = g.attributes.position;
+          const normAttr = g.attributes.normal;
+          const uvAttr = g.attributes.uv;
+          const vCount = posAttr.count;
+
+          if (posAttr.array && posAttr.itemSize === 3) {
+            positions.set(posAttr.array.subarray(0, vCount * 3), vOffset * 3);
+          } else {
+            for (let v = 0; v < vCount; v++) {
+              positions[(vOffset + v) * 3] = posAttr.getX(v);
+              positions[(vOffset + v) * 3 + 1] = posAttr.getY(v);
+              positions[(vOffset + v) * 3 + 2] = posAttr.getZ(v);
+            }
+          }
+
+          if (normAttr) {
+            if (normAttr.array && normAttr.itemSize === 3) {
+              normals.set(normAttr.array.subarray(0, vCount * 3), vOffset * 3);
+            } else {
+              for (let v = 0; v < vCount; v++) {
+                normals[(vOffset + v) * 3] = normAttr.getX(v);
+                normals[(vOffset + v) * 3 + 1] = normAttr.getY(v);
+                normals[(vOffset + v) * 3 + 2] = normAttr.getZ(v);
+              }
+            }
+          } else {
+            for (let v = 0; v < vCount; v++) {
+              normals[(vOffset + v) * 3 + 1] = 1.0;
+            }
+          }
+
+          if (uvAttr) {
+            if (uvAttr.array && uvAttr.itemSize === 2) {
+              uvs.set(uvAttr.array.subarray(0, vCount * 2), vOffset * 2);
+            } else {
+              for (let v = 0; v < vCount; v++) {
+                uvs[(vOffset + v) * 2] = uvAttr.getX(v);
+                uvs[(vOffset + v) * 2 + 1] = uvAttr.getY(v);
+              }
+            }
+          }
+
+          if (g.index) {
+            const idxArr = g.index.array;
+            const iCount = g.index.count;
+            for (let k = 0; k < iCount; k++) {
+              indices[iOffset + k] = idxArr[k] + vOffset;
+            }
+            iOffset += iCount;
+          } else {
+            for (let k = 0; k < vCount; k++) {
+              indices[iOffset + k] = vOffset + k;
+            }
+            iOffset += vCount;
+          }
+
+          vOffset += vCount;
+        }
+
+        const merged = new THREE.BufferGeometry();
+        merged.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        merged.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
+        merged.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+        merged.setIndex(new THREE.BufferAttribute(indices, 1));
+        merged.computeBoundingBox();
+        merged.computeBoundingSphere();
+        return merged;
+      }
+
+      THREE.BufferGeometryUtils = THREE.BufferGeometryUtils || {};
+      THREE.BufferGeometryUtils.mergeBufferGeometries = mergeBufferGeometries;
+    })();
+
+    function computeInstancedBoundingSphere(instMesh, count) {
+      if (!instMesh || !instMesh.geometry) return;
+      const baseGeo = instMesh.geometry;
+      if (!baseGeo.boundingBox) baseGeo.computeBoundingBox();
+      if (!baseGeo.boundingSphere) baseGeo.computeBoundingSphere();
+      const baseBox = baseGeo.boundingBox;
+      if (!baseBox) return;
+
+      const totalBox = new THREE.Box3();
+      const instBox = new THREE.Box3();
+      const mat = new THREE.Matrix4();
+      const n = typeof count === 'number' ? count : instMesh.count;
+      for (let i = 0; i < n; i++) {
+        instMesh.getMatrixAt(i, mat);
+        instBox.copy(baseBox).applyMatrix4(mat);
+        totalBox.union(instBox);
+      }
+      if (!totalBox.isEmpty()) {
+        const clonedGeo = baseGeo.clone();
+        clonedGeo.boundingBox = totalBox;
+        clonedGeo.boundingSphere = new THREE.Sphere();
+        totalBox.getBoundingSphere(clonedGeo.boundingSphere);
+        instMesh.geometry = clonedGeo;
+        instMesh.frustumCulled = true;
+      }
+    }
+
+    function bakeStaticGroup(rootGroup, allowInstancing = true) {
+      if (!rootGroup || rootGroup.userData._baked) return;
+      rootGroup.userData._baked = true;
+      rootGroup.updateMatrixWorld(true);
+
+      const rootInv = new THREE.Matrix4().copy(rootGroup.matrixWorld).invert();
+      const meshesToBake = [];
+
+      rootGroup.traverse((child) => {
+        if (child === rootGroup) return;
+        if (child.userData && child.userData.noMerge) return;
+        if (child.isInstancedMesh || child.isSprite || child.isPoints || child.isLine || child.isLight) return;
+        if (child.isMesh && child.geometry && child.material && !Array.isArray(child.material)) {
+          meshesToBake.push(child);
+        }
+      });
+
+      if (meshesToBake.length <= 1) return;
+
+      const instancedBuckets = new Map();
+      const materialBuckets = new Map();
+      const relMatrix = new THREE.Matrix4();
+
+      for (let i = 0; i < meshesToBake.length; i++) {
+        const m = meshesToBake[i];
+        relMatrix.copy(rootInv).multiply(m.matrixWorld);
+        const rOrder = m.renderOrder || 0;
+        const instCat = allowInstancing && m.geometry.userData && m.geometry.userData.instancedCategory;
+        if (instCat) {
+          const key = m.geometry.uuid + '|' + m.material.uuid + '|' + rOrder;
+          let bucket = instancedBuckets.get(key);
+          if (!bucket) {
+            bucket = { geo: m.geometry, mat: m.material, renderOrder: rOrder, matrices: [], meshes: [] };
+            instancedBuckets.set(key, bucket);
+          }
+          bucket.matrices.push(relMatrix.clone());
+          bucket.meshes.push(m);
+        } else {
+          const matKey = m.material.uuid + '|' + rOrder;
+          let mBucket = materialBuckets.get(matKey);
+          if (!mBucket) {
+            mBucket = { mat: m.material, renderOrder: rOrder, items: [] };
+            materialBuckets.set(matKey, mBucket);
+          }
+          mBucket.items.push({ geo: m.geometry, matrix: relMatrix.clone(), mesh: m });
+        }
+      }
+
+      // Fold into material merge bucket if < 3 instances OR if that material already has a static merge bucket in this room
+      instancedBuckets.forEach((bucket) => {
+        const matKey = bucket.mat.uuid + '|' + bucket.renderOrder;
+        if (bucket.matrices.length < 3 || materialBuckets.has(matKey)) {
+          let mBucket = materialBuckets.get(matKey);
+          if (!mBucket) {
+            mBucket = { mat: bucket.mat, renderOrder: bucket.renderOrder, items: [] };
+            materialBuckets.set(matKey, mBucket);
+          }
+          for (let i = 0; i < bucket.matrices.length; i++) {
+            mBucket.items.push({ geo: bucket.geo, matrix: bucket.matrices[i], mesh: bucket.meshes[i] });
+          }
+        } else {
+          const inst = new THREE.InstancedMesh(bucket.geo, bucket.mat, bucket.matrices.length);
+          for (let i = 0; i < bucket.matrices.length; i++) {
+            inst.setMatrixAt(i, bucket.matrices[i]);
+          }
+          inst.instanceMatrix.needsUpdate = true;
+          inst.renderOrder = bucket.renderOrder;
+          const isOpaque = !bucket.mat.transparent;
+          inst.castShadow = isOpaque;
+          inst.receiveShadow = isOpaque;
+          computeInstancedBoundingSphere(inst, bucket.matrices.length);
+          rootGroup.add(inst);
+        }
+      });
+
+      // Merge each material bucket into a single BufferGeometry & Mesh
+      materialBuckets.forEach((mBucket) => {
+        const isOpaque = !mBucket.mat.transparent;
+        if (mBucket.items.length === 1) {
+          const item = mBucket.items[0];
+          const clonedSingle = item.geo.clone();
+          clonedSingle.applyMatrix4(item.matrix);
+          clonedSingle.computeBoundingBox();
+          clonedSingle.computeBoundingSphere();
+          const singleMesh = new THREE.Mesh(clonedSingle, mBucket.mat);
+          singleMesh.renderOrder = mBucket.renderOrder;
+          singleMesh.castShadow = isOpaque;
+          singleMesh.receiveShadow = isOpaque;
+          singleMesh.frustumCulled = true;
+          rootGroup.add(singleMesh);
+          return;
+        }
+        const transformedGeos = [];
+        for (let i = 0; i < mBucket.items.length; i++) {
+          const item = mBucket.items[i];
+          const cloned = item.geo.clone();
+          cloned.applyMatrix4(item.matrix);
+          transformedGeos.push(cloned);
+        }
+        const mergedGeo = THREE.BufferGeometryUtils.mergeBufferGeometries(transformedGeos);
+        if (mergedGeo) {
+          const mergedMesh = new THREE.Mesh(mergedGeo, mBucket.mat);
+          mergedMesh.renderOrder = mBucket.renderOrder;
+          mergedMesh.castShadow = isOpaque;
+          mergedMesh.receiveShadow = isOpaque;
+          mergedMesh.frustumCulled = true;
+          rootGroup.add(mergedMesh);
+        }
+      });
+
+      // Remove original unmerged meshes
+      for (let i = 0; i < meshesToBake.length; i++) {
+        const m = meshesToBake[i];
+        if (m.parent) m.parent.remove(m);
+      }
+
+      // Prune empty intermediate Groups
+      const emptyGroups = [];
+      rootGroup.traverse((child) => {
+        if (child !== rootGroup && child.isGroup && child.children.length === 0) {
+          emptyGroups.push(child);
+        }
+      });
+      for (let i = 0; i < emptyGroups.length; i++) {
+        if (emptyGroups[i].parent) emptyGroups[i].parent.remove(emptyGroups[i]);
+      }
+    }
 
     /* =========================================================================
        PROCEDURAL NEPALI HORROR MUSIC, TERRIFYING SFX & VISUAL SHOCK ENGINE
@@ -1802,10 +2113,9 @@ export function getHideAndSeekHtml(): string {
     const warmLampBloomTex = createWarmLampBloomTexture();
     const realisticGroundPoolTex = createRealisticGroundPoolTexture();
     const volumetricConeTex = createVolumetricConeAlphaTexture();
-    const groundMistTex = createGroundMistTexture();
-    const lanternGlassTex = createLanternGlassTexture();
+    const groundMistTex = softRoundParticleTex;
+    const lanternGlassTex = warmLampBloomTex;
 
-    // Soft round contact shadow decal for trees, pillars, and columns (Phase 3 Depth)
     function createSoftContactShadowTexture() {
       const c = document.createElement('canvas');
       c.width = 128;
@@ -1821,42 +2131,9 @@ export function getHideAndSeekHtml(): string {
       return new THREE.CanvasTexture(c);
     }
 
-    // Soft rectangular contact shadow decal for vehicles (buses & cars)
-    function createRectContactShadowTexture() {
-      const c = document.createElement('canvas');
-      c.width = 256;
-      c.height = 256;
-      const ctx = c.getContext('2d');
-      ctx.fillStyle = 'rgba(0, 0, 0, 0)';
-      ctx.fillRect(0, 0, 256, 256);
-      const g = ctx.createRadialGradient(128, 128, 18, 128, 128, 126);
-      g.addColorStop(0.0, 'rgba(3, 6, 12, 0.88)');
-      g.addColorStop(0.68, 'rgba(3, 6, 12, 0.58)');
-      g.addColorStop(0.92, 'rgba(3, 6, 12, 0.16)');
-      g.addColorStop(1.0, 'rgba(3, 6, 12, 0.0)');
-      ctx.fillStyle = g;
-      ctx.fillRect(16, 16, 224, 224);
-      return new THREE.CanvasTexture(c);
-    }
-
-    // Ambient occlusion gradient strip beneath covered verandas and roof eaves
-    function createCorridorDarknessTexture() {
-      const c = document.createElement('canvas');
-      c.width = 128;
-      c.height = 128;
-      const ctx = c.getContext('2d');
-      const g = ctx.createLinearGradient(0, 0, 0, 128);
-      g.addColorStop(0.0, 'rgba(3, 5, 10, 0.82)');
-      g.addColorStop(0.55, 'rgba(3, 5, 10, 0.48)');
-      g.addColorStop(1.0, 'rgba(3, 5, 10, 0.0)');
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, 128, 128);
-      return new THREE.CanvasTexture(c);
-    }
-
     const softContactShadowTex = createSoftContactShadowTexture();
-    const rectContactShadowTex = createRectContactShadowTexture();
-    const corridorDarknessTex = createCorridorDarknessTexture();
+    const rectContactShadowTex = softContactShadowTex;
+    const corridorDarknessTex = softContactShadowTex;
 
     /* =========================================================================
        MODULE 1: NightAtmosphere — COOL SLATE-BLUE NIGHT SKY, STORM CLOUDS & MOON
@@ -1894,23 +2171,68 @@ export function getHideAndSeekHtml(): string {
           }, false);
         } catch (e) {}
 
-        try {
-          this.renderer = new THREE.WebGLRenderer({
-            canvas: canvasEl,
-            antialias: false,
-            powerPreference: 'high-performance',
-            stencil: false,
-            alpha: false,
-            preserveDrawingBuffer: false,
-          });
-        } catch (e) {
-          this.renderer = new THREE.WebGLRenderer({
-            canvas: canvasEl,
-            antialias: false,
-            stencil: false,
-            alpha: false,
-          });
+        let createdRenderer = null;
+        const rendererConfigs = [
+          { canvas: canvasEl, antialias: false, alpha: false, stencil: false, depth: true, powerPreference: 'default' },
+          { canvas: canvasEl, antialias: false, alpha: true, stencil: false, depth: true },
+          { canvas: canvasEl, antialias: false },
+        ];
+        for (let i = 0; i < rendererConfigs.length; i++) {
+          try {
+            createdRenderer = new THREE.WebGLRenderer(rendererConfigs[i]);
+            if (createdRenderer) break;
+          } catch (err) {
+            console.warn('[HideAndSeek] WebGL context attempt ' + i + ' failed:', err);
+          }
         }
+        if (!createdRenderer) {
+          try {
+            // If the original canvas was tainted by a rejected context request, swap in a fresh clean canvas
+            const freshCanvas = document.createElement('canvas');
+            freshCanvas.id = 'game-canvas';
+            freshCanvas.style.cssText = canvasEl.style.cssText;
+            freshCanvas.style.width = '100%';
+            freshCanvas.style.height = '100%';
+            freshCanvas.style.display = 'block';
+            freshCanvas.style.touchAction = 'none';
+            if (canvasEl.parentNode) {
+              canvasEl.parentNode.replaceChild(freshCanvas, canvasEl);
+            }
+            createdRenderer = new THREE.WebGLRenderer({ canvas: freshCanvas, antialias: false, alpha: false });
+            canvasEl = freshCanvas;
+          } catch (err2) {
+            console.warn('[HideAndSeek] Fresh canvas WebGL attempt failed:', err2);
+          }
+        }
+        if (!createdRenderer) {
+          // Last resort: let Three.js create its own internal canvas
+          try {
+            createdRenderer = new THREE.WebGLRenderer({ antialias: false });
+            createdRenderer.domElement.id = 'game-canvas';
+            createdRenderer.domElement.style.width = '100%';
+            createdRenderer.domElement.style.height = '100%';
+            createdRenderer.domElement.style.display = 'block';
+            createdRenderer.domElement.style.touchAction = 'none';
+            if (canvasEl.parentNode) {
+              canvasEl.parentNode.replaceChild(createdRenderer.domElement, canvasEl);
+            } else {
+              document.body.insertBefore(createdRenderer.domElement, document.body.firstChild);
+            }
+            canvasEl = createdRenderer.domElement;
+          } catch (err3) {
+            console.error('[HideAndSeek] Critical WebGL context failure:', err3);
+            showToast('WebGL starting up...');
+            sendToReactNative('LOG_ERROR', { message: 'WebGL initialization issue: ' + (err3 ? err3.message : 'Unknown') });
+          }
+        }
+        this.renderer = createdRenderer || {
+          setSize() {},
+          setPixelRatio() {},
+          render() {},
+          setRenderTarget() {},
+          dispose() {},
+          shadowMap: { enabled: false, autoUpdate: false }
+        };
 
         this.stylizedMode = !!(HORROR_CONFIG.grade && HORROR_CONFIG.grade.stylizedPs1Mode);
         this.gradeEnabledByConfig = !!(HORROR_CONFIG.grade ? HORROR_CONFIG.grade.enabled : true);
@@ -1930,8 +2252,16 @@ export function getHideAndSeekHtml(): string {
           this.renderer.outputEncoding = THREE.sRGBEncoding;
         }
 
-        this.renderer.shadowMap.enabled = false;
-        this.renderer.shadowMap.autoUpdate = false;
+        const shadowsOn = !!(activePreset && activePreset.enableShadows);
+        const shadowSize = (activePreset && activePreset.shadowMapSize) || 512;
+        this.shadowsDebugOverride = null;
+        this.lastTotalDrawCalls = 0;
+        if (this.renderer.info) {
+          this.renderer.info.autoReset = false;
+        }
+        this.renderer.shadowMap.enabled = shadowsOn;
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        this.renderer.shadowMap.autoUpdate = true;
 
         // Cold darkness base + visibility floor
         const minAmb = (HORROR_CONFIG.lighting && HORROR_CONFIG.lighting.visibilityFloorAmbient) || 0.45;
@@ -1949,19 +2279,44 @@ export function getHideAndSeekHtml(): string {
         );
         this.scene.add(this.hemiLight);
 
-        // Faint cool moonlight directional light (no shadows) for rim light on roofs and tree canopies
+        // Phase A Requirement 4: Limit shadow-casting strictly to moonlight and player flashlight!
         this.moonDirLight = new THREE.DirectionalLight(
           (HORROR_CONFIG.lighting && HORROR_CONFIG.lighting.moonColor) || 0x9bc0d9,
           (HORROR_CONFIG.lighting && HORROR_CONFIG.lighting.moonIntensity) || 1.15
         );
         this.moonDirLight.position.set(-38, 64, -44);
-        this.moonDirLight.castShadow = false;
+        this.moonDirLight.castShadow = shadowsOn;
+        if (this.moonDirLight.shadow) {
+          this.moonDirLight.shadow.mapSize.width = shadowSize;
+          this.moonDirLight.shadow.mapSize.height = shadowSize;
+          if (this.moonDirLight.shadow.camera) {
+            this.moonDirLight.shadow.camera.left = -52;
+            this.moonDirLight.shadow.camera.right = 52;
+            this.moonDirLight.shadow.camera.top = 68;
+            this.moonDirLight.shadow.camera.bottom = -68;
+            this.moonDirLight.shadow.camera.near = 10;
+            this.moonDirLight.shadow.camera.far = 165;
+          }
+        }
         this.scene.add(this.moonDirLight);
 
-        // Player soft chest aura & ambient footlight so immediate ground and walls are always visible
-        this.playerAuraLight = new THREE.PointLight(0xffecd0, 0.95, 12.0, 1.8);
-        this.playerAuraLight.position.set(-4, 1.2, -48);
-        this.scene.add(this.playerAuraLight);
+        // Player Flashlight (SpotLight) — dynamic light budget: flashlight + at most 3 nearby PointLights
+        this.flashlight = new THREE.SpotLight(0xfff4e0, 1.85, 28.0, Math.PI / 5.2, 0.48, 1.6);
+        this.flashlight.position.set(-4, 1.5, -48);
+        this.flashlight.castShadow = shadowsOn;
+        if (this.flashlight.shadow) {
+          this.flashlight.shadow.mapSize.width = shadowSize;
+          this.flashlight.shadow.mapSize.height = shadowSize;
+          if (this.flashlight.shadow.camera) {
+            this.flashlight.shadow.camera.near = 0.3;
+            this.flashlight.shadow.camera.far = 28.0;
+          }
+        }
+        this.flashlightTarget = new THREE.Object3D();
+        this.flashlightTarget.position.set(-4, 1.4, -58);
+        this.scene.add(this.flashlightTarget);
+        this.flashlight.target = this.flashlightTarget;
+        this.scene.add(this.flashlight);
 
         this.skyGroup = null;
         this.buildCloudyMoonlitSkyDome();
@@ -1992,7 +2347,7 @@ export function getHideAndSeekHtml(): string {
           stencilBuffer: false,
         });
 
-        this.gradeOrthoCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+        this.gradeOrthoCam = new THREE.OrthographicCamera(-1, 1, 1, -1, -1, 1);
         this.gradeScene = new THREE.Scene();
 
         const sTint = gCfg.shadowTint || [0.06, 0.16, 0.22];
@@ -2023,7 +2378,7 @@ export function getHideAndSeekHtml(): string {
             '  vUv = uv;',
             '  gl_Position = vec4(position.xy, 0.0, 1.0);',
             '}'
-          ].join('\n'),
+          ].join('\\n'),
           fragmentShader: [
             'precision highp float;',
             'uniform sampler2D tDiffuse;',
@@ -2084,7 +2439,7 @@ export function getHideAndSeekHtml(): string {
             '',
             '  gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);',
             '}'
-          ].join('\n'),
+          ].join('\\n'),
         });
 
         this.gradeQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.gradeMat);
@@ -2124,16 +2479,28 @@ export function getHideAndSeekHtml(): string {
       }
 
       renderFrame(timeSec) {
+        if (this.renderer.info && typeof this.renderer.info.reset === 'function') {
+          this.renderer.info.reset();
+        }
         if (this.isColorGradePassActive() && this.gradeTarget && typeof this.renderer.setRenderTarget === "function") {
-          this.gradeUniforms.uTime.value = timeSec;
-          this.renderer.setRenderTarget && this.renderer.setRenderTarget(this.gradeTarget);
-          this.renderer.render(this.scene, this.camera);
-          this.renderer.setRenderTarget && this.renderer.setRenderTarget(null);
-          this.renderer.render(this.gradeScene, this.gradeOrthoCam);
+          try {
+            this.gradeUniforms.uTime.value = timeSec;
+            this.renderer.setRenderTarget(this.gradeTarget);
+            this.renderer.render(this.scene, this.camera);
+            this.renderer.setRenderTarget(null);
+            this.renderer.render(this.gradeScene, this.gradeOrthoCam);
+          } catch (gradeErr) {
+            console.warn('[HideAndSeek] Grade pass failed, disabling and falling back to direct render:', gradeErr);
+            this.gradeEnabledByConfig = false;
+            this.updateCssFallbackVisibility();
+            if (this.renderer.setRenderTarget) this.renderer.setRenderTarget(null);
+            this.renderer.render(this.scene, this.camera);
+          }
         } else {
-          this.renderer.setRenderTarget && this.renderer.setRenderTarget(null);
+          if (this.renderer.setRenderTarget) this.renderer.setRenderTarget(null);
           this.renderer.render(this.scene, this.camera);
         }
+        this.lastTotalDrawCalls = (this.renderer.info && this.renderer.info.render) ? (this.renderer.info.render.calls || 0) : 0;
       }
 
       // Step 4: Replace large black dome with Sky Gradient (deep blue-black top, sickly teal horizon,
@@ -2232,12 +2599,47 @@ export function getHideAndSeekHtml(): string {
         this.scene.add(this.skyGroup);
       }
 
+      setShadowsOnly(enabled) {
+        const shadowsOn = !!enabled;
+        this.shadowsDebugOverride = shadowsOn;
+        this.renderer.shadowMap.enabled = shadowsOn;
+        if (this.moonDirLight) this.moonDirLight.castShadow = shadowsOn;
+        if (this.flashlight) this.flashlight.castShadow = shadowsOn;
+        this.scene.traverse(obj => {
+          if ((obj.isMesh || obj.isInstancedMesh) && obj.material) {
+            if (Array.isArray(obj.material)) obj.material.forEach(m => { m.needsUpdate = true; });
+            else obj.material.needsUpdate = true;
+          }
+        });
+        const btn = document.getElementById('dbg-btn-shadows');
+        if (btn) {
+          btn.textContent = shadowsOn ? 'Shadows: ON' : 'Shadows: OFF';
+          btn.classList.toggle('active', shadowsOn);
+        }
+        return shadowsOn;
+      }
+
+      toggleShadowsOnly() {
+        const cur = this.renderer.shadowMap.enabled;
+        return this.setShadowsOnly(!cur);
+      }
+
       applyQuality(preset) {
         const w = Math.max(window.innerWidth || 0, 320);
         const h = Math.max(window.innerHeight || 0, 240);
         this.resizeGradeTarget(w, h);
-        this.renderer.shadowMap.enabled = false;
-        this.buildCloudyMoonlitSkyDome();
+        const shadowsOn = (this.shadowsDebugOverride !== null && this.shadowsDebugOverride !== undefined)
+          ? this.shadowsDebugOverride
+          : !!(preset && preset.enableShadows);
+        this.renderer.shadowMap.enabled = shadowsOn;
+        if (this.moonDirLight) this.moonDirLight.castShadow = shadowsOn;
+        if (this.flashlight) this.flashlight.castShadow = shadowsOn;
+        const btn = document.getElementById('dbg-btn-shadows');
+        if (btn) {
+          btn.textContent = shadowsOn ? 'Shadows: ON' : 'Shadows: OFF';
+          btn.classList.toggle('active', shadowsOn);
+        }
+        if (!this.skyGroup) this.buildCloudyMoonlitSkyDome();
         this.updateCssFallbackVisibility();
       }
 
@@ -2256,7 +2658,10 @@ export function getHideAndSeekHtml(): string {
 
     /* =========================================================================
        MODULE 2: LampFlicker — ORNAMENTAL CAST-IRON WARM LANTERN POLES & WALL SCONCES
-       (Modeled directly after Reference 1 '9.19.58 AM', Ref 2 '9.20.14 AM' & Ref 3 '9.20.33 AM')
+       Phase A Optimized:
+       - InstancedMesh for all 16 Streetlamp Iron Posts & Glass Lanterns (2 draw calls total!)
+       - Shared 4-Profile Material Pool (eliminates 105 duplicate per-lamp materials)
+       - Strict Dynamic Light Budget: At most 3 pooled PointLights (castShadow = false)
        ========================================================================= */
     class LampFlicker {
       constructor(scene, sharedGeos, materials) {
@@ -2266,12 +2671,96 @@ export function getHideAndSeekHtml(): string {
         this.lamps = [];
         this.lightPool = [];
         this.nearestLampDist = 999;
+        this._dummy = new THREE.Object3D();
+        this._streetLampCount = 0;
 
         const poolDiam = HORROR_CONFIG.lighting.lampPoolSize || 6.0;
         this.sharedPoolGeo = new THREE.PlaneGeometry(poolDiam, poolDiam);
+        this.sconceBracketGeo = new THREE.BoxGeometry(0.14, 0.24, 0.28);
+        this.sconceLanternGeo = new THREE.BoxGeometry(0.24, 0.34, 0.24);
 
-        // Goal 2: Max 4 real PointLights near the player (color #ffb35c, intensity ~16.5, distance 11, decay 2)
-        for (let i = 0; i < 4; i++) {
+        // Pre-merge all 10 cast-iron parts of a streetlamp into 1 single BufferGeometry for InstancedMesh
+        const lanternY = 4.82;
+        const ironPartSpecs = [
+          { geo: sharedGeos.lampPlinth, x: 0, y: 0.22, z: 0, ry: 0 },
+          { geo: sharedGeos.lampBase, x: 0, y: 0.72, z: 0, ry: 0 },
+          { geo: sharedGeos.lampCollar, x: 0, y: 1.18, z: 0, ry: 0 },
+          { geo: sharedGeos.lampPole, x: 0, y: 2.85, z: 0, ry: 0 },
+          { geo: sharedGeos.lampCollar, x: 0, y: 4.42, z: 0, ry: 0 },
+          { geo: sharedGeos.lanternBottomTray, x: 0, y: lanternY - 0.34, z: 0, ry: 0 },
+          { geo: sharedGeos.lanternCornerRib, x: -0.21, y: lanternY, z: -0.21, ry: 0 },
+          { geo: sharedGeos.lanternCornerRib, x: 0.21, y: lanternY, z: -0.21, ry: 0 },
+          { geo: sharedGeos.lanternCornerRib, x: -0.21, y: lanternY, z: 0.21, ry: 0 },
+          { geo: sharedGeos.lanternCornerRib, x: 0.21, y: lanternY, z: 0.21, ry: 0 },
+          { geo: sharedGeos.lanternRoofCap, x: 0, y: lanternY + 0.42, z: 0, ry: Math.PI / 4 },
+          { geo: sharedGeos.lanternFinial, x: 0, y: lanternY + 0.68, z: 0, ry: 0 },
+        ];
+        const ironGeos = ironPartSpecs.map(sp => {
+          const g = sp.geo.clone();
+          this._dummy.position.set(sp.x, sp.y, sp.z);
+          this._dummy.rotation.set(0, sp.ry, 0);
+          this._dummy.scale.set(1, 1, 1);
+          this._dummy.updateMatrix();
+          g.applyMatrix4(this._dummy.matrix);
+          return g;
+        });
+        this.mergedLampIronGeo = THREE.BufferGeometryUtils.mergeBufferGeometries(ironGeos);
+        this.instLampPosts = new THREE.InstancedMesh(this.mergedLampIronGeo, materials.castIronDark, 16);
+        this.instLampPosts.count = 0;
+        this.instLampPosts.castShadow = true;
+        this.instLampPosts.receiveShadow = true;
+        this.instLampPosts.frustumCulled = true;
+        scene.add(this.instLampPosts);
+
+        // Shared material sets by blinkProfile (4 sets instead of 21*5=105 materials!)
+        this.profileMats = {};
+        ['steady_warm', 'intermittent', 'heavy_blink', 'dead'].forEach(prof => {
+          const isDead = prof === 'dead';
+          this.profileMats[prof] = {
+            bulbMat: new THREE.MeshBasicMaterial({
+              map: lanternGlassTex,
+              color: isDead ? 0x1e242b : (HORROR_CONFIG.lighting.lampCoreColor || 0xffe8c2),
+              transparent: true,
+              opacity: isDead ? 0.15 : 0.85,
+            }),
+            innerGlowMat: new THREE.SpriteMaterial({
+              map: warmLampBloomTex,
+              color: HORROR_CONFIG.lighting.lampCoreColor || 0xffe8c2,
+              transparent: true,
+              opacity: isDead ? 0.0 : 0.62,
+              blending: THREE.AdditiveBlending,
+              depthWrite: false,
+            }),
+            outerGlareMat: new THREE.SpriteMaterial({
+              map: warmLampBloomTex,
+              color: HORROR_CONFIG.lighting.lampColor || 0xffb35c,
+              transparent: true,
+              opacity: isDead ? 0.0 : 0.34,
+              blending: THREE.AdditiveBlending,
+              depthWrite: false,
+            }),
+            coneMat: new THREE.MeshBasicMaterial({
+              map: volumetricConeTex,
+              color: HORROR_CONFIG.lighting.lampColor || 0xffb35c,
+              transparent: true,
+              opacity: isDead ? 0.0 : (HORROR_CONFIG.lighting.lampConeOpacity || 0.065),
+              blending: THREE.AdditiveBlending,
+              side: THREE.DoubleSide,
+              depthWrite: false,
+            }),
+            puddleMat: new THREE.MeshBasicMaterial({
+              map: realisticGroundPoolTex,
+              color: HORROR_CONFIG.lighting.lampColor || 0xffb35c,
+              transparent: true,
+              opacity: isDead ? 0.0 : 0.24,
+              blending: THREE.AdditiveBlending,
+              depthWrite: false,
+            }),
+          };
+        });
+
+        // Phase A Requirement 4: Limit dynamic lights to flashlight + at most 3 nearby PointLights!
+        for (let i = 0; i < 3; i++) {
           const pl = new THREE.PointLight(
             HORROR_CONFIG.lighting.lampColor || 0xffb35c,
             0,
@@ -2279,7 +2768,7 @@ export function getHideAndSeekHtml(): string {
             HORROR_CONFIG.lighting.lampDecay || 2.0
           );
           pl.castShadow = false;
-          pl.visible = true; // Keep visible=true permanently so Three.js never recompiles shaders!
+          pl.visible = true;
           pl.position.set(0, -9999, 0);
           scene.add(pl);
           this.lightPool.push(pl);
@@ -2288,119 +2777,52 @@ export function getHideAndSeekHtml(): string {
 
       addLamp(x, z, armDir = 1, blinkProfile = 'steady_warm') {
         const group = new THREE.Group();
+        group.userData.noMerge = true;
         const lampIdx = this.lamps.length;
-
-        const plinth = new THREE.Mesh(this.sharedGeos.lampPlinth, this.materials.castIronDark);
-        plinth.position.y = 0.22;
-        group.add(plinth);
-
-        const base = new THREE.Mesh(this.sharedGeos.lampBase, this.materials.castIronDark);
-        base.position.y = 0.72;
-        group.add(base);
-
-        const collar1 = new THREE.Mesh(this.sharedGeos.lampCollar, this.materials.castIronDark);
-        collar1.position.y = 1.18;
-        group.add(collar1);
-
-        const pole = new THREE.Mesh(this.sharedGeos.lampPole, this.materials.castIronDark);
-        pole.position.y = 2.85;
-        group.add(pole);
-
-        const collar2 = new THREE.Mesh(this.sharedGeos.lampCollar, this.materials.castIronDark);
-        collar2.position.y = 4.42;
-        group.add(collar2);
-
         const lanternY = 4.82;
-        const lanternBottom = new THREE.Mesh(this.sharedGeos.lanternBottomTray, this.materials.castIronDark);
-        lanternBottom.position.y = lanternY - 0.34;
-        group.add(lanternBottom);
+        const pMats = this.profileMats[blinkProfile] || this.profileMats.steady_warm;
 
-        const bulbMat = new THREE.MeshBasicMaterial({
-          map: lanternGlassTex,
-          color: HORROR_CONFIG.lighting.lampCoreColor || 0xffe8c2,
-          transparent: true,
-          opacity: 0.85,
-        });
-        const lanternGlass = new THREE.Mesh(this.sharedGeos.lanternGlassBody, bulbMat);
+        // Add static cast-iron post to InstancedMesh (1 draw call for all 16 lamps!)
+        if (this._streetLampCount < 16) {
+          this._dummy.position.set(x, 0, z);
+          this._dummy.rotation.set(0, 0, 0);
+          this._dummy.scale.set(1, 1, 1);
+          this._dummy.updateMatrix();
+          this.instLampPosts.setMatrixAt(this._streetLampCount, this._dummy.matrix);
+          this._streetLampCount++;
+          this.instLampPosts.count = this._streetLampCount;
+          this.instLampPosts.instanceMatrix.needsUpdate = true;
+          computeInstancedBoundingSphere(this.instLampPosts, this._streetLampCount);
+        }
+
+        const lanternGlass = new THREE.Mesh(this.sharedGeos.lanternGlassBody, pMats.bulbMat);
         lanternGlass.position.y = lanternY;
+        lanternGlass.userData.noMerge = true;
         group.add(lanternGlass);
-
-        const ribOffsets = [
-          [-0.21, -0.21], [0.21, -0.21],
-          [-0.21,  0.21], [0.21,  0.21],
-        ];
-        ribOffsets.forEach(([rx, rz]) => {
-          const rib = new THREE.Mesh(this.sharedGeos.lanternCornerRib, this.materials.castIronDark);
-          rib.position.set(rx, lanternY, rz);
-          group.add(rib);
-        });
-
-        const roofHood = new THREE.Mesh(this.sharedGeos.lanternRoofCap, this.materials.castIronDark);
-        roofHood.position.y = lanternY + 0.42;
-        roofHood.rotation.y = Math.PI / 4;
-        group.add(roofHood);
-
-        const finial = new THREE.Mesh(this.sharedGeos.lanternFinial, this.materials.castIronDark);
-        finial.position.y = lanternY + 0.68;
-        group.add(finial);
 
         const bulbPos = new THREE.Vector3(x, lanternY, z);
 
-        // Goal 2: Additive Halo Sprite on the lamp head (#ffb35c)
-        const innerGlowMat = new THREE.SpriteMaterial({
-          map: warmLampBloomTex,
-          color: HORROR_CONFIG.lighting.lampCoreColor || 0xffe8c2,
-          transparent: true,
-          opacity: 0.62,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false,
-        });
-        const innerGlow = new THREE.Sprite(innerGlowMat);
+        const innerGlow = new THREE.Sprite(pMats.innerGlowMat);
         innerGlow.position.set(0, lanternY, 0);
         innerGlow.scale.set(1.45, 1.45, 1);
         group.add(innerGlow);
 
         const haloScale = HORROR_CONFIG.lighting.lampHaloScale || 2.45;
-        const outerGlareMat = new THREE.SpriteMaterial({
-          map: warmLampBloomTex,
-          color: HORROR_CONFIG.lighting.lampColor || 0xffb35c,
-          transparent: true,
-          opacity: 0.34,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false,
-        });
-        const outerGlare = new THREE.Sprite(outerGlareMat);
+        const outerGlare = new THREE.Sprite(pMats.outerGlareMat);
         outerGlare.position.set(0, lanternY, 0);
         outerGlare.scale.set(haloScale, haloScale, 1);
         group.add(outerGlare);
 
-        // Goal 2: Faint volumetric light cone mesh with low opacity, ONLY on ULTRA
-        const coneMat = new THREE.MeshBasicMaterial({
-          map: volumetricConeTex,
-          color: HORROR_CONFIG.lighting.lampColor || 0xffb35c,
-          transparent: true,
-          opacity: HORROR_CONFIG.lighting.lampConeOpacity || 0.065,
-          blending: THREE.AdditiveBlending,
-          side: THREE.DoubleSide,
-          depthWrite: false,
-        });
-        const coneMesh = new THREE.Mesh(this.sharedGeos.lampCone, coneMat);
+        const coneMesh = new THREE.Mesh(this.sharedGeos.lampCone, pMats.coneMat);
         coneMesh.position.set(0, 2.35, 0);
+        coneMesh.userData.noMerge = true;
         coneMesh.visible = !!(activePreset && activePreset.enableLampCones && blinkProfile !== 'dead');
         group.add(coneMesh);
 
-        // Goal 2: Additive Ground Pool (plane with radial gradient texture, ~6m diameter, just above ground)
-        const puddleMat = new THREE.MeshBasicMaterial({
-          map: realisticGroundPoolTex,
-          color: HORROR_CONFIG.lighting.lampColor || 0xffb35c,
-          transparent: true,
-          opacity: 0.42,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false,
-        });
-        const puddle = new THREE.Mesh(this.sharedPoolGeo, puddleMat);
+        const puddle = new THREE.Mesh(this.sharedPoolGeo, pMats.puddleMat);
         puddle.rotation.x = -Math.PI / 2;
         puddle.position.set(x, 0.032, z);
+        puddle.userData.noMerge = true;
         this.scene.add(puddle);
 
         group.position.set(x, 0, z);
@@ -2412,14 +2834,15 @@ export function getHideAndSeekHtml(): string {
           isWallSconce: false,
           x,
           z,
+          group,
           bulbPos,
           blinkProfile,
-          bulbMat,
-          innerGlowMat,
-          outerGlareMat,
-          coneMat,
+          bulbMat: pMats.bulbMat,
+          innerGlowMat: pMats.innerGlowMat,
+          outerGlareMat: pMats.outerGlareMat,
+          coneMat: pMats.coneMat,
           coneMesh,
-          puddleMat,
+          puddleMat: pMats.puddleMat,
           puddleMesh: puddle,
           baseIntensity: HORROR_CONFIG.lighting.lampIntensity || 16.5,
           currentIntensity: HORROR_CONFIG.lighting.lampIntensity || 16.5,
@@ -2435,58 +2858,34 @@ export function getHideAndSeekHtml(): string {
 
       addWallSconce(x, y, z, blinkProfile = 'steady_warm') {
         const sGroup = new THREE.Group();
+        sGroup.userData.noMerge = true;
         sGroup.position.set(x, y, z);
         const lampIdx = this.lamps.length;
+        const pMats = this.profileMats[blinkProfile] || this.profileMats.steady_warm;
 
-        const bracket = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.24, 0.28), this.materials.castIronDark);
+        const bracket = new THREE.Mesh(this.sconceBracketGeo, this.materials.castIronDark);
+        bracket.userData.noMerge = true;
         sGroup.add(bracket);
 
-        const bulbMat = new THREE.MeshBasicMaterial({
-          color: HORROR_CONFIG.lighting.lampCoreColor || 0xffe8c2,
-          transparent: true,
-          opacity: 0.85,
-        });
-        const lantern = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.34, 0.24), bulbMat);
+        const lantern = new THREE.Mesh(this.sconceLanternGeo, pMats.bulbMat);
         lantern.position.set(0, 0.16, 0.14);
+        lantern.userData.noMerge = true;
         sGroup.add(lantern);
 
-        const innerGlowMat = new THREE.SpriteMaterial({
-          map: warmLampBloomTex,
-          color: HORROR_CONFIG.lighting.lampCoreColor || 0xffe8c2,
-          transparent: true,
-          opacity: 0.55,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false,
-        });
-        const innerGlow = new THREE.Sprite(innerGlowMat);
+        const innerGlow = new THREE.Sprite(pMats.innerGlowMat);
         innerGlow.position.set(0, 0.16, 0.18);
         innerGlow.scale.set(1.15, 1.15, 1);
         sGroup.add(innerGlow);
 
-        const outerGlareMat = new THREE.SpriteMaterial({
-          map: warmLampBloomTex,
-          color: HORROR_CONFIG.lighting.lampColor || 0xffb35c,
-          transparent: true,
-          opacity: 0.28,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false,
-        });
-        const outerGlare = new THREE.Sprite(outerGlareMat);
+        const outerGlare = new THREE.Sprite(pMats.outerGlareMat);
         outerGlare.position.set(0, 0.16, 0.18);
         outerGlare.scale.set(1.9, 1.9, 1);
         sGroup.add(outerGlare);
 
-        const puddleMat = new THREE.MeshBasicMaterial({
-          map: realisticGroundPoolTex,
-          color: HORROR_CONFIG.lighting.lampColor || 0xffb35c,
-          transparent: true,
-          opacity: 0.32,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false,
-        });
-        const puddle = new THREE.Mesh(this.sharedPoolGeo, puddleMat);
+        const puddle = new THREE.Mesh(this.sharedPoolGeo, pMats.puddleMat);
         puddle.rotation.x = -Math.PI / 2;
         puddle.position.set(x, 0.032, z);
+        puddle.userData.noMerge = true;
         this.scene.add(puddle);
 
         this.scene.add(sGroup);
@@ -2497,14 +2896,15 @@ export function getHideAndSeekHtml(): string {
           isWallSconce: true,
           x,
           z,
+          group: sGroup,
           bulbPos: new THREE.Vector3(x, y + 0.16, z),
           blinkProfile,
-          bulbMat,
-          innerGlowMat,
-          outerGlareMat,
-          coneMat: { opacity: 0 },
+          bulbMat: pMats.bulbMat,
+          innerGlowMat: pMats.innerGlowMat,
+          outerGlareMat: pMats.outerGlareMat,
+          coneMat: pMats.coneMat,
           coneMesh: null,
-          puddleMat,
+          puddleMat: pMats.puddleMat,
           puddleMesh: puddle,
           baseIntensity: (HORROR_CONFIG.lighting.lampIntensity || 16.5) * 0.82,
           currentIntensity: (HORROR_CONFIG.lighting.lampIntensity || 16.5) * 0.82,
@@ -2559,9 +2959,23 @@ export function getHideAndSeekHtml(): string {
 
       update(delta, timeSec, playerPos) {
         let minActiveDistSq = 999999;
+        const maxCullDist = (activePreset && activePreset.cullDistProps) || 50;
+        const maxCullDistSq = maxCullDist * maxCullDist;
+        const showCones = !!(activePreset && activePreset.enableLampCones);
+        const stride = (activePreset && activePreset.fakePoolStride) || 1;
 
         for (let i = 0; i < this.lamps.length; i++) {
           const l = this.lamps[i];
+          const dSq = (l.x - playerPos.x) ** 2 + (l.z - playerPos.z) ** 2;
+          const inRange = dSq <= maxCullDistSq;
+          if (l.group) l.group.visible = inRange;
+          if (l.puddleMesh) {
+            l.puddleMesh.visible = inRange && l.blinkProfile !== 'dead' && (stride === 1 || i % stride === 0);
+          }
+          if (l.coneMesh) {
+            l.coneMesh.visible = inRange && showCones && l.blinkProfile !== 'dead' && dSq <= 1225;
+          }
+
           l.stateTimer -= delta;
           let factor = 1.0;
 
@@ -2611,14 +3025,13 @@ export function getHideAndSeekHtml(): string {
           this.setVisualState(l, factor);
 
           if (factor > 0.1) {
-            const dSq = (l.x - playerPos.x) ** 2 + (l.z - playerPos.z) ** 2;
             if (dSq < minActiveDistSq) minActiveDistSq = dSq;
           }
         }
 
         this.nearestLampDist = Math.sqrt(minActiveDistSq);
 
-        // Dynamically assign the 4 real PointLights to the 4 nearest active lamps to the player
+        // Dynamically assign at most 3 real PointLights to the nearest active lamps to the player
         const activeLamps = this.lamps.filter(l => l.blinkProfile !== 'dead' && l.currentIntensity > 0.5);
         activeLamps.sort((a, b) => {
           const da = (a.x - playerPos.x) ** 2 + (a.z - playerPos.z) ** 2;
@@ -2626,7 +3039,7 @@ export function getHideAndSeekHtml(): string {
           return da - db;
         });
 
-        const activeCount = Math.min(this.lightPool.length, activePreset.maxActiveLampLights || 4);
+        const activeCount = Math.min(this.lightPool.length, activePreset.maxActiveLampLights || 3);
         for (let i = 0; i < this.lightPool.length; i++) {
           const pl = this.lightPool[i];
           if (i < activeCount && i < activeLamps.length) {
@@ -3287,72 +3700,92 @@ export function getHideAndSeekHtml(): string {
         }
       }
 
-            const map = new THREE.CanvasTexture(c);
+      const map = new THREE.CanvasTexture(c);
       map.wrapS = THREE.RepeatWrapping;
       map.wrapT = THREE.RepeatWrapping;
-      const bumpMap = new THREE.CanvasTexture(bumpC);
-      bumpMap.wrapS = THREE.RepeatWrapping;
-      bumpMap.wrapT = THREE.RepeatWrapping;
-      const roughnessMap = new THREE.CanvasTexture(roughC);
-      roughnessMap.wrapS = THREE.RepeatWrapping;
-      roughnessMap.wrapT = THREE.RepeatWrapping;
-      return { map, bumpMap, roughnessMap };
+      if (!window.__sharedArchBumpTex) {
+        const bTex = new THREE.CanvasTexture(bumpC);
+        bTex.wrapS = THREE.RepeatWrapping;
+        bTex.wrapT = THREE.RepeatWrapping;
+        window.__sharedArchBumpTex = bTex;
+      }
+      if (!window.__sharedArchRoughTex) {
+        const rTex = new THREE.CanvasTexture(roughC);
+        rTex.wrapS = THREE.RepeatWrapping;
+        rTex.wrapT = THREE.RepeatWrapping;
+        window.__sharedArchRoughTex = rTex;
+      }
+      return {
+        map,
+        bumpMap: window.__sharedArchBumpTex,
+        roughnessMap: window.__sharedArchRoughTex,
+      };
     }
 
+    // Phase A Texture Atlas & Shared Surface Maps:
+    // Reuse shared procedural maps for visually similar roof/tile/wood families + shared bump/roughness
     const riverStoneTex = createProceduralTextureWithBump('nepali-river-stone');
-    riverStoneTex.map.repeat.set(18, 1.5);
-    riverStoneTex.bumpMap.repeat.set(18, 1.5);
+    riverStoneTex.map.repeat.set(14, 2);
 
     const blueRoofTex = createProceduralTextureWithBump('bright-blue-corrugated-roof');
     blueRoofTex.map.repeat.set(10, 4);
-    blueRoofTex.bumpMap.repeat.set(10, 4);
 
     const redRoofTex = createProceduralTextureWithBump('terracotta-red-roof');
-    redRoofTex.map.repeat.set(10, 6);
-    redRoofTex.bumpMap.repeat.set(10, 6);
+    redRoofTex.map.repeat.set(10, 5);
 
     const rotundaBrickTex = createProceduralTextureWithBump('rotunda-stone-brick');
     rotundaBrickTex.map.repeat.set(6, 4);
-    rotundaBrickTex.bumpMap.repeat.set(6, 4);
 
     const terrazzoFloorTex = createProceduralTextureWithBump('polished-terrazzo-tile');
     terrazzoFloorTex.map.repeat.set(14, 10);
-    terrazzoFloorTex.bumpMap.repeat.set(14, 10);
 
     const stuccoTex = createProceduralTextureWithBump('pale-campus-stucco');
     stuccoTex.map.repeat.set(5, 2);
-    stuccoTex.bumpMap.repeat.set(5, 2);
 
     const paverTex = createProceduralTextureWithBump('interlocking-pavers');
-    paverTex.map.repeat.set(26, 26);
-    paverTex.bumpMap.repeat.set(26, 26);
-    paverTex.roughnessMap.repeat.set(26, 26);
+    paverTex.map.repeat.set(24, 24);
 
     const grassTex = createProceduralTextureWithBump('surveyor-field-grass');
-    grassTex.map.repeat.set(36, 36);
-    grassTex.bumpMap.repeat.set(36, 36);
+    grassTex.map.repeat.set(32, 32);
 
     const dachiBrickTex = createProceduralTextureWithBump('dachi-appa-brick');
     dachiBrickTex.map.repeat.set(6, 3);
-    dachiBrickTex.bumpMap.repeat.set(6, 3);
-    dachiBrickTex.roughnessMap.repeat.set(6, 3);
 
     const carvedSalTex = createProceduralTextureWithBump('carved-sal-wood');
     carvedSalTex.map.repeat.set(3, 2);
-    carvedSalTex.bumpMap.repeat.set(3, 2);
 
-    const tikijhyalTex = createProceduralTextureWithBump('tikijhyal-lattice');
-    tikijhyalTex.map.repeat.set(3, 2);
-    tikijhyalTex.bumpMap.repeat.set(3, 2);
+    // Share compatible tile/roof/wood maps to keep GPU texture footprint lean
+    const tikijhyalTex = carvedSalTex;
+    const jhingatiRoofTex = redRoofTex;
+    const teliyaTileTex = dachiBrickTex;
 
-    const jhingatiRoofTex = createProceduralTextureWithBump('jhingati-tile-roof');
-    jhingatiRoofTex.map.repeat.set(10, 5);
-    jhingatiRoofTex.bumpMap.repeat.set(10, 5);
+    // Power-of-Two Signage, Poster, Chalkboard & Stupa Eyes Texture Atlas (1024x512 -> 1 single GPU texture!)
+    const signageAtlasCanvas = document.createElement('canvas');
+    signageAtlasCanvas.width = 1024;
+    signageAtlasCanvas.height = 512;
+    const sAtlasCtx = signageAtlasCanvas.getContext('2d');
+    const signageAtlasTex = new THREE.CanvasTexture(signageAtlasCanvas);
+    signageAtlasTex.minFilter = THREE.LinearFilter;
+    signageAtlasTex.magFilter = THREE.LinearFilter;
 
-    const teliyaTileTex = createProceduralTextureWithBump('teliya-terracotta-tile');
-    teliyaTileTex.map.repeat.set(10, 4);
-    teliyaTileTex.bumpMap.repeat.set(10, 4);
-    teliyaTileTex.roughnessMap.repeat.set(10, 4);
+    function createAtlasUvGeo(baseGeo, xPx, yPx, wPx, hPx) {
+      const g = baseGeo.clone();
+      const uv = g.attributes.uv;
+      if (uv) {
+        const u0 = xPx / 1024;
+        const u1 = (xPx + wPx) / 1024;
+        const v0 = 1.0 - (yPx + hPx) / 512;
+        const v1 = 1.0 - yPx / 512;
+        for (let i = 0; i < uv.count; i++) {
+          const u = uv.getX(i);
+          const v = uv.getY(i);
+          uv.setXY(i, u0 + u * (u1 - u0), v0 + v * (v1 - v0));
+        }
+        uv.needsUpdate = true;
+      }
+      return g;
+    }
+    const sharedSignageAtlasMat = new THREE.MeshBasicMaterial({ map: signageAtlasTex, side: THREE.DoubleSide });
 
     const materials = {
       nepaliRiverStone: new THREE.MeshStandardMaterial({
@@ -3685,10 +4118,28 @@ export function getHideAndSeekHtml(): string {
       shrubClump: new THREE.DodecahedronGeometry(0.38, 1),
     };
 
+    // Tag repeated prop geometries so bakeStaticGroup instances them via THREE.InstancedMesh
+    sharedGeos.deskTop.userData.instancedCategory = 'desk';
+    sharedGeos.deskLeg.userData.instancedCategory = 'desk';
+    sharedGeos.deskModestyPanel.userData.instancedCategory = 'desk';
+    sharedGeos.chairSeat.userData.instancedCategory = 'chair';
+    sharedGeos.chairBack.userData.instancedCategory = 'chair';
+    sharedGeos.fencePicket.userData.instancedCategory = 'fence';
+    sharedGeos.shrubClump.userData.instancedCategory = 'tree';
+
     const treeShadowDecals = [];
+    const roomVisibilityList = [];
     const lampFlickerMod = new LampFlicker(scene, sharedGeos, materials);
     const particleFieldMod = new ParticleField(scene);
     const rareSilhouetteMod = new RareSilhouetteManager(scene, materials);
+
+    // Pre-merged canonical tree geometries + global InstancedMesh queues for trees, palms, dead trees & shrubs
+    const exteriorTreeQueues = {
+      campusTrees: [],
+      palmTrees: [],
+      deadTrees: [],
+      shrubs: [],
+    };
 
     // Step 5: Faint cool moonlit rim light on tree canopies & roof edges (no new lights!)
     [
@@ -3702,25 +4153,27 @@ export function getHideAndSeekHtml(): string {
       mat.onBeforeCompile = (shader) => {
         shader.fragmentShader = shader.fragmentShader.replace(
           '#include <dithering_fragment>',
-          'float rimDot = 1.0 - max(0.0, dot(normalize(vNormal), vec3(0.0, 0.0, 1.0)));\n' +
-          'float topBias = clamp(vNormal.y * 0.5 + 0.5, 0.0, 1.0);\n' +
-          'gl_FragColor.rgb += vec3(0.09, 0.16, 0.21) * pow(rimDot, 2.2) * topBias * 0.65;\n' +
+          'float rimDot = 1.0 - max(0.0, dot(normalize(vNormal), vec3(0.0, 0.0, 1.0)));\\n' +
+          'float topBias = clamp(vNormal.y * 0.5 + 0.5, 0.0, 1.0);\\n' +
+          'gl_FragColor.rgb += vec3(0.09, 0.16, 0.21) * pow(rimDot, 2.2) * topBias * 0.65;\\n' +
           '#include <dithering_fragment>'
         );
       };
     });
 
-        const colliders = [];
+    const colliders = [];
     const walkableFloors = [];
     const walkableStairRamps = [];
     const interactiveHidingSpots = [];
     const rotundaInteriorLights = [];
+    const swingingDoors = [];
 
-    function addColliderBox(box) {
+    function addColliderBox(box, tag = 'wall') {
       if (!box) return;
       if (box.isBox3) {
         colliders.push({
           type: 'box',
+          tag: tag,
           min: box.min,
           max: box.max,
           box: box,
@@ -3728,10 +4181,36 @@ export function getHideAndSeekHtml(): string {
       } else if (box.min && box.max) {
         colliders.push({
           type: 'box',
+          tag: tag,
           min: box.min,
           max: box.max,
           box: new THREE.Box3(box.min, box.max),
         });
+      }
+    }
+
+    function addDoorFrameColliders(doorX, floorY, doorZ, doorW, wallT = 0.26, alongZ = true) {
+      const jambThick = 0.10;
+      const jambH = 2.45;
+      const halfSpan = doorW * 0.5 - jambThick * 0.5;
+      if (alongZ) {
+        addColliderBox(new THREE.Box3(
+          new THREE.Vector3(doorX - wallT * 0.55, floorY, doorZ - halfSpan - jambThick * 0.5),
+          new THREE.Vector3(doorX + wallT * 0.55, floorY + jambH, doorZ - halfSpan + jambThick * 0.5)
+        ), 'door_frame');
+        addColliderBox(new THREE.Box3(
+          new THREE.Vector3(doorX - wallT * 0.55, floorY, doorZ + halfSpan - jambThick * 0.5),
+          new THREE.Vector3(doorX + wallT * 0.55, floorY + jambH, doorZ + halfSpan + jambThick * 0.5)
+        ), 'door_frame');
+      } else {
+        addColliderBox(new THREE.Box3(
+          new THREE.Vector3(doorX - halfSpan - jambThick * 0.5, floorY, doorZ - wallT * 0.55),
+          new THREE.Vector3(doorX - halfSpan + jambThick * 0.5, floorY + jambH, doorZ + wallT * 0.55)
+        ), 'door_frame');
+        addColliderBox(new THREE.Box3(
+          new THREE.Vector3(doorX + halfSpan - jambThick * 0.5, floorY, doorZ - wallT * 0.55),
+          new THREE.Vector3(doorX + halfSpan + jambThick * 0.5, floorY + jambH, doorZ + wallT * 0.55)
+        ), 'door_frame');
       }
     }
 
@@ -3810,7 +4289,7 @@ export function getHideAndSeekHtml(): string {
       scene.add(strip);
     }
 
-        function buildDetailedWindow(wx, wy, wz, facingZDir = 1, isWarmLit = false, facingXDir = 0) {
+    function buildDetailedWindow(wx, wy, wz, facingZDir = 1, isWarmLit = false, facingXDir = 0) {
       const wGroup = new THREE.Group();
       wGroup.position.set(wx, wy, wz);
       if (facingXDir !== 0) {
@@ -3819,7 +4298,6 @@ export function getHideAndSeekHtml(): string {
         wGroup.rotation.y = Math.PI;
       }
 
-      // Outer white aluminum window frame + slim sill ledge
       const frame = new THREE.Mesh(sharedGeos.winFrameOuter, materials.whiteTrim);
       wGroup.add(frame);
 
@@ -3827,7 +4305,6 @@ export function getHideAndSeekHtml(): string {
       sill.position.set(0, -0.70, 0.05);
       wGroup.add(sill);
 
-      // Window glass pane (tinted glass reflection or warm interior glow)
       const pane = new THREE.Mesh(
         sharedGeos.winPane,
         isWarmLit ? materials.windowWarmLit : materials.windowGlass
@@ -3835,7 +4312,6 @@ export function getHideAndSeekHtml(): string {
       pane.position.z = 0.04;
       wGroup.add(pane);
 
-      // Clean center aluminum sliding divider mullion
       const mulV = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.38, 0.06), materials.whiteTrim);
       mulV.position.set(0, 0, 0.06);
       wGroup.add(mulV);
@@ -3843,105 +4319,26 @@ export function getHideAndSeekHtml(): string {
       scene.add(wGroup);
     }
 
-    // Gnarled Multi-Branch Silhouette Horror Tree (Exact match to Reference 1 & Reference 3 overhanging trees)
+    // Gnarled Multi-Branch Silhouette Horror Tree — Instanced via ExteriorInstancedPools (2 draw calls for all trees!)
     function spawnCampusTree(x, z, scale = 1.0) {
-      const g = new THREE.Group();
+      exteriorTreeQueues.campusTrees.push({ x, z, scale });
 
-      // Twisted multi-part trunk
-      const lowerTrunk = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.28 * scale, 0.48 * scale, 2.6 * scale, 8),
-        materials.treeBark
-      );
-      lowerTrunk.position.y = 1.3 * scale;
-      lowerTrunk.rotation.z = 0.06;
-      g.add(lowerTrunk);
-
-      const upperTrunk = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.18 * scale, 0.29 * scale, 2.4 * scale, 7),
-        materials.treeBark
-      );
-      upperTrunk.position.set(-0.12 * scale, 3.5 * scale, 0.08 * scale);
-      upperTrunk.rotation.z = -0.11;
-      g.add(upperTrunk);
-
-      // 5 Gnarled primary & secondary reaching limbs + crooked twigs + dark foliage/moss clusters
-      const limbConfigs = [
-        { rx: 0.48, rz:  0.65, len: 2.8, y: 3.9, ox: -0.9, oz:  0.6 },
-        { rx: -0.42, rz: -0.62, len: 3.0, y: 4.1, ox:  1.0, oz: -0.5 },
-        { rx: 0.62, rz: -0.35, len: 2.5, y: 4.3, ox:  0.5, oz:  0.9 },
-        { rx: -0.55, rz:  0.40, len: 2.6, y: 3.7, ox: -0.7, oz: -0.8 },
-        { rx: 0.25, rz:  0.78, len: 2.4, y: 4.6, ox: -1.2, oz:  0.2 },
-      ];
-      limbConfigs.forEach(cfg => {
-        const limb = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.05 * scale, 0.14 * scale, cfg.len * scale, 6),
-          materials.treeBark
-        );
-        limb.position.set(cfg.ox * scale, cfg.y * scale, cfg.oz * scale);
-        limb.rotation.set(cfg.rx, 0, cfg.rz);
-        g.add(limb);
-
-        // Secondary crooked sub-branch
-        const twig = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.02 * scale, 0.06 * scale, 1.5 * scale, 5),
-          materials.treeBark
-        );
-        twig.position.set(cfg.ox * 1.55 * scale, (cfg.y + 0.85) * scale, cfg.oz * 1.55 * scale);
-        twig.rotation.set(cfg.rx * 1.25, 0.3, cfg.rz * 1.25);
-        g.add(twig);
-
-        // Dark canopy & hanging moss cluster (Ref 3)
-        const canopy = new THREE.Mesh(
-          new THREE.DodecahedronGeometry(1.25 * scale, 1),
-          materials.foliageGreen
-        );
-        canopy.scale.set(1.25, 0.68, 1.25);
-        canopy.position.set(cfg.ox * 1.45 * scale, (cfg.y + 1.05) * scale, cfg.oz * 1.45 * scale);
-        g.add(canopy);
-      });
-
-      g.position.set(x, 0, z);
-      scene.add(g);
-
-      // Soft Ground Contact Shadow (Phase 3 & Phase 4 moving tree shadows)
       const shadowMesh = new THREE.Mesh(
         new THREE.PlaneGeometry(5.2 * scale, 5.2 * scale),
         materials.treeShadowDecal
       );
       shadowMesh.rotation.x = -Math.PI / 2;
       shadowMesh.position.set(x, 0.022, z);
+      shadowMesh.userData.noMerge = true;
       scene.add(shadowMesh);
       treeShadowDecals.push({ mesh: shadowMesh, baseScale: 5.2 * scale, seed: Math.abs(x * 3.7 + z * 5.9) });
 
       addColliderCylinder(x, z, 0.42 * scale, 0, 4.5 * scale);
     }
 
-    // Tropical / Campus Palm Tree (Visible in Reference 1 & Reference 3!)
+    // Tropical / Campus Palm Tree — Instanced via ExteriorInstancedPools (2 draw calls for all palms!)
     function spawnPalmTree(x, z, scale = 1.0) {
-      const pGroup = new THREE.Group();
-      const trunk = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.14 * scale, 0.24 * scale, 5.6 * scale, 8),
-        materials.treeBark
-      );
-      trunk.position.y = 2.8 * scale;
-      trunk.rotation.z = 0.05;
-      pGroup.add(trunk);
-
-      const crownY = 5.55 * scale;
-      for (let f = 0; f < 9; f++) {
-        const ang = (f * Math.PI * 2) / 9;
-        const frond = new THREE.Mesh(
-          new THREE.BoxGeometry(0.36 * scale, 0.04 * scale, 2.35 * scale),
-          materials.palmFrondMat
-        );
-        frond.position.set(Math.sin(ang) * 1.05 * scale, crownY - 0.15 * scale, Math.cos(ang) * 1.05 * scale);
-        frond.rotation.y = ang;
-        frond.rotation.x = 0.42;
-        pGroup.add(frond);
-      }
-
-      pGroup.position.set(x, 0, z);
-      scene.add(pGroup);
+      exteriorTreeQueues.palmTrees.push({ x, z, scale });
 
       const pShadow = new THREE.Mesh(
         new THREE.PlaneGeometry(3.8 * scale, 3.8 * scale),
@@ -3949,29 +4346,30 @@ export function getHideAndSeekHtml(): string {
       );
       pShadow.rotation.x = -Math.PI / 2;
       pShadow.position.set(x, 0.022, z);
+      pShadow.userData.noMerge = true;
       scene.add(pShadow);
       treeShadowDecals.push({ mesh: pShadow, baseScale: 3.8 * scale, seed: Math.abs(x * 2.1 + z * 4.3) });
 
       addColliderCylinder(x, z, 0.28 * scale, 0, 5.5 * scale);
     }
 
-    // Roadside Shrubs & Weed Clumps catching warm pole light along the curb (Reference 1 foreground)
+    // Roadside Shrubs & Weed Clumps — Instanced via ExteriorInstancedPools (1 draw call for all shrubs!)
     function spawnRoadsideShrubs(x, z, count = 4) {
-      const sGroup = new THREE.Group();
       for (let i = 0; i < count; i++) {
-        const clump = new THREE.Mesh(sharedGeos.shrubClump, materials.foliageGreen);
         const ox = ((i * 7) % 5 - 2) * 0.28;
         const oz = ((i * 11) % 5 - 2) * 0.28;
-        clump.scale.set(1.1 + (i % 2) * 0.4, 0.55 + (i % 3) * 0.2, 1.1);
-        clump.position.set(ox, 0.16, oz);
-        sGroup.add(clump);
+        exteriorTreeQueues.shrubs.push({
+          x: x + ox,
+          y: 0.16,
+          z: z + oz,
+          sx: 1.1 + (i % 2) * 0.4,
+          sy: 0.55 + (i % 3) * 0.2,
+          sz: 1.1,
+        });
       }
-      sGroup.position.set(x, 0, z);
-      scene.add(sGroup);
     }
 
-    // Wrought-Iron Spiked Fencing along walkways & lawns (Reference 3 '9.20.33 AM.png')
-    // TASK 3 & 4: Instanced Wrought-Iron Spiked Fencing (1 draw call for all pickets!)
+    // Wrought-Iron Spiked Fencing along walkways & lawns (Instanced pickets)
     function buildWroughtIronFence(startX, startZ, endX, endZ) {
       const fGroup = new THREE.Group();
       const length = Math.hypot(endX - startX, endZ - startZ);
@@ -4014,43 +4412,9 @@ export function getHideAndSeekHtml(): string {
       ));
     }
 
-    // TASK 3: Dead Leafless Gnarled Horror Tree with Twisted Bare Limbs
+    // Dead Leafless Gnarled Horror Tree — Instanced via ExteriorInstancedPools (1 draw call for all dead trees!)
     function spawnDeadTree(x, z, scale = 1.0) {
-      const g = new THREE.Group();
-      const trunk = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.18 * scale, 0.44 * scale, 4.2 * scale, 7),
-        materials.treeBark
-      );
-      trunk.position.y = 2.1 * scale;
-      trunk.rotation.z = 0.09;
-      g.add(trunk);
-
-      const deadBranches = [
-        { rx: 0.62, rz:  0.74, len: 3.1, y: 3.4, ox: -0.8, oz:  0.5 },
-        { rx: -0.58, rz: -0.68, len: 3.3, y: 3.7, ox:  0.9, oz: -0.6 },
-        { rx: 0.72, rz: -0.42, len: 2.7, y: 3.9, ox:  0.4, oz:  0.8 },
-        { rx: -0.65, rz:  0.48, len: 2.8, y: 3.1, ox: -0.7, oz: -0.7 },
-      ];
-      deadBranches.forEach(cfg => {
-        const limb = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.025 * scale, 0.13 * scale, cfg.len * scale, 5),
-          materials.treeBark
-        );
-        limb.position.set(cfg.ox * scale, cfg.y * scale, cfg.oz * scale);
-        limb.rotation.set(cfg.rx, 0, cfg.rz);
-        g.add(limb);
-
-        const claw = new THREE.Mesh(
-          new THREE.ConeGeometry(0.04 * scale, 1.35 * scale, 4),
-          materials.treeBark
-        );
-        claw.position.set(cfg.ox * 1.65 * scale, (cfg.y + 0.9) * scale, cfg.oz * 1.65 * scale);
-        claw.rotation.set(cfg.rx * 0.6, 0.2, -cfg.rz * 0.5);
-        g.add(claw);
-      });
-
-      g.position.set(x, 0, z);
-      scene.add(g);
+      exteriorTreeQueues.deadTrees.push({ x, z, scale });
 
       const shadowMesh = new THREE.Mesh(
         new THREE.PlaneGeometry(4.8 * scale, 4.8 * scale),
@@ -4420,57 +4784,37 @@ export function getHideAndSeekHtml(): string {
       scene.add(vGroup);
     }
 
-    // Procedural Harmika Buddha Wisdom Eyes Texture (Nepali Stupa Eyes + 'Ek' Nose Symbol)
-    const harmikaEyesTex = createProceduralTexture(256, 128, ctx => {
-      ctx.fillStyle = '#d9b338';
-      ctx.fillRect(0, 0, 256, 128);
-      ctx.strokeStyle = '#7c2d12';
-      ctx.lineWidth = 6;
-      ctx.strokeRect(4, 4, 248, 120);
-
-      // Left & Right Lotus Wisdom Eyes
+    // Procedural Harmika Buddha Wisdom Eyes drawn into Signage Texture Atlas (0, 0, 256, 128)
+    if (sAtlasCtx) {
+      sAtlasCtx.fillStyle = '#d9b338';
+      sAtlasCtx.fillRect(0, 0, 256, 128);
+      sAtlasCtx.strokeStyle = '#7c2d12';
+      sAtlasCtx.lineWidth = 6;
+      sAtlasCtx.strokeRect(4, 4, 248, 120);
       [68, 188].forEach(ex => {
-        ctx.fillStyle = '#f8fafc';
-        ctx.beginPath();
-        ctx.ellipse(ex, 62, 34, 15, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.lineWidth = 3.5;
-        ctx.strokeStyle = '#090d16';
-        ctx.stroke();
-
-        // Dark pupil
-        ctx.fillStyle = '#0f172a';
-        ctx.beginPath();
-        ctx.arc(ex, 62, 11, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Heavy red-and-black upper eyelid curve
-        ctx.strokeStyle = '#991b1b';
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.arc(ex, 66, 36, Math.PI * 1.12, Math.PI * 1.88);
-        ctx.stroke();
+        sAtlasCtx.fillStyle = '#f8fafc';
+        sAtlasCtx.beginPath();
+        sAtlasCtx.ellipse(ex, 62, 34, 15, 0, 0, Math.PI * 2);
+        sAtlasCtx.fill();
+        sAtlasCtx.lineWidth = 3.5;
+        sAtlasCtx.strokeStyle = '#090d16';
+        sAtlasCtx.stroke();
+        sAtlasCtx.fillStyle = '#0f172a';
+        sAtlasCtx.beginPath();
+        sAtlasCtx.arc(ex, 62, 11, 0, Math.PI * 2);
+        sAtlasCtx.fill();
       });
-
-      // Third Eye (Urna) above nose
-      ctx.fillStyle = '#991b1b';
-      ctx.beginPath();
-      ctx.arc(128, 30, 8, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Nepali 'Ek' (Unity) curly question-mark nose symbol in center
-      ctx.strokeStyle = '#090d16';
-      ctx.lineWidth = 5;
-      ctx.beginPath();
-      ctx.arc(128, 74, 10, Math.PI * 0.9, Math.PI * 2.3);
-      ctx.lineTo(128, 108);
-      ctx.stroke();
-    });
+      sAtlasCtx.fillStyle = '#991b1b';
+      sAtlasCtx.beginPath();
+      sAtlasCtx.arc(128, 30, 8, 0, Math.PI * 2);
+      sAtlasCtx.fill();
+    }
     const harmikaEyesMat = new THREE.MeshStandardMaterial({
-      map: harmikaEyesTex,
+      map: signageAtlasTex,
       roughness: 0.45,
       metalness: 0.25,
     });
+    const sharedHarmikaBoxGeo = createAtlasUvGeo(new THREE.BoxGeometry(0.46, 0.30, 0.46), 0, 0, 256, 128);
     const sharedPrayerWheelGeo = new THREE.CylinderGeometry(0.085, 0.085, 0.24, 10);
 
     // TASK 3: Stupa with Harmika Buddha Eyes, Tiered Spire Rings, Pinnacle & Prayer Wheels Around Base
@@ -4834,26 +5178,27 @@ export function getHideAndSeekHtml(): string {
       ));
     }
 
-    const oldPosterTex = createProceduralTexture(128, 160, ctx => {
-      ctx.fillStyle = '#cbd5c0';
-      ctx.fillRect(0, 0, 128, 160);
-      ctx.fillStyle = '#475569';
-      ctx.fillRect(10, 12, 108, 28);
-      ctx.fillStyle = '#7f1d1d';
-      ctx.font = 'bold 14px serif';
-      ctx.fillText('CURFEW NOTICE', 14, 30);
-      ctx.fillStyle = '#1e293b';
-      for (let y = 52; y < 140; y += 14) {
-        ctx.fillRect(14, y, 88 - ((y * 7) % 24), 5);
-      }
-      // Weathered tear/stain corner
-      ctx.fillStyle = 'rgba(20, 28, 22, 0.45)';
-      ctx.beginPath();
-      ctx.arc(105, 135, 32, 0, Math.PI * 2);
-      ctx.fill();
-    });
-    const oldPosterMat = new THREE.MeshBasicMaterial({ map: oldPosterTex, side: THREE.DoubleSide });
-    const sharedPosterGeo = new THREE.PlaneGeometry(0.65, 0.82);
+    if (sAtlasCtx) {
+      sAtlasCtx.fillStyle = '#cbd5c0';
+      sAtlasCtx.fillRect(256, 0, 128, 160);
+      sAtlasCtx.fillStyle = '#475569';
+      sAtlasCtx.fillRect(266, 12, 108, 28);
+      sAtlasCtx.fillStyle = '#7f1d1d';
+      sAtlasCtx.font = 'bold 14px serif';
+      sAtlasCtx.fillText('CURFEW NOTICE', 270, 30);
+
+      sAtlasCtx.fillStyle = '#1a120b';
+      sAtlasCtx.fillRect(512, 0, 512, 96);
+      sAtlasCtx.strokeStyle = '#d99b26';
+      sAtlasCtx.lineWidth = 4;
+      sAtlasCtx.strokeRect(518, 6, 500, 84);
+      sAtlasCtx.fillStyle = '#f8fafc';
+      sAtlasCtx.font = 'bold 28px Georgia, serif';
+      sAtlasCtx.textAlign = 'center';
+      sAtlasCtx.fillText('GANDAKI HERITAGE ALLEY', 768, 44);
+    }
+    const oldPosterMat = sharedSignageAtlasMat;
+    const sharedPosterGeo = createAtlasUvGeo(new THREE.PlaneGeometry(0.65, 0.82), 256, 0, 128, 160);
 
     function spawnOldWallPoster(px, py, pz, rotY = 0, tiltZ = 0.06) {
       const poster = new THREE.Mesh(sharedPosterGeo, oldPosterMat);
@@ -4862,7 +5207,6 @@ export function getHideAndSeekHtml(): string {
       scene.add(poster);
     }
 
-    // Overhead "MANDALA HERITAGE ALLEY" Signboard Archway (Inspired by Ref Photo F738D2E6!)
     function buildMandalaStreetArchway(ax, az, spanW = 6.2) {
       const aGroup = new THREE.Group();
       aGroup.position.set(ax, 0, az);
@@ -4875,23 +5219,9 @@ export function getHideAndSeekHtml(): string {
         addColliderCylinder(ax + px, az, postRadius, 0, 4.1);
       });
 
-      const archSignTex = createProceduralTexture(512, 96, ctx => {
-        ctx.fillStyle = '#1a120b';
-        ctx.fillRect(0, 0, 512, 96);
-        ctx.strokeStyle = '#d99b26';
-        ctx.lineWidth = 4;
-        ctx.strokeRect(6, 6, 500, 84);
-        ctx.fillStyle = '#f8fafc';
-        ctx.font = 'bold 28px Georgia, serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('GANDAKI HERITAGE ALLEY', 256, 44);
-        ctx.fillStyle = '#ffc27a';
-        ctx.font = 'bold 18px serif';
-        ctx.fillText('MANDALA COURTYARD WALK', 256, 74);
-      });
       const signBoard = new THREE.Mesh(
-        new THREE.BoxGeometry(spanW + 0.2, 0.78, 0.16),
-        new THREE.MeshBasicMaterial({ map: archSignTex })
+        createAtlasUvGeo(new THREE.BoxGeometry(spanW + 0.2, 0.78, 0.16), 512, 0, 512, 96),
+        sharedSignageAtlasMat
       );
       signBoard.position.set(0, 3.75, 0);
       aGroup.add(signBoard);
@@ -4900,40 +5230,283 @@ export function getHideAndSeekHtml(): string {
     }
 
     /* =========================================================================
-       UPGRADED CLASSROOM & HERITAGE HALL INTERIOR DESIGN BUILDER
-       (Finished Acoustic Ceiling, Warm LED Fixture, 3-Blade Fan, Two-Tone Dado Wall,
-        Teacher Dais, Lectern, Chalkboard & Whiteboard, Bookshelf, Desks & Notebooks!)
+       STEP 2: REALISTIC UNIVERSITY INTERIOR LAYOUT SYSTEM
+       Shared Geometries & Materials + Modular Builders for:
+       - Reference Wing L1 & Distinct Classrooms (Desks, Benches, Bags, Books,
+         Teacher Desk, Whiteboard, Wall-Mounted Fans, Curtains, Shelves, Notice
+         Boards, Swinging Doors)
+       - Corridors & Verandas (Lockers, Notice Boards, Water Dispenser, Fire
+         Extinguisher, Wall Lamps, Floor Mats, Framed Photos, Potted Plants)
+       - Staff Room & Admin Offices (Office Desks, Chairs, Filing Cabinets,
+         Computers, Paper Stacks, Sofa Lounge)
+       - Library Rooms (Tall Bookshelves in Rows with Gaps, Reading Tables, Lamps)
+       - Computer Labs (Rows of Monitors & Chairs, Cable Trays, Server Racks)
+       - Toilets, Canteen (Counter, Dining, Kitchen) & Store Rooms
        ========================================================================= */
-    function populateClassroomUnit(unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle, isNewariStyle = false) {
+    const step2Mats = {
+      curtainFabric: new THREE.MeshStandardMaterial({ color: 0x3b4d63, roughness: 0.82, side: THREE.DoubleSide }),
+      curtainGold: new THREE.MeshStandardMaterial({ color: 0x6e472b, roughness: 0.78, side: THREE.DoubleSide }),
+      lockerSteel: new THREE.MeshStandardMaterial({ color: 0x2c3a47, roughness: 0.42, metalness: 0.68 }),
+      lockerDoorBlue: new THREE.MeshStandardMaterial({ color: 0x1e3a5f, roughness: 0.38, metalness: 0.62 }),
+      fireRed: new THREE.MeshStandardMaterial({ color: 0xb91c1c, roughness: 0.32, metalness: 0.45 }),
+      waterJugBlue: new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.15, metalness: 0.25, transparent: true, opacity: 0.82 }),
+      matRubber: new THREE.MeshStandardMaterial({ color: 0x1e252b, roughness: 0.92 }),
+      corkBoard: new THREE.MeshStandardMaterial({ color: 0x8c5a32, roughness: 0.85 }),
+      paperSheet: new THREE.MeshStandardMaterial({ color: 0xd8dee6, roughness: 0.75 }),
+      bagNavy: new THREE.MeshStandardMaterial({ color: 0x172554, roughness: 0.84 }),
+      bagOlive: new THREE.MeshStandardMaterial({ color: 0x27382a, roughness: 0.86 }),
+      bagMaroon: new THREE.MeshStandardMaterial({ color: 0x4c1d24, roughness: 0.84 }),
+      sofaLeather: new THREE.MeshStandardMaterial({ color: 0x3b2314, roughness: 0.52, metalness: 0.08 }),
+      monitorScreenOn: new THREE.MeshStandardMaterial({ color: 0x0c192c, emissive: 0x1d4ed8, emissiveIntensity: 0.55, roughness: 0.18 }),
+      monitorScreenOff: new THREE.MeshStandardMaterial({ color: 0x090d14, roughness: 0.16, metalness: 0.45 }),
+      serverLedGreen: new THREE.MeshBasicMaterial({ color: 0x22c55e }),
+      serverLedAmber: new THREE.MeshBasicMaterial({ color: 0xf59e0b }),
+      lampShadeGreen: new THREE.MeshStandardMaterial({ color: 0x14532d, emissive: 0xffb35c, emissiveIntensity: 0.65, roughness: 0.28 }),
+      ceramicWhite: new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.18, metalness: 0.15 }),
+      mirrorGlass: new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.06, metalness: 0.92 }),
+      stainlessSteel: new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.26, metalness: 0.82 }),
+      cardboardCrate: new THREE.MeshStandardMaterial({ color: 0x785532, roughness: 0.86 }),
+      vineGreen: new THREE.MeshStandardMaterial({ color: 0x1a3322, roughness: 0.78, side: THREE.DoubleSide }),
+      terrazzoInlayGold: new THREE.MeshStandardMaterial({ color: 0x9a7b3e, roughness: 0.30, metalness: 0.42 }),
+      terrazzoInlayDark: new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.28, metalness: 0.22 }),
+    };
+
+    const step2Geos = {
+      doorLeaf: new THREE.BoxGeometry(0.92, 2.26, 0.065),
+      doorHandle: new THREE.BoxGeometry(0.14, 0.04, 0.14),
+      roomPlaque: new THREE.BoxGeometry(0.46, 0.22, 0.03),
+      curtainRod: new THREE.CylinderGeometry(0.016, 0.016, 2.05, 6),
+      curtainPanel: new THREE.BoxGeometry(0.52, 1.52, 0.045),
+      wallFanMount: new THREE.BoxGeometry(0.12, 0.16, 0.18),
+      wallFanCage: new THREE.CylinderGeometry(0.24, 0.24, 0.10, 10),
+      lockerBank: new THREE.BoxGeometry(0.48, 1.92, 1.80),
+      lockerDoor: new THREE.BoxGeometry(0.03, 0.84, 0.52),
+      noticeBoard: new THREE.BoxGeometry(0.06, 0.96, 1.65),
+      noticeCork: new THREE.BoxGeometry(0.07, 0.84, 1.52),
+      noticeNote: new THREE.BoxGeometry(0.08, 0.24, 0.18),
+      waterDispenser: new THREE.BoxGeometry(0.38, 1.02, 0.38),
+      waterBottle: new THREE.CylinderGeometry(0.15, 0.15, 0.42, 10),
+      fireExtBody: new THREE.CylinderGeometry(0.09, 0.09, 0.54, 10),
+      fireExtTop: new THREE.BoxGeometry(0.12, 0.10, 0.14),
+      floorMat: new THREE.BoxGeometry(1.15, 0.02, 0.72),
+      photoFrame: new THREE.BoxGeometry(0.05, 0.64, 0.86),
+      photoCanvas: new THREE.BoxGeometry(0.06, 0.52, 0.74),
+      plantPot: new THREE.CylinderGeometry(0.22, 0.16, 0.36, 8),
+      plantBush: new THREE.DodecahedronGeometry(0.28, 1),
+      wallLampBack: new THREE.BoxGeometry(0.06, 0.28, 0.18),
+      wallLampBulb: new THREE.BoxGeometry(0.12, 0.18, 0.12),
+      wallShelf: new THREE.BoxGeometry(0.32, 0.04, 1.85),
+      backpack: new THREE.BoxGeometry(0.32, 0.38, 0.22),
+      bookStack: new THREE.BoxGeometry(0.26, 0.12, 0.20),
+      openBook: new THREE.BoxGeometry(0.32, 0.025, 0.22),
+      benchLongSeat: new THREE.BoxGeometry(1.26, 0.05, 0.34),
+      benchLongBack: new THREE.BoxGeometry(1.26, 0.30, 0.04),
+      benchLeg: new THREE.BoxGeometry(0.05, 0.44, 0.32),
+      officeDesk: new THREE.BoxGeometry(1.50, 0.76, 0.78),
+      filingCabinet: new THREE.BoxGeometry(0.52, 1.38, 0.62),
+      monitorPanel: new THREE.BoxGeometry(0.52, 0.34, 0.035),
+      monitorStand: new THREE.BoxGeometry(0.16, 0.14, 0.16),
+      keyboard: new THREE.BoxGeometry(0.38, 0.02, 0.14),
+      paperStack: new THREE.BoxGeometry(0.24, 0.16, 0.30),
+      sofaBase: new THREE.BoxGeometry(1.95, 0.42, 0.82),
+      sofaBack: new THREE.BoxGeometry(1.95, 0.48, 0.22),
+      sofaArm: new THREE.BoxGeometry(0.22, 0.56, 0.82),
+      tallBookshelf: new THREE.BoxGeometry(0.54, 2.28, 2.60),
+      bookRowSpan: new THREE.BoxGeometry(0.42, 0.26, 2.38),
+      readingTable: new THREE.BoxGeometry(1.65, 0.76, 1.05),
+      readingLampStand: new THREE.CylinderGeometry(0.08, 0.12, 0.34, 8),
+      readingLampShade: new THREE.BoxGeometry(0.26, 0.10, 0.16),
+      serverRack: new THREE.BoxGeometry(0.78, 2.15, 0.86),
+      cableTray: new THREE.BoxGeometry(1.30, 0.06, 0.08),
+      stallWall: new THREE.BoxGeometry(1.45, 1.95, 0.06),
+      stallDoor: new THREE.BoxGeometry(0.05, 1.82, 0.78),
+      toiletBase: new THREE.CylinderGeometry(0.20, 0.16, 0.42, 10),
+      toiletTank: new THREE.BoxGeometry(0.22, 0.38, 0.42),
+      sinkCounter: new THREE.BoxGeometry(0.58, 0.84, 2.40),
+      sinkBasin: new THREE.BoxGeometry(0.38, 0.06, 0.48),
+      wallMirror: new THREE.BoxGeometry(0.04, 1.05, 2.20),
+      canteenCounter: new THREE.BoxGeometry(0.85, 0.98, 4.20),
+      snackCase: new THREE.BoxGeometry(0.52, 0.48, 1.45),
+      storageShelf: new THREE.BoxGeometry(0.58, 2.10, 2.20),
+      crateBox: new THREE.BoxGeometry(0.46, 0.38, 0.46),
+      vineCluster: new THREE.BoxGeometry(0.14, 1.65, 0.38),
+    };
+    // Tag repeated Step 2 interior prop geometries for automatic InstancedMesh batching
+    step2Geos.lockerBank.userData.instancedCategory = 'locker';
+    step2Geos.lockerDoor.userData.instancedCategory = 'locker';
+    step2Geos.bookStack.userData.instancedCategory = 'book';
+    step2Geos.openBook.userData.instancedCategory = 'book';
+    step2Geos.bookRowSpan.userData.instancedCategory = 'book';
+    step2Geos.benchLongSeat.userData.instancedCategory = 'chair';
+    step2Geos.benchLongBack.userData.instancedCategory = 'chair';
+    step2Geos.officeDesk.userData.instancedCategory = 'desk';
+    step2Geos.filingCabinet.userData.instancedCategory = 'locker';
+    step2Geos.monitorPanel.userData.instancedCategory = 'desk';
+    step2Geos.keyboard.userData.instancedCategory = 'desk';
+    step2Geos.backpack.userData.instancedCategory = 'book';
+
+    // Helper: Swinging Wooden Door with Frame, Brass Handle & Room Code Plaque
+    function buildSwingingDoor(parent, x, y, z, openAngleY = 1.05, plaqueMat = materials.gandakiBluePole) {
+      const dPivot = new THREE.Group();
+      dPivot.position.set(x, y, z);
+      dPivot.rotation.y = openAngleY;
+
+      const leaf = new THREE.Mesh(step2Geos.doorLeaf, materials.deskWoodTop);
+      leaf.position.set(0.46, 1.13, 0);
+      dPivot.add(leaf);
+
+      const handle = new THREE.Mesh(step2Geos.doorHandle, materials.brassGajur);
+      handle.position.set(0.82, 1.02, 0);
+      dPivot.add(handle);
+
+      parent.add(dPivot);
+
+      const plaque = new THREE.Mesh(step2Geos.roomPlaque, plaqueMat);
+      plaque.position.set(x, y + 2.05, z);
+      parent.add(plaque);
+    }
+
+    // Helper: Window with Rod & Pleated Fabric Curtains
+    function buildInteriorWindowCurtains(parent, x, y, z, rotY = 0, isGold = false) {
+      const cGrp = new THREE.Group();
+      cGrp.position.set(x, y, z);
+      cGrp.rotation.y = rotY;
+
+      const rod = new THREE.Mesh(step2Geos.curtainRod, materials.castIronDark);
+      rod.rotation.z = Math.PI / 2;
+      rod.position.set(0, 0.74, 0);
+      cGrp.add(rod);
+
+      const cMat = isGold ? step2Mats.curtainGold : step2Mats.curtainFabric;
+      const leftPanel = new THREE.Mesh(step2Geos.curtainPanel, cMat);
+      leftPanel.position.set(-0.66, -0.02, 0.02);
+      cGrp.add(leftPanel);
+
+      const rightPanel = new THREE.Mesh(step2Geos.curtainPanel, cMat);
+      rightPanel.position.set(0.66, -0.02, 0.02);
+      cGrp.add(rightPanel);
+
+      parent.add(cGrp);
+    }
+
+    // Helper: Wall-Mounted Oscillating Fan
+    function buildWallMountedFan(parent, x, y, z, rotY = 0) {
+      const fGrp = new THREE.Group();
+      fGrp.position.set(x, y, z);
+      fGrp.rotation.y = rotY;
+
+      const mount = new THREE.Mesh(step2Geos.wallFanMount, materials.deskSteelFrame);
+      fGrp.add(mount);
+
+      const cage = new THREE.Mesh(step2Geos.wallFanCage, materials.whiteTrim);
+      cage.rotation.x = Math.PI / 2 + 0.22;
+      cage.position.set(0, 0.06, 0.16);
+      fGrp.add(cage);
+
+      parent.add(fGrp);
+    }
+
+    // Helper: Populate Corridor / Veranda Strip with Lockers, Notice Boards, Water Dispenser, Fire Extinguisher, Wall Lamps, Floor Mats, Framed Photos & Plants
+    function populateCorridorProps(corridorX, corridorZ, floorY, length, wallSignX = 1, doorZList = [], zoneName = 'Corridor') {
       const cGroup = new THREE.Group();
-      cGroup.position.set(unitCenterX, floorY, unitCenterZ);
+      cGroup.position.set(corridorX, floorY, corridorZ);
       scene.add(cGroup);
 
-      // 1. Finished Interior Ceiling Panel + Glowing Warm LED Ceiling Light + 3-Blade Fan
-      const ceilPanel = new THREE.Mesh(
-        new THREE.BoxGeometry(6.8, 0.06, 8.2),
-        isNewariStyle ? materials.carvedSalWood : materials.whiteTrim
-      );
-      ceilPanel.position.set(0, 3.38, 0);
-      cGroup.add(ceilPanel);
+      // 1. Floor Mats at each doorway + Wall Lamp Sconces & Framed Photos beside doors
+      doorZList.forEach((dz, idx) => {
+        const localZ = dz - corridorZ;
+        const mat = new THREE.Mesh(step2Geos.floorMat, step2Mats.matRubber);
+        mat.position.set(-wallSignX * 0.58, 0.012, localZ);
+        mat.rotation.y = Math.PI / 2;
+        cGroup.add(mat);
 
-      const ledStrip = new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.05, 0.36), materials.ceilingLightEmissive);
-      ledStrip.position.set(0, 3.32, 0.8);
-      cGroup.add(ledStrip);
+        // Wall lamp above/beside doorway
+        const lampBack = new THREE.Mesh(step2Geos.wallLampBack, materials.castIronDark);
+        lampBack.position.set(-wallSignX * 0.04, 2.38, localZ + 1.25);
+        cGroup.add(lampBack);
+        const lampBulb = new THREE.Mesh(step2Geos.wallLampBulb, materials.ceilingLightEmissive);
+        lampBulb.position.set(-wallSignX * 0.10, 2.38, localZ + 1.25);
+        cGroup.add(lampBulb);
 
-      // Central 3-blade ceiling fan
-      const fanRod = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.38, 6), materials.whiteTrim);
-      fanRod.position.set(0, 3.16, -0.4);
-      cGroup.add(fanRod);
-      for (let b = 0; b < 3; b++) {
-        const ang = (b * Math.PI * 2) / 3;
-        const blade = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.015, 0.78), materials.whiteTrim);
-        blade.position.set(Math.sin(ang) * 0.44, 2.96, -0.4 + Math.cos(ang) * 0.44);
-        blade.rotation.y = ang;
-        cGroup.add(blade);
-      }
+        // Framed campus photo on opposite side of doorway
+        const frame = new THREE.Mesh(step2Geos.photoFrame, materials.chairWood);
+        frame.position.set(-wallSignX * 0.04, 1.78, localZ - 1.35);
+        cGroup.add(frame);
+        const photo = new THREE.Mesh(step2Geos.photoCanvas, materials.gandakiBluePole);
+        photo.position.set(-wallSignX * 0.05, 1.78, localZ - 1.35);
+        cGroup.add(photo);
 
-      // 2. Teaching Wall Dado Band + Raised Dais Platform + Chalkboard & Whiteboard
+        // Potted plant flanking doorway
+        if (idx % 2 === 0) {
+          const pot = new THREE.Mesh(step2Geos.plantPot, materials.nepalOchreDado);
+          pot.position.set(-wallSignX * 0.36, 0.18, localZ + 1.45);
+          cGroup.add(pot);
+          const bush = new THREE.Mesh(step2Geos.plantBush, materials.foliageGreen);
+          bush.position.set(-wallSignX * 0.36, 0.48, localZ + 1.45);
+          cGroup.add(bush);
+        }
+      });
+
+      // 2. Corridor Steel Locker Bank between Room 1 & Room 2
+      const lockerZ = -length * 0.16;
+      const lockerMesh = new THREE.Mesh(step2Geos.lockerBank, step2Mats.lockerSteel);
+      lockerMesh.position.set(-wallSignX * 0.28, 0.96, lockerZ);
+      cGroup.add(lockerMesh);
+      [-0.56, 0, 0.56].forEach(lz => {
+        const lDoor = new THREE.Mesh(step2Geos.lockerDoor, step2Mats.lockerDoorBlue);
+        lDoor.position.set(-wallSignX * 0.52, 1.05, lockerZ + lz);
+        cGroup.add(lDoor);
+      });
+
+      // 3. Corridor Cork Notice Board with Pinned Schedules
+      const nbZ = length * 0.16;
+      const nbFrame = new THREE.Mesh(step2Geos.noticeBoard, materials.chairWood);
+      nbFrame.position.set(-wallSignX * 0.04, 1.65, nbZ);
+      cGroup.add(nbFrame);
+      const nbCork = new THREE.Mesh(step2Geos.noticeCork, step2Mats.corkBoard);
+      nbCork.position.set(-wallSignX * 0.05, 1.65, nbZ);
+      cGroup.add(nbCork);
+      [-0.45, 0.0, 0.42].forEach((nz, nIdx) => {
+        const note = new THREE.Mesh(step2Geos.noticeNote, step2Mats.paperSheet);
+        note.position.set(-wallSignX * 0.06, 1.68 + (nIdx - 1) * 0.08, nbZ + nz);
+        cGroup.add(note);
+      });
+
+      // 4. Hot/Cold Water Dispenser with Blue Water Jug
+      const wdZ = lockerZ + 1.35;
+      const wdBody = new THREE.Mesh(step2Geos.waterDispenser, materials.rotundaWhiteArch);
+      wdBody.position.set(-wallSignX * 0.24, 0.51, wdZ);
+      cGroup.add(wdBody);
+      const wdJug = new THREE.Mesh(step2Geos.waterBottle, step2Mats.waterJugBlue);
+      wdJug.position.set(-wallSignX * 0.24, 1.22, wdZ);
+      cGroup.add(wdJug);
+
+      // 5. Red Wall-Mounted Fire Extinguisher
+      const feZ = nbZ - 1.25;
+      const feBody = new THREE.Mesh(step2Geos.fireExtBody, step2Mats.fireRed);
+      feBody.position.set(-wallSignX * 0.12, 1.22, feZ);
+      cGroup.add(feBody);
+      const feTop = new THREE.Mesh(step2Geos.fireExtTop, materials.castIronDark);
+      feTop.position.set(-wallSignX * 0.12, 1.52, feZ);
+      cGroup.add(feTop);
+
+      bakeStaticGroup(cGroup, true);
+      cGroup.userData.isRoomGroup = true;
+      roomVisibilityList.push({
+        id: zoneName,
+        type: 'corridor',
+        group: cGroup,
+        x: corridorX,
+        y: floorY,
+        z: corridorZ,
+        floorY,
+        radius: Math.max(6.0, length * 0.52),
+      });
+    }
+
+    // Helper: Standard / Reference Classroom Interior (Rows of Desks & Benches, Teacher Desk, Whiteboard, Wall-Mounted Fans, Curtains, Shelves, Notice Boards, Bags & Books, Swinging Door)
+    function buildDetailedClassroomInterior(cGroup, unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle, isNewariStyle = false, layoutVariant = 0) {
+      // 1. Teaching Wall Dado Band + Raised Dais Platform + Whiteboard & Chalkboard
       const boardZ = facingDirZ * -3.1;
       const dadoBand = new THREE.Mesh(
         new THREE.BoxGeometry(6.8, 1.02, 0.04),
@@ -4942,8 +5515,8 @@ export function getHideAndSeekHtml(): string {
       dadoBand.position.set(0, 0.51, boardZ + facingDirZ * 0.02);
       cGroup.add(dadoBand);
 
-      const dais = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.12, 1.5), materials.rotundaPlinthConcrete);
-      dais.position.set(0, 0.06, boardZ + facingDirZ * 0.85);
+      const dais = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.12, 1.4), materials.rotundaPlinthConcrete);
+      dais.position.set(0, 0.06, boardZ + facingDirZ * 0.82);
       cGroup.add(dais);
 
       const wbMesh = new THREE.Mesh(sharedGeos.whiteboard, materials.whiteboardSurface);
@@ -4954,7 +5527,17 @@ export function getHideAndSeekHtml(): string {
       bbMesh.position.set(2.2, 1.85, boardZ);
       cGroup.add(bbMesh);
 
-      // Side Wall Wooden Bookshelf & Academic Reference Cabinet
+      // Rear Wall Notice Board with pinned notes
+      const rearNotice = new THREE.Mesh(step2Geos.noticeBoard, materials.chairWood);
+      rearNotice.rotation.y = Math.PI / 2;
+      rearNotice.position.set(0, 1.75, facingDirZ * 3.15);
+      cGroup.add(rearNotice);
+      const rearCork = new THREE.Mesh(step2Geos.noticeCork, step2Mats.corkBoard);
+      rearCork.rotation.y = Math.PI / 2;
+      rearCork.position.set(0, 1.75, facingDirZ * 3.12);
+      cGroup.add(rearCork);
+
+      // Side Wall Wooden Bookshelf + Upper Wall Shelves with Books
       const bookcase = new THREE.Mesh(new THREE.BoxGeometry(0.42, 1.95, 2.1), materials.chairWood);
       bookcase.position.set(-3.15, 0.98, 0.4);
       cGroup.add(bookcase);
@@ -4962,7 +5545,22 @@ export function getHideAndSeekHtml(): string {
       bookRow.position.set(-3.10, 1.35, 0.4);
       cGroup.add(bookRow);
 
-      // 3. Teacher Podium & Lecture Desk
+      [1.45, 2.05].forEach((sy, sIdx) => {
+        const wShelf = new THREE.Mesh(step2Geos.wallShelf, materials.chairWood);
+        wShelf.position.set(3.18, sy, -0.8 + sIdx * 0.4);
+        cGroup.add(wShelf);
+        const sBooks = new THREE.Mesh(step2Geos.bookStack, sIdx === 0 ? materials.rotundaRedSteel : materials.gandakiBluePole);
+        sBooks.position.set(3.14, sy + 0.08, -0.8 + sIdx * 0.4);
+        cGroup.add(sBooks);
+      });
+
+      // Wall-Mounted Oscillating Fans on both side walls + Window Curtains
+      buildWallMountedFan(cGroup, -3.28, 2.55, -1.5, Math.PI / 2);
+      buildWallMountedFan(cGroup, 3.28, 2.55, 1.2, -Math.PI / 2);
+      buildInteriorWindowCurtains(cGroup, 3.26, 1.92, -1.6, -Math.PI / 2, isNewariStyle);
+      buildInteriorWindowCurtains(cGroup, 3.26, 1.92, 1.8, -Math.PI / 2, isNewariStyle);
+
+      // Teacher Podium & Lecture Desk with Open Attendance Register & Stack of Books
       const podiumZ = facingDirZ * -2.1;
       const podium = new THREE.Mesh(sharedGeos.podiumBody, materials.chairWood);
       podium.position.set(-2.6, 0.64, podiumZ);
@@ -4971,6 +5569,9 @@ export function getHideAndSeekHtml(): string {
       const tDesk = new THREE.Mesh(sharedGeos.deskTop, materials.deskWoodTop);
       tDesk.position.set(0.4, 0.82, podiumZ);
       cGroup.add(tDesk);
+      const tBook = new THREE.Mesh(step2Geos.openBook, step2Mats.paperSheet);
+      tBook.position.set(0.35, 0.86, podiumZ);
+      cGroup.add(tBook);
       const tChair = new THREE.Mesh(sharedGeos.chairSeat, materials.chairWood);
       tChair.position.set(0.4, 0.50, podiumZ - facingDirZ * 0.5);
       cGroup.add(tChair);
@@ -4980,16 +5581,22 @@ export function getHideAndSeekHtml(): string {
         name: unitTitle + ' (Teacher Desk & Lectern)',
         x: unitCenterX + 0.4,
         y: floorY,
-        z: unitCenterZ + podiumZ,
+        z: unitCenterZ + podiumZ + facingDirZ * 0.58,
         zone: unitTitle,
       });
 
-      // 4. 2 Rows x 3 Columns of Student Desks & Chairs with Open Study Notebooks
-      const rowOffsetsZ = [facingDirZ * -0.3, facingDirZ * 1.45];
-      const colOffsetsX = [-2.5, 0.0, 2.5];
+      // Student Desks & Benches with Bags and Books
+      const rowOffsetsZ = layoutVariant === 1
+        ? [facingDirZ * -0.65, facingDirZ * 0.65, facingDirZ * 1.95]
+        : [facingDirZ * -0.45, facingDirZ * 0.85, facingDirZ * 2.10];
+      const colOffsetsX = [-2.35, 0.0, 2.35];
+      const bagMats = [step2Mats.bagNavy, step2Mats.bagOlive, step2Mats.bagMaroon];
 
       rowOffsetsZ.forEach((rz, rIdx) => {
         colOffsetsX.forEach((cx, cIdx) => {
+          // In Variant 1 (Seminar U-shape), keep middle desk of front row open for discussion space
+          if (layoutVariant === 1 && rIdx === 0 && cIdx === 1) return;
+
           const deskGroup = new THREE.Group();
           deskGroup.position.set(cx, 0, rz);
 
@@ -5008,24 +5615,34 @@ export function getHideAndSeekHtml(): string {
           legR.position.set(0.58, 0.37, 0);
           deskGroup.add(legR);
 
-          // Open study notebook on desk
+          // Bench with backrest behind each desk
+          const benchZ = facingDirZ * 0.44;
+          const bSeat = new THREE.Mesh(step2Geos.benchLongSeat, materials.chairWood);
+          bSeat.position.set(0, 0.44, benchZ);
+          deskGroup.add(bSeat);
+          const bBack = new THREE.Mesh(step2Geos.benchLongBack, materials.chairWood);
+          bBack.position.set(0, 0.62, benchZ + facingDirZ * 0.16);
+          deskGroup.add(bBack);
+
+          // Bags and books on desks (asymmetric clutter)
           if ((rIdx + cIdx) % 2 === 0) {
-            const notebook = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.015, 0.20), materials.whiteTrim);
-            notebook.position.set(0.18, 0.77, 0);
-            notebook.rotation.y = 0.18;
-            deskGroup.add(notebook);
+            const openBk = new THREE.Mesh(step2Geos.openBook, step2Mats.paperSheet);
+            openBk.position.set(0.22, 0.79, 0.02);
+            openBk.rotation.y = 0.18 * (cIdx - 1);
+            deskGroup.add(openBk);
+          } else {
+            const stackBk = new THREE.Mesh(step2Geos.bookStack, materials.gandakiBluePole);
+            stackBk.position.set(-0.28, 0.83, -0.04);
+            stackBk.rotation.y = -0.14;
+            deskGroup.add(stackBk);
           }
 
-          [-0.34, 0.34].forEach(chairX => {
-            const chZ = facingDirZ * 0.45;
-            const seat = new THREE.Mesh(sharedGeos.chairSeat, materials.chairWood);
-            seat.position.set(chairX, 0.44, chZ);
-            deskGroup.add(seat);
-
-            const back = new THREE.Mesh(sharedGeos.chairBack, materials.chairWood);
-            back.position.set(chairX, 0.66, chZ + facingDirZ * 0.19);
-            deskGroup.add(back);
-          });
+          if ((rIdx * 3 + cIdx) % 2 === 1) {
+            const bag = new THREE.Mesh(step2Geos.backpack, bagMats[(rIdx + cIdx) % 3]);
+            bag.position.set(-0.36, 0.64, benchZ);
+            bag.rotation.y = 0.25;
+            deskGroup.add(bag);
+          }
 
           cGroup.add(deskGroup);
 
@@ -5033,8 +5650,8 @@ export function getHideAndSeekHtml(): string {
           const worldDeskZ = unitCenterZ + rz;
 
           addColliderBox(new THREE.Box3(
-            new THREE.Vector3(worldDeskX - 0.62, floorY, worldDeskZ - 0.26),
-            new THREE.Vector3(worldDeskX + 0.62, floorY + 0.78, worldDeskZ + 0.26)
+            new THREE.Vector3(worldDeskX - 0.60, floorY, worldDeskZ - 0.25),
+            new THREE.Vector3(worldDeskX + 0.60, floorY + 0.78, worldDeskZ + 0.25)
           ));
 
           if ((rIdx + cIdx) % 2 === 0) {
@@ -5043,11 +5660,489 @@ export function getHideAndSeekHtml(): string {
               name: unitTitle + ' Desk #' + (rIdx * 3 + cIdx + 1),
               x: worldDeskX,
               y: floorY,
-              z: worldDeskZ + facingDirZ * 0.4,
+              z: worldDeskZ + facingDirZ * 0.62,
               zone: unitTitle,
             });
           }
         });
+      });
+    }
+
+    // Specialized Builder: Computer Lab (Rows of Monitors & Chairs, Cable Raceways, Server Rack with LEDs)
+    function buildComputerLabInterior(cGroup, unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle) {
+      const boardZ = facingDirZ * -3.1;
+      const wbMesh = new THREE.Mesh(sharedGeos.whiteboard, materials.whiteboardSurface);
+      wbMesh.position.set(0, 1.85, boardZ);
+      cGroup.add(wbMesh);
+
+      buildWallMountedFan(cGroup, -3.28, 2.55, 0, Math.PI / 2);
+      buildWallMountedFan(cGroup, 3.28, 2.55, 0, -Math.PI / 2);
+      buildInteriorWindowCurtains(cGroup, -3.26, 1.92, -1.5, Math.PI / 2, false);
+      buildInteriorWindowCurtains(cGroup, -3.26, 1.92, 1.5, Math.PI / 2, false);
+
+      // Tall Glass-Front Server Rack in Corner with Blinking Status LEDs & Cable Bundles
+      const srvX = 2.65, srvZ = facingDirZ * -2.35;
+      const srvRack = new THREE.Mesh(step2Geos.serverRack, materials.castIronDark);
+      srvRack.position.set(srvX, 1.08, srvZ);
+      cGroup.add(srvRack);
+      [-0.4, 0.0, 0.4, 0.75].forEach((ly, lIdx) => {
+        const led = new THREE.Mesh(
+          new THREE.BoxGeometry(0.48, 0.035, 0.04),
+          lIdx % 2 === 0 ? step2Mats.serverLedGreen : step2Mats.serverLedAmber
+        );
+        led.position.set(srvX, 1.15 + ly, srvZ + facingDirZ * 0.43);
+        cGroup.add(led);
+      });
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX + srvX - 0.42, floorY, unitCenterZ + srvZ - 0.45),
+        new THREE.Vector3(unitCenterX + srvX + 0.42, floorY + 2.15, unitCenterZ + srvZ + 0.45)
+      ));
+      interactiveHidingSpots.push({
+        id: 'server-rack-' + unitTitle,
+        name: unitTitle + ' (Behind Server Rack)',
+        x: unitCenterX + srvX - 0.78,
+        y: floorY,
+        z: unitCenterZ + srvZ,
+        zone: unitTitle,
+      });
+
+      // 3 Rows x 2 Columns of Dual-Monitor Computer Workstations, Chairs & Under-Desk Cable Trays
+      const rowsZ = [facingDirZ * -1.1, facingDirZ * 0.35, facingDirZ * 1.80];
+      const colsX = [-1.85, 1.45];
+      rowsZ.forEach((rz, rIdx) => {
+        colsX.forEach((cx, cIdx) => {
+          const wGrp = new THREE.Group();
+          wGrp.position.set(cx, 0, rz);
+
+          const desk = new THREE.Mesh(sharedGeos.deskTop, materials.deskSteelFrame);
+          desk.position.y = 0.75;
+          wGrp.add(desk);
+
+          const cableRun = new THREE.Mesh(step2Geos.cableTray, materials.castIronDark);
+          cableRun.position.set(0, 0.52, -facingDirZ * 0.22);
+          wGrp.add(cableRun);
+
+          [-0.32, 0.32].forEach((mx, mIdx) => {
+            const isOn = (rIdx + cIdx + mIdx) % 2 === 0;
+            const mon = new THREE.Mesh(step2Geos.monitorPanel, isOn ? step2Mats.monitorScreenOn : step2Mats.monitorScreenOff);
+            mon.position.set(mx, 0.98, -facingDirZ * 0.10);
+            wGrp.add(mon);
+            const stand = new THREE.Mesh(step2Geos.monitorStand, materials.castIronDark);
+            stand.position.set(mx, 0.82, -facingDirZ * 0.12);
+            wGrp.add(stand);
+            const kb = new THREE.Mesh(step2Geos.keyboard, materials.deskSteelFrame);
+            kb.position.set(mx, 0.79, facingDirZ * 0.12);
+            wGrp.add(kb);
+
+            const chSeat = new THREE.Mesh(sharedGeos.chairSeat, materials.castIronDark);
+            chSeat.position.set(mx, 0.46, facingDirZ * 0.44);
+            wGrp.add(chSeat);
+            const chBack = new THREE.Mesh(sharedGeos.chairBack, materials.castIronDark);
+            chBack.position.set(mx, 0.68, facingDirZ * 0.62);
+            wGrp.add(chBack);
+          });
+
+          cGroup.add(wGrp);
+          const wx = unitCenterX + cx;
+          const wz = unitCenterZ + rz;
+          addColliderBox(new THREE.Box3(
+            new THREE.Vector3(wx - 0.62, floorY, wz - 0.26),
+            new THREE.Vector3(wx + 0.62, floorY + 0.82, wz + 0.26)
+          ));
+          if ((rIdx + cIdx) % 2 === 0) {
+            interactiveHidingSpots.push({
+              id: 'lab-desk-' + unitTitle + '-' + rIdx + '-' + cIdx,
+              name: unitTitle + ' Workstation #' + (rIdx * 2 + cIdx + 1),
+              x: wx,
+              y: floorY,
+              z: wz + facingDirZ * 0.62,
+              zone: unitTitle,
+            });
+          }
+        });
+      });
+    }
+
+    // Specialized Builder: Library Room (Tall Bookshelves in Rows with Walkable Gaps, Reading Tables, Desk Lamps)
+    function buildLibraryRoomInterior(cGroup, unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle) {
+      buildWallMountedFan(cGroup, -3.28, 2.55, 0, Math.PI / 2);
+      buildWallMountedFan(cGroup, 3.28, 2.55, 0, -Math.PI / 2);
+      buildInteriorWindowCurtains(cGroup, -3.26, 1.92, -1.6, Math.PI / 2, true);
+      buildInteriorWindowCurtains(cGroup, -3.26, 1.92, 1.6, Math.PI / 2, true);
+
+      // 3 Rows of Tall Double-Sided Wooden Bookshelves with Walkable Gaps
+      const stackZList = [-2.2, 0.0, 2.2];
+      stackZList.forEach((sz, sIdx) => {
+        const shelfX = -1.65;
+        const shelf = new THREE.Mesh(step2Geos.tallBookshelf, materials.chairWood);
+        shelf.rotation.y = Math.PI / 2;
+        shelf.position.set(shelfX, 1.14, sz);
+        cGroup.add(shelf);
+
+        [0.48, 0.96, 1.44, 1.92].forEach((by, bIdx) => {
+          const books = new THREE.Mesh(
+            step2Geos.bookRowSpan,
+            (sIdx + bIdx) % 2 === 0 ? materials.gandakiBluePole : materials.rotundaRedSteel
+          );
+          books.rotation.y = Math.PI / 2;
+          books.position.set(shelfX, by, sz);
+          cGroup.add(books);
+        });
+
+        const wx = unitCenterX + shelfX;
+        const wz = unitCenterZ + sz;
+        addColliderBox(new THREE.Box3(
+          new THREE.Vector3(wx - 1.30, floorY, wz - 0.30),
+          new THREE.Vector3(wx + 1.30, floorY + 2.28, wz + 0.30)
+        ));
+
+        interactiveHidingSpots.push({
+          id: 'lib-stack-' + unitTitle + '-' + sIdx,
+          name: unitTitle + ' Bookshelf Aisle #' + (sIdx + 1),
+          x: wx,
+          y: floorY,
+          z: wz + 0.72,
+          zone: unitTitle,
+        });
+      });
+
+      // Reading Tables with Warm Banker Desk Lamps & Open Reference Books on the East Side
+      [-1.35, 1.35].forEach((tz, tIdx) => {
+        const tx = 1.75;
+        const rTable = new THREE.Mesh(step2Geos.readingTable, materials.deskWoodTop);
+        rTable.position.set(tx, 0.38, tz);
+        cGroup.add(rTable);
+
+        const lampStand = new THREE.Mesh(step2Geos.readingLampStand, materials.brassGajur);
+        lampStand.position.set(tx, 0.92, tz);
+        cGroup.add(lampStand);
+        const lampShade = new THREE.Mesh(step2Geos.readingLampShade, step2Mats.lampShadeGreen);
+        lampShade.position.set(tx, 1.10, tz);
+        cGroup.add(lampShade);
+
+        const openBk = new THREE.Mesh(step2Geos.openBook, step2Mats.paperSheet);
+        openBk.position.set(tx - 0.38, 0.78, tz + 0.22);
+        cGroup.add(openBk);
+
+        [-0.45, 0.45].forEach(chZ => {
+          const ch = new THREE.Mesh(sharedGeos.chairSeat, materials.chairWood);
+          ch.position.set(tx, 0.45, tz + chZ * 1.45);
+          cGroup.add(ch);
+        });
+
+        const wx = unitCenterX + tx;
+        const wz = unitCenterZ + tz;
+        addColliderBox(new THREE.Box3(
+          new THREE.Vector3(wx - 0.82, floorY, wz - 0.52),
+          new THREE.Vector3(wx + 0.82, floorY + 0.80, wz + 0.52)
+        ));
+      });
+    }
+
+    // Specialized Builder: Staff Room & Admin Offices (Office Desks, Chairs, Filing Cabinets, Computers, Paper Stacks, Sofa)
+    function buildStaffAdminOfficeInterior(cGroup, unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle) {
+      buildWallMountedFan(cGroup, -3.28, 2.55, 0, Math.PI / 2);
+      buildInteriorWindowCurtains(cGroup, 3.26, 1.92, -1.4, -Math.PI / 2, true);
+      buildInteriorWindowCurtains(cGroup, 3.26, 1.92, 1.4, -Math.PI / 2, true);
+
+      // Row of Steel Filing Cabinets along Back Wall
+      [-2.1, -1.4, -0.7, 0.0].forEach((fx, fIdx) => {
+        const cab = new THREE.Mesh(step2Geos.filingCabinet, step2Mats.lockerSteel);
+        cab.position.set(fx, 0.69, -2.75);
+        cGroup.add(cab);
+        if (fIdx % 2 === 0) {
+          const pStack = new THREE.Mesh(step2Geos.paperStack, step2Mats.paperSheet);
+          pStack.position.set(fx, 1.46, -2.75);
+          cGroup.add(pStack);
+        }
+      });
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX - 2.45, floorY, unitCenterZ - 3.10),
+        new THREE.Vector3(unitCenterX + 0.35, floorY + 1.42, unitCenterZ - 2.40)
+      ));
+
+      // 3-Seater Faculty Lounge Sofa + Coffee Table
+      const sofaX = 2.15, sofaZ = 1.85;
+      const sBase = new THREE.Mesh(step2Geos.sofaBase, step2Mats.sofaLeather);
+      sBase.position.set(sofaX, 0.21, sofaZ);
+      cGroup.add(sBase);
+      const sBack = new THREE.Mesh(step2Geos.sofaBack, step2Mats.sofaLeather);
+      sBack.position.set(sofaX, 0.56, sofaZ + 0.30);
+      cGroup.add(sBack);
+      [-0.88, 0.88].forEach(ax => {
+        const sArm = new THREE.Mesh(step2Geos.sofaArm, step2Mats.sofaLeather);
+        sArm.position.set(sofaX + ax, 0.28, sofaZ);
+        cGroup.add(sArm);
+      });
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX + sofaX - 1.0, floorY, unitCenterZ + sofaZ - 0.44),
+        new THREE.Vector3(unitCenterX + sofaX + 1.0, floorY + 0.85, unitCenterZ + sofaZ + 0.44)
+      ));
+
+      // 4 Faculty Office Desks with Computers, Paper Stacks & Swivel Chairs
+      const deskCoords = [
+        [-1.65, -0.85], [1.65, -0.85],
+        [-1.65,  1.25],
+      ];
+      deskCoords.forEach(([dx, dz], dIdx) => {
+        const oDesk = new THREE.Mesh(step2Geos.officeDesk, materials.deskWoodTop);
+        oDesk.position.set(dx, 0.38, dz);
+        cGroup.add(oDesk);
+
+        const mon = new THREE.Mesh(step2Geos.monitorPanel, dIdx === 0 ? step2Mats.monitorScreenOn : step2Mats.monitorScreenOff);
+        mon.position.set(dx - 0.28, 0.94, dz - 0.12);
+        cGroup.add(mon);
+
+        const papers = new THREE.Mesh(step2Geos.paperStack, step2Mats.paperSheet);
+        papers.position.set(dx + 0.36, 0.84, dz + 0.08);
+        cGroup.add(papers);
+
+        const chair = new THREE.Mesh(sharedGeos.chairSeat, materials.castIronDark);
+        chair.position.set(dx, 0.46, dz + 0.56);
+        cGroup.add(chair);
+
+        const wx = unitCenterX + dx;
+        const wz = unitCenterZ + dz;
+        addColliderBox(new THREE.Box3(
+          new THREE.Vector3(wx - 0.76, floorY, wz - 0.40),
+          new THREE.Vector3(wx + 0.76, floorY + 0.80, wz + 0.40)
+        ));
+        interactiveHidingSpots.push({
+          id: 'office-desk-' + unitTitle + '-' + dIdx,
+          name: unitTitle + ' Office Desk #' + (dIdx + 1),
+          x: wx,
+          y: floorY,
+          z: wz + 0.76,
+          zone: unitTitle,
+        });
+      });
+    }
+
+    // Specialized Builder: Campus Toilets / Washroom Block (Stalls, Washbasins, Mirrors)
+    function buildToiletsRoomInterior(cGroup, unitCenterX, unitCenterZ, floorY, unitTitle) {
+      // 3 Partitioned Toilet Cubicles along East Wall with Swinging Doors & Ceramic Bowls
+      [-1.8, -0.2, 1.4].forEach((sz, sIdx) => {
+        const pWall = new THREE.Mesh(step2Geos.stallWall, materials.rotundaWhiteArch);
+        pWall.position.set(2.15, 0.98, sz - 0.75);
+        cGroup.add(pWall);
+
+        const sDoor = new THREE.Mesh(step2Geos.stallDoor, materials.chairWood);
+        sDoor.position.set(1.42, 0.96, sz);
+        sDoor.rotation.y = sIdx === 1 ? 0.65 : 0.12; // Middle stall door ajar
+        cGroup.add(sDoor);
+
+        const bowl = new THREE.Mesh(step2Geos.toiletBase, step2Mats.ceramicWhite);
+        bowl.position.set(2.45, 0.21, sz);
+        cGroup.add(bowl);
+        const tank = new THREE.Mesh(step2Geos.toiletTank, step2Mats.ceramicWhite);
+        tank.position.set(2.75, 0.58, sz);
+        cGroup.add(tank);
+
+        interactiveHidingSpots.push({
+          id: 'toilet-stall-' + unitTitle + '-' + sIdx,
+          name: unitTitle + ' Stall #' + (sIdx + 1),
+          x: unitCenterX + 0.75,
+          y: floorY,
+          z: unitCenterZ + sz,
+          zone: unitTitle,
+        });
+      });
+
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX + 1.40, floorY, unitCenterZ - 2.65),
+        new THREE.Vector3(unitCenterX + 3.20, floorY + 1.95, unitCenterZ + 2.25)
+      ));
+
+      // Tiled Vanity Counter with 3 Washbasins & Large Wall Mirror
+      const vanity = new THREE.Mesh(step2Geos.sinkCounter, materials.rotundaPlinthConcrete);
+      vanity.position.set(-1.65, 0.42, -1.2);
+      cGroup.add(vanity);
+      [-1.9, -1.2, -0.5].forEach(bz => {
+        const basin = new THREE.Mesh(step2Geos.sinkBasin, step2Mats.ceramicWhite);
+        basin.position.set(-1.65, 0.86, bz);
+        cGroup.add(basin);
+      });
+      const mirror = new THREE.Mesh(step2Geos.wallMirror, step2Mats.mirrorGlass);
+      mirror.position.set(-2.02, 1.52, -1.2);
+      cGroup.add(mirror);
+
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX - 2.05, floorY, unitCenterZ - 2.45),
+        new THREE.Vector3(unitCenterX - 1.25, floorY + 0.90, unitCenterZ + 0.05)
+      ));
+    }
+
+    // Specialized Builder: Campus Canteen (Serving Counter, Snack Case, Dining Tables, Kitchen Stove & Pantry)
+    function buildCanteenRoomInterior(cGroup, unitCenterX, unitCenterZ, floorY, unitTitle, isKitchen = false) {
+      buildWallMountedFan(cGroup, 3.28, 2.55, 0, -Math.PI / 2);
+      buildInteriorWindowCurtains(cGroup, 3.26, 1.92, -1.5, -Math.PI / 2, true);
+
+      if (isKitchen) {
+        // Canteen Kitchen & Pantry Store: Stainless Prep Counter, Stove Range, Exhaust Hood, Stockpots & Rice Sacks
+        const prep = new THREE.Mesh(step2Geos.canteenCounter, step2Mats.stainlessSteel);
+        prep.position.set(1.85, 0.49, 0);
+        cGroup.add(prep);
+        const hood = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.55, 2.60), step2Mats.stainlessSteel);
+        hood.position.set(2.45, 2.25, -0.4);
+        cGroup.add(hood);
+
+        const rack = new THREE.Mesh(step2Geos.storageShelf, materials.deskSteelFrame);
+        rack.position.set(-1.85, 1.05, -1.4);
+        cGroup.add(rack);
+        [-2.1, -1.4, -0.7].forEach(cz => {
+          const crate = new THREE.Mesh(step2Geos.crateBox, step2Mats.cardboardCrate);
+          crate.position.set(-1.85, 0.72, cz);
+          cGroup.add(crate);
+        });
+
+        addColliderBox(new THREE.Box3(
+          new THREE.Vector3(unitCenterX + 1.38, floorY, unitCenterZ - 2.15),
+          new THREE.Vector3(unitCenterX + 2.35, floorY + 1.02, unitCenterZ + 2.15)
+        ));
+        interactiveHidingSpots.push({
+          id: 'canteen-kitchen-' + unitTitle,
+          name: unitTitle + ' (Canteen Kitchen Prep Counter)',
+          x: unitCenterX + 0.65,
+          y: floorY,
+          z: unitCenterZ,
+          zone: unitTitle,
+        });
+      } else {
+        // Canteen Serving Counter + Glass Snack Display + Dining Tables & Benches
+        const counter = new THREE.Mesh(step2Geos.canteenCounter, materials.chairWood);
+        counter.position.set(1.95, 0.49, -0.6);
+        cGroup.add(counter);
+        const sCase = new THREE.Mesh(step2Geos.snackCase, materials.windowWarmLit);
+        sCase.position.set(1.95, 1.22, -1.2);
+        cGroup.add(sCase);
+
+        addColliderBox(new THREE.Box3(
+          new THREE.Vector3(unitCenterX + 1.48, floorY, unitCenterZ - 2.75),
+          new THREE.Vector3(unitCenterX + 2.42, floorY + 1.10, unitCenterZ + 1.55)
+        ));
+
+        [-1.45, 1.25].forEach((tz, tIdx) => {
+          const tx = -1.25;
+          const tbl = new THREE.Mesh(step2Geos.readingTable, materials.deskWoodTop);
+          tbl.position.set(tx, 0.38, tz);
+          cGroup.add(tbl);
+          [-0.65, 0.65].forEach(bz => {
+            const bnc = new THREE.Mesh(step2Geos.benchLongSeat, materials.chairWood);
+            bnc.position.set(tx, 0.44, tz + bz);
+            cGroup.add(bnc);
+          });
+          const wx = unitCenterX + tx;
+          const wz = unitCenterZ + tz;
+          addColliderBox(new THREE.Box3(
+            new THREE.Vector3(wx - 0.82, floorY, wz - 0.52),
+            new THREE.Vector3(wx + 0.82, floorY + 0.80, wz + 0.52)
+          ));
+          interactiveHidingSpots.push({
+            id: 'canteen-table-' + unitTitle + '-' + tIdx,
+            name: unitTitle + ' Dining Table #' + (tIdx + 1),
+            x: wx,
+            y: floorY,
+            z: wz + 0.85,
+            zone: unitTitle,
+          });
+        });
+      }
+    }
+
+    // Specialized Builder: Store Room (Heavy Shelving Racks, Crates, Spare Furniture, Supply Cabinets)
+    function buildStoreRoomInterior(cGroup, unitCenterX, unitCenterZ, floorY, unitTitle) {
+      [-1.75, 1.75].forEach((sx, sIdx) => {
+        const rack = new THREE.Mesh(step2Geos.storageShelf, materials.deskSteelFrame);
+        rack.position.set(sx, 1.05, -0.8);
+        cGroup.add(rack);
+
+        [0.42, 1.05, 1.62].forEach((cy, cIdx) => {
+          const box = new THREE.Mesh(step2Geos.crateBox, step2Mats.cardboardCrate);
+          box.position.set(sx, cy, -1.2 + cIdx * 0.55);
+          cGroup.add(box);
+        });
+
+        const wx = unitCenterX + sx;
+        const wz = unitCenterZ - 0.8;
+        addColliderBox(new THREE.Box3(
+          new THREE.Vector3(wx - 0.34, floorY, wz - 1.15),
+          new THREE.Vector3(wx + 0.34, floorY + 2.10, wz + 1.15)
+        ));
+        interactiveHidingSpots.push({
+          id: 'store-rack-' + unitTitle + '-' + sIdx,
+          name: unitTitle + ' Storage Rack #' + (sIdx + 1),
+          x: wx + (sIdx === 0 ? 0.72 : -0.72),
+          y: floorY,
+          z: wz,
+          zone: unitTitle,
+        });
+      });
+
+      const cab = new THREE.Mesh(step2Geos.lockerBank, step2Mats.lockerSteel);
+      cab.rotation.y = Math.PI / 2;
+      cab.position.set(0, 0.96, 2.45);
+      cGroup.add(cab);
+    }
+
+    function populateClassroomUnit(unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle, isNewariStyle = false) {
+      const cGroup = new THREE.Group();
+      cGroup.position.set(unitCenterX, floorY, unitCenterZ);
+      scene.add(cGroup);
+
+      // 1. Finished Interior Ceiling Panel + Glowing Warm LED Ceiling Light + 3-Blade Fan
+      const ceilPanel = new THREE.Mesh(
+        new THREE.BoxGeometry(6.8, 0.06, 8.2),
+        isNewariStyle ? materials.carvedSalWood : materials.whiteTrim
+      );
+      ceilPanel.position.set(0, 3.38, 0);
+      cGroup.add(ceilPanel);
+
+      const ledStrip = new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.05, 0.36), materials.ceilingLightEmissive);
+      ledStrip.position.set(0, 3.32, 0.8);
+      cGroup.add(ledStrip);
+
+      const fanRod = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.38, 6), materials.whiteTrim);
+      fanRod.position.set(0, 3.16, -0.4);
+      cGroup.add(fanRod);
+      for (let b = 0; b < 3; b++) {
+        const ang = (b * Math.PI * 2) / 3;
+        const blade = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.015, 0.78), materials.whiteTrim);
+        blade.position.set(Math.sin(ang) * 0.44, 2.96, -0.4 + Math.cos(ang) * 0.44);
+        blade.rotation.y = ang;
+        cGroup.add(blade);
+      }
+
+      // Route each wing room to a distinct, non-repetitive interior layout!
+      if (unitTitle.indexOf('West Wing L2 Room 1') !== -1 || unitTitle.indexOf('West Wing L2 Room 2') !== -1 || unitTitle.indexOf('Building W3 West Wing Room 1') !== -1) {
+        buildComputerLabInterior(cGroup, unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle);
+      } else if (unitTitle.indexOf('West Wing L2 Room 3') !== -1 || unitTitle.indexOf('Building W4 West Wing Room 2') !== -1) {
+        buildStoreRoomInterior(cGroup, unitCenterX, unitCenterZ, floorY, unitTitle);
+      } else if (unitTitle.indexOf('West Wing L3') !== -1) {
+        buildLibraryRoomInterior(cGroup, unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle);
+      } else if (unitTitle.indexOf('East Wing R1') !== -1 || unitTitle.indexOf('Building W3 West Wing Room 2') !== -1) {
+        buildStaffAdminOfficeInterior(cGroup, unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle);
+      } else if (unitTitle.indexOf('East Wing R2 Room 3') !== -1) {
+        buildToiletsRoomInterior(cGroup, unitCenterX, unitCenterZ, floorY, unitTitle);
+      } else if (unitTitle.indexOf('East Wing R4 Room 3') !== -1) {
+        buildCanteenRoomInterior(cGroup, unitCenterX, unitCenterZ, floorY, unitTitle, true);
+      } else if (unitTitle.indexOf('East Wing R4') !== -1) {
+        buildCanteenRoomInterior(cGroup, unitCenterX, unitCenterZ, floorY, unitTitle, false);
+      } else {
+        const variant = unitTitle.indexOf('Room 2') !== -1 ? 1 : 0;
+        buildDetailedClassroomInterior(cGroup, unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle, isNewariStyle, variant);
+      }
+
+      bakeStaticGroup(cGroup, true);
+      cGroup.userData.isRoomGroup = true;
+      roomVisibilityList.push({
+        id: unitTitle,
+        type: 'room',
+        group: cGroup,
+        x: unitCenterX,
+        y: floorY,
+        z: unitCenterZ,
+        floorY,
+        radius: 5.4,
       });
     }
 
@@ -5254,6 +6349,7 @@ export function getHideAndSeekHtml(): string {
       const numRooms = length >= 26 ? 3 : 2;
       const roomLen = length / numRooms;
       const doorW = 1.9;
+      const doorZCoords = [];
 
       for (let i = 1; i < numRooms; i++) {
         const pZ = cz - length / 2 + roomLen * i;
@@ -5262,6 +6358,7 @@ export function getHideAndSeekHtml(): string {
 
       for (let rIdx = 0; rIdx < numRooms; rIdx++) {
         const rCenterZ = cz - length / 2 + roomLen * (rIdx + 0.5);
+        doorZCoords.push(rCenterZ);
         const flankLen = (roomLen - doorW) / 2;
 
         buildWallSegment(doorWallX, floorH, rCenterZ - doorW / 2 - flankLen / 2, wallT, wallH, flankLen, materials.campusStucco);
@@ -5276,6 +6373,16 @@ export function getHideAndSeekHtml(): string {
         scene.add(doorArch);
         addWarmDoorwayGlow(doorWallX, floorH, rCenterZ, doorW, true);
 
+        // Swinging wooden door leaf opened into the room with brass handle & room plaque
+        buildSwingingDoor(
+          scene,
+          doorWallX - doorSideX * 0.16,
+          floorH,
+          rCenterZ - doorW * 0.46,
+          doorSideX === -1 ? 0.35 : (Math.PI - 0.35),
+          materials.gandakiBluePole
+        );
+
         if (flankLen > 1.8) {
           buildDetailedWindow(doorWallX + doorSideX * 0.14, floorH + 1.9, rCenterZ - doorW / 2 - flankLen / 2, 0, rIdx === 0, doorSideX);
           buildDetailedWindow(doorWallX + doorSideX * 0.14, floorH + 1.9, rCenterZ + doorW / 2 + flankLen / 2, 0, false, doorSideX);
@@ -5283,6 +6390,9 @@ export function getHideAndSeekHtml(): string {
 
         populateClassroomUnit(cx, rCenterZ, floorH, 1, blockLabel + ' Room ' + (rIdx + 1), false);
       }
+
+      // Populate Corridor / Exterior Veranda Strip with Lockers, Notice Boards, Water Dispenser, Fire Extinguisher, Wall Lamps, Mats, Photos & Plants
+      populateCorridorProps(doorWallX, cz, floorH, length, -doorSideX, doorZCoords, blockLabel + ' Corridor');
 
       if (hasVeranda) {
         const verandaColX = doorWallX + doorSideX * (verandaW - 0.25);
@@ -5393,6 +6503,19 @@ export function getHideAndSeekHtml(): string {
           scene.add(doorArch);
         }
 
+        // Swinging wooden door + entrance floor mat
+        buildSwingingDoor(
+          scene,
+          roomCenterX - doorW * 0.45,
+          floorH,
+          frontZ - doorSide * 0.16,
+          doorSide === 1 ? -1.15 : 1.15,
+          isNewariHeritage ? materials.ebonyCarvedWood : materials.gandakiBluePole
+        );
+        const dMat = new THREE.Mesh(step2Geos.floorMat, step2Mats.matRubber);
+        dMat.position.set(roomCenterX, floorH + 0.012, frontZ + doorSide * 0.46);
+        scene.add(dMat);
+
         addWarmDoorwayGlow(roomCenterX, floorH, frontZ, doorW, false);
         populateClassroomUnit(
           roomCenterX,
@@ -5431,20 +6554,28 @@ export function getHideAndSeekHtml(): string {
     buildConcreteFootpath(10.5, 3.0, 2.8, 18.0, true);    // Cross-Walkway to East Stone Chaitya Shrine
     buildConcreteFootpath(-8.0, 32.5, 3.0, 42.0, true);   // Northern Terrace Cross-Walkway below Grand Rotunda
 
-    // "PARKING" Stencil on Southern Entrance Apron
-    const pCanvas = document.createElement('canvas');
-    pCanvas.width = 512;
-    pCanvas.height = 128;
-    const pCtx = pCanvas.getContext('2d');
-    pCtx.clearRect(0, 0, 512, 128);
-    pCtx.fillStyle = 'rgba(203, 213, 225, 0.55)';
-    pCtx.fillRect(40, 8, 432, 5);
-    pCtx.fillRect(40, 115, 432, 5);
-    pCtx.font = '900 54px sans-serif';
-    pCtx.textAlign = 'center';
-    pCtx.fillText('P A R K I N G', 256, 80);
-    const pTex = new THREE.CanvasTexture(pCanvas);
-    const pStencil = new THREE.Mesh(new THREE.PlaneGeometry(9.5, 2.4), new THREE.MeshBasicMaterial({ map: pTex, transparent: true }));
+    // "PARKING" Stencil & Gate Signboard drawn into Signage Texture Atlas
+    if (sAtlasCtx) {
+      sAtlasCtx.fillStyle = '#1e2530';
+      sAtlasCtx.fillRect(0, 160, 512, 128);
+      sAtlasCtx.fillStyle = 'rgba(203, 213, 225, 0.65)';
+      sAtlasCtx.fillRect(40, 168, 432, 5);
+      sAtlasCtx.fillRect(40, 275, 432, 5);
+      sAtlasCtx.font = '900 54px sans-serif';
+      sAtlasCtx.textAlign = 'center';
+      sAtlasCtx.fillText('P A R K I N G', 256, 240);
+
+      sAtlasCtx.fillStyle = '#1d4ed8';
+      sAtlasCtx.fillRect(512, 96, 512, 96);
+      sAtlasCtx.strokeStyle = '#ffffff';
+      sAtlasCtx.lineWidth = 4;
+      sAtlasCtx.strokeRect(518, 102, 500, 84);
+      sAtlasCtx.fillStyle = '#ffffff';
+      sAtlasCtx.font = 'bold 38px sans-serif';
+      sAtlasCtx.textAlign = 'center';
+      sAtlasCtx.fillText('GANDAKI UNIVERSITY', 768, 156);
+    }
+    const pStencil = new THREE.Mesh(createAtlasUvGeo(new THREE.PlaneGeometry(9.5, 2.4), 0, 160, 512, 128), sharedSignageAtlasMat);
     pStencil.rotation.x = -Math.PI / 2;
     pStencil.position.set(-1.5, 0.035, -56);
     scene.add(pStencil);
@@ -5459,22 +6590,7 @@ export function getHideAndSeekHtml(): string {
     gateTopBeam.position.set(gateX, 4.35, gateZ);
     scene.add(gateTopBeam);
 
-    // Gandaki University Signboard over Main Entrance Gate
-    const gSignCanvas = document.createElement('canvas');
-    gSignCanvas.width = 512;
-    gSignCanvas.height = 96;
-    const gSignCtx = gSignCanvas.getContext('2d');
-    gSignCtx.fillStyle = '#1d4ed8';
-    gSignCtx.fillRect(0, 0, 512, 96);
-    gSignCtx.strokeStyle = '#ffffff';
-    gSignCtx.lineWidth = 4;
-    gSignCtx.strokeRect(6, 6, 500, 84);
-    gSignCtx.fillStyle = '#ffffff';
-    gSignCtx.font = 'bold 38px sans-serif';
-    gSignCtx.textAlign = 'center';
-    gSignCtx.fillText('GANDAKI UNIVERSITY', 256, 60);
-    const gSignTex = new THREE.CanvasTexture(gSignCanvas);
-    const gSignMesh = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 0.62), new THREE.MeshBasicMaterial({ map: gSignTex }));
+    const gSignMesh = new THREE.Mesh(createAtlasUvGeo(new THREE.PlaneGeometry(6.4, 0.62), 512, 96, 512, 96), sharedSignageAtlasMat);
     gSignMesh.position.set(gateX, 4.35, gateZ - 0.49);
     scene.add(gSignMesh);
 
@@ -5482,12 +6598,34 @@ export function getHideAndSeekHtml(): string {
     gateLeafL.position.set(gateX - 1.9, 1.1, gateZ);
     scene.add(gateLeafL);
 
-    // Blue-Roofed Security Guardhouse immediately to the right of the gate (Actual Gandaki University Architecture)
-    const ghX = 6.0, ghZ = -58.0, ghW = 4.6, ghD = 4.6;
-    buildWallSegment(ghX, 0, ghZ, ghW, 3.2, ghD, materials.campusStucco);
+    // Enterable Blue-Roofed Security Guardhouse immediately to the right of the gate
+    const ghX = 6.0, ghZ = -58.0, ghW = 4.6, ghD = 4.6, ghFloorY = 0.16;
+    const ghSlab = new THREE.Mesh(new THREE.BoxGeometry(ghW + 0.4, ghFloorY, ghD + 0.4), materials.classroomFloor);
+    ghSlab.position.set(ghX, ghFloorY / 2, ghZ);
+    scene.add(ghSlab);
+    addWalkableFloor(ghX - ghW / 2 - 0.4, ghX + ghW / 2 + 0.4, ghZ - ghD / 2 - 0.4, ghZ + ghD / 2 + 0.4, ghFloorY);
+    buildWallSegment(ghX, ghFloorY, ghZ - ghD / 2, ghW, 3.04, 0.22, materials.campusStucco);
+    buildWallSegment(ghX, ghFloorY, ghZ + ghD / 2, ghW, 3.04, 0.22, materials.campusStucco);
+    buildWallSegment(ghX + ghW / 2, ghFloorY, ghZ, 0.22, 3.04, ghD, materials.campusStucco);
+    buildWallSegment(ghX - ghW / 2, ghFloorY, ghZ - 1.55, 0.22, 3.04, 1.5, materials.campusStucco);
+    buildWallSegment(ghX - ghW / 2, ghFloorY, ghZ + 1.55, 0.22, 3.04, 1.5, materials.campusStucco);
+    buildSwingingDoor(scene, ghX - ghW / 2 + 0.15, ghFloorY, ghZ - 0.75, 0.42, materials.gandakiBluePole);
+    const ghDesk = new THREE.Mesh(step2Geos.officeDesk, materials.deskWoodTop);
+    ghDesk.position.set(ghX + 0.65, ghFloorY + 0.38, ghZ);
+    ghDesk.rotation.y = Math.PI / 2;
+    scene.add(ghDesk);
+    const ghMon = new THREE.Mesh(step2Geos.monitorPanel, step2Mats.monitorScreenOn);
+    ghMon.position.set(ghX + 0.72, ghFloorY + 0.94, ghZ - 0.25);
+    ghMon.rotation.y = -Math.PI / 2;
+    scene.add(ghMon);
+    const ghLocker = new THREE.Mesh(step2Geos.filingCabinet, step2Mats.lockerSteel);
+    ghLocker.position.set(ghX + 1.45, ghFloorY + 0.69, ghZ + 1.45);
+    scene.add(ghLocker);
+    addColliderBox(new THREE.Box3(new THREE.Vector3(ghX + 0.20, ghFloorY, ghZ - 0.80), new THREE.Vector3(ghX + 1.10, ghFloorY + 0.82, ghZ + 0.80)));
+    interactiveHidingSpots.push({ id: 'guardhouse-desk', name: 'Security Guardhouse CCTV Desk', x: ghX - 0.35, y: ghFloorY, z: ghZ, zone: 'Security Guardhouse' });
     buildCornerQuoins(ghX - ghW / 2, 0, ghZ - ghD / 2, 3.2);
     buildCornerQuoins(ghX + ghW / 2, 0, ghZ - ghD / 2, 3.2);
-    buildDetailedWindow(ghX - 1.0, 1.7, ghZ - ghD / 2 - 0.12, -1, true);
+    buildDetailedWindow(ghX - 0.4, 1.7, ghZ - ghD / 2 - 0.12, -1, true);
     buildPitchedGableRoof(ghX, 3.2, ghZ, ghW + 1.2, ghD + 1.2, 1.15, materials.brightBlueRoof, true);
 
     // Perimeter Nepali River-Stone Walls flanking the Southern Boundary
@@ -5690,9 +6828,22 @@ export function getHideAndSeekHtml(): string {
     w1Rail.position.set(-28.5, 0.85, -41.1);
     scene.add(w1Rail);
 
-    // Building W2 (Traditional Newari Brick & Carved Woodwork Cultural Hall with Sanjhyal Window & Jhingati Roof)
-    buildWallSegment(-34.0, 0, -22.0, 11.0, 4.0, 16.0, materials.nepalDachiBrick);
-    buildSanjhyalCarvedWindow(-28.4, 2.15, -22.0, 1, 0, 5, true, true);
+    // Enterable Building W2 (Traditional Newari Brick & Carved Woodwork Cultural & Archive Hall)
+    const w2X = -34.0, w2Z = -22.0, w2W = 11.0, w2D = 16.0, w2FloorY = 0.22;
+    const w2Slab = new THREE.Mesh(new THREE.BoxGeometry(w2W + 0.4, w2FloorY, w2D + 0.4), materials.teliyaFloorTile);
+    w2Slab.position.set(w2X, w2FloorY / 2, w2Z);
+    scene.add(w2Slab);
+    addWalkableFloor(w2X - w2W / 2 - 0.4, w2X + w2W / 2 + 0.6, w2Z - w2D / 2 - 0.4, w2Z + w2D / 2 + 0.4, w2FloorY);
+    buildWallSegment(w2X, w2FloorY, w2Z - w2D / 2, w2W, 3.78, 0.26, materials.nepalDachiBrick);
+    buildWallSegment(w2X, w2FloorY, w2Z + w2D / 2, w2W, 3.78, 0.26, materials.nepalDachiBrick);
+    buildWallSegment(w2X - w2W / 2, w2FloorY, w2Z, 0.26, 3.78, w2D, materials.nepalDachiBrick);
+    buildWallSegment(w2X + w2W / 2, w2FloorY, w2Z - 4.5, 0.26, 3.78, 7.0, materials.nepalDachiBrick);
+    buildWallSegment(w2X + w2W / 2, w2FloorY, w2Z + 4.5, 0.26, 3.78, 7.0, materials.nepalDachiBrick);
+    buildNewariToranaDoorway(w2X + w2W / 2 + 0.04, w2FloorY, w2Z, 1, 0, 2.0, 2.55);
+    buildSwingingDoor(scene, w2X + w2W / 2 - 0.18, w2FloorY, w2Z - 0.90, Math.PI - 0.45, materials.ebonyCarvedWood);
+    populateClassroomUnit(w2X, w2Z - 3.6, w2FloorY, 1, 'Newari Cultural Hall W2 South', true);
+    populateClassroomUnit(w2X, w2Z + 3.6, w2FloorY, -1, 'West Wing L3 Heritage Library W2', true);
+    buildSanjhyalCarvedWindow(-28.4, 2.85, -22.0, 1, 0, 3, true, true);
     buildDiyoBrickNiche(-28.4, 1.50, -26.5, 1, 0);
     buildDiyoBrickNiche(-28.4, 1.50, -17.5, 1, 0);
     buildPitchedGableRoof(-34.0, 4.0, -22.0, 11.8, 17.0, 1.48, materials.jhingatiTerracottaRoof, true);
@@ -6100,38 +7251,23 @@ export function getHideAndSeekHtml(): string {
       addWalkableStairRamp(cx - width / 2 - 0.12, cx + width / 2 + 0.12, minZ, maxZ, zStart, zEnd, yStart, yEnd);
     }
 
-    // Procedural Lecture Chalkboard Canvas Texture for the 6 Rotunda Classrooms & Smart Labs
-    const rotundaBoardTex = createProceduralTexture(512, 256, ctx => {
-      ctx.fillStyle = '#183829';
-      ctx.fillRect(0, 0, 512, 256);
-      ctx.strokeStyle = 'rgba(255,255,255,0.78)';
-      ctx.fillStyle = 'rgba(255,255,255,0.85)';
-      ctx.lineWidth = 2;
-      ctx.font = 'bold 20px Georgia, serif';
-      ctx.fillText('GANDAKI UNIVERSITY — FACULTY OF SCIENCE & TECH', 22, 34);
-      ctx.beginPath();
-      ctx.moveTo(20, 44);
-      ctx.lineTo(492, 44);
-      ctx.stroke();
-      ctx.font = '16px monospace';
-      ctx.fillText('1. Structural Mechanics:  ∑F_x = 0,  ∑M_z = I·α', 24, 78);
-      ctx.fillText('2. Harmonic Oscillation:  x(t) = A·e^(-γt)·cos(ωt + φ)', 24, 110);
-      ctx.fillText('3. Rotunda Dome Stress:   σ_θ = (p·R) / (2·t)', 24, 142);
-      // Geometric truss & arch diagram on right side of board
-      ctx.strokeRect(330, 155, 150, 76);
-      ctx.beginPath();
-      ctx.arc(405, 231, 58, Math.PI, 0, false);
-      ctx.stroke();
-      ctx.fillText('Arch Bay R=5.55m', 28, 198);
-      ctx.fillText('Floor Elev: +3.60m / Story', 28, 224);
-    });
-    const rotundaChalkboardMat = new THREE.MeshStandardMaterial({
-      map: rotundaBoardTex,
-      roughness: 0.72,
-      metalness: 0.05,
-    });
+    // Lecture Chalkboard drawn into Signage Texture Atlas (0, 288, 512, 224)
+    if (sAtlasCtx) {
+      sAtlasCtx.fillStyle = '#183829';
+      sAtlasCtx.fillRect(0, 288, 512, 224);
+      sAtlasCtx.strokeStyle = 'rgba(255,255,255,0.78)';
+      sAtlasCtx.fillStyle = 'rgba(255,255,255,0.85)';
+      sAtlasCtx.lineWidth = 2;
+      sAtlasCtx.font = 'bold 20px Georgia, serif';
+      sAtlasCtx.fillText('GANDAKI UNIVERSITY — FACULTY OF SCIENCE & TECH', 22, 322);
+      sAtlasCtx.font = '16px monospace';
+      sAtlasCtx.fillText('1. Structural Mechanics:  ∑F_x = 0,  ∑M_z = I·α', 24, 366);
+      sAtlasCtx.fillText('2. Harmonic Oscillation:  x(t) = A·e^(-γt)·cos(ωt + φ)', 24, 398);
+      sAtlasCtx.fillText('3. Rotunda Dome Stress:   σ_θ = (p·R) / (2·t)', 24, 430);
+    }
+    const rotundaChalkboardMat = harmikaEyesMat;
 
-    // 5. Well-Furnished Classroom & Lab Interior Builder for All 3 Floors (Ceilings, Baseboards, Pilasters, Desks, Laptops, Podium, Boards, Projector, Bookshelves, Fans & Lights)
+    // 5. Well-Furnished Classroom, Library, Admin Office & Computer Lab Interior Builder for All 3 Rotunda Floors
     function populateGrandRotundaClassroom(roomCX, roomCZ, floorY, sideSign, floorNum, roomCode, roomTitle) {
       const rGroup = new THREE.Group();
       rGroup.position.set(roomCX, floorY, roomCZ);
@@ -6166,164 +7302,228 @@ export function getHideAndSeekHtml(): string {
         rGroup.add(cPil);
       });
 
-      // Teaching wall is along the north/back wall (z = +6.35)
-      const boardZ = 6.35;
-      // Raised Teacher Dais Platform at teaching end
-      const dais = new THREE.Mesh(new THREE.BoxGeometry(8.6, 0.16, 2.2), materials.rotundaPlinthConcrete);
-      dais.position.set(0, 0.08, boardZ - 1.2);
-      rGroup.add(dais);
+      // Interior Window Curtains along Front, Outer Side & Back Windows + Wall-Mounted Oscillating Fans
+      [-3.2, 3.2].forEach(wx => {
+        buildInteriorWindowCurtains(rGroup, wx, 1.92, -6.52, 0, floorNum === 2);
+        buildInteriorWindowCurtains(rGroup, wx, 1.92, 6.52, Math.PI, floorNum === 2);
+      });
+      [-4.2, 0.0, 4.2].forEach(wz => {
+        buildInteriorWindowCurtains(rGroup, sideSign * 6.82, 1.92, wz, -sideSign * Math.PI / 2, floorNum === 2);
+      });
+      buildWallMountedFan(rGroup, sideSign * 6.84, 2.62, -2.2, -sideSign * Math.PI / 2);
+      buildWallMountedFan(rGroup, sideSign * 6.84, 2.62, 2.2, -sideSign * Math.PI / 2);
 
-      // Large Annotated Green Lecture Chalkboard + White Magnetic Markerboard + Chalk Tray
-      const greenBoard = new THREE.Mesh(new THREE.BoxGeometry(4.2, 1.45, 0.06), rotundaChalkboardMat);
-      greenBoard.position.set(-2.1, 1.95, boardZ);
-      rGroup.add(greenBoard);
-
-      const whiteBoard = new THREE.Mesh(new THREE.BoxGeometry(3.6, 1.38, 0.06), materials.rotundaWhiteArch);
-      whiteBoard.position.set(2.2, 1.95, boardZ);
-      rGroup.add(whiteBoard);
-
-      const boardTray = new THREE.Mesh(new THREE.BoxGeometry(8.2, 0.08, 0.16), materials.chairWood);
-      boardTray.position.set(-0.1, 1.18, boardZ - 0.08);
-      rGroup.add(boardTray);
-
-      // Pull-Down Overhead Projector Screen + Ceiling Multimedia Projector
-      const projScreen = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.10, 0.12), materials.castIronDark);
-      projScreen.position.set(2.2, 2.75, boardZ - 0.10);
-      rGroup.add(projScreen);
-
-      const projectorMount = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.48, 8), materials.deskSteelFrame);
-      projectorMount.position.set(2.2, 3.12, boardZ - 3.4);
-      rGroup.add(projectorMount);
-      const projectorBox = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.16, 0.36), materials.rotundaWhiteArch);
-      projectorBox.position.set(2.2, 2.86, boardZ - 3.4);
-      rGroup.add(projectorBox);
-
-      // Framed Noticeboard & Wall Clock on the Front Wall (z = -6.58)
+      // Framed Noticeboard on the Front Wall (z = -6.58)
       const noticeBoard = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.15, 0.06), materials.chairWood);
       noticeBoard.position.set(0, 1.85, -6.62);
       rGroup.add(noticeBoard);
-      const noticeCork = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.96, 0.08), materials.deskWoodTop);
+      const noticeCork = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.96, 0.08), step2Mats.corkBoard);
       noticeCork.position.set(0, 1.85, -6.60);
       rGroup.add(noticeCork);
 
-      // Teacher Lectern Podium & Professor Desk + Swivel Chair (Walk-around collider + hiding spot)
-      const profDeskX = -2.4;
-      const profDeskZ = boardZ - 1.35;
-      const profDesk = new THREE.Mesh(new THREE.BoxGeometry(1.75, 0.78, 0.85), materials.chairWood);
-      profDesk.position.set(profDeskX, 0.16 + 0.39, profDeskZ);
-      rGroup.add(profDesk);
+      // Route Room 102 -> Central Admin & Staff Office; Room 202 -> Reference Library; Room 302 -> AI & Networking Computer Lab!
+      if (roomCode === '102') {
+        buildStaffAdminOfficeInterior(rGroup, roomCX, roomCZ, floorY, -1, roomTitle);
+      } else if (roomCode === '202') {
+        buildLibraryRoomInterior(rGroup, roomCX, roomCZ, floorY, -1, roomTitle);
+      } else {
+        // Teaching wall is along the north/back wall (z = +6.35)
+        const boardZ = 6.35;
+        const dais = new THREE.Mesh(new THREE.BoxGeometry(8.6, 0.16, 2.2), materials.rotundaPlinthConcrete);
+        dais.position.set(0, 0.08, boardZ - 1.2);
+        rGroup.add(dais);
 
-      const profTop = new THREE.Mesh(new THREE.BoxGeometry(1.86, 0.06, 0.94), materials.deskWoodTop);
-      profTop.position.set(profDeskX, 0.16 + 0.80, profDeskZ);
-      rGroup.add(profTop);
+        const greenBoard = new THREE.Mesh(new THREE.BoxGeometry(4.2, 1.45, 0.06), rotundaChalkboardMat);
+        greenBoard.position.set(-2.1, 1.95, boardZ);
+        rGroup.add(greenBoard);
 
-      const podiumLectern = new THREE.Mesh(new THREE.BoxGeometry(0.68, 1.18, 0.58), materials.chairWood);
-      podiumLectern.position.set(2.8, 0.16 + 0.59, profDeskZ);
-      rGroup.add(podiumLectern);
+        const whiteBoard = new THREE.Mesh(new THREE.BoxGeometry(3.6, 1.38, 0.06), materials.rotundaWhiteArch);
+        whiteBoard.position.set(2.2, 1.95, boardZ);
+        rGroup.add(whiteBoard);
 
-      addColliderBox(new THREE.Box3(
-        new THREE.Vector3(roomCX + profDeskX - 0.95, floorY, roomCZ + profDeskZ - 0.50),
-        new THREE.Vector3(roomCX + profDeskX + 0.95, floorY + 1.05, roomCZ + profDeskZ + 0.50)
-      ));
+        const boardTray = new THREE.Mesh(new THREE.BoxGeometry(8.2, 0.08, 0.16), materials.chairWood);
+        boardTray.position.set(-0.1, 1.18, boardZ - 0.08);
+        rGroup.add(boardTray);
 
-      interactiveHidingSpots.push({
-        id: 'rotunda-prof-' + roomCode,
-        name: roomTitle + ' Lectern Desk',
-        x: roomCX + profDeskX,
-        y: floorY,
-        z: roomCZ + profDeskZ + 0.55,
-        zone: roomTitle,
-      });
+        // Pull-Down Overhead Projector Screen + Ceiling Multimedia Projector
+        const projScreen = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.10, 0.12), materials.castIronDark);
+        projScreen.position.set(2.2, 2.75, boardZ - 0.10);
+        rGroup.add(projScreen);
 
-      // 4 Rows x 3 Columns of Two-Seater Student Desks & Benches (12 Desks = 24 Student Seats per Classroom!)
-      // Positioned in the center of the room (x = -3.4, 0.0, +3.4; z = -3.8..+2.2) leaving a clear 2m aisle by the doors
-      const rowZOffsets = [-3.8, -1.8, 0.2, 2.2];
-      const colXOffsets = [-3.4, 0.0, 3.4];
+        const projectorMount = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.48, 8), materials.deskSteelFrame);
+        projectorMount.position.set(2.2, 3.12, boardZ - 3.4);
+        rGroup.add(projectorMount);
+        const projectorBox = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.16, 0.36), materials.rotundaWhiteArch);
+        projectorBox.position.set(2.2, 2.86, boardZ - 3.4);
+        rGroup.add(projectorBox);
 
-      rowZOffsets.forEach((rz, rIdx) => {
-        colXOffsets.forEach((cxOff, cIdx) => {
-          const dMesh = new THREE.Mesh(sharedGeos.deskTop, materials.deskWoodTop);
-          dMesh.position.set(cxOff, 0.74, rz);
-          rGroup.add(dMesh);
+        // Teacher Lectern Podium & Professor Desk + Swivel Chair
+        const profDeskX = -2.4;
+        const profDeskZ = boardZ - 1.35;
+        const profDesk = new THREE.Mesh(new THREE.BoxGeometry(1.75, 0.78, 0.85), materials.chairWood);
+        profDesk.position.set(profDeskX, 0.16 + 0.39, profDeskZ);
+        rGroup.add(profDesk);
 
-          const modesty = new THREE.Mesh(new THREE.BoxGeometry(1.48, 0.38, 0.04), materials.chairWood);
-          modesty.position.set(cxOff, 0.52, rz + 0.28);
-          rGroup.add(modesty);
+        const profTop = new THREE.Mesh(new THREE.BoxGeometry(1.86, 0.06, 0.94), materials.deskWoodTop);
+        profTop.position.set(profDeskX, 0.16 + 0.80, profDeskZ);
+        rGroup.add(profTop);
 
-          [-0.68, 0.68].forEach(lx => {
-            const leg = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.72, 0.58), materials.deskSteelFrame);
-            leg.position.set(cxOff + lx, 0.36, rz);
-            rGroup.add(leg);
-          });
+        const podiumLectern = new THREE.Mesh(new THREE.BoxGeometry(0.68, 1.18, 0.58), materials.chairWood);
+        podiumLectern.position.set(2.8, 0.16 + 0.59, profDeskZ);
+        rGroup.add(podiumLectern);
 
-          // Bench seat & backrest behind each desk
-          const benchSeat = new THREE.Mesh(new THREE.BoxGeometry(1.46, 0.05, 0.36), materials.chairWood);
-          benchSeat.position.set(cxOff, 0.44, rz - 0.48);
-          rGroup.add(benchSeat);
+        addColliderBox(new THREE.Box3(
+          new THREE.Vector3(roomCX + profDeskX - 0.95, floorY, roomCZ + profDeskZ - 0.50),
+          new THREE.Vector3(roomCX + profDeskX + 0.95, floorY + 1.05, roomCZ + profDeskZ + 0.50)
+        ));
 
-          const benchBack = new THREE.Mesh(new THREE.BoxGeometry(1.46, 0.32, 0.04), materials.chairWood);
-          benchBack.position.set(cxOff, 0.62, rz - 0.64);
-          rGroup.add(benchBack);
-
-          // On 3rd Floor (Smart Lab 302 & Seminar 301), equip student desks with Open Laptops & Glowing Screens!
-          if (floorNum === 3) {
-            [-0.36, 0.36].forEach(lapX => {
-              const lapBase = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.02, 0.24), materials.castIronDark);
-              lapBase.position.set(cxOff + lapX, 0.78, rz + 0.04);
-              rGroup.add(lapBase);
-              const lapScreen = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.22, 0.02), materials.ceilingLightEmissive);
-              lapScreen.position.set(cxOff + lapX, 0.89, rz + 0.15);
-              lapScreen.rotation.x = -0.22;
-              rGroup.add(lapScreen);
-            });
-          }
-
-          const wx = roomCX + cxOff;
-          const wz = roomCZ + rz;
-          addColliderBox(new THREE.Box3(
-            new THREE.Vector3(wx - 0.78, floorY, wz - 0.66),
-            new THREE.Vector3(wx + 0.78, floorY + 0.82, wz + 0.36)
-          ));
-
-          if ((rIdx + cIdx) % 2 === 0) {
-            interactiveHidingSpots.push({
-              id: 'rotunda-desk-' + roomCode + '-' + rIdx + '-' + cIdx,
-              name: roomTitle + ' Desk #' + (rIdx * 3 + cIdx + 1),
-              x: wx,
-              y: floorY,
-              z: wz - 0.42,
-              zone: roomTitle,
-            });
-          }
+        interactiveHidingSpots.push({
+          id: 'rotunda-prof-' + roomCode,
+          name: roomTitle + ' Lectern Desk',
+          x: roomCX + profDeskX,
+          y: floorY,
+          z: roomCZ + profDeskZ + 0.72,
+          zone: roomTitle,
         });
-      });
 
-      // Tall Wooden Bookshelf & Academic Lockers along the Outer Side Wall
-      const shelfX = sideSign * 6.45;
-      const bookcase = new THREE.Mesh(new THREE.BoxGeometry(0.52, 2.25, 3.2), materials.chairWood);
-      bookcase.position.set(shelfX, 1.12, -1.2);
-      rGroup.add(bookcase);
-      // Colorful rows of books on shelves
-      [0.55, 1.05, 1.55, 1.98].forEach((by, bRow) => {
-        const books = new THREE.Mesh(
-          new THREE.BoxGeometry(0.42, 0.28, 2.85),
-          bRow % 2 === 0 ? materials.rotundaRedSteel : materials.gandakiBluePole
-        );
-        books.position.set(shelfX - sideSign * 0.06, by, -1.2);
-        rGroup.add(books);
-      });
+        // Room 302 (Smart Computer Lab): Add Twin Glass-Door Server Racks with Blinking LEDs!
+        if (roomCode === '302') {
+          [-4.8, 4.8].forEach((srX, srIdx) => {
+            const sr = new THREE.Mesh(step2Geos.serverRack, materials.castIronDark);
+            sr.position.set(srX, 1.08, -5.65);
+            rGroup.add(sr);
+            [-0.35, 0.15, 0.65].forEach((ly, lIdx) => {
+              const led = new THREE.Mesh(
+                new THREE.BoxGeometry(0.48, 0.035, 0.04),
+                (srIdx + lIdx) % 2 === 0 ? step2Mats.serverLedGreen : step2Mats.serverLedAmber
+              );
+              led.position.set(srX, 1.10 + ly, -5.20);
+              rGroup.add(led);
+            });
+          });
+        }
 
-      // Second Science Cabinet / Reference Locker along Outer Side Wall
-      const lockerCab = new THREE.Mesh(new THREE.BoxGeometry(0.50, 2.10, 2.4), materials.deskSteelFrame);
-      lockerCab.position.set(shelfX, 1.05, 2.8);
-      rGroup.add(lockerCab);
+        // 4 Rows x 3 Columns of Two-Seater Student Desks & Benches with Bags, Books, Laptops & Monitors
+        const rowZOffsets = [-3.8, -1.8, 0.2, 2.2];
+        const colXOffsets = [-3.4, 0.0, 3.4];
+        const bagMats = [step2Mats.bagNavy, step2Mats.bagOlive, step2Mats.bagMaroon];
 
-      addColliderBox(new THREE.Box3(
-        new THREE.Vector3(roomCX + shelfX - 0.32, floorY, roomCZ - 2.85),
-        new THREE.Vector3(roomCX + shelfX + 0.32, floorY + 2.25, roomCZ + 4.05)
-      ));
+        rowZOffsets.forEach((rz, rIdx) => {
+          colXOffsets.forEach((cxOff, cIdx) => {
+            const dMesh = new THREE.Mesh(sharedGeos.deskTop, materials.deskWoodTop);
+            dMesh.position.set(cxOff, 0.74, rz);
+            rGroup.add(dMesh);
+
+            const modesty = new THREE.Mesh(new THREE.BoxGeometry(1.48, 0.38, 0.04), materials.chairWood);
+            modesty.position.set(cxOff, 0.52, rz + 0.28);
+            rGroup.add(modesty);
+
+            [-0.68, 0.68].forEach(lx => {
+              const leg = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.72, 0.58), materials.deskSteelFrame);
+              leg.position.set(cxOff + lx, 0.36, rz);
+              rGroup.add(leg);
+            });
+
+            // Bench seat & backrest behind each desk
+            const benchSeat = new THREE.Mesh(new THREE.BoxGeometry(1.46, 0.05, 0.36), materials.chairWood);
+            benchSeat.position.set(cxOff, 0.44, rz - 0.48);
+            rGroup.add(benchSeat);
+
+            const benchBack = new THREE.Mesh(new THREE.BoxGeometry(1.46, 0.32, 0.04), materials.chairWood);
+            benchBack.position.set(cxOff, 0.62, rz - 0.64);
+            rGroup.add(benchBack);
+
+            if (roomCode === '302') {
+              // Computer Lab 302: Desktop LCD Monitors, Keyboards & Cable Tray
+              const cTray = new THREE.Mesh(step2Geos.cableTray, materials.castIronDark);
+              cTray.position.set(cxOff, 0.50, rz + 0.22);
+              rGroup.add(cTray);
+              [-0.36, 0.36].forEach((mx, mIdx) => {
+                const mon = new THREE.Mesh(
+                  step2Geos.monitorPanel,
+                  (rIdx + cIdx + mIdx) % 2 === 0 ? step2Mats.monitorScreenOn : step2Mats.monitorScreenOff
+                );
+                mon.position.set(cxOff + mx, 0.96, rz + 0.12);
+                rGroup.add(mon);
+                const kb = new THREE.Mesh(step2Geos.keyboard, materials.deskSteelFrame);
+                kb.position.set(cxOff + mx, 0.78, rz - 0.08);
+                rGroup.add(kb);
+              });
+            } else if (floorNum === 3) {
+              // Seminar 301: Open Laptops & Notebooks
+              [-0.36, 0.36].forEach(lapX => {
+                const lapBase = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.02, 0.24), materials.castIronDark);
+                lapBase.position.set(cxOff + lapX, 0.78, rz + 0.04);
+                rGroup.add(lapBase);
+                const lapScreen = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.22, 0.02), materials.ceilingLightEmissive);
+                lapScreen.position.set(cxOff + lapX, 0.89, rz + 0.15);
+                lapScreen.rotation.x = -0.22;
+                rGroup.add(lapScreen);
+              });
+            } else {
+              // Lecture Halls 101 & 201: Student Bags & Open/Stacked Books on Desks
+              if ((rIdx + cIdx) % 2 === 0) {
+                const openBk = new THREE.Mesh(step2Geos.openBook, step2Mats.paperSheet);
+                openBk.position.set(cxOff + 0.24, 0.78, rz);
+                rGroup.add(openBk);
+              } else {
+                const stackBk = new THREE.Mesh(step2Geos.bookStack, materials.gandakiBluePole);
+                stackBk.position.set(cxOff - 0.28, 0.82, rz);
+                rGroup.add(stackBk);
+              }
+              if ((rIdx * 3 + cIdx) % 2 === 1) {
+                const bag = new THREE.Mesh(step2Geos.backpack, bagMats[(rIdx + cIdx) % 3]);
+                bag.position.set(cxOff - 0.38, 0.64, rz - 0.46);
+                rGroup.add(bag);
+              }
+            }
+
+            const wx = roomCX + cxOff;
+            const wz = roomCZ + rz;
+            addColliderBox(new THREE.Box3(
+              new THREE.Vector3(wx - 0.78, floorY, wz - 0.66),
+              new THREE.Vector3(wx + 0.78, floorY + 0.82, wz + 0.36)
+            ));
+
+            if ((rIdx + cIdx) % 2 === 0) {
+              interactiveHidingSpots.push({
+                id: 'rotunda-desk-' + roomCode + '-' + rIdx + '-' + cIdx,
+                name: roomTitle + ' Desk #' + (rIdx * 3 + cIdx + 1),
+                x: wx,
+                y: floorY,
+                z: wz - 0.86,
+                zone: roomTitle,
+              });
+            }
+          });
+        });
+
+        // Tall Wooden Bookshelf & Academic Lockers along the Outer Side Wall
+        const shelfX = sideSign * 6.45;
+        const bookcase = new THREE.Mesh(new THREE.BoxGeometry(0.52, 2.25, 3.2), materials.chairWood);
+        bookcase.position.set(shelfX, 1.12, -1.2);
+        rGroup.add(bookcase);
+        [0.55, 1.05, 1.55, 1.98].forEach((by, bRow) => {
+          const books = new THREE.Mesh(
+            new THREE.BoxGeometry(0.42, 0.28, 2.85),
+            bRow % 2 === 0 ? materials.rotundaRedSteel : materials.gandakiBluePole
+          );
+          books.position.set(shelfX - sideSign * 0.06, by, -1.2);
+          rGroup.add(books);
+        });
+
+        const lockerCab = new THREE.Mesh(new THREE.BoxGeometry(0.50, 2.10, 2.4), materials.deskSteelFrame);
+        lockerCab.position.set(shelfX, 1.05, 2.8);
+        rGroup.add(lockerCab);
+
+        addColliderBox(new THREE.Box3(
+          new THREE.Vector3(roomCX + shelfX - 0.32, floorY, roomCZ - 2.85),
+          new THREE.Vector3(roomCX + shelfX + 0.32, floorY + 2.25, roomCZ + 4.05)
+        ));
+      }
 
       // Wall-Mounted Split AC Unit inside Classroom
+      const shelfX = sideSign * 6.45;
       const indoorAC = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.30, 1.15), materials.rotundaWhiteArch);
       indoorAC.position.set(shelfX - sideSign * 0.05, 2.85, -4.2);
       rGroup.add(indoorAC);
@@ -6353,6 +7553,19 @@ export function getHideAndSeekHtml(): string {
         const fixture = new THREE.Mesh(new THREE.BoxGeometry(1.45, 0.06, 0.42), materials.ceilingLightEmissive);
         fixture.position.set(lx, 3.31, lz);
         rGroup.add(fixture);
+      });
+
+      bakeStaticGroup(rGroup, true);
+      rGroup.userData.isRoomGroup = true;
+      roomVisibilityList.push({
+        id: roomTitle,
+        type: 'room',
+        group: rGroup,
+        x: roomCX,
+        y: floorY,
+        z: roomCZ,
+        floorY,
+        radius: 9.2,
       });
     }
 
@@ -6830,27 +8043,110 @@ export function getHideAndSeekHtml(): string {
     });
 
     /* -------------------------------------------------------------------------
-       I. POPULATE ALL 3 FLOORS: 6 CLASSROOMS, ATRIUM CONCOURSES & 3RD-FLOOR ROTUNDA LOUNGE
+       I. POPULATE ALL 3 FLOORS: 6 DISTINCT ROOMS, ATRIUM CONCOURSES, GRAND CHANDELIER,
+          HANGING VINES, TILED FLOOR PATTERN, BALCONY RAILINGS & 3RD-FLOOR LOUNGE
        ------------------------------------------------------------------------- */
-    // Ground Floor (y = 0.48): West Lecture Hall 101 & East Lecture Hall 102
+    // Ground Floor (y = 0.48): West Auditorium Hall 101 & East Admin/Registrar Office 102
     populateGrandRotundaClassroom(-5.7, rotZ, rotFloor0, -1, 1, '101', 'Rotunda Ground West Hall 101');
     populateGrandRotundaClassroom(17.7, rotZ, rotFloor0, 1, 1, '102', 'Rotunda Ground East Hall 102');
 
-    // 1st Floor (y = 4.08): West Classroom 201 & East Classroom 202
+    // 1st Floor (y = 4.08): West BIT Classroom 201 & East Reference Library 202
     populateGrandRotundaClassroom(-5.7, rotZ, rotFloor1, -1, 2, '201', 'Rotunda 1st-Floor West Class 201');
     populateGrandRotundaClassroom(17.7, rotZ, rotFloor1, 1, 2, '202', 'Rotunda 1st-Floor East Class 202');
 
-    // 2nd Floor (y = 7.68): West Seminar Hall 301 & East Smart Lab 302
+    // 2nd Floor (y = 7.68): West Seminar Hall 301 & East AI/Networking Computer Lab 302
     populateGrandRotundaClassroom(-5.7, rotZ, rotFloor2, -1, 3, '301', 'Rotunda 2nd-Floor West Seminar 301');
     populateGrandRotundaClassroom(17.7, rotZ, rotFloor2, 1, 3, '302', 'Rotunda 2nd-Floor East Lab 302');
 
-    // Ground Floor Atrium Reception Counter, Trophy Cabinet & Teak Waiting Benches
+    // 1. Tiled Floor Pattern (Geometric Compass Rose Medallion & Inlaid Gold/Slate Borders across All 3 Floors)
+    [rotFloor0, rotFloor1, rotFloor2].forEach((tfY, fIdx) => {
+      const patZ = fIdx === 0 ? rotFrontZ + 2.4 : rotFrontZ + 2.1;
+      const outerRing = new THREE.Mesh(new THREE.CylinderGeometry(1.85, 1.85, 0.016, 16), step2Mats.terrazzoInlayDark);
+      outerRing.position.set(rotX, tfY + 0.01, patZ);
+      scene.add(outerRing);
+      const innerGold = new THREE.Mesh(new THREE.CylinderGeometry(1.25, 1.25, 0.020, 8), step2Mats.terrazzoInlayGold);
+      innerGold.position.set(rotX, tfY + 0.014, patZ);
+      scene.add(innerGold);
+      const centerStar = new THREE.Mesh(new THREE.BoxGeometry(1.45, 0.024, 1.45), materials.rotundaWhiteArch);
+      centerStar.position.set(rotX, tfY + 0.016, patZ);
+      centerStar.rotation.y = Math.PI / 4;
+      scene.add(centerStar);
+
+      // Decorative runner border strips along Front & Rear concourses
+      const fBorder = new THREE.Mesh(new THREE.BoxGeometry(7.8, 0.014, 0.18), step2Mats.terrazzoInlayGold);
+      fBorder.position.set(rotX, tfY + 0.01, rotFrontZ + 0.85);
+      scene.add(fBorder);
+      const rBorder = new THREE.Mesh(new THREE.BoxGeometry(7.8, 0.014, 0.18), step2Mats.terrazzoInlayGold);
+      rBorder.position.set(rotX, tfY + 0.01, rotBackZ - 0.85);
+      scene.add(rBorder);
+    });
+
+    // 2. Big Central Light Fixture (Multi-Tiered Brass & Crystal Grand Chandelier suspended from Skylight Well)
+    const chanGroup = new THREE.Group();
+    chanGroup.position.set(rotX, rotEaveY - 0.10, rotZ - 0.6);
+    const chanChain = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 4.4, 8), materials.brassGajur);
+    chanChain.position.set(0, -2.2, 0);
+    chanGroup.add(chanChain);
+    [
+      { y: -1.4, r: 1.85, h: 0.16 },
+      { y: -2.6, r: 1.32, h: 0.14 },
+      { y: -3.7, r: 0.78, h: 0.12 },
+    ].forEach(tier => {
+      const brassRing = new THREE.Mesh(new THREE.CylinderGeometry(tier.r, tier.r, tier.h, 16, 1, true), materials.brassGajur);
+      brassRing.position.set(0, tier.y, 0);
+      chanGroup.add(brassRing);
+      const crystalRing = new THREE.Mesh(new THREE.CylinderGeometry(tier.r - 0.08, tier.r - 0.14, tier.h * 1.4, 12), materials.ceilingLightEmissive);
+      crystalRing.position.set(0, tier.y - 0.08, 0);
+      chanGroup.add(crystalRing);
+    });
+    scene.add(chanGroup);
+
+    // 3. Hanging Vines & Balcony Baluster Railings on 1st Floor, 2nd Floor & Semicircular Gallery
+    for (let bz = stairZFront + 0.4; bz <= stairZBack - 0.4; bz += 0.85) {
+      const bal1 = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 1.02, 6), materials.brassGajur);
+      bal1.position.set(4.35, rotFloor1 + 0.51, bz);
+      scene.add(bal1);
+      const bal2 = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 1.02, 6), materials.brassGajur);
+      bal2.position.set(7.65, rotFloor2 + 0.51, bz);
+      scene.add(bal2);
+
+      // Cascading green hanging vines draping over the atrium stairwell balconies
+      if (Math.round(bz * 10) % 2 === 0) {
+        const vine1 = new THREE.Mesh(step2Geos.vineCluster, step2Mats.vineGreen);
+        vine1.position.set(4.26, rotFloor1 - 0.42, bz);
+        scene.add(vine1);
+        const vine2 = new THREE.Mesh(step2Geos.vineCluster, step2Mats.vineGreen);
+        vine2.position.set(7.74, rotFloor2 - 0.42, bz);
+        scene.add(vine2);
+      }
+    }
+    // Hanging vines around the 2nd & 3rd floor semicircular portico rim
+    [-Math.PI * 0.32, -Math.PI * 0.12, Math.PI * 0.12, Math.PI * 0.32].forEach(vang => {
+      const vx = rotX + Math.sin(vang) * (rotRadius - 0.25);
+      const vz = rotFrontZ - Math.cos(vang) * (rotRadius - 0.25);
+      const pVine = new THREE.Mesh(step2Geos.vineCluster, step2Mats.vineGreen);
+      pVine.position.set(vx, rotFloor2 - 0.45, vz);
+      pVine.rotation.y = -vang;
+      scene.add(pVine);
+    });
+
+    // 4. Ground Floor Atrium Reception Counter, Monitor, Lamp, Waiting Sofa & Corridor Props on All 3 Floors
     const recDesk = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.05, 0.82), materials.chairWood);
     recDesk.position.set(rotX + 1.4, rotFloor0 + 0.52, rotFrontZ + 2.2);
     scene.add(recDesk);
     const recTop = new THREE.Mesh(new THREE.BoxGeometry(2.35, 0.08, 0.94), materials.rotundaWhiteArch);
     recTop.position.set(rotX + 1.4, rotFloor0 + 1.08, rotFrontZ + 2.2);
     scene.add(recTop);
+    const recMon = new THREE.Mesh(step2Geos.monitorPanel, step2Mats.monitorScreenOn);
+    recMon.position.set(rotX + 0.95, rotFloor0 + 1.28, rotFrontZ + 2.2);
+    scene.add(recMon);
+    const recLamp = new THREE.Mesh(step2Geos.readingLampShade, step2Mats.lampShadeGreen);
+    recLamp.position.set(rotX + 1.95, rotFloor0 + 1.26, rotFrontZ + 2.2);
+    scene.add(recLamp);
+    const entryMat = new THREE.Mesh(step2Geos.floorMat, step2Mats.matRubber);
+    entryMat.position.set(rotX, rotFloor0 + 0.012, rotFrontZ + 0.65);
+    scene.add(entryMat);
+
     addColliderBox(new THREE.Box3(
       new THREE.Vector3(rotX + 0.25, rotFloor0, rotFrontZ + 1.75),
       new THREE.Vector3(rotX + 2.55, rotFloor0 + 1.15, rotFrontZ + 2.65)
@@ -6860,19 +8156,41 @@ export function getHideAndSeekHtml(): string {
       name: 'Rotunda Atrium Reception Counter',
       x: rotX + 1.4,
       y: rotFloor0,
-      z: rotFrontZ + 2.95,
+      z: rotFrontZ + 3.05,
       zone: 'Grand Rotunda Atrium',
     });
 
-    // Floor 1 & Floor 2 Atrium Concourse Teak Benches & Framed Campus Architecture Boards
-    [rotFloor1, rotFloor2].forEach((afy, aIdx) => {
-      const benchX = aIdx === 0 ? 7.2 : 4.8;
+    // Populate Corridor Props (Lockers, Water Dispenser, Fire Extinguisher, Plants, Benches & Framed Boards) across all 3 Rotunda floors
+    [rotFloor0, rotFloor1, rotFloor2].forEach((afy, aIdx) => {
+      const benchX = aIdx === 0 ? 6.0 : (aIdx === 1 ? 7.2 : 4.8);
       const aBench = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.46, 0.58), materials.chairWood);
       aBench.position.set(benchX, afy + 0.23, rotBackZ - 1.1);
       scene.add(aBench);
       const aFrame = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.25, 0.06), materials.gandakiBluePole);
       aFrame.position.set(benchX, afy + 1.95, rotBackZ - 0.20);
       scene.add(aFrame);
+
+      // Corridor Water Dispenser & Fire Extinguisher on each floor concourse
+      const wd = new THREE.Mesh(step2Geos.waterDispenser, materials.rotundaWhiteArch);
+      wd.position.set(1.92, afy + 0.51, rotFrontZ + 3.6);
+      scene.add(wd);
+      const wJug = new THREE.Mesh(step2Geos.waterBottle, step2Mats.waterJugBlue);
+      wJug.position.set(1.92, afy + 1.22, rotFrontZ + 3.6);
+      scene.add(wJug);
+
+      const fExt = new THREE.Mesh(step2Geos.fireExtBody, step2Mats.fireRed);
+      fExt.position.set(10.18, afy + 1.22, rotFrontZ + 3.6);
+      scene.add(fExt);
+
+      // Potted plants flanking the main atrium concourse
+      [2.1, 9.9].forEach(px => {
+        const pot = new THREE.Mesh(step2Geos.plantPot, materials.nepalOchreDado);
+        pot.position.set(px, afy + 0.18, rotFrontZ + 0.65);
+        scene.add(pot);
+        const bush = new THREE.Mesh(step2Geos.plantBush, materials.foliageGreen);
+        bush.position.set(px, afy + 0.48, rotFrontZ + 0.65);
+        scene.add(bush);
+      });
     });
 
     // 3rd-Floor Curved Rotunda Panoramic Seminar & Observation Lounge (y = 7.68, z = rotFrontZ - 2.8)
@@ -6897,10 +8215,10 @@ export function getHideAndSeekHtml(): string {
     ));
 
     interactiveHidingSpots.push(
-      { id: 'rotunda-3f-lounge', name: '3rd-Floor Curved Rotunda Panoramic Table', x: rotX, y: rotFloor2, z: rotFrontZ - 2.8, zone: '3rd-Floor Rotunda Balcony' },
-      { id: 'yellow-coach', name: 'Gandaki University Buses', x: 5.2, y: 0.0, z: -43.0, zone: 'Bus Parking Bay' },
-      { id: 'parked-suv', name: 'Parked Campus SUV (Wing L1 South)', x: -6.5, y: 0.0, z: -34.5, zone: 'Parking Plaza' },
-      { id: 'rotunda-fountain', name: 'Rotunda Courtyard Fountain', x: ftnX, y: 0.0, z: ftnZ, zone: 'Grand Rotunda Plaza' }
+      { id: 'rotunda-3f-lounge', name: '3rd-Floor Curved Rotunda Panoramic Table', x: rotX + 1.95, y: rotFloor2, z: rotFrontZ - 2.8, zone: '3rd-Floor Rotunda Balcony' },
+      { id: 'yellow-coach', name: 'Gandaki University Buses', x: 2.85, y: 0.0, z: -43.0, zone: 'Bus Parking Bay' },
+      { id: 'parked-suv', name: 'Parked Campus SUV (Wing L1 South)', x: -8.15, y: 0.0, z: -34.5, zone: 'Parking Plaza' },
+      { id: 'rotunda-fountain', name: 'Rotunda Courtyard Fountain', x: ftnX + 2.85, y: 0.0, z: ftnZ, zone: 'Grand Rotunda Plaza' }
     );
 
     // J. Glowing Ceiling Light Fixtures Across All 3 Floors of the Grand Rotunda Complex
@@ -6962,69 +8280,389 @@ export function getHideAndSeekHtml(): string {
     spawnOldWallPoster(-13.65, 1.68, 16.0, Math.PI / 2, 0.04);
     spawnOldWallPoster(rotX - 4.2, rotFloor0 + 1.75, rotFrontZ - 0.18, Math.PI, -0.04);
 
-    // Main Building Gandaki University Facade Signboard on the 3-Storey Grand Rotunda Portico
-    const mainFacadeSignTex = createProceduralTexture(512, 96, ctx => {
-      ctx.fillStyle = '#0f172a';
-      ctx.fillRect(0, 0, 512, 96);
-      ctx.strokeStyle = '#ffc27a';
-      ctx.lineWidth = 4;
-      ctx.strokeRect(6, 6, 500, 84);
-      ctx.fillStyle = '#f8fafc';
-      ctx.font = 'bold 30px Georgia, serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('GANDAKI UNIVERSITY', 256, 46);
-      ctx.fillStyle = '#ffc27a';
-      ctx.font = 'bold 16px sans-serif';
-      ctx.fillText('CENTRAL ACADEMIC ROTUNDA • POKHARA', 256, 74);
-    });
+    // Main Building Gandaki University Facade Signboard drawn into Signage Texture Atlas (512, 192, 512, 96)
+    if (sAtlasCtx) {
+      sAtlasCtx.fillStyle = '#0f172a';
+      sAtlasCtx.fillRect(512, 192, 512, 96);
+      sAtlasCtx.strokeStyle = '#ffc27a';
+      sAtlasCtx.lineWidth = 4;
+      sAtlasCtx.strokeRect(518, 198, 500, 84);
+      sAtlasCtx.fillStyle = '#f8fafc';
+      sAtlasCtx.font = 'bold 30px Georgia, serif';
+      sAtlasCtx.textAlign = 'center';
+      sAtlasCtx.fillText('GANDAKI UNIVERSITY', 768, 238);
+      sAtlasCtx.fillStyle = '#ffc27a';
+      sAtlasCtx.font = 'bold 16px sans-serif';
+      sAtlasCtx.fillText('CENTRAL ACADEMIC ROTUNDA • POKHARA', 768, 266);
+      signageAtlasTex.needsUpdate = true;
+    }
     const mainFacadeSign = new THREE.Mesh(
-      new THREE.BoxGeometry(5.6, 0.72, 0.14),
-      new THREE.MeshBasicMaterial({ map: mainFacadeSignTex })
+      createAtlasUvGeo(new THREE.BoxGeometry(5.6, 0.72, 0.14), 512, 192, 512, 96),
+      sharedSignageAtlasMat
     );
     mainFacadeSign.position.set(rotX, rotFloor2 - 0.02, rotFrontZ - 5.68);
     scene.add(mainFacadeSign);
 
     // TASK 1: Sparse Warm Amber Lamps (#ffc27a, distance 10) — Mix of Faulty Flickering, Steady & Fully Dead ('dead') Lamps!
     const lampPoleRadius = (HORROR_CONFIG.physics && HORROR_CONFIG.physics.streetLampPoleRadius) || 0.20;
-    lampFlickerMod.addLamp(3.2, -61.0, 1, 'intermittent');     // 1. Main Gate Entrance Warm Amber Lamp
+    lampFlickerMod.addLamp(3.2, -61.0, 1, 'intermittent');
     addColliderCylinder(3.2, -61.0, lampPoleRadius, 0, 4.2);
-    lampFlickerMod.addLamp(-16.0, -50.0, 1, 'steady_warm');     // 2. West Parking Apron (Active Warm Lamp!)
+    lampFlickerMod.addLamp(-16.0, -50.0, 1, 'steady_warm');
     addColliderCylinder(-16.0, -50.0, lampPoleRadius, 0, 4.2);
-    lampFlickerMod.addLamp(11.5, -42.0, 1, 'steady_warm');     // 3. Yellow Buses Staging Bay Lamp
+    lampFlickerMod.addLamp(11.5, -42.0, 1, 'steady_warm');
     addColliderCylinder(11.5, -42.0, lampPoleRadius, 0, 4.2);
-    lampFlickerMod.addLamp(-1.2, -30.0, 1, 'steady_warm');     // 4. South Spine Concrete Footpath Lamp
+    lampFlickerMod.addLamp(-1.2, -30.0, 1, 'steady_warm');
     addColliderCylinder(-1.2, -30.0, lampPoleRadius, 0, 4.2);
-    lampFlickerMod.addLamp(-1.2, -8.0, -1, 'heavy_blink');     // 5. Mid Spine Concrete Footpath Lamp
+    lampFlickerMod.addLamp(-1.2, -8.0, -1, 'heavy_blink');
     addColliderCylinder(-1.2, -8.0, lampPoleRadius, 0, 4.2);
-    lampFlickerMod.addLamp(2.0, 16.0, 1, 'intermittent');      // 6. North Spine Concrete Footpath Lamp
+    lampFlickerMod.addLamp(2.0, 16.0, 1, 'intermittent');
     addColliderCylinder(2.0, 16.0, lampPoleRadius, 0, 4.2);
-    lampFlickerMod.addLamp(-12.0, -19.0, 1, 'steady_warm');    // 7. West Courtyard Stone Chaitya Shrine Lamp
+    lampFlickerMod.addLamp(-12.0, -19.0, 1, 'steady_warm');
     addColliderCylinder(-12.0, -19.0, lampPoleRadius, 0, 4.2);
-    lampFlickerMod.addLamp(-12.0, 7.5, -1, 'heavy_blink');     // 8. Newari Falcha Pavilion Courtyard Lamp
+    lampFlickerMod.addLamp(-12.0, 7.5, -1, 'heavy_blink');
     addColliderCylinder(-12.0, 7.5, lampPoleRadius, 0, 4.2);
-    lampFlickerMod.addLamp(-27.5, -36.0, 1, 'dead');           // 9. Newari Heritage Block W1 (DEAD LAMP!)
+    lampFlickerMod.addLamp(-27.5, -36.0, 1, 'dead');
     addColliderCylinder(-27.5, -36.0, lampPoleRadius, 0, 4.2);
-    lampFlickerMod.addLamp(-27.5, -8.0, -1, 'intermittent');   // 10. West Cluster W2/W3 Footpath Lamp
+    lampFlickerMod.addLamp(-27.5, -8.0, -1, 'intermittent');
     addColliderCylinder(-27.5, -8.0, lampPoleRadius, 0, 4.2);
-    lampFlickerMod.addLamp(19.5, -18.0, 1, 'heavy_blink');     // 11. East Wing R1/R2 Flickering Lamp
+    lampFlickerMod.addLamp(19.5, -18.0, 1, 'heavy_blink');
     addColliderCylinder(19.5, -18.0, lampPoleRadius, 0, 4.2);
-    lampFlickerMod.addLamp(19.5, 8.0, -1, 'heavy_blink');      // 12. East Courtyard Chaitya & R4 Footpath Lamp
+    lampFlickerMod.addLamp(19.5, 8.0, -1, 'heavy_blink');
     addColliderCylinder(19.5, 8.0, lampPoleRadius, 0, 4.2);
-    lampFlickerMod.addLamp(-4.0, 42.0, 1, 'steady_warm');      // 13. Rotunda Forecourt Fountain West Lamp
+    lampFlickerMod.addLamp(-4.0, 42.0, 1, 'steady_warm');
     addColliderCylinder(-4.0, 42.0, lampPoleRadius, 0, 4.2);
-    lampFlickerMod.addLamp(16.0, 42.0, -1, 'intermittent');    // 14. Rotunda Forecourt Fountain East Lamp
+    lampFlickerMod.addLamp(16.0, 42.0, -1, 'intermittent');
     addColliderCylinder(16.0, 42.0, lampPoleRadius, 0, 4.2);
-    lampFlickerMod.addLamp(1.2, 54.0, 1, 'heavy_blink');       // 15. Grand Rotunda Portico West Lamp
+    lampFlickerMod.addLamp(1.2, 54.0, 1, 'heavy_blink');
     addColliderCylinder(1.2, 54.0, lampPoleRadius, 0, 4.2);
-    lampFlickerMod.addLamp(10.8, 54.0, -1, 'steady_warm');     // 16. Grand Rotunda Portico East Lamp
+    lampFlickerMod.addLamp(10.8, 54.0, -1, 'steady_warm');
     addColliderCylinder(10.8, 54.0, lampPoleRadius, 0, 4.2);
 
-    // Sparse Warm Entrance Wall Sconces on Key Landmarks (also serves Rotunda Interior via dynamic pool!)
     lampFlickerMod.addWallSconce(rotX, rotFloorY + 3.4, rotFrontZ - 0.35, 'steady_warm');
     lampFlickerMod.addWallSconce(rotX, rotFloor1 + 3.1, rotZ, 'steady_warm');
     lampFlickerMod.addWallSconce(rotX, rotFloor2 + 3.0, rotFrontZ - 2.4, 'steady_warm');
     lampFlickerMod.addWallSconce(-6.5, 2.9, -33.2, 'steady_warm');
     lampFlickerMod.addWallSconce(-28.4, 2.9, -22.0, 'intermittent');
+
+    /* =========================================================================
+       PHASE A FINALIZATION: INSTANCED TREES & SHRUBS + BUILDING/SECTOR MERGING
+       + ROOM & BUILDING VISIBILITY MANAGER
+       ========================================================================= */
+    const buildingSectors = [];
+    let visibleRoomsCount = 0;
+
+    (function finalizePhaseASceneOptimization() {
+      const dummy = new THREE.Object3D();
+
+      // 1. Build InstancedMesh for Campus Horror Trees (12 trees -> 2 draw calls: bark + canopy)
+      if (exteriorTreeQueues.campusTrees.length > 0) {
+        const barkParts = [];
+        const canopyParts = [];
+        const addXform = (arr, geo, x, y, z, rx, ry, rz, sx = 1, sy = 1, sz = 1) => {
+          const g = geo.clone();
+          dummy.position.set(x, y, z);
+          dummy.rotation.set(rx, ry, rz);
+          dummy.scale.set(sx, sy, sz);
+          dummy.updateMatrix();
+          g.applyMatrix4(dummy.matrix);
+          arr.push(g);
+        };
+        addXform(barkParts, new THREE.CylinderGeometry(0.28, 0.48, 2.6, 8), 0, 1.3, 0, 0, 0, 0.06);
+        addXform(barkParts, new THREE.CylinderGeometry(0.18, 0.29, 2.4, 7), -0.12, 3.5, 0.08, 0, 0, -0.11);
+        const limbConfigs = [
+          { rx: 0.48, rz:  0.65, len: 2.8, y: 3.9, ox: -0.9, oz:  0.6 },
+          { rx: -0.42, rz: -0.62, len: 3.0, y: 4.1, ox:  1.0, oz: -0.5 },
+          { rx: 0.62, rz: -0.35, len: 2.5, y: 4.3, ox:  0.5, oz:  0.9 },
+          { rx: -0.55, rz:  0.40, len: 2.6, y: 3.7, ox: -0.7, oz: -0.8 },
+          { rx: 0.25, rz:  0.78, len: 2.4, y: 4.6, ox: -1.2, oz:  0.2 },
+        ];
+        limbConfigs.forEach(cfg => {
+          addXform(barkParts, new THREE.CylinderGeometry(0.05, 0.14, cfg.len, 6), cfg.ox, cfg.y, cfg.oz, cfg.rx, 0, cfg.rz);
+          addXform(barkParts, new THREE.CylinderGeometry(0.02, 0.06, 1.5, 5), cfg.ox * 1.55, cfg.y + 0.85, cfg.oz * 1.55, cfg.rx * 1.25, 0.3, cfg.rz * 1.25);
+          addXform(canopyParts, new THREE.DodecahedronGeometry(1.25, 1), cfg.ox * 1.45, cfg.y + 1.05, cfg.oz * 1.45, 0, 0, 0, 1.25, 0.68, 1.25);
+        });
+        const mergedBarkGeo = THREE.BufferGeometryUtils.mergeBufferGeometries(barkParts);
+        const mergedCanopyGeo = THREE.BufferGeometryUtils.mergeBufferGeometries(canopyParts);
+        const n = exteriorTreeQueues.campusTrees.length;
+        const instBark = new THREE.InstancedMesh(mergedBarkGeo, materials.treeBark, n);
+        const instCanopy = new THREE.InstancedMesh(mergedCanopyGeo, materials.foliageGreen, n);
+        exteriorTreeQueues.campusTrees.forEach((t, idx) => {
+          dummy.position.set(t.x, 0, t.z);
+          dummy.rotation.set(0, 0, 0);
+          dummy.scale.set(t.scale, t.scale, t.scale);
+          dummy.updateMatrix();
+          instBark.setMatrixAt(idx, dummy.matrix);
+          instCanopy.setMatrixAt(idx, dummy.matrix);
+        });
+        instBark.instanceMatrix.needsUpdate = true;
+        instCanopy.instanceMatrix.needsUpdate = true;
+        instBark.castShadow = true;
+        instBark.receiveShadow = true;
+        instCanopy.castShadow = true;
+        instCanopy.receiveShadow = true;
+        computeInstancedBoundingSphere(instBark, n);
+        computeInstancedBoundingSphere(instCanopy, n);
+        scene.add(instBark);
+        scene.add(instCanopy);
+      }
+
+      // 2. Build InstancedMesh for Palm Trees (5 palms -> 2 draw calls: trunk + crown)
+      if (exteriorTreeQueues.palmTrees.length > 0) {
+        const trunkGeo = new THREE.CylinderGeometry(0.14, 0.24, 5.6, 8).clone();
+        dummy.position.set(0, 2.8, 0);
+        dummy.rotation.set(0, 0, 0.05);
+        dummy.scale.set(1, 1, 1);
+        dummy.updateMatrix();
+        trunkGeo.applyMatrix4(dummy.matrix);
+        const frondParts = [];
+        for (let f = 0; f < 9; f++) {
+          const ang = (f * Math.PI * 2) / 9;
+          const fg = new THREE.BoxGeometry(0.36, 0.04, 2.35).clone();
+          dummy.position.set(Math.sin(ang) * 1.05, 5.40, Math.cos(ang) * 1.05);
+          dummy.rotation.set(0.42, ang, 0);
+          dummy.scale.set(1, 1, 1);
+          dummy.updateMatrix();
+          fg.applyMatrix4(dummy.matrix);
+          frondParts.push(fg);
+        }
+        const mergedCrownGeo = THREE.BufferGeometryUtils.mergeBufferGeometries(frondParts);
+        const np = exteriorTreeQueues.palmTrees.length;
+        const instPTrunk = new THREE.InstancedMesh(trunkGeo, materials.treeBark, np);
+        const instPCrown = new THREE.InstancedMesh(mergedCrownGeo, materials.palmFrondMat, np);
+        exteriorTreeQueues.palmTrees.forEach((t, idx) => {
+          dummy.position.set(t.x, 0, t.z);
+          dummy.rotation.set(0, 0, 0);
+          dummy.scale.set(t.scale, t.scale, t.scale);
+          dummy.updateMatrix();
+          instPTrunk.setMatrixAt(idx, dummy.matrix);
+          instPCrown.setMatrixAt(idx, dummy.matrix);
+        });
+        instPTrunk.instanceMatrix.needsUpdate = true;
+        instPCrown.instanceMatrix.needsUpdate = true;
+        instPTrunk.castShadow = true;
+        instPTrunk.receiveShadow = true;
+        instPCrown.castShadow = true;
+        instPCrown.receiveShadow = true;
+        computeInstancedBoundingSphere(instPTrunk, np);
+        computeInstancedBoundingSphere(instPCrown, np);
+        scene.add(instPTrunk);
+        scene.add(instPCrown);
+      }
+
+      // 3. Build InstancedMesh for Dead Trees & Roadside Shrubs
+      if (exteriorTreeQueues.deadTrees.length > 0) {
+        const deadParts = [];
+        const tg = new THREE.CylinderGeometry(0.18, 0.44, 4.2, 7).clone();
+        dummy.position.set(0, 2.1, 0);
+        dummy.rotation.set(0, 0, 0.09);
+        dummy.scale.set(1, 1, 1);
+        dummy.updateMatrix();
+        tg.applyMatrix4(dummy.matrix);
+        deadParts.push(tg);
+        [
+          { rx: 0.62, rz:  0.74, len: 3.1, y: 3.4, ox: -0.8, oz:  0.5 },
+          { rx: -0.58, rz: -0.68, len: 3.3, y: 3.7, ox:  0.9, oz: -0.6 },
+          { rx: 0.72, rz: -0.42, len: 2.7, y: 3.9, ox:  0.4, oz:  0.8 },
+          { rx: -0.65, rz:  0.48, len: 2.8, y: 3.1, ox: -0.7, oz: -0.7 },
+        ].forEach(cfg => {
+          const lg = new THREE.CylinderGeometry(0.025, 0.13, cfg.len, 5).clone();
+          dummy.position.set(cfg.ox, cfg.y, cfg.oz);
+          dummy.rotation.set(cfg.rx, 0, cfg.rz);
+          dummy.updateMatrix();
+          lg.applyMatrix4(dummy.matrix);
+          deadParts.push(lg);
+        });
+        const mergedDeadGeo = THREE.BufferGeometryUtils.mergeBufferGeometries(deadParts);
+        const nd = exteriorTreeQueues.deadTrees.length;
+        const instDead = new THREE.InstancedMesh(mergedDeadGeo, materials.treeBark, nd);
+        exteriorTreeQueues.deadTrees.forEach((t, idx) => {
+          dummy.position.set(t.x, 0, t.z);
+          dummy.rotation.set(0, 0, 0);
+          dummy.scale.set(t.scale, t.scale, t.scale);
+          dummy.updateMatrix();
+          instDead.setMatrixAt(idx, dummy.matrix);
+        });
+        instDead.instanceMatrix.needsUpdate = true;
+        instDead.castShadow = true;
+        instDead.receiveShadow = true;
+        computeInstancedBoundingSphere(instDead, nd);
+        scene.add(instDead);
+      }
+
+      if (exteriorTreeQueues.shrubs.length > 0) {
+        const ns = exteriorTreeQueues.shrubs.length;
+        const instShrubs = new THREE.InstancedMesh(sharedGeos.shrubClump, materials.foliageGreen, ns);
+        exteriorTreeQueues.shrubs.forEach((s, idx) => {
+          dummy.position.set(s.x, s.y, s.z);
+          dummy.rotation.set(0, 0, 0);
+          dummy.scale.set(s.sx, s.sy, s.sz);
+          dummy.updateMatrix();
+          instShrubs.setMatrixAt(idx, dummy.matrix);
+        });
+        instShrubs.instanceMatrix.needsUpdate = true;
+        instShrubs.castShadow = false;
+        instShrubs.receiveShadow = true;
+        computeInstancedBoundingSphere(instShrubs, ns);
+        scene.add(instShrubs);
+      }
+
+      // 4. Partition static exterior & building meshes into spatial Building/Courtyard Sectors and bake each sector by material!
+      const sectorDefs = [
+        { id: 'ground-base', x: 0, z: 0, radius: 220, alwaysVisible: true, test: (x, z) => false },
+        { id: 'rotunda-complex', x: 6.0, z: 60.0, radius: 26.0, isLandmark: true, test: (x, z) => z >= 36.0 },
+        { id: 'west-wing-l1', x: -6.5, z: -18.0, radius: 18.0, test: (x, z) => x >= -12.5 && x <= -1.5 && z >= -34.0 && z <= -2.0 },
+        { id: 'west-wing-l2', x: -17.5, z: -12.0, radius: 17.0, test: (x, z) => x >= -23.0 && x < -12.5 && z >= -28.0 && z <= 4.0 },
+        { id: 'west-wing-l3', x: -17.5, z: 20.0, radius: 15.0, test: (x, z) => x >= -23.0 && x <= -11.0 && z > 4.0 && z < 36.0 },
+        { id: 'east-wing-r1-r2', x: 20.0, z: -19.0, radius: 20.0, test: (x, z) => x >= 10.0 && z >= -38.0 && z <= 2.0 },
+        { id: 'east-wing-r4', x: 25.5, z: 20.0, radius: 18.0, test: (x, z) => x >= 10.0 && z > 2.0 && z < 36.0 },
+        { id: 'west-heritage-cluster', x: -34.0, z: -12.0, radius: 28.0, test: (x, z) => x < -23.0 && z >= -52.0 && z < 36.0 },
+        { id: 'south-gate-parking', x: 0.0, z: -50.0, radius: 28.0, test: (x, z) => z < -34.0 },
+        { id: 'central-courtyard', x: 0.0, z: 0.0, radius: 36.0, test: () => true },
+      ];
+
+      sectorDefs.forEach(sd => {
+        const grp = new THREE.Group();
+        grp.name = sd.id;
+        scene.add(grp);
+        buildingSectors.push({ ...sd, group: grp });
+      });
+
+      scene.updateMatrixWorld(true);
+      const topChildren = scene.children.slice();
+      const worldPos = new THREE.Vector3();
+
+      for (let i = 0; i < topChildren.length; i++) {
+        const ch = topChildren[i];
+        if (!ch || ch === atmosphere.skyGroup || ch.isLight || ch.isCamera || ch.isInstancedMesh || ch.isPoints) continue;
+        if (ch.userData && (ch.userData.isRoomGroup || ch.userData.noMerge)) continue;
+        if (buildingSectors.some(s => s.group === ch)) continue;
+        if (ch === terrainMesh || ch === southParkingApron) {
+          buildingSectors[0].group.add(ch);
+          continue;
+        }
+        ch.getWorldPosition(worldPos);
+        for (let s = 1; s < buildingSectors.length; s++) {
+          if (buildingSectors[s].test(worldPos.x, worldPos.z)) {
+            buildingSectors[s].group.add(ch);
+            break;
+          }
+        }
+      }
+
+      for (let s = 0; s < buildingSectors.length; s++) {
+        bakeStaticGroup(buildingSectors[s].group, true);
+      }
+    })();
+
+    function getRoomBuildingKey(id) {
+      if (!id) return 'other';
+      if (id.indexOf('West Wing L1') !== -1) return 'L1';
+      if (id.indexOf('West Wing L2') !== -1) return 'L2';
+      if (id.indexOf('West Wing L3') !== -1 && id.indexOf('W2') === -1) return 'L3';
+      if (id.indexOf('East Wing R1') !== -1) return 'R1';
+      if (id.indexOf('East Wing R2') !== -1) return 'R2';
+      if (id.indexOf('East Wing R4') !== -1) return 'R4';
+      if (id.indexOf('W1') !== -1) return 'W1';
+      if (id.indexOf('W2') !== -1) return 'W2';
+      if (id.indexOf('W3') !== -1) return 'W3';
+      if (id.indexOf('W4') !== -1) return 'W4';
+      if (id.indexOf('Rotunda') !== -1) return 'ROTUNDA';
+      return 'other';
+    }
+    roomVisibilityList.forEach(r => { r.bKey = getRoomBuildingKey(r.id); });
+
+    function updateRoomAndBuildingVisibility(playerPos, yaw, preset) {
+      const cullInterior = (preset && preset.cullDistInterior) || 20.0;
+      const cullBuilding = (preset && preset.cullDistBuilding) || 75.0;
+      const fwdX = -Math.sin(yaw);
+      const fwdZ = -Math.cos(yaw);
+
+      // 1. Check if player is currently inside any enclosed room or building corridor
+      let currentInsideRoom = null;
+      let activeBuildingKey = null;
+      if (playerPos.z >= 51.0 && playerPos.x >= -13.5 && playerPos.x <= 25.5) {
+        activeBuildingKey = 'ROTUNDA';
+      }
+      for (let i = 0; i < roomVisibilityList.length; i++) {
+        const r = roomVisibilityList[i];
+        const dx = Math.abs(playerPos.x - r.x);
+        const dz = Math.abs(playerPos.z - r.z);
+        if (r.type === 'room') {
+          if (dx < r.radius * 0.72 && dz < r.radius * 0.72 && Math.abs(playerPos.y - r.floorY) < 2.2) {
+            currentInsideRoom = r;
+            activeBuildingKey = r.bKey;
+            break;
+          }
+        } else if (r.type === 'corridor' && !activeBuildingKey) {
+          if (dx < 2.6 && dz < r.radius && Math.abs(playerPos.y - r.floorY) < 2.2) {
+            activeBuildingKey = r.bKey;
+          }
+        }
+      }
+
+      // 2. Room & Corridor Interior Visibility (shown ONLY when player is inside or can see into it via doors/windows)
+      let visCount = 0;
+      for (let i = 0; i < roomVisibilityList.length; i++) {
+        const r = roomVisibilityList[i];
+        if (r === currentInsideRoom) {
+          r.group.visible = true;
+          visCount++;
+          continue;
+        }
+        // Different floor elevation (> 2.4m vertical separation) -> hidden
+        if (Math.abs(playerPos.y - r.floorY) > 2.4) {
+          r.group.visible = false;
+          continue;
+        }
+        // If player is inside a specific building/corridor, do NOT render interiors of other buildings!
+        if (activeBuildingKey && r.bKey !== activeBuildingKey) {
+          r.group.visible = false;
+          continue;
+        }
+        const dx = r.x - playerPos.x;
+        const dz = r.z - playerPos.z;
+        const dist = Math.hypot(dx, dz);
+        const effDist = Math.max(0, dist - r.radius);
+
+        // Far buildings' interiors must never be rendered
+        const maxIntDist = activeBuildingKey ? cullInterior : Math.min(cullInterior, 14.5);
+        if (effDist > maxIntDist) {
+          r.group.visible = false;
+          continue;
+        }
+        // If player is inside an enclosed room, hide other rooms in the same wing unless right at the doorway
+        if (currentInsideRoom && r.type === 'room' && dist > 7.2) {
+          r.group.visible = false;
+          continue;
+        }
+        // Check camera sightline cone through doorway/windows
+        if (effDist > 4.5) {
+          const dot = (dx * fwdX + dz * fwdZ) / (dist || 1);
+          if (dot < -0.10) {
+            r.group.visible = false;
+            continue;
+          }
+        }
+        r.group.visible = true;
+        visCount++;
+      }
+      visibleRoomsCount = visCount;
+
+      // 3. Building & Courtyard Sector Distance Culling
+      const maxSectorDist = currentInsideRoom ? Math.min(cullBuilding, 42.0) : cullBuilding;
+      for (let s = 0; s < buildingSectors.length; s++) {
+        const sec = buildingSectors[s];
+        if (sec.alwaysVisible) {
+          sec.group.visible = true;
+          continue;
+        }
+        const dx = sec.x - playerPos.x;
+        const dz = sec.z - playerPos.z;
+        const dist = Math.max(0, Math.hypot(dx, dz) - sec.radius);
+        const limit = sec.isLandmark ? maxSectorDist * 1.25 : maxSectorDist;
+        sec.group.visible = dist <= limit;
+      }
+    }
 
     /* =========================================================================
        CHARACTERS, BOTS, PHYSICS & GAMEPLAY LOOP
@@ -7048,16 +8686,26 @@ export function getHideAndSeekHtml(): string {
     let proximitySyncCooldown = 0.0;
     let flickerBurstTimer = 11.0;
 
+    const sharedCharMats = {
+      skin: new THREE.MeshStandardMaterial({ color: 0xc89666, roughness: 0.5 }),
+      pants: new THREE.MeshStandardMaterial({ color: 0x090b10, roughness: 0.75 }),
+      clothByColor: {},
+    };
+
     function createCampusCharacter(colorHex, isSeeker = false, labelName = 'Scholar') {
       const root = new THREE.Group();
       const bodyPivot = new THREE.Group();
       bodyPivot.position.y = 0.75;
       root.add(bodyPivot);
 
-      const clothMat = new THREE.MeshStandardMaterial({
-        color: isSeeker ? 0x11161f : colorHex,
-        roughness: 0.55,
-      });
+      const cKey = isSeeker ? 0x11161f : colorHex;
+      if (!sharedCharMats.clothByColor[cKey]) {
+        sharedCharMats.clothByColor[cKey] = new THREE.MeshStandardMaterial({
+          color: cKey,
+          roughness: 0.55,
+        });
+      }
+      const clothMat = sharedCharMats.clothByColor[cKey];
 
       const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.25, 0.7, 10), clothMat);
       torso.position.y = 0.35;
@@ -7068,7 +8716,7 @@ export function getHideAndSeekHtml(): string {
       bodyPivot.add(headGroup);
       headGroup.add(new THREE.Mesh(
         new THREE.SphereGeometry(0.2, 10, 10),
-        new THREE.MeshStandardMaterial({ color: 0xc89666, roughness: 0.5 })
+        sharedCharMats.skin
       ));
 
       const leftArmPivot = new THREE.Group();
@@ -7085,7 +8733,7 @@ export function getHideAndSeekHtml(): string {
       rightArm.position.y = -0.24;
       rightArmPivot.add(rightArm);
 
-      const pantsMat = new THREE.MeshStandardMaterial({ color: 0x090b10, roughness: 0.75 });
+      const pantsMat = sharedCharMats.pants;
       const leftLegPivot = new THREE.Group();
       leftLegPivot.position.set(-0.15, 0.05, 0);
       bodyPivot.add(leftLegPivot);
@@ -8559,14 +10207,33 @@ export function getHideAndSeekHtml(): string {
         }
       }
 
-      // Physics telemetry HUD update & capsule wireframe
+      // Phase A Requirement 3: Update Room & Building Portal/Distance Visibility
+      updateRoomAndBuildingVisibility(playerPhysics.pos, playerPhysics.yaw, activePreset);
+
+      // Phase A Requirement 4: Update Player Flashlight (SpotLight)
+      if (atmosphere && atmosphere.flashlight && atmosphere.flashlightTarget) {
+        const fx = -Math.sin(playerPhysics.yaw) * Math.cos(playerPhysics.pitch);
+        const fy = Math.sin(playerPhysics.pitch);
+        const fz = -Math.cos(playerPhysics.yaw) * Math.cos(playerPhysics.pitch);
+        atmosphere.flashlight.position.copy(camera.position);
+        atmosphere.flashlightTarget.position.set(
+          camera.position.x + fx * 12.0,
+          camera.position.y + fy * 12.0,
+          camera.position.z + fz * 12.0
+        );
+      }
+
+      // Physics & Render Telemetry HUD update & capsule wireframe
       if (physicsDebug.enabled) {
         physicsDebug.updateCapsule(playerPhysics.pos, playerPhysics.isHiding ? 0.65 : (playerPhysics.isCrouching ? 1.05 : 1.8));
         const hudEl = document.getElementById('physics-debug-hud');
         if (hudEl) {
           const fpsEl = document.getElementById('dbg-fps');
-          if (fpsEl) fpsEl.textContent = 'FPS: ' + Math.round(physicsDebug.fps) + ' | Physics: ' + physicsDebug.physicsCostMs.toFixed(2) + 'ms';
-          document.getElementById('dbg-pos').textContent = 'Pos: (' + playerPhysics.pos.x.toFixed(2) + ', ' + playerPhysics.pos.y.toFixed(2) + ', ' + playerPhysics.pos.z.toFixed(2) + ')';
+          const rInfo = (renderer && renderer.info) ? renderer.info : { render: { calls: 0 }, memory: { geometries: 0, textures: 0 } };
+          if (fpsEl) {
+            fpsEl.textContent = 'FPS: ' + Math.round(physicsDebug.fps) + ' | Calls: ' + (rInfo.render.calls || 0) + ' | Geos: ' + (rInfo.memory.geometries || 0) + ' | Tex: ' + (rInfo.memory.textures || 0);
+          }
+          document.getElementById('dbg-pos').textContent = 'Pos: (' + playerPhysics.pos.x.toFixed(1) + ', ' + playerPhysics.pos.y.toFixed(1) + ', ' + playerPhysics.pos.z.toFixed(1) + ') | VisRooms: ' + visibleRoomsCount;
           const spd = Math.hypot(playerPhysics.vel.x, playerPhysics.vel.z);
           document.getElementById('dbg-vel').textContent = 'Vel: (' + playerPhysics.vel.x.toFixed(2) + ', ' + playerPhysics.vel.y.toFixed(2) + ', ' + playerPhysics.vel.z.toFixed(2) + ') ' + spd.toFixed(2) + ' m/s';
           const mvEl = document.getElementById('dbg-move');
@@ -8587,8 +10254,6 @@ export function getHideAndSeekHtml(): string {
       const swayAmp = (HORROR_CONFIG.tension.baseSwayRoll || 0.006) + proxSway * (HORROR_CONFIG.tension.hunterNearSwayRoll || 0.028);
       camera.rotation.z += Math.sin(timeSec * (2.2 + proxSway * 3.5)) * swayAmp;
       camera.position.y += Math.sin(timeSec * (2.6 + proxSway * 4.2)) * ((HORROR_CONFIG.tension.baseBreathingAmp || 0.012) + proxSway * (HORROR_CONFIG.tension.hunterNearBreathingBoost || 0.038));
-
-      // Player flashlight removed per lighting rework
 
       updatePrompts();
       updateCampusZoneBanner();
@@ -8756,7 +10421,7 @@ export function getHideAndSeekHtml(): string {
     }
 
     function applyGraphicsQuality(q) {
-      currentQuality = q === 'low' ? 'low' : 'high';
+      currentQuality = (HORROR_CONFIG.qualityPresets && HORROR_CONFIG.qualityPresets[q]) ? q : 'high';
       activePreset = HORROR_CONFIG.qualityPresets[currentQuality];
       atmosphere.applyQuality(activePreset);
       particleFieldMod.applyQuality(activePreset);
@@ -8846,14 +10511,6 @@ export function getHideAndSeekHtml(): string {
       // Keep sky dome centered at player camera position
       if (atmosphere.skyGroup && camera) {
         atmosphere.skyGroup.position.copy(camera.position);
-      }
-      // Update soft personal chest aura light position
-      if (atmosphere.playerAuraLight && playerPhysics && playerPhysics.pos) {
-        atmosphere.playerAuraLight.position.set(
-          playerPhysics.pos.x,
-          playerPhysics.pos.y + 1.2,
-          playerPhysics.pos.z
-        );
       }
 
       // TASK 2: Occasional random lamp flicker bursts

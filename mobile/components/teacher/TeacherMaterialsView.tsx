@@ -543,24 +543,54 @@ export function TeacherMaterialsView() {
                 >
                   <View style={styles.cardHeaderRow}>
                     <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                        {subject.code && (
-                          <View
-                            style={[
-                              styles.codeBadge,
-                              { backgroundColor: colors.surfaceSubtle, borderColor: colors.borderSubtle },
-                            ]}
-                          >
-                            <Text variant="xs" weight="700" style={{ color: colors.text }}>
-                              {subject.code}
-                            </Text>
-                          </View>
-                        )}
-                        <Badge
-                          label={`Semester ${subject.semester}`}
-                          variant="neutral"
-                          size="sm"
-                        />
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          {subject.code && (
+                            <View
+                              style={[
+                                styles.codeBadge,
+                                { backgroundColor: colors.surfaceSubtle, borderColor: colors.borderSubtle },
+                              ]}
+                            >
+                              <Text variant="xs" weight="700" style={{ color: colors.text }}>
+                                {subject.code}
+                              </Text>
+                            </View>
+                          )}
+                          <Badge
+                            label={`Semester ${subject.semester}`}
+                            variant="neutral"
+                            size="sm"
+                          />
+                        </View>
+                        <TouchableOpacity
+                          activeOpacity={0.75}
+                          onPress={() =>
+                            router.push({
+                              pathname: '/syllabus',
+                              params: {
+                                course: subject.code || subTitle,
+                                semester: String(subject.semester),
+                                fromLibrary: '1',
+                              },
+                            } as any)
+                          }
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            backgroundColor: colors.surfaceSubtle,
+                            borderColor: colors.border,
+                            borderWidth: 1,
+                            borderRadius: 6,
+                            paddingHorizontal: 8,
+                            paddingVertical: 4,
+                          }}
+                        >
+                          <Ionicons name="book-outline" size={12} color={colors.textSecondary} style={{ marginRight: 4 }} />
+                          <Text variant="xs" weight="700" style={{ color: colors.textSecondary, fontSize: 11 }}>
+                            View Syllabus
+                          </Text>
+                        </TouchableOpacity>
                       </View>
                       <Text variant="md" weight="700" style={{ color: colors.text }}>
                         {subTitle}

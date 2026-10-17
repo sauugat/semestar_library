@@ -82,17 +82,17 @@ export const HorrorHUD: React.FC<HorrorHUDProps> = ({
               onPress={onToggleQuality}
               style={[
                 styles.hudButton,
-                quality === 'low' && { borderColor: 'rgba(148, 163, 184, 0.18)' },
+                (quality === 'low' || quality === 'fast') && { borderColor: 'rgba(148, 163, 184, 0.18)' },
               ]}
               activeOpacity={0.8}
             >
               <Ionicons
                 name="sparkles-outline"
                 size={13}
-                color={quality === 'high' ? HORROR_CONFIG.palette.dimAmber : '#64748b'}
+                color={quality === 'ultra' || quality === 'high' ? HORROR_CONFIG.palette.dimAmber : '#64748b'}
               />
               <Text style={styles.hudButtonText}>
-                {quality === 'high' ? 'GFX: ULTRA' : 'GFX: FAST'}
+                GFX: {HORROR_CONFIG.qualityPresets[quality]?.label || quality.toUpperCase()}
               </Text>
             </TouchableOpacity>
           </View>

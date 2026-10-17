@@ -234,7 +234,7 @@ export const SEMESTERS: SemesterItem[] = [
       {
         "code": "CIT112",
         "title": "Basics of IT",
-        "credit": "(3)",
+        "credit": "3",
         "chapters": [
           {
             "id": "Unit 1: Introduction to Information Technology",
@@ -267,10 +267,10 @@ export const SEMESTERS: SemesterItem[] = [
             "shortTitle": "Applications of Information Technology and E-Commerce"
           },
           {
-            "id": "Unit 6: Group Case Study and Report Presentation: Computer Based Infor-",
-            "title": "Unit 6: Group Case Study and Report Presentation: Computer Based Infor-",
+            "id": "Unit 6: Group Case Study and Report Presentation: Computer Based Information System",
+            "title": "Unit 6: Group Case Study and Report Presentation: Computer Based Information System",
             "unitNumber": 6,
-            "shortTitle": "Group Case Study and Report Presentation: Computer Based Infor-"
+            "shortTitle": "Group Case Study and Report Presentation: Computer Based Information System"
           },
           {
             "id": "PYQS",
@@ -676,18 +676,6 @@ export const SEMESTERS: SemesterItem[] = [
             "shortTitle": "Programming in PHP and MYSQL"
           },
           {
-            "id": "Unit 1: Every topic of the course content should be included for the lab.",
-            "title": "Unit 1: Every topic of the course content should be included for the lab.",
-            "unitNumber": 1,
-            "shortTitle": "Every topic of the course content should be included for the lab."
-          },
-          {
-            "id": "Unit 2: Individual or group project work to develop a web application should be",
-            "title": "Unit 2: Individual or group project work to develop a web application should be",
-            "unitNumber": 2,
-            "shortTitle": "Individual or group project work to develop a web application should be"
-          },
-          {
             "id": "PYQS",
             "title": "Previous Year Questions (PYQs)",
             "isSpecial": true
@@ -710,64 +698,22 @@ export const SEMESTERS: SemesterItem[] = [
         "credit": "2",
         "chapters": [
           {
-            "id": "Unit 1: Project must be chosen in an area related to Computer Science/IT/ICT/Software",
-            "title": "Unit 1: Project must be chosen in an area related to Computer Science/IT/ICT/Software",
+            "id": "Unit 1: Project Proposal & Literature Survey",
+            "title": "Unit 1: Project Proposal & Literature Survey",
             "unitNumber": 1,
-            "shortTitle": "Project must be chosen in an area related to Computer Science/IT/ICT/Software"
+            "shortTitle": "Project Proposal & Literature Survey"
           },
           {
-            "id": "Unit 2: A proposal including a literature survey must be submitted.",
-            "title": "Unit 2: A proposal including a literature survey must be submitted.",
+            "id": "Unit 2: System Analysis, Design & Midterm Progress",
+            "title": "Unit 2: System Analysis, Design & Midterm Progress",
             "unitNumber": 2,
-            "shortTitle": "A proposal including a literature survey must be submitted."
+            "shortTitle": "System Analysis, Design & Midterm Progress"
           },
           {
-            "id": "Unit 3: A midterm progress report to be submitted.",
-            "title": "Unit 3: A midterm progress report to be submitted.",
+            "id": "Unit 3: Implementation, Final Report & Oral Defense",
+            "title": "Unit 3: Implementation, Final Report & Oral Defense",
             "unitNumber": 3,
-            "shortTitle": "A midterm progress report to be submitted."
-          },
-          {
-            "id": "Unit 4: A oral presentation to be given.",
-            "title": "Unit 4: A oral presentation to be given.",
-            "unitNumber": 4,
-            "shortTitle": "A oral presentation to be given."
-          },
-          {
-            "id": "Unit 5: The final report to be submitted.",
-            "title": "Unit 5: The final report to be submitted.",
-            "unitNumber": 5,
-            "shortTitle": "The final report to be submitted."
-          },
-          {
-            "id": "Unit 6: The oral defense of the final report should be given.",
-            "title": "Unit 6: The oral defense of the final report should be given.",
-            "unitNumber": 6,
-            "shortTitle": "The oral defense of the final report should be given."
-          },
-          {
-            "id": "Unit 1: Project Team members At least 2 and maximum of 3",
-            "title": "Unit 1: Project Team members At least 2 and maximum of 3",
-            "unitNumber": 1,
-            "shortTitle": "Project Team members At least 2 and maximum of 3"
-          },
-          {
-            "id": "Unit 2: Project supervisors",
-            "title": "Unit 2: Project supervisors",
-            "unitNumber": 2,
-            "shortTitle": "Project supervisors"
-          },
-          {
-            "id": "Unit 3: Technical description of the project.",
-            "title": "Unit 3: Technical description of the project.",
-            "unitNumber": 3,
-            "shortTitle": "Technical description of the project."
-          },
-          {
-            "id": "Unit 4: Project Analysis, Design, Coding, Testing and Implementation details.",
-            "title": "Unit 4: Project Analysis, Design, Coding, Testing and Implementation details.",
-            "unitNumber": 4,
-            "shortTitle": "Project Analysis, Design, Coding, Testing and Implementation details."
+            "shortTitle": "Implementation, Final Report & Oral Defense"
           },
           {
             "id": "PYQS",

@@ -298,7 +298,7 @@
         <a href="#Overview" class="syllabus-hero-banner">
           <div class="banner-badge-row">
             <span class="program-code-badge">BIT CURRICULUM</span>
-            <span class="program-stat-pill">126 Total Credits</span>
+            <span class="program-stat-pill">138 Total Credits</span>
           </div>
           <h2 class="banner-title">Program Structure & Semester Roadmap</h2>
           <p class="banner-desc">Explore the 8-semester curriculum outline, credit distributions, and specialized elective clusters.</p>
@@ -671,7 +671,12 @@
                         ${u.num ? `<span class="unit-number-pill">Unit ${u.num}</span>` : ''}
                         <h4 class="unit-title">${escapeHtml(u.title)}</h4>
                       </div>
-                      ${u.hrs ? `<span class="unit-hours-badge">${escapeHtml(u.hrs)}</span>` : ''}
+                      <div style="display: inline-flex; align-items: center; gap: 8px;">
+                        ${u.hrs ? `<span class="unit-hours-badge">${escapeHtml(u.hrs)}</span>` : ''}
+                        <a href="library.html?subject=${encodeURIComponent(course.title)}&chapter=${encodeURIComponent(u.num ? `Unit ${u.num}: ${u.title}` : u.title)}" class="syllabus-action-pill secondary" style="padding: 4px 10px; font-size: 0.75rem; text-decoration: none;">
+                          <span>View Notes</span>
+                        </a>
+                      </div>
                     </div>
                     <div class="unit-card-body">
                       <p>${escapeHtml(u.topics.join(' '))}</p>

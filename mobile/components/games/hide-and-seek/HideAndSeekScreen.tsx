@@ -88,7 +88,7 @@ export const HideAndSeekScreen: React.FC<HideAndSeekProps> = ({ onBack }) => {
     let isCancelled = false;
     const cacheHtml = async () => {
       try {
-        const targetPath = `${FileSystem.cacheDirectory}hide-and-seek-nightfall-v8.html`;
+        const targetPath = `${FileSystem.cacheDirectory}hide-and-seek-nightfall-v11-phase-a.html`;
         const content = getHideAndSeekHtml();
         await FileSystem.writeAsStringAsync(targetPath, content, {
           encoding: FileSystem.EncodingType.UTF8,
@@ -177,7 +177,8 @@ export const HideAndSeekScreen: React.FC<HideAndSeekProps> = ({ onBack }) => {
   };
 
   const toggleQuality = () => {
-    const nextQuality: GraphicsQuality = quality === 'high' ? 'low' : 'high';
+    const order: GraphicsQuality[] = ['high', 'fast', 'low', 'ultra'];
+    const nextQuality: GraphicsQuality = order[(order.indexOf(quality) + 1) % order.length];
     setQuality(nextQuality);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     webViewRef.current?.postMessage(
@@ -499,6 +500,9 @@ export const HideAndSeekScreen: React.FC<HideAndSeekProps> = ({ onBack }) => {
             source={webViewSource}
             style={styles.webview}
             androidLayerType="hardware"
+            androidHardwareAccelerationDisabled={false}
+            allowingReadAccessToURL={FileSystem.cacheDirectory || undefined}
+            webviewDebuggingEnabled={true}
             allowFileAccess={true}
             allowFileAccessFromFileURLs={true}
             allowUniversalAccessFromFileURLs={true}

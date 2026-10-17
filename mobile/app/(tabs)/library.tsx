@@ -138,7 +138,7 @@ function StudentLibraryView() {
   const { colors, spacing, radii } = useTheme();
   const { user } = useAuth();
   const { onScroll: handleNavScroll, scrollEventThrottle } = useAdaptiveNavScroll();
-  const params = useLocalSearchParams<{ subject?: string; semester?: string; chapter?: string }>();
+  const params = useLocalSearchParams<{ subject?: string; semester?: string; chapter?: string; unit?: string; fromSyllabus?: string }>();
   const {
     cohort,
     displayLabel,
@@ -202,10 +202,10 @@ function StudentLibraryView() {
   }, [toastOpacity]);
 
   // Active semester object from static config.
-  // For students and CRs, this is derived strictly from their server-authoritative cohort currentSemester.
-  // For teachers/admins, it reflects their selected filter.
+  // For students and CRs, this is derived strictly from their server-authoritative cohort currentSemester,
+  // unless deep-linked from a specific subject in the Syllabus screen.
   const currentSemester: SemesterItem = useMemo(() => {
-    if (!isStaff) {
+    if (!isStaff && params.fromSyllabus !== '1') {
       if (currentSemesterNumber && currentSemesterNumber >= 1 && currentSemesterNumber <= SEMESTERS.length) {
         return SEMESTERS[currentSemesterNumber - 1];
       }
@@ -216,14 +216,14 @@ function StudentLibraryView() {
       return SEMESTERS[0];
     }
     return SEMESTERS.find((s) => s.id === selectedSemesterId) || SEMESTERS[0];
-  }, [isStaff, currentSemesterNumber, semesterRoman, selectedSemesterId]);
+  }, [isStaff, params.fromSyllabus, currentSemesterNumber, semesterRoman, selectedSemesterId]);
 
-  // Handle incoming route params (e.g. from Home search)
+  // Handle incoming route params (e.g. from Home search or Syllabus View Notes)
   useEffect(() => {
     if (params.subject) {
       const match = findSubjectAcrossSemesters(params.subject);
       if (match) {
-        if (isStaff) {
+        if (isStaff || params.fromSyllabus === '1') {
           setSelectedSemesterId(match.semester.id);
           setSelectedSubject(match.subject);
         } else {
@@ -239,11 +239,19 @@ function StudentLibraryView() {
             setSelectedSubject(null);
           }
         }
-        if (params.chapter) {
+        if (params.unit || params.chapter) {
+          const unitNum = params.unit ? Number(params.unit) : NaN;
+          const chapLower = (params.chapter || '').trim().toLowerCase();
           const ch = match.subject.chapters.find(
-            (c) => c.title.toLowerCase() === params.chapter?.toLowerCase() || c.id === params.chapter
+            (c) =>
+              (!isNaN(unitNum) && c.unitNumber === unitNum) ||
+              c.title.toLowerCase() === chapLower ||
+              c.id.toLowerCase() === chapLower ||
+              (c.shortTitle && c.shortTitle.toLowerCase() === chapLower)
           );
-          if (ch) setSelectedChapter(ch);
+          setSelectedChapter(ch || null);
+        } else {
+          setSelectedChapter(null);
         }
       }
     } else if (params.semester && isStaff) {
@@ -255,7 +263,7 @@ function StudentLibraryView() {
       );
       if (sem) setSelectedSemesterId(sem.id);
     }
-  }, [params.subject, params.semester, params.chapter, isStaff, currentSemester]);
+  }, [params.subject, params.semester, params.chapter, params.unit, params.fromSyllabus, isStaff, currentSemester]);
 
   // React Query for Notes/Files when a specific chapter is open
   const isNotesLevel = selectedSubject !== null && selectedChapter !== null;
@@ -741,23 +749,56 @@ function StudentLibraryView() {
             style={[styles.subjectBannerCard, { marginBottom: spacing.md, borderColor: colors.border }]}
           >
             <View style={styles.subjectBannerTop}>
-              <View
-                style={[
-                  styles.codePill,
-                  {
-                    backgroundColor: '#27272A',
-                    borderRadius: radii.sm,
-                    paddingHorizontal: spacing.sm,
-                    paddingVertical: 2,
-                  },
-                ]}
-              >
-                <Text variant="xs" weight="700" style={{ color: '#FFFFFF' }}>
-                  {selectedSubject.code}
-                </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View
+                  style={[
+                    styles.codePill,
+                    {
+                      backgroundColor: '#27272A',
+                      borderRadius: radii.sm,
+                      paddingHorizontal: spacing.sm,
+                      paddingVertical: 2,
+                    },
+                  ]}
+                >
+                  <Text variant="xs" weight="700" style={{ color: '#FFFFFF' }}>
+                    {selectedSubject.code}
+                  </Text>
+                </View>
+                {Boolean(selectedSubject.credit) && (
+                  <Caption color="muted">{selectedSubject.credit} Credits</Caption>
+                )}
               </View>
-              {Boolean(selectedSubject.credit) && (
-                <Caption color="muted">{selectedSubject.credit} Credits</Caption>
+
+              {selectedSubject.code !== 'CUSTOM' && (
+                <TouchableOpacity
+                  activeOpacity={0.75}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/syllabus',
+                      params: {
+                        course: selectedSubject.code || selectedSubject.title,
+                        semester: currentSemester.semester,
+                        fromLibrary: '1',
+                      },
+                    } as any)
+                  }
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    backgroundColor: colors.surfaceRaised,
+                    borderColor: colors.borderStrong,
+                    borderWidth: 1,
+                    borderRadius: radii.sm,
+                    paddingHorizontal: 9,
+                    paddingVertical: 4,
+                  }}
+                >
+                  <Ionicons name="book-outline" size={12} color={colors.text} style={{ marginRight: 4 }} />
+                  <Text variant="xs" weight="700" style={{ color: colors.text, fontSize: 11 }}>
+                    View Syllabus
+                  </Text>
+                </TouchableOpacity>
               )}
             </View>
 
@@ -955,17 +996,50 @@ function StudentLibraryView() {
                       <Caption color="secondary">
                         {unitCount} Syllabus {unitCount === 1 ? 'Unit' : 'Units'} • Notes & PYQs
                       </Caption>
-                      <View
-                        style={[
-                          styles.openPill,
-                          {
-                            backgroundColor: colors.surfaceSubtle,
-                            borderColor: colors.borderSubtle,
-                            borderRadius: radii.pill,
-                          },
-                        ]}
-                      >
-                        <Ionicons name="arrow-forward" size={14} color={colors.textSecondary} />
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        {subject.code !== 'CUSTOM' && (
+                          <TouchableOpacity
+                            activeOpacity={0.75}
+                            onPress={(e) => {
+                              e.stopPropagation();
+                              router.push({
+                                pathname: '/syllabus',
+                                params: {
+                                  course: subject.code || subject.title,
+                                  semester: currentSemester.semester,
+                                  fromLibrary: '1',
+                                },
+                              } as any);
+                            }}
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              backgroundColor: colors.surfaceRaised,
+                              borderColor: colors.border,
+                              borderWidth: 1,
+                              borderRadius: radii.sm,
+                              paddingHorizontal: 8,
+                              paddingVertical: 4,
+                            }}
+                          >
+                            <Ionicons name="book-outline" size={12} color={colors.textSecondary} style={{ marginRight: 4 }} />
+                            <Text variant="xs" weight="700" style={{ color: colors.textSecondary, fontSize: 11 }}>
+                              View Syllabus
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                        <View
+                          style={[
+                            styles.openPill,
+                            {
+                              backgroundColor: colors.surfaceSubtle,
+                              borderColor: colors.borderSubtle,
+                              borderRadius: radii.pill,
+                            },
+                          ]}
+                        >
+                          <Ionicons name="arrow-forward" size={14} color={colors.textSecondary} />
+                        </View>
                       </View>
                     </View>
                 </View>

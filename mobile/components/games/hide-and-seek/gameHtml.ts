@@ -7038,19 +7038,39 @@ export function getHideAndSeekHtml(): string {
     buildWallSegment(ghX + ghW / 2, ghFloorY, ghZ, 0.22, 3.04, ghD, materials.campusStucco);
     buildWallSegment(ghX - ghW / 2, ghFloorY, ghZ - 1.55, 0.22, 3.04, 1.5, materials.campusStucco);
     buildWallSegment(ghX - ghW / 2, ghFloorY, ghZ + 1.55, 0.22, 3.04, 1.5, materials.campusStucco);
-    buildSwingingDoor(scene, ghX - ghW / 2 + 0.15, ghFloorY, ghZ - 0.75, 0.42, materials.gandakiBluePole);
+    addDoorFrameColliders(ghX - ghW / 2, ghFloorY, ghZ, 1.60, 0.22, true);
+    buildSwingingDoor(scene, ghX - ghW / 2 + 0.15, ghFloorY, ghZ - 0.75, 0.42, materials.gandakiBluePole, 'door-guardhouse');
+    const ghGroup = new THREE.Group();
+    ghGroup.position.set(ghX, ghFloorY, ghZ);
+    scene.add(ghGroup);
     const ghDesk = new THREE.Mesh(step2Geos.officeDesk, materials.deskWoodTop);
-    ghDesk.position.set(ghX + 0.65, ghFloorY + 0.38, ghZ);
+    ghDesk.position.set(0.65, 0.38, 0);
     ghDesk.rotation.y = Math.PI / 2;
-    scene.add(ghDesk);
+    ghGroup.add(ghDesk);
     const ghMon = new THREE.Mesh(step2Geos.monitorPanel, step2Mats.monitorScreenOn);
-    ghMon.position.set(ghX + 0.72, ghFloorY + 0.94, ghZ - 0.25);
+    ghMon.position.set(0.72, 0.94, -0.25);
     ghMon.rotation.y = -Math.PI / 2;
-    scene.add(ghMon);
+    ghGroup.add(ghMon);
     const ghLocker = new THREE.Mesh(step2Geos.filingCabinet, step2Mats.lockerSteel);
-    ghLocker.position.set(ghX + 1.45, ghFloorY + 0.69, ghZ + 1.45);
-    scene.add(ghLocker);
-    addColliderBox(new THREE.Box3(new THREE.Vector3(ghX + 0.20, ghFloorY, ghZ - 0.80), new THREE.Vector3(ghX + 1.10, ghFloorY + 0.82, ghZ + 0.80)));
+    ghLocker.position.set(1.45, 0.69, 1.45);
+    ghGroup.add(ghLocker);
+    bakeStaticGroup(ghGroup, true);
+    ghGroup.userData.isRoomGroup = true;
+    ghGroup.userData.roomDef = ROOM_DEFINITIONS['Security Guardhouse'];
+    roomVisibilityList.push({
+      id: 'Security Guardhouse',
+      type: 'room',
+      group: ghGroup,
+      x: ghX,
+      y: ghFloorY,
+      z: ghZ,
+      floorY: ghFloorY,
+      radius: 3.6,
+      bKey: 'GUARDHOUSE',
+      lightMood: 'cold_monitor_glow',
+    });
+    addColliderBox(new THREE.Box3(new THREE.Vector3(ghX + 0.20, ghFloorY, ghZ - 0.80), new THREE.Vector3(ghX + 1.10, ghFloorY + 0.82, ghZ + 0.80)), 'furniture');
+    addColliderBox(new THREE.Box3(new THREE.Vector3(ghX + 1.12, ghFloorY, ghZ + 1.12), new THREE.Vector3(ghX + 1.78, ghFloorY + 1.42, ghZ + 1.78)), 'furniture');
     interactiveHidingSpots.push({ id: 'guardhouse-desk', name: 'Security Guardhouse CCTV Desk', x: ghX - 0.35, y: ghFloorY, z: ghZ, zone: 'Security Guardhouse' });
     buildCornerQuoins(ghX - ghW / 2, 0, ghZ - ghD / 2, 3.2);
     buildCornerQuoins(ghX + ghW / 2, 0, ghZ - ghD / 2, 3.2);
@@ -7268,8 +7288,9 @@ export function getHideAndSeekHtml(): string {
     buildWallSegment(w2X - w2W / 2, w2FloorY, w2Z, 0.26, 3.78, w2D, materials.nepalDachiBrick);
     buildWallSegment(w2X + w2W / 2, w2FloorY, w2Z - 4.5, 0.26, 3.78, 7.0, materials.nepalDachiBrick);
     buildWallSegment(w2X + w2W / 2, w2FloorY, w2Z + 4.5, 0.26, 3.78, 7.0, materials.nepalDachiBrick);
+    addDoorFrameColliders(w2X + w2W / 2, w2FloorY, w2Z, 2.0, 0.26, true);
     buildNewariToranaDoorway(w2X + w2W / 2 + 0.04, w2FloorY, w2Z, 1, 0, 2.0, 2.55);
-    buildSwingingDoor(scene, w2X + w2W / 2 - 0.18, w2FloorY, w2Z - 0.90, Math.PI - 0.45, materials.ebonyCarvedWood);
+    buildSwingingDoor(scene, w2X + w2W / 2 - 0.18, w2FloorY, w2Z - 0.90, Math.PI - 0.45, materials.ebonyCarvedWood, 'door-w2-main');
     populateClassroomUnit(w2X, w2Z - 3.6, w2FloorY, 1, 'Newari Cultural Hall W2 South', true);
     populateClassroomUnit(w2X, w2Z + 3.6, w2FloorY, -1, 'West Wing L3 Heritage Library W2', true);
     buildSanjhyalCarvedWindow(-28.4, 2.85, -22.0, 1, 0, 3, true, true);
@@ -7750,13 +7771,15 @@ export function getHideAndSeekHtml(): string {
       noticeCork.position.set(0, 1.85, -6.60);
       rGroup.add(noticeCork);
 
-      // Route Room 102 -> Central Admin & Staff Office; Room 202 -> Reference Library; Room 302 -> AI & Networking Computer Lab!
-      if (roomCode === '102') {
-        buildStaffAdminOfficeInterior(rGroup, roomCX, roomCZ, floorY, -1, roomTitle);
-      } else if (roomCode === '202') {
-        buildLibraryRoomInterior(rGroup, roomCX, roomCZ, floorY, -1, roomTitle);
+      // Phase B.1 Data-Driven Room Dispatch via ROOM_DEFINITIONS (zero roomCode if-chains!)
+      const roomDef = getOrRegisterRoomDefinition(roomTitle, roomCX, roomCZ, floorY, 7.1, 6.8, 'ROTUNDA', 'rotunda_lecture');
+      const rArch = roomDef.archetype;
+      if (ROOM_ARCHETYPE_BUILDERS[rArch]) {
+        ROOM_ARCHETYPE_BUILDERS[rArch](rGroup, roomCX, roomCZ, floorY, -1, roomTitle, false, roomDef);
       } else {
-        // Teaching wall is along the north/back wall (z = +6.35)
+        // Rotunda Lecture / Seminar / Smart Computer Lab Archetypes ('rotunda_lecture' | 'rotunda_seminar' | 'rotunda_lab')
+        const isRotundaLab = (rArch === 'rotunda_lab');
+        const isRotundaSeminar = (rArch === 'rotunda_seminar');
         const boardZ = 6.35;
         const dais = new THREE.Mesh(new THREE.BoxGeometry(8.6, 0.16, 2.2), materials.rotundaPlinthConcrete);
         dais.position.set(0, 0.08, boardZ - 1.2);
@@ -7804,7 +7827,12 @@ export function getHideAndSeekHtml(): string {
         addColliderBox(new THREE.Box3(
           new THREE.Vector3(roomCX + profDeskX - 0.95, floorY, roomCZ + profDeskZ - 0.50),
           new THREE.Vector3(roomCX + profDeskX + 0.95, floorY + 1.05, roomCZ + profDeskZ + 0.50)
-        ));
+        ), 'furniture');
+        // Simplified box collider for Rotunda lectern podium
+        addColliderBox(new THREE.Box3(
+          new THREE.Vector3(roomCX + 2.8 - 0.36, floorY, roomCZ + profDeskZ - 0.32),
+          new THREE.Vector3(roomCX + 2.8 + 0.36, floorY + 1.35, roomCZ + profDeskZ + 0.32)
+        ), 'furniture');
 
         interactiveHidingSpots.push({
           id: 'rotunda-prof-' + roomCode,
@@ -7815,8 +7843,8 @@ export function getHideAndSeekHtml(): string {
           zone: roomTitle,
         });
 
-        // Room 302 (Smart Computer Lab): Add Twin Glass-Door Server Racks with Blinking LEDs!
-        if (roomCode === '302') {
+        // Smart Computer Lab Archetype: Twin Glass-Door Server Racks with Blinking LEDs + Simplified Box Colliders
+        if (isRotundaLab) {
           [-4.8, 4.8].forEach((srX, srIdx) => {
             const sr = new THREE.Mesh(step2Geos.serverRack, materials.castIronDark);
             sr.position.set(srX, 1.08, -5.65);
@@ -7829,6 +7857,10 @@ export function getHideAndSeekHtml(): string {
               led.position.set(srX, 1.10 + ly, -5.20);
               rGroup.add(led);
             });
+            addColliderBox(new THREE.Box3(
+              new THREE.Vector3(roomCX + srX - 0.42, floorY, roomCZ - 5.65 - 0.45),
+              new THREE.Vector3(roomCX + srX + 0.42, floorY + 2.15, roomCZ - 5.65 + 0.45)
+            ), 'furniture');
           });
         }
 
@@ -7862,7 +7894,7 @@ export function getHideAndSeekHtml(): string {
             benchBack.position.set(cxOff, 0.62, rz - 0.64);
             rGroup.add(benchBack);
 
-            if (roomCode === '302') {
+            if (isRotundaLab) {
               // Computer Lab 302: Desktop LCD Monitors, Keyboards & Cable Tray
               const cTray = new THREE.Mesh(step2Geos.cableTray, materials.castIronDark);
               cTray.position.set(cxOff, 0.50, rz + 0.22);
@@ -7878,7 +7910,7 @@ export function getHideAndSeekHtml(): string {
                 kb.position.set(cxOff + mx, 0.78, rz - 0.08);
                 rGroup.add(kb);
               });
-            } else if (floorNum === 3) {
+            } else if (isRotundaSeminar) {
               // Seminar 301: Open Laptops & Notebooks
               [-0.36, 0.36].forEach(lapX => {
                 const lapBase = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.02, 0.24), materials.castIronDark);
@@ -7910,9 +7942,9 @@ export function getHideAndSeekHtml(): string {
             const wx = roomCX + cxOff;
             const wz = roomCZ + rz;
             addColliderBox(new THREE.Box3(
-              new THREE.Vector3(wx - 0.78, floorY, wz - 0.66),
-              new THREE.Vector3(wx + 0.78, floorY + 0.82, wz + 0.36)
-            ));
+              new THREE.Vector3(wx - 0.76, floorY, wz - 0.66),
+              new THREE.Vector3(wx + 0.76, floorY + 0.82, wz + 0.34)
+            ), 'furniture');
 
             if ((rIdx + cIdx) % 2 === 0) {
               interactiveHidingSpots.push({
@@ -7920,7 +7952,7 @@ export function getHideAndSeekHtml(): string {
                 name: roomTitle + ' Desk #' + (rIdx * 3 + cIdx + 1),
                 x: wx,
                 y: floorY,
-                z: wz - 0.86,
+                z: wz - 0.88,
                 zone: roomTitle,
               });
             }
@@ -7948,7 +7980,7 @@ export function getHideAndSeekHtml(): string {
         addColliderBox(new THREE.Box3(
           new THREE.Vector3(roomCX + shelfX - 0.32, floorY, roomCZ - 2.85),
           new THREE.Vector3(roomCX + shelfX + 0.32, floorY + 2.25, roomCZ + 4.05)
-        ));
+        ), 'furniture');
       }
 
       // Wall-Mounted Split AC Unit inside Classroom
@@ -7986,6 +8018,7 @@ export function getHideAndSeekHtml(): string {
 
       bakeStaticGroup(rGroup, true);
       rGroup.userData.isRoomGroup = true;
+      rGroup.userData.roomDef = roomDef;
       roomVisibilityList.push({
         id: roomTitle,
         type: 'room',
@@ -7995,6 +8028,8 @@ export function getHideAndSeekHtml(): string {
         z: roomCZ,
         floorY,
         radius: 9.2,
+        bKey: roomDef.building,
+        lightMood: roomDef.lightMood,
       });
     }
 

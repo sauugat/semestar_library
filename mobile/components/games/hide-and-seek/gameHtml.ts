@@ -5346,13 +5346,17 @@ export function getHideAndSeekHtml(): string {
     step2Geos.backpack.userData.instancedCategory = 'book';
 
     // Helper: Swinging Wooden Door with Frame, Brass Handle & Room Code Plaque
-    function buildSwingingDoor(parent, x, y, z, openAngleY = 1.05, plaqueMat = materials.gandakiBluePole) {
+    function buildSwingingDoor(parent, x, y, z, openAngleY = 1.05, plaqueMat = materials.gandakiBluePole, doorId = '') {
       const dPivot = new THREE.Group();
+      dPivot.userData.noMerge = true;
+      const initAngle = openAngleY * 0.42;
       dPivot.position.set(x, y, z);
-      dPivot.rotation.y = openAngleY;
+      dPivot.rotation.y = initAngle;
 
       const leaf = new THREE.Mesh(step2Geos.doorLeaf, materials.deskWoodTop);
       leaf.position.set(0.46, 1.13, 0);
+      leaf.castShadow = true;
+      leaf.receiveShadow = true;
       dPivot.add(leaf);
 
       const handle = new THREE.Mesh(step2Geos.doorHandle, materials.brassGajur);
@@ -5364,6 +5368,21 @@ export function getHideAndSeekHtml(): string {
       const plaque = new THREE.Mesh(step2Geos.roomPlaque, plaqueMat);
       plaque.position.set(x, y + 2.05, z);
       parent.add(plaque);
+
+      swingingDoors.push({
+        id: doorId || ('door-' + (swingingDoors.length + 1)),
+        pivot: dPivot,
+        x: x,
+        y: y,
+        z: z,
+        closedAngleY: openAngleY * 0.15,
+        ajarAngleY: initAngle,
+        openAngleY: openAngleY,
+        currentAngleY: initAngle,
+        targetAngleY: initAngle,
+        isOpen: false,
+        holdTimer: 0,
+      });
     }
 
     // Helper: Window with Rod & Pleated Fabric Curtains
@@ -5481,6 +5500,13 @@ export function getHideAndSeekHtml(): string {
       wdJug.position.set(-wallSignX * 0.24, 1.22, wdZ);
       cGroup.add(wdJug);
 
+      // Flush simplified box collider for corridor locker bank & water dispenser (leaves >1.75m clear corridor walk width)
+      const colCenterX = corridorX - wallSignX * 0.26;
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(colCenterX - 0.22, floorY, corridorZ + lockerZ - 0.92),
+        new THREE.Vector3(colCenterX + 0.22, floorY + 1.95, corridorZ + wdZ + 0.26)
+      ), 'furniture');
+
       // 5. Red Wall-Mounted Fire Extinguisher
       const feZ = nbZ - 1.25;
       const feBody = new THREE.Mesh(step2Geos.fireExtBody, step2Mats.fireRed);
@@ -5504,7 +5530,7 @@ export function getHideAndSeekHtml(): string {
       });
     }
 
-    // Helper: Standard / Reference Classroom Interior (Rows of Desks & Benches, Teacher Desk, Whiteboard, Wall-Mounted Fans, Curtains, Shelves, Notice Boards, Bags & Books, Swinging Door)
+    // Helper: Standard / Seminar Classroom Interior
     function buildDetailedClassroomInterior(cGroup, unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle, isNewariStyle = false, layoutVariant = 0) {
       // 1. Teaching Wall Dado Band + Raised Dais Platform + Whiteboard & Chalkboard
       const boardZ = facingDirZ * -3.1;
@@ -5537,13 +5563,17 @@ export function getHideAndSeekHtml(): string {
       rearCork.position.set(0, 1.75, facingDirZ * 3.12);
       cGroup.add(rearCork);
 
-      // Side Wall Wooden Bookshelf + Upper Wall Shelves with Books
+      // Side Wall Wooden Bookshelf + Upper Wall Shelves with Books + Simplified Box Collider
       const bookcase = new THREE.Mesh(new THREE.BoxGeometry(0.42, 1.95, 2.1), materials.chairWood);
       bookcase.position.set(-3.15, 0.98, 0.4);
       cGroup.add(bookcase);
       const bookRow = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.26, 1.85), materials.gandakiBluePole);
       bookRow.position.set(-3.10, 1.35, 0.4);
       cGroup.add(bookRow);
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX - 3.38, floorY, unitCenterZ + 0.4 - 1.05),
+        new THREE.Vector3(unitCenterX - 2.92, floorY + 1.95, unitCenterZ + 0.4 + 1.05)
+      ), 'furniture');
 
       [1.45, 2.05].forEach((sy, sIdx) => {
         const wShelf = new THREE.Mesh(step2Geos.wallShelf, materials.chairWood);
@@ -5560,11 +5590,15 @@ export function getHideAndSeekHtml(): string {
       buildInteriorWindowCurtains(cGroup, 3.26, 1.92, -1.6, -Math.PI / 2, isNewariStyle);
       buildInteriorWindowCurtains(cGroup, 3.26, 1.92, 1.8, -Math.PI / 2, isNewariStyle);
 
-      // Teacher Podium & Lecture Desk with Open Attendance Register & Stack of Books
+      // Teacher Podium & Lecture Desk with Simplified Box Colliders
       const podiumZ = facingDirZ * -2.1;
       const podium = new THREE.Mesh(sharedGeos.podiumBody, materials.chairWood);
       podium.position.set(-2.6, 0.64, podiumZ);
       cGroup.add(podium);
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX - 2.95, floorY, unitCenterZ + podiumZ - 0.30),
+        new THREE.Vector3(unitCenterX - 2.25, floorY + 1.25, unitCenterZ + podiumZ + 0.30)
+      ), 'furniture');
 
       const tDesk = new THREE.Mesh(sharedGeos.deskTop, materials.deskWoodTop);
       tDesk.position.set(0.4, 0.82, podiumZ);
@@ -5575,6 +5609,10 @@ export function getHideAndSeekHtml(): string {
       const tChair = new THREE.Mesh(sharedGeos.chairSeat, materials.chairWood);
       tChair.position.set(0.4, 0.50, podiumZ - facingDirZ * 0.5);
       cGroup.add(tChair);
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX + 0.4 - 0.62, floorY, unitCenterZ + podiumZ - 0.34),
+        new THREE.Vector3(unitCenterX + 0.4 + 0.62, floorY + 0.88, unitCenterZ + podiumZ + 0.34)
+      ), 'furniture');
 
       interactiveHidingSpots.push({
         id: 'podium-' + unitTitle,
@@ -5594,7 +5632,6 @@ export function getHideAndSeekHtml(): string {
 
       rowOffsetsZ.forEach((rz, rIdx) => {
         colOffsetsX.forEach((cx, cIdx) => {
-          // In Variant 1 (Seminar U-shape), keep middle desk of front row open for discussion space
           if (layoutVariant === 1 && rIdx === 0 && cIdx === 1) return;
 
           const deskGroup = new THREE.Group();
@@ -5615,7 +5652,6 @@ export function getHideAndSeekHtml(): string {
           legR.position.set(0.58, 0.37, 0);
           deskGroup.add(legR);
 
-          // Bench with backrest behind each desk
           const benchZ = facingDirZ * 0.44;
           const bSeat = new THREE.Mesh(step2Geos.benchLongSeat, materials.chairWood);
           bSeat.position.set(0, 0.44, benchZ);
@@ -5624,7 +5660,6 @@ export function getHideAndSeekHtml(): string {
           bBack.position.set(0, 0.62, benchZ + facingDirZ * 0.16);
           deskGroup.add(bBack);
 
-          // Bags and books on desks (asymmetric clutter)
           if ((rIdx + cIdx) % 2 === 0) {
             const openBk = new THREE.Mesh(step2Geos.openBook, step2Mats.paperSheet);
             openBk.position.set(0.22, 0.79, 0.02);
@@ -5648,11 +5683,13 @@ export function getHideAndSeekHtml(): string {
 
           const worldDeskX = unitCenterX + cx;
           const worldDeskZ = unitCenterZ + rz;
+          const zMin = Math.min(worldDeskZ - 0.26, worldDeskZ + benchZ - 0.18);
+          const zMax = Math.max(worldDeskZ + 0.26, worldDeskZ + benchZ + 0.18);
 
           addColliderBox(new THREE.Box3(
-            new THREE.Vector3(worldDeskX - 0.60, floorY, worldDeskZ - 0.25),
-            new THREE.Vector3(worldDeskX + 0.60, floorY + 0.78, worldDeskZ + 0.25)
-          ));
+            new THREE.Vector3(worldDeskX - 0.58, floorY, zMin),
+            new THREE.Vector3(worldDeskX + 0.58, floorY + 0.78, zMax)
+          ), 'furniture');
 
           if ((rIdx + cIdx) % 2 === 0) {
             interactiveHidingSpots.push({
@@ -5660,7 +5697,7 @@ export function getHideAndSeekHtml(): string {
               name: unitTitle + ' Desk #' + (rIdx * 3 + cIdx + 1),
               x: worldDeskX,
               y: floorY,
-              z: worldDeskZ + facingDirZ * 0.62,
+              z: worldDeskZ + facingDirZ * 0.68,
               zone: unitTitle,
             });
           }
@@ -5680,7 +5717,6 @@ export function getHideAndSeekHtml(): string {
       buildInteriorWindowCurtains(cGroup, -3.26, 1.92, -1.5, Math.PI / 2, false);
       buildInteriorWindowCurtains(cGroup, -3.26, 1.92, 1.5, Math.PI / 2, false);
 
-      // Tall Glass-Front Server Rack in Corner with Blinking Status LEDs & Cable Bundles
       const srvX = 2.65, srvZ = facingDirZ * -2.35;
       const srvRack = new THREE.Mesh(step2Geos.serverRack, materials.castIronDark);
       srvRack.position.set(srvX, 1.08, srvZ);
@@ -5696,7 +5732,7 @@ export function getHideAndSeekHtml(): string {
       addColliderBox(new THREE.Box3(
         new THREE.Vector3(unitCenterX + srvX - 0.42, floorY, unitCenterZ + srvZ - 0.45),
         new THREE.Vector3(unitCenterX + srvX + 0.42, floorY + 2.15, unitCenterZ + srvZ + 0.45)
-      ));
+      ), 'furniture');
       interactiveHidingSpots.push({
         id: 'server-rack-' + unitTitle,
         name: unitTitle + ' (Behind Server Rack)',
@@ -5706,7 +5742,6 @@ export function getHideAndSeekHtml(): string {
         zone: unitTitle,
       });
 
-      // 3 Rows x 2 Columns of Dual-Monitor Computer Workstations, Chairs & Under-Desk Cable Trays
       const rowsZ = [facingDirZ * -1.1, facingDirZ * 0.35, facingDirZ * 1.80];
       const colsX = [-1.85, 1.45];
       rowsZ.forEach((rz, rIdx) => {
@@ -5745,17 +5780,19 @@ export function getHideAndSeekHtml(): string {
           cGroup.add(wGrp);
           const wx = unitCenterX + cx;
           const wz = unitCenterZ + rz;
+          const zMin = Math.min(wz - 0.26, wz + facingDirZ * 0.56);
+          const zMax = Math.max(wz + 0.26, wz + facingDirZ * 0.56);
           addColliderBox(new THREE.Box3(
-            new THREE.Vector3(wx - 0.62, floorY, wz - 0.26),
-            new THREE.Vector3(wx + 0.62, floorY + 0.82, wz + 0.26)
-          ));
+            new THREE.Vector3(wx - 0.60, floorY, zMin),
+            new THREE.Vector3(wx + 0.60, floorY + 0.86, zMax)
+          ), 'furniture');
           if ((rIdx + cIdx) % 2 === 0) {
             interactiveHidingSpots.push({
               id: 'lab-desk-' + unitTitle + '-' + rIdx + '-' + cIdx,
               name: unitTitle + ' Workstation #' + (rIdx * 2 + cIdx + 1),
               x: wx,
               y: floorY,
-              z: wz + facingDirZ * 0.62,
+              z: wz + facingDirZ * 0.72,
               zone: unitTitle,
             });
           }
@@ -5770,7 +5807,6 @@ export function getHideAndSeekHtml(): string {
       buildInteriorWindowCurtains(cGroup, -3.26, 1.92, -1.6, Math.PI / 2, true);
       buildInteriorWindowCurtains(cGroup, -3.26, 1.92, 1.6, Math.PI / 2, true);
 
-      // 3 Rows of Tall Double-Sided Wooden Bookshelves with Walkable Gaps
       const stackZList = [-2.2, 0.0, 2.2];
       stackZList.forEach((sz, sIdx) => {
         const shelfX = -1.65;
@@ -5794,7 +5830,7 @@ export function getHideAndSeekHtml(): string {
         addColliderBox(new THREE.Box3(
           new THREE.Vector3(wx - 1.30, floorY, wz - 0.30),
           new THREE.Vector3(wx + 1.30, floorY + 2.28, wz + 0.30)
-        ));
+        ), 'furniture');
 
         interactiveHidingSpots.push({
           id: 'lib-stack-' + unitTitle + '-' + sIdx,
@@ -5806,7 +5842,6 @@ export function getHideAndSeekHtml(): string {
         });
       });
 
-      // Reading Tables with Warm Banker Desk Lamps & Open Reference Books on the East Side
       [-1.35, 1.35].forEach((tz, tIdx) => {
         const tx = 1.75;
         const rTable = new THREE.Mesh(step2Geos.readingTable, materials.deskWoodTop);
@@ -5833,19 +5868,18 @@ export function getHideAndSeekHtml(): string {
         const wx = unitCenterX + tx;
         const wz = unitCenterZ + tz;
         addColliderBox(new THREE.Box3(
-          new THREE.Vector3(wx - 0.82, floorY, wz - 0.52),
-          new THREE.Vector3(wx + 0.82, floorY + 0.80, wz + 0.52)
-        ));
+          new THREE.Vector3(wx - 0.82, floorY, wz - 0.65),
+          new THREE.Vector3(wx + 0.82, floorY + 0.80, wz + 0.65)
+        ), 'furniture');
       });
     }
 
-    // Specialized Builder: Staff Room & Admin Offices (Office Desks, Chairs, Filing Cabinets, Computers, Paper Stacks, Sofa)
+    // Specialized Builder: Staff Room & Admin Offices
     function buildStaffAdminOfficeInterior(cGroup, unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle) {
       buildWallMountedFan(cGroup, -3.28, 2.55, 0, Math.PI / 2);
       buildInteriorWindowCurtains(cGroup, 3.26, 1.92, -1.4, -Math.PI / 2, true);
       buildInteriorWindowCurtains(cGroup, 3.26, 1.92, 1.4, -Math.PI / 2, true);
 
-      // Row of Steel Filing Cabinets along Back Wall
       [-2.1, -1.4, -0.7, 0.0].forEach((fx, fIdx) => {
         const cab = new THREE.Mesh(step2Geos.filingCabinet, step2Mats.lockerSteel);
         cab.position.set(fx, 0.69, -2.75);
@@ -5859,9 +5893,8 @@ export function getHideAndSeekHtml(): string {
       addColliderBox(new THREE.Box3(
         new THREE.Vector3(unitCenterX - 2.45, floorY, unitCenterZ - 3.10),
         new THREE.Vector3(unitCenterX + 0.35, floorY + 1.42, unitCenterZ - 2.40)
-      ));
+      ), 'furniture');
 
-      // 3-Seater Faculty Lounge Sofa + Coffee Table
       const sofaX = 2.15, sofaZ = 1.85;
       const sBase = new THREE.Mesh(step2Geos.sofaBase, step2Mats.sofaLeather);
       sBase.position.set(sofaX, 0.21, sofaZ);
@@ -5877,9 +5910,8 @@ export function getHideAndSeekHtml(): string {
       addColliderBox(new THREE.Box3(
         new THREE.Vector3(unitCenterX + sofaX - 1.0, floorY, unitCenterZ + sofaZ - 0.44),
         new THREE.Vector3(unitCenterX + sofaX + 1.0, floorY + 0.85, unitCenterZ + sofaZ + 0.44)
-      ));
+      ), 'furniture');
 
-      // 4 Faculty Office Desks with Computers, Paper Stacks & Swivel Chairs
       const deskCoords = [
         [-1.65, -0.85], [1.65, -0.85],
         [-1.65,  1.25],
@@ -5904,31 +5936,36 @@ export function getHideAndSeekHtml(): string {
         const wx = unitCenterX + dx;
         const wz = unitCenterZ + dz;
         addColliderBox(new THREE.Box3(
-          new THREE.Vector3(wx - 0.76, floorY, wz - 0.40),
-          new THREE.Vector3(wx + 0.76, floorY + 0.80, wz + 0.40)
-        ));
+          new THREE.Vector3(wx - 0.76, floorY, wz - 0.42),
+          new THREE.Vector3(wx + 0.76, floorY + 0.82, wz + 0.62)
+        ), 'furniture');
         interactiveHidingSpots.push({
           id: 'office-desk-' + unitTitle + '-' + dIdx,
           name: unitTitle + ' Office Desk #' + (dIdx + 1),
           x: wx,
           y: floorY,
-          z: wz + 0.76,
+          z: wz + 0.84,
           zone: unitTitle,
         });
       });
     }
 
-    // Specialized Builder: Campus Toilets / Washroom Block (Stalls, Washbasins, Mirrors)
+    // Specialized Builder: Campus Toilets / Washroom Block (Walkable Stalls with Partition & Bowl Colliders, Washbasins, Mirrors)
     function buildToiletsRoomInterior(cGroup, unitCenterX, unitCenterZ, floorY, unitTitle) {
-      // 3 Partitioned Toilet Cubicles along East Wall with Swinging Doors & Ceramic Bowls
       [-1.8, -0.2, 1.4].forEach((sz, sIdx) => {
         const pWall = new THREE.Mesh(step2Geos.stallWall, materials.rotundaWhiteArch);
         pWall.position.set(2.15, 0.98, sz - 0.75);
         cGroup.add(pWall);
 
+        // Stall partition wall collider (slim 0.12m Z thickness so stall interiors remain walkable!)
+        addColliderBox(new THREE.Box3(
+          new THREE.Vector3(unitCenterX + 1.42, floorY, unitCenterZ + sz - 0.81),
+          new THREE.Vector3(unitCenterX + 3.15, floorY + 1.95, unitCenterZ + sz - 0.69)
+        ), 'furniture');
+
         const sDoor = new THREE.Mesh(step2Geos.stallDoor, materials.chairWood);
         sDoor.position.set(1.42, 0.96, sz);
-        sDoor.rotation.y = sIdx === 1 ? 0.65 : 0.12; // Middle stall door ajar
+        sDoor.rotation.y = sIdx === 1 ? 0.65 : 0.18;
         cGroup.add(sDoor);
 
         const bowl = new THREE.Mesh(step2Geos.toiletBase, step2Mats.ceramicWhite);
@@ -5938,22 +5975,28 @@ export function getHideAndSeekHtml(): string {
         tank.position.set(2.75, 0.58, sz);
         cGroup.add(tank);
 
+        // Individual ceramic toilet fixture box collider inside stall
+        addColliderBox(new THREE.Box3(
+          new THREE.Vector3(unitCenterX + 2.22, floorY, unitCenterZ + sz - 0.24),
+          new THREE.Vector3(unitCenterX + 2.95, floorY + 0.82, unitCenterZ + sz + 0.24)
+        ), 'furniture');
+
         interactiveHidingSpots.push({
           id: 'toilet-stall-' + unitTitle + '-' + sIdx,
           name: unitTitle + ' Stall #' + (sIdx + 1),
-          x: unitCenterX + 0.75,
+          x: unitCenterX + 1.75,
           y: floorY,
           z: unitCenterZ + sz,
           zone: unitTitle,
         });
       });
 
+      // End stall partition wall collider
       addColliderBox(new THREE.Box3(
-        new THREE.Vector3(unitCenterX + 1.40, floorY, unitCenterZ - 2.65),
-        new THREE.Vector3(unitCenterX + 3.20, floorY + 1.95, unitCenterZ + 2.25)
-      ));
+        new THREE.Vector3(unitCenterX + 1.42, floorY, unitCenterZ + 2.12),
+        new THREE.Vector3(unitCenterX + 3.15, floorY + 1.95, unitCenterZ + 2.24)
+      ), 'furniture');
 
-      // Tiled Vanity Counter with 3 Washbasins & Large Wall Mirror
       const vanity = new THREE.Mesh(step2Geos.sinkCounter, materials.rotundaPlinthConcrete);
       vanity.position.set(-1.65, 0.42, -1.2);
       cGroup.add(vanity);
@@ -5969,7 +6012,7 @@ export function getHideAndSeekHtml(): string {
       addColliderBox(new THREE.Box3(
         new THREE.Vector3(unitCenterX - 2.05, floorY, unitCenterZ - 2.45),
         new THREE.Vector3(unitCenterX - 1.25, floorY + 0.90, unitCenterZ + 0.05)
-      ));
+      ), 'furniture');
     }
 
     // Specialized Builder: Campus Canteen (Serving Counter, Snack Case, Dining Tables, Kitchen Stove & Pantry)
@@ -5978,7 +6021,6 @@ export function getHideAndSeekHtml(): string {
       buildInteriorWindowCurtains(cGroup, 3.26, 1.92, -1.5, -Math.PI / 2, true);
 
       if (isKitchen) {
-        // Canteen Kitchen & Pantry Store: Stainless Prep Counter, Stove Range, Exhaust Hood, Stockpots & Rice Sacks
         const prep = new THREE.Mesh(step2Geos.canteenCounter, step2Mats.stainlessSteel);
         prep.position.set(1.85, 0.49, 0);
         cGroup.add(prep);
@@ -5998,7 +6040,13 @@ export function getHideAndSeekHtml(): string {
         addColliderBox(new THREE.Box3(
           new THREE.Vector3(unitCenterX + 1.38, floorY, unitCenterZ - 2.15),
           new THREE.Vector3(unitCenterX + 2.35, floorY + 1.02, unitCenterZ + 2.15)
-        ));
+        ), 'furniture');
+        // West storage shelf & crate rack box collider
+        addColliderBox(new THREE.Box3(
+          new THREE.Vector3(unitCenterX - 1.85 - 0.34, floorY, unitCenterZ - 1.4 - 1.15),
+          new THREE.Vector3(unitCenterX - 1.85 + 0.34, floorY + 2.10, unitCenterZ - 1.4 + 1.15)
+        ), 'furniture');
+
         interactiveHidingSpots.push({
           id: 'canteen-kitchen-' + unitTitle,
           name: unitTitle + ' (Canteen Kitchen Prep Counter)',
@@ -6008,7 +6056,6 @@ export function getHideAndSeekHtml(): string {
           zone: unitTitle,
         });
       } else {
-        // Canteen Serving Counter + Glass Snack Display + Dining Tables & Benches
         const counter = new THREE.Mesh(step2Geos.canteenCounter, materials.chairWood);
         counter.position.set(1.95, 0.49, -0.6);
         cGroup.add(counter);
@@ -6019,7 +6066,7 @@ export function getHideAndSeekHtml(): string {
         addColliderBox(new THREE.Box3(
           new THREE.Vector3(unitCenterX + 1.48, floorY, unitCenterZ - 2.75),
           new THREE.Vector3(unitCenterX + 2.42, floorY + 1.10, unitCenterZ + 1.55)
-        ));
+        ), 'furniture');
 
         [-1.45, 1.25].forEach((tz, tIdx) => {
           const tx = -1.25;
@@ -6034,15 +6081,15 @@ export function getHideAndSeekHtml(): string {
           const wx = unitCenterX + tx;
           const wz = unitCenterZ + tz;
           addColliderBox(new THREE.Box3(
-            new THREE.Vector3(wx - 0.82, floorY, wz - 0.52),
-            new THREE.Vector3(wx + 0.82, floorY + 0.80, wz + 0.52)
-          ));
+            new THREE.Vector3(wx - 0.82, floorY, wz - 0.72),
+            new THREE.Vector3(wx + 0.82, floorY + 0.80, wz + 0.72)
+          ), 'furniture');
           interactiveHidingSpots.push({
             id: 'canteen-table-' + unitTitle + '-' + tIdx,
             name: unitTitle + ' Dining Table #' + (tIdx + 1),
             x: wx,
             y: floorY,
-            z: wz + 0.85,
+            z: wz + 0.96,
             zone: unitTitle,
           });
         });
@@ -6067,7 +6114,7 @@ export function getHideAndSeekHtml(): string {
         addColliderBox(new THREE.Box3(
           new THREE.Vector3(wx - 0.34, floorY, wz - 1.15),
           new THREE.Vector3(wx + 0.34, floorY + 2.10, wz + 1.15)
-        ));
+        ), 'furniture');
         interactiveHidingSpots.push({
           id: 'store-rack-' + unitTitle + '-' + sIdx,
           name: unitTitle + ' Storage Rack #' + (sIdx + 1),
@@ -6082,7 +6129,273 @@ export function getHideAndSeekHtml(): string {
       cab.rotation.y = Math.PI / 2;
       cab.position.set(0, 0.96, 2.45);
       cGroup.add(cab);
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX - 0.92, floorY, unitCenterZ + 2.45 - 0.28),
+        new THREE.Vector3(unitCenterX + 0.92, floorY + 1.95, unitCenterZ + 2.45 + 0.28)
+      ), 'furniture');
     }
+
+    /* =========================================================================
+       PHASE B.1: DATA-DRIVEN ROOM DEFINITION TABLE
+       Replaces all indexOf / roomCode if-chains with a declarative table of
+       room definitions: { id, building, bounds, archetype, furniture,
+       hidingSpots, lightMood, waypoints }. Adding a new room requires only data!
+       ========================================================================= */
+    const ROOM_DEFINITIONS = {
+      'West Wing L1 Room 1': {
+        id: 'West Wing L1 Room 1', building: 'L1', archetype: 'classroom_standard', lightMood: 'dying_tube',
+        bounds: { minX: -10.3, maxX: -2.7, minZ: -33.0, maxZ: -23.0, floorY: 0.18, ceilingY: 3.56 },
+        furniture: ['teacher_podium', 'teacher_desk', 'student_desks_3x3', 'side_bookshelf', 'wall_shelves', 'ceiling_fan'],
+        hidingSpots: ['podium', 'student_desks'],
+        waypoints: [{ id: 'wp-l1-r1-door', x: -10.6, y: 0.18, z: -28.0, kind: 'door' }, { id: 'wp-l1-r1-in', x: -7.5, y: 0.18, z: -28.0, kind: 'interior' }],
+      },
+      'West Wing L1 Room 2': {
+        id: 'West Wing L1 Room 2', building: 'L1', archetype: 'classroom_seminar', lightMood: 'moonlit_window',
+        bounds: { minX: -10.3, maxX: -2.7, minZ: -23.0, maxZ: -13.0, floorY: 0.18, ceilingY: 3.56 },
+        furniture: ['teacher_podium', 'teacher_desk', 'seminar_desks_u', 'side_bookshelf', 'wall_shelves', 'ceiling_fan'],
+        hidingSpots: ['podium', 'student_desks'],
+        waypoints: [{ id: 'wp-l1-r2-door', x: -10.6, y: 0.18, z: -18.0, kind: 'door' }, { id: 'wp-l1-r2-in', x: -6.5, y: 0.18, z: -18.6, kind: 'interior' }],
+      },
+      'West Wing L1 Room 3': {
+        id: 'West Wing L1 Room 3', building: 'L1', archetype: 'classroom_standard', lightMood: 'dying_tube',
+        bounds: { minX: -10.3, maxX: -2.7, minZ: -13.0, maxZ: -3.0, floorY: 0.18, ceilingY: 3.56 },
+        furniture: ['teacher_podium', 'teacher_desk', 'student_desks_3x3', 'side_bookshelf', 'wall_shelves', 'ceiling_fan'],
+        hidingSpots: ['podium', 'student_desks'],
+        waypoints: [{ id: 'wp-l1-r3-door', x: -10.6, y: 0.18, z: -8.0, kind: 'door' }, { id: 'wp-l1-r3-in', x: -7.5, y: 0.18, z: -8.0, kind: 'interior' }],
+      },
+      'West Wing L2 Room 1': {
+        id: 'West Wing L2 Room 1', building: 'L2', archetype: 'computer_lab', lightMood: 'cold_monitor_glow',
+        bounds: { minX: -21.3, maxX: -13.7, minZ: -26.0, maxZ: -16.67, floorY: 0.18, ceilingY: 3.56 },
+        furniture: ['server_rack_leds', 'dual_monitor_workstations_3x2', 'cable_raceways', 'whiteboard', 'wall_fans'],
+        hidingSpots: ['server_rack', 'workstation_desks'],
+        waypoints: [{ id: 'wp-l2-r1-door', x: -13.4, y: 0.18, z: -21.33, kind: 'door' }, { id: 'wp-l2-r1-in', x: -17.7, y: 0.18, z: -21.33, kind: 'interior' }],
+      },
+      'West Wing L2 Room 2': {
+        id: 'West Wing L2 Room 2', building: 'L2', archetype: 'computer_lab', lightMood: 'cold_monitor_glow',
+        bounds: { minX: -21.3, maxX: -13.7, minZ: -16.67, maxZ: -7.33, floorY: 0.18, ceilingY: 3.56 },
+        furniture: ['server_rack_leds', 'dual_monitor_workstations_3x2', 'cable_raceways', 'whiteboard', 'wall_fans'],
+        hidingSpots: ['server_rack', 'workstation_desks'],
+        waypoints: [{ id: 'wp-l2-r2-door', x: -13.4, y: 0.18, z: -12.0, kind: 'door' }, { id: 'wp-l2-r2-in', x: -17.7, y: 0.18, z: -12.0, kind: 'interior' }],
+      },
+      'West Wing L2 Room 3': {
+        id: 'West Wing L2 Room 3', building: 'L2', archetype: 'storeroom', lightMood: 'emergency_red',
+        bounds: { minX: -21.3, maxX: -13.7, minZ: -7.33, maxZ: 2.0, floorY: 0.18, ceilingY: 3.56 },
+        furniture: ['storage_racks_x2', 'cardboard_crates', 'supply_locker_bank'],
+        hidingSpots: ['storage_rack_1', 'storage_rack_2'],
+        waypoints: [{ id: 'wp-l2-r3-door', x: -13.4, y: 0.18, z: -2.67, kind: 'door' }, { id: 'wp-l2-r3-in', x: -17.5, y: 0.18, z: -2.67, kind: 'interior' }],
+      },
+      'West Wing L3 Room 1': {
+        id: 'West Wing L3 Room 1', building: 'L3', archetype: 'library', lightMood: 'warm_desk_lamp',
+        bounds: { minX: -21.3, maxX: -13.7, minZ: 9.0, maxZ: 20.0, floorY: 0.18, ceilingY: 3.56 },
+        furniture: ['tall_bookshelves_x3', 'reading_tables_x2', 'banker_lamps', 'curtains'],
+        hidingSpots: ['bookshelf_aisle_1', 'bookshelf_aisle_2', 'bookshelf_aisle_3'],
+        waypoints: [{ id: 'wp-l3-r1-door', x: -13.4, y: 0.18, z: 14.5, kind: 'door' }, { id: 'wp-l3-r1-in', x: -17.2, y: 0.18, z: 13.4, kind: 'interior' }],
+      },
+      'West Wing L3 Room 2': {
+        id: 'West Wing L3 Room 2', building: 'L3', archetype: 'library', lightMood: 'warm_desk_lamp',
+        bounds: { minX: -21.3, maxX: -13.7, minZ: 20.0, maxZ: 31.0, floorY: 0.18, ceilingY: 3.56 },
+        furniture: ['tall_bookshelves_x3', 'reading_tables_x2', 'banker_lamps', 'curtains'],
+        hidingSpots: ['bookshelf_aisle_1', 'bookshelf_aisle_2', 'bookshelf_aisle_3'],
+        waypoints: [{ id: 'wp-l3-r2-door', x: -13.4, y: 0.18, z: 25.5, kind: 'door' }, { id: 'wp-l3-r2-in', x: -17.2, y: 0.18, z: 24.4, kind: 'interior' }],
+      },
+      'East Wing R1 Room 1': {
+        id: 'East Wing R1 Room 1', building: 'R1', archetype: 'staff_office', lightMood: 'warm_desk_lamp',
+        bounds: { minX: 10.7, maxX: 18.3, minZ: -37.0, maxZ: -28.33, floorY: 0.18, ceilingY: 3.56 },
+        furniture: ['filing_cabinets_x4', 'faculty_lounge_sofa', 'office_desks_x3', 'monitors'],
+        hidingSpots: ['office_desk_1', 'office_desk_2', 'office_desk_3'],
+        waypoints: [{ id: 'wp-r1-r1-door', x: 10.4, y: 0.18, z: -32.67, kind: 'door' }, { id: 'wp-r1-r1-in', x: 14.5, y: 0.18, z: -32.67, kind: 'interior' }],
+      },
+      'East Wing R1 Room 2': {
+        id: 'East Wing R1 Room 2', building: 'R1', archetype: 'staff_office', lightMood: 'dying_tube',
+        bounds: { minX: 10.7, maxX: 18.3, minZ: -28.33, maxZ: -19.67, floorY: 0.18, ceilingY: 3.56 },
+        furniture: ['filing_cabinets_x4', 'faculty_lounge_sofa', 'office_desks_x3', 'monitors'],
+        hidingSpots: ['office_desk_1', 'office_desk_2', 'office_desk_3'],
+        waypoints: [{ id: 'wp-r1-r2-door', x: 10.4, y: 0.18, z: -24.0, kind: 'door' }, { id: 'wp-r1-r2-in', x: 14.5, y: 0.18, z: -24.0, kind: 'interior' }],
+      },
+      'East Wing R1 Room 3': {
+        id: 'East Wing R1 Room 3', building: 'R1', archetype: 'staff_office', lightMood: 'moonlit_window',
+        bounds: { minX: 10.7, maxX: 18.3, minZ: -19.67, maxZ: -11.0, floorY: 0.18, ceilingY: 3.56 },
+        furniture: ['filing_cabinets_x4', 'faculty_lounge_sofa', 'office_desks_x3', 'monitors'],
+        hidingSpots: ['office_desk_1', 'office_desk_2', 'office_desk_3'],
+        waypoints: [{ id: 'wp-r1-r3-door', x: 10.4, y: 0.18, z: -15.33, kind: 'door' }, { id: 'wp-r1-r3-in', x: 14.5, y: 0.18, z: -15.33, kind: 'interior' }],
+      },
+      'East Wing R2 Room 1': {
+        id: 'East Wing R2 Room 1', building: 'R2', archetype: 'classroom_standard', lightMood: 'dying_tube',
+        bounds: { minX: 21.7, maxX: 29.3, minZ: -27.0, maxZ: -18.33, floorY: 0.18, ceilingY: 3.56 },
+        furniture: ['teacher_podium', 'teacher_desk', 'student_desks_3x3', 'side_bookshelf', 'ceiling_fan'],
+        hidingSpots: ['podium', 'student_desks'],
+        waypoints: [{ id: 'wp-r2-r1-door', x: 21.4, y: 0.18, z: -22.67, kind: 'door' }, { id: 'wp-r2-r1-in', x: 24.5, y: 0.18, z: -22.67, kind: 'interior' }],
+      },
+      'East Wing R2 Room 2': {
+        id: 'East Wing R2 Room 2', building: 'R2', archetype: 'classroom_seminar', lightMood: 'moonlit_window',
+        bounds: { minX: 21.7, maxX: 29.3, minZ: -18.33, maxZ: -9.67, floorY: 0.18, ceilingY: 3.56 },
+        furniture: ['teacher_podium', 'teacher_desk', 'seminar_desks_u', 'side_bookshelf', 'ceiling_fan'],
+        hidingSpots: ['podium', 'student_desks'],
+        waypoints: [{ id: 'wp-r2-r2-door', x: 21.4, y: 0.18, z: -14.0, kind: 'door' }, { id: 'wp-r2-r2-in', x: 25.5, y: 0.18, z: -14.6, kind: 'interior' }],
+      },
+      'East Wing R2 Room 3': {
+        id: 'East Wing R2 Room 3', building: 'R2', archetype: 'toilets', lightMood: 'dying_tube',
+        bounds: { minX: 21.7, maxX: 29.3, minZ: -9.67, maxZ: -1.0, floorY: 0.18, ceilingY: 3.56 },
+        furniture: ['toilet_stalls_x3', 'vanity_sink_counter', 'wall_mirror'],
+        hidingSpots: ['toilet_stall_1', 'toilet_stall_2', 'toilet_stall_3'],
+        waypoints: [{ id: 'wp-r2-r3-door', x: 21.4, y: 0.18, z: -5.33, kind: 'door' }, { id: 'wp-r2-r3-in', x: 25.5, y: 0.18, z: -5.33, kind: 'interior' }],
+      },
+      'East Wing R4 Room 1': {
+        id: 'East Wing R4 Room 1', building: 'R4', archetype: 'canteen_dining', lightMood: 'dim_amber',
+        bounds: { minX: 21.7, maxX: 29.3, minZ: 6.0, maxZ: 15.33, floorY: 0.18, ceilingY: 3.56 },
+        furniture: ['serving_counter', 'glass_snack_case', 'dining_tables_x2', 'benches'],
+        hidingSpots: ['dining_table_1', 'dining_table_2'],
+        waypoints: [{ id: 'wp-r4-r1-door', x: 21.4, y: 0.18, z: 10.67, kind: 'door' }, { id: 'wp-r4-r1-in', x: 25.5, y: 0.18, z: 10.67, kind: 'interior' }],
+      },
+      'East Wing R4 Room 2': {
+        id: 'East Wing R4 Room 2', building: 'R4', archetype: 'canteen_dining', lightMood: 'dim_amber',
+        bounds: { minX: 21.7, maxX: 29.3, minZ: 15.33, maxZ: 24.67, floorY: 0.18, ceilingY: 3.56 },
+        furniture: ['serving_counter', 'glass_snack_case', 'dining_tables_x2', 'benches'],
+        hidingSpots: ['dining_table_1', 'dining_table_2'],
+        waypoints: [{ id: 'wp-r4-r2-door', x: 21.4, y: 0.18, z: 20.0, kind: 'door' }, { id: 'wp-r4-r2-in', x: 25.5, y: 0.18, z: 20.0, kind: 'interior' }],
+      },
+      'East Wing R4 Room 3': {
+        id: 'East Wing R4 Room 3', building: 'R4', archetype: 'canteen_kitchen', lightMood: 'emergency_red',
+        bounds: { minX: 21.7, maxX: 29.3, minZ: 24.67, maxZ: 34.0, floorY: 0.18, ceilingY: 3.56 },
+        furniture: ['stainless_prep_counter', 'exhaust_hood', 'pantry_storage_shelf', 'crates'],
+        hidingSpots: ['kitchen_prep_counter'],
+        waypoints: [{ id: 'wp-r4-r3-door', x: 21.4, y: 0.18, z: 29.33, kind: 'door' }, { id: 'wp-r4-r3-in', x: 25.5, y: 0.18, z: 29.33, kind: 'interior' }],
+      },
+      'Newari Heritage Block W1 Room 1': {
+        id: 'Newari Heritage Block W1 Room 1', building: 'W1', archetype: 'classroom_standard', lightMood: 'dim_amber',
+        bounds: { minX: -38.75, maxX: -34.0, minZ: -49.0, maxZ: -35.0, floorY: 0.22, ceilingY: 3.60 },
+        furniture: ['teacher_podium', 'teacher_desk', 'student_desks_3x3', 'side_bookshelf'],
+        hidingSpots: ['podium', 'student_desks'],
+        waypoints: [{ id: 'wp-w1-r1-door', x: -36.38, y: 0.22, z: -34.6, kind: 'door' }, { id: 'wp-w1-r1-in', x: -35.2, y: 0.22, z: -42.0, kind: 'interior' }],
+      },
+      'Newari Heritage Block W1 Room 2': {
+        id: 'Newari Heritage Block W1 Room 2', building: 'W1', archetype: 'classroom_seminar', lightMood: 'dim_amber',
+        bounds: { minX: -34.0, maxX: -29.25, minZ: -49.0, maxZ: -35.0, floorY: 0.22, ceilingY: 3.60 },
+        furniture: ['teacher_podium', 'teacher_desk', 'seminar_desks_u', 'side_bookshelf'],
+        hidingSpots: ['podium', 'student_desks'],
+        waypoints: [{ id: 'wp-w1-r2-door', x: -31.63, y: 0.22, z: -34.6, kind: 'door' }, { id: 'wp-w1-r2-in', x: -31.63, y: 0.22, z: -42.6, kind: 'interior' }],
+      },
+      'Newari Cultural Hall W2 South': {
+        id: 'Newari Cultural Hall W2 South', building: 'W2', archetype: 'classroom_standard', lightMood: 'dim_amber',
+        bounds: { minX: -39.5, maxX: -28.5, minZ: -30.0, maxZ: -22.0, floorY: 0.22, ceilingY: 3.60 },
+        furniture: ['teacher_podium', 'teacher_desk', 'student_desks_3x3', 'side_bookshelf'],
+        hidingSpots: ['podium', 'student_desks'],
+        waypoints: [{ id: 'wp-w2-door', x: -28.1, y: 0.22, z: -22.0, kind: 'door' }, { id: 'wp-w2-south-in', x: -32.8, y: 0.22, z: -25.6, kind: 'interior' }],
+      },
+      'West Wing L3 Heritage Library W2': {
+        id: 'West Wing L3 Heritage Library W2', building: 'W2', archetype: 'library', lightMood: 'warm_desk_lamp',
+        bounds: { minX: -39.5, maxX: -28.5, minZ: -22.0, maxZ: -14.0, floorY: 0.22, ceilingY: 3.60 },
+        furniture: ['tall_bookshelves_x3', 'reading_tables_x2', 'banker_lamps'],
+        hidingSpots: ['bookshelf_aisle_1', 'bookshelf_aisle_2', 'bookshelf_aisle_3'],
+        waypoints: [{ id: 'wp-w2-north-in', x: -33.6, y: 0.22, z: -19.5, kind: 'interior' }],
+      },
+      'Building W3 West Wing Room 1': {
+        id: 'Building W3 West Wing Room 1', building: 'W3', archetype: 'computer_lab', lightMood: 'cold_monitor_glow',
+        bounds: { minX: -38.75, maxX: -34.0, minZ: -9.0, maxZ: 5.0, floorY: 0.22, ceilingY: 3.60 },
+        furniture: ['server_rack_leds', 'dual_monitor_workstations_3x2', 'cable_raceways'],
+        hidingSpots: ['server_rack', 'workstation_desks'],
+        waypoints: [{ id: 'wp-w3-r1-door', x: -36.38, y: 0.22, z: 5.4, kind: 'door' }, { id: 'wp-w3-r1-in', x: -36.5, y: 0.22, z: -2.0, kind: 'interior' }],
+      },
+      'Building W3 West Wing Room 2': {
+        id: 'Building W3 West Wing Room 2', building: 'W3', archetype: 'staff_office', lightMood: 'warm_desk_lamp',
+        bounds: { minX: -34.0, maxX: -29.25, minZ: -9.0, maxZ: 5.0, floorY: 0.22, ceilingY: 3.60 },
+        furniture: ['filing_cabinets_x4', 'faculty_lounge_sofa', 'office_desks_x3'],
+        hidingSpots: ['office_desk_1', 'office_desk_2', 'office_desk_3'],
+        waypoints: [{ id: 'wp-w3-r2-door', x: -31.63, y: 0.22, z: 5.4, kind: 'door' }, { id: 'wp-w3-r2-in', x: -31.63, y: 0.22, z: -2.0, kind: 'interior' }],
+      },
+      'Building W4 West Wing Room 1': {
+        id: 'Building W4 West Wing Room 1', building: 'W4', archetype: 'classroom_standard', lightMood: 'dying_tube',
+        bounds: { minX: -38.75, maxX: -34.0, minZ: 11.0, maxZ: 25.0, floorY: 0.22, ceilingY: 3.60 },
+        furniture: ['teacher_podium', 'teacher_desk', 'student_desks_3x3', 'side_bookshelf'],
+        hidingSpots: ['podium', 'student_desks'],
+        waypoints: [{ id: 'wp-w4-r1-door', x: -36.38, y: 0.22, z: 25.4, kind: 'door' }, { id: 'wp-w4-r1-in', x: -35.2, y: 0.22, z: 18.0, kind: 'interior' }],
+      },
+      'Building W4 West Wing Room 2': {
+        id: 'Building W4 West Wing Room 2', building: 'W4', archetype: 'storeroom', lightMood: 'emergency_red',
+        bounds: { minX: -34.0, maxX: -29.25, minZ: 11.0, maxZ: 25.0, floorY: 0.22, ceilingY: 3.60 },
+        furniture: ['storage_racks_x2', 'cardboard_crates', 'supply_locker_bank'],
+        hidingSpots: ['storage_rack_1', 'storage_rack_2'],
+        waypoints: [{ id: 'wp-w4-r2-door', x: -31.63, y: 0.22, z: 25.4, kind: 'door' }, { id: 'wp-w4-r2-in', x: -31.63, y: 0.22, z: 18.0, kind: 'interior' }],
+      },
+      'Security Guardhouse': {
+        id: 'Security Guardhouse', building: 'GUARDHOUSE', archetype: 'guardhouse', lightMood: 'cold_monitor_glow',
+        bounds: { minX: 3.7, maxX: 8.3, minZ: -60.3, maxZ: -55.7, floorY: 0.16, ceilingY: 3.20 },
+        furniture: ['cctv_desk', 'cctv_monitor', 'steel_locker'],
+        hidingSpots: ['guardhouse_desk'],
+        waypoints: [{ id: 'wp-gh-door', x: 3.4, y: 0.16, z: -58.0, kind: 'door' }, { id: 'wp-gh-in', x: 5.2, y: 0.16, z: -58.0, kind: 'interior' }],
+      },
+      'Rotunda Ground West Hall 101': {
+        id: 'Rotunda Ground West Hall 101', roomCode: '101', building: 'ROTUNDA', archetype: 'rotunda_lecture', lightMood: 'dying_tube',
+        bounds: { minX: -12.8, maxX: 1.4, minZ: 57.2, maxZ: 70.8, floorY: 0.48, ceilingY: 3.86 },
+        furniture: ['teaching_dais', 'prof_desk', 'lectern_podium', 'student_desks_4x3', 'side_bookcase', 'locker_cabinet'],
+        hidingSpots: ['prof_desk', 'student_desks'],
+        waypoints: [{ id: 'wp-rot-101-door', x: 1.6, y: 0.48, z: 59.0, kind: 'door' }, { id: 'wp-rot-101-in', x: -4.0, y: 0.48, z: 63.2, kind: 'interior' }],
+      },
+      'Rotunda Ground East Hall 102': {
+        id: 'Rotunda Ground East Hall 102', roomCode: '102', building: 'ROTUNDA', archetype: 'staff_office', lightMood: 'warm_desk_lamp',
+        bounds: { minX: 10.6, maxX: 24.8, minZ: 57.2, maxZ: 70.8, floorY: 0.48, ceilingY: 3.86 },
+        furniture: ['filing_cabinets_x4', 'faculty_lounge_sofa', 'office_desks_x3', 'side_bookcase'],
+        hidingSpots: ['office_desk_1', 'office_desk_2', 'office_desk_3'],
+        waypoints: [{ id: 'wp-rot-102-door', x: 10.4, y: 0.48, z: 59.0, kind: 'door' }, { id: 'wp-rot-102-in', x: 17.7, y: 0.48, z: 64.0, kind: 'interior' }],
+      },
+      'Rotunda 1st-Floor West Class 201': {
+        id: 'Rotunda 1st-Floor West Class 201', roomCode: '201', building: 'ROTUNDA', archetype: 'rotunda_lecture', lightMood: 'moonlit_window',
+        bounds: { minX: -12.8, maxX: 1.4, minZ: 57.2, maxZ: 70.8, floorY: 4.08, ceilingY: 7.46 },
+        furniture: ['teaching_dais', 'prof_desk', 'lectern_podium', 'student_desks_4x3', 'side_bookcase', 'locker_cabinet'],
+        hidingSpots: ['prof_desk', 'student_desks'],
+        waypoints: [{ id: 'wp-rot-201-door', x: 1.6, y: 4.08, z: 69.2, kind: 'door' }, { id: 'wp-rot-201-in', x: -4.0, y: 4.08, z: 63.2, kind: 'interior' }],
+      },
+      'Rotunda 1st-Floor East Class 202': {
+        id: 'Rotunda 1st-Floor East Class 202', roomCode: '202', building: 'ROTUNDA', archetype: 'library', lightMood: 'warm_desk_lamp',
+        bounds: { minX: 10.6, maxX: 24.8, minZ: 57.2, maxZ: 70.8, floorY: 4.08, ceilingY: 7.46 },
+        furniture: ['tall_bookshelves_x3', 'reading_tables_x2', 'banker_lamps', 'side_bookcase'],
+        hidingSpots: ['bookshelf_aisle_1', 'bookshelf_aisle_2', 'bookshelf_aisle_3'],
+        waypoints: [{ id: 'wp-rot-202-door', x: 10.4, y: 4.08, z: 69.2, kind: 'door' }, { id: 'wp-rot-202-in', x: 18.0, y: 4.08, z: 62.9, kind: 'interior' }],
+      },
+      'Rotunda 2nd-Floor West Seminar 301': {
+        id: 'Rotunda 2nd-Floor West Seminar 301', roomCode: '301', building: 'ROTUNDA', archetype: 'rotunda_seminar', lightMood: 'dying_tube',
+        bounds: { minX: -12.8, maxX: 1.4, minZ: 57.2, maxZ: 70.8, floorY: 7.68, ceilingY: 11.06 },
+        furniture: ['teaching_dais', 'prof_desk', 'lectern_podium', 'seminar_laptops_4x3', 'side_bookcase'],
+        hidingSpots: ['prof_desk', 'student_desks'],
+        waypoints: [{ id: 'wp-rot-301-door', x: 1.6, y: 7.68, z: 59.0, kind: 'door' }, { id: 'wp-rot-301-in', x: -4.0, y: 7.68, z: 63.2, kind: 'interior' }],
+      },
+      'Rotunda 2nd-Floor East Lab 302': {
+        id: 'Rotunda 2nd-Floor East Lab 302', roomCode: '302', building: 'ROTUNDA', archetype: 'rotunda_lab', lightMood: 'cold_monitor_glow',
+        bounds: { minX: 10.6, maxX: 24.8, minZ: 57.2, maxZ: 70.8, floorY: 7.68, ceilingY: 11.06 },
+        furniture: ['teaching_dais', 'prof_desk', 'twin_server_racks', 'dual_monitor_desks_4x3', 'side_bookcase'],
+        hidingSpots: ['prof_desk', 'workstation_desks'],
+        waypoints: [{ id: 'wp-rot-302-door', x: 10.4, y: 7.68, z: 59.0, kind: 'door' }, { id: 'wp-rot-302-in', x: 16.0, y: 7.68, z: 63.2, kind: 'interior' }],
+      },
+    };
+    window.__ROOM_DEFINITIONS__ = ROOM_DEFINITIONS;
+
+    function getOrRegisterRoomDefinition(roomId, cx, cz, floorY, halfW = 3.8, halfD = 4.6, building = 'OTHER', archetype = 'classroom_standard') {
+      if (ROOM_DEFINITIONS[roomId]) return ROOM_DEFINITIONS[roomId];
+      const def = {
+        id: roomId,
+        building: building,
+        archetype: archetype,
+        lightMood: 'dying_tube',
+        bounds: { minX: cx - halfW, maxX: cx + halfW, minZ: cz - halfD, maxZ: cz + halfD, floorY: floorY, ceilingY: floorY + 3.4 },
+        furniture: ['teacher_podium', 'teacher_desk', 'student_desks_3x3'],
+        hidingSpots: ['podium', 'student_desks'],
+        waypoints: [{ id: 'wp-' + roomId, x: cx, y: floorY, z: cz, kind: 'interior' }],
+      };
+      ROOM_DEFINITIONS[roomId] = def;
+      return def;
+    }
+
+    const ROOM_ARCHETYPE_BUILDERS = {
+      classroom_standard: (cGroup, cx, cz, fy, dirZ, title, isNewari) => buildDetailedClassroomInterior(cGroup, cx, cz, fy, dirZ, title, isNewari, 0),
+      classroom_seminar:  (cGroup, cx, cz, fy, dirZ, title, isNewari) => buildDetailedClassroomInterior(cGroup, cx, cz, fy, dirZ, title, isNewari, 1),
+      computer_lab:       (cGroup, cx, cz, fy, dirZ, title) => buildComputerLabInterior(cGroup, cx, cz, fy, dirZ, title),
+      library:            (cGroup, cx, cz, fy, dirZ, title) => buildLibraryRoomInterior(cGroup, cx, cz, fy, dirZ, title),
+      staff_office:       (cGroup, cx, cz, fy, dirZ, title) => buildStaffAdminOfficeInterior(cGroup, cx, cz, fy, dirZ, title),
+      toilets:            (cGroup, cx, cz, fy, dirZ, title) => buildToiletsRoomInterior(cGroup, cx, cz, fy, title),
+      canteen_dining:     (cGroup, cx, cz, fy, dirZ, title) => buildCanteenRoomInterior(cGroup, cx, cz, fy, title, false),
+      canteen_kitchen:    (cGroup, cx, cz, fy, dirZ, title) => buildCanteenRoomInterior(cGroup, cx, cz, fy, title, true),
+      storeroom:          (cGroup, cx, cz, fy, dirZ, title) => buildStoreRoomInterior(cGroup, cx, cz, fy, title),
+    };
 
     function populateClassroomUnit(unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle, isNewariStyle = false) {
       const cGroup = new THREE.Group();
@@ -6112,28 +6425,14 @@ export function getHideAndSeekHtml(): string {
         cGroup.add(blade);
       }
 
-      // Route each wing room to a distinct, non-repetitive interior layout!
-      if (unitTitle.indexOf('West Wing L2 Room 1') !== -1 || unitTitle.indexOf('West Wing L2 Room 2') !== -1 || unitTitle.indexOf('Building W3 West Wing Room 1') !== -1) {
-        buildComputerLabInterior(cGroup, unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle);
-      } else if (unitTitle.indexOf('West Wing L2 Room 3') !== -1 || unitTitle.indexOf('Building W4 West Wing Room 2') !== -1) {
-        buildStoreRoomInterior(cGroup, unitCenterX, unitCenterZ, floorY, unitTitle);
-      } else if (unitTitle.indexOf('West Wing L3') !== -1) {
-        buildLibraryRoomInterior(cGroup, unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle);
-      } else if (unitTitle.indexOf('East Wing R1') !== -1 || unitTitle.indexOf('Building W3 West Wing Room 2') !== -1) {
-        buildStaffAdminOfficeInterior(cGroup, unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle);
-      } else if (unitTitle.indexOf('East Wing R2 Room 3') !== -1) {
-        buildToiletsRoomInterior(cGroup, unitCenterX, unitCenterZ, floorY, unitTitle);
-      } else if (unitTitle.indexOf('East Wing R4 Room 3') !== -1) {
-        buildCanteenRoomInterior(cGroup, unitCenterX, unitCenterZ, floorY, unitTitle, true);
-      } else if (unitTitle.indexOf('East Wing R4') !== -1) {
-        buildCanteenRoomInterior(cGroup, unitCenterX, unitCenterZ, floorY, unitTitle, false);
-      } else {
-        const variant = unitTitle.indexOf('Room 2') !== -1 ? 1 : 0;
-        buildDetailedClassroomInterior(cGroup, unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle, isNewariStyle, variant);
-      }
+      // 2. Data-Driven Archetype Dispatch via ROOM_DEFINITIONS (zero indexOf if-chains!)
+      const roomDef = getOrRegisterRoomDefinition(unitTitle, unitCenterX, unitCenterZ, floorY);
+      const builderFn = ROOM_ARCHETYPE_BUILDERS[roomDef.archetype] || ROOM_ARCHETYPE_BUILDERS.classroom_standard;
+      builderFn(cGroup, unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle, isNewariStyle, roomDef);
 
       bakeStaticGroup(cGroup, true);
       cGroup.userData.isRoomGroup = true;
+      cGroup.userData.roomDef = roomDef;
       roomVisibilityList.push({
         id: unitTitle,
         type: 'room',
@@ -6143,6 +6442,8 @@ export function getHideAndSeekHtml(): string {
         z: unitCenterZ,
         floorY,
         radius: 5.4,
+        bKey: roomDef.building,
+        lightMood: roomDef.lightMood,
       });
     }
 

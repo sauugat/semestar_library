@@ -204,6 +204,7 @@ function RootLayoutNav() {
       <Stack.Screen name="admin/teachers" options={{ title: 'Teacher Management', headerBackTitle: '', headerRight: () => null }} />
       <Stack.Screen name="user/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="routine" options={{ title: 'Class Routine', headerBackTitle: 'Back' }} />
+      <Stack.Screen name="syllabus" options={{ title: 'BIT Syllabus', headerBackTitle: 'Back' }} />
       <Stack.Screen name="material/[id]" options={{ title: 'Material Details', headerBackTitle: 'Back' }} />
       <Stack.Screen name="notifications" options={{ title: 'Notifications', headerBackTitle: 'Back' }} />
       <Stack.Screen name="dm/[id]" options={{ headerShown: false }} />

@@ -471,6 +471,11 @@ export function SearchOverlay({
                       description={cat.description}
                       icon={cat.icon}
                       onPress={() => {
+                        if (cat.id === 'syllabus') {
+                          handleClose();
+                          router.push('/syllabus' as any);
+                          return;
+                        }
                         setQuery(cat.query);
                         setDebouncedQuery(cat.query);
                         void saveRecentSearch(cat.query);

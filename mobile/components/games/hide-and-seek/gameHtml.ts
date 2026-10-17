@@ -34,7 +34,7 @@ export function getHideAndSeekHtml(): string {
       touch-action: none;
     }
 
-    /* FAST Mode / Fallback CSS Color-Grade & Grain Overlay (Used when ULTRA WebGL grade pass is off) */
+    /* FAST & LOW Mode Clean CSS Grade Fallback (Used when ULTRA WebGL grade pass is off — clean edge vignette without scanline noise) */
     #fast-css-grade-fallback {
       position: absolute;
       top: 0;
@@ -45,8 +45,7 @@ export function getHideAndSeekHtml(): string {
       z-index: 3;
       display: none;
       background:
-        radial-gradient(circle at 50% 50%, rgba(12, 28, 36, 0.02) 45%, rgba(6, 16, 22, 0.24) 82%, rgba(2, 6, 10, 0.58) 100%),
-        repeating-linear-gradient(0deg, rgba(255,255,255,0.012) 0px, rgba(0,0,0,0.015) 1px, transparent 2px);
+        radial-gradient(circle at 50% 50%, rgba(10, 22, 32, 0.0) 56%, rgba(5, 13, 22, 0.22) 84%, rgba(2, 5, 10, 0.48) 100%);
     }
 
     /* Clean Cool-Night Vignette (No Yellow Screen Wash) */
@@ -742,6 +741,7 @@ export function getHideAndSeekHtml(): string {
         if (!geometries || geometries.length === 0) return null;
         let totalVerts = 0;
         let totalIndices = 0;
+        let hasAnyColor = false;
         const validGeos = [];
 
         for (let i = 0; i < geometries.length; i++) {
@@ -749,6 +749,7 @@ export function getHideAndSeekHtml(): string {
           if (!g || !g.attributes || !g.attributes.position) continue;
           const vCount = g.attributes.position.count;
           if (vCount === 0) continue;
+          if (g.attributes.color) hasAnyColor = true;
           const iCount = g.index ? g.index.count : vCount;
           totalVerts += vCount;
           totalIndices += iCount;
@@ -759,6 +760,7 @@ export function getHideAndSeekHtml(): string {
         const positions = new Float32Array(totalVerts * 3);
         const normals = new Float32Array(totalVerts * 3);
         const uvs = new Float32Array(totalVerts * 2);
+        const colors = hasAnyColor ? new Float32Array(totalVerts * 3) : null;
         const indices = totalVerts > 65535 ? new Uint32Array(totalIndices) : new Uint16Array(totalIndices);
 
         let vOffset = 0;
@@ -769,6 +771,7 @@ export function getHideAndSeekHtml(): string {
           const posAttr = g.attributes.position;
           const normAttr = g.attributes.normal;
           const uvAttr = g.attributes.uv;
+          const colAttr = g.attributes.color;
           const vCount = posAttr.count;
 
           if (posAttr.array && posAttr.itemSize === 3) {
@@ -808,6 +811,24 @@ export function getHideAndSeekHtml(): string {
             }
           }
 
+          if (colors) {
+            if (colAttr && colAttr.array && colAttr.itemSize === 3) {
+              colors.set(colAttr.array.subarray(0, vCount * 3), vOffset * 3);
+            } else if (colAttr) {
+              for (let v = 0; v < vCount; v++) {
+                colors[(vOffset + v) * 3] = colAttr.getX(v);
+                colors[(vOffset + v) * 3 + 1] = colAttr.getY(v);
+                colors[(vOffset + v) * 3 + 2] = colAttr.getZ(v);
+              }
+            } else {
+              for (let v = 0; v < vCount; v++) {
+                colors[(vOffset + v) * 3] = 1.0;
+                colors[(vOffset + v) * 3 + 1] = 1.0;
+                colors[(vOffset + v) * 3 + 2] = 1.0;
+              }
+            }
+          }
+
           if (g.index) {
             const idxArr = g.index.array;
             const iCount = g.index.count;
@@ -829,6 +850,9 @@ export function getHideAndSeekHtml(): string {
         merged.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         merged.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
         merged.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+        if (colors) {
+          merged.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        }
         merged.setIndex(new THREE.BufferAttribute(indices, 1));
         merged.computeBoundingBox();
         merged.computeBoundingSphere();
@@ -838,6 +862,90 @@ export function getHideAndSeekHtml(): string {
       THREE.BufferGeometryUtils = THREE.BufferGeometryUtils || {};
       THREE.BufferGeometryUtils.mergeBufferGeometries = mergeBufferGeometries;
     })();
+
+    // Baked Vertex-Color Ambient Occlusion helper (Requirement 3: darkening in corners, floor/ceiling contact & furniture undersides)
+    function applyBakedVertexAO(geo, isRoomInterior = true) {
+      if (!geo || !geo.attributes || !geo.attributes.position) return geo;
+      if (!geo.boundingBox) geo.computeBoundingBox();
+      const bbox = geo.boundingBox;
+      if (!bbox) return geo;
+
+      const posAttr = geo.attributes.position;
+      const normAttr = geo.attributes.normal;
+      const vCount = posAttr.count;
+      const colors = new Float32Array(vCount * 3);
+
+      const minX = bbox.min.x, maxX = bbox.max.x;
+      const minY = bbox.min.y, maxY = bbox.max.y;
+      const minZ = bbox.min.z, maxZ = bbox.max.z;
+      const spanX = Math.max(0.5, maxX - minX);
+      const spanZ = Math.max(0.5, maxZ - minZ);
+
+      for (let i = 0; i < vCount; i++) {
+        const vx = posAttr.getX(i);
+        const vy = posAttr.getY(i);
+        const vz = posAttr.getZ(i);
+        const ny = normAttr ? normAttr.getY(i) : 0.0;
+
+        let ao = 1.0;
+
+        // 1. Floor contact & baseboard darkening (vertices within 0.36m of floor)
+        const hFromFloor = Math.max(0.0, vy - Math.max(0.0, minY));
+        if (hFromFloor < 0.38) {
+          const floorFactor = hFromFloor / 0.38;
+          ao *= (0.48 + 0.52 * floorFactor);
+        }
+
+        // 2. Under-desk / furniture underside cavity darkening (downward-facing normals or low furniture cavities)
+        if (ny < -0.35 && vy > 0.15 && vy < 1.35) {
+          ao *= 0.52;
+        } else if (vy > 0.05 && vy < 0.68 && isRoomInterior) {
+          // Slight ambient cavity shadow in lower furniture leg zone
+          ao *= 0.84;
+        }
+
+        // 3. Ceiling coving darkening (near 3.25m - 3.45m room ceiling)
+        if (isRoomInterior && vy > 2.95 && vy < 3.55) {
+          const ceilFactor = Math.min(1.0, Math.max(0.0, (3.42 - vy) / 0.45));
+          ao *= (0.58 + 0.42 * ceilFactor);
+        }
+
+        // 4. Vertical room corner darkening (where X and Z both approach room perimeter bounds)
+        if (isRoomInterior && spanX > 2.5 && spanZ > 2.5) {
+          const dxWall = Math.min(Math.abs(vx - minX), Math.abs(maxX - vx));
+          const dzWall = Math.min(Math.abs(vz - minZ), Math.abs(maxZ - vz));
+          if (dxWall < 1.15 && dzWall < 1.15) {
+            const cornerT = Math.max(dxWall / 1.15, dzWall / 1.15);
+            ao *= (0.46 + 0.54 * cornerT);
+          } else if (dxWall < 0.45 || dzWall < 0.45) {
+            const wallT = Math.min(dxWall, dzWall) / 0.45;
+            ao *= (0.76 + 0.24 * wallT);
+          }
+        }
+
+        ao = Math.max(0.28, Math.min(1.0, ao));
+        // Slight cool slate tint in deepest occluded creases
+        colors[i * 3]     = ao * (0.94 + 0.06 * ao);
+        colors[i * 3 + 1] = ao * (0.97 + 0.03 * ao);
+        colors[i * 3 + 2] = ao;
+      }
+
+      geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      return geo;
+    }
+
+    function getVertexColoredMaterial(mat) {
+      if (!mat) return mat;
+      if (mat.vertexColors) return mat;
+      if (!mat.userData) mat.userData = {};
+      if (!mat.userData._vcMat) {
+        const cloned = mat.clone();
+        cloned.vertexColors = true;
+        cloned.needsUpdate = true;
+        mat.userData._vcMat = cloned;
+      }
+      return mat.userData._vcMat;
+    }
 
     function computeInstancedBoundingSphere(instMesh, count) {
       if (!instMesh || !instMesh.geometry) return;
@@ -941,16 +1049,23 @@ export function getHideAndSeekHtml(): string {
         }
       });
 
-      // Merge each material bucket into a single BufferGeometry & Mesh
+      // Merge each material bucket into a single BufferGeometry & Mesh with Baked Vertex AO
+      const isRoom = !!(rootGroup.userData && rootGroup.userData.isRoomGroup);
       materialBuckets.forEach((mBucket) => {
         const isOpaque = !mBucket.mat.transparent;
+        const shouldBakeVertexAO = isOpaque && !mBucket.mat.isMeshBasicMaterial;
         if (mBucket.items.length === 1) {
           const item = mBucket.items[0];
           const clonedSingle = item.geo.clone();
           clonedSingle.applyMatrix4(item.matrix);
           clonedSingle.computeBoundingBox();
           clonedSingle.computeBoundingSphere();
-          const singleMesh = new THREE.Mesh(clonedSingle, mBucket.mat);
+          let finalMat = mBucket.mat;
+          if (shouldBakeVertexAO) {
+            applyBakedVertexAO(clonedSingle, isRoom);
+            finalMat = getVertexColoredMaterial(mBucket.mat);
+          }
+          const singleMesh = new THREE.Mesh(clonedSingle, finalMat);
           singleMesh.renderOrder = mBucket.renderOrder;
           singleMesh.castShadow = isOpaque;
           singleMesh.receiveShadow = isOpaque;
@@ -967,7 +1082,12 @@ export function getHideAndSeekHtml(): string {
         }
         const mergedGeo = THREE.BufferGeometryUtils.mergeBufferGeometries(transformedGeos);
         if (mergedGeo) {
-          const mergedMesh = new THREE.Mesh(mergedGeo, mBucket.mat);
+          let finalMat = mBucket.mat;
+          if (shouldBakeVertexAO) {
+            applyBakedVertexAO(mergedGeo, isRoom);
+            finalMat = getVertexColoredMaterial(mBucket.mat);
+          }
+          const mergedMesh = new THREE.Mesh(mergedGeo, finalMat);
           mergedMesh.renderOrder = mBucket.renderOrder;
           mergedMesh.castShadow = isOpaque;
           mergedMesh.receiveShadow = isOpaque;

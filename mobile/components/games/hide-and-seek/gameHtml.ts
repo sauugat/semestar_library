@@ -6674,6 +6674,9 @@ export function getHideAndSeekHtml(): string {
         scene.add(doorArch);
         addWarmDoorwayGlow(doorWallX, floorH, rCenterZ, doorW, true);
 
+        // Door frame jamb colliders (leaves 1.66m clear walkable opening)
+        addDoorFrameColliders(doorWallX, floorH, rCenterZ, doorW, wallT, true);
+
         // Swinging wooden door leaf opened into the room with brass handle & room plaque
         buildSwingingDoor(
           scene,
@@ -6681,7 +6684,8 @@ export function getHideAndSeekHtml(): string {
           floorH,
           rCenterZ - doorW * 0.46,
           doorSideX === -1 ? 0.35 : (Math.PI - 0.35),
-          materials.gandakiBluePole
+          materials.gandakiBluePole,
+          'door-' + blockLabel + '-r' + (rIdx + 1)
         );
 
         if (flankLen > 1.8) {

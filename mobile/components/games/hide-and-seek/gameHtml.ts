@@ -6808,6 +6808,9 @@ export function getHideAndSeekHtml(): string {
           scene.add(doorArch);
         }
 
+        // Door frame jamb colliders (leaves 1.71m clear walkable opening)
+        addDoorFrameColliders(roomCenterX, floorH, frontZ, doorW, wallT, false);
+
         // Swinging wooden door + entrance floor mat
         buildSwingingDoor(
           scene,
@@ -6815,7 +6818,8 @@ export function getHideAndSeekHtml(): string {
           floorH,
           frontZ - doorSide * 0.16,
           doorSide === 1 ? -1.15 : 1.15,
-          isNewariHeritage ? materials.ebonyCarvedWood : materials.gandakiBluePole
+          isNewariHeritage ? materials.ebonyCarvedWood : materials.gandakiBluePole,
+          'door-' + blockLabel + '-r' + (roomIdx + 1)
         );
         const dMat = new THREE.Mesh(step2Geos.floorMat, step2Mats.matRubber);
         dMat.position.set(roomCenterX, floorH + 0.012, frontZ + doorSide * 0.46);

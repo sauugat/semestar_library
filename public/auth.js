@@ -84,37 +84,50 @@
     return token;
   }
 
-  function getAccessTokenSync() {
-    if (cachedAccessToken) return cachedAccessToken;
+  /**
+   * Safe synchronous session reader from localStorage.
+   * Only inspects keys matching /^sb-.+-auth-token$/, safely parsing each JSON entry.
+   */
+  function readStoredSession() {
     try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        for (let i = 0; i < window.localStorage.length; i++) {
-          const key = window.localStorage.key(i);
-          if (key && (key.startsWith('sb-') || key.includes('auth-token') || key.includes('supabase.auth.token'))) {
+      if (typeof window === 'undefined' || !window.localStorage) return null;
+      for (let i = 0; i < window.localStorage.length; i++) {
+        const key = window.localStorage.key(i);
+        if (key && /^sb-.+-auth-token$/.test(key)) {
+          try {
             const raw = window.localStorage.getItem(key);
             if (raw) {
-              const val = JSON.parse(raw);
-              if (val && val.access_token) {
-                cachedAccessToken = val.access_token;
-                if (val.user && !cachedUser) {
-                  const meta = val.user.user_metadata || {};
-                  const name = meta.full_name || meta.name || val.user.email?.split('@')[0] || 'Student';
-                  cachedUser = {
-                    studentId: meta.student_id || meta.studentId || val.user.id,
-                    name: name,
-                    email: val.user.email,
-                    role: meta.role || 'student',
-                    avatarUrl: meta.avatar_url || meta.avatarUrl || null
-                  };
-                  try { window.sessionStorage.setItem('sl_user_cache', JSON.stringify(cachedUser)); } catch {}
-                }
-                return cachedAccessToken;
+              const parsed = JSON.parse(raw);
+              if (parsed && parsed.access_token) {
+                return parsed;
               }
             }
-          }
+          } catch {}
         }
       }
     } catch {}
+    return null;
+  }
+
+  function getAccessTokenSync() {
+    if (cachedAccessToken) return cachedAccessToken;
+    const session = readStoredSession();
+    if (session && session.access_token) {
+      cachedAccessToken = session.access_token;
+      if (session.user && !cachedUser) {
+        const meta = session.user.user_metadata || {};
+        const name = meta.full_name || meta.name || session.user.email?.split('@')[0] || 'Student';
+        cachedUser = {
+          studentId: meta.student_id || meta.studentId || session.user.id,
+          name: name,
+          email: session.user.email,
+          role: meta.role || 'student',
+          avatarUrl: meta.avatar_url || meta.avatarUrl || null
+        };
+        try { window.sessionStorage.setItem('sl_user_cache', JSON.stringify(cachedUser)); } catch {}
+      }
+      return cachedAccessToken;
+    }
     return null;
   }
 
@@ -131,36 +144,27 @@
           }
         }
       }
-      if (typeof window !== 'undefined' && window.localStorage) {
-        for (let i = 0; i < window.localStorage.length; i++) {
-          const key = window.localStorage.key(i);
-          if (key && (key.startsWith('sb-') || key.includes('auth-token') || key.includes('supabase.auth.token'))) {
-            const raw = window.localStorage.getItem(key);
-            if (raw) {
-              const val = JSON.parse(raw);
-              if (val && val.user) {
-                const meta = val.user.user_metadata || {};
-                const name = meta.full_name || meta.name || val.user.email?.split('@')[0] || 'Student';
-                cachedUser = {
-                  studentId: meta.student_id || meta.studentId || val.user.id,
-                  name: name,
-                  email: val.user.email,
-                  role: meta.role || 'student',
-                  avatarUrl: meta.avatar_url || meta.avatarUrl || null
-                };
-                if (val.access_token && !cachedAccessToken) {
-                  cachedAccessToken = val.access_token;
-                }
-                try {
-                  window.sessionStorage.setItem('sl_user_cache', JSON.stringify(cachedUser));
-                } catch {}
-                return cachedUser;
-              }
-            }
-          }
-        }
-      }
     } catch {}
+
+    const session = readStoredSession();
+    if (session && session.user) {
+      const meta = session.user.user_metadata || {};
+      const name = meta.full_name || meta.name || session.user.email?.split('@')[0] || 'Student';
+      cachedUser = {
+        studentId: meta.student_id || meta.studentId || session.user.id,
+        name: name,
+        email: session.user.email,
+        role: meta.role || 'student',
+        avatarUrl: meta.avatar_url || meta.avatarUrl || null
+      };
+      if (session.access_token && !cachedAccessToken) {
+        cachedAccessToken = session.access_token;
+      }
+      try {
+        window.sessionStorage.setItem('sl_user_cache', JSON.stringify(cachedUser));
+      } catch {}
+      return cachedUser;
+    }
     return null;
   }
 
@@ -281,17 +285,20 @@
       }
       if (res.ok && data.session) {
         const client = await getSupabase();
-        await client.auth.setSession({
+        const { error: sessionError } = await client.auth.setSession({
           access_token: data.session.access_token,
           refresh_token: data.session.refresh_token,
         });
+        if (sessionError) {
+          return { data: null, error: { message: sessionError.message } };
+        }
         cachedAccessToken = data.session.access_token;
         cachedUser = data.user || null;
         window.IS_AUTHENTICATED = true;
         try {
           if (cachedUser) window.sessionStorage.setItem('sl_user_cache', JSON.stringify(cachedUser));
         } catch {}
-        syncSession().catch(() => {});
+        await Promise.race([syncSession().catch(() => null), new Promise(r => setTimeout(r, 1500))]);
         return { data: { user: data.user, session: data.session }, error: null };
       }
       return {
@@ -582,6 +589,10 @@
     try {
       const session = await getSession();
       if (!session) {
+        cachedUser = null;
+        cachedAccessToken = null;
+        window.IS_AUTHENTICATED = false;
+        try { window.sessionStorage.removeItem('sl_user_cache'); } catch {}
         const currentPath = encodeURIComponent(window.location.pathname + window.location.search);
         window.location.replace(`/login.html?redirect=${currentPath}`);
         return null;
@@ -597,6 +608,10 @@
       return { session, user };
     } catch (e) {
       console.error('[Auth Guard] Error verifying session:', e);
+      cachedUser = null;
+      cachedAccessToken = null;
+      window.IS_AUTHENTICATED = false;
+      try { window.sessionStorage.removeItem('sl_user_cache'); } catch {}
       const currentPath = encodeURIComponent(window.location.pathname + window.location.search);
       window.location.replace(`/login.html?redirect=${currentPath}`);
       return null;

@@ -2797,7 +2797,7 @@
       }
     }
 
-    window.IS_AUTHENTICATED = false;
+    window.IS_AUTHENTICATED = typeof window.IS_AUTHENTICATED === 'boolean' ? window.IS_AUTHENTICATED : false;
 
     SemesterAuth.getUser().then(p => {
       if (p) {

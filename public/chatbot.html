@@ -23,23 +23,6 @@
   <!-- Authentication Guard -->
   <script src="/auth.js?v=2"></script>
   <script>SemesterAuth.protectPage();</script>
-  <script>
-    fetch('/api/me').then(r => {
-      if (!r.ok) {
-        document.addEventListener('DOMContentLoaded', showAuthToast);
-      }
-    }).catch(() => {
-      document.addEventListener('DOMContentLoaded', showAuthToast);
-    });
-
-    function showAuthToast() {
-      const toast = document.getElementById('minimalAuthToast');
-      if (toast) {
-        toast.classList.add('show');
-        setTimeout(() => toast.classList.remove('show'), 4000);
-      }
-    }
-  </script>
 
   <!-- Typography: Plus Jakarta Sans, Outfit, Inter & JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -376,24 +359,11 @@
 
   <!-- Profile Hydration -->
   <script>
-    fetch('/api/profile').then(r => {
-      if (r.ok) return r.json();
-      throw new Error('Not logged in');
-    }).then(p => {
-      if (p) {
-        const sidebarAvatar = document.getElementById('sidebarAvatar');
-        const sidebarName = document.getElementById('sidebarUserName');
-        const firstName = p.name ? p.name.split(' ')[0] : '';
-        if (sidebarName) sidebarName.textContent = firstName || p.name || 'Student';
-        if (sidebarAvatar) {
-          if (p.avatarUrl) {
-            sidebarAvatar.innerHTML = `<img src="${p.avatarUrl}" alt="${p.name}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
-          } else {
-            sidebarAvatar.textContent = p.name ? p.name.charAt(0).toUpperCase() : 'S';
-          }
-        }
-      }
-    }).catch(() => { });
+    if (window.SemesterAuth) {
+      SemesterAuth.getUser().then(u => {
+        if (u) SemesterAuth.initHeader(u);
+      }).catch(() => {});
+    }
   </script>
 
   <!-- Load Chat Engine & Auth Modal -->

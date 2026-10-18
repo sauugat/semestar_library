@@ -293,6 +293,10 @@ window.doModalLogin = async function (e) {
 
 // Automatically sync profile chip across all pages
 function syncHeaderProfile() {
+  if (window.SemesterAuth && typeof window.SemesterAuth.initHeader === 'function') {
+    window.SemesterAuth.initHeader();
+    return;
+  }
   const profileChip = document.querySelector('.dash-profile-chip');
   if (!profileChip) return;
   const fetchFn = typeof window.authFetch === 'function' ? window.authFetch : fetch;
@@ -311,11 +315,18 @@ function syncHeaderProfile() {
           }
         }
       } else {
-        profileChip.outerHTML = `<a href="/login.html" class="nav-cta-btn apple-nav-btn">Sign In</a>`;
+        // If an auth token is in storage, do not prematurely wipe the chip
+        const hasToken = Object.keys(localStorage || {}).some(k => k.startsWith('sb-') || k.includes('auth-token'));
+        if (!hasToken) {
+          profileChip.outerHTML = `<a href="/login.html" class="nav-cta-btn apple-nav-btn">Sign In</a>`;
+        }
       }
     })
     .catch(() => {
-      profileChip.outerHTML = `<a href="/login.html" class="nav-cta-btn apple-nav-btn">Sign In</a>`;
+      const hasToken = Object.keys(localStorage || {}).some(k => k.startsWith('sb-') || k.includes('auth-token'));
+      if (!hasToken) {
+        profileChip.outerHTML = `<a href="/login.html" class="nav-cta-btn apple-nav-btn">Sign In</a>`;
+      }
     });
 }
 

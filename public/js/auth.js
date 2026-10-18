@@ -96,7 +96,65 @@
               const val = JSON.parse(raw);
               if (val && val.access_token) {
                 cachedAccessToken = val.access_token;
+                if (val.user && !cachedUser) {
+                  const meta = val.user.user_metadata || {};
+                  const name = meta.full_name || meta.name || val.user.email?.split('@')[0] || 'Student';
+                  cachedUser = {
+                    studentId: meta.student_id || meta.studentId || val.user.id,
+                    name: name,
+                    email: val.user.email,
+                    role: meta.role || 'student',
+                    avatarUrl: meta.avatar_url || meta.avatarUrl || null
+                  };
+                  try { window.sessionStorage.setItem('sl_user_cache', JSON.stringify(cachedUser)); } catch {}
+                }
                 return cachedAccessToken;
+              }
+            }
+          }
+        }
+      }
+    } catch {}
+    return null;
+  }
+
+  function getUserSync() {
+    if (cachedUser) return cachedUser;
+    try {
+      if (typeof window !== 'undefined' && window.sessionStorage) {
+        const storedUser = window.sessionStorage.getItem('sl_user_cache');
+        if (storedUser) {
+          const parsed = JSON.parse(storedUser);
+          if (parsed && (parsed.studentId || parsed.email || parsed.name)) {
+            cachedUser = parsed;
+            return cachedUser;
+          }
+        }
+      }
+      if (typeof window !== 'undefined' && window.localStorage) {
+        for (let i = 0; i < window.localStorage.length; i++) {
+          const key = window.localStorage.key(i);
+          if (key && (key.startsWith('sb-') || key.includes('auth-token') || key.includes('supabase.auth.token'))) {
+            const raw = window.localStorage.getItem(key);
+            if (raw) {
+              const val = JSON.parse(raw);
+              if (val && val.user) {
+                const meta = val.user.user_metadata || {};
+                const name = meta.full_name || meta.name || val.user.email?.split('@')[0] || 'Student';
+                cachedUser = {
+                  studentId: meta.student_id || meta.studentId || val.user.id,
+                  name: name,
+                  email: val.user.email,
+                  role: meta.role || 'student',
+                  avatarUrl: meta.avatar_url || meta.avatarUrl || null
+                };
+                if (val.access_token && !cachedAccessToken) {
+                  cachedAccessToken = val.access_token;
+                }
+                try {
+                  window.sessionStorage.setItem('sl_user_cache', JSON.stringify(cachedUser));
+                } catch {}
+                return cachedUser;
               }
             }
           }
@@ -126,44 +184,17 @@
    */
   async function getUser(forceRefresh = false) {
     if (!forceRefresh && cachedUser) return cachedUser;
+    const syncUser = getUserSync();
+    if (!forceRefresh && syncUser) {
+      if (!window._sl_user_validated) {
+        window._sl_user_validated = true;
+        revalidateUser().catch(() => {});
+      }
+      return syncUser;
+    }
     if (!forceRefresh && userPromise) return userPromise;
 
-    userPromise = (async () => {
-      const session = await getSession();
-      if (!session || !session.access_token) {
-        cachedUser = null;
-        return null;
-      }
-
-      try {
-        const res = await rawFetch('/api/me', {
-          headers: getAuthHeaders({ 'Content-Type': 'application/json' })
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data && data.studentId) {
-            cachedUser = data;
-            return data;
-          }
-        }
-      } catch (err) {
-        console.warn('[Auth] /api/me fetch error:', err.message);
-      }
-
-      // Fallback to metadata from session
-      if (session.user) {
-        const meta = session.user.user_metadata || {};
-        cachedUser = {
-          studentId: meta.student_id || meta.studentId || session.user.id,
-          name: meta.full_name || meta.name || session.user.email?.split('@')[0] || 'Student',
-          email: session.user.email,
-          role: meta.role || 'student'
-        };
-        return cachedUser;
-      }
-
-      return null;
-    })();
+    userPromise = revalidateUser();
 
     try {
       const res = await userPromise;
@@ -171,6 +202,47 @@
     } finally {
       userPromise = null;
     }
+  }
+
+  async function revalidateUser() {
+    const session = await getSession();
+    if (!session || !session.access_token) {
+      cachedUser = null;
+      try { window.sessionStorage.removeItem('sl_user_cache'); } catch {}
+      return null;
+    }
+
+    try {
+      const res = await rawFetch('/api/me', {
+        headers: getAuthHeaders({ 'Content-Type': 'application/json' })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.studentId) {
+          cachedUser = data;
+          try { window.sessionStorage.setItem('sl_user_cache', JSON.stringify(data)); } catch {}
+          return data;
+        }
+      }
+    } catch (err) {
+      console.warn('[Auth] /api/me fetch error:', err.message);
+    }
+
+    // Fallback to metadata from session
+    if (session.user) {
+      const meta = session.user.user_metadata || {};
+      cachedUser = {
+        studentId: meta.student_id || meta.studentId || session.user.id,
+        name: meta.full_name || meta.name || session.user.email?.split('@')[0] || 'Student',
+        email: session.user.email,
+        role: meta.role || 'student',
+        avatarUrl: meta.avatar_url || meta.avatarUrl || null
+      };
+      try { window.sessionStorage.setItem('sl_user_cache', JSON.stringify(cachedUser)); } catch {}
+      return cachedUser;
+    }
+
+    return null;
   }
 
   function attachAuthTokenToUrl(url) {
@@ -215,6 +287,10 @@
         });
         cachedAccessToken = data.session.access_token;
         cachedUser = data.user || null;
+        window.IS_AUTHENTICATED = true;
+        try {
+          if (cachedUser) window.sessionStorage.setItem('sl_user_cache', JSON.stringify(cachedUser));
+        } catch {}
         syncSession().catch(() => {});
         return { data: { user: data.user, session: data.session }, error: null };
       }
@@ -421,7 +497,10 @@
     const opts = { ...options };
     opts.headers = { ...(opts.headers || {}) };
 
-    let token = await getAccessToken();
+    let token = cachedAccessToken || getAccessTokenSync();
+    if (!token) {
+      token = await getAccessToken();
+    }
 
     if (!token) {
       try {
@@ -456,6 +535,11 @@
           response = await rawFetch(url, opts);
         } else {
           console.warn('[Auth] Session expired, redirecting to login');
+          cachedAccessToken = null;
+          cachedUser = null;
+          window.IS_AUTHENTICATED = false;
+          try { window.sessionStorage.removeItem('sl_user_cache'); } catch {}
+          initHeader(null);
           const currentPath = encodeURIComponent(window.location.pathname + window.location.search);
           window.location.href = `/login.html?redirect=${currentPath}`;
         }
@@ -473,6 +557,7 @@
    * Prevents flash of authenticated content and hydrates header.
    */
   async function requireAuth() {
+    window.IS_PROTECTED_PAGE = true;
     document.documentElement.classList.add('auth-checking');
 
     if (!document.getElementById('auth-guard-style')) {
@@ -485,6 +570,13 @@
         }
       `;
       document.head.appendChild(style);
+    }
+
+    const syncUser = getUserSync();
+    if (syncUser) {
+      window.IS_AUTHENTICATED = true;
+      document.documentElement.classList.remove('auth-checking');
+      initHeader(syncUser);
     }
 
     try {
@@ -520,8 +612,23 @@
    */
   async function initHeader(userData) {
     try {
-      const user = userData || await getUser();
-      if (!user) return;
+      const user = userData !== undefined ? userData : (getUserSync() || await getUser());
+      if (!user) {
+        window.IS_AUTHENTICATED = false;
+        // On public pages, ensure profile chips offer a clean Sign In action
+        const profileChips = document.querySelectorAll('.dash-profile-chip');
+        profileChips.forEach(chip => {
+          chip.outerHTML = `<a href="/login.html" class="apple-nav-btn dash-signin-chip" style="text-decoration:none; display:inline-flex; align-items:center; height:32px; padding:0 14px; font-size:12px; font-weight:600; border-radius:980px;">Sign In</a>`;
+        });
+        const homeSignInBtns = document.querySelectorAll('.home-signin');
+        homeSignInBtns.forEach(btn => {
+          if (btn.getAttribute('href') === '/dashboard.html') {
+            btn.href = '/login.html';
+            btn.textContent = 'Sign In';
+          }
+        });
+        return;
+      }
 
       window.IS_AUTHENTICATED = true;
       const name = user.name || 'User';
@@ -561,6 +668,50 @@
       const profileChips = document.querySelectorAll('.dash-profile-chip');
       profileChips.forEach(chip => {
         chip.style.display = 'inline-flex';
+      });
+
+      // Restore if chip had been turned into a sign-in button
+      const signinChips = document.querySelectorAll('.dash-signin-chip');
+      signinChips.forEach(btn => {
+        const avatarHtml = user.avatarUrl
+          ? `<img src="${user.avatarUrl}" alt="${name}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`
+          : initial;
+        btn.outerHTML = `<a href="/profile.html" class="dash-profile-chip" title="View Profile"><div class="dash-profile-avatar" id="headerAvatar">${avatarHtml}</div><span class="dash-profile-label" id="headerProfileName">${firstName}</span></a>`;
+      });
+
+      // Sidebar profile hydration (Kyana AI / chatbot.html)
+      const sidebarName = document.getElementById('sidebarUserName');
+      if (sidebarName) {
+        sidebarName.textContent = firstName || name;
+      }
+      const sidebarAvatar = document.getElementById('sidebarAvatar');
+      if (sidebarAvatar) {
+        if (user.avatarUrl) {
+          sidebarAvatar.innerHTML = `<img src="${user.avatarUrl}" alt="${name}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+        } else {
+          sidebarAvatar.textContent = initial;
+        }
+      }
+
+      // Update Homepage & Nav headers: .home-signin, gallery.html sign in
+      const homeSignInBtns = document.querySelectorAll('.home-signin');
+      homeSignInBtns.forEach(btn => {
+        const text = btn.textContent.trim().toLowerCase();
+        const href = btn.getAttribute('href') || '';
+        if (text === 'sign in' || href.includes('login.html')) {
+          btn.href = '/dashboard.html';
+          btn.innerHTML = `<span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:rgba(255,255,255,0.2);margin-right:6px;font-size:10px;font-weight:700;">${initial}</span><span>Dashboard</span>`;
+          btn.setAttribute('title', `Go to Dashboard (${name})`);
+        }
+      });
+
+      const navSignIns = document.querySelectorAll('header .nav-cta-btn.apple-nav-btn, .ag-nav-container a[href*="login.html"]');
+      navSignIns.forEach(btn => {
+        if (!btn.classList.contains('dash-signin-chip')) {
+          btn.href = '/dashboard.html';
+          btn.textContent = 'Dashboard';
+          btn.setAttribute('title', `Go to Dashboard (${name})`);
+        }
       });
 
       // Dashboard greeting & ID line if present
@@ -611,6 +762,7 @@
           .then(p => {
             if (p && p.avatarUrl) {
               user.avatarUrl = p.avatarUrl;
+              try { window.sessionStorage.setItem('sl_user_cache', JSON.stringify(user)); } catch {}
               if (headerAvatar) {
                 headerAvatar.innerHTML = `<img src="${p.avatarUrl}" alt="${name}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
               }
@@ -620,6 +772,9 @@
                 img.alt = name;
                 img.style.cssText = 'width:100%;height:100%;border-radius:50%;object-fit:cover;';
                 headerProfileAvatar.replaceChildren(img);
+              }
+              if (sidebarAvatar) {
+                sidebarAvatar.innerHTML = `<img src="${p.avatarUrl}" alt="${name}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
               }
               if (avatarEl) {
                 avatarEl.innerHTML = `<img src="${p.avatarUrl}" alt="${name}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
@@ -675,24 +830,22 @@
     // Auto-hydrate header on DOM ready for any authenticated page
     const onReady = async () => {
       try {
-        const token = getAccessTokenSync();
-        if (token) {
+        const syncUser = getUserSync();
+        if (syncUser) {
           window.IS_AUTHENTICATED = true;
-          const user = await getUser();
-          if (user) {
-            initHeader(user);
-          }
-        } else {
-          const session = await getSession();
-          if (session) {
-            window.IS_AUTHENTICATED = true;
-            const user = await getUser();
-            if (user) {
-              initHeader(user);
-            }
-          }
+          initHeader(syncUser);
         }
-      } catch {}
+        const user = await getUser();
+        if (user) {
+          window.IS_AUTHENTICATED = true;
+          initHeader(user);
+        } else {
+          window.IS_AUTHENTICATED = false;
+          initHeader(null);
+        }
+      } catch (e) {
+        console.warn('[Auth] onReady hydration warning:', e.message);
+      }
     };
 
     if (document.readyState === 'loading') {
@@ -707,6 +860,7 @@
     getSupabase,
     getSession,
     getUser,
+    getUserSync,
     getAccessToken,
     getAccessTokenSync,
     getAuthHeaders,

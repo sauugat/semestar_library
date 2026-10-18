@@ -3212,7 +3212,12 @@
         const data = (window.SemesterAuth && typeof window.SemesterAuth.getUser === 'function')
           ? await window.SemesterAuth.getUser()
           : await fetch('/api/me').then(r => r.ok ? r.json() : null);
-        if (!data) return;
+        if (!data) {
+          if (window.SemesterAuth && typeof window.SemesterAuth.initHeader === 'function') {
+            window.SemesterAuth.initHeader(null);
+          }
+          return;
+        }
         currentUser = data;
 
         if (window.SemesterAuth && typeof window.SemesterAuth.initHeader === 'function') {

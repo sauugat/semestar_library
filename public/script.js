@@ -364,6 +364,29 @@ function initLoginHandlers() {
   const urlParams = new URLSearchParams(window.location.search);
   const hashParams = new URLSearchParams(window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash);
 
+  // Auto-redirect if user is already signed in and not performing a recovery/verification action
+  const isLogout = urlParams.get('logout') === 'true';
+  const isAction = urlParams.get('reset') === 'true' || urlParams.get('verified') === 'true' || urlParams.get('error') || urlParams.get('reauth') === 'true';
+  if (!isLogout && !isAction && typeof SemesterAuth !== 'undefined') {
+    const syncUser = typeof SemesterAuth.getUserSync === 'function' ? SemesterAuth.getUserSync() : null;
+    if (syncUser) {
+      const redirectParam = urlParams.get('redirect');
+      const target = redirectParam || (syncUser.role === 'teacher' ? '/teacher-dashboard.html' : '/dashboard.html');
+      window.location.replace(target);
+      return;
+    }
+    const token = typeof SemesterAuth.getAccessTokenSync === 'function' ? SemesterAuth.getAccessTokenSync() : null;
+    if (token) {
+      SemesterAuth.getUser().then(u => {
+        if (u) {
+          const redirectParam = urlParams.get('redirect');
+          const target = redirectParam || (u.role === 'teacher' ? '/teacher-dashboard.html' : '/dashboard.html');
+          window.location.replace(target);
+        }
+      }).catch(() => {});
+    }
+  }
+
   const errorMsg = urlParams.get('error_description') || hashParams.get('error_description');
   const errorCode = urlParams.get('error_code') || hashParams.get('error_code') || urlParams.get('error') || hashParams.get('error');
 

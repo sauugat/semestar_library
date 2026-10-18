@@ -346,15 +346,19 @@
       const msgEl = document.getElementById('authAlertMsg');
       const legacyErrorMsg = document.getElementById('errorMsg');
 
-      if (legacyErrorMsg) legacyErrorMsg.textContent = message;
+      const text = typeof message === 'object' && message !== null
+        ? (message.message || message.error || JSON.stringify(message))
+        : String(message || '');
+
+      if (legacyErrorMsg) legacyErrorMsg.textContent = text;
       if (!banner) return;
 
       banner.className = 'auth-banner' + (type === 'notice' ? ' auth-banner-notice' : '');
       if (titleEl) {
-        titleEl.textContent = title || (type === 'error' ? 'Validation Error' : 'Notice');
+        titleEl.textContent = title || (type === 'error' ? 'Registration Error' : 'Notice');
         titleEl.style.display = 'block';
       }
-      if (msgEl) msgEl.textContent = message;
+      if (msgEl) msgEl.textContent = text;
 
       banner.style.display = 'flex';
       banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -512,7 +516,7 @@
         }
 
         // 2. Call Supabase signUp with internal random temporary password
-        const supabase = SemesterAuth.getSupabase();
+        const supabase = await SemesterAuth.getSupabase();
         const tempPassword = generateTempSignupPassword();
         let signUpRes = await supabase.auth.signUp({
           email,
@@ -569,7 +573,7 @@
       verifyOtpBtn.textContent = 'Verifying…';
 
       try {
-        const supabase = SemesterAuth.getSupabase();
+        const supabase = await SemesterAuth.getSupabase();
         const verifyRes = await supabase.auth.verifyOtp({
           email,
           token: code,
@@ -620,7 +624,7 @@
       const email = document.getElementById('email').value.trim().toLowerCase();
       if (!email) return;
       try {
-        const supabase = SemesterAuth.getSupabase();
+        const supabase = await SemesterAuth.getSupabase();
         const res = await supabase.auth.resend({ type: 'signup', email });
         if (res.error) {
           showRegisterAlert(res.error.message || 'Failed to resend code.', 'error');
@@ -698,7 +702,7 @@
 
       try {
         // 1. Update Supabase password to permanent user choice
-        const supabase = SemesterAuth.getSupabase();
+        const supabase = await SemesterAuth.getSupabase();
         const { error: pwdErr } = await supabase.auth.updateUser({ password });
         if (pwdErr) {
           showRegisterAlert(pwdErr.message || 'Failed to set account password.', 'error');
@@ -739,7 +743,7 @@
     // On page load: check if resuming with verified Supabase session
     window.addEventListener('DOMContentLoaded', async () => {
       try {
-        const supabase = SemesterAuth.getSupabase();
+        const supabase = await SemesterAuth.getSupabase();
         const { data } = await supabase.auth.getSession();
         if (data && data.session && data.session.user) {
           const user = data.session.user;
